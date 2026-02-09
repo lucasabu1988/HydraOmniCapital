@@ -1,0 +1,285 @@
+# Configuración de Estrategias Avanzadas OmniCapital
+# Estrategias basadas en investigación académica y práctica profesional
+
+# ============================================
+# ESTRATEGIAS DE MOMENTUM
+# ============================================
+
+dual_momentum:
+  name: "Dual Momentum Strategy"
+  description: "Estrategia de Dual Momentum de Gary Antonacci - combina momentum relativo y absoluto"
+  class: "strategies.momentum.DualMomentumStrategy"
+  enabled: true
+  weight: 1.0
+  config:
+    lookback_months: 12
+    risk_free_rate: 0.02
+    top_n: 10
+    abs_threshold: 0.0
+    rebalance_frequency: monthly
+
+relative_strength:
+  name: "Relative Strength Strategy"
+  description: "Selecciona activos con mayor relative strength vs benchmark (similar a MTUM)"
+  class: "strategies.momentum.RelativeStrengthStrategy"
+  enabled: true
+  weight: 1.0
+  config:
+    lookback_months: [3, 6, 12]
+    weights: [0.4, 0.3, 0.3]
+    top_n: 15
+    benchmark: "SPY"
+    rebalance_frequency: monthly
+
+time_series_momentum:
+  name: "Time Series Momentum"
+  description: "TSMOM - Va largo en momentum positivo, corto en momentum negativo"
+  class: "strategies.momentum.TimeSeriesMomentumStrategy"
+  enabled: false  # Requiere capacidad de short
+  weight: 0.8
+  config:
+    lookback_months: 12
+    vol_target: 0.10
+    max_leverage: 2.0
+
+# ============================================
+# ESTRATEGIAS DE FACTOR INVESTING
+# ============================================
+
+factor_investing:
+  name: "Multi-Factor Strategy"
+  description: "Combina factores Value, Quality, Momentum, Low Vol y Size"
+  class: "strategies.factor.FactorInvestingStrategy"
+  enabled: true
+  weight: 1.2
+  config:
+    factor_weights:
+      value: 0.25
+      quality: 0.25
+      momentum: 0.25
+      low_vol: 0.15
+      size: 0.10
+    top_n: 20
+    sector_neutral: true
+    min_market_cap: 1000000000
+    rebalance_frequency: monthly
+
+quality_factor:
+  name: "Quality Factor Strategy"
+  description: "Enfocada en empresas de alta calidad (ROE, ROA, margen)"
+  class: "strategies.factor.QualityFactorStrategy"
+  enabled: true
+  weight: 1.0
+  config:
+    top_n: 15
+    min_roe: 0.15
+
+# ============================================
+# ESTRATEGIAS DE RISK PARITY
+# ============================================
+
+risk_parity:
+  name: "Risk Parity Strategy"
+  description: "Cada activo contribuye igualmente al riesgo total del portafolio"
+  class: "strategies.risk_parity.RiskParityStrategy"
+  enabled: true
+  weight: 1.0
+  config:
+    risk_budget: null  # Equal risk contribution
+    vol_target: 0.10
+    max_weight: 0.15
+    min_weight: 0.01
+    lookback_days: 252
+    rebalance_frequency: monthly
+
+inverse_volatility:
+  name: "Inverse Volatility"
+  description: "Pesos inversamente proporcionales a la volatilidad"
+  class: "strategies.risk_parity.InverseVolatilityStrategy"
+  enabled: true
+  weight: 0.9
+  config:
+    lookback_days: 63
+    vol_target: null
+    rebalance_frequency: monthly
+
+minimum_variance:
+  name: "Minimum Variance Portfolio"
+  description: "Portafolio de mínima varianza con restricción long-only"
+  class: "strategies.risk_parity.MinimumVarianceStrategy"
+  enabled: true
+  weight: 0.9
+  config:
+    long_only: true
+    max_weight: 0.20
+    lookback_days: 252
+    rebalance_frequency: monthly
+
+maximum_diversification:
+  name: "Maximum Diversification"
+  description: "Maximiza el ratio de diversificación"
+  class: "strategies.risk_parity.MaximumDiversificationStrategy"
+  enabled: false
+  weight: 0.8
+  config:
+    lookback_days: 252
+    max_weight: 0.25
+
+# ============================================
+# ESTRATEGIAS DE MEAN REVERSION
+# ============================================
+
+pairs_trading:
+  name: "Pairs Trading"
+  description: "Trading de pares cointegrados basado en z-score del spread"
+  class: "strategies.mean_reversion.PairsTradingStrategy"
+  enabled: false  # Requiere short
+  weight: 0.7
+  config:
+    lookback_days: 252
+    entry_zscore: 2.0
+    exit_zscore: 0.5
+    pairs: null  # Auto-detectar
+    min_correlation: 0.80
+    max_pairs: 5
+
+mean_reversion:
+  name: "Mean Reversion"
+  description: "Bollinger Bands + RSI para señales de reversión a la media"
+  class: "strategies.mean_reversion.MeanReversionStrategy"
+  enabled: true
+  weight: 0.6
+  config:
+    bb_period: 20
+    bb_std: 2.0
+    rsi_period: 14
+    rsi_oversold: 30
+    rsi_overbought: 70
+    min_holding_days: 5
+
+statistical_arbitrage:
+  name: "Statistical Arbitrage"
+  description: "PCA-based statistical arbitrage en residuos"
+  class: "strategies.mean_reversion.StatisticalArbitrageStrategy"
+  enabled: false  # Requiere sklearn
+  weight: 0.6
+  config:
+    n_components: 5
+    lookback_days: 252
+    entry_threshold: 2.0
+
+# ============================================
+# ESTRATEGIAS DE TREND FOLLOWING
+# ============================================
+
+turtle_trading:
+  name: "Turtle Trading System"
+  description: "Sistema completo de Turtle Trading con position sizing ATR"
+  class: "strategies.trend_following.TurtleStrategy"
+  enabled: true
+  weight: 1.0
+  config:
+    entry_period: 20
+    exit_period: 10
+    atr_period: 20
+    risk_per_trade: 0.01
+    max_units: 4
+    atr_multiple_stop: 2.0
+
+donchian_channels:
+  name: "Donchian Channels"
+  description: "Breakout system basado en canales de Donchian"
+  class: "strategies.trend_following.DonchianStrategy"
+  enabled: true
+  weight: 0.9
+  config:
+    channel_period: 20
+    use_filter: true
+    filter_period: 50
+
+ma_trend:
+  name: "Moving Average Trend"
+  description: "Triple sistema de medias móviles"
+  class: "strategies.trend_following.MovingAverageTrendStrategy"
+  enabled: true
+  weight: 0.8
+  config:
+    fast_ma: 10
+    medium_ma: 30
+    slow_ma: 50
+
+keltner_channels:
+  name: "Keltner Channels"
+  description: "Breakouts basados en canales de Keltner (ATR-based)"
+  class: "strategies.trend_following.KeltnerChannelStrategy"
+  enabled: true
+  weight: 0.8
+  config:
+    ema_period: 20
+    atr_period: 14
+    atr_multiplier: 2.0
+
+# ============================================
+# CONFIGURACIÓN DEL MOTOR MULTI-ESTRATEGIA
+# ============================================
+
+multi_strategy_engine:
+  ensemble_method: "regime_based"  # voting, weighted, regime_based
+  rebalance_frequency: "monthly"
+  
+  # Pesos por régimen de mercado
+  regime_weights:
+    bull:
+      dual_momentum: 1.5
+      factor_investing: 1.2
+      turtle_trading: 1.3
+      mean_reversion: 0.5
+      minimum_variance: 0.6
+    
+    bear:
+      minimum_variance: 1.5
+      risk_parity: 1.4
+      mean_reversion: 1.2
+      dual_momentum: 0.5
+      turtle_trading: 0.7
+    
+    range:
+      mean_reversion: 1.5
+      risk_parity: 1.1
+      donchian_channels: 0.6
+      dual_momentum: 0.8
+    
+    volatile:
+      risk_parity: 1.4
+      minimum_variance: 1.3
+      inverse_volatility: 1.2
+      turtle_trading: 0.7
+      dual_momentum: 0.6
+
+# ============================================
+# CONFIGURACIÓN DE RIESGO
+# ============================================
+
+risk_management:
+  max_portfolio_positions: 30
+  max_sector_exposure: 0.25
+  max_position_size: 0.10
+  min_position_size: 0.01
+  
+  stop_loss:
+    enabled: true
+    type: "trailing"  # fixed, trailing
+    trailing_pct: 0.05
+    
+  take_profit:
+    enabled: true
+    type: "escalonado"  # fixed, escalonado
+    levels:
+      - { gain_pct: 0.20, sell_pct: 0.30 }
+      - { gain_pct: 0.35, sell_pct: 0.40 }
+      - { gain_pct: 0.50, sell_pct: 1.00 }
+  
+  objectives:
+    max_drawdown: 0.15
+    volatility_target: 0.15
+    sharpe_target: 1.0

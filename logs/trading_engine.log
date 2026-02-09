@@ -1,0 +1,816 @@
+2026-02-08 15:11:12,509 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 15:11:12,510 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 15:11:35,549 - TradingEngine - INFO - Universo filtrado: 45 símbolos
+2026-02-08 15:11:35,549 - TradingEngine - INFO - Iniciando backtest: 2015-01-01 00:00:00 a 2026-02-08 00:00:00
+2026-02-08 15:11:35,564 - TradingEngine - INFO - ============================================================
+2026-02-08 15:11:35,564 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:11:35,564 - TradingEngine - INFO - ============================================================
+2026-02-08 15:11:35,564 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:12:34,469 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:12:34,469 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:12:34,469 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:12:34,556 - TradingEngine - INFO - Oportunidades encontradas: 5
+2026-02-08 15:12:57,168 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 15:12:57,168 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 15:13:02,915 - TradingEngine - INFO - Universo filtrado: 10 símbolos
+2026-02-08 15:13:02,915 - TradingEngine - INFO - Iniciando backtest: 2015-01-01 00:00:00 a 2026-02-08 00:00:00
+2026-02-08 15:13:02,930 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:02,931 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:13:02,931 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:02,931 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:13:11,512 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:13:11,512 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:13:11,513 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:13:11,537 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:13:11,538 - TradingEngine - INFO - Posición abierta: AAPL - 292 acciones @ $278.12
+2026-02-08 15:13:11,539 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $999,918.79
+2026-02-08 15:13:11,539 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:11,539 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:13:11,539 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:11,539 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:13:17,302 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:13:17,302 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:13:32,774 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 15:13:32,774 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 15:13:35,407 - TradingEngine - INFO - Universo filtrado: 5 símbolos
+2026-02-08 15:13:35,407 - TradingEngine - INFO - Iniciando backtest: 2015-01-01 00:00:00 a 2016-01-01 00:00:00
+2026-02-08 15:13:35,409 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:35,409 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:13:35,409 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:35,409 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:13:39,695 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:13:39,695 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:13:39,696 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:13:39,709 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:13:39,710 - TradingEngine - INFO - Posición abierta: AAPL - 292 acciones @ $278.12
+2026-02-08 15:13:39,711 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $999,918.79
+2026-02-08 15:13:39,711 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:39,711 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:13:39,711 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:39,711 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:13:42,666 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:13:42,667 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:13:42,668 - TradingEngine - INFO - Iniciando rebalanceo de portafolio...
+2026-02-08 15:13:42,668 - TradingEngine - INFO - Rebalanceo completado: 1 trades
+2026-02-08 15:13:42,668 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:13:42,681 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:13:42,681 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $918,207.97
+2026-02-08 15:13:42,681 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:42,681 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:13:42,681 - TradingEngine - INFO - ============================================================
+2026-02-08 15:13:42,681 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:13:45,308 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:13:45,308 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:13:58,499 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 15:13:58,499 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 15:14:01,588 - TradingEngine - INFO - Universo filtrado: 5 símbolos
+2026-02-08 15:14:01,589 - TradingEngine - INFO - Iniciando backtest: 2020-01-01 00:00:00 a 2021-01-01 00:00:00
+2026-02-08 15:14:01,591 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:01,591 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:01,591 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:01,592 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:05,723 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:05,723 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:05,723 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:05,735 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:05,736 - TradingEngine - INFO - Posición abierta: AAPL - 292 acciones @ $278.12
+2026-02-08 15:14:05,736 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $999,918.79
+2026-02-08 15:14:05,736 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:05,736 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:05,736 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:05,736 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:08,213 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:08,213 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:08,214 - TradingEngine - INFO - Iniciando rebalanceo de portafolio...
+2026-02-08 15:14:08,215 - TradingEngine - INFO - Rebalanceo completado: 1 trades
+2026-02-08 15:14:08,215 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:08,226 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:08,226 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $918,207.97
+2026-02-08 15:14:08,226 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:08,226 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:08,226 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:08,226 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:10,763 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:10,764 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:10,765 - TradingEngine - WARNING - Violaciones de riesgo: ['Exposición Unknown (54.43%) excede límite (30.00%)']
+2026-02-08 15:14:10,765 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:10,775 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:10,776 - TradingEngine - INFO - Posición abierta: AAPL - 268 acciones @ $278.12
+2026-02-08 15:14:10,776 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $917,633.65
+2026-02-08 15:14:10,776 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:10,776 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:10,776 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:10,776 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:13,303 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:13,303 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:13,304 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:13,314 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:13,315 - TradingEngine - INFO - Posición abierta: AAPL - 268 acciones @ $278.12
+2026-02-08 15:14:13,315 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $843,022.95
+2026-02-08 15:14:13,315 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:13,315 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:13,315 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:13,315 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:15,856 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:15,856 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:15,857 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.70%) excede límite (15.00%)']
+2026-02-08 15:14:15,857 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:15,857 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:15,867 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:15,868 - TradingEngine - INFO - Posición abierta: AAPL - 246 acciones @ $278.12
+2026-02-08 15:14:15,868 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $842,880.00
+2026-02-08 15:14:15,868 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:15,868 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:15,868 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:15,868 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:18,532 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:18,532 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:18,533 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.71%) excede límite (15.00%)']
+2026-02-08 15:14:18,533 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:18,533 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:18,542 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:18,543 - TradingEngine - INFO - Posición abierta: AAPL - 246 acciones @ $278.12
+2026-02-08 15:14:18,544 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $842,743.16
+2026-02-08 15:14:18,544 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:18,544 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:18,544 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:18,544 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:21,533 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:21,533 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:21,534 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.73%) excede límite (15.00%)']
+2026-02-08 15:14:21,534 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:21,534 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:21,543 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:21,544 - TradingEngine - INFO - Posición abierta: AAPL - 246 acciones @ $278.12
+2026-02-08 15:14:21,544 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $842,606.33
+2026-02-08 15:14:21,544 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:21,544 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:21,544 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:21,544 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:24,285 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:24,285 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:24,287 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.74%) excede límite (15.00%)']
+2026-02-08 15:14:24,287 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:24,287 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:24,307 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:24,310 - TradingEngine - INFO - Posición abierta: AAPL - 246 acciones @ $278.12
+2026-02-08 15:14:24,310 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $842,469.49
+2026-02-08 15:14:24,310 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:24,310 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:24,310 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:24,310 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:27,299 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:27,299 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:27,300 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.75%) excede límite (15.00%)']
+2026-02-08 15:14:27,300 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:27,300 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:27,312 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:27,313 - TradingEngine - INFO - Posición abierta: AAPL - 246 acciones @ $278.12
+2026-02-08 15:14:27,314 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $842,332.66
+2026-02-08 15:14:27,314 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:27,314 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:27,314 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:27,314 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:29,947 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:29,948 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:29,950 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.77%) excede límite (15.00%)']
+2026-02-08 15:14:29,950 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:29,950 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:29,964 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:29,965 - TradingEngine - INFO - Posición abierta: AAPL - 246 acciones @ $278.12
+2026-02-08 15:14:29,965 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $842,195.82
+2026-02-08 15:14:29,965 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:29,965 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:29,965 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:29,965 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:32,641 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:32,641 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:32,642 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.78%) excede límite (15.00%)']
+2026-02-08 15:14:32,642 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:32,642 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:32,657 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:32,660 - TradingEngine - INFO - Posición abierta: AAPL - 246 acciones @ $278.12
+2026-02-08 15:14:32,661 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $842,058.99
+2026-02-08 15:14:32,661 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:32,661 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:32,661 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:32,661 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:35,591 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:35,592 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:35,594 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.79%) excede límite (15.00%)']
+2026-02-08 15:14:35,594 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:35,594 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:35,608 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:35,609 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:35,609 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $841,922.43
+2026-02-08 15:14:35,609 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:35,609 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:35,609 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:35,609 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:38,287 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:38,287 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:38,290 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.81%) excede límite (15.00%)']
+2026-02-08 15:14:38,290 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:38,290 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:38,305 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:38,307 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:38,307 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $841,786.15
+2026-02-08 15:14:38,307 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:38,307 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:38,307 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:38,307 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:40,994 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:40,994 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:40,996 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.82%) excede límite (15.00%)']
+2026-02-08 15:14:40,996 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:40,996 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:41,011 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:41,013 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:41,013 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $841,649.87
+2026-02-08 15:14:41,013 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:41,013 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:41,013 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:41,013 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:43,585 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:43,586 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:43,587 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.84%) excede límite (15.00%)']
+2026-02-08 15:14:43,587 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:43,587 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:43,600 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:43,601 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:43,601 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $841,513.60
+2026-02-08 15:14:43,601 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:43,602 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:43,602 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:43,602 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:46,204 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:46,204 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:46,205 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.85%) excede límite (15.00%)']
+2026-02-08 15:14:46,205 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:46,205 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:46,222 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:46,223 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:46,224 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $841,377.32
+2026-02-08 15:14:46,224 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:46,224 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:46,224 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:46,224 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:49,087 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:49,088 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:49,089 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.86%) excede límite (15.00%)']
+2026-02-08 15:14:49,089 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:49,089 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:49,103 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:49,104 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:49,104 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $841,241.04
+2026-02-08 15:14:49,104 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:49,104 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:49,104 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:49,104 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:51,677 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:51,678 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:51,679 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.88%) excede límite (15.00%)']
+2026-02-08 15:14:51,679 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:51,679 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:51,695 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:51,697 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:51,697 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $841,104.76
+2026-02-08 15:14:51,697 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:51,698 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:51,698 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:51,698 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:54,266 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:54,266 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:54,268 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.89%) excede límite (15.00%)']
+2026-02-08 15:14:54,268 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:54,268 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:54,280 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:54,281 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:54,281 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $840,968.48
+2026-02-08 15:14:54,281 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:54,281 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:54,281 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:54,281 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:57,023 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:57,023 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:57,025 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.90%) excede límite (15.00%)']
+2026-02-08 15:14:57,025 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:57,025 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:57,042 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:57,043 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:57,043 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $840,832.20
+2026-02-08 15:14:57,043 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:57,043 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:57,043 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:57,043 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:14:59,833 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:14:59,834 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:14:59,836 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.92%) excede límite (15.00%)']
+2026-02-08 15:14:59,837 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:14:59,837 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:14:59,854 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:14:59,855 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:14:59,855 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $840,695.92
+2026-02-08 15:14:59,856 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:59,856 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:14:59,856 - TradingEngine - INFO - ============================================================
+2026-02-08 15:14:59,856 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:02,611 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:02,611 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:02,613 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.93%) excede límite (15.00%)']
+2026-02-08 15:15:02,613 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:02,613 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:02,627 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:02,629 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:02,629 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $840,559.64
+2026-02-08 15:15:02,629 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:02,629 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:02,629 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:02,629 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:05,306 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:05,306 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:05,309 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.94%) excede límite (15.00%)']
+2026-02-08 15:15:05,309 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:05,309 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:05,330 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:05,332 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:05,332 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $840,423.37
+2026-02-08 15:15:05,332 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:05,332 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:05,332 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:05,332 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:07,982 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:07,982 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:07,983 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.96%) excede límite (15.00%)']
+2026-02-08 15:15:07,984 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:07,984 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:08,000 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:08,001 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:08,001 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $840,287.09
+2026-02-08 15:15:08,001 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:08,002 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:08,002 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:08,002 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:11,029 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:11,029 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:11,031 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.97%) excede límite (15.00%)']
+2026-02-08 15:15:11,032 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:11,032 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:11,053 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:11,054 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:11,055 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $840,150.81
+2026-02-08 15:15:11,055 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:11,055 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:11,055 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:11,055 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:13,813 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:13,813 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:13,815 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (15.98%) excede límite (15.00%)']
+2026-02-08 15:15:13,815 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:13,815 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:13,839 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:13,841 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:13,841 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $840,014.53
+2026-02-08 15:15:13,842 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:13,842 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:13,842 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:13,842 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:16,801 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:16,801 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:16,803 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.00%) excede límite (15.00%)']
+2026-02-08 15:15:16,803 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:16,803 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:16,827 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:16,829 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:16,829 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $839,878.25
+2026-02-08 15:15:16,829 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:16,829 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:16,829 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:16,829 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:19,877 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:19,877 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:19,882 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.01%) excede límite (15.00%)']
+2026-02-08 15:15:19,882 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:19,882 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:19,896 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:19,897 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:19,897 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $839,741.97
+2026-02-08 15:15:19,897 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:19,897 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:19,897 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:19,897 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:22,846 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:22,846 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:22,848 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.03%) excede límite (15.00%)']
+2026-02-08 15:15:22,848 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:22,848 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:22,872 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:22,874 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:22,874 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $839,605.69
+2026-02-08 15:15:22,874 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:22,874 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:22,874 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:22,874 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:25,610 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:25,610 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:25,612 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.04%) excede límite (15.00%)']
+2026-02-08 15:15:25,612 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:25,612 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:25,631 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:25,633 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:25,634 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $839,469.41
+2026-02-08 15:15:25,634 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:25,634 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:25,634 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:25,634 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:28,220 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:28,220 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:28,221 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.05%) excede límite (15.00%)']
+2026-02-08 15:15:28,221 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:28,221 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:28,234 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:28,235 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:28,235 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $839,333.14
+2026-02-08 15:15:28,235 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:28,235 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:28,235 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:28,235 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:31,287 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:31,287 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:31,288 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.07%) excede límite (15.00%)']
+2026-02-08 15:15:31,289 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:31,289 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:31,303 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:31,304 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:31,304 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $839,196.86
+2026-02-08 15:15:31,304 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:31,304 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:31,304 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:31,304 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:34,203 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:34,203 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:34,204 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.08%) excede límite (15.00%)']
+2026-02-08 15:15:34,204 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:34,204 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:34,229 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:34,232 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:34,233 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $839,060.58
+2026-02-08 15:15:34,233 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:34,233 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:34,233 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:34,233 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:37,286 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:37,286 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:37,288 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.09%) excede límite (15.00%)']
+2026-02-08 15:15:37,288 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:37,288 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:37,302 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:37,303 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:37,303 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $838,924.30
+2026-02-08 15:15:37,303 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:37,303 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:37,303 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:37,303 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:40,471 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:40,472 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:40,473 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.11%) excede límite (15.00%)']
+2026-02-08 15:15:40,473 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:40,473 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:40,483 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:40,484 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:40,484 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $838,788.02
+2026-02-08 15:15:40,484 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:40,484 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:40,484 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:40,484 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:42,969 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:42,969 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:42,970 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.12%) excede límite (15.00%)']
+2026-02-08 15:15:42,970 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:42,970 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:42,980 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:42,980 - TradingEngine - INFO - Posición abierta: AAPL - 245 acciones @ $278.12
+2026-02-08 15:15:42,981 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $838,651.74
+2026-02-08 15:15:42,981 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:42,981 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:42,981 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:42,981 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:45,484 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:45,484 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:45,485 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.13%) excede límite (15.00%)']
+2026-02-08 15:15:45,485 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:45,485 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:45,496 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:45,497 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:15:45,497 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $838,515.74
+2026-02-08 15:15:45,497 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:45,497 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:45,497 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:45,497 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:48,026 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:48,026 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:48,027 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.15%) excede límite (15.00%)']
+2026-02-08 15:15:48,027 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:48,027 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:48,038 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:48,039 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:15:48,039 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $838,380.02
+2026-02-08 15:15:48,039 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:48,039 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:48,039 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:48,039 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:50,740 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:50,740 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:50,741 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.16%) excede límite (15.00%)']
+2026-02-08 15:15:50,741 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:50,741 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:50,752 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:50,752 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:15:50,753 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $838,244.30
+2026-02-08 15:15:50,753 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:50,753 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:50,753 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:50,753 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:53,264 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:53,264 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:53,265 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.18%) excede límite (15.00%)']
+2026-02-08 15:15:53,265 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:53,265 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:53,275 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:53,276 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:15:53,276 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $838,108.57
+2026-02-08 15:15:53,276 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:53,276 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:53,276 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:53,276 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:55,777 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:55,777 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:55,778 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.19%) excede límite (15.00%)']
+2026-02-08 15:15:55,778 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:55,778 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:55,789 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:55,790 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:15:55,790 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $837,972.85
+2026-02-08 15:15:55,790 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:55,790 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:55,790 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:55,790 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:15:58,296 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:15:58,296 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:15:58,297 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.20%) excede límite (15.00%)']
+2026-02-08 15:15:58,297 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:15:58,298 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:15:58,308 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:15:58,309 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:15:58,309 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $837,837.13
+2026-02-08 15:15:58,309 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:58,309 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:15:58,309 - TradingEngine - INFO - ============================================================
+2026-02-08 15:15:58,309 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:00,842 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:00,842 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:00,843 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.22%) excede límite (15.00%)']
+2026-02-08 15:16:00,843 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:00,843 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:00,853 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:00,854 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:00,854 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $837,701.41
+2026-02-08 15:16:00,854 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:00,854 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:00,854 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:00,854 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:03,711 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:03,711 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:03,712 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.23%) excede límite (15.00%)']
+2026-02-08 15:16:03,712 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:03,712 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:03,722 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:03,723 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:03,723 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $837,565.68
+2026-02-08 15:16:03,723 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:03,723 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:03,724 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:03,724 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:06,568 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:06,568 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:06,569 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.24%) excede límite (15.00%)']
+2026-02-08 15:16:06,569 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:06,569 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:06,580 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:06,581 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:06,581 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $837,429.96
+2026-02-08 15:16:06,581 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:06,581 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:06,581 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:06,581 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:09,087 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:09,088 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:09,089 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.26%) excede límite (15.00%)']
+2026-02-08 15:16:09,089 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:09,089 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:09,100 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:09,100 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:09,101 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $837,294.24
+2026-02-08 15:16:09,101 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:09,101 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:09,101 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:09,101 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:11,956 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:11,956 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:11,958 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.27%) excede límite (15.00%)']
+2026-02-08 15:16:11,958 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:11,958 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:11,970 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:11,971 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:11,971 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $837,158.52
+2026-02-08 15:16:11,971 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:11,971 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:11,971 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:11,972 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:14,523 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:14,523 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:14,524 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.28%) excede límite (15.00%)']
+2026-02-08 15:16:14,524 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:14,524 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:14,536 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:14,538 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:14,538 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $837,022.79
+2026-02-08 15:16:14,538 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:14,538 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:14,538 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:14,538 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:17,326 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:17,326 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:17,327 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.30%) excede límite (15.00%)']
+2026-02-08 15:16:17,327 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:17,327 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:17,339 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:17,340 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:17,341 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $836,887.07
+2026-02-08 15:16:17,341 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:17,341 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:17,341 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:17,341 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:20,253 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:20,253 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:20,254 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.31%) excede límite (15.00%)']
+2026-02-08 15:16:20,254 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:20,254 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:20,272 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:20,273 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:20,273 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $836,751.35
+2026-02-08 15:16:20,273 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:20,273 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:20,273 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:20,273 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:23,095 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:23,095 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:23,097 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.32%) excede límite (15.00%)']
+2026-02-08 15:16:23,097 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:23,097 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:23,112 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:23,114 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:23,114 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $836,615.62
+2026-02-08 15:16:23,114 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:23,114 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 15:16:23,114 - TradingEngine - INFO - ============================================================
+2026-02-08 15:16:23,114 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:25,839 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:25,840 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:25,844 - TradingEngine - WARNING - Violaciones de riesgo: ['Drawdown actual (16.34%) excede límite (15.00%)']
+2026-02-08 15:16:25,844 - TradingEngine - INFO - Exposición reducida: cerrada AAPL
+2026-02-08 15:16:25,845 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:25,866 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 15:16:25,867 - TradingEngine - INFO - Posición abierta: AAPL - 244 acciones @ $278.12
+2026-02-08 15:16:25,867 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $836,479.90
+2026-02-08 15:16:25,869 - TradingEngine - INFO - Backtest completado
+2026-02-08 15:16:43,166 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 15:16:43,166 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 15:16:51,108 - TradingEngine - INFO - Universo filtrado: 9 símbolos
+2026-02-08 15:16:51,108 - TradingEngine - INFO - Cargando datos...
+2026-02-08 15:16:59,170 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 15:16:59,171 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 15:16:59,171 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 15:16:59,193 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 20:56:31,476 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 20:57:36,080 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 20:57:36,080 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 20:57:37,944 - TradingEngine - INFO - Universo filtrado: 2 símbolos
+2026-02-08 20:57:37,944 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:57:39,191 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:57:39,191 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:57:39,191 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:57:39,196 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 20:57:44,835 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 20:57:44,835 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 20:57:46,316 - TradingEngine - INFO - Universo filtrado: 2 símbolos
+2026-02-08 20:57:46,316 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:46,317 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 20:57:46,317 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:46,317 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:57:47,988 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:57:47,988 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:57:47,989 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:57:47,994 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 20:57:47,996 - TradingEngine - INFO - Posición abierta: AAPL - 292 acciones @ $278.12
+2026-02-08 20:57:47,997 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $999,918.79
+2026-02-08 20:57:54,363 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 20:57:54,363 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 20:57:55,969 - TradingEngine - INFO - Universo filtrado: 2 símbolos
+2026-02-08 20:57:55,969 - TradingEngine - INFO - Iniciando backtest: 2025-12-01 00:00:00 a 2026-01-01 00:00:00
+2026-02-08 20:57:55,970 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:55,970 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 20:57:55,970 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:55,970 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:57:57,020 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:57:57,020 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:57:57,020 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:57:57,027 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 20:57:57,028 - TradingEngine - INFO - Posición abierta: AAPL - 292 acciones @ $278.12
+2026-02-08 20:57:57,028 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $999,918.79
+2026-02-08 20:57:57,028 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:57,028 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 20:57:57,028 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:57,028 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:57:58,214 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:57:58,214 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:57:58,217 - TradingEngine - INFO - Iniciando rebalanceo de portafolio...
+2026-02-08 20:57:58,217 - TradingEngine - INFO - Rebalanceo completado: 1 trades
+2026-02-08 20:57:58,217 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:57:58,222 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 20:57:58,222 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $918,207.97
+2026-02-08 20:57:58,222 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:58,222 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 20:57:58,222 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:58,222 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:57:59,435 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:57:59,435 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:57:59,436 - TradingEngine - WARNING - Violaciones de riesgo: ['Exposición Unknown (54.43%) excede límite (30.00%)']
+2026-02-08 20:57:59,436 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:57:59,441 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 20:57:59,442 - TradingEngine - INFO - Posición abierta: AAPL - 268 acciones @ $278.12
+2026-02-08 20:57:59,442 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $917,633.65
+2026-02-08 20:57:59,442 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:59,442 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-08 20:57:59,442 - TradingEngine - INFO - ============================================================
+2026-02-08 20:57:59,442 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:58:00,584 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:58:00,584 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:58:00,586 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:58:00,589 - TradingEngine - INFO - Oportunidades encontradas: 1
+2026-02-08 20:58:00,590 - TradingEngine - INFO - Posición abierta: AAPL - 268 acciones @ $278.12
+2026-02-08 20:58:00,591 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $843,022.95
+2026-02-08 20:58:00,607 - TradingEngine - INFO - Backtest completado
+2026-02-08 20:58:14,882 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 20:58:14,883 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 20:58:16,177 - TradingEngine - INFO - Universo filtrado: 1 símbolos
+2026-02-08 20:58:16,179 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:58:16,827 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:58:16,827 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:58:16,827 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:58:16,827 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-08 20:58:21,841 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:58:22,827 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:58:22,827 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:58:22,827 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:58:22,828 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-08 20:58:27,828 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:58:28,865 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:58:28,865 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:58:28,865 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:58:28,865 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-08 20:58:33,866 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:58:34,684 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:58:34,684 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:58:34,684 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:58:34,698 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-08 20:58:39,699 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:58:40,506 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:58:40,506 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:58:40,506 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:58:40,506 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-08 20:59:05,579 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 20:59:05,579 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 20:59:06,726 - TradingEngine - INFO - Universo filtrado: 1 símbolos
+2026-02-08 20:59:06,726 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:59:07,408 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:59:07,408 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:59:07,408 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:59:07,408 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-08 20:59:21,911 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 20:59:21,911 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 20:59:24,121 - TradingEngine - INFO - Universo filtrado: 3 símbolos
+2026-02-08 20:59:24,122 - TradingEngine - INFO - Cargando datos...
+2026-02-08 20:59:26,369 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 20:59:26,369 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 20:59:26,369 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 20:59:26,369 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-08 21:00:18,863 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-08 21:00:18,863 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-08 21:00:21,480 - TradingEngine - INFO - Universo filtrado: 3 símbolos
+2026-02-08 21:00:21,481 - TradingEngine - INFO - Cargando datos...
+2026-02-08 21:00:23,757 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-08 21:00:23,758 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-08 21:00:23,758 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-08 21:00:23,758 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-08 21:03:24,564 - TradingEngine - INFO - Trading Engine inicializado

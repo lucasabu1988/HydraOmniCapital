@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-02-08 20:57:47.997084",
+  "portfolio_value": 999918.78896,
+  "initial_capital": 1000000,
+  "total_return": -8.121103999996559e-05,
+  "cash": 918707.74896,
+  "invested": 81211.04000000001,
+  "num_positions": 1,
+  "positions": {
+    "AAPL": {
+      "sector": "Unknown",
+      "shares": 292,
+      "entry_price": 278.12,
+      "current_price": 278.12,
+      "unrealized_pnl_pct": 0.0,
+      "weight": 0.08121763576866713
+    }
+  },
+  "sector_exposure": {
+    "Unknown": 0.08121763576866713
+  },
+  "win_rate": 0,
+  "total_trades": 0
+}

@@ -1,0 +1,138 @@
+# Configuración del Algoritmo Financiero - Investment Capital
+# Estrategia: Valoración Primaria + Mayor Actividad
+
+strategy:
+  name: "AlphaMax Value-First Strategy"
+  version: "2.0.0"
+  description: "Algoritmo con filtro de valoración primario, umbral reducido y mayor diversificación"
+  
+# Objetivo de retorno
+objectives:
+  target_annual_return: 0.25  # 25% anual objetivo
+  max_drawdown: 0.15  # Máximo drawdown permitido: 15%
+  sharpe_ratio_min: 1.5  # Sharpe ratio mínimo objetivo
+  volatility_target: 0.20  # Volatilidad objetivo anual
+
+# Capital y exposición
+capital:
+  initial_capital: 1000000  # Capital inicial en USD
+  max_portfolio_positions: 30  # AUMENTADO: Máximo 30 posiciones (antes 20)
+  min_position_size: 0.01  # REDUCIDO: Tamaño mínimo de posición (1%)
+  max_position_size: 0.08  # REDUCIDO: Tamaño máximo de posición (8%) para mayor diversificación
+  max_sector_exposure: 0.25  # REDUCIDO: Exposición máxima por sector (25%)
+  cash_buffer: 0.03  # REDUCIDO: Reserva de efectivo (3%)
+
+# Gestión de riesgo por posición
+risk_management:
+  stop_loss:
+    enabled: true
+    method: "atr"  # Basado en ATR
+    fixed_percentage: 0.05  # 5% si es fixed
+    atr_multiplier: 1.5  # REDUCIDO: Multiplicador de ATR (antes 2.0)
+    trailing: true  # Stop loss trailing
+    
+  take_profit:
+    enabled: true
+    method: "risk_reward"  # Opciones: fixed, risk_reward
+    fixed_percentage: 0.15  # 15% si es fixed
+    risk_reward_ratio: 2.5  # Ratio riesgo/beneficio 1:2.5 (antes 1:3)
+    partial_exit:
+      enabled: true
+      levels:
+        - { percent: 0.50, close: 0.25 }  # A 50% de TP, cerrar 25%
+        - { percent: 0.75, close: 0.25 }  # A 75% de TP, cerrar 25%
+        - { percent: 1.00, close: 0.50 }  # A 100% de TP, cerrar 50%
+
+# Reglas de posición
+position_sizing:
+  method: "kelly_criterion"  # Opciones: fixed, kelly_criterion, volatility_target
+  kelly_fraction: 0.30  # AUMENTADO: Fracción de Kelly (antes 0.25)
+  volatility_lookback: 20  # Días para calcular volatilidad
+  
+# Rebalanceo de portafolio
+rebalancing:
+  enabled: true
+  frequency: "weekly"  # CAMBIADO: Semanal (antes monthly)
+  threshold: 0.03  # REDUCIDO: Rebalancear si drift > 3% (antes 5%)
+  max_turnover: 0.80  # AUMENTADO: Máximo turnover anual (80%)
+  tax_efficient: true  # Optimización fiscal
+  
+# Señales de entrada/salida
+signals:
+  # Umbral de confianza REDUCIDO
+  min_confidence: 0.50  # REDUCIDO: De 60% a 50%
+  
+  # PESOS AJUSTADOS: Valoración primaria
+  entry:
+    # 1. VALORACIÓN (Peso máximo - 40%)
+    - name: "value"
+      weight: 0.40
+      metrics: ["pe_ratio", "pb_ratio", "ps_ratio", "ev_ebitda"]
+      percentile_threshold: 40  # Bottom 40% (más permisivo)
+      pe_max: 20  # P/E máximo aceptable
+      pb_max: 3.0  # P/B máximo aceptable
+      
+    # 2. MOMENTUM (25%)
+    - name: "momentum"
+      weight: 0.25
+      lookback: 90  # Días
+      min_momentum: 0.03  # REDUCIDO: 3% mínimo (antes 5%)
+      
+    # 3. TENDENCIA (20%)
+    - name: "trend"
+      weight: 0.20
+      short_ma: 10  # REDUCIDO: Más sensible (antes 20)
+      long_ma: 30   # REDUCIDO (antes 50)
+      
+    # 4. CALIDAD (15%)
+    - name: "quality"
+      weight: 0.15
+      metrics: ["roe", "debt_equity", "current_ratio"]
+      min_roe: 0.10  # REDUCIDO: 10% (antes 15%)
+      
+  exit:
+    - name: "stop_loss_trigger"
+      priority: 1
+    - name: "take_profit_trigger"
+      priority: 2
+    - name: "momentum_reversal"
+      lookback: 20
+      threshold: -0.08  # REDUCIDO: -8% (antes -10%)
+      priority: 3
+    - name: "fundamental_deterioration"
+      priority: 4
+      pe_increase_max: 25  # Si P/E sube más de 25%, salir
+
+# Universe de inversión
+universe:
+  markets: ["US"]
+  min_market_cap: 500000000  # REDUCIDO: $500M mínimo (antes $1B)
+  min_avg_volume: 500000  # REDUCIDO: 500K volumen promedio
+  sectors:
+    include: ["Technology", "Healthcare", "Financials", "Consumer Discretionary", "Industrials", "Energy", "Materials"]
+    exclude: []
+  
+# Datos
+data:
+  price_data:
+    provider: "yfinance"
+    frequency: "daily"
+    history_years: 5
+  fundamental_data:
+    provider: "alpha_vantage"
+    frequency: "quarterly"
+    
+# Monitoreo y reportes
+monitoring:
+  log_level: "INFO"
+  save_trades: true
+  save_portfolio_state: true
+  report_frequency: "daily"
+  metrics:
+    - "total_return"
+    - "sharpe_ratio"
+    - "max_drawdown"
+    - "win_rate"
+    - "profit_factor"
+    - "calmar_ratio"
+    - "value_exposure"  # NUEVO: Exposición a valor

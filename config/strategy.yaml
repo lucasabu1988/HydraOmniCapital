@@ -1,0 +1,123 @@
+# Configuración del Algoritmo Financiero - Investment Capital
+# Estrategia: Maximización de Retornos con Gestión de Riesgo
+
+strategy:
+  name: "AlphaMax Strategy"
+  version: "1.0.0"
+  description: "Algoritmo de inversión en equities con maximización de retornos y gestión de riesgo dinámica"
+  
+# Objetivo de retorno
+objectives:
+  target_annual_return: 0.25  # 25% anual objetivo
+  max_drawdown: 0.15  # Máximo drawdown permitido: 15%
+  sharpe_ratio_min: 1.5  # Sharpe ratio mínimo objetivo
+  volatility_target: 0.20  # Volatilidad objetivo anual
+
+# Capital y exposición
+capital:
+  initial_capital: 1000000  # Capital inicial en USD
+  max_portfolio_positions: 20  # Máximo número de posiciones
+  min_position_size: 0.02  # Tamaño mínimo de posición (2%)
+  max_position_size: 0.10  # Tamaño máximo de posición (10%)
+  max_sector_exposure: 0.30  # Exposición máxima por sector (30%)
+  cash_buffer: 0.05  # Reserva de efectivo (5%)
+
+# Gestión de riesgo por posición
+risk_management:
+  stop_loss:
+    enabled: true
+    method: "atr"  # Opciones: fixed, atr, volatility
+    fixed_percentage: 0.05  # 5% si es fixed
+    atr_multiplier: 2.0  # Multiplicador de ATR
+    trailing: true  # Stop loss trailing
+    
+  take_profit:
+    enabled: true
+    method: "risk_reward"  # Opciones: fixed, risk_reward
+    fixed_percentage: 0.15  # 15% si es fixed
+    risk_reward_ratio: 3.0  # Ratio riesgo/beneficio 1:3
+    partial_exit:
+      enabled: true
+      levels:
+        - { percent: 0.50, close: 0.30 }  # A 50% de TP, cerrar 30%
+        - { percent: 0.75, close: 0.30 }  # A 75% de TP, cerrar 30%
+        - { percent: 1.00, close: 0.40 }  # A 100% de TP, cerrar 40%
+
+# Reglas de posición
+position_sizing:
+  method: "kelly_criterion"  # Opciones: fixed, kelly_criterion, volatility_target
+  kelly_fraction: 0.25  # Fracción de Kelly (conservadora)
+  volatility_lookback: 20  # Días para calcular volatilidad
+  
+# Rebalanceo de portafolio
+rebalancing:
+  enabled: true
+  frequency: "monthly"  # Opciones: daily, weekly, monthly, quarterly, threshold
+  threshold: 0.05  # Rebalancear si drift > 5%
+  max_turnover: 0.50  # Máximo turnover anual (50%)
+  tax_efficient: true  # Optimización fiscal
+  
+# Señales de entrada/salida
+signals:
+  entry:
+    - name: "momentum"
+      weight: 0.30
+      lookback: 90  # Días
+      min_momentum: 0.05  # 5% mínimo
+    - name: "value"
+      weight: 0.25
+      metrics: ["pe_ratio", "pb_ratio", "ev_ebitda"]
+      percentile_threshold: 30  # Bottom 30%
+    - name: "quality"
+      weight: 0.25
+      metrics: ["roe", "debt_equity", "current_ratio"]
+      min_roe: 0.15
+    - name: "trend"
+      weight: 0.20
+      short_ma: 20
+      long_ma: 50
+      
+  exit:
+    - name: "stop_loss_trigger"
+      priority: 1
+    - name: "take_profit_trigger"
+      priority: 2
+    - name: "momentum_reversal"
+      lookback: 20
+      threshold: -0.10
+      priority: 3
+    - name: "fundamental_deterioration"
+      priority: 4
+
+# Universe de inversión
+universe:
+  markets: ["US"]
+  min_market_cap: 1000000000  # $1B mínimo
+  min_avg_volume: 1000000  # 1M volumen promedio
+  sectors:
+    include: ["Technology", "Healthcare", "Financials", "Consumer Discretionary", "Industrials"]
+    exclude: []
+  
+# Datos
+data:
+  price_data:
+    provider: "yfinance"
+    frequency: "daily"
+    history_years: 5
+  fundamental_data:
+    provider: "alpha_vantage"
+    frequency: "quarterly"
+    
+# Monitoreo y reportes
+monitoring:
+  log_level: "INFO"
+  save_trades: true
+  save_portfolio_state: true
+  report_frequency: "daily"
+  metrics:
+    - "total_return"
+    - "sharpe_ratio"
+    - "max_drawdown"
+    - "win_rate"
+    - "profit_factor"
+    - "calmar_ratio"
