@@ -562,8 +562,16 @@ def run_omnicapital_v3(start_date, end_date, initial_capital=1000000):
 
 
 if __name__ == '__main__':
-    # Período de 10 años
+    # Mayor tiempo posible (máximo datos históricos disponibles)
+    # Yahoo Finance típicamente tiene datos desde 1970 para algunos tickers
+    # pero para S&P 500 moderno usamos desde 1990 o máximo disponible
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=365*10)
+    start_date = datetime(1990, 1, 1)  # Máximo histórico disponible
+    
+    print(f"Ejecutando backtest de máximo período histórico...")
+    print(f"Fecha inicio solicitada: {start_date.date()}")
+    print(f"Fecha fin: {end_date.date()}")
+    print(f"Duración máxima: ~35 años")
+    print()
     
     results, trades = run_omnicapital_v3(start_date, end_date)
