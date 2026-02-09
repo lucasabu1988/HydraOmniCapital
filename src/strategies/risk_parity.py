@@ -181,6 +181,34 @@ class InverseVolatilityStrategy(BaseStrategy):
         super().__init__(config)
         self.lookback_days = config.get('lookback_days', 63)  # 3 meses
         self.vol_target = config.get('vol_target', None)
+    
+    def generate_signals(
+        self,
+        prices: pd.DataFrame,
+        fundamentals: Optional[Dict] = None,
+        current_portfolio: Optional[Dict] = None
+    ) -> List[StrategySignal]:
+        """Genera señales de allocación para todos los activos."""
+        signals = []
+        allocations = self.calculate_allocations(prices, [])
+        
+        for symbol, alloc in allocations.items():
+            signal = StrategySignal(
+                symbol=symbol,
+                action='BUY',
+                strength=alloc.confidence,
+                timestamp=prices.index[-1],
+                strategy_name=self.name,
+                metadata={
+                    'target_weight': alloc.weight,
+                    'expected_risk': alloc.expected_risk
+                },
+                target_weight=alloc.weight
+            )
+            signals.append(signal)
+            self.record_signal(signal)
+        
+        return signals
         
     def calculate_allocations(
         self,
@@ -254,6 +282,34 @@ class MinimumVarianceStrategy(BaseStrategy):
         self.long_only = config.get('long_only', True)
         self.max_weight = config.get('max_weight', 0.20)
         self.lookback_days = config.get('lookback_days', 252)
+    
+    def generate_signals(
+        self,
+        prices: pd.DataFrame,
+        fundamentals: Optional[Dict] = None,
+        current_portfolio: Optional[Dict] = None
+    ) -> List[StrategySignal]:
+        """Genera señales de allocación para todos los activos."""
+        signals = []
+        allocations = self.calculate_allocations(prices, [])
+        
+        for symbol, alloc in allocations.items():
+            signal = StrategySignal(
+                symbol=symbol,
+                action='BUY',
+                strength=alloc.confidence,
+                timestamp=prices.index[-1],
+                strategy_name=self.name,
+                metadata={
+                    'target_weight': alloc.weight,
+                    'expected_risk': alloc.expected_risk
+                },
+                target_weight=alloc.weight
+            )
+            signals.append(signal)
+            self.record_signal(signal)
+        
+        return signals
         
     def calculate_allocations(
         self,
@@ -346,6 +402,34 @@ class MaximumDiversificationStrategy(BaseStrategy):
         super().__init__(config)
         self.lookback_days = config.get('lookback_days', 252)
         self.max_weight = config.get('max_weight', 0.25)
+    
+    def generate_signals(
+        self,
+        prices: pd.DataFrame,
+        fundamentals: Optional[Dict] = None,
+        current_portfolio: Optional[Dict] = None
+    ) -> List[StrategySignal]:
+        """Genera señales de allocación para todos los activos."""
+        signals = []
+        allocations = self.calculate_allocations(prices, [])
+        
+        for symbol, alloc in allocations.items():
+            signal = StrategySignal(
+                symbol=symbol,
+                action='BUY',
+                strength=alloc.confidence,
+                timestamp=prices.index[-1],
+                strategy_name=self.name,
+                metadata={
+                    'target_weight': alloc.weight,
+                    'expected_risk': alloc.expected_risk
+                },
+                target_weight=alloc.weight
+            )
+            signals.append(signal)
+            self.record_signal(signal)
+        
+        return signals
         
     def calculate_allocations(
         self,
