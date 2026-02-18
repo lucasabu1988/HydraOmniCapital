@@ -2,10 +2,11 @@
 OmniCapital v8.1 COMPASS Long-Short
 ====================================
 Extiende COMPASS v8 con pata short: vende en corto las 10 acciones con peor
-ratio Revenue/Total Debt del broad pool.
+ratio Debt/EBITDA del broad pool (excluyendo financials).
 
 - Longs (80%): Cross-sectional momentum top-5 del top-40 (igual que v8)
-- Shorts (20%): Bottom-10 por Revenue/Debt de todo el broad pool
+- Shorts (20%): Top-10 por Debt/EBITDA (ex-financials) de todo el broad pool
+- Financials excluidos de shorts (su modelo de deuda es estructural, no distress)
 - Backtest limitado al periodo con datos fundamentales reales (~2021-2026)
 - Rebalanceo shorts: trimestral (cada 63 trading days)
 """
@@ -73,6 +74,12 @@ INITIAL_CAPITAL = 100_000
 MARGIN_RATE = 0.06
 COMMISSION_PER_SHARE = 0.001
 
+# Financials exclusion (for shorts — their high debt is structural, not distress)
+FINANCIALS = {
+    'BRK-B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'GS', 'MS', 'AXP', 'BLK',
+    'SCHW', 'C', 'USB', 'PNC', 'TFC', 'CB', 'MMC', 'AIG',
+}
+
 # Data — periodo limitado a datos fundamentales disponibles
 END_DATE = '2026-02-09'
 # START_DATE se determina en runtime segun datos fundamentales disponibles
@@ -106,11 +113,11 @@ BROAD_POOL = [
 
 print("=" * 80)
 print("OMNICAPITAL v8.1 COMPASS LONG-SHORT")
-print("Longs: Momentum top-5 | Shorts: Bottom-10 Revenue/Debt")
+print("Longs: Momentum top-5 | Shorts: Top-10 Debt/EBITDA (ex-financials)")
 print("=" * 80)
 print(f"\nBroad pool: {len(BROAD_POOL)} stocks | Top-{TOP_N} annual rotation")
 print(f"Capital split: {LONG_ALLOCATION:.0%} longs / {SHORT_ALLOCATION:.0%} shorts")
-print(f"Shorts: {NUM_SHORTS} worst Revenue/Debt | Rebalance: {SHORT_REBALANCE_DAYS}d")
+print(f"Shorts: {NUM_SHORTS} highest Debt/EBITDA (excl {len(FINANCIALS)} financials) | Rebalance: {SHORT_REBALANCE_DAYS}d")
 print()
 
 
@@ -176,41 +183,43 @@ def download_spy(start_date: str) -> pd.DataFrame:
 
 def download_fundamentals() -> pd.DataFrame:
     """
-    Download Revenue and Total Debt from yfinance for all stocks.
-    Returns DataFrame with columns: symbol, year, total_revenue, total_debt, ratio
+    Download Total Debt and EBITDA from yfinance for all non-financial stocks.
+    Returns DataFrame with columns: symbol, year, ebitda, total_debt, debt_ebitda
+    High Debt/EBITDA = overleveraged = short candidate.
+    Financials excluded (their debt model is structural).
     Cached in CSV.
     """
-    cache_file = 'data_cache/fundamentals_broad_pool.csv'
+    cache_file = 'data_cache/fundamentals_debt_ebitda.csv'
 
     if os.path.exists(cache_file):
-        print("[Cache] Loading fundamentals...")
+        print("[Cache] Loading fundamentals (Debt/EBITDA)...")
         return pd.read_csv(cache_file)
 
-    print(f"[Download] Downloading fundamentals for {len(BROAD_POOL)} stocks...")
+    # Exclude financials from fundamental download for shorts
+    short_pool = [s for s in BROAD_POOL if s not in FINANCIALS]
+    print(f"[Download] Downloading fundamentals for {len(short_pool)} stocks (excl {len(FINANCIALS)} financials)...")
     rows = []
 
-    for i, symbol in enumerate(BROAD_POOL):
+    for i, symbol in enumerate(short_pool):
         try:
             ticker = yf.Ticker(symbol)
 
-            # Annual income statement
             inc = ticker.financials
             bs = ticker.balance_sheet
 
             if inc is None or bs is None or inc.empty or bs.empty:
                 continue
 
-            # Each column is a date (fiscal year end)
             for col in inc.columns:
                 year = col.year
 
-                # Get Total Revenue
-                revenue = None
-                for label in ['Total Revenue', 'Operating Revenue', 'Revenue']:
+                # Get EBITDA
+                ebitda = None
+                for label in ['EBITDA', 'Normalized EBITDA']:
                     if label in inc.index:
                         val = inc.loc[label, col]
                         if pd.notna(val) and val > 0:
-                            revenue = float(val)
+                            ebitda = float(val)
                             break
 
                 # Get Total Debt
@@ -223,45 +232,47 @@ def download_fundamentals() -> pd.DataFrame:
                                 debt = float(val)
                                 break
 
-                if revenue is not None and debt is not None and debt > 0:
+                if ebitda is not None and debt is not None and ebitda > 0:
                     rows.append({
                         'symbol': symbol,
                         'year': year,
-                        'total_revenue': revenue,
+                        'ebitda': ebitda,
                         'total_debt': debt,
-                        'ratio': revenue / debt
+                        'debt_ebitda': debt / ebitda  # High = bad
                     })
 
             if (i + 1) % 20 == 0:
-                print(f"  [{i+1}/{len(BROAD_POOL)}] Processed {len(rows)} data points...")
+                print(f"  [{i+1}/{len(short_pool)}] Processed {len(rows)} data points...")
 
-        except Exception as e:
+        except Exception:
             continue
 
     df = pd.DataFrame(rows)
     os.makedirs('data_cache', exist_ok=True)
     df.to_csv(cache_file, index=False)
-    print(f"[Fundamentals] {len(df)} data points for {df['symbol'].nunique()} stocks, years {df['year'].min()}-{df['year'].max()}")
+    print(f"[Fundamentals] {len(df)} data points for {df['symbol'].nunique()} stocks (ex-financials), years {df['year'].min()}-{df['year'].max()}")
     return df
 
 
 def compute_annual_short_candidates(fund_df: pd.DataFrame) -> Dict[int, List[str]]:
     """
-    For each year with fundamental data, select bottom-10 by Revenue/Debt ratio.
-    Low ratio = high debt relative to revenue = short candidate.
+    For each year with fundamental data, select top-10 by Debt/EBITDA ratio.
+    High Debt/EBITDA = overleveraged relative to earnings = short candidate.
+    Financials already excluded from fund_df.
     """
     annual_shorts = {}
 
     for year in sorted(fund_df['year'].unique()):
         year_data = fund_df[fund_df['year'] == year].copy()
-        year_data = year_data.sort_values('ratio', ascending=True)
+        year_data = year_data.sort_values('debt_ebitda', ascending=False)  # Highest first
 
-        # Bottom N
+        # Top N by Debt/EBITDA (most leveraged)
         candidates = year_data.head(NUM_SHORTS)['symbol'].tolist()
-        if len(candidates) >= 3:  # Need at least 3 to be meaningful
+        if len(candidates) >= 3:
             annual_shorts[year] = candidates
+            top_ratios = year_data.head(NUM_SHORTS)['debt_ebitda']
             print(f"  {year}: {len(candidates)} short candidates | "
-                  f"Worst: {candidates[:3]} | Ratio range: {year_data['ratio'].iloc[0]:.2f} - {year_data['ratio'].iloc[min(len(year_data)-1, NUM_SHORTS-1)]:.2f}")
+                  f"Worst: {candidates[:3]} | Debt/EBITDA: {top_ratios.iloc[0]:.1f}x - {top_ratios.iloc[-1]:.1f}x")
 
     return annual_shorts
 
