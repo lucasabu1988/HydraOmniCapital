@@ -35,6 +35,7 @@ MOMENTUM_LOOKBACK = 90      # Dias para momentum de medio plazo
 MOMENTUM_SKIP = 5           # Dias recientes a excluir (reversal)
 MIN_MOMENTUM_STOCKS = 20    # Minimo de stocks con score valido para operar
 
+
 # Regime
 REGIME_SMA_PERIOD = 200     # SMA de SPY para regimen
 REGIME_CONFIRM_DAYS = 3     # Dias consecutivos para confirmar cambio de regimen
@@ -53,13 +54,13 @@ TRAILING_STOP_PCT = 0.03    # Trailing stop: -3% desde max
 PORTFOLIO_STOP_LOSS = -0.15 # -15% drawdown del portfolio
 
 # Recovery stages (time-based with regime confirmation)
-RECOVERY_STAGE_1_DAYS = 63  # 3 meses para stage 1 (leverage 0.5x -> 1.0x)
+RECOVERY_STAGE_1_DAYS = 63  # 3 meses para stage 1 (leverage 0.3x -> 1.0x, reserva 70%)
 RECOVERY_STAGE_2_DAYS = 126 # 6 meses para stage 2 (1.0x -> vol targeting)
 # Recovery requires: time elapsed + market in RISK_ON regime
 
 # Leverage & Vol targeting
 TARGET_VOL = 0.15           # 15% anualizado
-LEVERAGE_MIN = 0.5
+LEVERAGE_MIN = 0.3
 LEVERAGE_MAX = 2.0
 VOL_LOOKBACK = 20           # Dias para calcular realized vol
 
@@ -431,7 +432,7 @@ def run_backtest(price_data: Dict[str, pd.DataFrame],
 
     peak_value = float(INITIAL_CAPITAL)
     in_protection_mode = False
-    protection_stage = 0     # 0=none, 1=stage1 (0.5x), 2=stage2 (1.0x)
+    protection_stage = 0     # 0=none, 1=stage1 (0.3x), 2=stage2 (1.0x)
     stop_loss_day_index = None
     post_stop_base = None
 
@@ -528,7 +529,7 @@ def run_backtest(price_data: Dict[str, pd.DataFrame],
         if in_protection_mode:
             if protection_stage == 1:
                 max_positions = 2
-                current_leverage = 0.5
+                current_leverage = 0.3  # Solo 30%, reservar 70% para estabilización
             else:  # stage 2
                 max_positions = 3
                 current_leverage = 1.0
