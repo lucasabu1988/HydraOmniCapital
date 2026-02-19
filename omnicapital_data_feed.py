@@ -207,15 +207,15 @@ class AlpacaDataFeed(DataFeed):
 
 class HistoricalDataLoader:
     """Carga datos historicos para backfill y analisis"""
-    
+
     def __init__(self, data_dir: str = 'data_cache'):
         self.data_dir = data_dir
-        
+
     def load_cache(self, filename: str = None) -> pd.DataFrame:
         """Carga cache de datos historicos"""
         import os
         import glob
-        
+
         if filename:
             filepath = os.path.join(self.data_dir, filename)
         else:
@@ -224,10 +224,10 @@ class HistoricalDataLoader:
             if not files:
                 raise FileNotFoundError("No se encontro cache de datos")
             filepath = max(files, key=os.path.getctime)
-        
+
         logger.info(f"Cargando cache: {filepath}")
         return pd.read_pickle(filepath)
-    
+
     def get_symbol_history(self, symbol: str, days: int = 63) -> pd.DataFrame:
         """Obtiene historial de un simbolo"""
         try:
@@ -237,24 +237,41 @@ class HistoricalDataLoader:
         except Exception as e:
             logger.error(f"Error cargando historial de {symbol}: {e}")
             return pd.DataFrame()
-    
+
+    def get_historical_batch(self, symbols: list, period: str = '6mo') -> dict:
+        """Download historical data for multiple symbols.
+        Returns dict of symbol -> DataFrame with OHLCV data.
+        Used by COMPASS v8.2 for momentum scoring and vol targeting."""
+        results = {}
+        for symbol in symbols:
+            try:
+                df = yf.download(symbol, period=period, progress=False)
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = [c[0] for c in df.columns]
+                if len(df) > 20:
+                    results[symbol] = df
+            except Exception as e:
+                logger.debug(f"Failed to download {symbol}: {e}")
+        logger.info(f"Historical batch: {len(results)}/{len(symbols)} symbols downloaded")
+        return results
+
     def check_symbol_eligibility(self, symbol: str, min_age_days: int = 63) -> bool:
         """Verifica si un simbolo cumple antiguedad minima"""
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
-            
+
             # Verificar fecha de IPO
             ipo_date = info.get('firstTradeDateEpochUtc', None)
             if ipo_date:
                 ipo_date = datetime.fromtimestamp(ipo_date)
                 age_days = (datetime.now() - ipo_date).days
                 return age_days >= min_age_days
-            
+
             # Fallback: verificar datos disponibles
             hist = ticker.history(period=f"{min_age_days}d")
             return len(hist) >= min_age_days * 0.7  # 70% de dias
-            
+
         except Exception as e:
             logger.warning(f"Error verificando elegibilidad de {symbol}: {e}")
             return False

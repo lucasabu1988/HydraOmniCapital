@@ -1,0 +1,30 @@
+{
+    "environment": "paper",
+    "version": "8.2",
+
+    "broker": {
+        "type": "PAPER",
+        "ibkr_host": "127.0.0.1",
+        "ibkr_port": 7497,
+        "ibkr_client_id": 1
+    },
+
+    "data_feed": {
+        "type": "YAHOO",
+        "cache_duration": 60
+    },
+
+    "email": {
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 587,
+        "sender": "",
+        "password": "",
+        "recipients": []
+    },
+
+    "paths": {
+        "state_dir": "state",
+        "log_dir": "logs",
+        "data_cache_dir": "data_cache"
+    }
+}

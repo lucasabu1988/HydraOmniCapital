@@ -1,5 +1,5 @@
 """
-OmniCapital v6 - Daily Monitor
+OmniCapital v8.2 COMPASS - Daily Monitor
 Script de monitoreo diario para trading live
 """
 
@@ -8,12 +8,12 @@ import json
 import os
 from datetime import datetime, timedelta
 import smtplib
-from email.mime.text import email.mime.text.MIMEText
+from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 
 class DailyMonitor:
-    def __init__(self, config_file='omnicapital_state.json'):
+    def __init__(self, config_file='state/compass_state_latest.json'):
         self.config_file = config_file
         self.state = None
         self.load_state()
@@ -31,7 +31,7 @@ class DailyMonitor:
         
         report = []
         report.append("="*60)
-        report.append("OMNICAPITAL v6 - DAILY REPORT")
+        report.append("OMNICAPITAL v8.2 COMPASS - DAILY REPORT")
         report.append("="*60)
         report.append(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         report.append("")
@@ -62,7 +62,12 @@ class DailyMonitor:
         # Estado del sistema
         report.append("--- ESTADO DEL SISTEMA ---")
         report.append(f"En proteccion: {self.state.get('in_protection', False)}")
-        report.append(f"Leverage actual: {self.state.get('current_leverage', 2.0):.1f}x")
+        prot_stage = self.state.get('protection_stage', 0)
+        if prot_stage:
+            report.append(f"Protection stage: {prot_stage}")
+        regime = "RISK_ON" if self.state.get('current_regime', True) else "RISK_OFF"
+        report.append(f"Regime: {regime}")
+        report.append(f"Trading day: {self.state.get('trading_day_counter', 0)}")
         report.append(f"Stop events historicos: {len(self.state.get('stop_events', []))}")
         report.append("")
         
@@ -79,15 +84,19 @@ class DailyMonitor:
         # Recomendaciones
         report.append("--- RECOMENDACIONES ---")
         if self.state.get('in_protection'):
-            report.append("• Sistema en MODO PROTECCION")
+            stage = self.state.get('protection_stage', 1)
+            report.append(f"• Sistema en MODO PROTECCION Stage {stage}")
             report.append("• NO agregar capital")
-            report.append("• Esperar recuperacion a 95% del peak")
+            if stage == 1:
+                report.append("• Leverage: 0.3x | Max 2 posiciones | Esperar 63 dias + RISK_ON")
+            else:
+                report.append("• Leverage: 1.0x | Max 3 posiciones | Esperar 126 dias + RISK_ON")
         else:
             report.append("• Sistema operando normalmente")
             report.append("• Monitorear pero NO intervenir")
-        
-        if drawdown < -0.15:
-            report.append("• ⚠ Drawdown > 15% - Alerta de stop loss proximo")
+
+        if drawdown < -0.12:
+            report.append("• Drawdown cercano a -15% - Stop loss proximo")
         
         report.append("")
         report.append("="*60)
@@ -107,8 +116,8 @@ class DailyMonitor:
         current = self.state.get('portfolio_value', 0)
         drawdown = (current - peak) / peak if peak > 0 else 0
         
-        if drawdown < -0.15:
-            alerts.append(f"Drawdown {drawdown:.1%} - Cerca de stop loss (-20%)")
+        if drawdown < -0.12:
+            alerts.append(f"Drawdown {drawdown:.1%} - Cerca de stop loss (-15%)")
         
         # Alerta: En proteccion
         if self.state.get('in_protection'):

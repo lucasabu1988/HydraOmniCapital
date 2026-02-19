@@ -43,17 +43,23 @@ class Position:
     unrealized_pnl: Optional[float] = None
     realized_pnl: float = 0
     entry_time: datetime = None
-    
+    high_price: Optional[float] = None  # For COMPASS v8.2 trailing stop
+
     def __post_init__(self):
         if self.entry_time is None:
             self.entry_time = datetime.now()
+        if self.high_price is None:
+            self.high_price = self.avg_cost
         self.update_market_data(self.market_price or self.avg_cost)
-    
+
     def update_market_data(self, price: float):
         """Actualiza datos de mercado"""
         self.market_price = price
         self.market_value = self.shares * price
         self.unrealized_pnl = (price - self.avg_cost) * self.shares
+        # Track high watermark for trailing stop
+        if self.high_price is None or price > self.high_price:
+            self.high_price = price
 
 
 @dataclass
