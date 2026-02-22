@@ -707,7 +707,7 @@ def api_equity():
         return jsonify({'equity': [], 'milestones': [], 'error': 'Failed to read CSV'})
 
     val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
-    df = df[df['date'] >= '2016-01-01'].copy()
+    # Full period from 2000 for accurate representation
 
     milestones = []
     vals = df[val_col]
@@ -770,8 +770,8 @@ def api_equity():
         'type': 'ath',
     })
 
-    # Downsample every 5 rows
-    sampled = df.iloc[::5]
+    # Downsample every 10 rows (full 26yr period)
+    sampled = df.iloc[::10]
     equity = []
     for _, row in sampled.iterrows():
         equity.append({
@@ -816,10 +816,8 @@ def api_equity_comparison():
     if merged.empty:
         return jsonify({'error': 'No overlapping dates'})
 
-    # --- Filter from 2016 (same as equity chart) ---
-    merged = merged[merged['date_key'] >= '2016-01-01'].copy()
-    if merged.empty:
-        return jsonify({'error': 'No data from 2016 onward'})
+    # --- Full period (from 2000) for accurate CAGR ---
+    # Previously filtered from 2016 which inflated CAGR to ~28% for recent bull run
 
     # --- Use real COMPASS values; scale SPY to same starting point ---
     compass_start = float(merged[val_col].iloc[0])
@@ -840,8 +838,8 @@ def api_equity_comparison():
     compass_cagr = (pow(compass_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
     spy_cagr = (pow(spy_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
 
-    # --- Downsample every 5 rows ---
-    sampled = merged.iloc[::5]
+    # --- Downsample every 10 rows (full 26yr period) ---
+    sampled = merged.iloc[::10]
     result = []
     for _, row in sampled.iterrows():
         result.append({
