@@ -1080,13 +1080,39 @@ COMBINED REALISTIC BASELINE (MOC + Box Spread):
   CAGR: 12.73% | Sharpe: 0.623 | MaxDD: -43.7%
   This is the realistic performance expectation for live trading.
 
+FULL COST DECOMPOSITION (February 2025):
+------------------------------------------------------------------------
+Progressive cost waterfall from pure signal to realistic net:
+
+Step | What's Added                      | CAGR    | Sharpe | Final Value
+-----|----------------------------------|---------|--------|------------
+1    | Pure signal (no friction)         | 16.94%  | 0.849  | $5,908,755
+2    | + MOC execution (Close[T+1])      | 14.02%  | 0.716  | $3,465,389
+3    | + Slippage (2bps)                 | 13.31%  | 0.680  | $2,922,704
+4    | + Commissions ($0.005/share)      | 13.16%  | 0.673  | $2,816,135
+5    | + Margin cost (Box SOFR+20bps)    | 12.73%  | 0.623  | $2,267,584
+6    | + Cash yield (3.5% on cash)       | 12.73%  | 0.623  | $2,267,584
+
+Signal retention: 75.1% of pure alpha captured after all realistic costs.
+
+LEVERAGE VALUE ANALYSIS:
+  No leverage (1.0x max):            12.58% CAGR, 0.622 Sharpe, $2,191,469
+  Leverage + Box Spread (SOFR+20bp): 12.73% CAGR, 0.623 Sharpe, $2,267,584
+  Leverage + Broker 6%:              11.48% CAGR, 0.560 Sharpe, $1,696,321
+
+  Key finding: Leverage with broker 6% margin DESTROYS value (-1.10% CAGR).
+  Better to run unleveraged than pay broker margin.
+  Box Spread financing makes leverage marginally positive (+0.15% CAGR).
+
 SCRIPTS FOR REPRODUCTION:
 ------------------------------------------------------------------------
 - chassis_execution_analysis.py: 7-variant execution friction comparison
 - chassis_box_spread_analysis.py: 4-variant financing cost comparison
+- chassis_cost_decomposition.py: 8-variant full cost waterfall analysis
 - omnicapital_v8_chassis_upgrade.py: Full chassis upgrade backtest
 - backtests/chassis_execution_comparison.csv: Execution variant results
 - backtests/box_spread_comparison.csv: Financing variant results
+- backtests/cost_decomposition.csv: Cost decomposition results
 """
 
 
