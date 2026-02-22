@@ -951,8 +951,8 @@ AREAS WHERE IMPROVEMENT MAY STILL BE POSSIBLE (chassis, not motor):
 1. Execution microstructure: MOC orders + 2bps slippage → TESTED, saves
    +1.73% CAGR vs market orders (see chassis analysis below)
 
-2. Capital efficiency: Use T-Bill ETFs (SGOV/BIL) as collateral instead
-   of cash sweep → +0.5-1.0% from higher yield on uninvested capital
+2. Capital efficiency: TESTED -- Box Spread financing (SOFR+20bps) saves
+   +1.25% CAGR vs broker 6% margin (see BOX SPREAD ANALYSIS section below)
 
 3. Orthogonal diversification: Run a completely separate, uncorrelated
    strategy alongside COMPASS to improve portfolio Sharpe from 0.81 to 1.0+
@@ -1060,11 +1060,33 @@ ADDITIONAL CHASSIS UPGRADES IMPLEMENTED:
    is modest (~0.3% CAGR) since cash yield only applies during protection
    mode (30.5% of time) and rates were near-zero for much of that period.
 
+BOX SPREAD FINANCING ANALYSIS (February 2025):
+------------------------------------------------------------------------
+Tested replacing fixed 6% broker margin with SPX Box Spread financing
+(synthetic risk-free loan at SOFR + 20bps). All variants use MOC execution.
+
+Variant | Financing Model              | CAGR    | Sharpe | Margin Cost
+--------|------------------------------|---------|--------|------------
+A       | Broker 6.0% (current)        | 11.48%  | 0.560  | $80,954
+B       | IBKR Pro (FFR+1.5%)          | 12.52%  | 0.613  | $66,294
+C       | Box Spread (SOFR+50bps)      | 12.68%  | 0.620  | $52,261
+D       | Box Spread (SOFR+20bps)      | 12.73%  | 0.623  | $47,885
+
+Box Spread (SOFR+20bps) vs Broker 6%:
+  +1.25% CAGR | +0.063 Sharpe | +$571,263 final value | zero additional risk
+  ZIRP era (2009-2021): saved $36,267 (broker charged 6% vs 0.3% box rate)
+
+COMBINED REALISTIC BASELINE (MOC + Box Spread):
+  CAGR: 12.73% | Sharpe: 0.623 | MaxDD: -43.7%
+  This is the realistic performance expectation for live trading.
+
 SCRIPTS FOR REPRODUCTION:
 ------------------------------------------------------------------------
 - chassis_execution_analysis.py: 7-variant execution friction comparison
+- chassis_box_spread_analysis.py: 4-variant financing cost comparison
 - omnicapital_v8_chassis_upgrade.py: Full chassis upgrade backtest
-- backtests/chassis_execution_comparison.csv: Raw variant results
+- backtests/chassis_execution_comparison.csv: Execution variant results
+- backtests/box_spread_comparison.csv: Financing variant results
 """
 
 
