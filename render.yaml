@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: compass-dashboard
+    runtime: python
+    buildCommand: pip install -r requirements-cloud.txt
+    startCommand: gunicorn compass_dashboard_cloud:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.6"

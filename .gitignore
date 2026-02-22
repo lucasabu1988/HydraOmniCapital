@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# Data caches (too large for GitHub)
+data_cache/
+*.pkl
+
+# Logs (local only)
+logs/
+
+# Secrets
+omnicapital_config.json
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Deprecated experiments
+optimization_results/
+universe_tests/
+
+# Temp files
+*.log
+STOP_TRADING
+demo_state.json
