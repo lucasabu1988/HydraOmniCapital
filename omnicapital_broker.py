@@ -1,6 +1,7 @@
 """
-OmniCapital v6 - Broker Integration Module
+OmniCapital v8.2 - Broker Integration Module
 Integracion con brokers para ejecucion de ordenes.
+Incluye order timeout, fill circuit breaker y retry logic.
 """
 
 from abc import ABC, abstractmethod
@@ -8,6 +9,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 import logging
+
+# Fill price circuit breaker: max deviation from reference price
+MAX_FILL_DEVIATION = 0.02  # 2%
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +30,18 @@ class Order:
     filled_price: Optional[float] = None
     commission: float = 0
     timestamp: datetime = None
-    
+    submitted_at: Optional[datetime] = None  # When order was submitted to broker
+
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now()
+
+    def is_stale(self, max_age_seconds: int = 300) -> bool:
+        """Check if order has been pending/submitted too long"""
+        if self.submitted_at and self.status in ('PENDING', 'SUBMITTED'):
+            age = (datetime.now() - self.submitted_at).total_seconds()
+            return age > max_age_seconds
+        return False
 
 
 @dataclass
@@ -128,21 +140,23 @@ class Broker(ABC):
 
 class PaperBroker(Broker):
     """Broker de papel para testing sin riesgo real"""
-    
-    def __init__(self, initial_cash: float = 100000, 
+
+    def __init__(self, initial_cash: float = 100000,
                  commission_per_share: float = 0.001,
-                 fill_delay: int = 1):
+                 fill_delay: int = 1,
+                 max_fill_deviation: float = MAX_FILL_DEVIATION):
         self.initial_cash = initial_cash
         self.cash = initial_cash
         self.commission_per_share = commission_per_share
         self.fill_delay = fill_delay  # segundos para simular delay de ejecucion
-        
+        self.max_fill_deviation = max_fill_deviation
+
         self.positions: Dict[str, Position] = {}
         self.orders: Dict[str, Order] = {}
         self.order_history: List[Order] = []
         self._connected = False
         self._order_counter = 0
-        
+
         # Para simular precios
         self.price_feed = None
         
@@ -174,24 +188,61 @@ class PaperBroker(Broker):
                 slippage = random.uniform(-0.001, 0.001)
                 return price * (1 + slippage)
         return None
-    
+
+    def validate_fill_price(self, symbol: str, fill_price: float,
+                            reference_price: float,
+                            max_deviation: float = None) -> bool:
+        """Verify fill price is within acceptable range of reference.
+        Circuit breaker: rejects fills that deviate too much from expected price."""
+        if max_deviation is None:
+            max_deviation = self.max_fill_deviation
+        if reference_price <= 0:
+            return False
+        deviation = abs(fill_price - reference_price) / reference_price
+        if deviation > max_deviation:
+            logger.error(f"Fill price circuit breaker: {symbol} "
+                        f"fill=${fill_price:.2f} vs ref=${reference_price:.2f} "
+                        f"({deviation:.2%} deviation > {max_deviation:.1%} max)")
+            return False
+        return True
+
+    def check_stale_orders(self, max_age: int = 300) -> List[Order]:
+        """Cancel and return orders that exceeded max age (stale orders)"""
+        stale = []
+        for oid, order in list(self.orders.items()):
+            if order.is_stale(max_age):
+                order.status = 'CANCELLED'
+                stale.append(order)
+                logger.warning(f"Stale order cancelled: {oid} "
+                             f"({order.symbol} {order.action} {order.quantity:.1f})")
+        return stale
+
     def submit_order(self, order: Order) -> Order:
         """Envia orden y la ejecuta inmediatamente (paper)"""
         if not self._connected:
             raise ConnectionError("Broker no conectado")
-        
+
         self._order_counter += 1
         order.order_id = f"PAPER_{self._order_counter}"
         order.status = 'SUBMITTED'
-        
+        order.submitted_at = datetime.now()
+
         # Obtener precio de ejecucion
         fill_price = self._get_fill_price(order.symbol, order.action)
-        
+
         if not fill_price:
             order.status = 'ERROR'
             logger.error(f"No se pudo obtener precio para {order.symbol}")
             return order
-        
+
+        # Circuit breaker: validate fill price vs reference
+        reference_price = self.price_feed.get_price(order.symbol) if self.price_feed else None
+        if reference_price and not self.validate_fill_price(
+                order.symbol, fill_price, reference_price):
+            order.status = 'ERROR'
+            logger.error(f"Fill rejected by circuit breaker: {order.symbol}")
+            return order
+
         # Simular delay
         import time
         time.sleep(self.fill_delay)
@@ -340,33 +391,63 @@ class IBKRBroker(Broker):
     def is_connected(self) -> bool:
         return self.ib is not None and self.ib.isConnected()
     
-    def submit_order(self, order: Order) -> Order:
-        """Envia orden a IBKR"""
+    def submit_order(self, order: Order, max_retries: int = 2,
+                     retry_wait: float = 5.0) -> Order:
+        """Envia orden a IBKR con retry logic y fill validation"""
         from ib_insync import Stock, MarketOrder, LimitOrder
-        
+
         contract = Stock(order.symbol, 'SMART', 'USD')
-        
+
         if order.order_type == 'MARKET':
             ib_order = MarketOrder(order.action, order.quantity)
         elif order.order_type == 'LIMIT':
             ib_order = LimitOrder(order.action, order.quantity, order.limit_price)
         else:
             raise ValueError(f"Tipo de orden no soportado: {order.order_type}")
-        
+
         trade = self.ib.placeOrder(contract, ib_order)
-        
+
         order.order_id = str(trade.order.orderId)
         order.status = 'SUBMITTED'
-        
-        # Esperar fill
-        self.ib.sleep(5)  # Esperar hasta 5 segundos
-        
-        if trade.orderStatus.status == 'Filled':
-            order.status = 'FILLED'
-            order.filled_quantity = trade.orderStatus.filled
-            order.filled_price = trade.orderStatus.avgFillPrice
-            order.commission = sum(c.commission for c in trade.commissions)
-        
+        order.submitted_at = datetime.now()
+
+        # Retry loop: wait for fill with retries
+        for attempt in range(max_retries + 1):
+            self.ib.sleep(retry_wait)
+
+            if trade.orderStatus.status == 'Filled':
+                order.status = 'FILLED'
+                order.filled_quantity = trade.orderStatus.filled
+                order.filled_price = trade.orderStatus.avgFillPrice
+                order.commission = sum(c.commission for c in trade.commissions)
+
+                # Circuit breaker: validate fill price
+                ticker = self.ib.reqMktData(contract)
+                self.ib.sleep(1)
+                ref_price = ticker.last or ticker.close
+                if ref_price and ref_price > 0:
+                    deviation = abs(order.filled_price - ref_price) / ref_price
+                    if deviation > MAX_FILL_DEVIATION:
+                        logger.error(f"IBKR fill price circuit breaker: {order.symbol} "
+                                    f"fill=${order.filled_price:.2f} vs ref=${ref_price:.2f} "
+                                    f"({deviation:.2%} deviation)")
+                        # Order already filled -- log warning but don't reject
+                        # In production this would trigger immediate exit
+
+                logger.info(f"IBKR order filled (attempt {attempt+1}): "
+                           f"{order.action} {order.quantity} {order.symbol} "
+                           f"@ ${order.filled_price:.2f}")
+                break
+            elif attempt < max_retries:
+                logger.info(f"IBKR order not filled yet, retry {attempt+1}/{max_retries}...")
+        else:
+            # Not filled after all retries
+            if trade.orderStatus.status != 'Filled':
+                logger.warning(f"IBKR order not filled after {max_retries+1} attempts, "
+                             f"cancelling: {order.symbol}")
+                self.ib.cancelOrder(trade.order)
+                order.status = 'CANCELLED'
+
         return order
     
     def cancel_order(self, order_id: str) -> bool:

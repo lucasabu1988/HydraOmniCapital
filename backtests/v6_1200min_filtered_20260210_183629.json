@@ -1,0 +1,52 @@
+{
+  "config": {
+    "initial_capital": 100000,
+    "num_positions": 5,
+    "hold_minutes": 1200,
+    "hold_days_effective": 3,
+    "random_seed": 42,
+    "universe_size": 22,
+    "universe": [
+      "AAPL",
+      "MSFT",
+      "GOOGL",
+      "NVDA",
+      "META",
+      "HD",
+      "AVGO",
+      "JNJ",
+      "UNH",
+      "XOM",
+      "WMT",
+      "MA",
+      "MRK",
+      "WFC",
+      "ADBE",
+      "DHR",
+      "NKE",
+      "TXN",
+      "PM",
+      "NEE",
+      "VZ",
+      "ABBV"
+    ],
+    "filter_criteria": "WinRate >= 52% AND AvgReturn >= 0%"
+  },
+  "metrics": {
+    "initial_value": 100000.0,
+    "final_value": 6441841.4844839955,
+    "total_return": 63.41841484483996,
+    "cagr": 0.17341088070741462,
+    "volatility": 0.21403864217735785,
+    "max_drawdown": -0.44920999460266875,
+    "sharpe_ratio": 0.7607633395420559,
+    "calmar_ratio": 0.38603522359469866,
+    "hit_rate": 0.5344117647058824,
+    "total_trades": 13600,
+    "winning_trades": 7268,
+    "losing_trades": 6332,
+    "avg_win_pct": 0.021682833643243256,
+    "avg_loss_pct": -0.020960011683774933,
+    "profit_factor": 1.2619264508895423
+  }
+}

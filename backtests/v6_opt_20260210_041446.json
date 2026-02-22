@@ -1,0 +1,25 @@
+{
+  "config": {
+    "num_positions": 3,
+    "hold_minutes": 666,
+    "random_seed": 12,
+    "rotation_pct": 0.7
+  },
+  "metrics": {
+    "initial_capital": 100000.0,
+    "final_value": 751641.6365292165,
+    "total_return": 6.516416365292166,
+    "cagr": 0.08051581725626811,
+    "volatility": 0.16410029460479247,
+    "max_drawdown": -0.5185673455428124,
+    "sharpe_ratio": 0.43230574776241554,
+    "calmar_ratio": 0.15526588387856907,
+    "hit_rate": 0.5174514323345407,
+    "total_trades": 12148,
+    "winning_trades": 6286,
+    "losing_trades": 5862,
+    "avg_win": 0.01360859583939391,
+    "avg_loss": -0.01331701156850432,
+    "profit_factor": 1.0218956234579841
+  }
+}

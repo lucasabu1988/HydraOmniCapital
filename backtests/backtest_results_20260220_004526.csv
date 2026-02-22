@@ -1,0 +1,6 @@
+timestamp,total_value,cash,positions,sector_exposure,metrics,date,returns,cumulative_returns
+2026-02-20 00:43:47.789959,1000000,1000000,{},{},"{'total_value': 1000000, 'total_return': 0.0, 'cash': 1000000, 'invested': 0, 'num_positions': 0, 'win_rate': 0, 'total_trades': 0}",2023-01-01,,
+2026-02-20 00:44:12.980887,1000000,1000000,{},{},"{'total_value': 1000000, 'total_return': 0.0, 'cash': 1000000, 'invested': 0, 'num_positions': 0, 'win_rate': 0, 'total_trades': 0}",2023-01-08,0.0,0.0
+2026-02-20 00:44:38.182821,1000000,1000000,{},{},"{'total_value': 1000000, 'total_return': 0.0, 'cash': 1000000, 'invested': 0, 'num_positions': 0, 'win_rate': 0, 'total_trades': 0}",2023-01-15,0.0,0.0
+2026-02-20 00:45:01.857918,1000000,1000000,{},{},"{'total_value': 1000000, 'total_return': 0.0, 'cash': 1000000, 'invested': 0, 'num_positions': 0, 'win_rate': 0, 'total_trades': 0}",2023-01-22,0.0,0.0
+2026-02-20 00:45:26.504383,1000000,1000000,{},{},"{'total_value': 1000000, 'total_return': 0.0, 'cash': 1000000, 'invested': 0, 'num_positions': 0, 'win_rate': 0, 'total_trades': 0}",2023-01-29,0.0,0.0

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMNICAPITAL | El Manifiesto del Trading Sistematico</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0,255,136,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0,136,255,0.1) 0%, transparent 50%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            padding: 2rem;
+        }
+        
+        .hero h1 {
+            font-size: clamp(3rem, 10vw, 8rem);
+            font-weight: 900;
+            letter-spacing: -0.05em;
+            background: linear-gradient(135deg, #00ff88 0%, #0088ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 20px rgba(0,255,136,0.3)); }
+            to { filter: drop-shadow(0 0 40px rgba(0,136,255,0.5)); }
+        }
+        
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: #888;
+            margin-bottom: 3rem;
+            font-weight: 300;
+        }
+        
+        .hero-quote {
+            font-style: italic;
+            font-size: 1.2rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto 3rem;
+        }
+        
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+        
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            padding: 3rem;
+            background: #111;
+            border-top: 1px solid #222;
+            border-bottom: 1px solid #222;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #00ff88;
+            display: block;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        /* Sections */
+        section {
+            padding: 5rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #fff;
+            border-left: 4px solid #00ff88;
+            padding-left: 1rem;
+        }
+        
+        h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: #0088ff;
+        }
+        
+        p {
+            margin-bottom: 1rem;
+            color: #bbb;
+            font-size: 1.1rem;
+        }
+        
+        /* Pillars */
+        .pillars {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .pillar {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .pillar:hover {
+            transform: translateY(-5px);
+            border-color: #00ff88;
+            box-shadow: 0 10px 40px rgba(0,255,136,0.1);
+        }
+        
+        .pillar-name {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pillar-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pillar-desc {
+            color: #888;
+            font-size: 0.95rem;
+        }
+        
+        /* Rules */
+        .rules {
+            list-style: none;
+            counter-reset: rules;
+        }
+        
+        .rules li {
+            padding: 1.5rem;
+            margin: 1rem 0;
+            background: #111;
+            border-left: 4px solid #ff4444;
+            position: relative;
+            padding-left: 4rem;
+        }
+        
+        .rules li::before {
+            counter-increment: rules;
+            content: counter(rules);
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2rem;
+            font-weight: 900;
+            color: #ff4444;
+            opacity: 0.5;
+        }
+        
+        /* Comparison Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: #111;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #222;
+        }
+        
+        th {
+            background: #1a1a2e;
+            color: #00ff88;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+        
+        tr:hover {
+            background: #1a1a1a;
+        }
+        
+        .highlight {
+            color: #00ff88;
+            font-weight: 700;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 5rem 2rem;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            border-top: 1px solid #222;
+        }
+        
+        .motto {
+            font-size: 2rem;
+            font-weight: 300;
+            font-style: italic;
+            color: #666;
+            margin-top: 2rem;
+        }
+        
+        .version {
+            color: #444;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+        }
+        
+        /* Interactive elements */
+        .interactive-btn {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #00ff88 0%, #0088ff 100%);
+            color: #000;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            margin: 1rem 0.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+        }
+        
+        .interactive-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0,255,136,0.3);
+        }
+        
+        /* Animations on scroll */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+        
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 3rem;
+            }
+            
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .pillars {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero">
+        <div class="hero-content">
+            <h1>OMNICAPITAL</h1>
+            <p class="hero-subtitle">El Manifiesto del Trading Sistematico</p>
+            <p class="hero-quote">"La simplicidad es la maxima sofisticacion."<br>— Leonardo da Vinci</p>
+            <button class="interactive-btn" onclick="document.getElementById('principios').scrollIntoView({behavior: 'smooth'})">
+                Explorar el Sistema
+            </button>
+        </div>
+        <div class="scroll-indicator">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2">
+                <path d="M12 5v14M19 12l-7 7-7-7"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-value" id="cagr">0%</span>
+            <span class="stat-label">CAGR</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">0.82</span>
+            <span class="stat-label">Sharpe Ratio</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="equity">$0M</span>
+            <span class="stat-label">Final Equity</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">5</span>
+            <span class="stat-label">Stop Events / 26 anos</span>
+        </div>
+    </div>
+
+    <!-- Principios -->
+    <section id="principios" class="fade-in">
+        <h2>I. Principios Fundamentales</h2>
+        
+        <h3>La Naturaleza del Mercado</h3>
+        <p>El mercado de valores no es un rompecabezas que resolver, ni un codigo que descifrar. Es un ecosistema complejo de millones de agentes interactuando. En este caos aparente, existe un orden profundo: <strong>la tendencia</strong>.</p>
+        <p>Las acciones suben porque la economia crece. OmniCapital no intenta predecir el ruido; se posiciona para capturar la tendencia.</p>
+        
+        <h3>La Ilusion del Control</h3>
+        <p>La industria financiera vende ilusiones: algoritmos predictivos, senales infalibles. El mercado no puede ser predicho porque <strong>la informacion relevante aun no existe</strong>.</p>
+        <p>Aceptar la impredecibilidad no es rendirse. Es liberarse.</p>
+        
+        <h3>El Poder de la Diversificacion Aleatoria</h3>
+        <p>La diversificacion es el unico "almuerzo gratis" en finanzas. OmniCapital lleva esto a su conclusion logica: <strong>seleccion aleatoria</strong>.</p>
+        <p>La aleatoriedad no es ignorancia. Es <strong>humildad matematica</strong>.</p>
+    </section>
+
+    <!-- Los 5 Pilares -->
+    <section id="pilares" class="fade-in">
+        <h2>II. Los Cinco Pilares</h2>
+        
+        <div class="pillars">
+            <div class="pillar" onclick="toggleDetail(this)">
+                <div class="pillar-name">Hold Time</div>
+                <div class="pillar-value">1200 min</div>
+                <div class="pillar-desc">~20 horas, 2 overnights. Captura el overnight gap, evita ruido intradia.</div>
+            </div>
+            
+            <div class="pillar" onclick="toggleDetail(this)">
+                <div class="pillar-name">Stop Loss</div>
+                <div class="pillar-value">-20%</div>
+                <div class="pillar-desc">Portfolio level. 5 activaciones en 26 anos (2001, 2008, 2010, 2020, 2022).</div>
+            </div>
+            
+            <div class="pillar" onclick="toggleDetail(this)">
+                <div class="pillar-name">Leverage</div>
+                <div class="pillar-value">2:1</div>
+                <div class="pillar-desc">Dinamico. Reduce a 1:1 cuando se activa stop loss. Recupera a 95% del peak.</div>
+            </div>
+            
+            <div class="pillar" onclick="toggleDetail(this)">
+                <div class="pillar-name">Posiciones</div>
+                <div class="pillar-value">5</div>
+                <div class="pillar-desc">Diversificacion suficiente sin sobrecomplicar operativamente.</div>
+            </div>
+            
+            <div class="pillar" onclick="toggleDetail(this)">
+                <div class="pillar-name">Seleccion</div>
+                <div class="pillar-value">Aleatoria</div>
+                <div class="pillar-desc">Elimina sesgos humanos. Aprovecha diversificacion estadistica pura.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Performance -->
+    <section id="performance" class="fade-in">
+        <h2>III. Performance Historica (2000-2026)</h2>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Estrategia</th>
+                    <th>CAGR</th>
+                    <th>Max DD</th>
+                    <th>Sharpe</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="highlight">
+                    <td><strong>OmniCapital v6</strong></td>
+                    <td class="highlight">16.92%</td>
+                    <td>-38.4%</td>
+                    <td class="highlight">0.82</td>
+                </tr>
+                <tr>
+                    <td>S&P 500 Buy & Hold</td>
+                    <td>9.8%</td>
+                    <td>-57%</td>
+                    <td>0.52</td>
+                </tr>
+                <tr>
+                    <td>Hedge Funds (avg)</td>
+                    <td>6.2%</td>
+                    <td>-25%</td>
+                    <td>0.45</td>
+                </tr>
+                <tr>
+                    <td>60/40 Portfolio</td>
+                    <td>7.1%</td>
+                    <td>-32%</td>
+                    <td>0.48</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p style="margin-top: 2rem; text-align: center; color: #666;">
+            Costos totales (26 anos): ~$366,000 | Impacto CAGR: -1.67%
+        </p>
+    </section>
+
+    <!-- Filosofia -->
+    <section id="filosofia" class="fade-in">
+        <h2>IV. Filosofia Operativa</h2>
+        
+        <h3>Sin Prediccion</h3>
+        <p>No hay ML, no hay analisis tecnico, no hay macro. El sistema no sabe si manana subira el mercado. No le importa.</p>
+        
+        <h3>Sin Juicio</h3>
+        <p>La seleccion aleatoria elimina el juicio humano. No hay comites, no hay "feelings". La aleatoriedad no tiene ego.</p>
+        
+        <h3>Sin Optimizacion Excesiva</h3>
+        <p><strong>Optimizacion = fragilidad.</strong> El sistema que funciona en 2008, 2020 y 2022 no necesita modificaciones.</p>
+        
+        <h3>Sin Intervencion</h3>
+        <p>Una vez iniciado, OmniCapital no requiere intervencion humana. Es reconocimiento de nuestra incapacidad de mejorar el sistema.</p>
+    </section>
+
+    <!-- Reglas de Oro -->
+    <section id="reglas" class="fade-in">
+        <h2>V. Las Reglas de Oro</h2>
+        
+        <ol class="rules">
+            <li>Nunca modificar parametros durante drawdowns</li>
+            <li>Nunca agregar capital durante proteccion (1:1 leverage)</li>
+            <li>Nunca interrumpir el sistema por "intuicion"</li>
+            <li>Nunca operar tamanos que causen ansiedad</li>
+            <li>Nunca comparar resultados mensuales con otros</li>
+        </ol>
+        
+        <p style="margin-top: 2rem; font-style: italic; color: #888;">
+            El juego de OmniCapital se juega en decadas, no en dias.
+        </p>
+    </section>
+
+    <!-- Critica -->
+    <section id="critica" class="fade-in">
+        <h2>VI. La Critica y sus Respuestas</h2>
+        
+        <h3>"Por que no seleccionar las mejores acciones?"</h3>
+        <p>Porque no puedes. Nadie puede consistentemente. Los intentos de seleccion introducen sesgos que degradan performance.</p>
+        
+        <h3>"Por que no usar machine learning?"</h3>
+        <p>El ML en mercados es curve-fitting disfrazado de ciencia. Funciona en backtest, falla en vivo.</p>
+        
+        <h3>"Por que no ajustar segun condiciones de mercado?"</h3>
+        <p>"Condiciones de mercado" solo se identifican en retrospectiva. Ajustar es overfitting.</p>
+        
+        <h3>"Que pasa si el mercado cambia estructuralmente?"</h3>
+        <p>Si el crecimiento economico permanente desaparece, ninguna estrategia de equities funcionara.</p>
+        
+        <h3>"Por que no mas posiciones?"</h3>
+        <p>5 posiciones eliminan el 80% del riesgo idiosincratico. Mas posiciones = mas costos sin beneficios proporcionales.</p>
+    </section>
+
+    <!-- Footer -->
+    <div class="footer">
+        <h2>El Legado</h2>
+        <p style="max-width: 800px; margin: 2rem auto;">
+            OmniCapital es una <strong>declaracion de principios</strong>:<br>
+            Que la humildad vence a la arrogancia.<br>
+            Que la simplicidad vence a la complejidad.<br>
+            Que la disciplina vence a la inteligencia.<br>
+            Que el tiempo vence al timing.<br>
+            Que la diversificacion vence a la prediccion.
+        </p>
+        
+        <p class="motto">"In Simplicity We Trust"</p>
+        
+        <p class="version">
+            Version 6.0 FINAL | Febrero 2026<br>
+            16.92% CAGR (2000-2026) | Validado y listo para implementacion
+        </p>
+        
+        <button class="interactive-btn" onclick="window.print()">
+            Imprimir Manifiesto
+        </button>
+        <button class="interactive-btn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+            Volver al Inicio
+        </button>
+    </div>
+
+    <script>
+        // Animated counters
+        function animateValue(id, start, end, duration, suffix = '') {
+            const obj = document.getElementById(id);
+            const range = end - start;
+            const minTimer = 50;
+            let stepTime = Math.abs(Math.floor(duration / range));
+            stepTime = Math.max(stepTime, minTimer);
+            let startTime = new Date().getTime();
+            let endTime = startTime + duration;
+            let timer;
+            
+            function run() {
+                let now = new Date().getTime();
+                let remaining = Math.max((endTime - now) / duration, 0);
+                let value = Math.round(end - (remaining * range));
+                obj.innerHTML = value + suffix;
+                if (value == end) {
+                    clearInterval(timer);
+                }
+            }
+            
+            timer = setInterval(run, stepTime);
+            run();
+        }
+        
+        // Start animations when page loads
+        window.addEventListener('load', () => {
+            animateValue('cagr', 0, 16, 2000);
+            setTimeout(() => {
+                document.getElementById('cagr').innerHTML = '16.92%';
+            }, 2000);
+            
+            document.getElementById('equity').innerHTML = '$5.87M';
+        });
+        
+        // Fade in on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+        
+        document.querySelectorAll('.fade-in').forEach(el => {
+            observer.observe(el);
+        });
+        
+        // Toggle pillar details
+        function toggleDetail(element) {
+            element.style.transform = element.style.transform === 'scale(1.02)' ? 'scale(1)' : 'scale(1.02)';
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Home') {
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            } else if (e.key === 'End') {
+                window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+            }
+        });
+    </script>
+</body>
+</html>

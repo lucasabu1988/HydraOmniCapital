@@ -68,6 +68,7 @@ VOL_LOOKBACK = 20           # Dias para calcular realized vol
 INITIAL_CAPITAL = 100_000
 MARGIN_RATE = 0.06          # 6% anual sobre borrowed
 COMMISSION_PER_SHARE = 0.001
+CASH_YIELD_RATE = 0.035         # 3.5% anual sobre cash positivo (T-bill proxy)
 
 # Data
 START_DATE = '2000-01-01'
@@ -545,6 +546,10 @@ def run_backtest(price_data: Dict[str, pd.DataFrame],
             borrowed = portfolio_value * (current_leverage - 1) / current_leverage
             daily_margin = MARGIN_RATE / 252 * borrowed
             cash -= daily_margin
+
+        # --- Cash yield (T-bill on uninvested cash) ---
+        if cash > 0:
+            cash += cash * (CASH_YIELD_RATE / 252)
 
         # --- Close positions ---
         for symbol in list(positions.keys()):

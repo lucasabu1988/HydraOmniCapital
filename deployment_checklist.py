@@ -16,7 +16,7 @@ class DeploymentChecker:
         
     def check(self, name, condition, message=""):
         """Ejecuta un check y registra resultado"""
-        status = "✓ PASS" if condition else "✗ FAIL"
+        status = "[OK]" if condition else "[FAIL]"
         self.checks.append({
             'name': name,
             'status': status,
@@ -29,9 +29,9 @@ class DeploymentChecker:
         else:
             self.failed += 1
             
-        print(f"{status}: {name}")
+        print(f"{status} {name}")
         if message and not condition:
-            print(f"  → {message}")
+            print(f"    -> {message}")
         
         return condition
     
@@ -203,11 +203,11 @@ class DeploymentChecker:
         print(f"Total: {self.passed + self.failed}")
         
         if self.failed == 0:
-            print("\n✓ TODOS LOS CHECKS PASADOS")
+            print("\n[OK] TODOS LOS CHECKS PASADOS")
             print("Estas listo para deployment live (Fase 2)")
             print("\nProximo paso: Ejecutar Fase 2 - Escalado gradual")
         else:
-            print(f"\n✗ {self.failed} CHECKS FALLIDOS")
+            print(f"\n[FAIL] {self.failed} CHECKS FALLIDOS")
             print("Resolver issues antes de continuar")
             print("\nIssues pendientes:")
             for check in self.checks:

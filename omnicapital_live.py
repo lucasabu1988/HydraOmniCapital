@@ -111,6 +111,10 @@ CONFIG = {
     'MAX_VALID_PRICE': 50000,
     'MAX_PRICE_CHANGE_PCT': 0.20,
 
+    # Order management
+    'ORDER_TIMEOUT_SECONDS': 300,  # 5 min max for pending orders
+    'MAX_FILL_DEVIATION': 0.02,  # 2% max fill price deviation
+
     # Monitoring intervals
     'STOP_CHECK_INTERVAL': 900,  # 15 min - check stops during market hours
     'STATE_SAVE_INTERVAL': 300,  # 5 min
@@ -149,32 +153,101 @@ BROAD_POOL = [
 # ============================================================================
 
 class DataValidator:
-    """Validates market data quality and consistency"""
+    """Validates market data quality and consistency.
+    Rejects outlier prices, NaN values, and stale data."""
 
     def __init__(self, config: Dict):
         self.config = config
         self._price_history: Dict[str, List[tuple]] = {}
-        self._max_history = 10
+        self._max_history = 20
+        self._rejection_count = 0
+        self._total_validated = 0
 
     def is_valid_price(self, symbol: str, price: float) -> bool:
+        """Validate a single price. Returns False if price is invalid."""
+        # Range check
         if not (self.config['MIN_VALID_PRICE'] <= price <= self.config['MAX_VALID_PRICE']):
             logger.warning(f"Price out of range for {symbol}: ${price:.2f}")
             return False
-        if symbol in self._price_history:
+
+        # Sharp change check (only if we have history)
+        if symbol in self._price_history and self._price_history[symbol]:
             last_prices = [p for _, p in self._price_history[symbol][-3:]]
             if last_prices:
                 avg_last = np.mean(last_prices)
-                change_pct = abs(price - avg_last) / avg_last
-                if change_pct > self.config['MAX_PRICE_CHANGE_PCT']:
-                    logger.warning(f"Sharp change in {symbol}: {change_pct:.1%}")
+                if avg_last > 0:
+                    change_pct = abs(price - avg_last) / avg_last
+                    if change_pct > self.config['MAX_PRICE_CHANGE_PCT']:
+                        logger.warning(f"Sharp price change rejected for {symbol}: "
+                                      f"${price:.2f} vs avg ${avg_last:.2f} "
+                                      f"({change_pct:.1%} > {self.config['MAX_PRICE_CHANGE_PCT']:.0%})")
+                        return False
         return True
 
+    def validate_price_freshness(self, symbol: str,
+                                  max_age_seconds: int = 300) -> bool:
+        """Check if our last recorded price is fresh enough to trust"""
+        if symbol in self._price_history and self._price_history[symbol]:
+            last_time, _ = self._price_history[symbol][-1]
+            age = (datetime.now() - last_time).total_seconds()
+            if age > max_age_seconds:
+                logger.warning(f"Stale price for {symbol}: {age:.0f}s old "
+                             f"(max {max_age_seconds}s)")
+                return False
+        return True
+
+    def validate_batch(self, prices: Dict[str, float]) -> Dict[str, float]:
+        """Filter a price dict, keeping only valid prices. Returns clean dict.
+        Records valid prices automatically."""
+        valid = {}
+        rejected = []
+
+        for symbol, price in prices.items():
+            self._total_validated += 1
+
+            # NaN / None check
+            if price is None:
+                rejected.append((symbol, 'None'))
+                continue
+            try:
+                if np.isnan(price):
+                    rejected.append((symbol, 'NaN'))
+                    continue
+            except (TypeError, ValueError):
+                rejected.append((symbol, 'invalid_type'))
+                continue
+
+            # Range + sharp change check
+            if not self.is_valid_price(symbol, price):
+                rejected.append((symbol, 'outlier'))
+                self._rejection_count += 1
+                continue
+
+            valid[symbol] = price
+            self.record_price(symbol, price)
+
+        if rejected:
+            logger.warning(f"Data validation rejected {len(rejected)}/{len(prices)} prices: "
+                          f"{', '.join(f'{s}({r})' for s, r in rejected[:5])}"
+                          + (f" ... +{len(rejected)-5} more" if len(rejected) > 5 else ""))
+        return valid
+
     def record_price(self, symbol: str, price: float):
+        """Record a validated price for future comparison"""
         if symbol not in self._price_history:
             self._price_history[symbol] = []
         self._price_history[symbol].append((datetime.now(), price))
         if len(self._price_history[symbol]) > self._max_history:
             self._price_history[symbol] = self._price_history[symbol][-self._max_history:]
+
+    def get_stats(self) -> Dict:
+        """Get validation statistics"""
+        return {
+            'total_validated': self._total_validated,
+            'total_rejected': self._rejection_count,
+            'rejection_rate': self._rejection_count / max(1, self._total_validated),
+            'symbols_tracked': len(self._price_history),
+        }
 
 
 # ============================================================================
@@ -343,7 +416,8 @@ class COMPASSLive:
         # Broker
         self.broker = PaperBroker(
             initial_cash=config['PAPER_INITIAL_CASH'],
-            commission_per_share=config['COMMISSION_PER_SHARE']
+            commission_per_share=config['COMMISSION_PER_SHARE'],
+            max_fill_deviation=config.get('MAX_FILL_DEVIATION', 0.02)
         )
         self.broker.set_price_feed(self.data_feed)
 
@@ -402,6 +476,8 @@ class COMPASSLive:
         logger.info(f"Leverage: [{config['LEVERAGE_MIN']:.1f}x, {config['LEVERAGE_MAX']:.1f}x]")
         logger.info(f"Recovery: S1={config['RECOVERY_STAGE_1_DAYS']}d (0.3x), S2={config['RECOVERY_STAGE_2_DAYS']}d (1.0x)")
         logger.info(f"Universe: {len(BROAD_POOL)} broad pool -> top {config['TOP_N']}")
+        logger.info(f"Chassis: async fetch | order timeout {config.get('ORDER_TIMEOUT_SECONDS', 300)}s | "
+                     f"fill breaker {config.get('MAX_FILL_DEVIATION', 0.02):.0%} | data validation")
 
     # ------------------------------------------------------------------
     # Market hours
@@ -1034,18 +1110,14 @@ class COMPASSLive:
             if self.is_new_trading_day():
                 self.daily_open()
 
-            # Get current prices
+            # Get current prices (async fetch + batch validation)
             symbols_needed = list(set(self.current_universe) |
                                   set(self.position_meta.keys()))
-            prices = {}
-            for symbol in symbols_needed:
-                price = self.data_feed.get_price(symbol)
-                if price and self.validator.is_valid_price(symbol, price):
-                    self.validator.record_price(symbol, price)
-                    prices[symbol] = price
+            raw_prices = self.data_feed.get_prices(symbols_needed)
+            prices = self.validator.validate_batch(raw_prices)
 
             if not prices:
-                logger.warning("No valid prices obtained")
+                logger.warning("No valid prices obtained after validation")
                 self._consecutive_errors += 1
                 return False
 
@@ -1074,6 +1146,15 @@ class COMPASSLive:
                     self.check_portfolio_stop(prices)
                     self.check_position_exits(prices)
                     self._last_stop_check = now
+
+            # Check for stale orders (order timeout)
+            if hasattr(self.broker, 'check_stale_orders'):
+                stale = self.broker.check_stale_orders(
+                    self.config.get('ORDER_TIMEOUT_SECONDS', 300)
+                )
+                if stale:
+                    logger.warning(f"Cancelled {len(stale)} stale orders: "
+                                  f"{', '.join(o.symbol for o in stale)}")
 
             # Periodic state save
             now = datetime.now()

@@ -1,6 +1,7 @@
 """
-OmniCapital v6 - Data Feed Module
+OmniCapital v8.2 - Data Feed Module
 Provee datos de mercado en tiempo real desde multiples fuentes.
+Incluye fetching asincrono para mayor velocidad.
 """
 
 import pandas as pd
@@ -11,6 +12,7 @@ import logging
 from typing import Dict, Optional, List
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
@@ -34,54 +36,93 @@ class DataFeed:
 
 class YahooDataFeed(DataFeed):
     """Data feed usando Yahoo Finance (gratuito, delay 15min)"""
-    
-    def __init__(self, cache_duration: int = 60):
+
+    def __init__(self, cache_duration: int = 60, max_workers: int = 10):
         super().__init__()
         self.cache_duration = cache_duration  # segundos
+        self.max_workers = max_workers  # threads para fetch paralelo
         self._cache = {}
         self._cache_time = {}
         
     def get_price(self, symbol: str) -> Optional[float]:
         """Obtiene precio actual con cache"""
         now = datetime.now()
-        
+
         # Verificar cache
         if symbol in self._cache:
             cache_age = (now - self._cache_time[symbol]).total_seconds()
             if cache_age < self.cache_duration:
                 return self._cache[symbol]
-        
+
         # Obtener nuevo dato
+        price = None
         try:
             ticker = yf.Ticker(symbol)
-            info = ticker.fast_info
-            price = info.get('last_price', None)
-            
-            if price:
+            # Method 1: fast_info (fastest)
+            try:
+                info = ticker.fast_info
+                price = info.get('last_price', None)
+            except Exception:
+                pass
+
+            # Method 2: history fallback (more reliable)
+            if not price or price <= 0:
+                try:
+                    hist = ticker.history(period='5d')
+                    if len(hist) > 0:
+                        price = float(hist['Close'].iloc[-1])
+                except Exception:
+                    pass
+
+            if price and price > 0:
                 self._cache[symbol] = price
                 self._cache_time[symbol] = now
                 return price
-                
+
         except Exception as e:
             logger.warning(f"Error obteniendo {symbol}: {e}")
-        
+
         # Retornar cache si existe
         return self._cache.get(symbol, None)
     
-    def get_prices(self, symbols: List[str]) -> Dict[str, float]:
-        """Obtiene multiples precios"""
+    def get_prices(self, symbols: List[str], max_workers: int = None) -> Dict[str, float]:
+        """Obtiene multiples precios en paralelo usando ThreadPoolExecutor"""
+        workers = max_workers or self.max_workers
         prices = {}
-        for symbol in symbols:
-            price = self.get_price(symbol)
-            if price:
-                prices[symbol] = price
+        t0 = time.time()
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            future_to_symbol = {
+                executor.submit(self.get_price, symbol): symbol
+                for symbol in symbols
+            }
+            for future in as_completed(future_to_symbol):
+                symbol = future_to_symbol[future]
+                try:
+                    price = future.result(timeout=30)
+                    if price:
+                        prices[symbol] = price
+                except Exception as e:
+                    logger.warning(f"Async price fetch failed for {symbol}: {e}")
+
+        elapsed = time.time() - t0
+        logger.debug(f"Fetched {len(prices)}/{len(symbols)} prices in {elapsed:.1f}s "
+                     f"({workers} workers)")
         return prices
-    
+
     def is_connected(self) -> bool:
         """Verifica conexion"""
         try:
+            # Try fast_info first
             test = yf.Ticker("SPY").fast_info
-            return test.get('last_price', None) is not None
+            if test.get('last_price', None) is not None:
+                return True
+        except:
+            pass
+        # Fallback: try history
+        try:
+            hist = yf.Ticker("SPY").history(period='5d')
+            return len(hist) > 0
         except:
             return False
 
@@ -238,21 +279,43 @@ class HistoricalDataLoader:
             logger.error(f"Error cargando historial de {symbol}: {e}")
             return pd.DataFrame()
 
-    def get_historical_batch(self, symbols: list, period: str = '6mo') -> dict:
-        """Download historical data for multiple symbols.
+    def _download_one(self, symbol: str, period: str) -> tuple:
+        """Download historical data for a single symbol (used by ThreadPoolExecutor)"""
+        try:
+            df = yf.download(symbol, period=period, progress=False)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = [c[0] for c in df.columns]
+            if len(df) > 20:
+                return (symbol, df)
+        except Exception as e:
+            logger.debug(f"Failed to download {symbol}: {e}")
+        return (symbol, None)
+
+    def get_historical_batch(self, symbols: list, period: str = '6mo',
+                             max_workers: int = 8) -> dict:
+        """Download historical data for multiple symbols in parallel.
         Returns dict of symbol -> DataFrame with OHLCV data.
         Used by COMPASS v8.2 for momentum scoring and vol targeting."""
         results = {}
-        for symbol in symbols:
-            try:
-                df = yf.download(symbol, period=period, progress=False)
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = [c[0] for c in df.columns]
-                if len(df) > 20:
-                    results[symbol] = df
-            except Exception as e:
-                logger.debug(f"Failed to download {symbol}: {e}")
-        logger.info(f"Historical batch: {len(results)}/{len(symbols)} symbols downloaded")
+        t0 = time.time()
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(self._download_one, symbol, period): symbol
+                for symbol in symbols
+            }
+            for future in as_completed(futures):
+                try:
+                    symbol, df = future.result(timeout=60)
+                    if df is not None:
+                        results[symbol] = df
+                except Exception as e:
+                    symbol = futures[future]
+                    logger.debug(f"Historical download failed for {symbol}: {e}")
+
+        elapsed = time.time() - t0
+        logger.info(f"Historical batch: {len(results)}/{len(symbols)} symbols "
+                    f"downloaded in {elapsed:.1f}s ({max_workers} workers)")
         return results
 
     def check_symbol_eligibility(self, symbol: str, min_age_days: int = 63) -> bool:
@@ -339,17 +402,22 @@ class MarketDataManager:
 
 
 if __name__ == "__main__":
-    # Test del data feed
+    # Test del data feed con timing
     logging.basicConfig(level=logging.INFO)
-    
-    print("Probando Yahoo Data Feed...")
-    feed = YahooDataFeed()
-    
-    symbols = ['AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META']
+
+    print("Probando Yahoo Data Feed (async)...")
+    feed = YahooDataFeed(max_workers=10)
+
+    symbols = ['AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META',
+               'NVDA', 'TSLA', 'JPM', 'V', 'UNH']
+
+    t0 = time.time()
     prices = feed.get_prices(symbols)
-    
-    print("\nPrecios obtenidos:")
+    elapsed = time.time() - t0
+
+    print(f"\nPrecios obtenidos ({len(prices)}/{len(symbols)}) en {elapsed:.1f}s:")
     for sym, price in prices.items():
         print(f"  {sym}: ${price:.2f}")
-    
+
     print(f"\nConectado: {feed.is_connected()}")
+    print(f"Workers: {feed.max_workers}")
