@@ -80,7 +80,7 @@ CONFIG = {
     # Leverage & Vol targeting
     'TARGET_VOL': 0.15,
     'LEVERAGE_MIN': 0.3,
-    'LEVERAGE_MAX': 2.0,
+    'LEVERAGE_MAX': 1.0,          # Production: no leverage (broker margin destroys value)
     'VOL_LOOKBACK': 20,
 
     # Universe
@@ -473,7 +473,7 @@ class COMPASSLive:
         logger.info(f"Hold: {config['HOLD_DAYS']}d | Pos stop: {config['POSITION_STOP_LOSS']:.0%}")
         logger.info(f"Trailing: +{config['TRAILING_ACTIVATION']:.0%} / -{config['TRAILING_STOP_PCT']:.0%}")
         logger.info(f"Portfolio stop: {config['PORTFOLIO_STOP_LOSS']:.0%}")
-        logger.info(f"Leverage: [{config['LEVERAGE_MIN']:.1f}x, {config['LEVERAGE_MAX']:.1f}x]")
+        logger.info(f"Leverage: max {config['LEVERAGE_MAX']:.1f}x (no leverage — broker margin destroys value)")
         logger.info(f"Recovery: S1={config['RECOVERY_STAGE_1_DAYS']}d (0.3x), S2={config['RECOVERY_STAGE_2_DAYS']}d (1.0x)")
         logger.info(f"Universe: {len(BROAD_POOL)} broad pool -> top {config['TOP_N']}")
         logger.info(f"Chassis: async fetch | order timeout {config.get('ORDER_TIMEOUT_SECONDS', 300)}s | "

@@ -27,21 +27,24 @@ ALGORITHM SUMMARY:
     2. Signal: Cross-sectional momentum (90d) minus short-term reversal (5d)
     3. Regime: SPY > SMA(200) with 3-day confirmation = RISK_ON
     4. Sizing: Inverse volatility weighting (stable stocks get more capital)
-    5. Leverage: Vol-targeting (target 15% annual vol, range 0.3x-2.0x)
+    5. Leverage: Vol-targeting (target 15% annual vol, capped at 1.0x — NO LEVERAGE)
     6. Exits: 5-day hold + position stop (-8%) + trailing stop (+5%/3%)
     7. Protection: Portfolio stop (-15%) triggers staged recovery (63d/126d)
 
-BACKTEST RESULTS (2000-01-01 to 2026-02-09):
+BACKTEST RESULTS (2000-01-01 to 2026-02-06, LEVERAGE_MAX=1.0):
     Initial Capital:    $100,000
-    Final Value:        $5,910,000
-    CAGR:               16.95%
-    Sharpe Ratio:       0.815
-    Sortino Ratio:      1.13
-    Max Drawdown:       -28.4%
-    Calmar Ratio:       0.60
-    Win Rate:           55.3%
-    Total Trades:       5,383 (~207/year)
+    Final Value:        $6,911,873
+    CAGR:               17.66%
+    Sharpe Ratio:       0.85
+    Sortino Ratio:      1.18
+    Max Drawdown:       -27.5%
+    Calmar Ratio:       0.64
+    Win Rate:           55.2%
+    Total Trades:       5,445 (~209/year)
     Positive Years:     23/26 (88%)
+
+    NOTE: These are pure signal results (no execution costs).
+    Realistic expectation with MOC+costs: 12.58% CAGR, 0.622 Sharpe.
     Best Year:          +112.4%
     Worst Year:         -26.8%
     Protection Days:    2,002 (30.5% of backtest) — this is a FEATURE, not a bug
@@ -1042,10 +1045,11 @@ RECOMMENDATION FOR LIVE TRADING:
 ------------------------------------------------------------------------
 1. Use MOC (Market On Close) orders for all entries and exits
 2. Budget 2bps slippage for top-40 liquid stocks
-3. Realistic CAGR expectation: ~11.5% (not 16.95% from ideal backtest)
-4. The ~5.5% gap between ideal and realistic is NORMAL for momentum strategies:
+3. LEVERAGE_MAX = 1.0 (no leverage — broker 6% margin destroys -1.10% CAGR)
+4. Realistic CAGR expectation: ~12.58% (not 17.66% from ideal backtest)
+5. The ~5.1% gap between ideal and realistic is NORMAL for momentum strategies:
    - Most academic momentum papers report 3-7% execution drag
-   - Our 5.5% is within that expected range for a concentrated 5-stock portfolio
+   - Our 5.1% is within that expected range for a concentrated 5-stock portfolio
 
 ADDITIONAL CHASSIS UPGRADES IMPLEMENTED:
 ------------------------------------------------------------------------
@@ -1076,9 +1080,13 @@ Box Spread (SOFR+20bps) vs Broker 6%:
   +1.25% CAGR | +0.063 Sharpe | +$571,263 final value | zero additional risk
   ZIRP era (2009-2021): saved $36,267 (broker charged 6% vs 0.3% box rate)
 
-COMBINED REALISTIC BASELINE (MOC + Box Spread):
-  CAGR: 12.73% | Sharpe: 0.623 | MaxDD: -43.7%
+PRODUCTION BASELINE (MOC + No Leverage):
+  CAGR: 12.58% | Sharpe: 0.622 | MaxDD: -27.5%
+  LEVERAGE_MAX = 1.0 (broker margin at 6% destroys -1.10% CAGR).
   This is the realistic performance expectation for live trading.
+
+  Optional upgrade: Box Spread financing (SOFR+20bps) makes leverage marginally
+  positive (+0.15% CAGR → 12.73%), but requires Portfolio Margin + quarterly rolls.
 
 FULL COST DECOMPOSITION (February 2025):
 ------------------------------------------------------------------------

@@ -49,7 +49,7 @@ COMPASS_CONFIG = {
     'NUM_POSITIONS_RISK_OFF': 2,
     'TARGET_VOL': 0.15,
     'LEVERAGE_MIN': 0.3,
-    'LEVERAGE_MAX': 2.0,
+    'LEVERAGE_MAX': 1.0,          # Production: no leverage (broker margin destroys value)
     'INITIAL_CAPITAL': 100_000,
     # Chassis
     'ORDER_TIMEOUT_SECONDS': 300,
@@ -1003,8 +1003,8 @@ def api_preflight():
             above_sma = float(spy_close) > float(sma200)
             returns = spy_df['Close'].pct_change().dropna().iloc[-20:]
             vol_20d = float(returns.std() * np.sqrt(252))
-            raw_lev = 0.15 / vol_20d if vol_20d > 0.01 else 2.0
-            est_leverage = max(0.3, min(2.0, raw_lev))
+            raw_lev = 0.15 / vol_20d if vol_20d > 0.01 else 1.0
+            est_leverage = max(0.3, min(1.0, raw_lev))
 
             regime_data = {
                 'spy_close': round(float(spy_close), 2),
@@ -1249,6 +1249,7 @@ if __name__ == '__main__':
     print(f"Dashboard:  http://localhost:5000")
     print(f"Engine:     Controlled via dashboard UI")
     print(f"Backtest:   Auto-refresh daily after 16:15 ET")
+    print(f"Leverage:   Max {COMPASS_CONFIG['LEVERAGE_MAX']:.1f}x (no leverage — broker margin destroys value)")
     print(f"Chassis:    async fetch | fill breaker {COMPASS_CONFIG['MAX_FILL_DEVIATION']:.0%} | "
           f"order timeout {COMPASS_CONFIG['ORDER_TIMEOUT_SECONDS']}s | data validation")
     print("=" * 60)

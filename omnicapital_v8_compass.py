@@ -61,7 +61,7 @@ RECOVERY_STAGE_2_DAYS = 126 # 6 meses para stage 2 (1.0x -> vol targeting)
 # Leverage & Vol targeting
 TARGET_VOL = 0.15           # 15% anualizado
 LEVERAGE_MIN = 0.3
-LEVERAGE_MAX = 2.0
+LEVERAGE_MAX = 1.0          # Production: no leverage (broker margin destroys value)
 VOL_LOOKBACK = 20           # Dias para calcular realized vol
 
 # Costs
