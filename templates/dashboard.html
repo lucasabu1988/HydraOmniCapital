@@ -1035,8 +1035,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <span class="hdr-pill-dot"></span> NORMAL
     </span>
     <div class="hdr-stat">
-        <span class="hdr-stat-label">Leverage</span>
-        <span class="hdr-stat-value" id="leverage-display">--</span>
+        <span class="hdr-stat-label">Lev</span>
+        <span class="hdr-stat-value" id="leverage-display">1.0x</span>
     </div>
     <div class="hdr-stat">
         <span class="hdr-stat-label">Day</span>
@@ -1081,6 +1081,41 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     <button class="eng-btn eng-btn-stop" id="engine-btn-stop" onclick="showStopModal()" style="display:none;">STOP ENGINE</button>
 </div>
 
+<!-- PRODUCTION CONFIG -->
+<div class="engine-bar" style="gap:20px; border-left: 3px solid var(--accent);">
+    <div style="display:flex; flex-direction:column; gap:2px;">
+        <span style="font-size:10px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:1.5px; font-weight:600;">Production Config</span>
+        <span style="font-size:12px; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;">COMPASS v8.2 &middot; No Leverage &middot; MOC Execution</span>
+    </div>
+    <span class="engine-spacer"></span>
+    <div style="display:flex; gap:20px; align-items:center;">
+        <div class="hdr-stat">
+            <span class="hdr-stat-label">Backtest CAGR</span>
+            <span class="hdr-stat-value" style="color:var(--green);">17.66%</span>
+        </div>
+        <div style="width:1px; height:24px; background:var(--border);"></div>
+        <div class="hdr-stat">
+            <span class="hdr-stat-label">Realistic CAGR</span>
+            <span class="hdr-stat-value" style="color:var(--accent-light);">12.58%</span>
+        </div>
+        <div style="width:1px; height:24px; background:var(--border);"></div>
+        <div class="hdr-stat">
+            <span class="hdr-stat-label">Sharpe</span>
+            <span class="hdr-stat-value">0.622</span>
+        </div>
+        <div style="width:1px; height:24px; background:var(--border);"></div>
+        <div class="hdr-stat">
+            <span class="hdr-stat-label">Max DD</span>
+            <span class="hdr-stat-value" style="color:var(--yellow);">-27.5%</span>
+        </div>
+        <div style="width:1px; height:24px; background:var(--border);"></div>
+        <div class="hdr-stat">
+            <span class="hdr-stat-label">Leverage</span>
+            <span class="hdr-stat-value">1.0x max</span>
+        </div>
+    </div>
+</div>
+
 <!-- UNIVERSE -->
 <div class="universe-bar" id="universe-bar">
     <span class="universe-bar-label" onclick="toggleUniverse()">
@@ -1098,9 +1133,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <div class="metric-sub" id="card-return">--</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Leverage</div>
-        <div class="metric-value" id="card-leverage">--</div>
-        <div class="metric-sub" id="card-leverage-sub">Max 1.0x (no leverage)</div>
+        <div class="metric-label">Expected CAGR</div>
+        <div class="metric-value c-accent" id="card-cagr">12.58%</div>
+        <div class="metric-sub" id="card-cagr-sub">Realistic (MOC + costs, no lev)</div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Cash</div>
@@ -1317,7 +1352,7 @@ function updateStatusBar(p) {
         rt.className = 'hdr-pill hdr-pill-off';
     }
 
-    const lev = p.leverage != null ? p.leverage.toFixed(2) + 'x' : 'VOL';
+    const lev = p.leverage != null ? p.leverage.toFixed(2) + 'x' : '1.00x';
     document.getElementById('leverage-display').textContent = lev;
 
     const pt = document.getElementById('protection-tag');
@@ -1346,11 +1381,15 @@ function updateCards(p) {
     document.getElementById('card-return').innerHTML =
         '<span class="' + colorCls(p.total_return) + '">' + fmtPct(p.total_return) + '</span> from $' + p.initial_capital.toLocaleString();
 
-    /* Leverage card */
-    const levEl = document.getElementById('card-leverage');
-    const lev = p.leverage != null ? p.leverage.toFixed(2) + 'x' : '--';
-    levEl.textContent = lev;
-    levEl.className = 'metric-value c-white';
+    /* Expected CAGR card — static production reference */
+    /* Leverage info shown in sub when in protection */
+    const cagrSub = document.getElementById('card-cagr-sub');
+    if (p.in_protection) {
+        const levNow = p.leverage != null ? p.leverage.toFixed(1) + 'x' : '1.0x';
+        cagrSub.textContent = 'Lev: ' + levNow + ' (Protection S' + p.protection_stage + ')';
+    } else {
+        cagrSub.textContent = 'Realistic (MOC + costs, no lev)';
+    }
 
     document.getElementById('card-cash').textContent = fmt$(p.cash);
     document.getElementById('card-invested').textContent = 'Invested: ' + fmt$(p.invested);

@@ -582,7 +582,8 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     elif not state.get('current_regime', True):
         leverage = 1.0
     else:
-        leverage = None
+        # Normal RISK_ON: vol-targeting capped at 1.0x
+        leverage = 1.0
 
     if state.get('in_protection'):
         max_pos = 2 if state.get('protection_stage') == 1 else 3
