@@ -96,6 +96,11 @@ CONFIG = {
     'MARKET_OPEN': time(9, 30),
     'MARKET_CLOSE': time(16, 0),
 
+    # Pre-close execution: compute signal at 15:30, submit MOC before 15:50
+    # Recovers ~0.79% CAGR vs next-day MOC (see chassis_preclose_analysis.py)
+    'PRECLOSE_SIGNAL_TIME': time(15, 30),   # Compute signal at 15:30 ET
+    'MOC_DEADLINE': time(15, 50),           # NYSE MOC deadline
+
     # Broker
     'BROKER_TYPE': 'PAPER',
     'PAPER_INITIAL_CASH': 100_000,
@@ -461,6 +466,7 @@ class COMPASSLive:
         self._last_stop_check = datetime.now()
         self._last_state_save = datetime.now()
         self._daily_open_done = False
+        self._preclose_entries_done = False   # Pre-close entries for today
 
         # Notifications (set externally)
         self.notifier = None
@@ -473,9 +479,11 @@ class COMPASSLive:
         logger.info(f"Hold: {config['HOLD_DAYS']}d | Pos stop: {config['POSITION_STOP_LOSS']:.0%}")
         logger.info(f"Trailing: +{config['TRAILING_ACTIVATION']:.0%} / -{config['TRAILING_STOP_PCT']:.0%}")
         logger.info(f"Portfolio stop: {config['PORTFOLIO_STOP_LOSS']:.0%}")
-        logger.info(f"Leverage: max {config['LEVERAGE_MAX']:.1f}x (no leverage — broker margin destroys value)")
+        logger.info(f"Leverage: max {config['LEVERAGE_MAX']:.1f}x (no leverage -- broker margin destroys value)")
         logger.info(f"Recovery: S1={config['RECOVERY_STAGE_1_DAYS']}d (0.3x), S2={config['RECOVERY_STAGE_2_DAYS']}d (1.0x)")
         logger.info(f"Universe: {len(BROAD_POOL)} broad pool -> top {config['TOP_N']}")
+        logger.info(f"Execution: Pre-close signal @ {config['PRECLOSE_SIGNAL_TIME'].strftime('%H:%M')} ET "
+                     f"-> same-day MOC (deadline {config['MOC_DEADLINE'].strftime('%H:%M')} ET)")
         logger.info(f"Chassis: async fetch | order timeout {config.get('ORDER_TIMEOUT_SECONDS', 300)}s | "
                      f"fill breaker {config.get('MAX_FILL_DEVIATION', 0.02):.0%} | data validation")
 
@@ -890,6 +898,7 @@ class COMPASSLive:
         self.trading_day_counter += 1
         self.trades_today = []
         self._daily_open_done = False
+        self._preclose_entries_done = False
 
         logger.info(f"\n{'='*60}")
         logger.info(f"TRADING DAY {self.trading_day_counter} | {today}")
@@ -923,7 +932,9 @@ class COMPASSLive:
                      f"Positions: {len(self.broker.positions)}/{max_pos}")
 
     def execute_trading_logic(self, prices: Dict[str, float]):
-        """Main trading logic: exits then entries"""
+        """Daily open trading logic: exits only.
+        Entries happen at pre-close (15:30 ET) via execute_preclose_entries().
+        """
         # 1. Check portfolio stop loss
         if self.check_portfolio_stop(prices):
             return  # Stop triggered, no more trading today
@@ -931,8 +942,47 @@ class COMPASSLive:
         # 2. Check individual position exits
         self.check_position_exits(prices)
 
-        # 3. Open new positions
+        # NOTE: Entries moved to execute_preclose_entries() at 15:30 ET
+        # This recovers ~0.79% CAGR by using same-day MOC execution
+        # instead of next-day execution (see chassis_preclose_analysis.py)
+
+    def is_preclose_window(self) -> bool:
+        """Check if we're in the pre-close entry window (15:30-15:50 ET)"""
+        now_et = self.get_et_now()
+        if now_et.weekday() >= 5:
+            return False
+        current_time = now_et.time()
+        return (self.config['PRECLOSE_SIGNAL_TIME'] <= current_time
+                <= self.config['MOC_DEADLINE'])
+
+    def execute_preclose_entries(self, prices: Dict[str, float]):
+        """Compute momentum signal and open new positions at pre-close.
+
+        Called once per day during the 15:30-15:50 ET window.
+        Signal uses yesterday's close (from _hist_cache), execution at
+        current price (close to today's final close via MOC).
+
+        Backtest validation: chassis_preclose_analysis.py variant C
+        shows +0.79% CAGR and -7.8pp MaxDD improvement vs next-day MOC.
+        """
+        if self._preclose_entries_done:
+            return
+
+        logger.info(f"[PRE-CLOSE] Computing entry signal at {self.get_et_now().strftime('%H:%M:%S')} ET")
+
+        # Check portfolio stop first (might have triggered intraday)
+        if self.check_portfolio_stop(prices):
+            self._preclose_entries_done = True
+            return
+
+        # Open new positions using momentum scores from historical data
+        # The _hist_cache contains data up to yesterday's close (refreshed at open)
+        # This is exactly the Close[T-1] signal validated in the backtest
         self.open_new_positions(prices)
+
+        self._preclose_entries_done = True
+        self.save_state()
+        logger.info(f"[PRE-CLOSE] Entry signal complete")
 
     # ------------------------------------------------------------------
     # State persistence
@@ -1134,13 +1184,22 @@ class COMPASSLive:
                 if price and price > meta.get('high_price', 0):
                     meta['high_price'] = price
 
-            # Execute trading logic (at open) or check stops (intraday)
+            # Execute trading logic:
+            # - At open: exits only (stops, hold expired, trailing, etc.)
+            # - At 15:30 ET: new entries via pre-close signal + same-day MOC
+            # - Intraday: check stops periodically
             if not self._daily_open_done:
                 self.execute_trading_logic(prices)
                 self._daily_open_done = True
                 self.log_status(prices)
-            else:
-                # Intraday: only check stops
+
+            # Pre-close entry window: 15:30-15:50 ET
+            if not self._preclose_entries_done and self.is_preclose_window():
+                self.execute_preclose_entries(prices)
+                self.log_status(prices)
+
+            # Intraday: check stops periodically
+            if self._daily_open_done:
                 now = datetime.now()
                 if (now - self._last_stop_check).total_seconds() >= self.config['STOP_CHECK_INTERVAL']:
                     self.check_portfolio_stop(prices)

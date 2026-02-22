@@ -1248,7 +1248,8 @@ if __name__ == '__main__':
     print(f"Dashboard:  http://localhost:5000")
     print(f"Engine:     Controlled via dashboard UI")
     print(f"Backtest:   Auto-refresh daily after 16:15 ET")
-    print(f"Leverage:   Max {COMPASS_CONFIG['LEVERAGE_MAX']:.1f}x (no leverage — broker margin destroys value)")
+    print(f"Leverage:   Max {COMPASS_CONFIG['LEVERAGE_MAX']:.1f}x (no leverage -- broker margin destroys value)")
+    print(f"Execution:  Pre-close signal @ 15:30 ET -> same-day MOC (+0.79% CAGR)")
     print(f"Chassis:    async fetch | fill breaker {COMPASS_CONFIG['MAX_FILL_DEVIATION']:.0%} | "
           f"order timeout {COMPASS_CONFIG['ORDER_TIMEOUT_SECONDS']}s | data validation")
     print("=" * 60)

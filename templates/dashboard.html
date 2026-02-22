@@ -1085,7 +1085,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <div class="engine-bar" style="gap:20px; border-left: 3px solid var(--accent);">
     <div style="display:flex; flex-direction:column; gap:2px;">
         <span style="font-size:10px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:1.5px; font-weight:600;">Production Config</span>
-        <span style="font-size:12px; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;">COMPASS v8.2 &middot; No Leverage &middot; MOC Execution</span>
+        <span style="font-size:12px; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;">COMPASS v8.2 &middot; No Leverage &middot; Pre-Close MOC (15:30 ET)</span>
     </div>
     <span class="engine-spacer"></span>
     <div style="display:flex; gap:20px; align-items:center;">
@@ -1096,17 +1096,17 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <div style="width:1px; height:24px; background:var(--border);"></div>
         <div class="hdr-stat">
             <span class="hdr-stat-label">Realistic CAGR</span>
-            <span class="hdr-stat-value" style="color:var(--accent-light);">12.58%</span>
+            <span class="hdr-stat-value" style="color:var(--accent-light);">13.52%</span>
         </div>
         <div style="width:1px; height:24px; background:var(--border);"></div>
         <div class="hdr-stat">
             <span class="hdr-stat-label">Sharpe</span>
-            <span class="hdr-stat-value">0.622</span>
+            <span class="hdr-stat-value">0.658</span>
         </div>
         <div style="width:1px; height:24px; background:var(--border);"></div>
         <div class="hdr-stat">
             <span class="hdr-stat-label">Max DD</span>
-            <span class="hdr-stat-value" style="color:var(--yellow);">-27.5%</span>
+            <span class="hdr-stat-value" style="color:var(--yellow);">-35.5%</span>
         </div>
         <div style="width:1px; height:24px; background:var(--border);"></div>
         <div class="hdr-stat">
@@ -1134,8 +1134,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
     <div class="metric-card">
         <div class="metric-label">Expected CAGR</div>
-        <div class="metric-value c-accent" id="card-cagr">12.58%</div>
-        <div class="metric-sub" id="card-cagr-sub">Realistic (MOC + costs, no lev)</div>
+        <div class="metric-value c-accent" id="card-cagr">13.52%</div>
+        <div class="metric-sub" id="card-cagr-sub">Pre-close MOC + costs, no lev</div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Cash</div>
@@ -1238,7 +1238,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
             Period: <span id="comp-years" class="mono" style="color:var(--text-tertiary);">--</span> years
         </div>
         <div style="font-size:11px; color:var(--text-muted); border-left:2px solid var(--accent); padding-left:8px;">
-            Realistic (after costs): <span class="mono" style="color:var(--accent-light); font-weight:600;">12.58%</span> CAGR &middot; no leverage
+            Realistic (pre-close MOC + costs): <span class="mono" style="color:var(--accent-light); font-weight:600;">13.52%</span> CAGR &middot; no leverage
         </div>
     </div>
     <div class="chart-container">
@@ -1261,7 +1261,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- FOOTER -->
-<div class="footer">OmniCapital COMPASS v8.2 &middot; Paper Trading &middot; No Leverage (1.0x max)</div>
+<div class="footer">OmniCapital COMPASS v8.2 &middot; Paper Trading &middot; No Leverage (1.0x) &middot; Pre-Close MOC @ 15:30 ET</div>
 
 </div><!-- /main -->
 
@@ -1391,7 +1391,7 @@ function updateCards(p) {
         const levNow = p.leverage != null ? p.leverage.toFixed(1) + 'x' : '1.0x';
         cagrSub.textContent = 'Lev: ' + levNow + ' (Protection S' + p.protection_stage + ')';
     } else {
-        cagrSub.textContent = 'Realistic (MOC + costs, no lev)';
+        cagrSub.textContent = 'Pre-close MOC + costs, no lev';
     }
 
     document.getElementById('card-cash').textContent = fmt$(p.cash);
