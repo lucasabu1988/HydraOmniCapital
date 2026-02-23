@@ -1,0 +1,80 @@
+2026-02-23 13:00:47,523 - INFO - ======================================================================
+2026-02-23 13:00:47,523 - INFO - OMNICAPITAL v8.2 COMPASS - LIVE TRADING
+2026-02-23 13:00:47,523 - INFO - ======================================================================
+2026-02-23 13:00:47,523 - INFO - Signal: Momentum 90d (skip 5d)
+2026-02-23 13:00:47,523 - INFO - Regime: SPY SMA200 | Vol target: 15%
+2026-02-23 13:00:47,523 - INFO - Hold: 5d | Pos stop: -8%
+2026-02-23 13:00:47,523 - INFO - Trailing: +5% / -3%
+2026-02-23 13:00:47,523 - INFO - Portfolio stop: -15%
+2026-02-23 13:00:47,523 - INFO - Leverage: max 1.0x (no leverage -- broker margin destroys value)
+2026-02-23 13:00:47,523 - INFO - Recovery: S1=63d (0.3x), S2=126d (1.0x)
+2026-02-23 13:00:47,524 - INFO - Universe: 113 broad pool -> top 40
+2026-02-23 13:00:47,524 - INFO - Execution: Pre-close signal @ 15:30 ET -> same-day MOC (deadline 15:50 ET)
+2026-02-23 13:00:47,524 - INFO - Chassis: async fetch | order timeout 300s | fill breaker 2% | data validation
+2026-02-23 13:00:47,524 - INFO - State loaded from state/compass_state_latest.json
+2026-02-23 13:00:47,525 - INFO -   Cash: $19,116 | Peak: $100,924
+2026-02-23 13:00:47,525 - INFO -   Positions: 5 | Day: 3
+2026-02-23 13:00:47,525 - INFO -   Regime: RISK_ON
+2026-02-23 13:00:47,553 - INFO - Paper broker conectado. Cash inicial: $19,116.45
+2026-02-23 13:00:47,568 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.81:5000
+2026-02-23 13:00:47,568 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-23 13:00:49,538 - INFO - 127.0.0.1 - - [23/Feb/2026 13:00:49] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 13:00:50,419 - INFO - STATUS: $100,703 | DD:-0.2% | RISK_ON | Lev:1.00x | Pos:5/5 | [MU(1.6%), LRCX(1.9%), AMAT(1.9%), XOM(-1.9%), MRK(2.0%)]
+2026-02-23 13:00:50,865 - INFO - 127.0.0.1 - - [23/Feb/2026 13:00:50] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:00:59,285 - INFO - 127.0.0.1 - - [23/Feb/2026 13:00:59] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:01:01,830 - INFO - 127.0.0.1 - - [23/Feb/2026 13:01:01] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 13:01:19,490 - INFO - 127.0.0.1 - - [23/Feb/2026 13:01:19] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-23 13:01:19,492 - INFO - 127.0.0.1 - - [23/Feb/2026 13:01:19] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:01:19,522 - INFO - 127.0.0.1 - - [23/Feb/2026 13:01:19] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 13:01:19,745 - INFO - 127.0.0.1 - - [23/Feb/2026 13:01:19] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 13:01:59,204 - INFO - 127.0.0.1 - - [23/Feb/2026 13:01:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 13:02:00,272 - INFO - 127.0.0.1 - - [23/Feb/2026 13:02:00] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:02:00,619 - INFO - 127.0.0.1 - - [23/Feb/2026 13:02:00] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 13:02:19,188 - INFO - 127.0.0.1 - - [23/Feb/2026 13:02:19] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-23 13:02:59,562 - INFO - 127.0.0.1 - - [23/Feb/2026 13:02:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 13:03:00,295 - INFO - 127.0.0.1 - - [23/Feb/2026 13:03:00] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:03:00,321 - INFO - 127.0.0.1 - - [23/Feb/2026 13:03:00] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 13:03:19,491 - INFO - 127.0.0.1 - - [23/Feb/2026 13:03:19] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-23 13:03:19,493 - INFO - 127.0.0.1 - - [23/Feb/2026 13:03:19] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 13:03:59,225 - INFO - 127.0.0.1 - - [23/Feb/2026 13:03:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 13:04:00,224 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:00] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:04:00,551 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:00] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 13:04:19,181 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:19] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-23 13:04:33,605 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:33] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 13:04:34,509 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:34] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:04:34,528 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:34] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 13:04:48,628 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:48] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:04:48,702 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:48] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 13:04:48,897 - INFO - 127.0.0.1 - - [23/Feb/2026 13:04:48] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 13:05:04,787 - INFO - ======================================================================
+2026-02-23 13:05:04,788 - INFO - OMNICAPITAL v8.2 COMPASS - LIVE TRADING
+2026-02-23 13:05:04,788 - INFO - ======================================================================
+2026-02-23 13:05:04,788 - INFO - Signal: Momentum 90d (skip 5d)
+2026-02-23 13:05:04,788 - INFO - Regime: SPY SMA200 | Vol target: 15%
+2026-02-23 13:05:04,788 - INFO - Hold: 5d | Pos stop: -8%
+2026-02-23 13:05:04,788 - INFO - Trailing: +5% / -3%
+2026-02-23 13:05:04,788 - INFO - Portfolio stop: -15%
+2026-02-23 13:05:04,788 - INFO - Leverage: max 1.0x (no leverage -- broker margin destroys value)
+2026-02-23 13:05:04,788 - INFO - Recovery: S1=63d (0.3x), S2=126d (1.0x)
+2026-02-23 13:05:04,788 - INFO - Universe: 113 broad pool -> top 40
+2026-02-23 13:05:04,788 - INFO - Execution: Pre-close signal @ 15:30 ET -> same-day MOC (deadline 15:50 ET)
+2026-02-23 13:05:04,788 - INFO - Chassis: async fetch | order timeout 300s | fill breaker 2% | data validation
+2026-02-23 13:05:04,789 - INFO - State loaded from state/compass_state_latest.json
+2026-02-23 13:05:04,789 - INFO -   Cash: $19,116 | Peak: $100,924
+2026-02-23 13:05:04,789 - INFO -   Positions: 5 | Day: 3
+2026-02-23 13:05:04,789 - INFO -   Regime: RISK_ON
+2026-02-23 13:05:04,797 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.81:5000
+2026-02-23 13:05:04,797 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-23 13:05:04,803 - INFO - Paper broker conectado. Cash inicial: $19,116.45
+2026-02-23 13:05:07,365 - INFO - STATUS: $100,653 | DD:-0.3% | RISK_ON | Lev:1.00x | Pos:5/5 | [MU(1.6%), LRCX(1.7%), AMAT(1.7%), XOM(-1.8%), MRK(2.0%)]
+2026-02-23 13:05:14,676 - INFO - 127.0.0.1 - - [23/Feb/2026 13:05:14] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:05:18,391 - INFO - 127.0.0.1 - - [23/Feb/2026 13:05:18] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 13:05:18,626 - INFO - 127.0.0.1 - - [23/Feb/2026 13:05:18] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-23 13:05:18,632 - INFO - 127.0.0.1 - - [23/Feb/2026 13:05:18] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 13:05:18,954 - INFO - 127.0.0.1 - - [23/Feb/2026 13:05:18] "GET /api/social-feed HTTP/1.1" 200 -
