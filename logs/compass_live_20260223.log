@@ -612,3 +612,18 @@
 2026-02-23 14:25:00,215 - INFO - 127.0.0.1 - - [23/Feb/2026 14:25:00] "GET /api/state HTTP/1.1" 200 -
 2026-02-23 14:25:00,550 - INFO - 127.0.0.1 - - [23/Feb/2026 14:25:00] "GET /api/social-feed HTTP/1.1" 200 -
 2026-02-23 14:25:17,000 - INFO - State saved: state/compass_state_20260223.json
+2026-02-23 14:25:17,284 - INFO - git sync: committed (auto: COMPASS state sync 2026-02-23 14:25)
+2026-02-23 14:25:18,664 - INFO - git sync: pushed to origin/main
+2026-02-23 14:25:59,211 - INFO - 127.0.0.1 - - [23/Feb/2026 14:25:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 14:25:59,490 - INFO - 127.0.0.1 - - [23/Feb/2026 14:25:59] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-23 14:26:00,426 - INFO - 127.0.0.1 - - [23/Feb/2026 14:26:00] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 14:26:00,755 - INFO - 127.0.0.1 - - [23/Feb/2026 14:26:00] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 14:26:59,207 - INFO - 127.0.0.1 - - [23/Feb/2026 14:26:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 14:26:59,495 - INFO - 127.0.0.1 - - [23/Feb/2026 14:26:59] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-23 14:27:00,215 - INFO - 127.0.0.1 - - [23/Feb/2026 14:27:00] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 14:27:08,126 - INFO - 127.0.0.1 - - [23/Feb/2026 14:27:08] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 14:27:59,213 - INFO - 127.0.0.1 - - [23/Feb/2026 14:27:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-23 14:27:59,494 - INFO - 127.0.0.1 - - [23/Feb/2026 14:27:59] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-23 14:28:00,212 - INFO - 127.0.0.1 - - [23/Feb/2026 14:28:00] "GET /api/state HTTP/1.1" 200 -
+2026-02-23 14:28:00,534 - INFO - 127.0.0.1 - - [23/Feb/2026 14:28:00] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-23 14:28:23,725 - INFO - State saved: state/compass_state_20260223.json
