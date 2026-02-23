@@ -68,7 +68,8 @@ VOL_LOOKBACK = 20           # Dias para calcular realized vol
 INITIAL_CAPITAL = 100_000
 MARGIN_RATE = 0.06          # 6% anual sobre borrowed
 COMMISSION_PER_SHARE = 0.001
-CASH_YIELD_RATE = 0.035         # 3.5% anual sobre cash positivo (T-bill proxy)
+CASH_YIELD_RATE = 0.035         # Fallback fijo (usado si FRED no disponible)
+CASH_YIELD_SOURCE = 'AAA'       # Moody's Aaa Corporate Bond Yield (FRED)
 
 # Data
 START_DATE = '2000-01-01'
@@ -109,6 +110,7 @@ print(f"\nBroad pool: {len(BROAD_POOL)} stocks | Top-{TOP_N} annual rotation")
 print(f"Signal: Momentum {MOMENTUM_LOOKBACK}d (skip {MOMENTUM_SKIP}d) + Inverse Vol sizing")
 print(f"Regime: SPY SMA{REGIME_SMA_PERIOD} | Vol target: {TARGET_VOL:.0%}")
 print(f"Hold: {HOLD_DAYS}d | Pos stop: {POSITION_STOP_LOSS:.0%} | Port stop: {PORTFOLIO_STOP_LOSS:.0%}")
+print(f"Cash yield: Moody's Aaa IG Corporate (FRED, variable)")
 print()
 
 
@@ -172,6 +174,34 @@ def download_spy() -> pd.DataFrame:
     os.makedirs('data_cache', exist_ok=True)
     df.to_csv(cache_file)
     return df
+
+
+def download_cash_yield() -> pd.Series:
+    """Download Moody's Aaa Corporate Bond Yield from FRED.
+    Returns a daily Series of yield rates (annual %, forward-filled from monthly).
+    Falls back to fixed CASH_YIELD_RATE if FRED unavailable."""
+    cache_file = 'data_cache/moody_aaa_yield.csv'
+
+    if os.path.exists(cache_file):
+        print("[Cache] Loading Moody's Aaa yield data...")
+        df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
+        daily = df['yield_pct'].resample('D').ffill()
+        print(f"  {len(daily)} daily rates, avg {daily.mean():.2f}%")
+        return daily
+
+    print("[Download] Downloading Moody's Aaa yield from FRED...")
+    try:
+        url = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=AAA&cosd=1999-01-01&coed=2026-12-31'
+        df = pd.read_csv(url, parse_dates=['observation_date'], index_col='observation_date')
+        df.columns = ['yield_pct']
+        os.makedirs('data_cache', exist_ok=True)
+        df.to_csv(cache_file)
+        daily = df['yield_pct'].resample('D').ffill()
+        print(f"  {len(daily)} daily rates, avg {daily.mean():.2f}%")
+        return daily
+    except Exception as e:
+        print(f"  FRED download failed: {e}. Using fixed {CASH_YIELD_RATE:.1%}")
+        return None
 
 
 def compute_annual_top40(price_data: Dict[str, pd.DataFrame]) -> Dict[int, List[str]]:
@@ -403,7 +433,8 @@ def get_tradeable_symbols(price_data: Dict[str, pd.DataFrame],
 
 def run_backtest(price_data: Dict[str, pd.DataFrame],
                  annual_universe: Dict[int, List[str]],
-                 spy_data: pd.DataFrame) -> Dict:
+                 spy_data: pd.DataFrame,
+                 cash_yield_daily: Optional[pd.Series] = None) -> Dict:
     """Run COMPASS backtest"""
 
     print("\n" + "=" * 80)
@@ -547,9 +578,13 @@ def run_backtest(price_data: Dict[str, pd.DataFrame],
             daily_margin = MARGIN_RATE / 252 * borrowed
             cash -= daily_margin
 
-        # --- Cash yield (T-bill on uninvested cash) ---
+        # --- Cash yield (Moody's Aaa corporate bond yield on uninvested cash) ---
         if cash > 0:
-            cash += cash * (CASH_YIELD_RATE / 252)
+            if cash_yield_daily is not None and date in cash_yield_daily.index:
+                daily_rate = cash_yield_daily.loc[date] / 100 / 252
+            else:
+                daily_rate = CASH_YIELD_RATE / 252
+            cash += cash * daily_rate
 
         # --- Close positions ---
         for symbol in list(positions.keys()):
@@ -778,12 +813,14 @@ if __name__ == "__main__":
     spy_data = download_spy()
     print(f"SPY data: {len(spy_data)} trading days")
 
+    cash_yield_daily = download_cash_yield()
+
     # 2. Compute annual top-40
     print("\n--- Computing Annual Top-40 ---")
     annual_universe = compute_annual_top40(price_data)
 
     # 3. Run backtest
-    results = run_backtest(price_data, annual_universe, spy_data)
+    results = run_backtest(price_data, annual_universe, spy_data, cash_yield_daily)
 
     # 4. Calculate metrics
     metrics = calculate_metrics(results)

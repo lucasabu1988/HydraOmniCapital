@@ -11,8 +11,10 @@ venv/
 data_cache/
 *.pkl
 
-# Logs (local only)
-logs/
+# Old log dumps (too large, pre-live-test)
+logs/omnicapital_*.json
+logs/omnicapital_*.log
+logs/monitor_snapshot_*.json
 
 # Secrets
 omnicapital_config.json
@@ -32,6 +34,5 @@ optimization_results/
 universe_tests/
 
 # Temp files
-*.log
 STOP_TRADING
 demo_state.json

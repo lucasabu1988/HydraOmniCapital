@@ -585,6 +585,119 @@ body::before {
 }
 
 
+/* ============ PERFORMANCE vs SPY — HERO BANNER ============ */
+.perf-banner {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+}
+.perf-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--green), var(--accent), var(--cyan));
+}
+.perf-banner-inner {
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+.perf-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.perf-side-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+.perf-side-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+.perf-side-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+}
+.perf-vs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0 32px;
+    position: relative;
+}
+.perf-vs-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+.perf-vs-alpha {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+.perf-vs-divider {
+    position: absolute;
+    top: -20px;
+    bottom: -20px;
+    width: 1px;
+    background: var(--border);
+}
+.perf-vs-divider-left { left: 0; }
+.perf-vs-divider-right { right: 0; }
+.perf-bar-wrap {
+    margin-top: 8px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.perf-bar-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+.perf-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+.perf-bar-center {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: var(--border-active);
+}
+.perf-banner-period {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-align: center;
+    padding: 0 28px 14px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
 /* ============ POSITIONS — HERO SECTION ============ */
 .positions-hero {
     background: var(--bg-card);
@@ -1164,7 +1277,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <div class="engine-bar" style="gap:20px; border-left: 3px solid var(--accent);">
     <div style="display:flex; flex-direction:column; gap:2px;">
         <span style="font-size:10px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:1.5px; font-weight:600;">Production Config</span>
-        <span style="font-size:12px; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;">COMPASS v8.2 &middot; No Leverage &middot; Pre-Close MOC (15:30 ET)</span>
+        <span style="font-size:12px; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;">COMPASS v8.2 &middot; No Leverage &middot; Pre-Close MOC (15:30 ET) &middot; Aaa IG Cash Yield</span>
     </div>
     <span class="engine-spacer"></span>
     <div style="display:flex; gap:20px; align-items:center;">
@@ -1223,6 +1336,32 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         UNIVERSE <span class="universe-bar-count" id="universe-count">0</span>
     </span>
     <div class="universe-badges" id="universe-grid" style="display:none;"></div>
+</div>
+
+<!-- PERFORMANCE vs SPY — HERO BANNER -->
+<div class="perf-banner" id="perf-banner">
+    <div class="perf-banner-inner">
+        <!-- COMPASS side -->
+        <div class="perf-side">
+            <span class="perf-side-label">COMPASS v8.2</span>
+            <span class="perf-side-value" id="perf-compass-val">--</span>
+            <span class="perf-side-sub" id="perf-compass-sub">$-- &rarr; $--</span>
+        </div>
+        <!-- VS center -->
+        <div class="perf-vs">
+            <div class="perf-vs-divider perf-vs-divider-left"></div>
+            <span class="perf-vs-alpha" id="perf-alpha">--</span>
+            <span class="perf-vs-label" id="perf-alpha-label">vs SPY</span>
+            <div class="perf-vs-divider perf-vs-divider-right"></div>
+        </div>
+        <!-- SPY side -->
+        <div class="perf-side">
+            <span class="perf-side-label">S&amp;P 500 (SPY)</span>
+            <span class="perf-side-value" id="perf-spy-val">--</span>
+            <span class="perf-side-sub" id="perf-spy-sub">$-- &rarr; $--</span>
+        </div>
+    </div>
+    <div class="perf-banner-period" id="perf-period">Live test since --</div>
 </div>
 
 <!-- PORTFOLIO METRICS -->
@@ -1314,13 +1453,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <!-- COMPASS vs S&P 500 COMPARISON -->
 <div class="card full-width">
     <div class="card-header">
-        <span class="card-title">Backtest &mdash; COMPASS v8.2 vs S&amp;P 500 <span style="font-size:10px; color:var(--text-muted); letter-spacing:0.5px; text-transform:none;">(pre-costs)</span></span>
+        <span class="card-title">Backtest &mdash; COMPASS v8.2 Net vs S&amp;P 500</span>
         <div style="display:flex; gap:16px; align-items:center;">
             <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-tertiary);">
-                <span style="width:12px; height:3px; background:#f0f0f5; border-radius:2px; display:inline-block;"></span> COMPASS
-            </span>
-            <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-tertiary);">
-                <span style="width:12px; height:3px; background:#22c55e; border-radius:2px; display:inline-block; opacity:0.9;"></span> Net
+                <span style="width:12px; height:3px; background:#22c55e; border-radius:2px; display:inline-block; opacity:0.9;"></span> COMPASS Net
             </span>
             <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-tertiary);">
                 <span style="width:12px; height:3px; background:#6366f1; border-radius:2px; display:inline-block;"></span> S&amp;P 500
@@ -1330,11 +1466,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
     <div style="display:flex; gap:24px; padding:0 24px 12px; flex-wrap:wrap;">
         <div style="font-size:11px; color:var(--text-muted);">
-            Signal: <span id="comp-compass-cagr" class="mono" style="color:var(--green); font-weight:600;">--</span> CAGR
-            &nbsp;&rarr;&nbsp; <span id="comp-compass-final" class="mono" style="color:var(--text-primary); font-weight:600;">--</span>
-        </div>
-        <div style="font-size:11px; color:var(--text-muted);">
-            Net: <span id="comp-net-cagr" class="mono" style="color:#22c55e; font-weight:600;">--</span> CAGR
+            COMPASS Net: <span id="comp-net-cagr" class="mono" style="color:#22c55e; font-weight:600;">--</span> CAGR
             &nbsp;&rarr;&nbsp; <span id="comp-net-final" class="mono" style="color:#22c55e; font-weight:600;">--</span>
             <span style="font-size:9px; color:var(--text-muted); opacity:0.7;">(after execution costs)</span>
         </div>
@@ -1553,6 +1685,61 @@ function updateCards(p) {
 }
 
 
+function updatePerfBanner(p) {
+    /* COMPASS side */
+    const compassVal = document.getElementById('perf-compass-val');
+    compassVal.textContent = fmtPct(p.total_return);
+    compassVal.className = 'perf-side-value ' + colorCls(p.total_return);
+    document.getElementById('perf-compass-sub').innerHTML =
+        '$' + p.initial_capital.toLocaleString() + ' &rarr; ' + fmt$(p.portfolio_value);
+
+    /* SPY side */
+    const spyVal = document.getElementById('perf-spy-val');
+    if (p.spy_return != null) {
+        spyVal.textContent = fmtPct(p.spy_return);
+        spyVal.className = 'perf-side-value ' + colorCls(p.spy_return);
+        const spyStart = p.initial_capital;
+        const spyNow = spyStart * (1 + p.spy_return / 100);
+        document.getElementById('perf-spy-sub').innerHTML =
+            '$' + spyStart.toLocaleString() + ' &rarr; ' + fmt$(spyNow);
+    } else {
+        spyVal.textContent = '--';
+        spyVal.className = 'perf-side-value';
+    }
+
+    /* VS center — difference expressed as outperformance */
+    const alphaEl = document.getElementById('perf-alpha');
+    const alphaLabel = document.getElementById('perf-alpha-label');
+    if (p.spy_return != null) {
+        const diff = p.total_return - p.spy_return;
+        const absDiff = Math.abs(diff).toFixed(2);
+        if (diff >= 0) {
+            alphaEl.textContent = '+' + absDiff + ' pp';
+            alphaEl.className = 'perf-vs-alpha c-green';
+            alphaLabel.textContent = 'Beating SPY';
+            alphaLabel.style.color = 'var(--green)';
+        } else {
+            alphaEl.textContent = '-' + absDiff + ' pp';
+            alphaEl.className = 'perf-vs-alpha c-red';
+            alphaLabel.textContent = 'Trailing SPY';
+            alphaLabel.style.color = 'var(--red)';
+        }
+    } else {
+        alphaEl.textContent = '--';
+        alphaEl.className = 'perf-vs-alpha';
+        alphaLabel.textContent = 'vs SPY';
+        alphaLabel.style.color = '';
+    }
+
+    /* Period label */
+    if (p.last_trading_date) {
+        const days = p.trading_day || '?';
+        document.getElementById('perf-period').textContent =
+            'Live test \u00B7 Day ' + days + ' \u00B7 Started Feb 19, 2026';
+    }
+}
+
+
 function updatePositions(details) {
     const grid = document.getElementById('positions-grid');
     const totalBar = document.getElementById('positions-total-bar');
@@ -1600,10 +1787,14 @@ function updatePositions(details) {
                 '<span class="pos-stop-val">$' + p.trailing_stop_level.toFixed(2) + '</span></div>';
         }
 
+        const priceChange = p.current_price - p.entry_price;
+        const priceChangeSign = priceChange >= 0 ? '+' : '';
+
         html += '<div class="pos-card ' + cardCls + '">' +
-            /* Top: Symbol + P&L badge */
+            /* Top: Symbol + Live Price + P&L badge */
             '<div class="pos-top">' +
                 '<span class="pos-symbol">' + p.symbol + '</span>' +
+                '<span style="font-size:15px; font-weight:700; color:var(--text-primary); font-family:var(--font-mono,monospace); margin-left:auto; margin-right:6px;">$' + p.current_price.toFixed(2) + '</span>' +
                 '<span class="pos-pnl-badge ' + pnlBadgeCls + '">' + fmtPct(p.pnl_pct) + '</span>' +
             '</div>' +
             /* Row 1: Value, P&L$, Shares */
@@ -1612,10 +1803,10 @@ function updatePositions(details) {
                 '<div class="pos-datum"><span class="pos-datum-label">P&amp;L</span><span class="pos-datum-value ' + colorCls(p.pnl_dollar) + '">' + fmt$(p.pnl_dollar) + '</span></div>' +
                 '<div class="pos-datum"><span class="pos-datum-label">Shares</span><span class="pos-datum-value">' + p.shares.toFixed(1) + '</span></div>' +
             '</div>' +
-            /* Row 2: Entry, Current, High */
+            /* Row 2: Entry, Chg$, High */
             '<div class="pos-data-row">' +
                 '<div class="pos-datum"><span class="pos-datum-label">Entry</span><span class="pos-datum-value">$' + p.entry_price.toFixed(2) + '</span></div>' +
-                '<div class="pos-datum"><span class="pos-datum-label">Current</span><span class="pos-datum-value" style="color:var(--text-primary);">$' + p.current_price.toFixed(2) + '</span></div>' +
+                '<div class="pos-datum"><span class="pos-datum-label">Chg</span><span class="pos-datum-value ' + colorCls(priceChange) + '">' + priceChangeSign + '$' + Math.abs(priceChange).toFixed(2) + '</span></div>' +
                 '<div class="pos-datum"><span class="pos-datum-label">High</span><span class="pos-datum-value">$' + p.high_price.toFixed(2) + '</span></div>' +
             '</div>' +
             /* Hold progress bar */
@@ -1910,16 +2101,13 @@ function renderComparisonChart(json) {
     if (data.length === 0) return;
 
     const labels = data.map(d => d.date);
-    const compassVals = data.map(d => d.compass);
     const netVals = data.map(d => d.net);
     const spyVals = data.map(d => d.spy);
 
     /* Update stat labels */
     const ce = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-    ce('comp-compass-cagr', json.compass_cagr.toFixed(2) + '%');
     ce('comp-net-cagr', json.net_cagr.toFixed(2) + '%');
     ce('comp-spy-cagr', json.spy_cagr.toFixed(2) + '%');
-    ce('comp-compass-final', '$' + json.compass_final.toLocaleString());
     ce('comp-net-final', '$' + json.net_final.toLocaleString());
     ce('comp-spy-final', '$' + json.spy_final.toLocaleString());
     ce('comp-years', json.years.toFixed(1));
@@ -1935,10 +2123,6 @@ function renderComparisonChart(json) {
 
     if (comparisonChart) comparisonChart.destroy();
 
-    const gradientCompass = ctx.createLinearGradient(0, 0, 0, 380);
-    gradientCompass.addColorStop(0, 'rgba(240, 240, 245, 0.04)');
-    gradientCompass.addColorStop(1, 'rgba(240, 240, 245, 0.0)');
-
     const gradientNet = ctx.createLinearGradient(0, 0, 0, 380);
     gradientNet.addColorStop(0, 'rgba(34, 197, 94, 0.10)');
     gradientNet.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
@@ -1952,18 +2136,6 @@ function renderComparisonChart(json) {
         data: {
             labels: labels,
             datasets: [
-                {
-                    label: 'COMPASS Signal (gross)',
-                    data: compassVals,
-                    borderColor: 'rgba(240, 240, 245, 0.35)',
-                    backgroundColor: gradientCompass,
-                    fill: true,
-                    borderWidth: 1,
-                    pointRadius: 0,
-                    pointHitRadius: 8,
-                    tension: 0.3,
-                    order: 2,
-                },
                 {
                     label: 'COMPASS Net (after costs)',
                     data: netVals,
@@ -2084,6 +2256,7 @@ async function fetchAll() {
             const p = stateData.portfolio;
             updateStatusBar(p);
             updateCards(p);
+            updatePerfBanner(p);
             updatePreclose(stateData.preclose);
             updatePositions(stateData.position_details);
             const posDict = {};

@@ -31,6 +31,13 @@ warnings.filterwarnings('ignore')
 from omnicapital_data_feed import YahooDataFeed, MarketDataManager, HistoricalDataLoader
 from omnicapital_broker import PaperBroker, Order, Broker, Position
 
+# Git auto-sync (non-blocking, optional)
+try:
+    from git_sync import git_sync_async
+    _git_sync_available = True
+except ImportError:
+    _git_sync_available = False
+
 # ============================================================================
 # LOGGING
 # ============================================================================
@@ -1052,6 +1059,13 @@ class COMPASSLive:
                 json.dump(state, fp, indent=2, default=str)
 
         logger.info(f"State saved: {filename}")
+
+        # Auto git sync (non-blocking, never crashes engine)
+        if _git_sync_available:
+            try:
+                git_sync_async(filename, latest)
+            except Exception as e:
+                logger.debug(f"git sync queue failed: {e}")
 
     def load_state(self):
         """Load previous state"""

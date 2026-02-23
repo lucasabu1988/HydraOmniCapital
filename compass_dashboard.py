@@ -51,6 +51,7 @@ COMPASS_CONFIG = {
     'LEVERAGE_MIN': 0.3,
     'LEVERAGE_MAX': 1.0,          # Production: no leverage (broker margin destroys value)
     'INITIAL_CAPITAL': 100_000,
+    'CASH_YIELD_SOURCE': "Moody's Aaa IG Corporate (FRED)",
     # Chassis
     'ORDER_TIMEOUT_SECONDS': 300,
     'MAX_FILL_DEVIATION': 0.02,
@@ -65,6 +66,9 @@ KILL_FILE = 'STOP_TRADING'
 ET = ZoneInfo('America/New_York')
 MARKET_OPEN = dtime(9, 30)
 MARKET_CLOSE = dtime(16, 0)
+
+# SPY benchmark: cached start price for live test period return
+_spy_start_price = None
 
 # Broad pool (must match omnicapital_live.py)
 BROAD_POOL = [
@@ -535,6 +539,36 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
     return results
 
 
+def get_spy_start_price() -> Optional[float]:
+    """Get SPY close price on live test start date (cached after first fetch).
+    First tries cached value, then state files, then yfinance as fallback."""
+    global _spy_start_price
+    if _spy_start_price is not None:
+        return _spy_start_price
+
+    # Find earliest state file to determine live test start date
+    state_files = sorted(glob.glob(os.path.join(STATE_DIR, 'compass_state_2*.json')))
+    if not state_files:
+        return None
+
+    try:
+        with open(state_files[0], 'r') as f:
+            first_state = json.load(f)
+        start_date = first_state.get('last_trading_date')
+        if not start_date:
+            return None
+
+        spy = yf.Ticker('SPY')
+        hist = spy.history(start=start_date, end=(date.fromisoformat(start_date) + timedelta(days=5)).isoformat())
+        if not hist.empty:
+            _spy_start_price = float(hist['Close'].iloc[0])
+            return _spy_start_price
+    except Exception:
+        pass
+
+    return None
+
+
 def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     """Compute portfolio-level dashboard metrics."""
     portfolio_value = state.get('portfolio_value', 0)
@@ -592,6 +626,14 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     else:
         max_pos = COMPASS_CONFIG['NUM_POSITIONS']
 
+    # SPY benchmark return over same live test period
+    spy_start = get_spy_start_price()
+    spy_current = prices.get('SPY')
+    if spy_start and spy_current and spy_start > 0:
+        spy_return = round((spy_current - spy_start) / spy_start * 100, 2)
+    else:
+        spy_return = None
+
     return {
         'portfolio_value': round(portfolio_value, 2),
         'cash': round(cash, 2),
@@ -599,6 +641,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         'peak_value': round(peak_value, 2),
         'drawdown': round(drawdown * 100, 2),
         'total_return': round(total_return * 100, 2),
+        'spy_return': spy_return,
         'initial_capital': initial_capital,
         'num_positions': len(positions),
         'max_positions': max_pos,
