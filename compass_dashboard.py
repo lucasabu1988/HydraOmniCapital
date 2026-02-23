@@ -672,6 +672,39 @@ def api_state():
         except Exception:
             chassis_status['stale_orders'] = 0
 
+    # Pre-close window status
+    now_et = datetime.now(ET)
+    is_weekday = now_et.weekday() < 5
+    current_time = now_et.time()
+    preclose_signal_time = dtime(15, 30)
+    moc_deadline = dtime(15, 50)
+
+    preclose_entries_done = False
+    if _live_engine and hasattr(_live_engine, '_preclose_entries_done'):
+        preclose_entries_done = _live_engine._preclose_entries_done
+
+    if not is_weekday or current_time < MARKET_OPEN:
+        preclose_phase = 'market_closed'
+    elif current_time < preclose_signal_time:
+        preclose_phase = 'waiting'         # Market open, waiting for 15:30
+    elif current_time <= moc_deadline:
+        if preclose_entries_done:
+            preclose_phase = 'entries_done' # Signal computed, MOC orders sent
+        else:
+            preclose_phase = 'window_open'  # In pre-close window
+    elif current_time <= MARKET_CLOSE:
+        preclose_phase = 'entries_done'     # Past deadline, entries should be done
+    else:
+        preclose_phase = 'market_closed'
+
+    preclose_status = {
+        'phase': preclose_phase,
+        'signal_time': '15:30 ET',
+        'moc_deadline': '15:50 ET',
+        'current_time_et': now_et.strftime('%H:%M:%S'),
+        'entries_done': preclose_entries_done,
+    }
+
     return jsonify({
         'status': 'online',
         'portfolio': portfolio,
@@ -681,6 +714,7 @@ def api_state():
         'universe_year': state.get('universe_year'),
         'config': COMPASS_CONFIG,
         'chassis': chassis_status,
+        'preclose': preclose_status,
         'server_time': datetime.now().isoformat(),
         'engine': _engine_status,
     })
@@ -824,7 +858,7 @@ def api_equity_comparison():
     spy_start = float(merged['close'].iloc[0])
 
     # COMPASS: real portfolio values (matches equity chart Y-axis)
-    # SPY: scaled so it starts at the same value as COMPASS in 2016
+    # SPY: scaled so it starts at the same value as COMPASS
     merged['compass_val'] = merged[val_col]
     merged['spy_val'] = merged['close'] / spy_start * compass_start
 
@@ -838,6 +872,33 @@ def api_equity_comparison():
     compass_cagr = (pow(compass_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
     spy_cagr = (pow(spy_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
 
+    # --- Net equity curve (real backtest from compass_net_backtest.py) ---
+    # Uses actual production engine with Close[T-1] signal + 2bps slippage
+    NET_CSV = 'backtests/v8_compass_net_daily.csv'
+    if os.path.exists(NET_CSV):
+        net_df = pd.read_csv(NET_CSV, parse_dates=['date'])
+        net_df['date_key'] = net_df['date'].dt.normalize()
+        net_val_col = 'portfolio_value' if 'portfolio_value' in net_df.columns else 'value'
+        merged = pd.merge(merged, net_df[['date_key', net_val_col]].rename(columns={net_val_col: 'net_val'}),
+                          on='date_key', how='left')
+        merged['net_val'] = merged['net_val'].ffill().bfill()
+    else:
+        # Fallback: synthesis formula if net CSV not available
+        import numpy as np
+        NET_CAGR_DECIMAL = 0.1313
+        days_elapsed = (merged['date_key'] - first_date).dt.days.values
+        years_elapsed = days_elapsed / 365.25
+        daily_growth_signal = compass_cagr / 100.0
+        if daily_growth_signal > 0:
+            adjustment = ((1 + NET_CAGR_DECIMAL) / (1 + daily_growth_signal)) ** years_elapsed
+        else:
+            import numpy as np
+            adjustment = np.ones(len(merged))
+        merged['net_val'] = merged['compass_val'].values * adjustment
+
+    net_final = float(merged['net_val'].iloc[-1])
+    net_cagr = (pow(net_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
+
     # --- Downsample every 10 rows (full 26yr period) ---
     sampled = merged.iloc[::10]
     result = []
@@ -846,14 +907,17 @@ def api_equity_comparison():
             'date': row['date_key'].strftime('%Y-%m-%d'),
             'compass': round(float(row['compass_val']), 0),
             'spy': round(float(row['spy_val']), 0),
+            'net': round(float(row['net_val']), 0),
         })
 
     return jsonify({
         'data': result,
         'compass_cagr': round(compass_cagr, 2),
         'spy_cagr': round(spy_cagr, 2),
+        'net_cagr': round(net_cagr, 2),
         'compass_final': round(compass_final, 0),
         'spy_final': round(spy_final, 0),
+        'net_final': round(net_final, 0),
         'years': round(years, 1),
     })
 

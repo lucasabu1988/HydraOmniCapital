@@ -62,16 +62,16 @@ PRECLOSE_BLEND_WEIGHT = 0.85
 # ============================================================================
 
 def load_data():
-    cache_dir = 'data_cache_parquet'
-    from chassis_execution_analysis import BROAD_POOL
-    data = {}
-    for symbol in BROAD_POOL:
-        pq = os.path.join(cache_dir, f'{symbol}.parquet')
-        if os.path.exists(pq):
-            df = pd.read_parquet(pq)
-            if len(df) > 100:
-                data[symbol] = df
-    spy = pd.read_parquet(os.path.join(cache_dir, 'SPY.parquet'))
+    """Load data from main backtest pickle cache (same as omnicapital_v8_compass.py)."""
+    import pickle
+    cache_file = 'data_cache/broad_pool_2000-01-01_2026-02-09.pkl'
+    if os.path.exists(cache_file):
+        print(f"  Loading from main backtest cache: {cache_file}")
+        with open(cache_file, 'rb') as f:
+            data = pickle.load(f)
+    else:
+        raise FileNotFoundError(f"Main backtest cache not found: {cache_file}")
+    spy = pd.read_csv('data_cache/SPY_2000-01-01_2026-02-09.csv', index_col=0, parse_dates=True)
     return data, spy
 
 

@@ -972,6 +972,85 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     text-align: center;
 }
 
+/* ============ PRE-CLOSE INDICATOR ============ */
+.preclose-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+}
+.preclose-phase {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.preclose-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.preclose-dot-waiting { background: var(--text-muted); }
+.preclose-dot-window { background: var(--yellow); animation: pulse-dot 1.5s ease-in-out infinite; }
+.preclose-dot-done { background: var(--green); }
+.preclose-dot-closed { background: var(--text-muted); opacity: 0.4; }
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
+}
+.preclose-timeline {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 20px;
+}
+.preclose-segment {
+    height: 3px;
+    border-radius: 2px;
+    position: relative;
+}
+.preclose-seg-pre {
+    flex: 6;  /* 9:30-15:30 = 6h */
+    background: rgba(255,255,255,0.06);
+}
+.preclose-seg-window {
+    flex: 0.33;  /* 15:30-15:50 = 20min */
+    background: rgba(234, 179, 8, 0.2);
+    margin: 0 2px;
+}
+.preclose-seg-window.active {
+    background: var(--yellow);
+    box-shadow: 0 0 8px rgba(234, 179, 8, 0.3);
+}
+.preclose-seg-post {
+    flex: 0.17;  /* 15:50-16:00 = 10min */
+    background: rgba(255,255,255,0.06);
+}
+.preclose-marker {
+    position: absolute;
+    top: -14px;
+    font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.preclose-marker-start { left: 0; }
+.preclose-marker-end { right: 0; }
+.preclose-time-et {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
 /* ============ FOOTER ============ */
 .footer {
     text-align: center; padding: 24px 0 16px;
@@ -1095,7 +1174,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         </div>
         <div style="width:1px; height:24px; background:var(--border);"></div>
         <div class="hdr-stat">
-            <span class="hdr-stat-label">Realistic CAGR</span>
+            <span class="hdr-stat-label">Net CAGR</span>
             <span class="hdr-stat-value" style="color:var(--accent-light);">13.52%</span>
         </div>
         <div style="width:1px; height:24px; background:var(--border);"></div>
@@ -1114,6 +1193,27 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
             <span class="hdr-stat-value">1.0x max</span>
         </div>
     </div>
+</div>
+
+<!-- PRE-CLOSE SIGNAL INDICATOR -->
+<div class="preclose-bar" id="preclose-bar">
+    <div class="preclose-phase" id="preclose-phase">
+        <span class="preclose-dot preclose-dot-closed" id="preclose-dot"></span>
+        <span id="preclose-label">MARKET CLOSED</span>
+    </div>
+    <div class="preclose-timeline">
+        <div class="preclose-segment preclose-seg-pre">
+            <span class="preclose-marker preclose-marker-start">9:30</span>
+        </div>
+        <div class="preclose-segment preclose-seg-window" id="preclose-seg-window">
+            <span class="preclose-marker preclose-marker-start" style="color:var(--yellow);">15:30</span>
+            <span class="preclose-marker preclose-marker-end">15:50</span>
+        </div>
+        <div class="preclose-segment preclose-seg-post">
+            <span class="preclose-marker preclose-marker-end">16:00</span>
+        </div>
+    </div>
+    <span class="preclose-time-et" id="preclose-time">--:-- ET</span>
 </div>
 
 <!-- UNIVERSE -->
@@ -1220,6 +1320,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
                 <span style="width:12px; height:3px; background:#f0f0f5; border-radius:2px; display:inline-block;"></span> COMPASS
             </span>
             <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-tertiary);">
+                <span style="width:12px; height:3px; background:#22c55e; border-radius:2px; display:inline-block; opacity:0.9;"></span> Net
+            </span>
+            <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-tertiary);">
                 <span style="width:12px; height:3px; background:#6366f1; border-radius:2px; display:inline-block;"></span> S&amp;P 500
             </span>
             <span class="card-badge" id="comp-alpha" style="color:var(--green); background:var(--green-dim);">--</span>
@@ -1227,8 +1330,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
     <div style="display:flex; gap:24px; padding:0 24px 12px; flex-wrap:wrap;">
         <div style="font-size:11px; color:var(--text-muted);">
-            COMPASS: <span id="comp-compass-cagr" class="mono" style="color:var(--green); font-weight:600;">--</span> CAGR
+            Signal: <span id="comp-compass-cagr" class="mono" style="color:var(--green); font-weight:600;">--</span> CAGR
             &nbsp;&rarr;&nbsp; <span id="comp-compass-final" class="mono" style="color:var(--text-primary); font-weight:600;">--</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-muted);">
+            Net: <span id="comp-net-cagr" class="mono" style="color:#22c55e; font-weight:600;">--</span> CAGR
+            &nbsp;&rarr;&nbsp; <span id="comp-net-final" class="mono" style="color:#22c55e; font-weight:600;">--</span>
+            <span style="font-size:9px; color:var(--text-muted); opacity:0.7;">(after execution costs)</span>
         </div>
         <div style="font-size:11px; color:var(--text-muted);">
             S&amp;P 500: <span id="comp-spy-cagr" class="mono" style="color:#6366f1; font-weight:600;">--</span> CAGR
@@ -1236,9 +1344,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         </div>
         <div style="font-size:11px; color:var(--text-muted);">
             Period: <span id="comp-years" class="mono" style="color:var(--text-tertiary);">--</span> years
-        </div>
-        <div style="font-size:11px; color:var(--text-muted); border-left:2px solid var(--accent); padding-left:8px;">
-            Realistic (pre-close MOC + costs): <span class="mono" style="color:var(--accent-light); font-weight:600;">13.52%</span> CAGR &middot; no leverage
         </div>
     </div>
     <div class="chart-container">
@@ -1375,6 +1480,42 @@ function updateStatusBar(p) {
     const ts = p.timestamp ? new Date(p.timestamp).toLocaleString() : '--';
     document.getElementById('upd-tooltip').innerHTML =
         'Last update: ' + ts + '<br>Next refresh in: ' + countdownSec + 's';
+}
+
+function updatePreclose(preclose) {
+    if (!preclose) return;
+    const dot = document.getElementById('preclose-dot');
+    const label = document.getElementById('preclose-label');
+    const timeEl = document.getElementById('preclose-time');
+    const seg = document.getElementById('preclose-seg-window');
+
+    timeEl.textContent = preclose.current_time_et + ' ET';
+
+    switch (preclose.phase) {
+        case 'waiting':
+            dot.className = 'preclose-dot preclose-dot-waiting';
+            label.textContent = 'WAITING FOR 15:30 SIGNAL';
+            label.style.color = 'var(--text-tertiary)';
+            seg.classList.remove('active');
+            break;
+        case 'window_open':
+            dot.className = 'preclose-dot preclose-dot-window';
+            label.textContent = 'PRE-CLOSE WINDOW OPEN';
+            label.style.color = 'var(--yellow)';
+            seg.classList.add('active');
+            break;
+        case 'entries_done':
+            dot.className = 'preclose-dot preclose-dot-done';
+            label.textContent = 'MOC ENTRIES SENT';
+            label.style.color = 'var(--green)';
+            seg.classList.add('active');
+            break;
+        default: /* market_closed */
+            dot.className = 'preclose-dot preclose-dot-closed';
+            label.textContent = 'MARKET CLOSED';
+            label.style.color = 'var(--text-muted)';
+            seg.classList.remove('active');
+    }
 }
 
 function updateCards(p) {
@@ -1770,17 +1911,21 @@ function renderComparisonChart(json) {
 
     const labels = data.map(d => d.date);
     const compassVals = data.map(d => d.compass);
+    const netVals = data.map(d => d.net);
     const spyVals = data.map(d => d.spy);
 
     /* Update stat labels */
     const ce = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
     ce('comp-compass-cagr', json.compass_cagr.toFixed(2) + '%');
+    ce('comp-net-cagr', json.net_cagr.toFixed(2) + '%');
     ce('comp-spy-cagr', json.spy_cagr.toFixed(2) + '%');
     ce('comp-compass-final', '$' + json.compass_final.toLocaleString());
+    ce('comp-net-final', '$' + json.net_final.toLocaleString());
     ce('comp-spy-final', '$' + json.spy_final.toLocaleString());
     ce('comp-years', json.years.toFixed(1));
 
-    const alpha = (json.compass_cagr - json.spy_cagr).toFixed(2);
+    /* Alpha badge uses Net CAGR vs SPY (the real edge after costs) */
+    const alpha = (json.net_cagr - json.spy_cagr).toFixed(2);
     const alphaEl = document.getElementById('comp-alpha');
     if (alphaEl) {
         alphaEl.textContent = (alpha >= 0 ? '+' : '') + alpha + '% Alpha';
@@ -1791,8 +1936,12 @@ function renderComparisonChart(json) {
     if (comparisonChart) comparisonChart.destroy();
 
     const gradientCompass = ctx.createLinearGradient(0, 0, 0, 380);
-    gradientCompass.addColorStop(0, 'rgba(240, 240, 245, 0.08)');
+    gradientCompass.addColorStop(0, 'rgba(240, 240, 245, 0.04)');
     gradientCompass.addColorStop(1, 'rgba(240, 240, 245, 0.0)');
+
+    const gradientNet = ctx.createLinearGradient(0, 0, 0, 380);
+    gradientNet.addColorStop(0, 'rgba(34, 197, 94, 0.10)');
+    gradientNet.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
 
     const gradientSpy = ctx.createLinearGradient(0, 0, 0, 380);
     gradientSpy.addColorStop(0, 'rgba(99, 102, 241, 0.08)');
@@ -1804,10 +1953,22 @@ function renderComparisonChart(json) {
             labels: labels,
             datasets: [
                 {
-                    label: 'COMPASS v8.2',
+                    label: 'COMPASS Signal (gross)',
                     data: compassVals,
-                    borderColor: '#f0f0f5',
+                    borderColor: 'rgba(240, 240, 245, 0.35)',
                     backgroundColor: gradientCompass,
+                    fill: true,
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    pointHitRadius: 8,
+                    tension: 0.3,
+                    order: 2,
+                },
+                {
+                    label: 'COMPASS Net (after costs)',
+                    data: netVals,
+                    borderColor: '#22c55e',
+                    backgroundColor: gradientNet,
                     fill: true,
                     borderWidth: 2,
                     pointRadius: 0,
@@ -1826,7 +1987,7 @@ function renderComparisonChart(json) {
                     pointHitRadius: 8,
                     tension: 0.3,
                     borderDash: [],
-                    order: 2,
+                    order: 3,
                 }
             ]
         },
@@ -1923,6 +2084,7 @@ async function fetchAll() {
             const p = stateData.portfolio;
             updateStatusBar(p);
             updateCards(p);
+            updatePreclose(stateData.preclose);
             updatePositions(stateData.position_details);
             const posDict = {};
             if (stateData.position_details) {

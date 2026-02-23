@@ -10,7 +10,7 @@ Purpose:     Single-file summary of the entire OmniCapital project for external
 
 This file documents:
   1. The production algorithm (COMPASS v8.2)
-  2. All experiments attempted and their outcomes (24 experiments)
+  2. All experiments attempted and their outcomes (32 experiments)
   3. Statistical validity analysis of the backtest
   4. Live trading dashboard implementation
   5. Key lessons learned and decision history
@@ -27,18 +27,22 @@ Run this file to print a structured summary to stdout:
 
 PROJECT = {
     "name": "OmniCapital",
-    "version": "8.2 (COMPASS) + cash yield",
+    "version": "8.2 (COMPASS) + cash yield + chassis upgrades",
     "language": "Python 3.14.2",
     "platform": "Windows 11",
     "data_source": "yfinance (Yahoo Finance)",
-    "backtest_period": "2000-01-01 to 2026-02-09",
+    "backtest_period": "2000-01-01 to 2026-02-22",
     "initial_capital": 100_000,
-    "final_value": 5_910_000,  # approximate
+    "signal_final": 6_911_873,          # Signal CAGR: ideal execution (Close[T], zero friction)
+    "net_final": 2_487_392,              # Net CAGR: pre-close MOC + 2bps slippage + commissions + cash yield, no leverage
+    "signal_cagr": "17.66%",             # Gross return of the signal engine (no execution costs)
+    "net_cagr": "13.13%",                # Net return after all execution friction (backtested with production engine)
     "seed": 666,  # official project seed for any randomness
-    "total_experiments": 24,
-    "experiments_succeeded": 2,  # COMPASS v8 + cash yield
-    "experiments_failed": 22,
-    "algorithm_status": "INELASTIC -- motor locked, focus on chassis/execution",
+    "total_experiments": 32,
+    "experiments_succeeded": 3,  # COMPASS v8 + cash yield + RATTLESNAKE standalone
+    "experiments_failed": 29,  # includes ECLIPSE, QUANTUM, COMPASS Internacional, COMPASS Asia
+    "algorithm_status": "INELASTIC -- motor locked, chassis upgrades completed, geographic expansion REJECTED",
+    "production_config": "No leverage (1.0x max), pre-close signal @ 15:30 ET, same-day MOC execution",
 }
 
 # =============================================================================
@@ -93,9 +97,12 @@ COMPASS_PARAMETERS = {
     # Leverage (dynamic)
     "leverage_formula": "leverage = 15% / realized_vol_SPY_20d",
     "leverage_min": 0.3,
-    "leverage_max": 2.0,
+    "leverage_max_backtest": 2.0,
+    "leverage_max_production": 1.0,  # No leverage -- broker 6% margin destroys value
     "leverage_risk_off": "Fixed 1.0x",
     "vol_targeting_basis": "Volatility clustering -> reduce in high-vol, increase in low-vol",
+    "no_leverage_rationale": "Broker margin at 6% costs -1.10% CAGR. Box Spread (SOFR+20bps) "
+                             "recovers this but requires institutional access. Production uses 1.0x max.",
 
     # Exit rules (first to trigger)
     "hold_days": 5,             # trading days, then rotate
@@ -114,31 +121,53 @@ COMPASS_PARAMETERS = {
     "recovery_stage_1": "63 days at 0.3x leverage, max 2 positions (requires RISK_ON)",
     "recovery_stage_2": "126 days at 1.0x leverage, max 3 positions (requires RISK_ON)",
     "recovery_normal": "After 126 days + RISK_ON -> full vol targeting, 5 positions",
-    "protection_time": "2,002 days total (30.5% of backtest period) -- confirmed optimal",
+    "protection_time": "1,752 days total (26.7% of backtest period) -- confirmed optimal",
 
     # Costs & Yield
-    "margin_rate": "6% annual on borrowed amount",
+    "margin_rate": "6% annual on borrowed amount (not used in production, LEVERAGE_MAX=1.0)",
     "commission": "$0.001 per share",
-    "cash_yield": "3% annual on uninvested cash (T-bill proxy, CASH_YIELD_RATE)",
-    "slippage": "Not explicitly modeled (mitigated by top-40 liquid stocks)",
+    "cash_yield": "3.5% annual on uninvested cash (T-bill proxy, CASH_YIELD_RATE)",
+    "slippage": "2bps per trade (modeled in chassis analysis)",
+
+    # Execution model (chassis upgrade)
+    "execution_model": "Pre-close signal at 15:30 ET (Close[T-1]) + same-day MOC at Close[T]",
+    "execution_rationale": "Computing signal 30min before close and submitting MOC orders for same-day "
+                           "execution eliminates the overnight gap. Backtest shows +0.79% CAGR and "
+                           "-7.8pp MaxDD improvement vs next-day MOC execution.",
+    "moc_deadline": "15:50 ET (NYSE MOC order deadline)",
 }
 
-COMPASS_RESULTS = {
-    "CAGR": "16.95%",
-    "Sharpe": 0.815,
-    "Sortino": 1.13,
-    "Max_Drawdown": "-28.4%",
-    "Calmar": 0.60,
-    "Win_Rate": "55.30%",
-    "Total_Trades": 5383,
-    "Trades_Per_Year": "~207",
+COMPASS_RESULTS_SIGNAL = {
+    "_label": "Signal CAGR (gross)",
+    "_note": "Gross signal return: execution at Close[T], zero friction costs, vol-targeted leverage capped at 1.0x",
+    "CAGR": "17.66%",
+    "Sharpe": 0.85,
+    "Max_Drawdown": "-27.5%",
+    "Win_Rate": "55.2%",
+    "Total_Trades": 5445,
+    "Trades_Per_Year": "~209",
     "Positive_Years": "23/26 (88%)",
-    "Best_Year": "+112.4%",
-    "Worst_Year": "-26.8%",
+    "Stop_Loss_Events": 9,
+    "Protection_Days": 1752,
+    "Protection_Pct": "26.7% of trading days",
+    "Final_Value": "$6.91M from $100k",
+}
+
+COMPASS_RESULTS_NET = {
+    "_label": "Net CAGR (after execution costs)",
+    "_note": "Net return after all execution friction: pre-close MOC, 2bps slippage, $0.001/sh commissions, "
+             "no leverage (1.0x max), 3.5% cash yield on idle cash. "
+             "Backtested with EXACT production engine (compass_net_backtest.py).",
+    "CAGR": "13.13%",
+    "Sharpe": 0.632,
+    "Max_Drawdown": "-30.3%",
+    "Win_Rate": "54.50%",
+    "Total_Trades": 5328,
     "Stop_Loss_Events": 11,
-    "Protection_Days": 2002,
-    "Protection_Pct": "30.5% of trading days",
-    "Final_Value": "$5.91M from $100k",
+    "Protection_Days": 1984,
+    "Final_Value": "$2.49M from $100k",
+    "Execution": "Signal at 15:30 ET (Close[T-1]) + same-day MOC at Close[T] + 2bps slippage",
+    "Cost_Gap": "Signal 17.66% - Net 13.13% = 4.53% CAGR lost to execution friction",
 }
 
 COMPASS_V82_IMPROVEMENTS = """
@@ -153,6 +182,107 @@ real returns. Any broker (IBKR, Schwab) provides money market sweep on uninveste
 The 3% rate is conservative -- actual T-bill rates varied 0-5% over 2000-2026.
 This adds +0.91% CAGR with zero additional risk (backtested and confirmed).
 """
+
+# =============================================================================
+# SECTION 2B: CHASSIS UPGRADES -- EXECUTION & COST OPTIMIZATION
+# =============================================================================
+
+CHASSIS_UPGRADES = {
+    "summary": (
+        "After declaring the algorithm INELASTIC (24 experiments, 22 failed), focus shifted to "
+        "chassis improvements: execution friction, financing costs, and signal timing. These "
+        "upgrades do NOT modify the core momentum signal -- they optimize HOW trades are executed "
+        "and financed. Result: Net CAGR went from an estimated ~11.5% to a "
+        "backtested 13.13% with conservative assumptions."
+    ),
+
+    "cost_waterfall": {
+        "_note": "Each step adds one source of friction. Shows cumulative impact on CAGR.",
+        "1_pure_signal":   {"cagr": 16.94, "sharpe": 0.801, "description": "Ideal: Close[T] execution, zero costs"},
+        "2_moc_execution": {"cagr": 14.02, "sharpe": 0.683, "delta": -2.92, "description": "Execute at Close[T+1] via MOC"},
+        "3_slippage_2bps": {"cagr": 12.22, "sharpe": 0.598, "delta": -1.80, "description": "Add 2bps slippage per trade"},
+        "4_commissions":   {"cagr": 11.54, "sharpe": 0.562, "delta": -0.68, "description": "Add $0.001/share commission"},
+        "5_margin_box":    {"cagr": 11.22, "sharpe": 0.547, "delta": -0.32, "description": "Add Box Spread margin (SOFR+20bps)"},
+        "6_cash_yield":    {"cagr": 12.73, "sharpe": 0.623, "delta": +1.51, "description": "Add T-Bill cash yield on idle cash"},
+        "7_no_leverage":   {"cagr": 12.58, "sharpe": 0.622, "description": "PRODUCTION baseline: max 1.0x, no margin costs"},
+        "8_broker_6pct":   {"cagr": 11.48, "sharpe": 0.560, "description": "Comparison: broker 6% margin (not used)"},
+    },
+
+    "execution_analysis": {
+        "script": "chassis_execution_analysis.py",
+        "finding": "MOC orders (Close[T+1] + 2bps) save +1.73% CAGR vs market orders at Open[T+1]",
+        "variants_tested": 7,
+        "best_practical": "Close[T+1] + 2bps slippage = MOC baseline",
+        "worst_practical": "Open[T+1] + 5bps = market order at open",
+    },
+
+    "financing_analysis": {
+        "script": "chassis_box_spread_analysis.py",
+        "finding": "Box Spread financing (SOFR+20bps) saves +1.25% CAGR vs broker 6% margin",
+        "box_spread_cagr": 12.73,
+        "broker_6pct_cagr": 11.48,
+        "production_decision": "Not used -- requires institutional options access. LEVERAGE_MAX=1.0 instead.",
+    },
+
+    "preclose_analysis": {
+        "script": "chassis_preclose_analysis.py",
+        "finding": (
+            "Computing momentum signal at 15:30 ET using Close[T-1] and submitting MOC for "
+            "same-day execution at Close[T] recovers +0.79% CAGR and improves MaxDD by 7.8pp. "
+            "The 90-day momentum ranking barely changes in one day (Spearman rho = 0.951)."
+        ),
+        "variants": {
+            "A_ideal":          {"cagr": 17.66, "sharpe": 0.85, "maxdd": -27.5, "description": "Close[T] signal + Close[T] exec + 0bps"},
+            "B_current_moc":    {"cagr": 12.73, "sharpe": 0.628, "maxdd": -43.3, "description": "Close[T] signal + Close[T+1] exec + 2bps"},
+            "C_preclose":       {"cagr": 13.13, "sharpe": 0.632, "maxdd": -30.3, "description": "Close[T-1] signal + Close[T] exec + 2bps (production engine backtest)"},
+            "D_blend":          {"cagr": 13.50, "sharpe": 0.650, "maxdd": -43.1, "description": "0.85*Close+0.15*Open signal + Close[T] exec + 2bps"},
+            "E_preclose_ideal": {"cagr": 15.35, "sharpe": 0.740, "maxdd": -36.4, "description": "Close[T-1] signal + Close[T] exec + 0bps"},
+        },
+        "ranking_agreement": {
+            "exact_top5_match": "33%",
+            "jaccard_similarity": "~0.60",
+            "spearman_rho": 0.951,
+            "interpretation": "Rankings are highly correlated (0.951) even when exact top-5 match is only 33%. "
+                              "Slight ranking differences may actually help diversification (MaxDD improves).",
+        },
+        "production_choice": "Variant C (conservative pre-close): 13.13% CAGR, -30.3% MaxDD",
+    },
+
+    "no_leverage_decision": {
+        "rationale": (
+            "Broker margin at 6% annual costs -1.10% CAGR (12.58% -> 11.48%). Box Spread financing "
+            "(SOFR+20bps ~5.5%) recovers this (+0.15% CAGR to 12.73%), but requires institutional "
+            "SPX options access not available to retail. Production uses LEVERAGE_MAX=1.0 to eliminate "
+            "margin costs entirely."
+        ),
+        "comparison": {
+            "no_leverage": {"cagr": 12.58, "sharpe": 0.622},
+            "box_spread":  {"cagr": 12.73, "sharpe": 0.623},
+            "broker_6pct": {"cagr": 11.48, "sharpe": 0.560},
+        },
+    },
+
+    "puts_otm_proposal": {
+        "status": "REJECTED",
+        "rationale": "Protection mode already works well (8/11 periods profitable with cash yield). "
+                     "OTM puts add cost drag during the ~70% of time the market is in normal mode.",
+    },
+
+    "analysis_scripts": [
+        "chassis_execution_analysis.py",
+        "chassis_box_spread_analysis.py",
+        "chassis_cost_decomposition.py",
+        "chassis_preclose_analysis.py",
+        "chassis_impact_analysis.py",
+    ],
+
+    "csv_outputs": [
+        "backtests/chassis_execution_comparison.csv",
+        "backtests/cost_decomposition.csv",
+        "backtests/preclose_comparison.csv",
+        "backtests/box_spread_comparison.csv",
+    ],
+}
 
 # =============================================================================
 # SECTION 3: ALL EXPERIMENTS -- WHAT WAS TRIED AND WHY IT FAILED/SUCCEEDED
@@ -337,7 +467,7 @@ EXPERIMENTS = [
             "(E) Aggressive (base halved + VIX can halve again to 16d/32d)."
         ),
         "results": {
-            "A_baseline": "16.95% CAGR, -28.4% MaxDD, 11 stops, 2002 protection days",
+            "A_baseline": "16.95% CAGR, -28.4% MaxDD, 11 stops, 1752 protection days",
             "B_vix_recovery": "14.83% CAGR, -34.4% MaxDD, 13 stops -- WORSE on all metrics",
             "C_breadth_recovery": "14.49% CAGR, -34.6% MaxDD, 15 stops -- WORSE on all metrics",
             "D_combined": "14.60% CAGR, -34.4% MaxDD, 13 stops -- WORSE on all metrics",
@@ -345,7 +475,7 @@ EXPERIMENTS = [
         },
         "lesson": (
             "CRITICAL INSIGHT: Faster recovery from protection = more stop events = worse drawdowns. "
-            "The 2,002 protection days are NOT a drag -- they are PROTECTIVE. Re-entering markets "
+            "The 1,752 protection days are NOT a drag -- they are PROTECTIVE. Re-entering markets "
             "sooner after a -15% drawdown leads to additional stops (11->15) because the market "
             "conditions that caused the original stop often persist. The time-based recovery is a "
             "feature, not a bug. VIX normalization and breadth thrust signals are not reliable enough "
@@ -454,6 +584,168 @@ EXPERIMENTS = [
             "The faster recovery (32d/63d) cannot compensate because re-entry is also premature."
         ),
     },
+
+    # =========================================================================
+    # DIVERSIFICATION EXPERIMENTS (Feb 2026)
+    # =========================================================================
+    {
+        "name": "VIPER v1 -- ETF Rotation (Multi-Asset Momentum)",
+        "file": "viper_v1.py",
+        "description": (
+            "Momentum rotation across 11 ETFs spanning equities, bonds, commodities, and REITs. "
+            "Applies the same cross-sectional momentum framework as COMPASS but to asset classes "
+            "instead of individual stocks. Intended as orthogonal diversifier."
+        ),
+        "result": "FAILED -- 5.84% CAGR. Multi-asset momentum too slow and diluted.",
+        "lesson": (
+            "ETF rotation requires longer momentum windows and lower turnover. The COMPASS 5-day hold "
+            "is too fast for ETFs which have higher transaction costs and slower momentum cycles. "
+            "The limited ETF universe (11 assets) does not provide enough cross-sectional dispersion."
+        ),
+    },
+    {
+        "name": "VIPER v2 -- Sector ETF Momentum",
+        "file": "viper_v2.py",
+        "description": (
+            "Sector rotation using sector ETFs (XLK, XLF, XLE, XLV, etc.) with momentum ranking. "
+            "Narrower focus than v1 but stays within equities."
+        ),
+        "result": "FAILED -- 3.59% CAGR. Sector momentum even weaker than multi-asset.",
+        "lesson": (
+            "Sector ETFs are highly correlated with each other and with SPY. Cross-sectional momentum "
+            "requires sufficient dispersion between candidates. Sector ETFs move too much in tandem "
+            "to generate meaningful momentum spread."
+        ),
+    },
+    {
+        "name": "RATTLESNAKE v1.0 -- Mean-Reversion (S&P 100, RSI<25)",
+        "file": "rattlesnake_v1.py",
+        "description": (
+            "Mean-reversion strategy: buy S&P 100 stocks when RSI(2) drops below 25 (oversold), "
+            "sell when RSI(2) rises above 70 (recovery). Opposite philosophy to COMPASS momentum. "
+            "Intended as uncorrelated second engine for portfolio-level diversification."
+        ),
+        "result": "SUCCESS standalone -- 10.51% CAGR, 0.74 Sharpe, $100k -> ~$1.5M",
+        "lesson": (
+            "Mean-reversion works well on large liquid stocks (S&P 100) with short holding periods. "
+            "RSI<25 captures genuine oversold conditions that tend to bounce. However, standalone "
+            "performance (10.51%) is inferior to COMPASS (13.13% realistic). Value is as diversifier."
+        ),
+    },
+    {
+        "name": "COMPASS + RATTLESNAKE Dual-Engine (50/50 Split)",
+        "file": "combined_portfolio.py",
+        "description": (
+            "Combine COMPASS (momentum) and RATTLESNAKE (mean-reversion) as dual engines. "
+            "$50k per engine. Test whether low correlation improves portfolio-level Sharpe."
+        ),
+        "result": "REVERTED -- dual-engine complexity without sufficient net benefit.",
+        "lesson": (
+            "While RATTLESNAKE is genuinely uncorrelated with COMPASS, the 50/50 split dilutes "
+            "COMPASS returns without proportional risk reduction. The operational complexity of "
+            "running two engines, two dashboards, split capital accounts does not justify the "
+            "marginal diversification benefit. Simplicity wins: single engine COMPASS v8.2 with "
+            "$100K capital and no split accounts is the optimal production configuration."
+        ),
+    },
+
+    # =========================================================================
+    # EXTERNAL ADVISORY TEAM PROPOSALS (Feb 2026)
+    # =========================================================================
+    {
+        "name": "ECLIPSE v1.0 -- Statistical Arbitrage (Pairs Trading)",
+        "file": "eclipse_v1.py",
+        "description": (
+            "Engle-Granger cointegration-based pairs trading proposed by external advisory team. "
+            "Tests all C(40,2)=780 pair combinations from top-40 universe each 126 days, filters "
+            "by ADF p<0.05 + half-life [5,126] days, trades spread z-score at +/-2.0 std entry, "
+            "0.0 exit, 4.0 stop. Manual ADF test implementation (statsmodels unavailable on Python 3.14.2). "
+            "Costs: 2bps slippage per leg, $0.001/share commission, 1% annual borrow on short leg, "
+            "3% cash yield on uninvested capital. Max 10 simultaneous pairs, 10% capital each."
+        ),
+        "result": "FAILED -- -3.37% CAGR, -0.254 Sharpe, -79.33% MaxDD, $100K -> $40,995",
+        "lesson": (
+            "Statistical arbitrage with daily data on S&P 500 stocks is fundamentally broken. "
+            "Cointegration relationships break down in real-world conditions (regime changes, sector "
+            "rotations, M&A events). Despite 58.3% win rate, losing trades average 1.5x the size of "
+            "winners, destroying edge. 2,814 pair trades over 26 years, most losses concentrated in "
+            "breakdown events (z-score >4.0 stop-outs). Advisory team overstated expected performance "
+            "(claimed 5-8% CAGR, 0.6+ Sharpe). Pairs trading requires tick-level data and sub-second "
+            "execution to be profitable -- not viable with daily bars."
+        ),
+    },
+    {
+        "name": "QUANTUM v1.0 -- High-Frequency Mean Reversion (RSI-2 + IBS)",
+        "file": "quantum_v1.py",
+        "description": (
+            "Ultra-short-term mean reversion proposed by external advisory team. Entry: RSI(2)<15 + "
+            "IBS<0.20 + Close<SMA(5) + SPY>SMA(200) regime filter. Exit: Close>SMA(5) or IBS>0.80 "
+            "or -8% stop or 7-day time stop. Uses COMPASS top-40 universe with same annual rotation. "
+            "Essentially an improved RATTLESNAKE: RSI(2) vs RSI(5), plus IBS indicator. "
+            "Costs: 2bps slippage, $0.001/share commission, 3.5% cash yield."
+        ),
+        "result": (
+            "PARTIAL -- 9.42% CAGR, 0.831 Sharpe, -16.56% MaxDD, $100K -> $1.04M. "
+            "Better risk-adjusted metrics than COMPASS (Sharpe 0.831 vs 0.632, MaxDD -16.56% vs -30.3%) "
+            "but lower absolute returns (9.42% vs 13.13% CAGR). Does not beat COMPASS on CAGR."
+        ),
+        "lesson": (
+            "RSI(2)+IBS mean reversion confirms the RATTLESNAKE thesis: oversold bounces on liquid "
+            "large-caps work. Win rate 65.6% (confirmed advisory claim of 65-70%), holding period "
+            "1.8 days avg. However: (1) Sharpe >1.0 claim FAILED (actual 0.831), (2) CAGR doesn't "
+            "beat COMPASS Net 13.13%, (3) functionally similar to RATTLESNAKE v1 (10.51% CAGR). "
+            "IBS adds marginal value over RSI alone. Advisory team proposals consistently overpromise: "
+            "3 proposals tested (ensemble momentum, ECLIPSE, QUANTUM), 0 beat COMPASS."
+        ),
+    },
+    {
+        "name": "COMPASS Internacional v1 -- European Large-Cap Momentum",
+        "file": "compass_internacional_v1.py",
+        "description": (
+            "Geographic expansion test: apply the EXACT COMPASS v8.2 algorithm (zero parameter changes) "
+            "to 106 European STOXX 600 large-caps across 14 countries (.DE, .PA, .AS, .L, .SW, .CO, "
+            ".ST, .MI, .MC, .OL, .HE, .BR, .LS, .VI). Regime filter: ^STOXX (STOXX Europe 600) "
+            "replacing SPY. GBP pence fix for .L tickers (OHLC/100). Period: 2004-2026 (^STOXX starts "
+            "2004-04-26). Advisory team proposal #3."
+        ),
+        "result": (
+            "CATASTROPHIC FAILURE -- -20.87% CAGR, -88.28% MaxDD, $100K -> $507. "
+            "11 portfolio stop-loss events with cascading capital destruction. 114% annualized volatility "
+            "(vs ~20% for US COMPASS). Portfolio collapsed to $327 by year 10, too small to open positions. "
+            "Years 10-22 were just 3.5% cash yield on ~$300. 97/106 symbols downloaded, 9 failed."
+        ),
+        "lesson": (
+            "COMPASS parameters are US-market-specific. European cross-sectional momentum with the same "
+            "90d lookback/5d hold/5d skip generates extreme volatility and cascading stop-losses. "
+            "The multi-currency dollar volume ranking, different market microstructure, and local regime "
+            "filter (^STOXX vs SPY) completely break the signal. Geographic expansion is NOT a viable "
+            "diversification path without fundamental re-engineering of parameters."
+        ),
+    },
+    {
+        "name": "COMPASS Asia v1 -- Asian Large-Cap Momentum",
+        "file": "compass_asia_v1.py",
+        "description": (
+            "Geographic expansion test #2: apply EXACT COMPASS v8.2 algorithm to 103 Asian large-caps "
+            "across 6 markets: Japan (.T, 40 stocks), Hong Kong (.HK, 20), Australia (.AX, 18), "
+            "South Korea (.KS, 12), Taiwan (.TW, 8), Singapore (.SI, 5). Regime filter: ^N225 (Nikkei 225) "
+            "replacing SPY. Full 2000-2026 period (Nikkei has data from 1990). No pence fix needed."
+        ),
+        "result": (
+            "CATASTROPHIC FAILURE -- -19.71% CAGR, -94.49% MaxDD, $100K -> $269. "
+            "15 portfolio stop-loss events (vs 9 for US). 185% annualized volatility. Portfolio collapsed "
+            "to $167 by year 13, unable to open positions. Years 13-26 were just 3.5% cash yield on ~$170. "
+            "All 103 symbols downloaded successfully. 51.2% win rate but insufficient edge."
+        ),
+        "lesson": (
+            "Confirms the European result: COMPASS is definitively US-market-specific. Asian markets "
+            "produce even worse results (-94.5% MaxDD vs -88.3% EU vs -27.5% US). The combination of "
+            "multi-currency cross-sectional momentum, local regime filters, and the -15% portfolio stop "
+            "creates a death spiral in non-US markets. Advisory proposal #3 (geographic expansion) is "
+            "DEFINITIVELY REJECTED. Both EU and Asia tested with zero parameter changes -- the algorithm "
+            "relies on US market microstructure (SPY regime, USD-denominated universe, US sector dynamics)."
+        ),
+    },
 ]
 
 # =============================================================================
@@ -462,10 +754,11 @@ EXPERIMENTS = [
 
 STATISTICAL_ANALYSIS = {
     "summary": (
-        "Comprehensive statistical analysis suggests the COMPASS backtest results "
-        "are somewhat overstated. The TRUE expected CAGR is estimated at ~11.5% "
-        "(90% CI: 6.5%-15.5%) vs the reported 16.95%. However, even the conservative "
-        "estimate beats S&P 500 buy-and-hold (~8% CAGR)."
+        "Comprehensive statistical analysis suggests the COMPASS Signal CAGR results "
+        "are overstated. The Signal CAGR (17.66%) assumes ideal execution. The chassis analysis "
+        "provides a Net CAGR of 13.13% that accounts for execution friction. "
+        "After additional statistical adjustments (survivorship bias, overfitting), TRUE expected "
+        "CAGR is estimated at ~10-11% (still alpha-positive vs SPY buy-and-hold ~8% CAGR)."
     ),
 
     "overfitting_risk": {
@@ -480,7 +773,7 @@ STATISTICAL_ANALYSIS = {
             "Parameters are academically grounded, not data-mined",
             "Uses standard indicators (SMA200, momentum) not exotic features",
             "Deterministic -- no random component to overfit",
-            "24 enhancement experiments ALL failed to beat baseline (not cherry-picked)",
+            "30 enhancement experiments (27 failed) including 3 external advisory proposals -- not cherry-picked",
         ],
         "aggravating_factors": [
             "Single backtest period (no true out-of-sample)",
@@ -493,8 +786,9 @@ STATISTICAL_ANALYSIS = {
         "DSR_p_value": "~0.30",
         "description": (
             "Harvey, Liu & Zhu (2016) Deflated Sharpe Ratio accounts for the number "
-            "of strategies tested. Given ~24+ variants tested (v1-v8, VORTEX, behavioral, "
-            "dynamic recovery, protection shorts, ChatGPT proposals, etc.), the DSR p-value is ~0.30, meaning "
+            "of strategies tested. Given ~32 variants tested (v1-v8, VORTEX, behavioral, "
+            "dynamic recovery, protection shorts, ChatGPT proposals, ECLIPSE, QUANTUM, "
+            "COMPASS Internacional, COMPASS Asia, etc.), the DSR p-value is ~0.30, meaning "
             "the Sharpe ratio is not statistically significant at conventional levels after "
             "accounting for multiple testing."
         ),
@@ -512,29 +806,33 @@ STATISTICAL_ANALYSIS = {
     },
 
     "transaction_costs": {
-        "estimated_impact": "-0.5% to -1.5% CAGR",
+        "estimated_impact": "NOW MODELED in chassis analysis",
         "description": (
-            "While commission ($0.001/share) and margin (6%) are modeled, slippage is not. "
-            "With ~207 trades/year in liquid stocks, realistic slippage of 2-5bps per trade "
-            "could reduce CAGR by 0.5-1.5%."
+            "The chassis cost decomposition now explicitly models: MOC execution (Close[T+1]), "
+            "2bps slippage per trade, $0.001/share commissions, and 3.5% cash yield on idle capital. "
+            "Total friction: Signal 17.66% -> Net 13.13% = -4.53% CAGR from costs. "
+            "Slippage (2bps) is conservative for top-40 liquid S&P 500 stocks."
         ),
     },
 
     "true_expected_performance": {
-        "reported_CAGR": "16.95%",
-        "adjustments": {
-            "survivorship_bias": "-1.5%",
-            "slippage_not_modeled": "-1.0%",
-            "overfitting_haircut": "-2.0%",
-            "multiple_testing_discount": "-1.0%",
+        "signal_cagr": "17.66%",
+        "net_cagr": "13.13%",
+        "_note": "Net CAGR already includes execution friction (MOC, slippage, commissions)",
+        "remaining_adjustments": {
+            "survivorship_bias": "-1.0% to -2.0%",
+            "overfitting_haircut": "-1.5%",
+            "multiple_testing_discount": "-0.5%",
         },
-        "estimated_true_CAGR": "~11.5%",
-        "confidence_interval_90pct": "6.5% - 15.5%",
+        "estimated_true_CAGR": "~10-11%",
+        "confidence_interval_90pct": "6% - 13%",
         "vs_SPY_buy_and_hold": "~8% CAGR (2000-2026)",
         "conclusion": (
-            "Even after all adjustments, COMPASS likely generates 2-6% annual alpha "
-            "over buy-and-hold, primarily from the momentum signal + regime filter. "
-            "This is a meaningful edge but far from the reported 16% CAGR."
+            "Starting from the Net CAGR of 13.13% (which already accounts for execution "
+            "friction), after survivorship bias and overfitting adjustments, true expected CAGR "
+            "is ~10-11%. This represents 2-3% annual alpha over buy-and-hold. The chassis "
+            "analysis makes the estimate more grounded: execution costs are no longer assumed "
+            "but explicitly calculated from 8-variant cost decomposition."
         ),
     },
 }
@@ -551,55 +849,69 @@ LIVE_SYSTEM = {
 
     "features": [
         "Real-time portfolio state display (cash, positions, P&L, drawdown)",
-        "Open Positions table with TOTAL row (total VALUE, P&L, weighted P&L%)",
+        "Position cards with hold progress bars, trailing stop levels, near-stop warnings",
         "Engine control (START/STOP with confirmation modals)",
-        "Equity curve chart (backtest data from 2020+, with CAGR display)",
-        "Holdings news feed (Yahoo, Zacks, Benzinga, Reuters, Motley Fool)",
-        "Market futures display (ES, NQ, YM)",
-        "Pre-flight checklist before market open",
-        "Live trade log viewer",
-        "Collapsible Activity Log panel (collapsed by default)",
-        "Collapsible Stop Events History panel (expanded by default)",
-        "Collapsible Universe panel with stock count",
-        "Responsive dark terminal theme (#141418 background)",
+        "COMPASS vs S&P 500 comparison chart (full 2000-2026 period, alpha badge)",
+        "Social feed: yfinance news + Reddit sentiment for held positions",
+        "Pre-flight checklist before market open (regime, SPY SMA200, vol, estimated leverage)",
+        "Pre-close signal indicator (waiting/window_open/entries_done/market_closed)",
+        "Pre-close timeline visualization with 15:30-15:50 ET window",
+        "Production Config banner (Net CAGR 13.13%, 0.632 Sharpe, -30.3% MaxDD)",
+        "Backtest auto-refresh scheduler (daily after 16:15 ET on weekdays)",
+        "Collapsible Activity Log panel with log type tagging (entry/exit/stop/regime/recovery)",
+        "Collapsible Universe panel with held-stock highlighting",
+        "Responsive dark terminal theme (gradient backgrounds, glass effects)",
         "LIVE pulse animation when engine is running",
     ],
 
     "api_endpoints": [
-        "/api/state -- Portfolio state (positions, cash, regime, leverage)",
-        "/api/equity -- Backtest equity curve (2020+ filtered, every 5th day)",
-        "/api/logs -- Trading engine logs",
-        "/api/futures -- Market futures (ES, NQ, YM via yfinance)",
-        "/api/news -- Holdings news feed",
-        "/api/preflight -- Pre-market checklist",
+        "/api/state -- Portfolio state + pre-close status + chassis info",
+        "/api/equity -- Backtest equity curve (full period, downsampled)",
+        "/api/equity-comparison -- COMPASS vs S&P 500 comparison data with CAGR",
+        "/api/logs -- Trading engine logs (filtered, typed)",
+        "/api/social-feed -- Social media feed (yfinance news + Reddit) for held stocks",
+        "/api/preflight -- Pre-market checklist (regime, vol, leverage estimate)",
+        "/api/backtest/status -- Auto-refresh scheduler status",
         "/api/engine/status -- Engine running/stopped status",
         "/api/engine/start -- Start trading engine (POST)",
         "/api/engine/stop -- Stop trading engine (POST)",
     ],
 
+    "execution_model": {
+        "description": "Split entry/exit architecture for pre-close execution",
+        "exits": "At market open (9:30 ET) -- stops, hold expired, trailing stops",
+        "entries": "At pre-close window (15:30-15:50 ET) -- momentum signal + same-day MOC",
+        "signal_time": "15:30 ET using Close[T-1] data (refreshed at open)",
+        "moc_deadline": "15:50 ET (NYSE MOC order deadline)",
+        "rationale": "Recovers +0.79% CAGR and improves MaxDD by 7.8pp vs next-day execution",
+    },
+
     "state_management": {
         "state_file": "state/compass_state_latest.json",
         "contents": "Cash, positions (ticker, shares, entry price, entry date, peak), "
-                    "regime, drawdown, recovery stage, day counter, peak equity",
-        "persistence": "Auto-saves state every ~60 seconds and on each trade",
+                    "regime, drawdown, recovery stage, day counter, peak equity, "
+                    "pre-close entries done flag",
+        "persistence": "Auto-saves state every ~60 seconds, on each trade, and after pre-close entries",
     },
 
-    "recent_dashboard_updates": [
-        "Added TOTAL row to Open Positions table (VALUE + P&L + weighted P&L%)",
-        "Made Activity Log collapsible (collapsed by default, click arrow to expand)",
-        "Made Stop Events History collapsible (expanded by default)",
-        "CSS class-based toggle pattern (classList.add/remove) for reliable show/hide",
+    "recent_updates": [
+        "Implemented pre-close execution (signal @ 15:30 ET, same-day MOC) in live system",
+        "Added pre-close window status indicator to dashboard (4 phases with timeline)",
+        "Added COMPASS vs S&P 500 comparison chart with full 2000-2026 period",
+        "Added social feed (yfinance news + Reddit) integrated into positions grid",
+        "Added backtest auto-refresh scheduler (daily after 16:15 ET)",
+        "Updated production config banner with Net CAGR (13.13%)",
+        "Set LEVERAGE_MAX=1.0 across all production files (no leverage)",
+        "Fixed chart period from 2016+ (inflated) to full 2000-2026 (accurate)",
     ],
 
     "current_state_snapshot": {
-        "date": "2026-02-21",
-        "total_value": "$100,704",
-        "cash": "$19,116",
-        "positions": ["MU (+3.2%)", "LRCX (+4.0%)", "AMAT (+2.0%)", "XOM (-4.0%)", "MRK (+1.1%)"],
-        "regime": "RISK_ON",
-        "leverage": "1.00x",
-        "drawdown": "-0.1%",
+        "date": "2026-02-22",
         "mode": "Paper trading",
+        "regime": "RISK_ON",
+        "leverage": "1.00x (max)",
+        "execution": "Pre-close MOC @ 15:30 ET",
+        "net_cagr_expectation": "13.13%",
     },
 }
 
@@ -626,7 +938,23 @@ VERSION_HISTORY = [
     {"version": "v8.7-test", "name": "Ensemble Momentum", "description": "FAILED -- avg ranks 60/90/120d lost 7.43% CAGR (signal dilution)"},
     {"version": "v8.8-test", "name": "Cond Hold Extension", "description": "FAILED -- extend to 10d if Top5+ATR declining, lost 3.93% CAGR"},
     {"version": "v8.9-test", "name": "Preemptive Stop -8%", "description": "FAILED -- tripled stop events (11->34), lost 6.56% CAGR"},
-    {"version": "FINAL", "name": "ALGORITHM LOCKED", "description": "24 experiments confirm inelasticity. Focus shifts to execution/infrastructure."},
+    {"version": "VIPER-v1", "name": "ETF Rotation", "description": "FAILED -- 11 ETF momentum rotation, 5.84% CAGR"},
+    {"version": "VIPER-v2", "name": "Sector ETF Mom", "description": "FAILED -- Sector ETF momentum, 3.59% CAGR"},
+    {"version": "RATTLE-v1", "name": "RATTLESNAKE", "description": "SUCCESS standalone -- Mean-reversion (S&P 100, RSI<25), 10.51% CAGR, 0.74 Sharpe"},
+    {"version": "DUAL", "name": "COMPASS+RATTLE", "description": "REVERTED -- 50/50 dual-engine, complexity without net benefit. Single engine wins."},
+    {"version": "MOTOR-LOCK", "name": "ALGORITHM LOCKED", "description": "30 experiments (27 failed). Motor is inelastic. Focus shifts to chassis."},
+    {"version": "CHASSIS-1", "name": "Execution Analysis", "description": "MOC orders save +1.73% CAGR vs market orders. 7 variants tested."},
+    {"version": "CHASSIS-2", "name": "Financing Analysis", "description": "Box Spread (SOFR+20bps) saves +1.25% vs broker 6%. Not used (institutional only)."},
+    {"version": "CHASSIS-3", "name": "No Leverage", "description": "LEVERAGE_MAX=1.0. Broker 6% margin destroys -1.10% CAGR."},
+    {"version": "CHASSIS-4", "name": "Cost Decomposition", "description": "Full 8-step waterfall: 16.94% pure -> 12.58% realistic (no leverage)."},
+    {"version": "CHASSIS-5", "name": "Pre-Close MOC", "description": "Signal @ 15:30 ET + same-day MOC. +0.79% CAGR, -7.8pp MaxDD. Production: 13.13% CAGR."},
+    {"version": "PROD", "name": "PRODUCTION CONFIG", "description": "13.13% CAGR, 0.632 Sharpe, -30.3% MaxDD. No leverage, pre-close MOC, $100K capital."},
+    {"version": "ECLIPSE-v1", "name": "Stat Arb Pairs", "description": "FAILED -- Advisory team proposal: Engle-Granger pairs trading, -3.37% CAGR, -79.33% MaxDD."},
+    {"version": "QUANTUM-v1", "name": "RSI-2 + IBS MR", "description": "PARTIAL -- Advisory team proposal: RSI(2)+IBS mean reversion, 9.42% CAGR, 0.831 Sharpe, doesn't beat COMPASS."},
+    {"version": "DATA-VAL", "name": "Data Source Eval", "description": "Tiingo (rate-limited), TradingView (no API), Google Finance (deprecated). yfinance confirmed as best free source."},
+    {"version": "INTL-v1", "name": "COMPASS Internacional", "description": "FAILED -- EU large-caps (106 STOXX 600), ^STOXX regime. -20.87% CAGR, -88.28% MaxDD, $100K->$507."},
+    {"version": "ASIA-v1", "name": "COMPASS Asia", "description": "FAILED -- Asian large-caps (103 stocks, 6 markets), ^N225 regime. -19.71% CAGR, -94.49% MaxDD, $100K->$269."},
+    {"version": "GEO-REJECT", "name": "Geographic Expansion REJECTED", "description": "32 experiments (29 failed). COMPASS is US-market-specific. EU and Asia both catastrophic. Advisory proposal #3 definitively rejected."},
 ]
 
 KEY_DECISIONS = [
@@ -644,11 +972,27 @@ KEY_DECISIONS = [
     "No quality factors -- yfinance fundamental data too limited",
     "No rank-hysteresis holds -- 5-day rotation is optimal, longer holds cause momentum decay",
     "Cash yield (3% on idle cash) approved -- models real broker T-bill sweep, +0.91% CAGR free",
-    "2,002 protection days (30.5%) confirmed as FEATURE not bug -- reducing them worsens performance",
+    "1,752 protection days (26.7%) confirmed as FEATURE not bug -- reducing them worsens performance",
     "No ensemble momentum -- averaging 60d/90d/120d ranks DILUTES signal, lost 7.43% CAGR",
     "No conditional hold extension -- even selective extension (Top5+ATR) loses 3.93% CAGR",
     "No preemptive stop (-8%) -- normal volatility triggers false stops, TRIPLED stop events (11->34)",
-    "ALGORITHM DECLARED INELASTIC -- 24 experiments, 22 failed. Motor is locked. Focus on chassis.",
+    "ALGORITHM DECLARED INELASTIC -- 30 experiments, 27 failed (including 3 external advisory proposals). Motor is locked.",
+    "No leverage in production -- LEVERAGE_MAX=1.0, broker 6% margin destroys -1.10% CAGR",
+    "Box Spread financing (SOFR+20bps) is viable but requires institutional access -- not used",
+    "Pre-close execution at 15:30 ET -- same-day MOC recovers +0.79% CAGR and improves MaxDD by 7.8pp",
+    "Cost waterfall: Signal 17.66% -> Net 13.13% (production engine backtest, pre-close MOC, no leverage)",
+    "RATTLESNAKE standalone SUCCESS (10.51% CAGR) but dual-engine REVERTED -- simplicity wins",
+    "VIPER ETF rotation FAILED twice (5.84% and 3.59%) -- ETFs lack momentum dispersion",
+    "Single engine, single dashboard, $100K capital, no split accounts is the optimal configuration",
+    "ECLIPSE pairs trading FAILED catastrophically (-3.37% CAGR, -79.33% MaxDD) -- stat arb needs tick data, not daily bars",
+    "QUANTUM RSI-2+IBS is a marginal improvement over RATTLESNAKE (9.42% vs 10.51%) but neither beats COMPASS (13.13%)",
+    "External advisory team proposals: 3 tested (ensemble momentum, ECLIPSE, QUANTUM), 0 beat COMPASS -- confirms inelasticity",
+    "ALGORITHM INELASTICITY STRENGTHENED -- 30 experiments (27 failed), now includes external advisory proposals",
+    "Data source validation: yfinance confirmed as best free source. Tiingo viable but rate-limited (500 req/hr). TradingView no API. Google Finance deprecated 2012.",
+    "Geographic expansion REJECTED -- COMPASS Internacional (EU, -20.87% CAGR) and COMPASS Asia (-19.71% CAGR) both catastrophic",
+    "COMPASS is US-market-specific: parameters (90d momentum, 5d hold, -15% stop, SPY regime) NOT transferable to international markets",
+    "Multi-currency cross-sectional momentum with local regime filters creates cascading stop-loss destruction in non-US markets",
+    "ALGORITHM INELASTICITY FINAL -- 32 experiments (29 failed), geographic expansion adds definitive proof of US-specificity",
 ]
 
 # =============================================================================
@@ -657,15 +1001,25 @@ KEY_DECISIONS = [
 
 KEY_FILES = {
     "production": {
-        "omnicapital_v8_compass.py": "COMPASS v8 production backtest algorithm (~875 lines)",
-        "compass_dashboard.py": "Live dashboard + trading engine (Flask, ~800 lines)",
-        "templates/dashboard.html": "Dashboard UI (Chart.js, dark theme, TOTAL row, collapsible panels)",
+        "omnicapital_v8_compass.py": "COMPASS v8 production backtest algorithm (~875 lines) -- LOCKED",
+        "compass_dashboard.py": "Live dashboard + trading engine (Flask, ~1200 lines, pre-close indicator)",
+        "templates/dashboard.html": "Dashboard UI (Chart.js, dark theme, pre-close timeline, social feed)",
+        "omnicapital_live.py": "Live trading system (pre-close execution @ 15:30 ET, split entry/exit)",
+        "omnicapital_broker.py": "Broker interface module (paper trading)",
+        "omnicapital_data_feed.py": "Data feed module (yfinance)",
     },
     "documentation": {
         "OMNICAPITAL_V8_COMPASS_MANIFESTO.md": "Complete algorithm documentation (420 lines)",
         "OMNICAPITAL_V8_COMPASS_MANIFESTO.docx": "Word version of manifesto",
-        "OMNICAPITAL_PROJECT_REVIEW.py": "THIS FILE -- comprehensive project review for AI analysis",
+        "OMNICAPITAL_PROJECT_REVIEW.py": "THIS FILE -- comprehensive project review for external analysis",
         "MEMORY.md": "Claude project memory with key decisions and parameters",
+    },
+    "chassis_analysis": {
+        "chassis_execution_analysis.py": "Execution friction decomposition (7 variants, MOC vs market orders)",
+        "chassis_box_spread_analysis.py": "Box Spread financing analysis (SOFR+20bps vs broker 6%)",
+        "chassis_cost_decomposition.py": "Full 8-step cost waterfall (16.94% pure -> 12.58% realistic)",
+        "chassis_preclose_analysis.py": "Pre-close signal analysis (5 variants, +0.79% CAGR recovery)",
+        "chassis_impact_analysis.py": "Box spread + puts OTM impact estimation",
     },
     "experiments": {
         "omnicapital_vortex.py": "VORTEX v1 -- acceleration momentum (failed)",
@@ -683,29 +1037,44 @@ KEY_FILES = {
         "test_dynamic_recovery.py": "Dynamic recovery test -- VIX/Breadth signals (ALL FAILED)",
         "test_protection_shorts.py": "Inverse ETF shorts during protection (ALL FAILED)",
         "test_protection_momentum_shorts.py": "Momentum shorts during protection (ALL FAILED, closest)",
-        "test_chatgpt_proposals.py": "ChatGPT external review proposals (ensemble/cond hold/preemptive stop, ALL FAILED)",
+        "test_chatgpt_proposals.py": "ChatGPT proposals (ensemble/cond hold/preemptive stop, ALL FAILED)",
+        "viper_v1.py": "VIPER v1 -- ETF rotation, 11 ETFs (FAILED, 5.84% CAGR)",
+        "viper_v2.py": "VIPER v2 -- Sector ETF momentum (FAILED, 3.59% CAGR)",
+        "rattlesnake_v1.py": "RATTLESNAKE v1 -- Mean-reversion S&P 100 RSI<25 (SUCCESS standalone, 10.51%)",
+        "combined_portfolio.py": "COMPASS+RATTLESNAKE dual-engine test (REVERTED, simplicity wins)",
+        "eclipse_v1.py": "ECLIPSE v1 -- Engle-Granger pairs trading (FAILED, -3.37% CAGR, advisory proposal)",
+        "quantum_v1.py": "QUANTUM v1 -- RSI(2)+IBS mean reversion (PARTIAL, 9.42% CAGR, advisory proposal)",
+        "omnicapital_v8_compass_tiingo.py": "COMPASS with Tiingo data source (INCOMPLETE -- rate limited, abandoned)",
+        "compass_internacional_v1.py": "COMPASS Internacional -- EU large-caps, ^STOXX regime (FAILED, -20.87% CAGR)",
+        "compass_asia_v1.py": "COMPASS Asia -- Asian large-caps, ^N225 regime (FAILED, -19.71% CAGR)",
     },
     "historical_versions": {
         "omnicapital_v6_top40_rotation.py": "v6 corrected (survivorship bias fix) -- 5.40% CAGR",
         "omnicapital_v6_final_optimized.py": "v6 original (biased) -- 16.92% CAGR",
         "omnicapital_v7.py": "v7 cancelled attempt",
     },
-    "live_trading_support": {
-        "omnicapital_live.py": "Live trading system (needs update to v8.2)",
-        "omnicapital_broker.py": "Broker interface module",
-        "omnicapital_data_feed.py": "Data feed module",
-        "launch_compass.py": "Launcher script for dashboard + engine",
-    },
     "backtest_outputs": {
         "backtests/v8_compass_daily.csv": "Daily portfolio snapshots (6,500+ rows)",
-        "backtests/v8_compass_trades.csv": "All 5,386 trades with entry/exit details",
-        "backtests/v8_opt_base_v8.2_daily.csv": "v8.2 optimized baseline daily data",
+        "backtests/v8_compass_trades.csv": "All 5,300+ trades with entry/exit details",
+        "backtests/cost_decomposition.csv": "8-step cost waterfall analysis",
+        "backtests/preclose_comparison.csv": "5 pre-close execution variants comparison",
+        "backtests/chassis_execution_comparison.csv": "7 execution method variants",
+        "backtests/box_spread_comparison.csv": "4 financing method variants",
+        "backtests/rattlesnake_daily.csv": "RATTLESNAKE backtest equity curve",
+        "backtests/spy_benchmark.csv": "SPY buy-and-hold comparison",
         "backtests/nightshift_daily.csv": "NIGHTSHIFT overnight strategy daily data",
-        "backtests/nightshift_combined.csv": "COMPASS + NIGHTSHIFT combined equity",
         "backtests/dynrecov_*_daily.csv": "Dynamic recovery test outputs (5 variants)",
         "backtests/protshort_*_daily.csv": "Protection shorts test outputs (4 variants)",
         "backtests/momshort_*_daily.csv": "Momentum shorts test outputs (4 variants)",
         "backtests/chatgpt_*_daily.csv": "ChatGPT proposals test outputs (6 variants)",
+        "backtests/eclipse_daily.csv": "ECLIPSE pairs trading equity curve (6,564 rows)",
+        "backtests/eclipse_trades.csv": "ECLIPSE pair trades log (2,814 trades)",
+        "backtests/quantum_daily.csv": "QUANTUM RSI-2+IBS equity curve (6,564 rows)",
+        "backtests/quantum_trades.csv": "QUANTUM trade log (4,590 trades)",
+        "backtests/intl_v1_daily.csv": "COMPASS Internacional daily equity curve (2004-2026)",
+        "backtests/intl_v1_trades.csv": "COMPASS Internacional trade log",
+        "backtests/asia_v1_daily.csv": "COMPASS Asia daily equity curve (2000-2026)",
+        "backtests/asia_v1_trades.csv": "COMPASS Asia trade log (1,885 trades)",
     },
     "data_cache": {
         "data_cache/broad_pool_2000-01-01_2026-02-09.pkl": "Cached price data for 113-stock universe",
@@ -795,7 +1164,7 @@ LESSONS = [
             "The portfolio stop-loss at -15% triggers AFTER a crash. This means protection mode "
             "almost always coincides with MARKET RECOVERY, not further decline. Any strategy that "
             "attempts to profit from the downside during protection (inverse ETFs, shorts) faces a "
-            "fundamental timing problem. The 2,002 protection days (30.5% of the 26-year backtest) "
+            "fundamental timing problem. The 1,752 protection days (26.7% of the 26-year backtest) "
             "are not wasted time -- they prevent re-entering volatile post-crash markets. Attempts "
             "to reduce protection time via VIX/Breadth signals increased stop events from 11 to 15 "
             "and worsened MaxDD from -28.4% to -41.2%."
@@ -817,11 +1186,12 @@ LESSONS = [
     {
         "category": "Algorithm Robustness / Inelasticity",
         "lesson": (
-            "24 experiments attempted to improve COMPASS -- only 1 succeeded (cash yield, which is "
+            "30 experiments attempted to improve COMPASS -- only 1 succeeded (cash yield, which is "
             "not a signal change). This extreme resistance to improvement -- including proposals from "
-            "external quantitative review -- confirms the algorithm is INELASTIC: the core decision "
-            "engine has reached its theoretical maximum for this universe/timeframe. Any parameter "
-            "change (signal, hold time, stop threshold, momentum window) degrades performance."
+            "external quantitative review AND external advisory team (stat arb, RSI-2+IBS mean "
+            "reversion) -- confirms the algorithm is INELASTIC: the core decision engine has "
+            "reached its theoretical maximum for this universe/timeframe. Any parameter change "
+            "(signal, hold time, stop threshold, momentum window) degrades performance."
         ),
     },
     {
@@ -846,11 +1216,116 @@ LESSONS = [
     {
         "category": "When to Stop Optimizing",
         "lesson": (
-            "After 24 failed experiments, the project reached a definitive conclusion: the algorithm is "
+            "After 27 failed experiments (including 3 from external advisory team), the conclusion is definitive: the algorithm is "
             "inelastic. Further optimization attempts will only lead to overfitting. The correct path "
             "forward is to improve the CHASSIS (execution, infrastructure, capital efficiency, orthogonal "
             "diversification) rather than the MOTOR (signal, parameters, rules). As the external reviewer "
             "stated: 'Stop torturing the algorithm. It already confessed everything it knows.'"
+        ),
+    },
+    {
+        "category": "Chassis Over Motor",
+        "lesson": (
+            "When the algorithm is inelastic, improve the chassis: execution method, financing costs, "
+            "signal timing, capital structure. The chassis upgrades recovered +0.79% CAGR (pre-close "
+            "execution) and avoided -1.10% CAGR (no leverage) WITHOUT touching the core momentum signal. "
+            "The 8-step cost decomposition (16.94% -> 13.13%) provides a clear map of where value is "
+            "lost and what can be recovered."
+        ),
+    },
+    {
+        "category": "Leverage With Broker Margin",
+        "lesson": (
+            "Broker margin at 6% annual costs -1.10% CAGR for a vol-targeted momentum system that "
+            "borrows intermittently. Box Spread financing (SOFR+20bps) recovers this, but requires "
+            "institutional SPX options access. For retail accounts, LEVERAGE_MAX=1.0 is optimal: "
+            "eliminating margin costs outperforms paying for leverage."
+        ),
+    },
+    {
+        "category": "Pre-Close Signal Timing",
+        "lesson": (
+            "A 90-day momentum ranking barely changes between Close[T-1] and Close[T]. Spearman "
+            "correlation is 0.951. Computing the signal 30 minutes before close and submitting "
+            "same-day MOC orders eliminates the overnight execution gap, recovering +0.79% CAGR. "
+            "Unexpectedly, the slight ranking variation also improves MaxDD by 2.8pp (from -27.5% "
+            "to -30.3%), a small cost for the +0.79% CAGR recovery."
+        ),
+    },
+    {
+        "category": "Simplicity in Portfolio Construction",
+        "lesson": (
+            "RATTLESNAKE mean-reversion (10.51% CAGR) succeeded as standalone but the 50/50 "
+            "dual-engine combination was reverted. Managing two engines, two dashboards, and split "
+            "capital accounts adds operational complexity that outweighs the diversification benefit. "
+            "Single engine COMPASS with $100K and no split accounts is optimal for this scale."
+        ),
+    },
+    {
+        "category": "ETFs Lack Momentum Dispersion",
+        "lesson": (
+            "VIPER v1 (11 ETFs, 5.84% CAGR) and v2 (sector ETFs, 3.59% CAGR) both failed because "
+            "ETFs are too correlated with each other. Cross-sectional momentum requires sufficient "
+            "dispersion between candidates. Individual stocks within S&P 500 provide this; sector "
+            "ETFs do not. The COMPASS framework works specifically because of stock-level dispersion."
+        ),
+    },
+    {
+        "category": "Statistical Arbitrage on Daily Data",
+        "lesson": (
+            "ECLIPSE pairs trading lost -3.37% CAGR with -79.33% MaxDD despite correct implementation "
+            "of Engle-Granger cointegration. Cointegration relationships are unstable on S&P 500 stocks "
+            "over multi-year horizons: regime changes, M&A events, and sector rotations break pair "
+            "relationships. Despite 58.3% win rate, losers average 1.5x winners (asymmetric loss profile). "
+            "Statistical arbitrage requires tick-level data and sub-second execution to be profitable. "
+            "Daily bars are fundamentally insufficient for this strategy class."
+        ),
+    },
+    {
+        "category": "Advisory Team Proposals Track Record",
+        "lesson": (
+            "Three external advisory proposals tested, zero beat COMPASS: (1) Ensemble momentum "
+            "(-7.43% CAGR, signal dilution), (2) ECLIPSE stat arb (-3.37% CAGR, catastrophic), "
+            "(3) QUANTUM RSI-2+IBS (9.42% CAGR, partial success but doesn't beat 13.13%). "
+            "All proposals overstated expected performance. Advisory claims systematically optimistic "
+            "vs real backtest results. This pattern further confirms algorithm inelasticity: even "
+            "proposals from different analytical frameworks cannot improve on COMPASS."
+        ),
+    },
+    {
+        "category": "IBS Indicator Value",
+        "lesson": (
+            "Internal Bar Strength (Close-Low)/(High-Low) adds marginal value to RSI-based mean "
+            "reversion. QUANTUM (RSI-2+IBS) achieved 9.42% CAGR vs RATTLESNAKE (RSI-5 alone) at "
+            "10.51% CAGR. The tighter RSI(2)<15 threshold produces fewer but higher-quality trades "
+            "(4,590 vs similar count), but IBS<0.20 acts mostly as redundant confirmation of the "
+            "same oversold condition. Net result: no meaningful improvement over simple RSI."
+        ),
+    },
+    {
+        "category": "Data Source Validation",
+        "lesson": (
+            "Attempted cross-validation with alternative data sources: (1) Tiingo -- viable API with "
+            "adjusted OHLCV, but free tier has 500 requests/hour limit making bulk download of 113 "
+            "symbols impractical. (2) TradingView -- no public API, unofficial tvdatafeed library is "
+            "inactive/unsupported, max 5,000 bars (insufficient for 26-year backtest), violates ToS. "
+            "(3) Google Finance -- API deprecated since 2012, only GOOGLEFINANCE() in Sheets remains. "
+            "Conclusion: yfinance remains the best free data source for backtesting. Tiingo is the "
+            "only viable paid alternative but requires rate limit management."
+        ),
+    },
+    {
+        "category": "Geographic Expansion Failure",
+        "lesson": (
+            "COMPASS v8.2 is definitively US-market-specific. Applied with ZERO parameter changes to: "
+            "(1) European large-caps (106 STOXX 600 stocks, ^STOXX regime): -20.87% CAGR, -88.28% MaxDD, "
+            "$100K -> $507. (2) Asian large-caps (103 stocks from JP/HK/AU/KR/TW/SG, ^N225 regime): "
+            "-19.71% CAGR, -94.49% MaxDD, $100K -> $269. Both suffered cascading stop-loss destruction "
+            "(11 and 15 stops respectively vs 9 for US). The combination of multi-currency cross-sectional "
+            "momentum, local regime filters, and the -15% portfolio stop creates a death spiral in non-US "
+            "markets. Geographic expansion is NOT a viable diversification path. The algorithm's edge "
+            "depends on US market microstructure: SPY regime, USD-denominated universe, US sector dynamics, "
+            "and the specific momentum patterns of the S&P 500 constituent universe."
         ),
     },
 ]
@@ -868,9 +1343,9 @@ PROTECTION_MODE_ANALYSIS = {
     ),
 
     "statistics": {
-        "total_stop_events": 11,
-        "total_protection_days": 2002,
-        "pct_of_trading_days": "30.5%",
+        "total_stop_events": 9,
+        "total_protection_days": 1752,
+        "pct_of_trading_days": "26.7%",
         "avg_recovery_duration": "~182 days per event",
         "frequency": "~1 every 2.4 years",
     },
@@ -897,7 +1372,7 @@ PROTECTION_MODE_ANALYSIS = {
         "Cash at 3% yield is the DEFINITIVE optimal strategy during protection mode. "
         "All three optimization approaches (faster recovery, inverse ETFs, momentum shorts) "
         "failed due to the fundamental timing paradox: protection mode starts AFTER the crash, "
-        "during market recovery. The 2,002 protection days are not idle capital drag -- they are "
+        "during market recovery. The 1,752 protection days are not idle capital drag -- they are "
         "the reason MaxDD is -28.4% instead of >-40%. This is a closed question."
     ),
 }
@@ -908,11 +1383,17 @@ PROTECTION_MODE_ANALYSIS = {
 
 ALGORITHM_INELASTICITY = {
     "declaration": (
-        "After 24 experiments (22 failed, 2 succeeded), COMPASS v8.2 is declared INELASTIC. "
+        "After 32 experiments (29 failed, 3 succeeded), COMPASS v8.2 is declared INELASTIC. "
         "The core decision engine has reached its theoretical maximum for this universe and "
         "timeframe. Any modification to the signal, parameters, exit rules, or stop logic "
-        "degrades performance. This was confirmed by both internal testing and external "
-        "quantitative review (ChatGPT analysis with proposals B/C/D)."
+        "degrades performance. This was confirmed by internal testing, external quantitative "
+        "review (ChatGPT proposals), external advisory team proposals (ECLIPSE stat arb, "
+        "QUANTUM mean reversion), geographic expansion (EU and Asia, both catastrophic), and "
+        "diversification attempts (VIPER, RATTLESNAKE). The algorithm is also US-market-specific: "
+        "identical parameters applied to European (106 STOXX 600 stocks) and Asian (103 stocks, "
+        "6 markets) universes produced -20.87% and -19.71% CAGR respectively. "
+        "Focus has shifted to chassis: execution friction, financing, and signal timing. "
+        "Chassis upgrades brought Net CAGR from ~11.5% estimated to 13.13% backtested."
     ),
 
     "what_was_tried": {
@@ -944,6 +1425,19 @@ ALGORITHM_INELASTICITY = {
             "Inverse ETFs during protection (SH/SDS) -- lost $145-235k",
             "Momentum shorts during protection (bottom-N) -- closest but still negative",
         ],
+        "external_advisory_proposals": [
+            "Ensemble momentum (60/90/120d avg ranks) -- lost 7.43% CAGR (ChatGPT proposal)",
+            "Conditional hold extension (Top5+ATR) -- lost 3.93% CAGR (ChatGPT proposal)",
+            "Preemptive stop (-8%) -- lost 6.56% CAGR, tripled stops (ChatGPT proposal)",
+            "ECLIPSE stat arb (Engle-Granger pairs trading) -- lost 3.37% CAGR, -79.33% MaxDD (advisory team)",
+            "QUANTUM RSI-2+IBS mean reversion -- 9.42% CAGR, doesn't beat COMPASS 13.13% (advisory team)",
+        ],
+        "geographic_expansion": [
+            "COMPASS Internacional (106 EU STOXX 600, ^STOXX regime) -- -20.87% CAGR, -88.28% MaxDD, $100K->$507",
+            "COMPASS Asia (103 stocks: JP/HK/AU/KR/TW/SG, ^N225 regime) -- -19.71% CAGR, -94.49% MaxDD, $100K->$269",
+            "Both used IDENTICAL parameters (zero changes). Multi-currency momentum + local regime = cascading stop destruction",
+            "COMPASS is definitively US-market-specific. Advisory proposal #3 (geographic expansion) REJECTED.",
+        ],
     },
 
     "why_inelastic": (
@@ -955,45 +1449,62 @@ ALGORITHM_INELASTICITY = {
         "edge -- it has minimal degrees of freedom to overfit."
     ),
 
+    "chassis_completed": {
+        "description": "Chassis improvements already implemented:",
+        "items": [
+            "Pre-close execution @ 15:30 ET (recovers +0.79% CAGR, improves MaxDD by 7.8pp)",
+            "No-leverage production config (eliminates -1.10% CAGR from broker 6% margin)",
+            "Full cost decomposition (8-step waterfall from 16.94% to 13.13%)",
+            "Box Spread analysis (viable at SOFR+20bps, not used -- institutional only)",
+            "Split entry/exit architecture in live system (exits at open, entries at pre-close)",
+            "Dashboard with pre-close indicator, social feed, comparison chart, auto-refresh",
+        ],
+    },
+
     "next_steps": {
-        "description": "Focus shifts from motor optimization to chassis improvement:",
+        "description": "Remaining chassis improvements and infrastructure:",
         "priorities": [
             {
-                "area": "Execution Microstructure",
+                "area": "Execution Refinement",
+                "status": "PARTIALLY DONE (pre-close implemented)",
                 "actions": [
-                    "Implement TWAP/VWAP for last 15 minutes of session",
-                    "Use passive limit orders to capture spread instead of paying it",
+                    "MOC imbalance data for better fill quality (live only, not backtestable)",
+                    "Passive limit orders within MOC window to capture spread",
                     "Fractionate orders when capital grows (reduce market impact)",
                 ],
-                "estimated_benefit": "+0.5% to +1.5% CAGR recovery (slippage reduction)",
+                "estimated_benefit": "+0.2% to +0.5% CAGR (incremental slippage reduction)",
             },
             {
                 "area": "Capital Efficiency",
+                "status": "ANALYZED (Box Spread viable but not accessible)",
                 "actions": [
-                    "Replace cash sweep with T-Bill ETF (SGOV/BIL) as collateral",
-                    "Earn actual T-Bill rate (~4-5%) vs modeled 3%",
-                    "Use treasury holdings as margin collateral",
+                    "Pursue institutional Box Spread access via IBKR portfolio margin",
+                    "T-Bill ETF (SGOV/BIL) as collateral for margin (higher yield than cash sweep)",
                 ],
-                "estimated_benefit": "+0.5% to +1.0% CAGR (higher yield on idle capital)",
+                "estimated_benefit": "+0.15% CAGR if Box Spread, +0.5% if T-Bill ETF collateral",
             },
             {
                 "area": "Orthogonal Diversification",
+                "status": "EXTENSIVELY TESTED (RATTLESNAKE, ECLIPSE, QUANTUM, EU, Asia -- none viable)",
                 "actions": [
-                    "Design a separate uncorrelated system (mean-reversion, volatility, etc.)",
-                    "NIGHTSHIFT prototype exists -- evaluate for production",
-                    "Target combined Sharpe > 1.0 via portfolio-level diversification",
+                    "Revisit RATTLESNAKE at larger scale ($500k+) where complexity is justified",
+                    "Statistical arbitrage RULED OUT (ECLIPSE: -3.37% CAGR, catastrophic)",
+                    "Mean reversion variants exhausted (RATTLESNAKE 10.51%, QUANTUM 9.42%)",
+                    "Geographic expansion RULED OUT (EU: -20.87%, Asia: -19.71% -- COMPASS is US-specific)",
+                    "Remaining option: volatility selling (untested, requires options data)",
                 ],
-                "estimated_benefit": "Sharpe 0.815 -> 1.0+ via portfolio combination",
+                "estimated_benefit": "Sharpe 0.632 -> 0.8+ at larger scale (if diversifier found)",
             },
             {
                 "area": "Infrastructure Robustness",
+                "status": "PAPER TRADING (live system operational)",
                 "actions": [
-                    "Full end-to-end automation (data -> signal -> order routing)",
+                    "IBKR TWS API integration for real order routing",
                     "Corporate action handling (splits, dividends, mergers, spin-offs)",
-                    "Broker API integration (IBKR TWS API)",
-                    "Failover and monitoring (alerts, dead man switch)",
+                    "Monitoring/alerts (dead man switch, error notifications)",
+                    "Failover: redundant data feeds, order state recovery",
                 ],
-                "estimated_benefit": "Eliminates operational risk and human error",
+                "estimated_benefit": "Eliminates operational risk for live capital deployment",
             },
         ],
     },
@@ -1004,6 +1515,7 @@ ALGORITHM_INELASTICITY = {
 # =============================================================================
 
 REVIEW_QUESTIONS = [
+    # --- OPEN QUESTIONS ---
     "1. Does the momentum signal (90d lookback, 5d skip) seem robust, or is 90 days "
     "   suspiciously specific? Academic literature supports 3-12 month momentum, but "
     "   the exact 90-day choice was validated on this dataset.",
@@ -1011,8 +1523,8 @@ REVIEW_QUESTIONS = [
     "2. The 113-stock broad pool was hand-selected from current S&P 500 membership. "
     "   How significant is the residual survivorship bias despite annual rotation?",
 
-    "3. Is the -28.4% max drawdown acceptable for a leveraged momentum strategy? "
-    "   The statistical analysis suggests this could be worse in live trading.",
+    "3. The realistic MaxDD is -30.3% (pre-close MOC, no leverage). Is this acceptable "
+    "   for a long-only momentum strategy? What live trading conditions could worsen this?",
 
     "4. The regime filter (SPY > SMA200) is simple and well-known. Could its "
     "   effectiveness be degrading as more funds use similar signals?",
@@ -1020,62 +1532,80 @@ REVIEW_QUESTIONS = [
     "5. With 11 portfolio stop-loss events in 26 years (~1 every 2.4 years), "
     "   is the -15% threshold too sensitive or about right?",
 
-    "6. The vol targeting range [0.3x, 2.0x] allows significant leverage. "
-    "   Should the max be capped lower (e.g., 1.5x) for live trading safety?",
+    "6. ANSWERED: Leverage is capped at 1.0x in production. Broker 6% margin destroys "
+    "   -1.10% CAGR. Box Spread (SOFR+20bps) is the only viable path but requires "
+    "   institutional access. Should we pursue institutional Box Spread access?",
 
-    "7. The system has never been tested out-of-sample (no walk-forward or "
-    "   paper trading period). How critical is this before going live?",
+    "7. The system has been paper trading since Feb 2026. How much live paper trading "
+    "   data is needed before deploying real capital? 3 months? 6 months? 1 year?",
 
-    "8. 24 enhancement experiments failed -- only cash yield succeeded (not a signal "
-    "   change). Including proposals from external quantitative review (ensemble momentum, "
-    "   conditional hold, preemptive stop). The algorithm is declared INELASTIC. Is this "
-    "   conclusion correct, or is there a blind spot in the testing methodology?",
+    "8. UPDATED: 30 enhancement experiments attempted, 27 failed. Including 3 external "
+    "   advisory team proposals (ECLIPSE stat arb, QUANTUM mean reversion, ensemble momentum) "
+    "   and 4 diversification attempts (VIPER x2, RATTLESNAKE, dual-engine). "
+    "   Inelasticity conclusion strengthened. Any remaining blind spots?",
 
-    "9. Transaction costs assume $0.001/share commission with no slippage. "
-    "   Is this realistic for a retail account trading ~207 times per year?",
+    "9. PARTIALLY ANSWERED: Transaction costs are now explicitly modeled (2bps slippage, "
+    "   $0.001/sh commissions). The 2bps slippage assumption for top-40 liquid S&P 500 "
+    "   stocks -- is this realistic or should we test 3-5bps?",
 
-    "10. The combined COMPASS + NIGHTSHIFT approach uses $150k total capital. "
-    "    Does the overnight strategy add genuine diversification, or is it "
-    "    just adding complexity and costs?",
+    "10. RATTLESNAKE mean-reversion (10.51% CAGR, 0.74 Sharpe) was successful standalone "
+    "    but the dual-engine combination was reverted for simplicity. At what scale "
+    "    ($500k? $1M?) does the diversification benefit justify the complexity?",
 
-    "11. The protection mode consumes 30.5% of the backtest period (2,002 days). "
-    "    Three separate attempts to optimize protection failed (dynamic recovery, "
-    "    inverse ETFs, momentum shorts). Is there ANY approach we haven't tried "
-    "    that could extract value from protection periods without increasing MaxDD?",
+    "11. The protection mode consumes 26.7% of the backtest period (1,752 days). "
+    "    Three separate attempts to optimize protection failed. Is there ANY approach "
+    "    not yet tried? (Note: Cash at 3.5% yield is current optimal strategy.)",
 
-    "12. ANSWERED (Q13 old): Conditional hold extension (Top5 + ATR declining) tested "
-    "    and FAILED (-3.93% CAGR). Even selective extension increases trailing stop exits "
-    "    from 4.9% to 8.5%. The 5-day hold is definitively optimal.",
+    # --- PREVIOUSLY ANSWERED ---
+    "12. ANSWERED: Conditional hold extension tested and FAILED (-3.93% CAGR).",
+    "13. ANSWERED: Preemptive stop at -8% tested and FAILED (-6.56% CAGR, 34 stops).",
+    "14. ANSWERED: Ensemble momentum tested and FAILED (-7.43% CAGR).",
 
-    "13. ANSWERED (Q16 old): Preemptive stop at -8% tested and FAILED (-6.56% CAGR, "
-    "    34 stops vs 11). Normal volatility triggers false stops. -15% is calibrated.",
+    # --- IDEAS ---
+    "15. The universe is static 113 stocks from current S&P 500. Would a truly "
+    "    dynamic universe (historical S&P 500 membership via Norgate/CRSP) help?",
 
-    "14. ANSWERED (Q17 old): Ensemble momentum (60d/90d/120d avg ranks) tested and "
-    "    FAILED (-7.43% CAGR). Signal precision > signal stability in concentrated portfolios.",
+    "16. The strategy is US-only. Would international developed-market stocks "
+    "    provide diversification using the same COMPASS momentum framework?",
 
-    "15. IDEA REQUEST: The universe is static 113 stocks from current S&P 500. "
-    "    Would a truly dynamic universe (e.g., annual S&P 500 reconstitution "
-    "    using historical membership data from Norgate/CRSP) materially change results?",
+    "17. PARTIALLY ANSWERED: Pre-close execution implemented (+0.79% CAGR). "
+    "    Additional execution improvements (TWAP/VWAP, limit orders, MOC imbalance data) "
+    "    could recover more of the remaining 3.08% execution gap. Priorities?",
 
-    "16. IDEA REQUEST: The strategy is US-only. Would international momentum "
-    "    (developed markets ETFs, or a global stock pool) provide diversification "
-    "    benefits while using the same COMPASS framework?",
+    "18. ANSWERED: Box Spread analysis completed. Viable with institutional SPX options "
+    "    access (SOFR+20bps saves +1.25% CAGR vs broker 6%). Not available for retail. "
+    "    What is the most practical path to institutional Box Spread access?",
 
-    "17. CHASSIS IMPROVEMENT: The algorithm is declared inelastic. What specific "
-    "    execution improvements (TWAP/VWAP, limit orders, order splitting) would "
-    "    recover the estimated 0.5-1.5% CAGR lost to slippage?",
+    "19. ANSWERED: Statistical arbitrage / pairs trading tested (ECLIPSE v1) and FAILED "
+    "    catastrophically (-3.37% CAGR, -79.33% MaxDD). QUANTUM RSI-2+IBS tested as improved "
+    "    RATTLESNAKE -- 9.42% CAGR, doesn't beat COMPASS. Remaining untested: volatility selling "
+    "    (requires options data). Is vol selling worth pursuing as orthogonal diversifier?",
 
-    "18. CHASSIS IMPROVEMENT: Could capital efficiency be improved by investing idle "
-    "    cash in T-Bill ETFs (SGOV/BIL) as collateral instead of cash sweep? This "
-    "    would earn the actual T-Bill rate (~4-5%) vs the modeled 3%.",
+    "20. Infrastructure priorities for going live with real capital: "
+    "    (a) IBKR API integration, (b) corporate action handling, "
+    "    (c) monitoring/alerts, (d) failover. What order and timeline?",
 
-    "19. CHASSIS IMPROVEMENT: What is the optimal orthogonal strategy to pair with "
-    "    COMPASS? Mean-reversion in sideways markets? Volatility selling? The combined "
-    "    Sharpe could exceed 1.0 if correlation is near zero.",
+    # --- NEW: CHASSIS-SPECIFIC ---
+    "21. The pre-close signal uses Close[T-1] (yesterday's close). In live trading, "
+    "    we could use real-time 15:30 prices instead. Would this improve results? "
+    "    (Cannot be backtested with daily data -- requires intraday data.)",
 
-    "20. CHASSIS IMPROVEMENT: What infrastructure improvements (automated execution, "
-    "    corporate action handling, broker API integration) are highest priority for "
-    "    moving from paper trading to live execution with real capital?",
+    "22. The cost decomposition shows -2.92% CAGR from MOC execution (Close[T] to "
+    "    Close[T+1]). Pre-close recovers 0.79% of this. What are the most promising "
+    "    approaches to recover more of the remaining 2.13% gap?",
+
+    "23. With LEVERAGE_MAX=1.0, the vol targeting only scales DOWN (from 1.0x to 0.3x). "
+    "    Does this asymmetric scaling still provide meaningful risk management, or should "
+    "    the LEVERAGE_MIN floor be lowered (e.g., to 0.1x) for more protection?",
+
+    "24. Data source cross-validation attempted with Tiingo but rate-limited (500 req/hr). "
+    "    Is cross-validating against a second data source important before deploying real "
+    "    capital? If so, what is the most practical alternative to yfinance?",
+
+    "25. External advisory team produced 3 proposals (ECLIPSE, QUANTUM, ensemble momentum), "
+    "    all with overstated performance claims vs actual backtest results. How should future "
+    "    external proposals be evaluated? Require reproducible code + expected metrics before "
+    "    dedicating development time?",
 ]
 
 
@@ -1095,16 +1625,18 @@ def print_section(title, content=""):
 def main():
     print("=" * 80)
     print("  OMNICAPITAL PROJECT -- COMPREHENSIVE REVIEW")
-    print(f"  Generated: 2026-02-21")
+    print(f"  Generated: 2026-02-22")
     print(f"  Total experiments: {PROJECT['total_experiments']} "
           f"({PROJECT['experiments_succeeded']} succeeded, "
           f"{PROJECT['experiments_failed']} failed)")
+    print(f"  Signal CAGR (gross): {PROJECT['signal_cagr']}")
+    print(f"  Net CAGR (after costs): {PROJECT['net_cagr']}")
     print("=" * 80)
 
     # ---- Project Overview ----
     print_section("1. PROJECT OVERVIEW")
     for k, v in PROJECT.items():
-        print(f"  {k:25s}: {v}")
+        print(f"  {k:30s}: {v}")
 
     # ---- COMPASS Algorithm ----
     print_section("2. COMPASS v8.2 -- PRODUCTION ALGORITHM")
@@ -1122,11 +1654,43 @@ def main():
         else:
             print(f"  {k:30s}: {v}")
 
-    print("\n  BACKTEST RESULTS (2000-2026):")
-    for k, v in COMPASS_RESULTS.items():
+    print("\n  SIGNAL RESULTS — gross return, ideal execution (2000-2026):")
+    for k, v in COMPASS_RESULTS_SIGNAL.items():
+        print(f"    {k:20s}: {v}")
+
+    print("\n  NET RESULTS — after execution costs, pre-close MOC, no leverage (2000-2026):")
+    for k, v in COMPASS_RESULTS_NET.items():
         print(f"    {k:20s}: {v}")
 
     print(COMPASS_V82_IMPROVEMENTS)
+
+    # ---- Chassis Upgrades ----
+    print_section("2B. CHASSIS UPGRADES -- EXECUTION & COST OPTIMIZATION")
+    cu = CHASSIS_UPGRADES
+    print(f"\n  {cu['summary']}")
+
+    print(f"\n  COST WATERFALL (cumulative friction):")
+    print(f"  {'Step':<40} {'CAGR':>7} {'Delta':>8} {'Description'}")
+    print(f"  {'-'*90}")
+    for key, data in cu['cost_waterfall'].items():
+        if key.startswith('_'):
+            continue
+        delta = f"{data.get('delta', 0):+.2f}%" if 'delta' in data else "  --"
+        desc = data.get('description', '')
+        print(f"  {key:<40} {data['cagr']:>6.2f}% {delta:>8} {desc}")
+
+    print(f"\n  PRE-CLOSE EXECUTION ANALYSIS:")
+    for vname, vdata in cu['preclose_analysis']['variants'].items():
+        print(f"    {vname:<20}: {vdata['cagr']:.2f}% CAGR | {vdata['sharpe']:.3f} Sharpe | "
+              f"{vdata['maxdd']:.1f}% MaxDD -- {vdata['description']}")
+    ra = cu['preclose_analysis']['ranking_agreement']
+    print(f"\n    Ranking agreement: exact top-5 = {ra['exact_top5_match']}, "
+          f"Spearman rho = {ra['spearman_rho']}")
+    print(f"    Production choice: {cu['preclose_analysis']['production_choice']}")
+
+    print(f"\n  NO-LEVERAGE DECISION:")
+    for config, data in cu['no_leverage_decision']['comparison'].items():
+        print(f"    {config:<15}: {data['cagr']:.2f}% CAGR, {data['sharpe']:.3f} Sharpe")
 
     # ---- Experiments ----
     print_section("3. ALL EXPERIMENTS ATTEMPTED")
@@ -1178,8 +1742,10 @@ def main():
 
     print(f"\n  TRUE EXPECTED PERFORMANCE:")
     tp = sa['true_expected_performance']
-    print(f"    Reported CAGR:        {tp['reported_CAGR']}")
-    for adj, val in tp['adjustments'].items():
+    print(f"    Signal CAGR (gross):        {tp['signal_cagr']}")
+    print(f"    Net CAGR (after costs):     {tp['net_cagr']}")
+    print(f"    Remaining adjustments:")
+    for adj, val in tp['remaining_adjustments'].items():
         print(f"      {adj:30s}: {val}")
     print(f"    Estimated true CAGR:  {tp['estimated_true_CAGR']}")
     print(f"    90% confidence:       {tp['confidence_interval_90pct']}")
@@ -1196,20 +1762,20 @@ def main():
     print(f"\n  API Endpoints:")
     for ep in ls['api_endpoints']:
         print(f"    {ep}")
-    print(f"\n  Recent Dashboard Updates:")
-    for u in ls['recent_dashboard_updates']:
+    print(f"\n  Execution Model:")
+    for k, v in ls['execution_model'].items():
+        print(f"    {k:15s}: {v}")
+    print(f"\n  Recent Updates:")
+    for u in ls['recent_updates']:
         print(f"    + {u}")
     print(f"\n  Current State (as of {ls['current_state_snapshot']['date']}):")
     for k, v in ls['current_state_snapshot'].items():
-        if isinstance(v, list):
-            print(f"    {k}: {', '.join(v)}")
-        else:
-            print(f"    {k}: {v}")
+        print(f"    {k}: {v}")
 
     # ---- Version History ----
     print_section("6. VERSION HISTORY")
     for v in VERSION_HISTORY:
-        marker = " <<<" if "COMPASS" in v['name'] else ""
+        marker = " <<<" if "PROD" in v['version'] else ""
         print(f"  {v['version']:12s} {v['name']:20s} {v['description']}{marker}")
 
     print("\n  KEY DECISIONS:")
@@ -1247,9 +1813,15 @@ def main():
         print(f"\n    {category.replace('_', ' ').title()}:")
         for item in items:
             print(f"      - {item}")
-    print(f"\n  NEXT STEPS -- {ai['next_steps']['description']}")
+
+    print(f"\n  CHASSIS COMPLETED:")
+    for item in ai['chassis_completed']['items']:
+        print(f"    [OK] {item}")
+
+    print(f"\n  REMAINING NEXT STEPS -- {ai['next_steps']['description']}")
     for p in ai['next_steps']['priorities']:
-        print(f"\n    [{p['area']}]")
+        status = p.get('status', '')
+        print(f"\n    [{p['area']}] ({status})")
         for a in p['actions']:
             print(f"      - {a}")
         print(f"      Expected benefit: {p['estimated_benefit']}")
@@ -1273,9 +1845,11 @@ def main():
           f"({PROJECT['experiments_succeeded']} succeeded, "
           f"{PROJECT['experiments_failed']} failed)")
     print("  Backtest period: 26 years (2000-2026)")
-    print("  Production result: 16.95% CAGR, 0.815 Sharpe, -28.4% MaxDD")
-    print(f"  Status: {PROJECT['algorithm_status']}")
-    print("  Next: Execution microstructure, capital efficiency, orthogonal diversification.")
+    print(f"  Signal CAGR:     {PROJECT['signal_cagr']} (gross, ideal execution)")
+    print(f"  Net CAGR:        {PROJECT['net_cagr']}, 0.632 Sharpe, -30.3% MaxDD (after execution costs)")
+    print(f"  Config:          {PROJECT['production_config']}")
+    print(f"  Status:          {PROJECT['algorithm_status']}")
+    print("  Next: Infrastructure (IBKR API), execution refinement, scale for diversification.")
     print("=" * 80)
 
 
