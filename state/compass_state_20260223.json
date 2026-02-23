@@ -1,9 +1,9 @@
 {
   "version": "8.2",
-  "timestamp": "2026-02-23T13:25:54.117785",
+  "timestamp": "2026-02-23T13:38:56.902865",
   "cash": 19116.44918558494,
   "peak_value": 100923.65268609783,
-  "portfolio_value": 100900.47666136353,
+  "portfolio_value": 100810.88700864199,
   "in_protection": false,
   "protection_stage": 0,
   "stop_loss_day_index": null,
@@ -112,7 +112,7 @@
   "universe_year": 2026,
   "stop_events": [],
   "stats": {
-    "cycles_completed": 21,
-    "uptime_minutes": 20.822167916666668
+    "cycles_completed": 36,
+    "uptime_minutes": 38.156326899999996
   }
 }
