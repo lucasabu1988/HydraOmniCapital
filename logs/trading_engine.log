@@ -814,3 +814,53 @@
 2026-02-08 21:00:23,758 - TradingEngine - INFO - Escaneando oportunidades...
 2026-02-08 21:00:23,758 - TradingEngine - INFO - Oportunidades encontradas: 0
 2026-02-08 21:03:24,564 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-20 00:42:34,708 - TradingEngine - INFO - Trading Engine inicializado
+2026-02-20 00:42:34,711 - TradingEngine - INFO - Inicializando universo de inversión...
+2026-02-20 00:42:57,263 - TradingEngine - INFO - Universo filtrado: 45 símbolos
+2026-02-20 00:42:57,264 - TradingEngine - INFO - Iniciando backtest: 2023-01-01 00:00:00 a 2023-02-01 00:00:00
+2026-02-20 00:42:57,275 - TradingEngine - INFO - ============================================================
+2026-02-20 00:42:57,276 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-20 00:42:57,277 - TradingEngine - INFO - ============================================================
+2026-02-20 00:42:57,278 - TradingEngine - INFO - Cargando datos...
+2026-02-20 00:43:47,581 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-20 00:43:47,582 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-20 00:43:47,583 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-20 00:43:47,789 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-20 00:43:47,790 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $1,000,000.00
+2026-02-20 00:43:47,790 - TradingEngine - INFO - ============================================================
+2026-02-20 00:43:47,791 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-20 00:43:47,791 - TradingEngine - INFO - ============================================================
+2026-02-20 00:43:47,792 - TradingEngine - INFO - Cargando datos...
+2026-02-20 00:44:12,351 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-20 00:44:12,352 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-20 00:44:12,356 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-20 00:44:12,979 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-20 00:44:12,981 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $1,000,000.00
+2026-02-20 00:44:12,982 - TradingEngine - INFO - ============================================================
+2026-02-20 00:44:12,983 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-20 00:44:12,984 - TradingEngine - INFO - ============================================================
+2026-02-20 00:44:12,985 - TradingEngine - INFO - Cargando datos...
+2026-02-20 00:44:37,961 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-20 00:44:37,962 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-20 00:44:37,967 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-20 00:44:38,182 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-20 00:44:38,182 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $1,000,000.00
+2026-02-20 00:44:38,183 - TradingEngine - INFO - ============================================================
+2026-02-20 00:44:38,183 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-20 00:44:38,183 - TradingEngine - INFO - ============================================================
+2026-02-20 00:44:38,184 - TradingEngine - INFO - Cargando datos...
+2026-02-20 00:45:01,656 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-20 00:45:01,657 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-20 00:45:01,661 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-20 00:45:01,857 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-20 00:45:01,857 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $1,000,000.00
+2026-02-20 00:45:01,858 - TradingEngine - INFO - ============================================================
+2026-02-20 00:45:01,858 - TradingEngine - INFO - Iniciando iteración de trading
+2026-02-20 00:45:01,858 - TradingEngine - INFO - ============================================================
+2026-02-20 00:45:01,858 - TradingEngine - INFO - Cargando datos...
+2026-02-20 00:45:26,356 - TradingEngine - INFO - Régimen de mercado: neutral
+2026-02-20 00:45:26,357 - TradingEngine - INFO - Datos cargados exitosamente
+2026-02-20 00:45:26,358 - TradingEngine - INFO - Escaneando oportunidades...
+2026-02-20 00:45:26,503 - TradingEngine - INFO - Oportunidades encontradas: 0
+2026-02-20 00:45:26,504 - TradingEngine - INFO - Iteración completada. Valor del portafolio: $1,000,000.00
+2026-02-20 00:45:26,506 - TradingEngine - INFO - Backtest completado

@@ -1,9 +1,9 @@
 {
   "version": "8.2",
-  "timestamp": "2026-02-20T15:56:47.749518",
+  "timestamp": "2026-02-23T12:13:00.263187",
   "cash": 19116.44918558494,
-  "peak_value": 100837.81359629522,
-  "portfolio_value": 100793.44708724244,
+  "peak_value": 100923.65268609783,
+  "portfolio_value": 100595.87817478512,
   "in_protection": false,
   "protection_stage": 0,
   "stop_loss_day_index": null,
@@ -11,8 +11,8 @@
   "current_regime": true,
   "regime_consecutive": 8,
   "regime_last_raw": true,
-  "trading_day_counter": 2,
-  "last_trading_date": "2026-02-20",
+  "trading_day_counter": 3,
+  "last_trading_date": "2026-02-23",
   "positions": {
     "MU": {
       "shares": 33.24553234085201,
@@ -64,7 +64,7 @@
       "entry_price": 121.08206888438475,
       "entry_date": "2026-02-19",
       "entry_day_index": 1,
-      "high_price": 122.66000366210938
+      "high_price": 123.54000091552734
     }
   },
   "current_universe": [
@@ -112,7 +112,7 @@
   "universe_year": 2026,
   "stop_events": [],
   "stats": {
-    "cycles_completed": 6,
-    "uptime_minutes": 5.961924233333334
+    "cycles_completed": 73,
+    "uptime_minutes": 835.3493083833333
   }
 }
