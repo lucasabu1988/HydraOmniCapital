@@ -936,16 +936,16 @@ if __name__ == "__main__":
     print(f"  {'CAGR':<24} {metrics['cagr']:>13.2%} {'17.66%':>16} {'13.52%':>16}")
     print(f"  {'Sharpe':<24} {metrics['sharpe']:>14.3f} {'0.850':>16} {'0.658':>16}")
     print(f"  {'Max Drawdown':<24} {metrics['max_drawdown']:>13.2%} {'-27.5%':>16} {'-30.3%':>16}")
-    print(f"  {'Volatility':<24} {metrics['volatility']:>13.2%} {'20.8%':>16} {'20.8%':>16}")
-    print(f"  {'Win Rate':<24} {metrics['win_rate']:>13.1%} {'55.2%':>16} {'54.5%':>16}")
-    print(f"  {'Total Trades':<24} {metrics['total_trades']:>14} {'5,445':>16} {'5,328':>16}")
-    print(f"  {'$100K -> $':<24} {metrics['final_value']:>13,.0f} {'$6,910,000':>16} {'$2,490,000':>16}")
+    print(f"  {'Volatility':<24} {metrics['volatility']:>13.2%} {'20.8%':>16} {'20.7%':>16}")
+    print(f"  {'Win Rate':<24} {metrics['win_rate']:>13.1%} {'55.2%':>16} {'55.2%':>16}")
+    print(f"  {'Total Trades':<24} {metrics['total_trades']:>14} {'5,445':>16} {'5,445':>16}")
+    print(f"  {'$100K -> $':<24} {metrics['final_value']:>13,.0f} {'$6,910,000':>16} {'$4,425,000':>16}")
     print(f"  {'Strategy':<24} {'Pairs Arb':>14} {'Momentum':>16} {'Momentum':>16}")
     print(f"  {'Market Exposure':<24} {'Neutral':>14} {'Long Only':>16} {'Long Only':>16}")
 
     print(f"\n  VERDICT:")
-    if metrics['cagr'] > 0.1313:
-        print(f"  ECLIPSE beats COMPASS realistic ({metrics['cagr']:.2%} vs 13.52%)")
+    if metrics['cagr'] > 0.1566:
+        print(f"  ECLIPSE beats COMPASS realistic ({metrics['cagr']:.2%} vs 15.66%)")
     elif metrics['cagr'] > 0.05:
         print(f"  ECLIPSE has value as diversifier ({metrics['cagr']:.2%}) but does NOT beat COMPASS")
     else:

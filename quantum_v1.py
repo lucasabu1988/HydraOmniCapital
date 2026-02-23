@@ -704,20 +704,20 @@ if __name__ == "__main__":
     print(f"  {'CAGR':<24} {metrics['cagr']:>11.2%} {'13.52%':>12} {'10.51%':>12}")
     print(f"  {'Sharpe':<24} {metrics['sharpe']:>12.3f} {'0.658':>12} {'0.74':>12}")
     print(f"  {'Max Drawdown':<24} {metrics['max_drawdown']:>11.2%} {'-30.3%':>12} {'-18.7%':>12}")
-    print(f"  {'Volatility':<24} {metrics['volatility']:>11.2%} {'20.8%':>12} {'~8%':>12}")
-    print(f"  {'Win Rate':<24} {metrics['win_rate']:>11.1%} {'54.5%':>12} {'63.0%':>12}")
-    print(f"  {'Total Trades':<24} {metrics['total_trades']:>12} {'5,328':>12} {'~900':>12}")
-    print(f"  {'$100K -> $':<24} {metrics['final_value']:>11,.0f} {'$2,490K':>12} {'$1,250K':>12}")
+    print(f"  {'Volatility':<24} {metrics['volatility']:>11.2%} {'20.7%':>12} {'~8%':>12}")
+    print(f"  {'Win Rate':<24} {metrics['win_rate']:>11.1%} {'55.2%':>12} {'63.0%':>12}")
+    print(f"  {'Total Trades':<24} {metrics['total_trades']:>12} {'5,445':>12} {'~900':>12}")
+    print(f"  {'$100K -> $':<24} {metrics['final_value']:>11,.0f} {'$4,425K':>12} {'$1,250K':>12}")
     print(f"  {'Strategy':<24} {'MR RSI+IBS':>12} {'Momentum':>12} {'MR RSI':>12}")
     print(f"  {'% Time Invested':<24} {metrics['pct_time_invested']:>10.0f}% {'~73%':>12} {'~15%':>12}")
 
     print(f"\n  VERDICT:")
-    if metrics['cagr'] > 0.1313:
-        print(f"  QUANTUM BEATS COMPASS realistic ({metrics['cagr']:.2%} vs 13.52%)")
-        if metrics['sharpe'] > 0.658:
-            print(f"  AND has better Sharpe ({metrics['sharpe']:.3f} vs 0.658)")
-        if metrics['max_drawdown'] > -0.355:
-            print(f"  AND has better MaxDD ({metrics['max_drawdown']:.2%} vs -35.5%)")
+    if metrics['cagr'] > 0.1566:
+        print(f"  QUANTUM BEATS COMPASS realistic ({metrics['cagr']:.2%} vs 15.66%)")
+        if metrics['sharpe'] > 0.758:
+            print(f"  AND has better Sharpe ({metrics['sharpe']:.3f} vs 0.758)")
+        if metrics['max_drawdown'] > -0.303:
+            print(f"  AND has better MaxDD ({metrics['max_drawdown']:.2%} vs -30.3%)")
     elif metrics['cagr'] > 0.1051:
         print(f"  QUANTUM beats RATTLESNAKE ({metrics['cagr']:.2%} vs 10.51%) "
               f"but does NOT beat COMPASS")

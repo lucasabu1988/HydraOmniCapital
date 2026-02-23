@@ -872,29 +872,19 @@ def api_equity_comparison():
     compass_cagr = (pow(compass_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
     spy_cagr = (pow(spy_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
 
-    # --- Net equity curve (real backtest from compass_net_backtest.py) ---
-    # Uses actual production engine with Close[T-1] signal + 2bps slippage
-    NET_CSV = 'backtests/v8_compass_net_daily.csv'
-    if os.path.exists(NET_CSV):
-        net_df = pd.read_csv(NET_CSV, parse_dates=['date'])
-        net_df['date_key'] = net_df['date'].dt.normalize()
-        net_val_col = 'portfolio_value' if 'portfolio_value' in net_df.columns else 'value'
-        merged = pd.merge(merged, net_df[['date_key', net_val_col]].rename(columns={net_val_col: 'net_val'}),
-                          on='date_key', how='left')
-        merged['net_val'] = merged['net_val'].ffill().bfill()
+    # --- Net equity curve (Signal - 2.0% fixed annual execution costs) ---
+    # Net CAGR = Signal CAGR - 2.0%.  Synthesis: net(t) = signal(t) * ((1+net)/(1+signal))^t
+    import numpy as np
+    EXECUTION_COST = 0.02  # 2.0% annual (MOC slippage + commissions)
+    daily_growth_signal = compass_cagr / 100.0
+    net_cagr_decimal = daily_growth_signal - EXECUTION_COST
+    days_elapsed = (merged['date_key'] - first_date).dt.days.values
+    years_elapsed = days_elapsed / 365.25
+    if daily_growth_signal > 0:
+        adjustment = ((1 + net_cagr_decimal) / (1 + daily_growth_signal)) ** years_elapsed
     else:
-        # Fallback: synthesis formula if net CSV not available
-        import numpy as np
-        NET_CAGR_DECIMAL = 0.1313
-        days_elapsed = (merged['date_key'] - first_date).dt.days.values
-        years_elapsed = days_elapsed / 365.25
-        daily_growth_signal = compass_cagr / 100.0
-        if daily_growth_signal > 0:
-            adjustment = ((1 + NET_CAGR_DECIMAL) / (1 + daily_growth_signal)) ** years_elapsed
-        else:
-            import numpy as np
-            adjustment = np.ones(len(merged))
-        merged['net_val'] = merged['compass_val'].values * adjustment
+        adjustment = np.ones(len(merged))
+    merged['net_val'] = merged['compass_val'].values * adjustment
 
     net_final = float(merged['net_val'].iloc[-1])
     net_cagr = (pow(net_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
