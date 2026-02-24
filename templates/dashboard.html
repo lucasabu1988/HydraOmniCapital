@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>COMPASS v8.2 | OmniCapital</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -70,7 +73,24 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    padding-bottom: env(safe-area-inset-bottom, 0);
 }
+
+/* Touch-friendly: minimum tap targets */
+@media (pointer: coarse) {
+    .eng-btn, .modal-btn, .ta-seg-btn, .universe-bar-label {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .toggle-arrow { width: 28px; height: 28px; }
+    .hdr-pill { min-height: 32px; }
+}
+
+/* Smooth scrolling for the whole page */
+html { scroll-behavior: smooth; }
 
 /* Subtle grid background */
 body::before {
@@ -96,6 +116,7 @@ body::before {
     color: var(--red);
     text-align: center;
     padding: 10px;
+    padding-top: calc(10px + env(safe-area-inset-top, 0));
     font-weight: 600;
     font-size: 13px;
     letter-spacing: 1px;
@@ -801,6 +822,14 @@ body::before {
     font-size: 16px; font-weight: 800;
     color: var(--text-primary); letter-spacing: 0.5px;
 }
+.pos-live-price {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: auto;
+    margin-right: 6px;
+}
 .pos-pnl-badge {
     font-family: 'JetBrains Mono', monospace;
     font-size: 14px; font-weight: 700;
@@ -1286,21 +1315,303 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .c-purple { color: var(--purple) !important; }
 .c-accent { color: var(--accent-light) !important; }
 
+/* ============ PRODUCTION CONFIG BAR ============ */
+.prod-config-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.prod-config-stats {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+.prod-config-stats .hdr-stat { display: flex; flex-direction: column; gap: 1px; }
+.prod-config-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+}
+
+/* ============ COMPARISON STATS ROW ============ */
+.comp-stats-row {
+    display: flex;
+    gap: 24px;
+    padding: 0 24px 12px;
+    flex-wrap: wrap;
+}
+.comp-stat-item {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.comp-stat-note {
+    font-size: 9px;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+/* ============ FOOTER ============ */
+.footer {
+    text-align: center;
+    padding: 16px 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+}
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 1200px) {
     .metrics-grid { grid-template-columns: repeat(3, 1fr); }
+    .grid-6 { grid-template-columns: repeat(3, 1fr); }
+    #mc-milestones { grid-template-columns: repeat(2, 1fr) !important; }
 }
+
 @media (max-width: 768px) {
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-    .header-bar { flex-wrap: wrap; gap: 10px; padding: 8px 16px; }
-    .metric-value { font-size: 20px; }
-    .main { padding: 12px 16px; }
-}
-@media (max-width: 480px) {
-    body { font-size: 13px; }
-    .metric-value { font-size: 18px; }
+    .grid-6 { grid-template-columns: repeat(2, 1fr); }
+    .header-bar {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px 12px;
+        padding-top: calc(8px + env(safe-area-inset-top, 0));
+        top: 0;
+    }
     .hdr-brand-text { font-size: 14px; }
+    .hdr-sep { display: none; }
     .hdr-stat { display: none; }
+    .hdr-spacer { display: none; }
+    .hdr-time-group { margin-left: auto; }
+    .metric-value { font-size: 20px; }
+    .main { padding: 10px 10px; }
+
+    /* Engine bar stacked */
+    .engine-bar {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 14px;
+    }
+    .engine-spacer { flex-basis: 100%; height: 0; }
+    .engine-cycles { font-size: 11px; }
+    .eng-btn { padding: 6px 14px; font-size: 11px; }
+
+    /* Production config bar */
+    .prod-config-bar {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+    .prod-config-bar .engine-spacer { display: none; }
+    .prod-config-stats {
+        flex-wrap: wrap;
+        gap: 12px !important;
+        width: 100%;
+    }
+    .prod-config-stats .hdr-stat { display: flex !important; }
+    .prod-config-divider { display: none; }
+
+    /* Comparison chart stats */
+    .comp-stats-row {
+        flex-direction: column;
+        gap: 4px;
+        padding: 0 14px 10px;
+    }
+    .comp-stat-item { font-size: 10px; }
+    .comp-stat-note { font-size: 8px; }
+
+    /* Perf banner stacked */
+    .perf-banner-inner {
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+    }
+    .perf-side { align-items: center; }
+    .perf-side-value { font-size: 26px; }
+    .perf-vs {
+        flex-direction: row;
+        padding: 12px 0;
+        gap: 12px;
+        width: 100%;
+        justify-content: center;
+    }
+    .perf-vs-divider-left,
+    .perf-vs-divider-right {
+        display: none;
+    }
+    .perf-vs::before,
+    .perf-vs::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+    }
+    .perf-vs-alpha { font-size: 22px; }
+    .perf-banner-period { padding: 0 16px 12px; font-size: 10px; }
+
+    /* Pre-close bar */
+    .preclose-bar {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px 14px;
+    }
+    .preclose-timeline { order: 3; width: 100%; }
+
+    /* Universe bar */
+    .universe-badges { gap: 4px; }
+    .uni-badge { padding: 3px 8px; font-size: 10px; }
+
+    /* Positions hero */
+    .positions-hero-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 14px 16px 10px;
+    }
+    .positions-hero-summary {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .ph-stat { align-items: flex-start; }
+    .ph-stat-value { font-size: 15px; }
+    .positions-grid { grid-template-columns: repeat(2, 1fr); }
+    .pos-card { padding: 12px 14px; }
+    .pos-symbol { font-size: 14px; }
+    .pos-live-price { font-size: 13px; margin-right: 4px; }
+    .pos-pnl-badge { font-size: 12px; padding: 2px 8px; }
+    .pos-data-row { gap: 2px; }
+    .pos-datum-label { font-size: 8px; }
+    .pos-datum-value { font-size: 11px; }
+    .positions-total-bar {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 10px 16px;
+    }
+    .pt-stats { gap: 16px; flex-wrap: wrap; }
+
+    /* Charts */
+    .chart-container { height: 260px; padding: 4px 10px 12px; }
+
+    /* Social feed */
+    .sf-msg { padding: 8px 14px; }
+    .sf-msg-badge { min-width: 36px; }
+
+    /* Activity feed */
+    .af-row { padding: 6px 14px; gap: 8px; }
+    .af-time { min-width: 44px; font-size: 9px; }
+    .af-tag { min-width: 44px; font-size: 8px; padding: 2px 6px; }
+    .af-msg { font-size: 10px; }
+
+    /* Analytics tables scroll */
+    .analytics-table { font-size: 11px; min-width: 500px; }
+    #ta-table-container,
+    #mc-drawdown { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    /* Card headers */
+    .card-header {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 12px 14px 8px;
+    }
+    .card-body { padding: 0 14px 14px; }
+    .card-title { font-size: 11px; }
+
+    /* Monte Carlo milestones */
+    #mc-milestones { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+    .mc-milestone-card { padding: 10px 12px; }
+    .mc-milestone-card .mc-val { font-size: 16px; }
+
+    /* Footer */
+    .footer { font-size: 10px; padding: 12px 10px; }
+}
+
+@media (max-width: 480px) {
+    body { font-size: 12px; }
+    .metric-value { font-size: 17px; }
+    .metrics-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric-card { padding: 12px 14px; }
+    .metric-label { font-size: 9px; letter-spacing: 0.8px; }
+    .metric-sub { font-size: 10px; }
+    .main { padding: 8px 8px; }
+
+    /* Header tighter */
+    .header-bar { padding: 6px 10px; gap: 6px; }
+    .hdr-brand-icon { width: 24px; height: 24px; font-size: 10px; }
+    .hdr-brand-text { font-size: 13px; }
+    .hdr-brand-sub { font-size: 7px; }
+    .hdr-pill { font-size: 10px; padding: 3px 8px; }
+    .hdr-countdown { display: none; }
+    .hdr-time { font-size: 11px; }
+
+    /* Perf banner smaller */
+    .perf-side-value { font-size: 22px; }
+    .perf-vs-alpha { font-size: 18px; }
+    .perf-side-label { font-size: 9px; }
+    .perf-side-sub { font-size: 10px; }
+
+    /* Positions single column */
+    .positions-grid { grid-template-columns: 1fr; }
+    .positions-hero-title { font-size: 14px; }
+    .ph-stat-divider { height: 24px; }
+    .pos-live-price { font-size: 12px; }
+    .pos-pnl-badge { font-size: 11px; padding: 2px 6px; }
+
+    /* Engine bar */
+    .engine-bar { padding: 8px 10px; gap: 6px; }
+    .engine-label { font-size: 12px; }
+    .engine-live-tag { font-size: 9px; padding: 2px 8px; }
+    .eng-btn { padding: 5px 10px; font-size: 10px; }
+
+    /* Card internals */
+    .card-header > div[style*="gap:16px"] { flex-wrap: wrap; gap: 6px !important; }
+
+    /* Chart tighter */
+    .chart-container { height: 220px; padding: 2px 6px 10px; }
+
+    /* Grid layouts */
+    .grid-6 { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+
+    /* Social feed compact */
+    .sf-msg { padding: 6px 10px; gap: 8px; }
+    .sf-msg-text { font-size: 11px; }
+    .sf-ticker { font-size: 10px; }
+
+    /* Activity feed compact */
+    .af-row { padding: 5px 10px; gap: 6px; }
+    .af-body { max-height: 250px; }
+
+    /* Analytics */
+    .ta-seg-btn { font-size: 10px; padding: 4px 10px; }
+    #ta-segments { gap: 4px !important; }
+
+    /* DQ tiles */
+    .dq-tile { padding: 8px 10px; }
+    .dq-tile .dq-val { font-size: 16px; }
+
+    /* Modal responsive */
+    .modal-box { min-width: 280px; max-width: 92vw; padding: 24px 20px; }
+    .modal-title { font-size: 16px; }
+    .modal-text { font-size: 12px; }
+    .modal-btn { padding: 6px 20px; font-size: 12px; }
+}
+
+/* Ultra-narrow screens */
+@media (max-width: 360px) {
+    .main { padding: 6px 4px; }
+    .metric-value { font-size: 15px; }
+    .metric-card { padding: 10px 10px; }
+    .hdr-brand-text { font-size: 11px; }
+    .hdr-pill { font-size: 9px; padding: 2px 6px; }
+    .perf-side-value { font-size: 18px; }
+    .perf-vs-alpha { font-size: 16px; }
+    .pos-card { padding: 10px 10px; }
+    .pos-symbol { font-size: 13px; }
+    .pos-pnl-badge { font-size: 11px; padding: 2px 6px; }
+    .chart-container { height: 200px; }
+    .engine-bar { padding: 6px 8px; }
 }
 </style>
 </head>
@@ -1376,33 +1687,33 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- PRODUCTION CONFIG -->
-<div class="engine-bar" style="gap:20px; border-left: 3px solid var(--accent);">
-    <div style="display:flex; flex-direction:column; gap:2px;">
+<div class="engine-bar prod-config-bar" style="gap:20px; border-left: 3px solid var(--accent);">
+    <div class="prod-config-label">
         <span style="font-size:10px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:1.5px; font-weight:600;">Production Config</span>
         <span style="font-size:12px; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;">COMPASS v8.2 &middot; No Leverage &middot; Pre-Close MOC (15:30 ET) &middot; Aaa IG Cash Yield</span>
     </div>
     <span class="engine-spacer"></span>
-    <div style="display:flex; gap:20px; align-items:center;">
+    <div class="prod-config-stats">
         <div class="hdr-stat">
             <span class="hdr-stat-label">Backtest CAGR</span>
             <span class="hdr-stat-value" style="color:var(--green);">18.56%</span>
         </div>
-        <div style="width:1px; height:24px; background:var(--border);"></div>
+        <div class="prod-config-divider"></div>
         <div class="hdr-stat">
             <span class="hdr-stat-label">Net CAGR</span>
             <span class="hdr-stat-value" style="color:var(--accent-light);">15.66%</span>
         </div>
-        <div style="width:1px; height:24px; background:var(--border);"></div>
+        <div class="prod-config-divider"></div>
         <div class="hdr-stat">
             <span class="hdr-stat-label">Sharpe</span>
             <span class="hdr-stat-value">0.90</span>
         </div>
-        <div style="width:1px; height:24px; background:var(--border);"></div>
+        <div class="prod-config-divider"></div>
         <div class="hdr-stat">
             <span class="hdr-stat-label">Max DD</span>
             <span class="hdr-stat-value" style="color:var(--yellow);">-26.9%</span>
         </div>
-        <div style="width:1px; height:24px; background:var(--border);"></div>
+        <div class="prod-config-divider"></div>
         <div class="hdr-stat">
             <span class="hdr-stat-label">Leverage</span>
             <span class="hdr-stat-value">1.0x max</span>
@@ -1566,17 +1877,17 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
             <span class="card-badge" id="comp-alpha" style="color:var(--green); background:var(--green-dim);">--</span>
         </div>
     </div>
-    <div style="display:flex; gap:24px; padding:0 24px 12px; flex-wrap:wrap;">
-        <div style="font-size:11px; color:var(--text-muted);">
+    <div class="comp-stats-row">
+        <div class="comp-stat-item">
             COMPASS Net: <span id="comp-net-cagr" class="mono" style="color:#22c55e; font-weight:600;">--</span> CAGR
             &nbsp;&rarr;&nbsp; <span id="comp-net-final" class="mono" style="color:#22c55e; font-weight:600;">--</span>
-            <span style="font-size:9px; color:var(--text-muted); opacity:0.7;">(after execution costs)</span>
+            <span class="comp-stat-note">(after execution costs)</span>
         </div>
-        <div style="font-size:11px; color:var(--text-muted);">
+        <div class="comp-stat-item">
             S&amp;P 500: <span id="comp-spy-cagr" class="mono" style="color:#6366f1; font-weight:600;">--</span> CAGR
             &nbsp;&rarr;&nbsp; <span id="comp-spy-final" class="mono" style="color:var(--text-tertiary); font-weight:600;">--</span>
         </div>
-        <div style="font-size:11px; color:var(--text-muted);">
+        <div class="comp-stat-item">
             Period: <span id="comp-years" class="mono" style="color:var(--text-tertiary);">--</span> years
         </div>
     </div>
@@ -1951,7 +2262,7 @@ function updatePositions(details) {
             /* Top: Symbol + Live Price + P&L badge */
             '<div class="pos-top">' +
                 '<span class="pos-symbol">' + p.symbol + '</span>' +
-                '<span style="font-size:15px; font-weight:700; color:var(--text-primary); font-family:var(--font-mono,monospace); margin-left:auto; margin-right:6px;">$' + p.current_price.toFixed(2) + '</span>' +
+                '<span class="pos-live-price">$' + p.current_price.toFixed(2) + '</span>' +
                 '<span class="pos-pnl-badge ' + pnlBadgeCls + '">' + fmtPct(p.pnl_pct) + '</span>' +
             '</div>' +
             /* Row 1: Value, P&L$, Shares */
