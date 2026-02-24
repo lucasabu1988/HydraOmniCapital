@@ -82,3 +82,12 @@
 2026-02-24 12:02:34,990 - INFO - 127.0.0.1 - - [24/Feb/2026 12:02:34] "GET /api/state HTTP/1.1" 200 -
 2026-02-24 12:03:04,438 - INFO - 127.0.0.1 - - [24/Feb/2026 12:03:04] "GET /api/logs HTTP/1.1" 200 -
 2026-02-24 12:03:07,378 - INFO - 127.0.0.1 - - [24/Feb/2026 12:03:07] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 12:03:34,125 - INFO - 127.0.0.1 - - [24/Feb/2026 12:03:34] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 12:03:34,426 - INFO - 127.0.0.1 - - [24/Feb/2026 12:03:34] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 12:03:35,104 - INFO - 127.0.0.1 - - [24/Feb/2026 12:03:35] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 12:03:55,916 - INFO - State saved: state/compass_state_20260224.json
+2026-02-24 12:03:55,916 - INFO - git sync: background worker started
+2026-02-24 12:03:56,109 - INFO - git sync: committed (auto: COMPASS state sync 2026-02-24 12:03)
+2026-02-24 12:03:57,382 - INFO - git sync: pushed to origin/main
+2026-02-24 12:03:58,289 - INFO - State saved: state/compass_state_20260224.json
+2026-02-24 12:03:58,289 - INFO - git sync: background worker started
