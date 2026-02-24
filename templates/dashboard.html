@@ -4176,6 +4176,13 @@ async function fetchDataQuality() {
     try {
         const res = await fetch('/api/data-quality');
         const data = await res.json();
+        if (data.unavailable) {
+            document.getElementById('dq-summary').innerHTML =
+                '<div style="color:var(--text-secondary);font-size:12px;grid-column:1/-1;">' + data.message + '</div>';
+            document.getElementById('dq-badge').textContent = '--';
+            document.getElementById('dq-badge').style.color = 'var(--text-secondary)';
+            return;
+        }
         if (data.error) {
             document.getElementById('dq-summary').innerHTML =
                 '<div style="color:var(--red);font-size:12px;grid-column:1/-1;">Error: ' + data.error + '</div>';

@@ -1037,17 +1037,8 @@ def api_trade_analytics():
 
 @app.route('/api/data-quality')
 def api_data_quality():
-    """Return data pipeline quality scorecard."""
-    global _data_quality_cache
-    if _data_quality_cache:
-        return jsonify(_data_quality_cache)
-    try:
-        from compass_data_pipeline import COMPASSDataPipeline
-        dp = COMPASSDataPipeline()
-        _data_quality_cache = dp.run_all()
-        return jsonify(_data_quality_cache)
-    except Exception as e:
-        return jsonify({'error': f'Data quality unavailable in cloud mode: {str(e)}'})
+    """Return data pipeline quality scorecard (not available in showcase mode)."""
+    return jsonify({'unavailable': True, 'message': 'Data pipeline runs locally — not available in showcase mode'})
 
 
 @app.route('/api/execution-microstructure')
