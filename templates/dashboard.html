@@ -2256,6 +2256,89 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
 </div>
 
+<!-- COMPASS vs REAL FUNDS SCATTER PLOT -->
+<div class="card full-width" id="fund-comparison-card">
+    <div class="card-header">
+        <span class="card-title">COMPASS vs Real Algorithmic Funds</span>
+        <span class="card-badge" style="color:var(--green); background:var(--green-dim);">16 funds</span>
+    </div>
+    <div class="card-body">
+        <div style="position:relative; width:100%; height:420px;"><canvas id="fundScatterChart"></canvas></div>
+        <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:10px; font-size:10px; color:var(--text-tertiary);">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:3px;vertical-align:middle;"></span> COMPASS</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f97316;margin-right:3px;vertical-align:middle;"></span> Elite Multi-Strategy (high leverage)</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:3px;vertical-align:middle;"></span> Systematic / Trend-Following</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#06b6d4;margin-right:3px;vertical-align:middle;"></span> Momentum Funds (long-only)</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#6366f1;margin-right:3px;vertical-align:middle;"></span> Benchmarks</span>
+        </div>
+        <div style="margin-top:10px; font-size:10px; color:var(--text-muted);">Bubble size = leverage multiple &middot; Medallion Fund excluded (39% CAGR, 12.5x leverage) &middot; Sources: HedgeFollow, AQR, iShares, public filings</div>
+    </div>
+</div>
+
+<!-- WHY CHOOSE COMPASS -->
+<div class="card full-width" id="why-choose-card">
+    <div class="card-header">
+        <span class="card-title">Why Choose COMPASS</span>
+        <span class="card-badge" style="color:var(--accent-light); background:var(--accent-glow);">value prop</span>
+    </div>
+    <div class="card-body">
+        <div class="wcu-grid">
+            <div class="wcu-card">
+                <span class="wcu-icon">&#x1F4B0;</span>
+                <div class="wcu-title">Institutional Returns, Zero Leverage</div>
+                <div class="wcu-desc">COMPASS delivers <span class="wcu-highlight">15.16% net CAGR</span> at 1.0x leverage &mdash; no margin, no borrowed capital, no liquidation risk. Citadel Wellington achieves 19.2% but at 7x+ leverage; Millennium&rsquo;s 14% requires 12x.</div>
+                <div class="wcu-comparison">Return/leverage: COMPASS <span>15.2%/1x = 15.2%</span> vs Citadel <span>19.2%/7x = 2.7%</span></div>
+            </div>
+            <div class="wcu-card">
+                <span class="wcu-icon">&#x1F3AF;</span>
+                <div class="wcu-title">Beats Every Accessible Alternative</div>
+                <div class="wcu-desc">Outperforms all accessible peers: iShares MTUM (<span class="wcu-highlight">14.6%</span>), AQR Momentum (<span class="wcu-highlight">14.0%</span>), S&amp;P 500 (<span class="wcu-highlight">10.4%</span>), and the 60/40 portfolio (<span class="wcu-highlight">8.2%</span>). Renaissance RIEF &mdash; the only open quant fund &mdash; returns just 8.0%.</div>
+                <div class="wcu-comparison">Beats MTUM by <span>+0.56%</span>, AQR by <span>+1.16%</span>, S&amp;P 500 by <span>+4.76%</span></div>
+            </div>
+            <div class="wcu-card">
+                <span class="wcu-icon">&#x1F6E1;&#xFE0F;</span>
+                <div class="wcu-title">Half the Drawdown of the Market</div>
+                <div class="wcu-desc">Max drawdown <span class="wcu-highlight">&minus;30.3%</span> vs SPY&rsquo;s &minus;55.2% in 2008. The regime filter keeps COMPASS in cash during 26.7% of trading time. During 2008&ndash;2009: COMPASS +2.3% while SPY lost &minus;20.1%.</div>
+                <div class="wcu-comparison">2008&ndash;2009: COMPASS <span>+2.3%</span> vs SPY <span>&minus;20.1%</span> = 22.4pp gap</div>
+            </div>
+            <div class="wcu-card">
+                <span class="wcu-icon">&#x1F50D;</span>
+                <div class="wcu-title">Full Transparency &amp; Reproducibility</div>
+                <div class="wcu-desc">Every parameter, trade, and experiment documented. The algorithm is <span class="wcu-highlight">deterministic</span> &mdash; no random component, no black box, no proprietary data. Elite hedge funds operate behind NDAs; COMPASS publishes its complete logic.</div>
+                <div class="wcu-comparison">35 experiments &middot; 22 academic citations &middot; Open-source backtest</div>
+            </div>
+            <div class="wcu-card">
+                <span class="wcu-icon">&#x26A1;</span>
+                <div class="wcu-title">Validated: 35 Experiments, 31 Failed</div>
+                <div class="wcu-desc">Every conceivable modification tested: alternative signals, behavioral overlays, geographic expansion, ensemble methods. <span class="wcu-highlight">31 of 35 failed</span> to beat baseline &mdash; proving a genuine local optimum, not a curve-fit.</div>
+                <div class="wcu-comparison">t-statistic <span>3.74</span> exceeds Harvey et al. threshold of 3.0</div>
+            </div>
+            <div class="wcu-card">
+                <span class="wcu-icon">&#x1F4C8;</span>
+                <div class="wcu-title">Alpha in Every Market Regime</div>
+                <div class="wcu-desc">Positive excess returns in all 6 sub-periods: dot-com (<span class="wcu-highlight">+27%</span>), GFC (<span class="wcu-highlight">+22.4%</span>), QE bull (<span class="wcu-highlight">+8.2%</span>), COVID (<span class="wcu-highlight">+7.2%</span>), AI rally (<span class="wcu-highlight">+5.1%</span>). 23/26 years positive.</div>
+                <div class="wcu-comparison">23/26 positive years &middot; Alpha in crashes AND bull markets</div>
+            </div>
+            <div class="wcu-card">
+                <span class="wcu-icon">&#x1F4B5;</span>
+                <div class="wcu-title">$100K Entry, No Minimum</div>
+                <div class="wcu-desc">Elite quant funds require $5M&ndash;$50M minimums and are closed to new investors. COMPASS runs with <span class="wcu-highlight">$100,000</span> on a standard IBKR account, trading S&amp;P 500 stocks with negligible market impact.</div>
+                <div class="wcu-comparison">Citadel: <span>$10M+</span> &middot; Millennium: <span>closed</span> &middot; COMPASS: <span>$100K</span></div>
+            </div>
+            <div class="wcu-card">
+                <span class="wcu-icon">&#x23F0;</span>
+                <div class="wcu-title">5 Minutes Per Day</div>
+                <div class="wcu-desc">Signal at 15:30 ET, MOC orders by close. <span class="wcu-highlight">Fully automated</span> &mdash; one signal, one execution window. Active management takes thousands of analyst hours; COMPASS needs a laptop and a broker.</div>
+                <div class="wcu-comparison">Signal 15:30 ET &rarr; MOC orders &rarr; Done by 16:00 ET</div>
+            </div>
+        </div>
+        <div class="wcu-bottom-line">
+            <div class="wcu-bottom-title">$100,000 &rarr; $3,930,000 in 26 Years</div>
+            <div class="wcu-bottom-sub">15.16% net CAGR after 2.5% costs &mdash; no leverage, no black box, no hedge fund minimums, half the drawdown of the S&amp;P 500. The same return class as Citadel and PDT Partners, in a transparent system accessible to any qualified investor.</div>
+        </div>
+    </div>
+</div>
+
 <!-- ACTIVITY FEED -->
 <div class="activity-feed" id="activity-feed">
     <div class="af-header">
@@ -2498,25 +2581,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     <div class="paper-h3">4.5 Protection Mode Analysis</div>
     <p class="paper-p">The &minus;15% portfolio stop triggered 11 times across 26 years, generating approximately 2,002 protection days (30.5% of the backtest including recovery stages). Of these, 8 of 11 protection periods were net profitable due to cash yield during recovery. All attempts to improve protection mode performance &mdash; inverse ETFs (SH/SDS), momentum-based shorts, dynamic VIX/breadth triggers, TLT/IEF bond hedges &mdash; failed to outperform cash. The 2022 bond-equity correlation breakdown definitively rejected the last remaining hedge candidate.</p>
 
-    <div class="paper-h3">4.6 COMPASS vs. Real-World Algorithmic Funds</div>
-    <p class="paper-p">To contextualize COMPASS&rsquo;s performance, we compare its net CAGR and Sharpe ratio against publicly reported figures from major quantitative hedge funds, momentum ETFs, and benchmarks. The scatter plot below reveals a key insight: most elite funds achieve high Sharpe ratios through extreme leverage (7&ndash;20x), while COMPASS operates at 1.0x. On a leverage-adjusted basis, COMPASS&rsquo;s unlevered return is competitive with multi-billion-dollar institutional strategies.</p>
-
-    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:20px; margin:16px 0;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-            <div style="font-size:14px; font-weight:700; color:var(--text-primary);">CAGR vs Sharpe Ratio &mdash; Real Algorithmic Funds</div>
-            <div style="font-size:10px; color:var(--text-tertiary);">Bubble size = leverage multiple &middot; Sources: HedgeFollow, AQR, iShares, public filings</div>
-        </div>
-        <div style="position:relative; width:100%; height:420px;"><canvas id="fundScatterChart"></canvas></div>
-        <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:10px; font-size:10px; color:var(--text-tertiary);">
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:3px;vertical-align:middle;"></span> COMPASS</span>
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f97316;margin-right:3px;vertical-align:middle;"></span> Elite Multi-Strategy (high leverage)</span>
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:3px;vertical-align:middle;"></span> Systematic / Trend-Following</span>
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#06b6d4;margin-right:3px;vertical-align:middle;"></span> Momentum Funds (long-only)</span>
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#6366f1;margin-right:3px;vertical-align:middle;"></span> Benchmarks</span>
-        </div>
-    </div>
-
-    <div class="paper-note">Funds with high Sharpe ratios (&gt;2.0) universally employ significant leverage (7&ndash;20x). COMPASS achieves its return at 1.0x leverage, making it directly comparable to MTUM and AQR Momentum on a risk-capital basis. The Medallion Fund (off-chart at 39% CAGR, ~2.5 Sharpe, 12.5x leverage) is excluded for readability.</div>
 
 </div>
 
@@ -2699,71 +2763,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     <p class="paper-p">The algorithm is declared <strong>locked</strong>: no further motor experiments will be conducted. All future improvements must be chassis-level (execution, data quality, infrastructure) rather than signal-level modifications.</p>
 </div>
 
-<!-- 12. WHY CHOOSE COMPASS -->
+<!-- 12. REFERENCES -->
 <div class="paper-section">
-    <div class="paper-h2"><span class="paper-h2-num">12</span> Why Choose COMPASS</div>
-    <p class="paper-p">The scatter plot in Section 4.6 reveals a striking pattern: funds that match or exceed COMPASS&rsquo;s returns universally rely on extreme leverage, multi-billion-dollar infrastructure, and hundreds of PhDs. COMPASS achieves comparable absolute returns through a fundamentally different path &mdash; one that is transparent, reproducible, and accessible to individual investors.</p>
-
-    <div class="wcu-grid">
-        <div class="wcu-card">
-            <span class="wcu-icon">&#x1F4B0;</span>
-            <div class="wcu-title">Institutional Returns, Zero Leverage</div>
-            <div class="wcu-desc">COMPASS delivers <span class="wcu-highlight">15.16% net CAGR</span> at 1.0x leverage &mdash; no margin, no borrowed capital, no liquidation risk. Citadel Wellington achieves 19.2% but at 7x+ leverage; Millennium&rsquo;s 14% requires 12x. Per dollar of risk capital, COMPASS is more efficient than both.</div>
-            <div class="wcu-comparison">Return per unit leverage: COMPASS <span>15.2%/1x = 15.2%</span> vs Citadel <span>19.2%/7x = 2.7%</span></div>
-        </div>
-        <div class="wcu-card">
-            <span class="wcu-icon">&#x1F3AF;</span>
-            <div class="wcu-title">Beats Every Accessible Alternative</div>
-            <div class="wcu-desc">Among products an individual investor can actually access, COMPASS outperforms all peers: iShares MTUM (<span class="wcu-highlight">14.6%</span>), AQR Momentum (<span class="wcu-highlight">14.0%</span>), S&amp;P 500 (<span class="wcu-highlight">10.4%</span>), and the 60/40 portfolio (<span class="wcu-highlight">8.2%</span>). Renaissance RIEF &mdash; the only quant fund open to outsiders &mdash; returns just 8.0%.</div>
-            <div class="wcu-comparison">COMPASS beats MTUM by <span>+0.56%</span>, AQR Momentum by <span>+1.16%</span>, S&amp;P 500 by <span>+4.76%</span></div>
-        </div>
-        <div class="wcu-card">
-            <span class="wcu-icon">&#x1F6E1;&#xFE0F;</span>
-            <div class="wcu-title">Half the Drawdown of the Market</div>
-            <div class="wcu-desc">Max drawdown of <span class="wcu-highlight">&minus;30.3%</span> vs SPY&rsquo;s &minus;55.2% during the 2008 GFC. The regime filter keeps COMPASS in cash during 26.7% of market time, sidestepping the worst crash periods. During 2008&ndash;2009, COMPASS returned +2.3% while SPY lost &minus;20.1%.</div>
-            <div class="wcu-comparison">2008&ndash;2009: COMPASS <span>+2.3%</span> vs SPY <span>&minus;20.1%</span> &mdash; a 22.4pp gap</div>
-        </div>
-        <div class="wcu-card">
-            <span class="wcu-icon">&#x1F50D;</span>
-            <div class="wcu-title">Full Transparency &amp; Reproducibility</div>
-            <div class="wcu-desc">Every parameter, every trade, every experiment is documented. The algorithm is <span class="wcu-highlight">deterministic</span> &mdash; no random component, no black box, no proprietary data. Any investor can verify the backtest independently. Elite hedge funds operate behind NDAs; COMPASS publishes its complete logic.</div>
-            <div class="wcu-comparison">35 experiments documented &middot; 22 academic citations &middot; Open-source backtest</div>
-        </div>
-        <div class="wcu-card">
-            <span class="wcu-icon">&#x26A1;</span>
-            <div class="wcu-title">Validated Through Exhaustive Testing</div>
-            <div class="wcu-desc">35 experiments tested every conceivable modification: alternative signals, behavioral overlays, geographic expansion, ensemble methods, advisory proposals. <span class="wcu-highlight">31 of 35 failed</span>, proving the algorithm sits at a genuine local optimum. This is not a curve-fit &mdash; it&rsquo;s a battle-tested configuration that resists improvement.</div>
-            <div class="wcu-comparison">t-statistic <span>3.74</span> exceeds Harvey et al. threshold of 3.0 for multiple testing</div>
-        </div>
-        <div class="wcu-card">
-            <span class="wcu-icon">&#x1F4C8;</span>
-            <div class="wcu-title">Alpha in Every Market Regime</div>
-            <div class="wcu-desc">Positive excess returns across all 6 sub-periods tested (2000&ndash;2026): dot-com crash (<span class="wcu-highlight">+27%</span>), GFC (<span class="wcu-highlight">+22.4%</span>), QE bull run (<span class="wcu-highlight">+8.2%</span>), COVID (<span class="wcu-highlight">+7.2%</span>), and the AI rally (<span class="wcu-highlight">+5.1%</span>). 23 of 26 years positive. No other accessible strategy achieves this consistency.</div>
-            <div class="wcu-comparison">23/26 positive years &middot; Alpha in crashes AND bull markets</div>
-        </div>
-        <div class="wcu-card">
-            <span class="wcu-icon">&#x1F4B5;</span>
-            <div class="wcu-title">$100K Entry, No Minimum</div>
-            <div class="wcu-desc">Elite quant funds require $5M&ndash;$50M minimums and are closed to new investors. Millennium, Citadel, and PDT Partners are not accessible at any price. COMPASS runs with <span class="wcu-highlight">$100,000</span> initial capital on a standard IBKR account, trading S&amp;P 500 stocks with negligible market impact.</div>
-            <div class="wcu-comparison">Citadel minimum: <span>$10M+</span> &middot; Millennium: <span>closed</span> &middot; COMPASS: <span>$100K</span></div>
-        </div>
-        <div class="wcu-card">
-            <span class="wcu-icon">&#x23F0;</span>
-            <div class="wcu-title">5 Minutes Per Day</div>
-            <div class="wcu-desc">Signal computes at 15:30 ET, MOC orders execute by close. No intraday monitoring, no overnight positions held through uncertainty. The algorithm is <span class="wcu-highlight">fully automated</span> &mdash; one signal, one execution window, daily. Active management takes thousands of analyst hours; COMPASS needs a laptop and a broker connection.</div>
-            <div class="wcu-comparison">Signal at 15:30 ET &rarr; MOC orders &rarr; Done by 16:00 ET</div>
-        </div>
-    </div>
-
-    <div class="wcu-bottom-line">
-        <div class="wcu-bottom-title">$100,000 &rarr; $3,930,000 in 26 Years</div>
-        <div class="wcu-bottom-sub">At 15.16% net CAGR after conservative 2.5% costs &mdash; with no leverage, no black box, no hedge fund minimums, and half the drawdown of the S&amp;P 500. The same absolute return class as Citadel and PDT Partners, delivered in a transparent, single-strategy system accessible to any qualified investor.</div>
-    </div>
-</div>
-
-<!-- 13. REFERENCES -->
-<div class="paper-section">
-    <div class="paper-h2"><span class="paper-h2-num">13</span> References</div>
+    <div class="paper-h2"><span class="paper-h2-num">12</span> References</div>
     <div class="paper-ref">[1] Asness, C., Moskowitz, T. &amp; Pedersen, L. (2013). &ldquo;Value and Momentum Everywhere.&rdquo; <em>Journal of Finance</em>, 68(3), 929&ndash;985.</div>
     <div class="paper-ref">[2] Bailey, D., Borwein, J., L&oacute;pez de Prado, M. &amp; Zhu, Q. (2014). &ldquo;Probability of Backtest Overfitting.&rdquo; <em>Journal of Computational Finance</em>, 20(4), 39&ndash;69.</div>
     <div class="paper-ref">[3] Bailey, D. &amp; L&oacute;pez de Prado, M. (2014). &ldquo;The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality.&rdquo; <em>Journal of Portfolio Management</em>, 40(5), 94&ndash;107.</div>
@@ -3046,7 +3048,6 @@ let lastSuccessTime = null;
 let pendingAction = null;
 
 /* ============ PAGE SWITCHING ============ */
-let fundScatterInitialized = false;
 function switchPage(page) {
     document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.page-tab').forEach(el => el.classList.remove('active'));
@@ -3054,11 +3055,6 @@ function switchPage(page) {
     const tabEl = document.querySelector('.page-tab[data-page="' + page + '"]');
     if (pageEl) pageEl.classList.add('active');
     if (tabEl) tabEl.classList.add('active');
-    /* Init scatter chart on first paper view (needs visible canvas) */
-    if (page === 'paper' && !fundScatterInitialized) {
-        fundScatterInitialized = true;
-        setTimeout(initFundScatterChart, 50);
-    }
 }
 
 /* ============ HELPERS ============ */
@@ -4237,6 +4233,8 @@ function initFundScatterChart() {
 
 /* ============ INIT ============ */
 document.addEventListener('DOMContentLoaded', function() {
+    /* Init fund scatter chart (visible on dashboard load) */
+    initFundScatterChart();
     /* Fetch engine status on init */
     fetch('/api/engine/status').then(r=>r.json()).then(data => {
         updateEngineUI(data);
