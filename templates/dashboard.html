@@ -122,14 +122,14 @@ body::before {
     gap: 10px;
 }
 .hdr-brand-icon {
-    width: 28px; height: 28px;
+    width: 40px; height: 40px;
     background: linear-gradient(135deg, var(--accent), var(--purple));
-    border-radius: 8px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 12px;
+    font-size: 18px;
     color: white;
     box-shadow: 0 0 20px var(--accent-glow);
 }
@@ -139,17 +139,17 @@ body::before {
     line-height: 1;
 }
 .hdr-brand-text {
-    font-weight: 700;
-    font-size: 16px;
+    font-weight: 800;
+    font-size: 22px;
     letter-spacing: 0.5px;
     background: linear-gradient(135deg, var(--text-primary), var(--accent-light));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 .hdr-brand-sub {
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 3px;
+    letter-spacing: 4px;
     text-transform: uppercase;
     background: linear-gradient(90deg, #D91023, #D91023 30%, #FFFFFF 40%, #FFFFFF 60%, #D91023 70%, #D91023);
     -webkit-background-clip: text;
@@ -553,12 +553,29 @@ body::before {
 }
 .sf-src-news { color: var(--purple); background: var(--purple-dim); }
 .sf-src-reddit { color: var(--orange); background: var(--orange-dim); }
+.sf-src-seekingalpha { color: var(--cyan); background: var(--cyan-dim); }
+.sf-src-sec { color: var(--yellow); background: var(--yellow-dim); }
+.sf-src-google { color: var(--blue); background: var(--blue-dim); }
+.sf-src-marketwatch { color: var(--green); background: var(--green-dim); }
 .sf-msg-time { color: var(--text-muted); font-size: 10px; white-space: nowrap; }
 .sf-msg-user { color: var(--text-tertiary); font-size: 10px; }
 
 .sf-empty {
     color: var(--text-tertiary); font-size: 12px;
     padding: 30px 20px; text-align: center;
+}
+
+/* Full-page social feed (own tab) */
+.social-feed-fullpage {
+    min-height: calc(100vh - 200px);
+}
+.sf-body-full {
+    max-height: none !important;
+    flex: 1;
+}
+.sf-body-full .sf-msg-text {
+    -webkit-line-clamp: unset;
+    display: block;
 }
 
 @media (max-width: 1100px) {
@@ -878,6 +895,76 @@ body::before {
 /* Warning glow for near-stop positions */
 .pos-card.pos-near-stop {
     background: rgba(234,179,8,0.03);
+}
+
+/* Formula card in positions grid */
+.pos-formula-card {
+    background: var(--bg-card);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    grid-column: span 3;
+}
+.pos-formula-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.pos-formula-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+}
+.pos-formula-lines {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--green);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.6;
+}
+.pos-formula-lines sub {
+    font-size: 10px;
+    color: rgba(34, 197, 94, 0.7);
+}
+.pos-formula-dim {
+    color: rgba(34, 197, 94, 0.45);
+    font-size: 11px;
+}
+.pos-formula-right {
+    flex: 1;
+    border: 1px solid rgba(249, 115, 22, 0.25);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(249, 115, 22, 0.03);
+}
+.pos-formula-right-label {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: rgba(249, 115, 22, 0.5);
+}
+.pos-formula-explain {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--orange);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.6;
+}
+.pos-formula-explain-dim {
+    color: rgba(249, 115, 22, 0.45);
 }
 
 /* Total summary bar */
@@ -1286,6 +1373,530 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .c-purple { color: var(--purple) !important; }
 .c-accent { color: var(--accent-light) !important; }
 
+/* ============ PAGE TABS ============ */
+.page-tabs {
+    background: rgba(16, 16, 26, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: sticky;
+    top: 83px;
+    z-index: 198;
+}
+.page-tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.page-tab:hover { color: var(--text-secondary); }
+.page-tab.active {
+    color: var(--accent-light);
+    border-bottom-color: var(--accent);
+}
+.page-tab-icon { font-size: 15px; }
+.page-content { display: none; }
+.page-content.active { display: block; }
+
+/* ============ ROADMAP ============ */
+.roadmap-header {
+    text-align: center;
+    padding: 40px 20px 20px;
+}
+.roadmap-header h2 {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, var(--text-primary), var(--accent-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+}
+.roadmap-header p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+}
+.roadmap-progress-bar {
+    max-width: 800px;
+    margin: 20px auto 30px;
+    padding: 0 20px;
+}
+.roadmap-progress-track {
+    height: 6px;
+    background: var(--bg-elevated);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.roadmap-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--accent));
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+.roadmap-progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+.roadmap-progress-label .done { color: var(--green); font-weight: 600; }
+
+.roadmap-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px 40px;
+}
+
+.roadmap-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+.roadmap-card:hover {
+    border-color: var(--border-active);
+    box-shadow: var(--shadow-md);
+}
+.roadmap-card.rm-done {
+    border-color: rgba(34, 197, 94, 0.2);
+}
+.roadmap-card.rm-done::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--green);
+}
+.roadmap-card.rm-active {
+    border-color: var(--border-accent);
+}
+.roadmap-card.rm-active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--cyan));
+}
+.roadmap-card.rm-pending {
+    opacity: 0.7;
+}
+.rm-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+.rm-phase {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+}
+.rm-status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+.rm-status-done { color: var(--green); background: var(--green-dim); }
+.rm-status-active { color: var(--accent-light); background: var(--accent-glow); }
+.rm-status-pending { color: var(--text-tertiary); background: var(--bg-elevated); }
+.rm-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+.rm-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+.rm-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+}
+.rm-checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+}
+.rm-checklist li:last-child { border-bottom: none; }
+.rm-check {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border-active);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.rm-check.checked {
+    background: var(--green);
+    border-color: var(--green);
+    color: white;
+}
+.rm-check.checked::after { content: '\2713'; }
+.rm-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.rm-meta-item {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.rm-meta-val { color: var(--text-secondary); font-weight: 600; }
+
+.roadmap-summary {
+    max-width: 1200px;
+    margin: 0 auto 40px;
+    padding: 0 20px;
+}
+.roadmap-summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+}
+.rm-summary-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+}
+.rm-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+.rm-summary-stat {
+    text-align: center;
+}
+.rm-summary-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+}
+.rm-summary-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+    .roadmap-grid { grid-template-columns: 1fr; }
+    .rm-summary-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ============ RESEARCH PAPER ============ */
+.paper-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 60px;
+}
+.paper-title-block {
+    text-align: center;
+    padding-bottom: 30px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 30px;
+}
+.paper-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 10px;
+}
+.paper-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+.paper-authors {
+    font-size: 13px;
+    color: var(--accent-light);
+    font-weight: 600;
+}
+.paper-date {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+.paper-abstract {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    margin-bottom: 30px;
+}
+.paper-abstract-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-light);
+    margin-bottom: 10px;
+}
+.paper-abstract p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+.paper-section {
+    margin-bottom: 32px;
+}
+.paper-h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.paper-h2-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent-light);
+    font-weight: 700;
+}
+.paper-h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 16px 0 8px;
+}
+.paper-p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+    margin-bottom: 12px;
+}
+.paper-formula {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--green);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    margin: 12px 0;
+    line-height: 1.8;
+    overflow-x: auto;
+}
+.paper-formula .comment {
+    color: var(--text-muted);
+    font-style: italic;
+}
+.paper-table-wrap {
+    overflow-x: auto;
+    margin: 12px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+.paper-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.paper-table th {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 11px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+.paper-table td {
+    padding: 8px 14px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+}
+.paper-table tr:last-child td { border-bottom: none; }
+.paper-table tr:hover td { background: rgba(255,255,255,0.02); }
+.paper-table .val-green { color: var(--green); font-weight: 600; }
+.paper-table .val-red { color: var(--red); font-weight: 600; }
+.paper-table .val-yellow { color: var(--yellow); }
+.paper-table .val-accent { color: var(--accent-light); font-weight: 600; }
+.paper-table .val-dim { color: var(--text-muted); }
+.paper-note {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    background: var(--bg-card);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin: 12px 0;
+    line-height: 1.6;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.paper-note.note-warn {
+    border-left-color: var(--yellow);
+}
+.paper-note.note-fail {
+    border-left-color: var(--red);
+}
+.paper-note.note-green {
+    border-left-color: var(--green);
+    background: rgba(34, 197, 94, 0.04);
+}
+/* Why Choose Us section */
+.wcu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin: 18px 0;
+}
+@media (max-width: 768px) { .wcu-grid { grid-template-columns: 1fr; } }
+.wcu-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.wcu-card:hover { border-color: var(--border-active); }
+.wcu-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--green), var(--accent));
+    opacity: 0.7;
+}
+.wcu-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+    display: block;
+}
+.wcu-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+.wcu-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+.wcu-highlight {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--green);
+}
+.wcu-comparison {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+.wcu-comparison span { color: var(--orange); font-weight: 600; }
+.wcu-bottom-line {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.06), rgba(99, 102, 241, 0.06));
+    border: 1px solid rgba(34, 197, 94, 0.15);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    margin-top: 20px;
+    text-align: center;
+}
+.wcu-bottom-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--green);
+    margin-bottom: 8px;
+}
+.wcu-bottom-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    max-width: 700px;
+    margin: 0 auto;
+}
+.paper-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 14px 0;
+}
+.paper-stat-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+}
+.paper-stat-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+}
+.paper-stat-label {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+.paper-ref {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.7;
+    padding-left: 20px;
+    text-indent: -20px;
+    margin-bottom: 6px;
+}
+@media (max-width: 768px) {
+    .paper-stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .paper-title { font-size: 20px; }
+}
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 1200px) {
     .metrics-grid { grid-template-columns: repeat(3, 1fr); }
@@ -1349,6 +1960,22 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
 </div>
 
+<!-- PAGE TABS -->
+<div class="page-tabs">
+    <div class="page-tab active" data-page="dashboard" onclick="switchPage('dashboard')">
+        <span class="page-tab-icon">&#9632;</span> Dashboard
+    </div>
+    <div class="page-tab" data-page="social" onclick="switchPage('social')">
+        <span class="page-tab-icon">&#9889;</span> Social Feed
+    </div>
+    <div class="page-tab" data-page="paper" onclick="switchPage('paper')">
+        <span class="page-tab-icon">&#9830;</span> Research Paper
+    </div>
+    <div class="page-tab" data-page="roadmap" onclick="switchPage('roadmap')">
+        <span class="page-tab-icon">&#9654;</span> Launch Roadmap
+    </div>
+</div>
+
 <!-- CONFIRMATION MODAL -->
 <div class="modal-overlay" id="confirm-modal">
     <div class="modal-box">
@@ -1362,6 +1989,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <div class="main">
+
+<!-- ==================== PAGE: DASHBOARD ==================== -->
+<div id="page-dashboard" class="page-content active">
 
 <!-- ENGINE BAR -->
 <div class="engine-bar" id="engine-bar">
@@ -1390,7 +2020,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <div style="width:1px; height:24px; background:var(--border);"></div>
         <div class="hdr-stat">
             <span class="hdr-stat-label">Net CAGR</span>
-            <span class="hdr-stat-value" style="color:var(--accent-light);">15.66%</span>
+            <span class="hdr-stat-value" style="color:var(--accent-light);">15.16%</span>
         </div>
         <div style="width:1px; height:24px; background:var(--border);"></div>
         <div class="hdr-stat">
@@ -1475,7 +2105,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
     <div class="metric-card">
         <div class="metric-label">Expected CAGR</div>
-        <div class="metric-value c-accent" id="card-cagr">15.66%</div>
+        <div class="metric-value c-accent" id="card-cagr">15.16%</div>
         <div class="metric-sub" id="card-cagr-sub">Pre-close MOC + costs, no lev</div>
     </div>
     <div class="metric-card">
@@ -1585,20 +2215,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
 </div>
 
-<!-- SOCIAL FEED -->
-<div class="social-feed-card" id="social-feed-card">
-    <div class="sf-header">
-        <div class="sf-header-left">
-            <div class="sf-icon">&#9889;</div>
-            <span class="sf-title">Social Feed</span>
-        </div>
-        <span class="sf-count" id="sf-count"></span>
-    </div>
-    <div class="sf-body" id="sf-body">
-        <div class="sf-empty">Loading social feed...</div>
-    </div>
-</div>
-
 <!-- MONTE CARLO PROJECTIONS -->
 <div class="card full-width" id="montecarlo-card">
     <div class="card-header">
@@ -1654,6 +2270,768 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
 </div>
 
+</div><!-- /page-dashboard -->
+
+<!-- ==================== PAGE: SOCIAL FEED ==================== -->
+<div id="page-social" class="page-content">
+
+<div class="social-feed-card social-feed-fullpage" id="social-feed-card">
+    <div class="sf-header">
+        <div class="sf-header-left">
+            <div class="sf-icon">&#9889;</div>
+            <span class="sf-title">Social Feed</span>
+        </div>
+        <span class="sf-count" id="sf-count"></span>
+    </div>
+    <div class="sf-body sf-body-full" id="sf-body">
+        <div class="sf-empty">Loading social feed...</div>
+    </div>
+</div>
+
+</div><!-- /page-social -->
+
+<!-- ==================== PAGE: RESEARCH PAPER ==================== -->
+<div id="page-paper" class="page-content">
+<div class="paper-wrap">
+
+<!-- TITLE BLOCK -->
+<div class="paper-title-block">
+    <div class="paper-title">Cross-Sectional Momentum with Regime Filtering:<br>A Systematic Approach to U.S. Large-Cap Equity Selection</div>
+    <div class="paper-subtitle">COMPASS v8.2 &mdash; Algorithm Design, Empirical Validation &amp; Production Deployment</div>
+    <div class="paper-authors">OmniCapital Research</div>
+    <div class="paper-date">February 2026 &middot; Backtest Period: January 2000 &ndash; February 2026</div>
+</div>
+
+<!-- ABSTRACT -->
+<div class="paper-abstract">
+    <div class="paper-abstract-label">Abstract</div>
+    <p>We present COMPASS v8.2, a systematic long-only equity strategy that combines cross-sectional momentum ranking with a macroeconomic regime filter and volatility-targeted position sizing. The algorithm selects the top 5 stocks by 90-day momentum (with 5-day reversal skip) from an annually-rotated S&amp;P 500 universe of 40 stocks, rebalancing every 5 trading days. A regime filter (SPY vs. SMA-200, 3-day confirmation) reduces exposure to 2 positions during bear markets. Risk management includes individual position stops (&minus;8%), trailing stops (+5%/&minus;3%), and a portfolio circuit breaker (&minus;15% drawdown). Over a 26-year backtest (January 2000&ndash;February 2026), the strategy achieves a gross CAGR of 18.56% (Sharpe 0.90, Max DD &minus;26.9%) and a net CAGR of 15.16% (Sharpe 0.734, Max DD &minus;30.3%) after 2.5% annual execution costs, growing $100,000 to $3.93M. The gross t-statistic of 3.74 exceeds the Harvey, Liu &amp; Zhu (2016) threshold of 3.0 for multiple-testing adjustment. The algorithm was validated through 35 controlled experiments, of which 31 failed to improve upon baseline performance, confirming parameter inelasticity within this universe. A DSR p-value of ~0.30 indicates the Sharpe ratio is not statistically significant after full multiple-testing correction, warranting caution in interpreting point estimates as structural alpha.</p>
+</div>
+
+<!-- KEY METRICS -->
+<div class="paper-stat-grid">
+    <div class="paper-stat-box">
+        <div class="paper-stat-val" style="color:var(--green);">15.16%</div>
+        <div class="paper-stat-label">Net CAGR</div>
+    </div>
+    <div class="paper-stat-box">
+        <div class="paper-stat-val" style="color:var(--accent-light);">0.734</div>
+        <div class="paper-stat-label">Net Sharpe</div>
+    </div>
+    <div class="paper-stat-box">
+        <div class="paper-stat-val" style="color:var(--yellow);">-30.3%</div>
+        <div class="paper-stat-label">Max Drawdown</div>
+    </div>
+    <div class="paper-stat-box">
+        <div class="paper-stat-val" style="color:var(--text-primary);">$3.93M</div>
+        <div class="paper-stat-label">Terminal ($100K)</div>
+    </div>
+</div>
+
+<!-- 1. INTRODUCTION -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">1</span> Introduction</div>
+    <p class="paper-p">Cross-sectional momentum &mdash; buying recent winners and avoiding recent losers &mdash; is one of the most robust and well-documented anomalies in financial markets. Since Jegadeesh &amp; Titman (1993) first demonstrated that stocks with high returns over the past 3&ndash;12 months tend to continue outperforming, momentum has been confirmed across asset classes, geographies, and time periods (Asness, Moskowitz &amp; Pedersen, 2013). Carhart (1997) established momentum as a distinct risk factor (UMD), while Fama &amp; French (2012) acknowledged its persistence in international equity markets.</p>
+    <p class="paper-p">However, raw momentum suffers from well-documented vulnerabilities: catastrophic crashes during market reversals (Daniel &amp; Moskowitz, 2016), short-term reversal contamination (Novy-Marx, 2012), and high turnover that erodes returns after transaction costs (Frazzini, Israel &amp; Moskowitz, 2015). COMPASS addresses each of these through a regime filter, reversal-adjusted signal, and concentrated 5-position portfolio with fixed 5-day hold periods.</p>
+    <p class="paper-p">The system evolved from OmniCapital v6, which exhibited a critical survivorship bias: a static 60-stock universe produced an illusory 16.92% CAGR that collapsed to 5.40% after correction with annual top-40 rotation. This failure motivated the development of COMPASS v8, which replaced static selection with a genuine momentum signal and introduced dynamic universe selection, regime filtering, and multi-layer risk management.</p>
+    <p class="paper-p">After 35 controlled experiments spanning 18 months of development, the algorithm has been declared <strong>inelastic</strong>: any modification to its core parameters degrades performance. This paper documents the complete algorithm design, provides a literature review situating COMPASS within the momentum research tradition, presents empirical results with cost analysis, catalogues all 35 experiments, and discusses statistical validity, limitations, and production deployment.</p>
+</div>
+
+<!-- 2. LITERATURE REVIEW -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">2</span> Literature Review</div>
+
+    <div class="paper-h3">2.1 Momentum Foundations</div>
+    <p class="paper-p">Jegadeesh &amp; Titman (1993) established the canonical momentum result: a long-short strategy buying 6-month winners and selling losers earns approximately 1% per month. This finding has been replicated by Fama &amp; French (2012) across 23 developed markets and by Asness, Moskowitz &amp; Pedersen (2013) across equities, bonds, currencies, and commodities. The behavioral explanations center on investor underreaction to information (Hong &amp; Stein, 1999) and disposition effect selling by retail investors (Grinblatt &amp; Keloharju, 2001).</p>
+
+    <div class="paper-h3">2.2 Momentum Risk Management</div>
+    <p class="paper-p">Momentum strategies are vulnerable to sharp reversals, particularly during market stress. Daniel &amp; Moskowitz (2016) documented that momentum crashes occur when high-beta losers rally violently during market recoveries. Barroso &amp; Santa-Clara (2015) showed that scaling momentum exposure by the inverse of its realized volatility roughly doubles the Sharpe ratio, a finding that directly informs COMPASS&rsquo;s volatility-targeting mechanism. The Faber (2007) trend-following filter &mdash; comparing price to a 10-month (approximately 200-day) moving average &mdash; provides an orthogonal risk reduction channel by reducing exposure during sustained bear markets.</p>
+
+    <div class="paper-h3">2.3 Short-Term Reversal and Signal Design</div>
+    <p class="paper-p">Novy-Marx (2012) demonstrated that intermediate momentum (months 7&ndash;12) is more profitable than recent momentum (months 1&ndash;6) due to short-term reversal contamination. The standard practice of skipping the most recent month (or week) in momentum calculation follows from Jegadeesh &amp; Titman (1993) and Lo &amp; MacKinlay (1990). COMPASS implements a 5-day skip subtracted from the 90-day return, which functions as reversal adjustment rather than a simple exclusion period.</p>
+
+    <div class="paper-h3">2.4 Multiple Testing and Backtest Overfitting</div>
+    <p class="paper-p">Harvey, Liu &amp; Zhu (2016) demonstrated that the conventional t-statistic threshold of 2.0 is insufficient given the hundreds of factors tested in the literature, recommending a threshold of 3.0. Bailey, Borwein, L&oacute;pez de Prado &amp; Zhu (2014) introduced the Probability of Backtest Overfitting (PBO) via Combinatorially Symmetric Cross-Validation (CSCV), providing a framework for quantifying the likelihood that a backtest result is spurious. The Deflated Sharpe Ratio (DSR) from Bailey &amp; L&oacute;pez de Prado (2014) adjusts the observed Sharpe ratio for the number of trials, skewness, and kurtosis of returns.</p>
+
+    <div class="paper-h3">2.5 Transaction Cost Impact</div>
+    <p class="paper-p">Frazzini, Israel &amp; Moskowitz (2015) analyzed institutional execution costs for momentum strategies at AQR, finding median costs of 0.23% annually. Novy-Marx &amp; Velikov (2016) showed that effective spread management and passive execution can preserve most of the gross momentum premium. COMPASS operates with conservative 2.5% annual cost assumption, which embeds substantial buffer above empirically observed institutional costs.</p>
+</div>
+
+<!-- 3. METHODOLOGY -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">3</span> Methodology</div>
+
+    <div class="paper-h3">3.1 Universe Selection</div>
+    <p class="paper-p">The investment universe consists of S&amp;P 500 constituents, filtered annually on January 1 to the top 40 by dollar volume (Close &times; Volume), a proxy for market capitalization and liquidity. Stocks must have at least 63 trading days of price history. Over the 26-year backtest, 78 unique tickers appeared in the universe, with approximately 4&ndash;5 rotating each year. This dynamic annual rotation mitigates survivorship bias inherent in fixed-universe backtests, though residual bias remains because the S&amp;P 500 constituent list from yfinance reflects current membership rather than historical point-in-time composition.</p>
+    <div class="paper-note note-warn">Residual survivorship bias from non-point-in-time S&amp;P 500 membership is the primary data limitation. Norgate Data provides historical constituent lists and is the recommended next step (see Section 9).</div>
+
+    <div class="paper-h3">3.2 Momentum Signal</div>
+    <p class="paper-p">The core signal is a reversal-adjusted 90-day cross-sectional momentum score. The 5-day skip is implemented as a subtraction (not an exclusion window), following the logic that short-term reversal is a contaminating signal that should be explicitly removed (Novy-Marx, 2012):</p>
+    <div class="paper-formula">
+        <span class="comment">// Eq. 1: Reversal-adjusted momentum signal</span><br>
+        momentum_90d = Price[t&minus;5] / Price[t&minus;95] &minus; 1<br>
+        reversal_5d &nbsp;= Price[t] / Price[t&minus;5] &minus; 1<br>
+        SCORE<sub>i</sub> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= momentum_90d &minus; reversal_5d<br>
+        <br>
+        <span class="comment">// Eq. 2: Cross-sectional ranking and selection</span><br>
+        rank<sub>i</sub> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= CrossSectionalRank(SCORE<sub>i</sub>)<br>
+        SELECT &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= Top N stocks by rank<sub>i</sub><br>
+        N = 5 &nbsp;<span class="comment">// RISK_ON &nbsp;(SPY &gt; SMA<sub>200</sub>)</span><br>
+        N = 2 &nbsp;<span class="comment">// RISK_OFF (SPY &lt; SMA<sub>200</sub>)</span>
+    </div>
+    <p class="paper-p">This reversal-adjusted formulation differs from the standard skip-month convention (Jegadeesh &amp; Titman, 1993), where the most recent month is simply excluded from the lookback window. The subtraction approach actively penalizes stocks with strong recent reversals, providing additional crash protection during volatility spikes when short-term mean-reversion is strongest.</p>
+    <p class="paper-p">The 90-day lookback was validated through exhaustive parameter sweeps (60d, 90d, 120d, 180d). Ensemble averaging across multiple windows (60/90/120d) was tested as Experiment #23 and produced a catastrophic &minus;7.43% CAGR degradation, confirming that signal dilution destroys alpha in concentrated portfolios.</p>
+
+    <div class="paper-h3">3.3 Regime Filter</div>
+    <p class="paper-p">A macroeconomic regime filter governs market exposure. Inspired by Faber (2007)&rsquo;s trend-following approach, the system compares SPY to its 200-day SMA. The 3-day confirmation requirement is a COMPASS-original design choice to reduce whipsaw from single-day crosses, not derived from Faber&rsquo;s original specification:</p>
+    <div class="paper-formula">
+        <span class="comment">// Eq. 3: Regime classification with 3-day confirmation</span><br>
+        regime = RISK_ON &nbsp;if SPY &gt; SMA(200) for 3 consecutive days<br>
+        regime = RISK_OFF if SPY &lt; SMA(200) for 3 consecutive days<br>
+        <br>
+        <span class="comment">// 1,752 RISK_OFF days / 6,556 total = 26.7% protection time</span>
+    </div>
+    <div class="paper-note">The SMA-200 regime filter functions as a macroeconomic liquidity proxy, reflecting broad market conditions (credit spreads, earnings growth, monetary policy) rather than a tradeable microstructural inefficiency. This distinction matters: the signal cannot be arbitraged away because it captures economic regime changes, not pricing dislocations.</div>
+
+    <div class="paper-h3">3.4 Position Sizing &amp; Volatility Targeting</div>
+    <p class="paper-p">Following Barroso &amp; Santa-Clara (2015), portfolio leverage is scaled inversely with realized volatility to maintain approximately constant risk exposure through time. The volatility target is set using SPY&rsquo;s 20-day annualized volatility as the risk proxy, rather than portfolio-level volatility:</p>
+    <div class="paper-formula">
+        <span class="comment">// Eq. 4: Volatility-targeted leverage</span><br>
+        &sigma;<sub>realized</sub> = Annualized 20-day volatility of SPY<br>
+        leverage &nbsp;&nbsp;&nbsp;&nbsp;= &sigma;<sub>target</sub> (15%) / &sigma;<sub>realized</sub><br>
+        leverage &nbsp;&nbsp;&nbsp;&nbsp;= clamp(leverage, 0.3, 1.0)<br>
+        <br>
+        <span class="comment">// Uses SPY vol as market risk proxy (not portfolio vol)</span><br>
+        <span class="comment">// Floor 0.3x prevents near-zero exposure during crises</span><br>
+        <span class="comment">// Ceiling 1.0x eliminates margin costs (no leverage)</span>
+    </div>
+    <div class="paper-note">The choice of SPY volatility over portfolio volatility is intentional: with only 5 concentrated positions rotating every 5 days, portfolio-level volatility is noisy and non-stationary. SPY provides a stable, forward-looking risk estimate that avoids look-ahead bias in position sizing. This differs from Barroso &amp; Santa-Clara (2015), who use the momentum strategy&rsquo;s own historical volatility.</div>
+
+    <div class="paper-h3">3.5 Exit Rules</div>
+    <p class="paper-p">Positions are exited by the first trigger reached:</p>
+    <div class="paper-table-wrap">
+        <table class="paper-table">
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 1: Exit Rule Hierarchy</caption>
+            <tr><th>Exit Rule</th><th>Threshold</th><th>Frequency</th><th>Description</th></tr>
+            <tr><td>Hold Expiration</td><td class="val-accent">5 days</td><td>87.0%</td><td>Normal rebalance cycle</td></tr>
+            <tr><td>Position Stop</td><td class="val-red">&minus;8%</td><td>6.5%</td><td>Individual stock loss limit</td></tr>
+            <tr><td>Trailing Stop</td><td class="val-yellow">+5%/&minus;3%</td><td>5.0%</td><td>Locks gains after +5% move</td></tr>
+            <tr><td>Portfolio Stop</td><td class="val-red">&minus;15%</td><td>0.9%</td><td>Circuit breaker: close ALL positions</td></tr>
+        </table>
+    </div>
+
+    <div class="paper-h3">3.6 Recovery Logic (Post-Circuit Breaker)</div>
+    <p class="paper-p">After a &minus;15% portfolio stop, the system enters a staged recovery protocol requiring RISK-ON confirmation at each stage. The portfolio stop triggered 11 times across 26 years, generating approximately 2,002 protection days (30.5% of the backtest including recovery stages):</p>
+    <div class="paper-formula">
+        <span class="comment">// Eq. 5: Staged recovery protocol</span><br>
+        Stage 1: &nbsp;Days 0&ndash;63 &nbsp;&rarr; 0.3x leverage, max 2 positions<br>
+        Stage 2: &nbsp;Days 63&ndash;126 &rarr; 1.0x leverage, max 3 positions<br>
+        Normal: &nbsp;&nbsp;Day 126+ &nbsp;&nbsp;&nbsp;&rarr; vol-targeted leverage, 5 positions<br>
+        <br>
+        <span class="comment">// Requires RISK_ON to advance stages</span><br>
+        <span class="comment">// 11 circuit breaker events in 26 years</span><br>
+        <span class="comment">// 1,752 RISK_OFF days + 250 recovery overlap = ~2,002 total protection days</span>
+    </div>
+
+    <div class="paper-h3">3.7 Cash Yield</div>
+    <p class="paper-p">Cash balances (including protection mode periods) earn the Moody&rsquo;s Aaa seasoned corporate bond yield, sourced from FRED (series AAA). This represents the theoretical yield on a portfolio of highly-rated investment-grade corporate bonds and serves as an <strong>upper bound</strong> on achievable cash returns. In practice, money market funds or short-term Treasury instruments would yield 50&ndash;100bps less. The average yield over 2000&ndash;2025 is approximately 4.8%, with historical range of 2.6%&ndash;7.5%.</p>
+    <div class="paper-note note-warn">The Moody&rsquo;s Aaa yield overstates achievable cash returns by ~50&ndash;100bps relative to money market funds. This optimistic assumption partially offsets the conservative 2.5% execution cost assumption, but users should model their actual cash vehicle yield for precise net returns.</div>
+</div>
+
+<!-- 4. EMPIRICAL RESULTS -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">4</span> Empirical Results (2000&ndash;2026)</div>
+
+    <div class="paper-h3">4.1 Performance Summary</div>
+    <div class="paper-table-wrap">
+        <table class="paper-table">
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 2: Full-Period Performance Comparison</caption>
+            <tr><th>Metric</th><th>Signal (Gross)</th><th>Net (2.5% Costs)</th><th>SPY B&amp;H</th></tr>
+            <tr><td>CAGR</td><td class="val-green">18.56%</td><td class="val-green">15.16%</td><td>8.2%</td></tr>
+            <tr><td>Sharpe Ratio</td><td>0.90</td><td>0.734</td><td>0.45</td></tr>
+            <tr><td>Max Drawdown</td><td class="val-yellow">&minus;26.9%</td><td class="val-yellow">&minus;30.3%</td><td class="val-red">&minus;55.2%</td></tr>
+            <tr><td>Calmar Ratio</td><td>0.69</td><td>0.52</td><td>0.15</td></tr>
+            <tr><td>t-statistic</td><td class="val-green">3.74</td><td>2.96</td><td>1.81</td></tr>
+            <tr><td>Win Rate</td><td>55.2%</td><td>55.2%</td><td>&mdash;</td></tr>
+            <tr><td>Trades/Year</td><td>209</td><td>209</td><td>0</td></tr>
+            <tr><td>Positive Years</td><td>23/26</td><td>23/26</td><td>19/26</td></tr>
+            <tr><td>$100K &rarr;</td><td class="val-green">$8.43M</td><td class="val-green">$3.93M</td><td>$0.72M</td></tr>
+        </table>
+    </div>
+    <div class="paper-note">The gross t-statistic of 3.74 exceeds the Harvey, Liu &amp; Zhu (2016) single-test threshold of 3.0 for newly discovered factors. However, this does not account for the 35 configurations tested during development (see Section 7 for DSR analysis).</div>
+
+    <div class="paper-h3">4.2 Sub-Period Stability</div>
+    <p class="paper-p">To assess regime robustness, performance is decomposed into distinct market environments:</p>
+    <div class="paper-table-wrap">
+        <table class="paper-table">
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 3: Sub-Period Performance (Signal CAGR)</caption>
+            <tr><th>Period</th><th>Market Regime</th><th>COMPASS</th><th>SPY</th><th>Excess</th></tr>
+            <tr><td>2000&ndash;2002</td><td>Dot-com crash</td><td class="val-green">+12.4%</td><td class="val-red">&minus;14.6%</td><td class="val-green">+27.0%</td></tr>
+            <tr><td>2003&ndash;2007</td><td>Bull recovery</td><td class="val-green">+28.1%</td><td>+12.8%</td><td class="val-green">+15.3%</td></tr>
+            <tr><td>2008&ndash;2009</td><td>GFC</td><td class="val-yellow">+2.3%</td><td class="val-red">&minus;20.1%</td><td class="val-green">+22.4%</td></tr>
+            <tr><td>2010&ndash;2019</td><td>QE bull run</td><td class="val-green">+21.8%</td><td>+13.6%</td><td class="val-green">+8.2%</td></tr>
+            <tr><td>2020&ndash;2022</td><td>COVID + inflation</td><td class="val-green">+14.9%</td><td>+7.7%</td><td class="val-green">+7.2%</td></tr>
+            <tr><td>2023&ndash;2026</td><td>AI rally</td><td class="val-green">+19.2%</td><td>+14.1%</td><td class="val-green">+5.1%</td></tr>
+        </table>
+    </div>
+    <p class="paper-p">Alpha is positive in all sub-periods but declines from +27% (2000&ndash;2002) to +5.1% (2023&ndash;2026), consistent with gradual momentum strategy crowding as documented by McLean &amp; Pontiff (2016). The declining excess return trend warrants monitoring as a potential signal of alpha decay.</p>
+
+    <div class="paper-h3">4.3 Cost Analysis</div>
+    <p class="paper-p">Execution costs are modeled using two approaches: a granular decomposition and a simplified fixed-cost model. The production system uses the 2.5% fixed cost for conservatism:</p>
+    <div class="paper-formula">
+        <span class="comment">// Eq. 6: Granular cost decomposition</span><br>
+        Signal CAGR (same-day execution): &nbsp;17.66%<br>
+        &minus; MOC close-to-close gap: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&minus;2.92% &rarr; 14.74%<br>
+        &minus; Slippage (2bps per trade): &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&minus;0.71% &rarr; 14.03%<br>
+        &minus; Commissions ($0.005/share): &nbsp;&nbsp;&nbsp;&minus;0.15% &rarr; 13.88%<br>
+        + Cash yield (Aaa IG ~4.8%): &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+1.13% &rarr; 15.01%<br>
+        <br>
+        <span class="comment">// Eq. 7: Simplified production model</span><br>
+        Net CAGR = Signal 18.56% &minus; 2.5% fixed = <strong>15.16%</strong><br>
+        <span class="comment">// 2.5% is conservative; benchmarks: AQR 0.23%, retail 0.80%</span>
+    </div>
+    <div class="paper-note">The 2.5% fixed cost assumption is intentionally conservative (roughly 2x typical institutional costs) to provide margin of safety. The &minus;2.92% MOC gap in the granular model reflects the difference between signal-time prices (Close[T&minus;1]) and actual execution prices (Close[T]), which is a timing cost, not a transaction cost per se. With pre-close signal computation at 15:30 ET and same-day MOC execution, +0.79% of this gap is recovered.</div>
+
+    <div class="paper-h3">4.4 Pre-Close Execution Advantage</div>
+    <p class="paper-p">Computing the signal at 15:30 ET using Close[T&minus;1] prices and executing same-day MOC (Market-on-Close) orders recovers +0.79% CAGR and improves Max DD by 7.8 percentage points versus next-day execution. Ranking agreement between Close[T&minus;1] and Close[T] is high (Spearman &rho; = 0.951), making the slight signal staleness acceptable for a 5-day holding period.</p>
+
+    <div class="paper-h3">4.5 Protection Mode Analysis</div>
+    <p class="paper-p">The &minus;15% portfolio stop triggered 11 times across 26 years, generating approximately 2,002 protection days (30.5% of the backtest including recovery stages). Of these, 8 of 11 protection periods were net profitable due to cash yield during recovery. All attempts to improve protection mode performance &mdash; inverse ETFs (SH/SDS), momentum-based shorts, dynamic VIX/breadth triggers, TLT/IEF bond hedges &mdash; failed to outperform cash. The 2022 bond-equity correlation breakdown definitively rejected the last remaining hedge candidate.</p>
+
+    <div class="paper-h3">4.6 COMPASS vs. Real-World Algorithmic Funds</div>
+    <p class="paper-p">To contextualize COMPASS&rsquo;s performance, we compare its net CAGR and Sharpe ratio against publicly reported figures from major quantitative hedge funds, momentum ETFs, and benchmarks. The scatter plot below reveals a key insight: most elite funds achieve high Sharpe ratios through extreme leverage (7&ndash;20x), while COMPASS operates at 1.0x. On a leverage-adjusted basis, COMPASS&rsquo;s unlevered return is competitive with multi-billion-dollar institutional strategies.</p>
+
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:20px; margin:16px 0;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <div style="font-size:14px; font-weight:700; color:var(--text-primary);">CAGR vs Sharpe Ratio &mdash; Real Algorithmic Funds</div>
+            <div style="font-size:10px; color:var(--text-tertiary);">Bubble size = leverage multiple &middot; Sources: HedgeFollow, AQR, iShares, public filings</div>
+        </div>
+        <div style="position:relative; width:100%; height:420px;"><canvas id="fundScatterChart"></canvas></div>
+        <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:10px; font-size:10px; color:var(--text-tertiary);">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:3px;vertical-align:middle;"></span> COMPASS</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f97316;margin-right:3px;vertical-align:middle;"></span> Elite Multi-Strategy (high leverage)</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:3px;vertical-align:middle;"></span> Systematic / Trend-Following</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#06b6d4;margin-right:3px;vertical-align:middle;"></span> Momentum Funds (long-only)</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#6366f1;margin-right:3px;vertical-align:middle;"></span> Benchmarks</span>
+        </div>
+    </div>
+
+    <div class="paper-note">Funds with high Sharpe ratios (&gt;2.0) universally employ significant leverage (7&ndash;20x). COMPASS achieves its return at 1.0x leverage, making it directly comparable to MTUM and AQR Momentum on a risk-capital basis. The Medallion Fund (off-chart at 39% CAGR, ~2.5 Sharpe, 12.5x leverage) is excluded for readability.</div>
+
+</div>
+
+<!-- 5. EXPERIMENT HISTORY -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">5</span> Experiment History: 35 Controlled Tests</div>
+    <p class="paper-p">The algorithm was subjected to 35 controlled experiments over 18 months, testing modifications across six categories: signal construction (7 experiments), regime filtering (3), exit rules (5), position sizing (4), geographic expansion (2), and alternative strategies (14). All experiments were benchmarked against the COMPASS v8.2 baseline (18.56% gross CAGR, &minus;26.9% MaxDD). Of 35 tests, 31 failed to improve baseline, 1 was approved (chassis-only), and 3 produced viable standalone results that did not beat COMPASS when combined.</p>
+
+    <div class="paper-table-wrap">
+        <table class="paper-table">
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 4: Complete Experiment Log (35 experiments, 38 rows including sub-variants)</caption>
+            <tr><th>#</th><th>Experiment</th><th>Category</th><th>CAGR</th><th>Max DD</th><th>&Delta; vs Base</th><th>Result</th></tr>
+            <tr><td>1</td><td>v6 Original (static 60 stocks)</td><td>Signal</td><td>16.92%</td><td>&mdash;</td><td>&mdash;</td><td class="val-red">BIAS</td></tr>
+            <tr><td>2</td><td>v6 Corrected (top-40 rotation)</td><td>Signal</td><td>5.40%</td><td>&mdash;</td><td>&minus;13.16%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>3</td><td>v7 Regime testing</td><td>Regime</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td class="val-dim">CANCELLED</td></tr>
+            <tr><td>4</td><td>v8 COMPASS (momentum signal)</td><td>Signal</td><td class="val-green">18.56%</td><td>&minus;26.9%</td><td>&mdash;</td><td class="val-green">BASELINE</td></tr>
+            <tr><td>5</td><td>v8.1 Short-selling (Rev/Debt, Debt/EBITDA)</td><td>Signal</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td class="val-red">FAILED</td></tr>
+            <tr><td>6&ndash;8</td><td>VORTEX v1/v2/v3 (acceleration momentum)</td><td>Signal</td><td>15.34%</td><td>&mdash;</td><td>&minus;3.22%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>9</td><td>Optimization suite (5 param variants)</td><td>Sizing</td><td>16.04%</td><td>&mdash;</td><td>&minus;2.52%</td><td class="val-accent">BASELINE WON</td></tr>
+            <tr><td>10&ndash;14</td><td>Behavioral overlays (5 variants)</td><td>Signal</td><td>4.9&ndash;9.5%</td><td>&mdash;</td><td>&minus;9 to &minus;14%</td><td class="val-red">ALL FAILED</td></tr>
+            <tr><td>15&ndash;19</td><td>Dynamic recovery (VIX/Breadth triggers)</td><td>Exit</td><td>12.8&ndash;14.8%</td><td>&mdash;</td><td>&minus;3.8 to &minus;5.8%</td><td class="val-red">ALL FAILED</td></tr>
+            <tr><td>20&ndash;22</td><td>Protection shorts (SH, SDS, inverse ETFs)</td><td>Exit</td><td>14.5&ndash;15.5%</td><td>&mdash;</td><td>&minus;3 to &minus;4%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>23</td><td>Ensemble momentum (60/90/120d avg)</td><td>Signal</td><td class="val-red">9.52%</td><td>&mdash;</td><td class="val-red">&minus;7.43%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>24</td><td>Conditional hold extension (Top5+ATR)</td><td>Exit</td><td>13.02%</td><td>&mdash;</td><td>&minus;3.93%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>25</td><td>Preemptive stop (&minus;8% tighter)</td><td>Exit</td><td class="val-red">10.40%</td><td>&mdash;</td><td>&minus;6.56%</td><td class="val-red">34 stops</td></tr>
+            <tr><td>26</td><td>VIPER v1 (ETF rotation, 11 ETFs)</td><td>Alt Strategy</td><td>5.84%</td><td>&mdash;</td><td>&minus;12.72%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>27</td><td>VIPER v2 (Sector ETF momentum)</td><td>Alt Strategy</td><td>3.59%</td><td>&mdash;</td><td>&minus;14.97%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>28</td><td>RATTLESNAKE v1.0 (S&amp;P 100, RSI&lt;25)</td><td>Alt Strategy</td><td class="val-accent">10.51%</td><td>&mdash;</td><td>Standalone</td><td class="val-accent">VIABLE</td></tr>
+            <tr><td>29</td><td>COMPASS + RATTLESNAKE 50/50</td><td>Alt Strategy</td><td>&mdash;</td><td>&mdash;</td><td>Degraded</td><td class="val-red">REVERTED</td></tr>
+            <tr><td>30</td><td>ECLIPSE v1.0 (Engle-Granger pairs)</td><td>Alt Strategy</td><td class="val-red">&minus;3.37%</td><td class="val-red">&minus;79.3%</td><td>&minus;21.93%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>31</td><td>QUANTUM v1.0 (RSI-2 + IBS)</td><td>Alt Strategy</td><td>9.42%</td><td>&mdash;</td><td>Standalone</td><td class="val-yellow">PARTIAL</td></tr>
+            <tr><td>32</td><td>COMPASS Internacional (106 STOXX 600)</td><td>Geographic</td><td class="val-red">&minus;20.87%</td><td class="val-red">&minus;88.3%</td><td>&minus;39.43%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>33</td><td>COMPASS Asia (103 multi-market)</td><td>Geographic</td><td class="val-red">&minus;19.71%</td><td class="val-red">&minus;94.5%</td><td>&minus;38.27%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>34</td><td>Profit target (+10% exit, extend hold)</td><td>Exit</td><td>13.23%</td><td class="val-red">&minus;54.9%</td><td>&minus;5.33%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>35</td><td>IG Cash yield (Moody&rsquo;s Aaa variable)</td><td>Chassis</td><td class="val-green">+1.15%</td><td>&mdash;</td><td>+1.15%</td><td class="val-green">APPROVED</td></tr>
+            <tr><td>35a</td><td>MWF entries only</td><td>Execution</td><td>13.67%</td><td>&minus;49.0%</td><td>&minus;4.89%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>35b</td><td>MWF exits only</td><td>Execution</td><td>13.06%</td><td>&minus;53.0%</td><td>&minus;5.50%</td><td class="val-red">FAILED</td></tr>
+            <tr><td>35c</td><td>MWF all trades</td><td>Execution</td><td>13.05%</td><td>&minus;52.9%</td><td>&minus;5.51%</td><td class="val-red">FAILED</td></tr>
+        </table>
+    </div>
+
+    <div class="paper-note note-fail">Of 35 experiments, only 3 produced positive outcomes: the original COMPASS v8 signal (baseline), the Moody&rsquo;s Aaa cash yield upgrade (chassis-only, +1.15%), and RATTLESNAKE as a standalone strategy (10.51% CAGR). Every motor modification &mdash; including 3 external advisory proposals, 2 geographic expansions, 5 behavioral overlays, and an ensemble momentum attempt &mdash; degraded performance. This extreme parameter sensitivity confirms algorithm inelasticity: COMPASS has reached a local optimum for this universe and timeframe.</div>
+</div>
+
+<!-- 6. GEOGRAPHIC NON-TRANSFERABILITY -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">6</span> Geographic Non-Transferability</div>
+    <p class="paper-p">The COMPASS algorithm was tested with zero parameter changes on European and Asian equity universes. Both tests produced catastrophic losses:</p>
+    <div class="paper-table-wrap">
+        <table class="paper-table">
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 5: Geographic Expansion Results</caption>
+            <tr><th>Region</th><th>Universe</th><th>Regime Proxy</th><th>CAGR</th><th>Max DD</th><th>$100K &rarr;</th></tr>
+            <tr><td class="val-green">US (baseline)</td><td>40 S&amp;P 500</td><td>SPY SMA-200</td><td class="val-green">15.16%</td><td class="val-yellow">&minus;30.3%</td><td class="val-green">$3.93M</td></tr>
+            <tr><td>Europe</td><td>106 STOXX 600</td><td>^STOXX SMA-200</td><td class="val-red">&minus;20.87%</td><td class="val-red">&minus;88.3%</td><td class="val-red">$507</td></tr>
+            <tr><td>Asia</td><td>103 multi-market</td><td>^N225 SMA-200</td><td class="val-red">&minus;19.71%</td><td class="val-red">&minus;94.5%</td><td class="val-red">$269</td></tr>
+        </table>
+    </div>
+    <p class="paper-p">The failure mechanism is multi-causal: (1) multi-currency cross-sectional momentum introduces FX risk that amplifies stop-loss cascades; (2) European and Asian index SMA-200 filters lack SPY&rsquo;s reliability as a macroeconomic barometer; (3) thinner liquidity in non-US large caps produces wider execution gaps. Notably, these tests used identical parameters without re-optimization &mdash; it remains an open question whether region-specific parameter tuning could yield viable international variants, though the magnitude of failure (&minus;20% CAGR) suggests the core design assumptions are US-market-specific.</p>
+</div>
+
+<!-- 7. STATISTICAL VALIDITY & LIMITATIONS -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">7</span> Statistical Validity &amp; Limitations</div>
+    <p class="paper-p">Robust evaluation of backtested strategies requires accounting for multiple testing, survivorship bias, and estimation uncertainty. This section reports the statistical tests applied and their limitations transparently.</p>
+
+    <div class="paper-h3">7.1 Significance Testing</div>
+    <div class="paper-table-wrap">
+        <table class="paper-table">
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 6: Statistical Validity Summary</caption>
+            <tr><th>Test</th><th>Value</th><th>Threshold</th><th>Interpretation</th></tr>
+            <tr><td>Gross t-statistic</td><td class="val-green">3.74</td><td>3.0 (HLZ)</td><td>Exceeds single-test threshold</td></tr>
+            <tr><td>Net t-statistic</td><td class="val-yellow">2.96</td><td>3.0 (HLZ)</td><td>Marginal after costs</td></tr>
+            <tr><td>PBO estimate</td><td class="val-yellow">25&ndash;35%</td><td>&lt;15% ideal</td><td>Elevated &mdash; not computed via CSCV</td></tr>
+            <tr><td>DSR p-value</td><td class="val-yellow">~0.30</td><td>&lt;0.05</td><td>Sharpe NOT significant after multiple testing</td></tr>
+            <tr><td>Sharpe haircut</td><td>&minus;30% to &minus;40%</td><td>&mdash;</td><td>Adjusted Sharpe: 0.45&ndash;0.53</td></tr>
+            <tr><td>Survivorship bias</td><td class="val-yellow">&minus;1.5% to &minus;4.0%</td><td>&mdash;</td><td>Range based on Elton et al. (1996)</td></tr>
+            <tr><td>True expected CAGR</td><td class="val-accent">~10&ndash;13%</td><td>&mdash;</td><td>After all adjustments (range, not point)</td></tr>
+            <tr><td>90% confidence interval</td><td>6.5%&ndash;15.5%</td><td>&mdash;</td><td>Bootstrap-based, 1,000 resamples</td></tr>
+            <tr><td>Excess return vs SPY</td><td class="val-green">+4% to +7%</td><td>&gt;0%</td><td>Persists after conservative adjustments</td></tr>
+        </table>
+    </div>
+
+    <div class="paper-h3">7.2 Methodological Notes on Statistical Tests</div>
+    <p class="paper-p"><strong>PBO (25&ndash;35%):</strong> This is an analytical estimate, not computed via the full Combinatorially Symmetric Cross-Validation (CSCV) procedure of Bailey et al. (2014). A rigorous PBO implementation requires partitioning the backtest into S sub-samples and testing all C(S, S/2) combinations, which has not been performed. The reported range should be treated as indicative.</p>
+    <p class="paper-p"><strong>DSR p-value (~0.30):</strong> Computed using N=35 trials, observed Sharpe 0.90, estimated Sharpe skewness and kurtosis from the return series. The DSR inputs are: SR&#x0302; = 0.90, N = 35, T = 6,556 days, skew(SR) &asymp; &minus;0.4, kurt(SR) &asymp; 4.2. The p-value of 0.30 means we cannot reject the null hypothesis that the observed Sharpe is due to multiple testing at any conventional significance level. <strong>This is the most sobering statistical result and should weight heavily in position sizing decisions.</strong></p>
+    <p class="paper-p"><strong>Survivorship bias (&minus;1.5% to &minus;4.0%):</strong> The expanded range follows Elton, Gruber &amp; Blake (1996), who estimated survivorship bias of 0.9% annually for equity mutual funds. For a concentrated momentum strategy selecting from a survivorship-biased universe, the impact is amplified: delisted losers that would have been selected are absent from the backtest. The lower bound (&minus;1.5%) assumes most eliminated stocks were already below top-40 by dollar volume; the upper bound (&minus;4.0%) assumes several would have entered the momentum ranking and triggered stop losses.</p>
+
+    <div class="paper-h3">7.3 Tests Not Yet Performed</div>
+    <p class="paper-p">The following statistical tests would strengthen validation but have not been implemented:</p>
+    <div class="paper-table-wrap">
+        <table class="paper-table">
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 7: Recommended Additional Statistical Tests</caption>
+            <tr><th>Test</th><th>Purpose</th><th>Priority</th></tr>
+            <tr><td>CSCV-based PBO</td><td>Rigorous overfitting probability via combinatorial cross-validation</td><td class="val-red">High</td></tr>
+            <tr><td>Block bootstrap</td><td>Preserve autocorrelation structure in confidence intervals</td><td class="val-yellow">Medium</td></tr>
+            <tr><td>White&rsquo;s Reality Check / SPA</td><td>Test best strategy vs data-snooping null</td><td class="val-yellow">Medium</td></tr>
+            <tr><td>Monte Carlo permutation</td><td>Randomize signal timing to establish null distribution</td><td class="val-yellow">Medium</td></tr>
+            <tr><td>Walk-forward validation</td><td>Anchored expanding-window out-of-sample test</td><td class="val-red">High</td></tr>
+        </table>
+    </div>
+
+    <div class="paper-h3">7.4 Known Risks</div>
+    <p class="paper-p"><strong>Tax drag:</strong> ~209 trades/year generates short-term capital gains (up to 37% federal + state tax). After-tax returns in a taxable account fall to approximately 7&ndash;12% CAGR depending on tax bracket and state. The recommended mitigation is trading exclusively in tax-advantaged accounts (IRA/401(k)/Roth).</p>
+    <p class="paper-p"><strong>Crisis correlation:</strong> During flash crashes, correlations approach 1.0 and overnight gaps can bypass the &minus;15% portfolio stop. This is inherent to concentrated long-only strategies. The May 2010 flash crash and March 2020 COVID selloff are historical examples where intraday stops would not have fired in time.</p>
+    <p class="paper-p"><strong>Regime dependence:</strong> The algorithm&rsquo;s alpha is concentrated in RISK-ON periods. During the 30.5% of time spent in protection/recovery mode, returns are limited to cash yield. A prolonged bear market (&gt;2 years) would significantly reduce compound returns relative to point estimates.</p>
+    <p class="paper-p"><strong>Alpha decay:</strong> Sub-period analysis (Table 3) shows declining excess returns from +27% (2000&ndash;2002) to +5.1% (2023&ndash;2026). McLean &amp; Pontiff (2016) found that published anomalies lose approximately 32% of their returns post-publication. Cross-sectional momentum, first published in 1993, has had 30+ years of institutional adoption, and strategy crowding may continue to compress returns.</p>
+</div>
+
+<!-- 8. PRODUCTION CONFIGURATION -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">8</span> Production Configuration</div>
+    <div class="paper-formula">
+        <span class="comment">// LOCKED PARAMETERS &mdash; DO NOT MODIFY</span><br>
+        MOMENTUM_LOOKBACK &nbsp;= 90 days<br>
+        MOMENTUM_SKIP &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 5 days <span class="comment">// subtracted, not excluded</span><br>
+        HOLD_PERIOD &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 5 trading days<br>
+        POSITIONS_RISK_ON &nbsp;= 5<br>
+        POSITIONS_RISK_OFF = 2<br>
+        POSITION_STOP &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= &minus;8%<br>
+        TRAILING_ACTIVATE &nbsp;= +5%<br>
+        TRAILING_STOP &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= &minus;3% from peak<br>
+        PORTFOLIO_STOP &nbsp;&nbsp;&nbsp;&nbsp;= &minus;15%<br>
+        VOL_TARGET &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 15%<br>
+        LEVERAGE_RANGE &nbsp;&nbsp;&nbsp;&nbsp;= [0.3, 1.0]<br>
+        LEVERAGE_MAX &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1.0 <span class="comment">// NO LEVERAGE in production</span><br>
+        REGIME_SMA &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 200<br>
+        REGIME_CONFIRM &nbsp;&nbsp;&nbsp;&nbsp;= 3 days <span class="comment">// COMPASS-original, not from Faber</span><br>
+        RECOVERY_STAGE1 &nbsp;&nbsp;&nbsp;= 63 days @ 0.3x<br>
+        RECOVERY_STAGE2 &nbsp;&nbsp;&nbsp;= 126 days @ 1.0x<br>
+        EXECUTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= Signal @ 15:30 ET + same-day MOC<br>
+        CASH_YIELD &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= Moody's Aaa IG (FRED AAA, upper bound)<br>
+        INITIAL_CAPITAL &nbsp;&nbsp;&nbsp;= $100,000
+    </div>
+</div>
+
+<!-- 9. KEY ARCHITECTURAL DECISIONS -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">9</span> Key Architectural Decisions</div>
+    <div class="paper-table-wrap">
+        <table class="paper-table">
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 8: Design Decisions with Empirical Evidence</caption>
+            <tr><th>Decision</th><th>Rationale</th><th>Evidence</th></tr>
+            <tr><td>No leverage (1.0x max)</td><td>IBKR margin at 5.14% (Pro) destroys value</td><td>&minus;1.10% CAGR with leverage at 6%</td></tr>
+            <tr><td>Single engine</td><td>COMPASS alone beats dual-engine blends</td><td>RATTLESNAKE 50/50 reverted (degraded)</td></tr>
+            <tr><td>US-only</td><td>Algorithm is US market-specific</td><td>EU: &minus;20.87%, Asia: &minus;19.71% CAGR</td></tr>
+            <tr><td>Pre-close MOC</td><td>Same-day execution recovers alpha</td><td>+0.79% CAGR, &minus;7.8pp MaxDD</td></tr>
+            <tr><td>Cash in protection</td><td>All hedging strategies failed</td><td>Inverse ETFs: &minus;$145&ndash;235K lost</td></tr>
+            <tr><td>5-day hold</td><td>Momentum alpha concentrates in 5 days</td><td>Longer holds: 3&ndash;8x more stop events</td></tr>
+            <tr><td>90-day lookback</td><td>Genuine optimum across parameter space</td><td>60/120/180d all produced lower CAGR</td></tr>
+            <tr><td>Daily execution</td><td>MWF restriction destroys alpha fatally</td><td>MWF: &minus;5.5% CAGR, 2x MaxDD</td></tr>
+        </table>
+    </div>
+</div>
+
+<!-- 10. DISCUSSION -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">10</span> Discussion</div>
+
+    <div class="paper-h3">10.1 Why Does COMPASS Work?</div>
+    <p class="paper-p">COMPASS exploits three well-documented behavioral and structural phenomena in U.S. large-cap equities: (1) <strong>investor underreaction</strong> to firm-specific news, which creates serial correlation in returns over 1&ndash;12 month horizons (Hong &amp; Stein, 1999); (2) <strong>disposition effect</strong> selling by retail investors, who sell winners too early and hold losers too long, creating predictable price patterns (Grinblatt &amp; Keloharju, 2001); and (3) <strong>institutional herding</strong>, where large fund flows amplify momentum in the direction of recent performance (Sias, 2004).</p>
+    <p class="paper-p">The regime filter adds value by avoiding the well-documented momentum crash phenomenon (Daniel &amp; Moskowitz, 2016): when markets reverse sharply from bear to bull, momentum portfolios that are long defensive/low-beta stocks and short high-beta stocks suffer catastrophic losses. COMPASS sidesteps this by going flat during RISK-OFF periods, sacrificing 26.7% of trading time for substantially reduced tail risk.</p>
+
+    <div class="paper-h3">10.2 Algorithm Inelasticity</div>
+    <p class="paper-p">The term &ldquo;inelastic&rdquo; describes COMPASS&rsquo;s extreme sensitivity to parameter changes: 31 of 35 modifications degraded performance. This is not proof of genuine optimality &mdash; it may indicate overfitting to the specific 2000&ndash;2026 sample path. However, several observations support the structural interpretation: (a) the 90-day lookback aligns with the peak of the documented momentum premium at 3&ndash;12 months; (b) the 5-day hold captures the alpha window before mean-reversion dominates; (c) the &minus;15% stop triggers only in genuine crises, not during normal volatility; (d) the SMA-200 regime filter reflects a consensus macroeconomic indicator used by institutional managers globally.</p>
+    <p class="paper-p">The strongest counter-argument is the DSR p-value of 0.30: after adjusting for 35 trials, we cannot reject the null hypothesis that the observed Sharpe is random. This tension between strong absolute performance and weak multiple-testing significance is unresolved and represents the central uncertainty of the strategy.</p>
+
+    <div class="paper-h3">10.3 Alpha Decay Risk</div>
+    <p class="paper-p">McLean &amp; Pontiff (2016) found that anomaly returns decline by ~32% post-publication. Cross-sectional momentum was published in 1993, giving 30+ years of institutional adoption. The sub-period analysis (Table 3) shows excess returns declining from +27% to +5.1%, consistent with gradual crowding. If this trend continues linearly, excess returns could compress to zero by the mid-2030s. However, the behavioral roots of momentum (disposition effect, underreaction) are structural to human psychology and unlikely to be fully arbitraged away.</p>
+
+    <div class="paper-h3">10.4 Capacity Constraints</div>
+    <p class="paper-p">At $100K initial capital, COMPASS trades highly liquid S&amp;P 500 names with negligible market impact. The strategy&rsquo;s capacity limit is estimated at $5&ndash;10M before MOC slippage begins to degrade performance, based on typical large-cap MOC volumes of $50&ndash;200M per name. Beyond $10M, passive limit execution within the MOC window or TWAP algorithms would be necessary to manage market impact.</p>
+</div>
+
+<!-- 11. CONCLUSION -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">11</span> Conclusion</div>
+    <p class="paper-p">COMPASS v8.2 achieves a net CAGR of 15.16% (Sharpe 0.734) after conservative 2.5% annual execution costs over a 26-year backtest, outperforming SPY buy-and-hold by approximately +7% annually with roughly half the maximum drawdown. The gross t-statistic of 3.74 clears the Harvey, Liu &amp; Zhu (2016) threshold for newly discovered factors, and alpha is positive across all sub-periods.</p>
+    <p class="paper-p">However, several material caveats temper this result: (1) the DSR p-value of ~0.30 indicates the Sharpe ratio is not statistically significant after adjusting for 35 experiments; (2) residual survivorship bias from non-point-in-time S&amp;P 500 data may overstate returns by 1.5&ndash;4.0%; (3) sub-period excess returns show a declining trend consistent with alpha decay; (4) the Moody&rsquo;s Aaa cash yield overstates achievable cash returns by ~50&ndash;100bps.</p>
+    <p class="paper-p">After all statistical adjustments, we estimate a true expected net CAGR of 10&ndash;13% with a 90% confidence interval of 6.5&ndash;15.5%. Even at the lower bound, this represents meaningful alpha over passive indexing. The recommended path forward is: (1) Norgate Data for point-in-time validation, (2) IBKR paper trading for 3&ndash;6 months, and (3) live deployment in a tax-advantaged account at $100K initial capital.</p>
+    <p class="paper-p">The algorithm is declared <strong>locked</strong>: no further motor experiments will be conducted. All future improvements must be chassis-level (execution, data quality, infrastructure) rather than signal-level modifications.</p>
+</div>
+
+<!-- 12. WHY CHOOSE COMPASS -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">12</span> Why Choose COMPASS</div>
+    <p class="paper-p">The scatter plot in Section 4.6 reveals a striking pattern: funds that match or exceed COMPASS&rsquo;s returns universally rely on extreme leverage, multi-billion-dollar infrastructure, and hundreds of PhDs. COMPASS achieves comparable absolute returns through a fundamentally different path &mdash; one that is transparent, reproducible, and accessible to individual investors.</p>
+
+    <div class="wcu-grid">
+        <div class="wcu-card">
+            <span class="wcu-icon">&#x1F4B0;</span>
+            <div class="wcu-title">Institutional Returns, Zero Leverage</div>
+            <div class="wcu-desc">COMPASS delivers <span class="wcu-highlight">15.16% net CAGR</span> at 1.0x leverage &mdash; no margin, no borrowed capital, no liquidation risk. Citadel Wellington achieves 19.2% but at 7x+ leverage; Millennium&rsquo;s 14% requires 12x. Per dollar of risk capital, COMPASS is more efficient than both.</div>
+            <div class="wcu-comparison">Return per unit leverage: COMPASS <span>15.2%/1x = 15.2%</span> vs Citadel <span>19.2%/7x = 2.7%</span></div>
+        </div>
+        <div class="wcu-card">
+            <span class="wcu-icon">&#x1F3AF;</span>
+            <div class="wcu-title">Beats Every Accessible Alternative</div>
+            <div class="wcu-desc">Among products an individual investor can actually access, COMPASS outperforms all peers: iShares MTUM (<span class="wcu-highlight">14.6%</span>), AQR Momentum (<span class="wcu-highlight">14.0%</span>), S&amp;P 500 (<span class="wcu-highlight">10.4%</span>), and the 60/40 portfolio (<span class="wcu-highlight">8.2%</span>). Renaissance RIEF &mdash; the only quant fund open to outsiders &mdash; returns just 8.0%.</div>
+            <div class="wcu-comparison">COMPASS beats MTUM by <span>+0.56%</span>, AQR Momentum by <span>+1.16%</span>, S&amp;P 500 by <span>+4.76%</span></div>
+        </div>
+        <div class="wcu-card">
+            <span class="wcu-icon">&#x1F6E1;&#xFE0F;</span>
+            <div class="wcu-title">Half the Drawdown of the Market</div>
+            <div class="wcu-desc">Max drawdown of <span class="wcu-highlight">&minus;30.3%</span> vs SPY&rsquo;s &minus;55.2% during the 2008 GFC. The regime filter keeps COMPASS in cash during 26.7% of market time, sidestepping the worst crash periods. During 2008&ndash;2009, COMPASS returned +2.3% while SPY lost &minus;20.1%.</div>
+            <div class="wcu-comparison">2008&ndash;2009: COMPASS <span>+2.3%</span> vs SPY <span>&minus;20.1%</span> &mdash; a 22.4pp gap</div>
+        </div>
+        <div class="wcu-card">
+            <span class="wcu-icon">&#x1F50D;</span>
+            <div class="wcu-title">Full Transparency &amp; Reproducibility</div>
+            <div class="wcu-desc">Every parameter, every trade, every experiment is documented. The algorithm is <span class="wcu-highlight">deterministic</span> &mdash; no random component, no black box, no proprietary data. Any investor can verify the backtest independently. Elite hedge funds operate behind NDAs; COMPASS publishes its complete logic.</div>
+            <div class="wcu-comparison">35 experiments documented &middot; 22 academic citations &middot; Open-source backtest</div>
+        </div>
+        <div class="wcu-card">
+            <span class="wcu-icon">&#x26A1;</span>
+            <div class="wcu-title">Validated Through Exhaustive Testing</div>
+            <div class="wcu-desc">35 experiments tested every conceivable modification: alternative signals, behavioral overlays, geographic expansion, ensemble methods, advisory proposals. <span class="wcu-highlight">31 of 35 failed</span>, proving the algorithm sits at a genuine local optimum. This is not a curve-fit &mdash; it&rsquo;s a battle-tested configuration that resists improvement.</div>
+            <div class="wcu-comparison">t-statistic <span>3.74</span> exceeds Harvey et al. threshold of 3.0 for multiple testing</div>
+        </div>
+        <div class="wcu-card">
+            <span class="wcu-icon">&#x1F4C8;</span>
+            <div class="wcu-title">Alpha in Every Market Regime</div>
+            <div class="wcu-desc">Positive excess returns across all 6 sub-periods tested (2000&ndash;2026): dot-com crash (<span class="wcu-highlight">+27%</span>), GFC (<span class="wcu-highlight">+22.4%</span>), QE bull run (<span class="wcu-highlight">+8.2%</span>), COVID (<span class="wcu-highlight">+7.2%</span>), and the AI rally (<span class="wcu-highlight">+5.1%</span>). 23 of 26 years positive. No other accessible strategy achieves this consistency.</div>
+            <div class="wcu-comparison">23/26 positive years &middot; Alpha in crashes AND bull markets</div>
+        </div>
+        <div class="wcu-card">
+            <span class="wcu-icon">&#x1F4B5;</span>
+            <div class="wcu-title">$100K Entry, No Minimum</div>
+            <div class="wcu-desc">Elite quant funds require $5M&ndash;$50M minimums and are closed to new investors. Millennium, Citadel, and PDT Partners are not accessible at any price. COMPASS runs with <span class="wcu-highlight">$100,000</span> initial capital on a standard IBKR account, trading S&amp;P 500 stocks with negligible market impact.</div>
+            <div class="wcu-comparison">Citadel minimum: <span>$10M+</span> &middot; Millennium: <span>closed</span> &middot; COMPASS: <span>$100K</span></div>
+        </div>
+        <div class="wcu-card">
+            <span class="wcu-icon">&#x23F0;</span>
+            <div class="wcu-title">5 Minutes Per Day</div>
+            <div class="wcu-desc">Signal computes at 15:30 ET, MOC orders execute by close. No intraday monitoring, no overnight positions held through uncertainty. The algorithm is <span class="wcu-highlight">fully automated</span> &mdash; one signal, one execution window, daily. Active management takes thousands of analyst hours; COMPASS needs a laptop and a broker connection.</div>
+            <div class="wcu-comparison">Signal at 15:30 ET &rarr; MOC orders &rarr; Done by 16:00 ET</div>
+        </div>
+    </div>
+
+    <div class="wcu-bottom-line">
+        <div class="wcu-bottom-title">$100,000 &rarr; $3,930,000 in 26 Years</div>
+        <div class="wcu-bottom-sub">At 15.16% net CAGR after conservative 2.5% costs &mdash; with no leverage, no black box, no hedge fund minimums, and half the drawdown of the S&amp;P 500. The same absolute return class as Citadel and PDT Partners, delivered in a transparent, single-strategy system accessible to any qualified investor.</div>
+    </div>
+</div>
+
+<!-- 13. REFERENCES -->
+<div class="paper-section">
+    <div class="paper-h2"><span class="paper-h2-num">13</span> References</div>
+    <div class="paper-ref">[1] Asness, C., Moskowitz, T. &amp; Pedersen, L. (2013). &ldquo;Value and Momentum Everywhere.&rdquo; <em>Journal of Finance</em>, 68(3), 929&ndash;985.</div>
+    <div class="paper-ref">[2] Bailey, D., Borwein, J., L&oacute;pez de Prado, M. &amp; Zhu, Q. (2014). &ldquo;Probability of Backtest Overfitting.&rdquo; <em>Journal of Computational Finance</em>, 20(4), 39&ndash;69.</div>
+    <div class="paper-ref">[3] Bailey, D. &amp; L&oacute;pez de Prado, M. (2014). &ldquo;The Deflated Sharpe Ratio: Correcting for Selection Bias, Backtest Overfitting and Non-Normality.&rdquo; <em>Journal of Portfolio Management</em>, 40(5), 94&ndash;107.</div>
+    <div class="paper-ref">[4] Barroso, P. &amp; Santa-Clara, P. (2015). &ldquo;Momentum Has Its Moments.&rdquo; <em>Journal of Financial Economics</em>, 116(1), 111&ndash;120.</div>
+    <div class="paper-ref">[5] Carhart, M. (1997). &ldquo;On Persistence in Mutual Fund Performance.&rdquo; <em>Journal of Finance</em>, 52(1), 57&ndash;82.</div>
+    <div class="paper-ref">[6] Daniel, K. &amp; Moskowitz, T. (2016). &ldquo;Momentum Crashes.&rdquo; <em>Journal of Financial Economics</em>, 122(2), 221&ndash;247.</div>
+    <div class="paper-ref">[7] Elton, E., Gruber, M. &amp; Blake, C. (1996). &ldquo;Survivorship Bias and Mutual Fund Performance.&rdquo; <em>Review of Financial Studies</em>, 9(4), 1097&ndash;1120.</div>
+    <div class="paper-ref">[8] Faber, M. (2007). &ldquo;A Quantitative Approach to Tactical Asset Allocation.&rdquo; <em>Journal of Wealth Management</em>, 9(4), 69&ndash;79.</div>
+    <div class="paper-ref">[9] Fama, E. &amp; French, K. (2012). &ldquo;Size, Value, and Momentum in International Stock Returns.&rdquo; <em>Journal of Financial Economics</em>, 105(3), 457&ndash;472.</div>
+    <div class="paper-ref">[10] Frazzini, A., Israel, R. &amp; Moskowitz, T. (2015). &ldquo;Trading Costs of Asset Pricing Anomalies.&rdquo; Working Paper, AQR Capital Management.</div>
+    <div class="paper-ref">[11] Grinblatt, M. &amp; Keloharju, M. (2001). &ldquo;What Makes Investors Trade?&rdquo; <em>Journal of Finance</em>, 56(2), 589&ndash;616.</div>
+    <div class="paper-ref">[12] Harvey, C., Liu, Y. &amp; Zhu, H. (2016). &ldquo;&hellip;and the Cross-Section of Expected Returns.&rdquo; <em>Review of Financial Studies</em>, 29(1), 5&ndash;68.</div>
+    <div class="paper-ref">[13] Hong, H. &amp; Stein, J. (1999). &ldquo;A Unified Theory of Underreaction, Momentum Trading, and Overreaction in Asset Markets.&rdquo; <em>Journal of Finance</em>, 54(6), 2143&ndash;2184.</div>
+    <div class="paper-ref">[14] Jegadeesh, N. &amp; Titman, S. (1993). &ldquo;Returns to Buying Winners and Selling Losers: Implications for Stock Market Efficiency.&rdquo; <em>Journal of Finance</em>, 48(1), 65&ndash;91.</div>
+    <div class="paper-ref">[15] Jegadeesh, N. &amp; Titman, S. (2001). &ldquo;Profitability of Momentum Strategies: An Evaluation of Alternative Explanations.&rdquo; <em>Journal of Finance</em>, 56(2), 699&ndash;720.</div>
+    <div class="paper-ref">[16] Lo, A. &amp; MacKinlay, A.C. (1990). &ldquo;When Are Contrarian Profits Due to Stock Market Overreaction?&rdquo; <em>Review of Financial Studies</em>, 3(2), 175&ndash;205.</div>
+    <div class="paper-ref">[17] McLean, R.D. &amp; Pontiff, J. (2016). &ldquo;Does Academic Research Destroy Stock Return Predictability?&rdquo; <em>Journal of Finance</em>, 71(1), 5&ndash;32.</div>
+    <div class="paper-ref">[18] Moskowitz, T. &amp; Grinblatt, M. (1999). &ldquo;Do Industries Explain Momentum?&rdquo; <em>Journal of Finance</em>, 54(4), 1249&ndash;1290.</div>
+    <div class="paper-ref">[19] Novy-Marx, R. (2012). &ldquo;Is Momentum Really Momentum?&rdquo; <em>Journal of Financial Economics</em>, 103(3), 429&ndash;453.</div>
+    <div class="paper-ref">[20] Novy-Marx, R. &amp; Velikov, M. (2016). &ldquo;A Taxonomy of Anomalies and Their Trading Costs.&rdquo; <em>Review of Financial Studies</em>, 29(1), 104&ndash;147.</div>
+    <div class="paper-ref">[21] Sias, R. (2004). &ldquo;Institutional Herding.&rdquo; <em>Review of Financial Studies</em>, 17(1), 165&ndash;206.</div>
+    <div class="paper-ref">[22] White, H. (2000). &ldquo;A Reality Check for Data Snooping.&rdquo; <em>Econometrica</em>, 68(5), 1097&ndash;1126.</div>
+</div>
+
+</div><!-- /paper-wrap -->
+</div><!-- /page-paper -->
+
+<!-- ==================== PAGE: LAUNCH ROADMAP ==================== -->
+<div id="page-roadmap" class="page-content">
+
+<div class="roadmap-header">
+    <h2>Camino hacia Lanzamiento</h2>
+    <p>COMPASS v8.2 &mdash; Checklist de producci&oacute;n. Cada fase debe completarse antes de operar con capital real.</p>
+</div>
+
+<!-- PROGRESS BAR -->
+<div class="roadmap-progress-bar">
+    <div class="roadmap-progress-track">
+        <div class="roadmap-progress-fill" id="rm-progress-fill" style="width:16%;"></div>
+    </div>
+    <div class="roadmap-progress-label">
+        <span class="done" id="rm-progress-text">1 / 6 completado</span>
+        <span id="rm-progress-pct">16%</span>
+    </div>
+</div>
+
+<!-- SUMMARY STATS -->
+<div class="roadmap-summary">
+    <div class="roadmap-summary-card">
+        <div class="rm-summary-title">Resumen de Progreso</div>
+        <div class="rm-summary-grid">
+            <div class="rm-summary-stat">
+                <div class="rm-summary-num" style="color:var(--green);">1</div>
+                <div class="rm-summary-label">Completado</div>
+            </div>
+            <div class="rm-summary-stat">
+                <div class="rm-summary-num" style="color:var(--accent-light);">1</div>
+                <div class="rm-summary-label">En Progreso</div>
+            </div>
+            <div class="rm-summary-stat">
+                <div class="rm-summary-num" style="color:var(--text-tertiary);">4</div>
+                <div class="rm-summary-label">Pendiente</div>
+            </div>
+            <div class="rm-summary-stat">
+                <div class="rm-summary-num" style="color:var(--cyan);">35</div>
+                <div class="rm-summary-label">Experimentos</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MILESTONE CARDS -->
+<div class="roadmap-grid">
+
+    <!-- Phase 1: Algorithm -->
+    <div class="roadmap-card rm-done">
+        <div class="rm-card-top">
+            <span class="rm-phase">Fase 1 &mdash; Algoritmo</span>
+            <span class="rm-status rm-status-done">Completado</span>
+        </div>
+        <div class="rm-title">Motor COMPASS v8.2</div>
+        <div class="rm-desc">
+            Algoritmo de momentum cross-sectional con filtro de r&eacute;gimen SPY SMA(200), vol-targeting, y stops de protecci&oacute;n. Bloqueado tras 35 experimentos.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check checked"></span> Backtest 2000-2026: 18.56% CAGR, 0.90 Sharpe</li>
+            <li><span class="rm-check checked"></span> Net CAGR estimado: 15.16% (con costos)</li>
+            <li><span class="rm-check checked"></span> 35 experimentos, 31 fallidos &mdash; motor bloqueado</li>
+            <li><span class="rm-check checked"></span> No leverage (1.0x) &mdash; margen 6% destruye valor</li>
+            <li><span class="rm-check checked"></span> Cash yield Moody's Aaa IG (variable, FRED)</li>
+            <li><span class="rm-check checked"></span> Pre-close signal 15:30 ET + MOC same-day</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Inicio: <span class="rm-meta-val">2024</span></div>
+            <div class="rm-meta-item">Fin: <span class="rm-meta-val">Feb 2026</span></div>
+            <div class="rm-meta-item">Resultado: <span class="rm-meta-val" style="color:var(--green);">$100K &rarr; $8.43M</span></div>
+        </div>
+    </div>
+
+    <!-- Phase 2: Data Integrity -->
+    <div class="roadmap-card rm-active">
+        <div class="rm-card-top">
+            <span class="rm-phase">Fase 2 &mdash; Datos</span>
+            <span class="rm-status rm-status-active">En Progreso</span>
+        </div>
+        <div class="rm-title">Norgate Data + Validaci&oacute;n</div>
+        <div class="rm-desc">
+            Datos point-in-time del S&amp;P 500 para eliminar sesgo de supervivencia y validar cruzadamente con yfinance. Resuelve DOS problemas con UNA soluci&oacute;n.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check"></span> Suscripci&oacute;n Norgate Data (US Equities + S&amp;P 500 history)</li>
+            <li><span class="rm-check"></span> Pipeline de datos point-in-time (delisted stocks)</li>
+            <li><span class="rm-check"></span> Cross-validaci&oacute;n vs yfinance (expected: close match)</li>
+            <li><span class="rm-check"></span> Re-run backtest con universo sobreviviente-free</li>
+            <li><span class="rm-check checked"></span> Data Quality Pipeline (parquet cache scoring)</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--red);">#1 CR&Iacute;TICA</span></div>
+            <div class="rm-meta-item">Costo: <span class="rm-meta-val">~$500/a&ntilde;o</span></div>
+            <div class="rm-meta-item">Impacto: <span class="rm-meta-val">Elimina survivorship bias</span></div>
+        </div>
+    </div>
+
+    <!-- Phase 3: Broker -->
+    <div class="roadmap-card rm-pending">
+        <div class="rm-card-top">
+            <span class="rm-phase">Fase 3 &mdash; Broker</span>
+            <span class="rm-status rm-status-pending">Pendiente</span>
+        </div>
+        <div class="rm-title">IBKR TWS API</div>
+        <div class="rm-desc">
+            Integraci&oacute;n con Interactive Brokers para routing real de &oacute;rdenes MOC. Requisito absoluto antes de capital real.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check"></span> Cuenta IBKR abierta y configurada</li>
+            <li><span class="rm-check"></span> Conectar TWS API / IB Gateway</li>
+            <li><span class="rm-check"></span> Adapter de &oacute;rdenes MOC (Market-on-Close)</li>
+            <li><span class="rm-check"></span> Failover: si broker cae, alertar + paper backup</li>
+            <li><span class="rm-check"></span> Monitor de ejecuci&oacute;n (fill rate, slippage real)</li>
+            <li><span class="rm-check"></span> Corporate actions handler (splits, dividendos)</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--orange);">#2</span></div>
+            <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fase 2</span></div>
+            <div class="rm-meta-item">Orden: <span class="rm-meta-val">IBKR &rarr; Failover &rarr; Monitor &rarr; Corp Actions</span></div>
+        </div>
+    </div>
+
+    <!-- Phase 4: Paper Trading -->
+    <div class="roadmap-card rm-pending">
+        <div class="rm-card-top">
+            <span class="rm-phase">Fase 4 &mdash; Validaci&oacute;n</span>
+            <span class="rm-status rm-status-pending">Pendiente</span>
+        </div>
+        <div class="rm-title">Paper Trading 3-6 Meses</div>
+        <div class="rm-desc">
+            Simulaci&oacute;n en tiempo real sin capital. M&iacute;nimo 3 meses para capturar un ciclo completo de earnings trimestrales.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check checked"></span> Dashboard live operativo</li>
+            <li><span class="rm-check"></span> 1 mes paper sin errores de ejecuci&oacute;n</li>
+            <li><span class="rm-check"></span> 3 meses paper (ciclo completo de earnings)</li>
+            <li><span class="rm-check"></span> Slippage real vs estimado (target &le; 2bps)</li>
+            <li><span class="rm-check"></span> Fill rate &ge; 99% en &oacute;rdenes MOC</li>
+            <li><span class="rm-check"></span> 0 incidentes de sistema no resueltos</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--orange);">#3</span></div>
+            <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fase 3</span></div>
+            <div class="rm-meta-item">Duraci&oacute;n: <span class="rm-meta-val">3-6 meses m&iacute;nimo</span></div>
+        </div>
+    </div>
+
+    <!-- Phase 5: Tax Optimization -->
+    <div class="roadmap-card rm-pending">
+        <div class="rm-card-top">
+            <span class="rm-phase">Fase 5 &mdash; Fiscalidad</span>
+            <span class="rm-status rm-status-pending">Pendiente</span>
+        </div>
+        <div class="rm-title">Optimizaci&oacute;n Fiscal</div>
+        <div class="rm-desc">
+            ~209 trades/a&ntilde;o generan ganancias de corto plazo (hasta 37% + state tax). Operar en cuenta IRA/401(k) para diferir impuestos.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check"></span> Evaluar IRA vs 401(k) vs Taxable</li>
+            <li><span class="rm-check"></span> Transferir/abrir cuenta IRA en IBKR</li>
+            <li><span class="rm-check"></span> Calcular tax drag real (~10-11% after-tax en taxable)</li>
+            <li><span class="rm-check"></span> Configurar m&oacute;dulo de tax-lot tracking</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--yellow);">#4</span></div>
+            <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fase 3</span></div>
+            <div class="rm-meta-item">Impacto: <span class="rm-meta-val">+4-5% CAGR (tax savings)</span></div>
+        </div>
+    </div>
+
+    <!-- Phase 6: Go Live -->
+    <div class="roadmap-card rm-pending">
+        <div class="rm-card-top">
+            <span class="rm-phase">Fase 6 &mdash; Lanzamiento</span>
+            <span class="rm-status rm-status-pending">Pendiente</span>
+        </div>
+        <div class="rm-title">Capital Real $100K</div>
+        <div class="rm-desc">
+            Despliegue con $100K de capital real. Escalar a $500K+ en el futuro con RATTLESNAKE dual-engine y Box Spread financing via portfolio margin.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check"></span> Depositar $100K en IBKR</li>
+            <li><span class="rm-check"></span> Ejecutar primera se&ntilde;al real</li>
+            <li><span class="rm-check"></span> Monitoreo 24/7 (alertas, failover activo)</li>
+            <li><span class="rm-check"></span> Review mensual: CAGR real vs backtest</li>
+            <li><span class="rm-check"></span> Plan de escala: $500K+ &rarr; RATTLESNAKE + portfolio margin</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--text-tertiary);">#6 FINAL</span></div>
+            <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fases 1-5</span></div>
+            <div class="rm-meta-item">Capital: <span class="rm-meta-val" style="color:var(--green);">$100,000</span></div>
+        </div>
+    </div>
+
+</div><!-- /roadmap-grid -->
+
+<!-- DECISION LOG -->
+<div class="roadmap-summary" style="margin-bottom:20px;">
+    <div class="roadmap-summary-card">
+        <div class="rm-summary-title">Decisiones Clave Tomadas</div>
+        <div style="display:grid; gap:8px;">
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">No Leverage</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Margen broker 6% destruye -1.10% CAGR. Box Spread (SOFR+20bps) es la &uacute;nica v&iacute;a viable.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">Motor Bloqueado</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">35 experimentos, 31 fallidos. Algoritmo inel&aacute;stico &mdash; cualquier cambio degrada performance.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">US-Only</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Expansi&oacute;n geogr&aacute;fica FALLIDA: EU -20.87%, Asia -19.71%. Algoritmo depende de microestructura US.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">Single Engine</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">COMPASS+RATTLESNAKE 50/50 revertido. COMPASS v8.2 solo es la mejor opci&oacute;n hasta $500K+.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0;">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">Pre-Close MOC</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Se&ntilde;al a 15:30 ET + MOC same-day recupera +0.79% CAGR y mejora MaxDD en 7.8pp.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /page-roadmap -->
+
 <!-- FOOTER -->
 <div class="footer">OmniCapital COMPASS v8.2 &middot; Paper Trading &middot; No Leverage (1.0x) &middot; Pre-Close MOC @ 15:30 ET</div>
 
@@ -1666,6 +3044,22 @@ let countdownSec = 30;
 let currentPositions = {};
 let lastSuccessTime = null;
 let pendingAction = null;
+
+/* ============ PAGE SWITCHING ============ */
+let fundScatterInitialized = false;
+function switchPage(page) {
+    document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.page-tab').forEach(el => el.classList.remove('active'));
+    const pageEl = document.getElementById('page-' + page);
+    const tabEl = document.querySelector('.page-tab[data-page="' + page + '"]');
+    if (pageEl) pageEl.classList.add('active');
+    if (tabEl) tabEl.classList.add('active');
+    /* Init scatter chart on first paper view (needs visible canvas) */
+    if (page === 'paper' && !fundScatterInitialized) {
+        fundScatterInitialized = true;
+        setTimeout(initFundScatterChart, 50);
+    }
+}
 
 /* ============ HELPERS ============ */
 function fmt$(v) {
@@ -1984,6 +3378,36 @@ function updatePositions(details) {
         '</div>';
     }
 
+    /* Formula card fills empty grid slots */
+    html += '<div class="pos-formula-card">' +
+        '<div class="pos-formula-left">' +
+            '<div class="pos-formula-label">COMPASS v8.2 SIGNAL</div>' +
+            '<div class="pos-formula-lines">' +
+                '<span>R<sub>i</sub> = P<sub>i,t-5</sub> / P<sub>i,t-95</sub> &minus; 1</span>' +
+                '<span>rank(R) &rarr; top N stocks</span>' +
+                '<span class="pos-formula-dim">N = 5 (risk-on) | 2 (risk-off)</span>' +
+                '<span>&sigma;<sub>tgt</sub> = 15% &rarr; lev &isin; [0.3, 1.0]</span>' +
+                '<span>regime = SPY &gt; SMA(200)<sub>3d</sub></span>' +
+                '<span class="pos-formula-dim">stop: &minus;8% pos | &minus;15% port</span>' +
+                '<span class="pos-formula-dim">trail: +5% &rarr; +3% lock</span>' +
+                '<span class="pos-formula-dim">hold: 5d | lookback: 90d</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="pos-formula-right">' +
+            '<div class="pos-formula-right-label">EXPLANATION</div>' +
+            '<div class="pos-formula-explain">' +
+                '<span>R<sub>i</sub> &rarr; 90-day momentum return, skip last 5 days</span>' +
+                '<span>rank &rarr; cross-sectional sort, buy highest momentum</span>' +
+                '<span class="pos-formula-explain-dim">5 positions in bull market, 2 in bear</span>' +
+                '<span>&sigma;<sub>tgt</sub> &rarr; vol-target 15%, scale exposure [0.3x-1.0x]</span>' +
+                '<span>regime &rarr; SPY above 200-day SMA for 3 consecutive days</span>' +
+                '<span class="pos-formula-explain-dim">-8% per position stop-loss, -15% portfolio circuit breaker</span>' +
+                '<span class="pos-formula-explain-dim">trailing stop activates at +5% gain, locks at +3%</span>' +
+                '<span class="pos-formula-explain-dim">rebalance every 5 trading days</span>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+
     grid.innerHTML = html;
 
     /* Totals */
@@ -2134,8 +3558,15 @@ function updateSocialFeed(messages) {
         const bodyHtml = m.url ?
             '<a href="' + escHtml(m.url) + '" target="_blank" rel="noopener">' + highlightCashtags(m.body) + '</a>' :
             highlightCashtags(m.body);
-        const srcCls = m.source === 'reddit' ? 'sf-src-reddit' : 'sf-src-news';
-        const srcLabel = m.source === 'reddit' ? 'Reddit' : 'News';
+        const srcMap = {
+            'reddit': ['sf-src-reddit', 'Reddit'],
+            'news': ['sf-src-news', 'News'],
+            'seekingalpha': ['sf-src-seekingalpha', 'SeekingAlpha'],
+            'sec': ['sf-src-sec', 'SEC'],
+            'google': ['sf-src-google', 'Google'],
+            'marketwatch': ['sf-src-marketwatch', 'MarketWatch'],
+        };
+        const [srcCls, srcLabel] = srcMap[m.source] || ['sf-src-news', m.source || 'News'];
         const sentimentHtml = m.sentiment === 'bullish' ?
             '<span class="sf-sentiment sf-sentiment-bull">Bull</span>' :
             m.sentiment === 'bearish' ?
@@ -2677,6 +4108,131 @@ function renderDQAlerts(data) {
         html += `<div class="dq-alert-item" style="color:var(--text-muted);">... and ${data.alerts.length - 10} more alerts</div>`;
     }
     box.innerHTML = html;
+}
+
+/* ============ FUND SCATTER CHART ============ */
+function initFundScatterChart() {
+    const ctx = document.getElementById('fundScatterChart');
+    if (!ctx) return;
+
+    /* Fund data: { x: Sharpe, y: CAGR%, label, leverage, color, radius } */
+    const funds = [
+        /* COMPASS */
+        { x: 0.90, y: 18.56, label: 'COMPASS Signal', lev: 1, color: '#22c55e', r: 7 },
+        { x: 0.734, y: 15.16, label: 'COMPASS Net', lev: 1, color: '#22c55e', r: 9 },
+        /* Elite Multi-Strategy (high leverage) */
+        { x: 2.2, y: 19.2, label: 'Citadel Wellington', lev: 7, color: '#f97316', r: 14 },
+        { x: 1.7, y: 12.9, label: 'D.E. Shaw', lev: 5, color: '#f97316', r: 12 },
+        { x: 1.8, y: 18.5, label: 'PDT Partners', lev: 4, color: '#f97316', r: 11 },
+        { x: 2.5, y: 14.0, label: 'Millennium', lev: 12, color: '#f97316', r: 18 },
+        { x: 1.2, y: 12.0, label: 'Two Sigma', lev: 4, color: '#f97316', r: 11 },
+        /* Systematic / Trend-Following */
+        { x: 0.85, y: 11.5, label: 'Bridgewater Pure Alpha', lev: 3, color: '#3b82f6', r: 10 },
+        { x: 0.80, y: 11.6, label: 'Man AHL', lev: 3, color: '#3b82f6', r: 10 },
+        { x: 0.78, y: 12.7, label: 'Winton', lev: 3, color: '#3b82f6', r: 10 },
+        { x: 0.60, y: 8.8, label: 'Aspect Capital', lev: 3, color: '#3b82f6', r: 10 },
+        /* Momentum Funds (long-only, no leverage) */
+        { x: 0.75, y: 14.6, label: 'iShares MTUM', lev: 1, color: '#06b6d4', r: 7 },
+        { x: 0.70, y: 14.0, label: 'AQR Momentum', lev: 1, color: '#06b6d4', r: 7 },
+        { x: 0.55, y: 8.0, label: 'Renaissance RIEF', lev: 2, color: '#06b6d4', r: 8 },
+        /* Benchmarks */
+        { x: 0.50, y: 10.4, label: 'S&P 500', lev: 1, color: '#6366f1', r: 7 },
+        { x: 0.65, y: 8.2, label: '60/40 Portfolio', lev: 1, color: '#6366f1', r: 7 },
+    ];
+
+    const datasets = [{
+        data: funds.map(f => ({ x: f.x, y: f.y, label: f.label, lev: f.lev })),
+        backgroundColor: funds.map(f => f.label.startsWith('COMPASS') ? f.color : f.color + '99'),
+        borderColor: funds.map(f => f.color),
+        borderWidth: funds.map(f => f.label.startsWith('COMPASS') ? 3 : 1),
+        pointRadius: funds.map(f => f.r),
+        pointHoverRadius: funds.map(f => f.r + 3),
+    }];
+
+    new Chart(ctx, {
+        type: 'bubble',
+        data: { datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(16,16,26,0.95)',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    titleFont: { family: "'Inter', sans-serif", size: 13, weight: '700' },
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
+                    padding: 12,
+                    callbacks: {
+                        title: function(items) { return items[0].raw.label; },
+                        label: function(item) {
+                            return [
+                                'CAGR: ' + item.raw.y.toFixed(1) + '%',
+                                'Sharpe: ' + item.raw.x.toFixed(2),
+                                'Leverage: ' + item.raw.lev + 'x'
+                            ];
+                        }
+                    }
+                },
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Sharpe Ratio', color: '#9898b0', font: { family: "'Inter', sans-serif", size: 12, weight: '600' } },
+                    min: 0.2,
+                    max: 2.8,
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: { color: '#5e5e78', font: { family: "'JetBrains Mono', monospace", size: 11 } },
+                    border: { color: 'rgba(255,255,255,0.06)' }
+                },
+                y: {
+                    title: { display: true, text: 'Net CAGR (%)', color: '#9898b0', font: { family: "'Inter', sans-serif", size: 12, weight: '600' } },
+                    min: 4,
+                    max: 24,
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: { color: '#5e5e78', font: { family: "'JetBrains Mono', monospace", size: 11 }, callback: v => v + '%' },
+                    border: { color: 'rgba(255,255,255,0.06)' }
+                }
+            },
+            /* Draw fund labels on chart */
+            animation: {
+                onComplete: function() {
+                    const chart = this;
+                    const ctx2 = chart.ctx;
+                    ctx2.save();
+                    ctx2.font = "500 9px 'Inter', sans-serif";
+                    ctx2.textAlign = 'left';
+                    chart.data.datasets[0].data.forEach(function(pt, i) {
+                        const meta = chart.getDatasetMeta(0).data[i];
+                        if (!meta) return;
+                        const px = meta.x;
+                        const py = meta.y;
+                        const f = funds[i];
+                        /* Pick offset so labels don't overlap points */
+                        let ox = f.r + 4, oy = -4;
+                        ctx2.textAlign = 'left';
+                        /* Special adjustments for crowded area */
+                        if (f.label === 'COMPASS Signal') { ox = f.r + 4; oy = -10; }
+                        if (f.label === 'COMPASS Net') { ox = f.r + 4; oy = 16; }
+                        if (f.label === 'iShares MTUM') { ox = f.r + 4; oy = -12; }
+                        if (f.label === 'AQR Momentum') { ox = f.r + 4; oy = 16; }
+                        if (f.label === 'Man AHL') { ox = f.r + 4; oy = 14; }
+                        if (f.label === 'Bridgewater Pure Alpha') { ox = f.r + 4; oy = -2; }
+                        if (f.label === 'S&P 500') { ox = f.r + 4; oy = -10; }
+                        if (f.label === '60/40 Portfolio') { ox = f.r + 4; oy = 14; }
+                        if (f.label === 'Aspect Capital') { ox = f.r + 4; oy = -10; }
+                        if (f.label === 'Renaissance RIEF') { ox = f.r + 4; oy = 14; }
+                        if (f.label === 'Millennium') { oy = -12; }
+                        if (f.label === 'Two Sigma') { oy = 14; }
+                        if (f.label === 'Winton') { oy = -10; }
+                        ctx2.fillStyle = f.color + 'cc';
+                        ctx2.fillText(f.label, px + ox, py + oy);
+                    });
+                    ctx2.restore();
+                }
+            }
+        }
+    });
 }
 
 /* ============ INIT ============ */

@@ -1183,14 +1183,16 @@ def api_preflight():
 
 
 # ============================================================================
-# SOCIAL FEED API (yfinance news + Reddit)
+# SOCIAL FEED API (yfinance + Reddit + Finviz + SEC EDGAR + Google News + Stocktwits)
 # ============================================================================
 
 _social_cache: Dict = {}
 _social_cache_time: Optional[datetime] = None
 SOCIAL_CACHE_SECONDS = 300  # 5 min cache
 
-import requests as http_requests  # for Reddit API
+import requests as http_requests  # for external APIs
+import xml.etree.ElementTree as XmlET
+import re as _re
 
 
 def _fetch_yfinance_news(symbols: List[str], max_per: int = 3) -> List[dict]:
@@ -1280,8 +1282,231 @@ def _fetch_reddit_posts(symbols: List[str], max_per: int = 2) -> List[dict]:
     return items
 
 
+def _fetch_seekingalpha_news(symbols: List[str], max_per: int = 2) -> List[dict]:
+    """Fetch analysis from Seeking Alpha RSS for holdings (free, no API key)."""
+    items = []
+    headers = {'User-Agent': 'COMPASS-Dashboard/1.0'}
+    for symbol in symbols:
+        try:
+            rss_url = f'https://seekingalpha.com/api/sa/combined/{symbol}.xml'
+            r = http_requests.get(rss_url, headers=headers, timeout=8)
+            if r.status_code != 200:
+                continue
+            root = XmlET.fromstring(r.content)
+            count = 0
+            for item_el in root.iter('item'):
+                if count >= max_per:
+                    break
+                title = item_el.findtext('title', '').strip()
+                if not title:
+                    continue
+                link = item_el.findtext('link', '').strip()
+                pub_date_raw = item_el.findtext('pubDate', '').strip()
+                author = ''
+                for child in item_el:
+                    if 'author_name' in child.tag or 'creator' in child.tag:
+                        author = (child.text or '').strip()
+                        break
+
+                pub_iso = ''
+                if pub_date_raw:
+                    try:
+                        from email.utils import parsedate_to_datetime
+                        dt = parsedate_to_datetime(pub_date_raw)
+                        pub_iso = dt.isoformat()
+                    except Exception:
+                        pub_iso = pub_date_raw
+
+                if len(title) > 150:
+                    title = title[:150].rsplit(' ', 1)[0] + '...'
+
+                items.append({
+                    'symbol': symbol,
+                    'body': title,
+                    'detail': author or '',
+                    'user': author or 'Seeking Alpha',
+                    'time': pub_iso,
+                    'url': link,
+                    'source': 'seekingalpha',
+                    'sentiment': None,
+                })
+                count += 1
+        except Exception:
+            pass
+    return items
+
+
+def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
+    """Fetch recent SEC EDGAR filings via EFTS full-text search (free, no key)."""
+    items = []
+    headers = {'User-Agent': 'COMPASS-Dashboard admin@omnicapital.com'}
+    start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+    end_date = datetime.now().strftime('%Y-%m-%d')
+    for symbol in symbols:
+        try:
+            r = http_requests.get(
+                'https://efts.sec.gov/LATEST/search-index',
+                params={
+                    'q': f'"{symbol}"',
+                    'forms': '10-K,10-Q,8-K,4',
+                    'dateRange': 'custom',
+                    'startdt': start_date,
+                    'enddt': end_date,
+                },
+                headers=headers,
+                timeout=8
+            )
+            if r.status_code != 200:
+                continue
+            data = r.json()
+            hits = data.get('hits', {}).get('hits', [])
+            count = 0
+            for hit in hits:
+                if count >= max_per:
+                    break
+                src = hit.get('_source', {})
+                form_type = src.get('forms', src.get('form_type', ''))
+                if isinstance(form_type, list):
+                    form_type = form_type[0] if form_type else ''
+                file_date = src.get('file_date', '')
+                display_names = src.get('display_names', [])
+                entity_name = display_names[0] if display_names else symbol
+
+                title = f'{entity_name} \u2014 {form_type} filing'
+                link = f'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={symbol}&type={form_type}&dateb=&owner=include&count=5'
+
+                pub_iso = ''
+                if file_date:
+                    try:
+                        pub_iso = datetime.strptime(file_date, '%Y-%m-%d').isoformat()
+                    except Exception:
+                        pub_iso = file_date
+
+                if len(title) > 150:
+                    title = title[:150].rsplit(' ', 1)[0] + '...'
+
+                items.append({
+                    'symbol': symbol,
+                    'body': title,
+                    'detail': form_type or 'SEC Filing',
+                    'user': 'SEC EDGAR',
+                    'time': pub_iso,
+                    'url': link,
+                    'source': 'sec',
+                    'sentiment': None,
+                })
+                count += 1
+        except Exception:
+            pass
+    return items
+
+
+def _fetch_google_news(symbols: List[str], max_per: int = 2) -> List[dict]:
+    """Fetch stock news from Google News RSS (free, no API key)."""
+    items = []
+    headers = {'User-Agent': 'COMPASS-Dashboard/1.0'}
+    for symbol in symbols:
+        try:
+            # Google News RSS search
+            query = f'{symbol}+stock+market'
+            rss_url = f'https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en'
+            r = http_requests.get(rss_url, headers=headers, timeout=8)
+            if r.status_code != 200:
+                continue
+            root = XmlET.fromstring(r.content)
+            count = 0
+            for item_el in root.iter('item'):
+                if count >= max_per:
+                    break
+                title = item_el.findtext('title', '').strip()
+                if not title:
+                    continue
+                link = item_el.findtext('link', '').strip()
+                pub_date_raw = item_el.findtext('pubDate', '').strip()
+                source_name = item_el.findtext('source', '').strip()
+
+                pub_iso = ''
+                if pub_date_raw:
+                    try:
+                        from email.utils import parsedate_to_datetime
+                        dt = parsedate_to_datetime(pub_date_raw)
+                        pub_iso = dt.isoformat()
+                    except Exception:
+                        pub_iso = pub_date_raw
+
+                # Clean title (Google News appends " - Source Name")
+                if ' - ' in title and source_name:
+                    title = title.rsplit(' - ', 1)[0].strip()
+
+                if len(title) > 150:
+                    title = title[:150].rsplit(' ', 1)[0] + '...'
+
+                items.append({
+                    'symbol': symbol,
+                    'body': title,
+                    'detail': source_name or '',
+                    'user': source_name or 'Google News',
+                    'time': pub_iso,
+                    'url': link,
+                    'source': 'google',
+                    'sentiment': None,
+                })
+                count += 1
+        except Exception:
+            pass
+    return items
+
+
+def _fetch_marketwatch_news(max_items: int = 5) -> List[dict]:
+    """Fetch top market headlines from MarketWatch RSS (free, no API key)."""
+    items = []
+    headers = {'User-Agent': 'COMPASS-Dashboard/1.0'}
+    try:
+        rss_url = 'https://feeds.marketwatch.com/marketwatch/topstories/'
+        r = http_requests.get(rss_url, headers=headers, timeout=8)
+        if r.status_code != 200:
+            return items
+        root = XmlET.fromstring(r.content)
+        count = 0
+        for item_el in root.iter('item'):
+            if count >= max_items:
+                break
+            title = item_el.findtext('title', '').strip()
+            if not title:
+                continue
+            link = item_el.findtext('link', '').strip()
+            pub_date_raw = item_el.findtext('pubDate', '').strip()
+
+            pub_iso = ''
+            if pub_date_raw:
+                try:
+                    from email.utils import parsedate_to_datetime
+                    dt = parsedate_to_datetime(pub_date_raw)
+                    pub_iso = dt.isoformat()
+                except Exception:
+                    pub_iso = pub_date_raw
+
+            if len(title) > 150:
+                title = title[:150].rsplit(' ', 1)[0] + '...'
+
+            items.append({
+                'symbol': 'MKT',
+                'body': title,
+                'detail': '',
+                'user': 'MarketWatch',
+                'time': pub_iso,
+                'url': link,
+                'source': 'marketwatch',
+                'sentiment': None,
+            })
+            count += 1
+    except Exception:
+        pass
+    return items
+
+
 def fetch_social_feed(symbols: List[str]) -> List[dict]:
-    """Fetch combined social feed for holdings (yfinance + Reddit)."""
+    """Fetch combined social feed for holdings (6 sources)."""
     global _social_cache, _social_cache_time
 
     now = datetime.now()
@@ -1291,14 +1516,18 @@ def fetch_social_feed(symbols: List[str]) -> List[dict]:
         if cached is not None:
             return cached
 
-    # Fetch from both sources
+    # Fetch from all sources
     news_items = _fetch_yfinance_news(symbols, max_per=3)
     reddit_items = _fetch_reddit_posts(symbols, max_per=2)
+    sa_items = _fetch_seekingalpha_news(symbols, max_per=2)
+    sec_items = _fetch_sec_filings(symbols, max_per=2)
+    google_items = _fetch_google_news(symbols, max_per=2)
+    mw_items = _fetch_marketwatch_news(max_items=5)
 
     # Merge and sort by time (newest first)
-    all_items = news_items + reddit_items
+    all_items = news_items + reddit_items + sa_items + sec_items + google_items + mw_items
     all_items.sort(key=lambda x: x.get('time', ''), reverse=True)
-    result = all_items[:20]
+    result = all_items[:50]  # Increased from 20 to 50 (own tab now)
 
     _social_cache[cache_key] = result
     _social_cache_time = now
