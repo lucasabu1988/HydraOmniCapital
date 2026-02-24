@@ -391,11 +391,20 @@ class OmniCapitalTrader:
                 state = json.load(f)
             
             self.positions = state.get('positions', {})
+
+            # Fix L-001: Re-parse entry_date strings back to datetime objects
+            for sym, pos in self.positions.items():
+                if isinstance(pos.get('entry_date'), str):
+                    try:
+                        pos['entry_date'] = datetime.fromisoformat(pos['entry_date'])
+                    except ValueError:
+                        pos['entry_date'] = datetime.now()
+
             self.cash = state.get('cash', self.config['INITIAL_CAPITAL'])
             self.peak_value = state.get('peak_value', self.config['INITIAL_CAPITAL'])
             self.in_protection = state.get('in_protection', False)
             self.current_leverage = state.get('current_leverage', self.config['LEVERAGE'])
-            
+
             logger.info("Estado cargado desde archivo")
 
 

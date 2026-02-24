@@ -42,11 +42,13 @@ class Position:
     entry_date: datetime
     weight: float = 0.0
     beta: float = 1.0
-    
+
     # Niveles de riesgo
     stop_loss_price: Optional[float] = None
     take_profit_price: Optional[float] = None
     highest_price: float = 0.0
+    initial_shares: int = 0
+    sold_tiers: List[float] = field(default_factory=list)
     
     @property
     def market_value(self) -> float:
@@ -130,107 +132,112 @@ class Portfolio:
         price: float,
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None,
-        beta: float = 1.0
+        beta: float = 1.0,
+        current_date: Optional[datetime] = None
     ) -> None:
         """Añade una nueva posición al portafolio"""
+        exec_date = current_date or datetime.now()
         cost = shares * price
         commission = cost * 0.001  # 0.1% comisión
         total_cost = cost + commission
-        
+
         if total_cost > self.cash:
             raise ValueError(f"Fondos insuficientes. Requerido: {total_cost}, Disponible: {self.cash}")
-        
+
         position = Position(
             symbol=symbol,
             sector=sector,
             entry_price=price,
             current_price=price,
             shares=shares,
-            entry_date=datetime.now(),
+            entry_date=exec_date,
             stop_loss_price=stop_loss,
             take_profit_price=take_profit,
             highest_price=price,
-            beta=beta
+            beta=beta,
+            initial_shares=shares
         )
-        
+
         self.positions[symbol] = position
         self.cash -= total_cost
-        
+
         # Registrar trade
         trade = Trade(
             symbol=symbol,
             side='BUY',
             shares=shares,
             price=price,
-            timestamp=datetime.now(),
+            timestamp=exec_date,
             reason='NEW_POSITION',
             commission=commission
         )
         self.trades.append(trade)
         self._update_weights()
     
-    def close_position(self, symbol: str, price: float, reason: str) -> float:
+    def close_position(self, symbol: str, price: float, reason: str, current_date: Optional[datetime] = None) -> float:
         """Cierra una posición existente"""
         if symbol not in self.positions:
             return 0.0
-        
+
+        exec_date = current_date or datetime.now()
         position = self.positions[symbol]
         proceeds = position.shares * price
         commission = proceeds * 0.001
         net_proceeds = proceeds - commission
-        
+
         # Actualizar cash
         self.cash += net_proceeds
-        
+
         # Registrar trade
         trade = Trade(
             symbol=symbol,
             side='SELL',
             shares=position.shares,
             price=price,
-            timestamp=datetime.now(),
+            timestamp=exec_date,
             reason=reason,
             commission=commission
         )
         self.trades.append(trade)
-        
+
         # Remover posición
         del self.positions[symbol]
         self._update_weights()
-        
+
         return net_proceeds
     
-    def partial_close(self, symbol: str, shares: int, price: float, reason: str) -> float:
+    def partial_close(self, symbol: str, shares: int, price: float, reason: str, current_date: Optional[datetime] = None) -> float:
         """Cierra parcialmente una posición"""
         if symbol not in self.positions:
             return 0.0
-        
+
+        exec_date = current_date or datetime.now()
         position = self.positions[symbol]
         shares = min(shares, position.shares)
-        
+
         proceeds = shares * price
         commission = proceeds * 0.001
         net_proceeds = proceeds - commission
-        
+
         # Actualizar posición
         position.shares -= shares
         self.cash += net_proceeds
-        
+
         # Registrar trade
         trade = Trade(
             symbol=symbol,
             side='SELL',
             shares=shares,
             price=price,
-            timestamp=datetime.now(),
+            timestamp=exec_date,
             reason=reason,
             commission=commission
         )
         self.trades.append(trade)
-        
+
         if position.shares == 0:
             del self.positions[symbol]
-        
+
         self._update_weights()
         return net_proceeds
     

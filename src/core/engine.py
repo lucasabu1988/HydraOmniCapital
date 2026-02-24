@@ -313,29 +313,32 @@ class TradingEngine:
             # Verificar take profit
             if position.take_profit_price:
                 progress = (current_price - position.entry_price) / (position.take_profit_price - position.entry_price)
-                
-                # Niveles de take profit parcial
-                if progress >= 1.0:
+
+                # Niveles de take profit parcial (using sold_tiers to track state)
+                if progress >= 1.0 and 1.0 not in position.sold_tiers:
                     positions_to_close.append({
                         'symbol': symbol,
                         'price': current_price,
                         'reason': 'TAKE_PROFIT_100',
-                        'percentage': 0.40
+                        'percentage': 1.0  # Close remaining
                     })
-                elif progress >= 0.75 and position.shares == int(position.shares * 0.70):  # Ya vendió 30%
+                    position.sold_tiers.append(1.0)
+                elif progress >= 0.75 and 0.75 not in position.sold_tiers:
                     positions_to_close.append({
                         'symbol': symbol,
                         'price': current_price,
                         'reason': 'TAKE_PROFIT_75',
                         'percentage': 0.30
                     })
-                elif progress >= 0.50 and position.shares == int(position.shares * 1.0):  # Sin ventas aún
+                    position.sold_tiers.append(0.75)
+                elif progress >= 0.50 and 0.50 not in position.sold_tiers:
                     positions_to_close.append({
                         'symbol': symbol,
                         'price': current_price,
                         'reason': 'TAKE_PROFIT_50',
                         'percentage': 0.30
                     })
+                    position.sold_tiers.append(0.50)
             
             # Actualizar trailing stop
             if self.config['risk_management']['stop_loss'].get('trailing', False):

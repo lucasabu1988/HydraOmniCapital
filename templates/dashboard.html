@@ -1610,7 +1610,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
             <canvas id="montecarlo-chart"></canvas>
             <div id="mc-loading" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--text-tertiary);font-size:13px;">Loading simulations...</div>
         </div>
-        <div class="grid-3" id="mc-milestones" style="margin-top:8px;"></div>
+        <div id="mc-milestones" style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; margin-top:8px;"></div>
         <div id="mc-drawdown" style="margin-top:4px;"></div>
         <div id="mc-hist-stats" style="margin-top:8px; font-size:11px; color:var(--text-tertiary);"></div>
     </div>
@@ -2450,10 +2450,10 @@ function renderMCChart(data) {
             labels: labels,
             datasets: [
                 { label: '95th', data: fc.p95, borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, fill: false },
-                { label: '5th-95th', data: fc.p5, borderColor: 'transparent', backgroundColor: 'rgba(168,85,247,0.08)', pointRadius: 0, fill: '-1' },
+                { label: '5th-95th', data: fc.p5, borderColor: 'transparent', backgroundColor: 'rgba(6,182,212,0.08)', pointRadius: 0, fill: '-1' },
                 { label: '75th', data: fc.p75, borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, fill: false },
-                { label: '25th-75th', data: fc.p25, borderColor: 'transparent', backgroundColor: 'rgba(168,85,247,0.18)', pointRadius: 0, fill: '-1' },
-                { label: 'Median', data: fc.p50, borderColor: '#a855f7', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, fill: false },
+                { label: '25th-75th', data: fc.p25, borderColor: 'transparent', backgroundColor: 'rgba(6,182,212,0.20)', pointRadius: 0, fill: '-1' },
+                { label: 'Median', data: fc.p50, borderColor: '#06b6d4', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, fill: false },
             ]
         },
         options: {
@@ -2493,10 +2493,15 @@ function renderMCMilestones(data) {
     if (!h10) { box.innerHTML = ''; return; }
     const fs = h10.final_stats;
     const m = h10.milestones;
+    const medianCAGR = (Math.pow(fs.median / 100000, 1/10) - 1) * 100;
     box.innerHTML = `
         <div class="mc-milestone-card">
             <div class="mc-label">10yr Median</div>
-            <div class="mc-val" style="color:var(--purple);">${fmtMoney(fs.median)}</div>
+            <div class="mc-val" style="color:var(--cyan);">${fmtMoney(fs.median)}</div>
+        </div>
+        <div class="mc-milestone-card">
+            <div class="mc-label">Median CAGR</div>
+            <div class="mc-val" style="color:var(--green);">${medianCAGR.toFixed(1)}%</div>
         </div>
         <div class="mc-milestone-card">
             <div class="mc-label">P(&gt;$500K) 10yr</div>
