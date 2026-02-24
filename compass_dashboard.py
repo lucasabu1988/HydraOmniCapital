@@ -104,10 +104,11 @@ _engine_status = {
 }
 
 # ============================================================================
-# BACKTEST AUTO-REFRESH SCHEDULER
+# BACKTEST AUTO-REFRESH SCHEDULER (includes parquet data refresh)
 # ============================================================================
 
 BACKTEST_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'omnicapital_v8_compass.py')
+REFRESH_PARQUET_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refresh_parquet_cache.py')
 BACKTEST_CSV = os.path.join('backtests', 'v8_compass_daily.csv')
 
 _backtest_status = {
@@ -122,7 +123,7 @@ _backtest_thread = None
 
 def _backtest_scheduler_loop():
     """Daemon thread: runs backtest daily after market close (16:15 ET on weekdays)."""
-    global _backtest_status
+    global _backtest_status, _data_quality_cache, _data_quality_cache_time
 
     while True:
         try:
@@ -132,13 +133,33 @@ def _backtest_scheduler_loop():
             after_close = now_et.hour > 16 or (now_et.hour == 16 and now_et.minute >= 15)
 
             if is_weekday and after_close and _backtest_status['last_run_date'] != today_str and not _backtest_status['running']:
-                # Time to run backtest
-                print(f"[Backtest Scheduler] Starting daily backtest update at {now_et.strftime('%H:%M ET')}...")
+                # Time to run daily refresh
+                print(f"[Backtest Scheduler] Starting daily update at {now_et.strftime('%H:%M ET')}...")
                 _backtest_status['running'] = True
                 _backtest_status['started_at'] = datetime.now().isoformat()
                 _backtest_status['last_run_date'] = today_str  # Set immediately to prevent duplicate runs
 
                 try:
+                    # Step 1: Refresh parquet data cache
+                    print("[Backtest Scheduler] Step 1/2: Refreshing parquet data cache...")
+                    pq_result = subprocess.run(
+                        [sys.executable, REFRESH_PARQUET_SCRIPT],
+                        capture_output=True, text=True,
+                        timeout=1800,  # 30 min max for data download
+                        cwd=os.path.dirname(os.path.abspath(__file__))
+                    )
+                    if pq_result.returncode == 0:
+                        print("[Backtest Scheduler] Parquet cache refreshed successfully.")
+                        # Clear data quality cache so dashboard picks up fresh scores
+                        _data_quality_cache = None
+                        _data_quality_cache_time = None
+                    else:
+                        print(f"[Backtest Scheduler] Parquet refresh failed (exit {pq_result.returncode}), continuing with backtest...")
+                        if pq_result.stderr:
+                            print(f"[Backtest Scheduler] stderr: {pq_result.stderr[:300]}")
+
+                    # Step 2: Run backtest
+                    print("[Backtest Scheduler] Step 2/2: Running backtest...")
                     result = subprocess.run(
                         [sys.executable, BACKTEST_SCRIPT],
                         capture_output=True, text=True,
@@ -147,7 +168,7 @@ def _backtest_scheduler_loop():
                     )
                     if result.returncode == 0:
                         _backtest_status['last_result'] = 'success'
-                        print(f"[Backtest Scheduler] Backtest completed successfully.")
+                        print(f"[Backtest Scheduler] Daily update completed successfully.")
                     else:
                         _backtest_status['last_result'] = f'exit code {result.returncode}'
                         print(f"[Backtest Scheduler] Backtest failed: exit code {result.returncode}")
@@ -155,10 +176,10 @@ def _backtest_scheduler_loop():
                             print(f"[Backtest Scheduler] stderr: {result.stderr[:500]}")
                 except subprocess.TimeoutExpired:
                     _backtest_status['last_result'] = 'timeout (1h)'
-                    print("[Backtest Scheduler] Backtest timed out after 1 hour.")
+                    print("[Backtest Scheduler] Daily update timed out.")
                 except Exception as e:
                     _backtest_status['last_result'] = str(e)
-                    print(f"[Backtest Scheduler] Backtest error: {e}")
+                    print(f"[Backtest Scheduler] Error: {e}")
                 finally:
                     _backtest_status['running'] = False
                     _backtest_status['completed_at'] = datetime.now().isoformat()
@@ -933,7 +954,10 @@ def api_equity_comparison():
     net_cagr = (pow(net_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
 
     # --- Downsample every 10 rows (full 26yr period) ---
+    # Always include the last row so the chart reaches the final date
     sampled = merged.iloc[::10]
+    if merged.index[-1] not in sampled.index:
+        sampled = pd.concat([sampled, merged.iloc[[-1]]])
     result = []
     for _, row in sampled.iterrows():
         result.append({
@@ -1305,6 +1329,80 @@ def api_news():
 
 
 # ============================================================================
+# ANALYTICS API (Monte Carlo, Trade Analytics, Data Quality)
+# ============================================================================
+
+_montecarlo_cache = None
+_montecarlo_cache_time = None
+MONTECARLO_CACHE_SECONDS = 3600
+
+_trade_analytics_cache = None
+_trade_analytics_cache_time = None
+TRADE_ANALYTICS_CACHE_SECONDS = 3600
+
+_data_quality_cache = None
+_data_quality_cache_time = None
+DATA_QUALITY_CACHE_SECONDS = 1800
+
+
+@app.route('/api/montecarlo')
+def api_montecarlo():
+    """Return Monte Carlo simulation results (10K paths, confidence bands)."""
+    global _montecarlo_cache, _montecarlo_cache_time
+    now = datetime.now()
+    if _montecarlo_cache and _montecarlo_cache_time and \
+       (now - _montecarlo_cache_time).total_seconds() < MONTECARLO_CACHE_SECONDS:
+        return jsonify(_montecarlo_cache)
+    try:
+        from compass_montecarlo import COMPASSMonteCarlo
+        mc = COMPASSMonteCarlo()
+        results = mc.run_all()
+        _montecarlo_cache = results
+        _montecarlo_cache_time = now
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/trade-analytics')
+def api_trade_analytics():
+    """Return trade segmentation analytics (exit reason, regime, sector, etc.)."""
+    global _trade_analytics_cache, _trade_analytics_cache_time
+    now = datetime.now()
+    if _trade_analytics_cache and _trade_analytics_cache_time and \
+       (now - _trade_analytics_cache_time).total_seconds() < TRADE_ANALYTICS_CACHE_SECONDS:
+        return jsonify(_trade_analytics_cache)
+    try:
+        from compass_trade_analytics import COMPASSTradeAnalytics
+        ta = COMPASSTradeAnalytics()
+        results = ta.run_all()
+        _trade_analytics_cache = results
+        _trade_analytics_cache_time = now
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/data-quality')
+def api_data_quality():
+    """Return data pipeline quality scorecard."""
+    global _data_quality_cache, _data_quality_cache_time
+    now = datetime.now()
+    if _data_quality_cache and _data_quality_cache_time and \
+       (now - _data_quality_cache_time).total_seconds() < DATA_QUALITY_CACHE_SECONDS:
+        return jsonify(_data_quality_cache)
+    try:
+        from compass_data_pipeline import COMPASSDataPipeline
+        dp = COMPASSDataPipeline()
+        results = dp.run_all()
+        _data_quality_cache = results
+        _data_quality_cache_time = now
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+# ============================================================================
 # ENGINE CONTROL API
 # ============================================================================
 
@@ -1358,4 +1456,4 @@ if __name__ == '__main__':
     # Start backtest auto-refresh scheduler
     start_backtest_scheduler()
 
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
