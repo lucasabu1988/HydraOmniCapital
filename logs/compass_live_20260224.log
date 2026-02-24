@@ -1217,3 +1217,116 @@
 2026-02-24 14:03:59,477 - INFO - 127.0.0.1 - - [24/Feb/2026 14:03:59] "GET /api/backtest/status HTTP/1.1" 200 -
 2026-02-24 14:03:59,480 - INFO - 127.0.0.1 - - [24/Feb/2026 14:03:59] "GET /api/state HTTP/1.1" 200 -
 2026-02-24 14:04:12,903 - INFO - State saved: state/compass_state_20260224.json
+2026-02-24 14:04:13,066 - INFO - git sync: committed (auto: COMPASS state sync 2026-02-24 14:04)
+2026-02-24 14:04:14,321 - INFO - git sync: pushed to origin/main
+2026-02-24 14:04:25,488 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:25] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:04:25,504 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:25] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:04:25,906 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:25] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:04:26,329 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:26] "GET /api/data-quality HTTP/1.1" 200 -
+2026-02-24 14:04:41,899 - INFO - ======================================================================
+2026-02-24 14:04:41,900 - INFO - OMNICAPITAL v8.2 COMPASS - LIVE TRADING
+2026-02-24 14:04:41,900 - INFO - ======================================================================
+2026-02-24 14:04:41,900 - INFO - Signal: Momentum 90d (skip 5d)
+2026-02-24 14:04:41,900 - INFO - Regime: SPY SMA200 | Vol target: 15%
+2026-02-24 14:04:41,900 - INFO - Hold: 5d | Pos stop: -8%
+2026-02-24 14:04:41,900 - INFO - Trailing: +5% / -3%
+2026-02-24 14:04:41,900 - INFO - Portfolio stop: -15%
+2026-02-24 14:04:41,900 - INFO - Leverage: max 1.0x (no leverage -- broker margin destroys value)
+2026-02-24 14:04:41,900 - INFO - Recovery: S1=63d (0.3x), S2=126d (1.0x)
+2026-02-24 14:04:41,900 - INFO - Universe: 113 broad pool -> top 40
+2026-02-24 14:04:41,900 - INFO - Execution: Pre-close signal @ 15:30 ET -> same-day MOC (deadline 15:50 ET)
+2026-02-24 14:04:41,901 - INFO - Chassis: async fetch | order timeout 300s | fill breaker 2% | data validation
+2026-02-24 14:04:41,901 - INFO - State loaded from state/compass_state_latest.json
+2026-02-24 14:04:41,901 - INFO -   Cash: $19,116 | Peak: $101,974
+2026-02-24 14:04:41,901 - INFO -   Positions: 5 | Day: 4
+2026-02-24 14:04:41,901 - INFO -   Regime: RISK_ON
+2026-02-24 14:04:41,907 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.81:5000
+2026-02-24 14:04:41,907 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-24 14:04:41,911 - INFO - Paper broker conectado. Cash inicial: $19,116.45
+2026-02-24 14:04:43,650 - INFO - STATUS: $100,969 | DD:-1.0% | RISK_ON | Lev:1.00x | Pos:5/5 | [MU(0.1%), LRCX(3.6%), AMAT(3.2%), XOM(-2.4%), MRK(2.8%)]
+2026-02-24 14:04:50,685 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:50] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:04:59,472 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:59] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:04:59,472 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:59] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:04:59,483 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:04:59,725 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:59] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:04:59,797 - INFO - 127.0.0.1 - - [24/Feb/2026 14:04:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:05:02,443 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:02] "GET / HTTP/1.1" 200 -
+2026-02-24 14:05:02,740 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:02] "GET /api/engine/status HTTP/1.1" 200 -
+2026-02-24 14:05:02,987 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:02] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:05:02,987 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:02] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:05:03,000 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:03] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:05:03,024 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:03] "GET /api/equity-comparison HTTP/1.1" 200 -
+2026-02-24 14:05:03,089 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:03] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-02-24 14:05:04,668 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:04] "GET /api/data-quality HTTP/1.1" 200 -
+2026-02-24 14:05:07,287 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:07] "GET /api/execution-microstructure HTTP/1.1" 200 -
+2026-02-24 14:05:22,109 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:22] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-24 14:05:32,993 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:32] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:05:34,658 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:34] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:05:51,567 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:51] "GET / HTTP/1.1" 200 -
+2026-02-24 14:05:51,872 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:51] "GET /api/engine/status HTTP/1.1" 200 -
+2026-02-24 14:05:51,933 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:51] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:05:51,934 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:51] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:05:51,934 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:51] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-24 14:05:51,956 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:51] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:05:51,976 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:51] "GET /api/equity-comparison HTTP/1.1" 200 -
+2026-02-24 14:05:52,180 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:52] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-02-24 14:05:52,239 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:52] "GET /api/execution-microstructure HTTP/1.1" 200 -
+2026-02-24 14:05:52,239 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:52] "GET /api/data-quality HTTP/1.1" 200 -
+2026-02-24 14:05:59,480 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:59] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:05:59,481 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:59] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:05:59,493 - INFO - 127.0.0.1 - - [24/Feb/2026 14:05:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:06:22,179 - INFO - 127.0.0.1 - - [24/Feb/2026 14:06:22] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:06:32,489 - INFO - 127.0.0.1 - - [24/Feb/2026 14:06:32] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:06:52,476 - INFO - 127.0.0.1 - - [24/Feb/2026 14:06:52] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:06:52,519 - INFO - 127.0.0.1 - - [24/Feb/2026 14:06:52] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:06:53,585 - INFO - 127.0.0.1 - - [24/Feb/2026 14:06:53] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:06:59,204 - INFO - 127.0.0.1 - - [24/Feb/2026 14:06:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:06:59,511 - INFO - 127.0.0.1 - - [24/Feb/2026 14:06:59] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:06:59,512 - INFO - 127.0.0.1 - - [24/Feb/2026 14:06:59] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:07:04,029 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET / HTTP/1.1" 200 -
+2026-02-24 14:07:04,122 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/engine/status HTTP/1.1" 200 -
+2026-02-24 14:07:04,288 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:07:04,430 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:07:04,432 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-02-24 14:07:04,432 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-24 14:07:04,528 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/equity-comparison HTTP/1.1" 200 -
+2026-02-24 14:07:04,529 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:07:04,595 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/execution-microstructure HTTP/1.1" 200 -
+2026-02-24 14:07:04,737 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "GET /api/data-quality HTTP/1.1" 200 -
+2026-02-24 14:07:04,739 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:04] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-02-24 14:07:22,524 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:22] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:07:23,243 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:23] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:07:34,182 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:34] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:07:34,436 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:34] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:07:52,485 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:52] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:07:52,499 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:52] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:07:53,082 - INFO - 127.0.0.1 - - [24/Feb/2026 14:07:53] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:08:04,145 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:04] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:08:04,433 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:04] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:08:04,434 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:04] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:08:22,476 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:22] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:08:22,518 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:22] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:08:34,138 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:34] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:08:35,167 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:35] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:08:52,487 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:52] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:08:52,488 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:52] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:08:52,524 - INFO - 127.0.0.1 - - [24/Feb/2026 14:08:52] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:09:04,137 - INFO - 127.0.0.1 - - [24/Feb/2026 14:09:04] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:09:04,430 - INFO - 127.0.0.1 - - [24/Feb/2026 14:09:04] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:09:04,431 - INFO - 127.0.0.1 - - [24/Feb/2026 14:09:04] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:09:35,622 - INFO - 127.0.0.1 - - [24/Feb/2026 14:09:35] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:32:00,056 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:00] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:32:01,455 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:01] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:32:01,455 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:01] "GET /api/data-quality HTTP/1.1" 200 -
+2026-02-24 14:32:01,468 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:01] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:32:01,772 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:01] "GET /api/data-quality HTTP/1.1" 200 -
+2026-02-24 14:32:01,772 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:01] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:32:01,821 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:01] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 14:32:08,735 - INFO - State saved: state/compass_state_20260224.json
+2026-02-24 14:32:08,736 - INFO - git sync: background worker started
+2026-02-24 14:32:09,186 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:09] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 14:32:09,255 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:09] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 14:32:09,280 - INFO - 127.0.0.1 - - [24/Feb/2026 14:32:09] "GET /api/state HTTP/1.1" 200 -
