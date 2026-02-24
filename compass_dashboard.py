@@ -769,6 +769,39 @@ def api_state():
         'entries_done': preclose_entries_done,
     }
 
+    # --- Implementation Shortfall (IS) metrics ---
+    is_metrics = {'available': False}
+    if _live_engine and hasattr(_live_engine, 'broker'):
+        try:
+            history = getattr(_live_engine.broker, 'order_history', [])
+            is_values = [o.is_bps for o in history
+                         if getattr(o, 'is_bps', None) is not None]
+            if is_values:
+                buy_is = [o.is_bps for o in history
+                          if getattr(o, 'is_bps', None) is not None and o.action == 'BUY']
+                sell_is = [o.is_bps for o in history
+                           if getattr(o, 'is_bps', None) is not None and o.action == 'SELL']
+                is_metrics = {
+                    'available': True,
+                    'total_fills': len(is_values),
+                    'avg_is_bps': round(sum(is_values) / len(is_values), 2),
+                    'median_is_bps': round(sorted(is_values)[len(is_values) // 2], 2),
+                    'max_is_bps': round(max(is_values), 2),
+                    'min_is_bps': round(min(is_values), 2),
+                    'avg_buy_is_bps': round(sum(buy_is) / len(buy_is), 2) if buy_is else None,
+                    'avg_sell_is_bps': round(sum(sell_is) / len(sell_is), 2) if sell_is else None,
+                    'total_buy_fills': len(buy_is),
+                    'total_sell_fills': len(sell_is),
+                }
+                # Today's IS from trades_today
+                today_is = [t.get('is_bps') for t in getattr(_live_engine, 'trades_today', [])
+                            if t.get('is_bps') is not None]
+                if today_is:
+                    is_metrics['today_avg_is_bps'] = round(sum(today_is) / len(today_is), 2)
+                    is_metrics['today_fills'] = len(today_is)
+        except Exception:
+            pass
+
     return jsonify({
         'status': 'online',
         'portfolio': portfolio,
@@ -779,6 +812,7 @@ def api_state():
         'config': COMPASS_CONFIG,
         'chassis': chassis_status,
         'preclose': preclose_status,
+        'implementation_shortfall': is_metrics,
         'server_time': datetime.now().isoformat(),
         'engine': _engine_status,
     })

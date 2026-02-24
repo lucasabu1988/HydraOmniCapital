@@ -2335,6 +2335,21 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
 </div>
 
+<!-- IMPLEMENTATION SHORTFALL (LIVE) -->
+<div class="card full-width" id="is-tracking-card">
+    <div class="card-header">
+        <span class="card-title">Implementation Shortfall &mdash; Live Tracking</span>
+        <span class="card-badge" id="is-badge" style="color:var(--orange); background:rgba(255,165,0,0.15);">--</span>
+    </div>
+    <div class="card-body">
+        <div id="is-content" style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
+            <div style="color:var(--text-secondary); font-size:13px; padding:20px; text-align:center; width:100%;">
+                IS tracking active &mdash; metrics appear after first trade fill
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- DATA QUALITY SCORECARD -->
 <div class="card full-width" id="data-quality-card">
     <div class="card-header">
@@ -3491,6 +3506,19 @@ function updateEngineUI(engine) {
         det.textContent = '';
         det.style.color = 'var(--text-tertiary)';
         btnS.style.display = 'none'; btnX.style.display = 'inline-block';
+    } else if (engine.error && engine.error.toLowerCase().includes('showcase')) {
+        /* Showcase mode: purple badge, no engine buttons */
+        dot.className = 'engine-indicator ind-on';
+        dot.style.background = 'var(--purple, #a78bfa)';
+        lbl.textContent = 'SHOWCASE'; lbl.style.color = 'var(--purple, #a78bfa)';
+        liveBadge.style.display = 'inline-flex';
+        liveBadge.textContent = 'SHOWCASE';
+        liveBadge.style.background = 'rgba(167,139,250,0.15)';
+        liveBadge.style.color = 'var(--purple, #a78bfa)';
+        det.textContent = 'Read-only demo with live prices';
+        det.style.color = 'var(--text-tertiary)';
+        cyc.textContent = '';
+        btnS.style.display = 'none'; btnX.style.display = 'none';
     } else {
         dot.className = 'engine-indicator ind-off';
         lbl.textContent = 'ENGINE OFF'; lbl.style.color = 'var(--red)';
@@ -3839,6 +3867,9 @@ async function fetchAll() {
                 for (const pd of stateData.position_details) posDict[pd.symbol] = true;
             }
             updateUniverse(stateData.universe, posDict);
+            if (stateData.implementation_shortfall) {
+                updateISMetrics(stateData.implementation_shortfall);
+            }
         }
     } catch (err) {
         console.error('Fetch error:', err);
@@ -3852,6 +3883,40 @@ async function fetchAll() {
 }
 
 /* (Monte Carlo removed — replaced by Fund Scatter Plot on dashboard) */
+
+/* ============ IMPLEMENTATION SHORTFALL (LIVE) ============ */
+function updateISMetrics(is) {
+    const badge = document.getElementById('is-badge');
+    const content = document.getElementById('is-content');
+    if (!is || !is.available) {
+        badge.textContent = 'waiting';
+        badge.style.color = 'var(--text-secondary)';
+        badge.style.background = 'rgba(255,255,255,0.05)';
+        return;
+    }
+
+    const avgColor = is.avg_is_bps <= 2 ? 'var(--green)' : is.avg_is_bps <= 5 ? 'var(--orange)' : 'var(--red)';
+    badge.textContent = is.avg_is_bps.toFixed(1) + ' bps avg';
+    badge.style.color = avgColor;
+    badge.style.background = is.avg_is_bps <= 2 ? 'var(--green-dim)' : is.avg_is_bps <= 5 ? 'rgba(255,165,0,0.15)' : 'rgba(255,60,60,0.15)';
+
+    const tile = (label, val, color) => `<div class="dq-tile"><div class="dq-label">${label}</div><div class="dq-val" style="color:${color || 'var(--text-primary)'};">${val}</div></div>`;
+
+    let html = '';
+    html += tile('Avg IS', is.avg_is_bps.toFixed(2) + ' bps', avgColor);
+    html += tile('Median IS', is.median_is_bps.toFixed(2) + ' bps', 'var(--text-primary)');
+    html += tile('Max IS', is.max_is_bps.toFixed(2) + ' bps', 'var(--orange)');
+    html += tile('Min IS', is.min_is_bps.toFixed(2) + ' bps', 'var(--cyan)');
+    html += tile('Total Fills', is.total_fills, 'var(--text-primary)');
+    html += tile('Buy Fills', is.total_buy_fills + (is.avg_buy_is_bps != null ? ' (' + is.avg_buy_is_bps.toFixed(1) + ' bps)' : ''), 'var(--green)');
+    html += tile('Sell Fills', is.total_sell_fills + (is.avg_sell_is_bps != null ? ' (' + is.avg_sell_is_bps.toFixed(1) + ' bps)' : ''), 'var(--red)');
+
+    if (is.today_fills) {
+        html += tile("Today's IS", is.today_avg_is_bps.toFixed(2) + ' bps (' + is.today_fills + ' fills)', 'var(--accent-light)');
+    }
+
+    content.innerHTML = html;
+}
 
 /* ============ TRADE ANALYTICS ============ */
 let taData = null;

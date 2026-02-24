@@ -686,8 +686,10 @@ class COMPASSLive:
                 price = prices.get(symbol)
                 if price:
                     pos = positions[symbol]
+                    decision_px = prices.get(symbol, pos.avg_cost)
                     order = Order(symbol=symbol, action='SELL',
-                                  quantity=pos.shares, order_type='MARKET')
+                                  quantity=pos.shares, order_type='MARKET',
+                                  decision_price=decision_px)
                     result = self._submit_order(order, prices)
                     if result.status == 'FILLED':
                         meta = self.position_meta.pop(symbol, {})
@@ -695,7 +697,8 @@ class COMPASSLive:
                         pnl = (result.filled_price - entry_price) * pos.shares - result.commission
                         self.trades_today.append({
                             'symbol': symbol, 'action': 'SELL',
-                            'exit_reason': 'portfolio_stop', 'pnl': pnl
+                            'exit_reason': 'portfolio_stop', 'pnl': pnl,
+                            'is_bps': result.is_bps
                         })
                         logger.info(f"  Closed {symbol}: PnL ${pnl:+,.0f}")
 
@@ -777,8 +780,10 @@ class COMPASSLive:
             # Execute exit
             if exit_reason:
                 pos = positions[symbol]
+                decision_px = prices.get(symbol, meta.get('entry_price', pos.avg_cost))
                 order = Order(symbol=symbol, action='SELL',
-                              quantity=pos.shares, order_type='MARKET')
+                              quantity=pos.shares, order_type='MARKET',
+                              decision_price=decision_px)
                 result = self._submit_order(order, prices)
 
                 if result.status == 'FILLED':
@@ -789,7 +794,7 @@ class COMPASSLive:
                     self.trades_today.append({
                         'symbol': symbol, 'action': 'SELL',
                         'exit_reason': exit_reason, 'pnl': pnl, 'return': ret,
-                        'price': result.filled_price
+                        'price': result.filled_price, 'is_bps': result.is_bps
                     })
                     logger.info(f"EXIT [{exit_reason}] {symbol} @ ${result.filled_price:.2f} | "
                                 f"PnL: ${pnl:+,.0f} ({ret:+.1%})")
@@ -869,8 +874,10 @@ class COMPASSLive:
             if cost + commission > portfolio.cash * 0.90:
                 continue
 
+            decision_px = price  # current price at signal time
             order = Order(symbol=symbol, action='BUY',
-                          quantity=shares, order_type='MARKET')
+                          quantity=shares, order_type='MARKET',
+                          decision_price=decision_px)
             result = self._submit_order(order, prices)
 
             if result.status == 'FILLED':
@@ -884,7 +891,8 @@ class COMPASSLive:
                 self.trades_today.append({
                     'symbol': symbol, 'action': 'BUY',
                     'price': result.filled_price,
-                    'shares': shares, 'value': cost
+                    'shares': shares, 'value': cost,
+                    'is_bps': result.is_bps
                 })
                 logger.info(f"ENTRY {symbol}: {shares:.1f} shares @ ${result.filled_price:.2f} "
                             f"(${cost:,.0f} | wt={weight:.1%} | lev={current_leverage:.2f}x)")
@@ -907,12 +915,28 @@ class COMPASSLive:
         Chassis hook: when self.execution_strategy is None (default),
         this is identical to self.broker.submit_order(order).
         When set, routes through TWAP/VWAP/Passive/Smart strategy.
+
+        Implementation Shortfall (IS) is computed automatically on every fill
+        when decision_price is available on the order.
         """
         if self.execution_strategy is not None and prices:
             price = prices.get(order.symbol, 0)
             market_data = {'price': price, 'volume': 0, 'adv': 0, 'spread_est': 0.001}
-            return self.execution_strategy.execute(self.broker, order, market_data)
-        return self.broker.submit_order(order)
+            result = self.execution_strategy.execute(self.broker, order, market_data)
+        else:
+            result = self.broker.submit_order(order)
+
+        # --- Implementation Shortfall tracking ---
+        if (result.status == 'FILLED' and result.filled_price
+                and result.decision_price and result.decision_price > 0):
+            if result.action == 'BUY':
+                # BUY: paid more than decision = positive IS (cost)
+                result.is_bps = (result.filled_price - result.decision_price) / result.decision_price * 10000
+            else:
+                # SELL: received less than decision = positive IS (cost)
+                result.is_bps = (result.decision_price - result.filled_price) / result.decision_price * 10000
+
+        return result
 
     # ------------------------------------------------------------------
     # Daily open routine

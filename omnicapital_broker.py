@@ -31,6 +31,8 @@ class Order:
     commission: float = 0
     timestamp: datetime = None
     submitted_at: Optional[datetime] = None  # When order was submitted to broker
+    decision_price: Optional[float] = None   # Price when signal was generated (for IS tracking)
+    is_bps: Optional[float] = None           # Implementation Shortfall in basis points
 
     def __post_init__(self):
         if self.timestamp is None:
