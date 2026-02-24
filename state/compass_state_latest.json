@@ -1,9 +1,9 @@
 {
   "version": "8.2",
-  "timestamp": "2026-02-24T11:10:30.383781",
+  "timestamp": "2026-02-24T11:25:51.151541",
   "cash": 19116.44918558494,
-  "peak_value": 101326.44843396277,
-  "portfolio_value": 101326.44843396277,
+  "peak_value": 101779.56181265129,
+  "portfolio_value": 101779.56181265129,
   "in_protection": false,
   "protection_stage": 0,
   "stop_loss_day_index": null,
@@ -40,19 +40,19 @@
       "entry_price": 413.5548285072709,
       "entry_date": "2026-02-19",
       "entry_day_index": 1,
-      "high_price": 430.3599853515625
+      "high_price": 432.93499755859375
     },
     "LRCX": {
       "entry_price": 234.72928363512406,
       "entry_date": "2026-02-19",
       "entry_day_index": 1,
-      "high_price": 244.94000244140625
+      "high_price": 247.3000030517578
     },
     "AMAT": {
       "entry_price": 365.93656250985305,
       "entry_date": "2026-02-19",
       "entry_day_index": 1,
-      "high_price": 376.5
+      "high_price": 376.5799865722656
     },
     "XOM": {
       "entry_price": 153.1386289923498,
@@ -64,7 +64,7 @@
       "entry_price": 121.08206888438475,
       "entry_date": "2026-02-19",
       "entry_day_index": 1,
-      "high_price": 124.12000274658203
+      "high_price": 124.25
     }
   },
   "current_universe": [
@@ -112,7 +112,7 @@
   "universe_year": 2026,
   "stop_events": [],
   "stats": {
-    "cycles_completed": 18,
-    "uptime_minutes": 767.1227027833334
+    "cycles_completed": 33,
+    "uptime_minutes": 782.4688095666667
   }
 }
