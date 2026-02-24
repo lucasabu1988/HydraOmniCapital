@@ -1,0 +1,84 @@
+2026-02-24 11:58:43,262 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.81:5000
+2026-02-24 11:58:43,262 - INFO - ======================================================================
+2026-02-24 11:58:43,262 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-24 11:58:43,262 - INFO - OMNICAPITAL v8.2 COMPASS - LIVE TRADING
+2026-02-24 11:58:43,262 - INFO - ======================================================================
+2026-02-24 11:58:43,262 - INFO - Signal: Momentum 90d (skip 5d)
+2026-02-24 11:58:43,262 - INFO - Regime: SPY SMA200 | Vol target: 15%
+2026-02-24 11:58:43,263 - INFO - Hold: 5d | Pos stop: -8%
+2026-02-24 11:58:43,263 - INFO - Trailing: +5% / -3%
+2026-02-24 11:58:43,263 - INFO - Portfolio stop: -15%
+2026-02-24 11:58:43,263 - INFO - Leverage: max 1.0x (no leverage -- broker margin destroys value)
+2026-02-24 11:58:43,263 - INFO - Recovery: S1=63d (0.3x), S2=126d (1.0x)
+2026-02-24 11:58:43,263 - INFO - Universe: 113 broad pool -> top 40
+2026-02-24 11:58:43,263 - INFO - Execution: Pre-close signal @ 15:30 ET -> same-day MOC (deadline 15:50 ET)
+2026-02-24 11:58:43,263 - INFO - Chassis: async fetch | order timeout 300s | fill breaker 2% | data validation
+2026-02-24 11:58:43,264 - INFO - State loaded from state/compass_state_latest.json
+2026-02-24 11:58:43,264 - INFO -   Cash: $19,116 | Peak: $101,780
+2026-02-24 11:58:43,264 - INFO -   Positions: 5 | Day: 4
+2026-02-24 11:58:43,264 - INFO -   Regime: RISK_ON
+2026-02-24 11:58:43,276 - INFO - Paper broker conectado. Cash inicial: $19,116.45
+2026-02-24 11:58:49,331 - INFO - STATUS: $101,668 | DD:-0.1% | RISK_ON | Lev:1.00x | Pos:5/5 | [MU(3.8%), LRCX(5.1%), AMAT(3.2%), XOM(-2.6%), MRK(2.6%)]
+2026-02-24 11:58:50,339 - INFO - ======================================================================
+2026-02-24 11:58:50,339 - INFO - OMNICAPITAL v8.2 COMPASS - LIVE TRADING
+2026-02-24 11:58:50,339 - INFO - ======================================================================
+2026-02-24 11:58:50,339 - INFO - Signal: Momentum 90d (skip 5d)
+2026-02-24 11:58:50,339 - INFO - Regime: SPY SMA200 | Vol target: 15%
+2026-02-24 11:58:50,340 - INFO - Hold: 5d | Pos stop: -8%
+2026-02-24 11:58:50,340 - INFO - Trailing: +5% / -3%
+2026-02-24 11:58:50,340 - INFO - Portfolio stop: -15%
+2026-02-24 11:58:50,340 - INFO - Leverage: max 1.0x (no leverage -- broker margin destroys value)
+2026-02-24 11:58:50,340 - INFO - Recovery: S1=63d (0.3x), S2=126d (1.0x)
+2026-02-24 11:58:50,340 - INFO - Universe: 113 broad pool -> top 40
+2026-02-24 11:58:50,340 - INFO - Execution: Pre-close signal @ 15:30 ET -> same-day MOC (deadline 15:50 ET)
+2026-02-24 11:58:50,340 - INFO - Chassis: async fetch | order timeout 300s | fill breaker 2% | data validation
+2026-02-24 11:58:50,340 - INFO - State loaded from state/compass_state_latest.json
+2026-02-24 11:58:50,340 - INFO -   Cash: $19,116 | Peak: $101,780
+2026-02-24 11:58:50,340 - INFO -   Positions: 5 | Day: 4
+2026-02-24 11:58:50,340 - INFO -   Regime: RISK_ON
+2026-02-24 11:58:50,346 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.81:5000
+2026-02-24 11:58:50,348 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-24 11:58:50,350 - INFO - Paper broker conectado. Cash inicial: $19,116.45
+2026-02-24 11:58:52,063 - INFO - STATUS: $101,659 | DD:-0.1% | RISK_ON | Lev:1.00x | Pos:5/5 | [MU(3.8%), LRCX(5.1%), AMAT(3.2%), XOM(-2.6%), MRK(2.6%)]
+2026-02-24 11:58:53,691 - INFO - 127.0.0.1 - - [24/Feb/2026 11:58:53] "GET / HTTP/1.1" 200 -
+2026-02-24 11:58:59,425 - INFO - 127.0.0.1 - - [24/Feb/2026 11:58:59] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 11:58:59,487 - INFO - 127.0.0.1 - - [24/Feb/2026 11:58:59] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 11:58:59,488 - INFO - 127.0.0.1 - - [24/Feb/2026 11:58:59] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 11:58:59,498 - INFO - 127.0.0.1 - - [24/Feb/2026 11:58:59] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 11:59:31,945 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:31] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 11:59:32,242 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:32] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 11:59:32,730 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:32] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 11:59:33,989 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:33] "GET / HTTP/1.1" 200 -
+2026-02-24 11:59:34,107 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:34] "GET /api/engine/status HTTP/1.1" 200 -
+2026-02-24 11:59:34,252 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:34] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 11:59:34,409 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:34] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 11:59:34,422 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:34] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 11:59:34,569 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:34] "GET /api/equity-comparison HTTP/1.1" 200 -
+2026-02-24 11:59:34,687 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:34] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-02-24 11:59:34,729 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:34] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-02-24 11:59:37,097 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:37] "GET /api/data-quality HTTP/1.1" 200 -
+2026-02-24 11:59:44,347 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:44] "GET /api/montecarlo HTTP/1.1" 200 -
+2026-02-24 11:59:52,926 - INFO - 127.0.0.1 - - [24/Feb/2026 11:59:52] "GET /api/social-feed HTTP/1.1" 200 -
+2026-02-24 12:00:04,456 - INFO - 127.0.0.1 - - [24/Feb/2026 12:00:04] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 12:00:05,043 - INFO - 127.0.0.1 - - [24/Feb/2026 12:00:05] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 12:00:34,121 - INFO - 127.0.0.1 - - [24/Feb/2026 12:00:34] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 12:00:34,416 - INFO - 127.0.0.1 - - [24/Feb/2026 12:00:34] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 12:00:34,417 - INFO - 127.0.0.1 - - [24/Feb/2026 12:00:34] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 12:01:04,463 - INFO - 127.0.0.1 - - [24/Feb/2026 12:01:04] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 12:01:05,005 - INFO - 127.0.0.1 - - [24/Feb/2026 12:01:05] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 12:01:34,121 - INFO - 127.0.0.1 - - [24/Feb/2026 12:01:34] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 12:01:34,424 - INFO - 127.0.0.1 - - [24/Feb/2026 12:01:34] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 12:01:34,854 - INFO - 127.0.0.1 - - [24/Feb/2026 12:01:34] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 12:02:04,424 - INFO - 127.0.0.1 - - [24/Feb/2026 12:02:04] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 12:02:04,474 - INFO - 127.0.0.1 - - [24/Feb/2026 12:02:04] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 12:02:34,126 - INFO - 127.0.0.1 - - [24/Feb/2026 12:02:34] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 12:02:34,417 - INFO - 127.0.0.1 - - [24/Feb/2026 12:02:34] "GET /api/backtest/status HTTP/1.1" 200 -
+2026-02-24 12:02:34,990 - INFO - 127.0.0.1 - - [24/Feb/2026 12:02:34] "GET /api/state HTTP/1.1" 200 -
+2026-02-24 12:03:04,438 - INFO - 127.0.0.1 - - [24/Feb/2026 12:03:04] "GET /api/logs HTTP/1.1" 200 -
+2026-02-24 12:03:07,378 - INFO - 127.0.0.1 - - [24/Feb/2026 12:03:07] "GET /api/state HTTP/1.1" 200 -

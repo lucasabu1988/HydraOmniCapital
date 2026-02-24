@@ -1,9 +1,9 @@
 {
   "version": "8.2",
-  "timestamp": "2026-02-24T11:56:35.735203",
+  "timestamp": "2026-02-24T12:03:55.912175",
   "cash": 19116.44918558494,
   "peak_value": 101779.56181265129,
-  "portfolio_value": 101680.65972940487,
+  "portfolio_value": 101761.61334603844,
   "in_protection": false,
   "protection_stage": 0,
   "stop_loss_day_index": null,
@@ -52,7 +52,7 @@
       "entry_price": 365.93656250985305,
       "entry_date": "2026-02-19",
       "entry_day_index": 1,
-      "high_price": 377.7250061035156
+      "high_price": 378.4700012207031
     },
     "XOM": {
       "entry_price": 153.1386289923498,
@@ -112,7 +112,7 @@
   "universe_year": 2026,
   "stop_events": [],
   "stats": {
-    "cycles_completed": 63,
-    "uptime_minutes": 813.2118704666666
+    "cycles_completed": 6,
+    "uptime_minutes": 5.210829633333334
   }
 }
