@@ -2310,6 +2310,31 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
 </div>
 
+<!-- EXECUTION MICROSTRUCTURE -->
+<div class="card full-width" id="exec-micro-card">
+    <div class="card-header">
+        <span class="card-title">Execution Microstructure &mdash; Strategy Analysis</span>
+        <span class="card-badge" id="em-badge" style="color:var(--cyan); background:var(--cyan-dim);">5 strategies</span>
+    </div>
+    <div class="card-body">
+        <!-- Strategy comparison chart -->
+        <div style="position:relative; width:100%; height:280px;">
+            <canvas id="emSlippageChart"></canvas>
+        </div>
+
+        <!-- Strategy comparison table -->
+        <div id="em-strategy-table" style="overflow-x:auto; margin-top:16px;"></div>
+
+        <!-- Capital tier recommendations -->
+        <h4 style="color:var(--text-primary); margin:20px 0 12px; font-size:0.95rem;">Capital Tier Recommendations</h4>
+        <div id="em-capital-tiers" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;"></div>
+
+        <!-- Intraday model stats -->
+        <h4 style="color:var(--text-primary); margin:20px 0 12px; font-size:0.95rem;">Intraday Model Statistics</h4>
+        <div class="grid-6" id="em-model-stats"></div>
+    </div>
+</div>
+
 <!-- DATA QUALITY SCORECARD -->
 <div class="card full-width" id="data-quality-card">
     <div class="card-header">
@@ -3910,6 +3935,177 @@ function renderTATable(segKey) {
     box.innerHTML = html;
 }
 
+/* ============ EXECUTION MICROSTRUCTURE ============ */
+let emChart = null;
+
+async function fetchExecutionMicro() {
+    try {
+        const res = await fetch('/api/execution-microstructure');
+        const data = await res.json();
+        if (data.error) {
+            document.getElementById('em-strategy-table').innerHTML =
+                '<div style="color:var(--red);font-size:12px;">Error: ' + data.error + '</div>';
+            return;
+        }
+        renderEMChart(data);
+        renderEMTable(data);
+        renderEMTiers(data);
+        renderEMModelStats(data);
+        document.getElementById('em-badge').textContent = data.trade_count + ' trades';
+    } catch(e) {
+        console.error('EM error:', e);
+        document.getElementById('em-strategy-table').innerHTML =
+            '<div style="color:var(--red);font-size:12px;">Failed to load: ' + e.message + '</div>';
+    }
+}
+
+function renderEMChart(data) {
+    const ctx = document.getElementById('emSlippageChart');
+    if (!ctx) return;
+    if (emChart) emChart.destroy();
+
+    const strategies = data.strategy_chart_data || [];
+    const labels = strategies.map(s => s.strategy);
+    const slippage = strategies.map(s => s.avg_slippage_bps);
+    const savings = strategies.map(s => s.savings_vs_moc_bps);
+
+    emChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Avg Slippage (bps)',
+                    data: slippage,
+                    backgroundColor: ['rgba(239,68,68,0.7)', 'rgba(34,197,94,0.7)', 'rgba(59,130,246,0.7)', 'rgba(6,182,212,0.7)'],
+                    borderColor: ['#ef4444', '#22c55e', '#3b82f6', '#06b6d4'],
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.6,
+                },
+                {
+                    label: 'Savings vs MOC (bps)',
+                    data: savings,
+                    backgroundColor: ['rgba(239,68,68,0.2)', 'rgba(34,197,94,0.3)', 'rgba(59,130,246,0.3)', 'rgba(6,182,212,0.3)'],
+                    borderColor: ['#ef4444', '#22c55e', '#3b82f6', '#06b6d4'],
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderDash: [4, 4],
+                    barPercentage: 0.6,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ': ' + ctx.raw.toFixed(2) + ' bps'
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8', font: { size: 11 } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                y: {
+                    ticks: {
+                        color: '#94a3b8', font: { size: 11 },
+                        callback: v => v.toFixed(1) + ' bps'
+                    },
+                    grid: { color: 'rgba(255,255,255,0.06)' },
+                    title: { display: true, text: 'Basis Points', color: '#64748b', font: { size: 11 } }
+                }
+            }
+        }
+    });
+}
+
+function renderEMTable(data) {
+    const box = document.getElementById('em-strategy-table');
+    const strats = data.strategies;
+    if (!strats) { box.innerHTML = ''; return; }
+
+    let rows = '';
+    for (const [key, s] of Object.entries(strats)) {
+        const savingsColor = s.savings_vs_moc_bps > 0 ? 'var(--green)' : s.savings_vs_moc_bps < 0 ? 'var(--red)' : 'var(--text-tertiary)';
+        const cagrColor = s.cagr_recovery_pct > 0 ? 'var(--green)' : 'var(--text-tertiary)';
+        const savingsSign = s.savings_vs_moc_bps > 0 ? '+' : '';
+        const cagrSign = s.cagr_recovery_pct > 0 ? '+' : '';
+        rows += `<tr>
+            <td style="font-weight:600;color:var(--text-primary);">${s.name}</td>
+            <td style="color:var(--text-secondary);font-size:11px;">${s.description}</td>
+            <td style="text-align:right;font-family:var(--mono);">${s.avg_slippage_bps.toFixed(2)}</td>
+            <td style="text-align:right;font-family:var(--mono);color:${savingsColor};">${savingsSign}${s.savings_vs_moc_bps.toFixed(2)}</td>
+            <td style="text-align:right;font-family:var(--mono);color:${cagrColor};">${cagrSign}${s.cagr_recovery_pct.toFixed(3)}%</td>
+        </tr>`;
+    }
+
+    box.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="border-bottom:1px solid var(--border);color:var(--text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">
+                <th style="text-align:left;padding:8px 6px;">Strategy</th>
+                <th style="text-align:left;padding:8px 6px;">Description</th>
+                <th style="text-align:right;padding:8px 6px;">Avg Slip (bps)</th>
+                <th style="text-align:right;padding:8px 6px;">Savings</th>
+                <th style="text-align:right;padding:8px 6px;">CAGR Recovery</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+function renderEMTiers(data) {
+    const box = document.getElementById('em-capital-tiers');
+    const tiers = data.capital_tiers;
+    if (!tiers) { box.innerHTML = ''; return; }
+
+    const strategyLabels = {
+        'passive_limit': 'Passive Limit',
+        'twap_15min': 'TWAP 15-min',
+        'vwap_15min': 'VWAP 15-min',
+        'vwap_split': 'VWAP + Split'
+    };
+    const strategyColors = {
+        'passive_limit': 'var(--cyan)',
+        'twap_15min': 'var(--green)',
+        'vwap_15min': 'var(--accent-light)',
+        'vwap_split': 'var(--orange)'
+    };
+
+    let html = '';
+    for (const [key, t] of Object.entries(tiers)) {
+        const recLabel = strategyLabels[t.recommended_strategy] || t.recommended_strategy;
+        const recColor = strategyColors[t.recommended_strategy] || 'var(--cyan)';
+        html += `
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;">${t.capital_formatted}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin:4px 0;">Pos: $${(t.position_size/1000).toFixed(0)}K</div>
+            <div style="font-size:13px;font-family:var(--mono);color:${recColor};font-weight:700;margin:6px 0;">${recLabel}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">Impact: ${t.avg_impact_bps.toFixed(2)} bps</div>
+            <div style="font-size:11px;color:var(--green);font-family:var(--mono);">+${t.cagr_recovery_pct.toFixed(3)}% CAGR</div>
+        </div>`;
+    }
+    box.innerHTML = html;
+}
+
+function renderEMModelStats(data) {
+    const box = document.getElementById('em-model-stats');
+    const m = data.intraday_model;
+    if (!m) { box.innerHTML = ''; return; }
+
+    box.innerHTML = `
+        <div class="dq-tile"><div class="dq-label">Avg Parkinson Vol</div><div class="dq-val">${m.avg_parkinson_vol_pct}%</div></div>
+        <div class="dq-tile"><div class="dq-label">Median Parkinson Vol</div><div class="dq-val">${m.median_parkinson_vol_pct}%</div></div>
+        <div class="dq-tile"><div class="dq-label">Avg C-S Spread</div><div class="dq-val">${m.avg_cs_spread_bps} bps</div></div>
+        <div class="dq-tile"><div class="dq-label">Median C-S Spread</div><div class="dq-val">${m.median_cs_spread_bps} bps</div></div>
+        <div class="dq-tile"><div class="dq-label">Avg 15-min Vol</div><div class="dq-val">${m.avg_15min_vol_bps} bps</div></div>
+        <div class="dq-tile"><div class="dq-label">Avg Daily $ Vol</div><div class="dq-val">$${m.avg_adv_million}M</div></div>
+    `;
+}
+
 /* ============ DATA QUALITY ============ */
 async function fetchDataQuality() {
     try {
@@ -4101,6 +4297,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchActivityFeed();
     fetchSocialFeed();
     fetchTradeAnalytics();
+    fetchExecutionMicro();
     fetchDataQuality();
     setInterval(fetchSocialFeed, 300000);
     setInterval(fetchActivityFeed, 30000);

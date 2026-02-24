@@ -138,6 +138,253 @@ class Broker(ABC):
         pass
 
 
+# ======================================================================
+# Execution Strategy Framework (Chassis Improvement)
+# ======================================================================
+# Selects HOW orders are executed (TWAP, VWAP, Passive, etc.)
+# The WHAT (which stocks, when, how many) comes from the locked COMPASS algorithm.
+# Activated only when execution_strategy is set in COMPASSLive config.
+# Default (None) = current MOC behavior preserved exactly.
+# ======================================================================
+
+class ExecutionStrategy(ABC):
+    """Base class for execution algorithms."""
+
+    def __init__(self):
+        self.fills = []       # History of fills for stats
+        self.name = 'base'
+
+    @abstractmethod
+    def execute(self, broker: 'Broker', order: Order, market_data: dict) -> Order:
+        """Execute an order using this strategy.
+
+        Args:
+            broker: connected Broker instance
+            order: the Order to execute
+            market_data: dict with keys: price, volume, adv, spread_est
+
+        Returns:
+            Filled Order with execution stats
+        """
+        pass
+
+    def get_stats(self) -> dict:
+        """Return execution performance statistics."""
+        if not self.fills:
+            return {'strategy': self.name, 'total_fills': 0}
+        avg_slip = sum(f.get('slippage_bps', 0) for f in self.fills) / len(self.fills)
+        return {
+            'strategy': self.name,
+            'total_fills': len(self.fills),
+            'avg_slippage_bps': round(avg_slip, 2),
+        }
+
+    def _record_fill(self, order: Order, arrival_price: float):
+        """Record fill stats for a completed order."""
+        if order.filled_price and arrival_price > 0:
+            if order.action == 'BUY':
+                slip_bps = (order.filled_price - arrival_price) / arrival_price * 10000
+            else:
+                slip_bps = (arrival_price - order.filled_price) / arrival_price * 10000
+            self.fills.append({
+                'symbol': order.symbol,
+                'action': order.action,
+                'slippage_bps': slip_bps,
+                'filled_price': order.filled_price,
+                'arrival_price': arrival_price,
+                'timestamp': datetime.now(),
+            })
+
+
+class MOCStrategy(ExecutionStrategy):
+    """Market-on-Close: submit single MOC order before 15:50 ET deadline.
+    This extracts the current behavior into a strategy object.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.name = 'MOC'
+
+    def execute(self, broker, order, market_data):
+        arrival_price = market_data.get('price', 0)
+        result = broker.submit_order(order)
+        self._record_fill(result, arrival_price)
+        return result
+
+
+class TWAPStrategy(ExecutionStrategy):
+    """Time-Weighted Average Price: split into N child orders over 15 minutes.
+
+    In PaperBroker: simulates N fills with small random timing offsets.
+    In IBKRBroker: will submit N real child orders at interval_seconds apart.
+    """
+
+    def __init__(self, n_slices: int = 5, interval_seconds: int = 180):
+        super().__init__()
+        self.name = 'TWAP'
+        self.n_slices = n_slices
+        self.interval_seconds = interval_seconds
+
+    def execute(self, broker, order, market_data):
+        import time
+        arrival_price = market_data.get('price', 0)
+        child_qty = order.quantity / self.n_slices
+        child_fills = []
+
+        for i in range(self.n_slices):
+            child_order = Order(
+                symbol=order.symbol,
+                action=order.action,
+                quantity=child_qty,
+                order_type='MARKET',
+            )
+            result = broker.submit_order(child_order)
+            if result.filled_price:
+                child_fills.append((result.filled_price, child_qty))
+
+            # Wait between children (skip last wait)
+            if i < self.n_slices - 1 and hasattr(broker, '_is_live') and broker._is_live:
+                time.sleep(self.interval_seconds)
+
+        # Compute TWAP fill price
+        if child_fills:
+            total_qty = sum(q for _, q in child_fills)
+            twap_price = sum(p * q for p, q in child_fills) / total_qty
+            order.filled_price = twap_price
+            order.filled_quantity = total_qty
+            order.status = 'FILLED'
+            order.commission = sum(0.001 * q for _, q in child_fills)
+
+        self._record_fill(order, arrival_price)
+        return order
+
+
+class VWAPStrategy(ExecutionStrategy):
+    """Volume-Weighted Average Price: weight child orders by volume profile.
+
+    Uses U-shaped end-of-day volume curve: heavier at window open and close.
+    """
+
+    def __init__(self, n_slices: int = 5, volume_weights: list = None):
+        super().__init__()
+        self.name = 'VWAP'
+        self.n_slices = n_slices
+        self.volume_weights = volume_weights or [0.30, 0.20, 0.15, 0.15, 0.20]
+
+    def execute(self, broker, order, market_data):
+        import time
+        arrival_price = market_data.get('price', 0)
+        child_fills = []
+
+        for i in range(self.n_slices):
+            child_qty = order.quantity * self.volume_weights[i]
+            child_order = Order(
+                symbol=order.symbol,
+                action=order.action,
+                quantity=child_qty,
+                order_type='MARKET',
+            )
+            result = broker.submit_order(child_order)
+            if result.filled_price:
+                child_fills.append((result.filled_price, child_qty))
+
+            if i < self.n_slices - 1 and hasattr(broker, '_is_live') and broker._is_live:
+                time.sleep(180)
+
+        if child_fills:
+            total_qty = sum(q for _, q in child_fills)
+            vwap_price = sum(p * q for p, q in child_fills) / total_qty
+            order.filled_price = vwap_price
+            order.filled_quantity = total_qty
+            order.status = 'FILLED'
+            order.commission = sum(0.001 * q for _, q in child_fills)
+
+        self._record_fill(order, arrival_price)
+        return order
+
+
+class PassiveLimitStrategy(ExecutionStrategy):
+    """Passive limit order at mid-price, fallback to MOC if unfilled.
+
+    Places limit at bid (for buys) or ask (for sells) to capture spread.
+    If not filled within max_wait_seconds, falls back to MOC.
+    """
+
+    def __init__(self, spread_capture_pct: float = 0.5,
+                 max_wait_seconds: int = 600, moc_fallback: bool = True):
+        super().__init__()
+        self.name = 'PASSIVE'
+        self.spread_capture_pct = spread_capture_pct
+        self.max_wait_seconds = max_wait_seconds
+        self.moc_fallback = moc_fallback
+
+    def execute(self, broker, order, market_data):
+        arrival_price = market_data.get('price', 0)
+        spread_est = market_data.get('spread_est', 0.001)  # estimated spread
+
+        # Set limit price: capture portion of spread
+        offset = spread_est * self.spread_capture_pct
+        if order.action == 'BUY':
+            limit_price = arrival_price * (1 - offset)
+        else:
+            limit_price = arrival_price * (1 + offset)
+
+        limit_order = Order(
+            symbol=order.symbol,
+            action=order.action,
+            quantity=order.quantity,
+            order_type='LIMIT',
+            limit_price=limit_price,
+        )
+
+        result = broker.submit_order(limit_order)
+
+        # If not filled and fallback enabled, send MOC
+        if result.status != 'FILLED' and self.moc_fallback:
+            moc_order = Order(
+                symbol=order.symbol,
+                action=order.action,
+                quantity=order.quantity,
+                order_type='MARKET',
+            )
+            result = broker.submit_order(moc_order)
+
+        self._record_fill(result, arrival_price)
+        return result
+
+
+class SmartOrderRouter:
+    """Selects execution strategy based on order size relative to ADV.
+
+    Rules:
+        <0.1% ADV → PassiveLimitStrategy (maximize spread capture)
+        <1.0% ADV → TWAPStrategy (time-average to reduce timing risk)
+        >=1.0% ADV → VWAPStrategy (volume-weighted for deeper liquidity)
+    """
+
+    def __init__(self, default_strategy: str = 'MOC'):
+        self.default_strategy = default_strategy
+        self._strategy_cache = {}
+
+    def select_strategy(self, order: Order, market_data: dict) -> ExecutionStrategy:
+        """Select optimal execution strategy based on order characteristics."""
+        adv = market_data.get('adv', 1e9)
+        price = market_data.get('price', 100)
+        order_value = order.quantity * price
+
+        if adv <= 0:
+            return MOCStrategy()
+
+        participation_rate = order_value / adv
+
+        if participation_rate < 0.001:  # <0.1% ADV
+            return PassiveLimitStrategy()
+        elif participation_rate < 0.01:  # <1% ADV
+            return TWAPStrategy()
+        else:  # >=1% ADV
+            return VWAPStrategy()
+
+
 class PaperBroker(Broker):
     """Broker de papel para testing sin riesgo real"""
 

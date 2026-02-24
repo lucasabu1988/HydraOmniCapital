@@ -433,6 +433,11 @@ class COMPASSLive:
         )
         self.broker.set_price_feed(self.data_feed)
 
+        # Execution strategy (chassis improvement — OFF by default)
+        # Set to ExecutionStrategy instance to activate TWAP/VWAP/Passive
+        # None = current MOC behavior preserved exactly
+        self.execution_strategy = None
+
         # ---- COMPASS v8.2 State ----
         # Portfolio
         self.peak_value = float(config['PAPER_INITIAL_CASH'])
@@ -683,7 +688,7 @@ class COMPASSLive:
                     pos = positions[symbol]
                     order = Order(symbol=symbol, action='SELL',
                                   quantity=pos.shares, order_type='MARKET')
-                    result = self.broker.submit_order(order)
+                    result = self._submit_order(order, prices)
                     if result.status == 'FILLED':
                         meta = self.position_meta.pop(symbol, {})
                         entry_price = meta.get('entry_price', pos.avg_cost)
@@ -774,7 +779,7 @@ class COMPASSLive:
                 pos = positions[symbol]
                 order = Order(symbol=symbol, action='SELL',
                               quantity=pos.shares, order_type='MARKET')
-                result = self.broker.submit_order(order)
+                result = self._submit_order(order, prices)
 
                 if result.status == 'FILLED':
                     pnl = (result.filled_price - meta['entry_price']) * pos.shares - result.commission
@@ -866,7 +871,7 @@ class COMPASSLive:
 
             order = Order(symbol=symbol, action='BUY',
                           quantity=shares, order_type='MARKET')
-            result = self.broker.submit_order(order)
+            result = self._submit_order(order, prices)
 
             if result.status == 'FILLED':
                 self.position_meta[symbol] = {
@@ -890,6 +895,24 @@ class COMPASSLive:
 
                 # Update portfolio for next iteration
                 portfolio = self.broker.get_portfolio()
+
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Order submission (with optional execution strategy)
+    # ------------------------------------------------------------------
+
+    def _submit_order(self, order: Order, prices: dict = None) -> Order:
+        """Submit order through execution strategy if configured, else direct.
+
+        Chassis hook: when self.execution_strategy is None (default),
+        this is identical to self.broker.submit_order(order).
+        When set, routes through TWAP/VWAP/Passive/Smart strategy.
+        """
+        if self.execution_strategy is not None and prices:
+            price = prices.get(order.symbol, 0)
+            market_data = {'price': price, 'volume': 0, 'adv': 0, 'spread_est': 0.001}
+            return self.execution_strategy.execute(self.broker, order, market_data)
+        return self.broker.submit_order(order)
 
     # ------------------------------------------------------------------
     # Daily open routine

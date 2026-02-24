@@ -1573,6 +1573,10 @@ _data_quality_cache = None
 _data_quality_cache_time = None
 DATA_QUALITY_CACHE_SECONDS = 1800
 
+_exec_micro_cache = None
+_exec_micro_cache_time = None
+EXEC_MICRO_CACHE_SECONDS = 3600   # 1 hour (static backtest analysis)
+
 
 @app.route('/api/montecarlo')
 def api_montecarlo():
@@ -1626,6 +1630,25 @@ def api_data_quality():
         results = dp.run_all()
         _data_quality_cache = results
         _data_quality_cache_time = now
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/execution-microstructure')
+def api_execution_microstructure():
+    """Return execution microstructure analysis (strategy comparison, capital tiers)."""
+    global _exec_micro_cache, _exec_micro_cache_time
+    now = datetime.now()
+    if _exec_micro_cache and _exec_micro_cache_time and \
+       (now - _exec_micro_cache_time).total_seconds() < EXEC_MICRO_CACHE_SECONDS:
+        return jsonify(_exec_micro_cache)
+    try:
+        from compass_execution_microstructure import COMPASSExecutionMicrostructure
+        em = COMPASSExecutionMicrostructure()
+        results = em.run_all()
+        _exec_micro_cache = results
+        _exec_micro_cache_time = now
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)})
