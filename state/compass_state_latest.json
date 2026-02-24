@@ -1,9 +1,9 @@
 {
   "version": "8.2",
-  "timestamp": "2026-02-24T14:00:03.968806",
+  "timestamp": "2026-02-24T14:04:12.901253",
   "cash": 19116.44918558494,
   "peak_value": 101974.0174927985,
-  "portfolio_value": 101179.50695880872,
+  "portfolio_value": 101002.8670147234,
   "in_protection": false,
   "protection_stage": 0,
   "stop_loss_day_index": null,
@@ -113,6 +113,6 @@
   "stop_events": [],
   "stats": {
     "cycles_completed": 21,
-    "uptime_minutes": 20.731007299999998
+    "uptime_minutes": 21.174247616666666
   }
 }
