@@ -2328,9 +2328,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <div class="metric-sub" id="card-maxpos">--</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Regime</div>
-        <div class="metric-value" id="regime-value">--</div>
-        <div class="metric-sub" id="regime-confirm">-- days</div>
+        <div class="metric-label">Cash Yield (Aaa)</div>
+        <div class="metric-value c-green" id="yield-daily">--</div>
+        <div class="metric-sub" id="yield-accum">Acum: $--</div>
     </div>
 </div>
 
@@ -3430,11 +3430,14 @@ function updatePreclose(preclose) {
 }
 
 function updateCards(p) {
+    const yieldAdj = p.accumulated_yield || 0;
+    const adjPortfolio = p.portfolio_value + yieldAdj;
+    const adjReturn = ((adjPortfolio - p.initial_capital) / p.initial_capital * 100);
     const total = document.getElementById('card-total');
-    total.textContent = fmt$(p.portfolio_value);
-    total.className = 'metric-value ' + colorCls(p.total_return);
+    total.textContent = fmt$(adjPortfolio);
+    total.className = 'metric-value ' + colorCls(adjReturn);
     document.getElementById('card-return').innerHTML =
-        '<span class="' + colorCls(p.total_return) + '">' + fmtPct(p.total_return) + '</span> from $' + p.initial_capital.toLocaleString();
+        '<span class="' + colorCls(adjReturn) + '">' + fmtPct(adjReturn) + '</span> from $' + p.initial_capital.toLocaleString();
 
     /* Expected CAGR card — static production reference */
     /* Leverage info shown in sub when in protection */
@@ -3457,20 +3460,29 @@ function updateCards(p) {
     document.getElementById('card-positions').textContent = p.num_positions + ' / ' + p.max_positions;
     document.getElementById('card-maxpos').textContent = p.regime + (p.in_protection ? ' | Prot S' + p.protection_stage : '');
 
-    const rv = document.getElementById('regime-value');
-    rv.textContent = p.regime;
-    rv.className = 'metric-value ' + (p.regime === 'RISK_ON' ? 'c-green' : 'c-yellow');
-    document.getElementById('regime-confirm').textContent = p.regime_consecutive + 'd confirmed';
+    // Cash yield (Aaa IG Corporate)
+    const yd = document.getElementById('yield-daily');
+    if (p.daily_yield != null) {
+        yd.textContent = '+$' + p.daily_yield.toFixed(2) + '/d';
+        yd.className = 'metric-value c-green';
+    }
+    const ya = document.getElementById('yield-accum');
+    if (ya && p.accumulated_yield != null) {
+        ya.textContent = 'Acum: +$' + p.accumulated_yield.toFixed(2) + ' (' + (p.aaa_rate || 0).toFixed(1) + '%)';
+    }
 }
 
 
 function updatePerfBanner(p) {
-    /* COMPASS side */
+    /* COMPASS side — include accumulated cash yield in P&L */
+    const yieldAdj = p.accumulated_yield || 0;
+    const adjPortfolio = p.portfolio_value + yieldAdj;
+    const adjReturn = ((adjPortfolio - p.initial_capital) / p.initial_capital * 100);
     const compassVal = document.getElementById('perf-compass-val');
-    compassVal.textContent = fmtPct(p.total_return);
-    compassVal.className = 'perf-side-value ' + colorCls(p.total_return);
+    compassVal.textContent = fmtPct(adjReturn);
+    compassVal.className = 'perf-side-value ' + colorCls(adjReturn);
     document.getElementById('perf-compass-sub').innerHTML =
-        '$' + p.initial_capital.toLocaleString() + ' &rarr; ' + fmt$(p.portfolio_value);
+        '$' + p.initial_capital.toLocaleString() + ' &rarr; ' + fmt$(adjPortfolio);
 
     /* SPY side */
     const spyVal = document.getElementById('perf-spy-val');
@@ -3490,7 +3502,7 @@ function updatePerfBanner(p) {
     const alphaEl = document.getElementById('perf-alpha');
     const alphaLabel = document.getElementById('perf-alpha-label');
     if (p.spy_return != null) {
-        const diff = p.total_return - p.spy_return;
+        const diff = adjReturn - p.spy_return;
         const absDiff = Math.abs(diff).toFixed(2);
         if (diff >= 0) {
             alphaEl.textContent = '+' + absDiff + ' pp';

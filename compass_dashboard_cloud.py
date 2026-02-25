@@ -77,6 +77,57 @@ _spy_start_price = None
 SHOWCASE_MODE = os.environ.get('COMPASS_MODE', 'showcase') == 'showcase'
 
 # ============================================================================
+# MOODY'S AAA YIELD (FRED)
+# ============================================================================
+
+_aaa_yield_rate: Optional[float] = None  # Annual % (e.g. 4.8 means 4.8%)
+_aaa_yield_cache_time: Optional[datetime] = None
+AAA_YIELD_CACHE_SECONDS = 3600  # refresh hourly
+AAA_YIELD_FALLBACK = 4.8  # fallback if FRED unavailable
+
+
+def fetch_aaa_yield() -> float:
+    """Fetch current Moody's Aaa Corporate Bond Yield from FRED CSV endpoint.
+    Returns annual yield as percentage (e.g. 4.8 for 4.8%). Cached for 1 hour."""
+    global _aaa_yield_rate, _aaa_yield_cache_time
+
+    now = datetime.now()
+    if _aaa_yield_rate is not None and _aaa_yield_cache_time and \
+       (now - _aaa_yield_cache_time).total_seconds() < AAA_YIELD_CACHE_SECONDS:
+        return _aaa_yield_rate
+
+    if not _HAS_REQUESTS:
+        _aaa_yield_rate = AAA_YIELD_FALLBACK
+        _aaa_yield_cache_time = now
+        return _aaa_yield_rate
+
+    try:
+        url = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=AAA&cosd=2025-01-01&coed=2026-12-31'
+        resp = http_requests.get(url, timeout=10)
+        resp.raise_for_status()
+        lines = resp.text.strip().split('\n')
+        # Find last valid (non-".") value
+        for line in reversed(lines[1:]):
+            parts = line.split(',')
+            if len(parts) == 2 and parts[1].strip() != '.':
+                try:
+                    rate = float(parts[1].strip())
+                    if 0 < rate < 20:  # sanity check
+                        _aaa_yield_rate = rate
+                        _aaa_yield_cache_time = now
+                        logger.info(f"Aaa yield fetched: {rate:.2f}%")
+                        return rate
+                except ValueError:
+                    continue
+    except Exception as e:
+        logger.warning(f"FRED Aaa yield fetch failed: {e}")
+
+    _aaa_yield_rate = AAA_YIELD_FALLBACK
+    _aaa_yield_cache_time = now
+    return _aaa_yield_rate
+
+
+# ============================================================================
 # DATA PRELOAD (at import time — shared across gunicorn workers via --preload)
 # ============================================================================
 
@@ -377,6 +428,12 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     else:
         spy_return = None
 
+    # Cash yield (Moody's Aaa IG Corporate)
+    aaa_rate = fetch_aaa_yield()  # annual % (e.g. 4.8)
+    daily_yield = cash * (aaa_rate / 100 / 252) if cash > 0 else 0
+    trading_days_elapsed = _compute_real_trading_day(state)
+    accumulated_yield = cash * (aaa_rate / 100 / 252) * trading_days_elapsed if cash > 0 else 0
+
     return {
         'portfolio_value': round(portfolio_value, 2),
         'cash': round(cash, 2),
@@ -394,11 +451,14 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'protection_stage': state.get('protection_stage', 0),
         'leverage': leverage,
         'recovery': recovery,
-        'trading_day': _compute_real_trading_day(state),
+        'trading_day': trading_days_elapsed,
         'last_trading_date': state.get('last_trading_date'),
         'stop_events': state.get('stop_events', []),
         'timestamp': state.get('timestamp', ''),
         'uptime_minutes': state.get('stats', {}).get('uptime_minutes', 0),
+        'aaa_rate': round(aaa_rate, 2),
+        'daily_yield': round(daily_yield, 2),
+        'accumulated_yield': round(accumulated_yield, 2),
     }
 
 
