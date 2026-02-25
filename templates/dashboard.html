@@ -2483,18 +2483,28 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <div class="card full-width" id="fund-comparison-card">
     <div class="card-header">
         <span class="card-title">COMPASS vs Real Algorithmic Funds</span>
-        <span class="card-badge" style="color:var(--green); background:var(--green-dim);">16 funds</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <button class="chart-btn" onclick="toggleFundCategory('all')" id="fund-btn-all">All</button>
+            <button class="chart-btn" onclick="toggleFundCategory('compass')" id="fund-btn-compass">COMPASS</button>
+            <button class="chart-btn" onclick="toggleFundCategory('elite')" id="fund-btn-elite">Elite</button>
+            <button class="chart-btn" onclick="toggleFundCategory('systematic')" id="fund-btn-systematic">Systematic</button>
+            <button class="chart-btn" onclick="toggleFundCategory('momentum')" id="fund-btn-momentum">Momentum</button>
+            <button class="chart-btn" onclick="toggleFundCategory('benchmark')" id="fund-btn-benchmark">Benchmark</button>
+            <span class="card-badge" style="color:var(--green); background:var(--green-dim);" id="fund-count-badge">16 funds</span>
+        </div>
     </div>
     <div class="card-body">
-        <div style="position:relative; width:100%; height:420px;"><canvas id="fundScatterChart"></canvas></div>
-        <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:10px; font-size:10px; color:var(--text-tertiary);">
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:3px;vertical-align:middle;"></span> COMPASS</span>
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f97316;margin-right:3px;vertical-align:middle;"></span> Elite Multi-Strategy (high leverage)</span>
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:3px;vertical-align:middle;"></span> Systematic / Trend-Following</span>
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#06b6d4;margin-right:3px;vertical-align:middle;"></span> Momentum Funds (long-only)</span>
-            <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#6366f1;margin-right:3px;vertical-align:middle;"></span> Benchmarks</span>
+        <div style="position:relative; width:100%; height:500px;"><canvas id="fundScatterChart"></canvas></div>
+        <div style="margin-top:14px; display:flex; flex-wrap:wrap; gap:14px; font-size:11px; color:var(--text-secondary); align-items:center;">
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid #22c55e;"></span> COMPASS (1x)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:rgba(249,115,22,0.6);border:2px solid #f97316;"></span> Elite Multi-Strategy (4-12x)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:rgba(59,130,246,0.6);border:2px solid #3b82f6;"></span> Systematic / Trend-Following (3x)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:rgba(6,182,212,0.6);border:2px solid #06b6d4;"></span> Momentum (long-only)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:rgba(99,102,241,0.6);border:2px solid #6366f1;"></span> Benchmarks</span>
         </div>
-        <div style="margin-top:10px; font-size:10px; color:var(--text-muted);">Bubble size = leverage multiple &middot; Medallion Fund excluded (39% CAGR, 12.5x leverage) &middot; Sources: HedgeFollow, AQR, iShares, public filings</div>
+        <div style="margin-top:10px; font-size:10px; color:var(--text-muted);">
+            Bubble size = leverage multiple &middot; Medallion Fund excluded (39% CAGR, 12.5x leverage) &middot; Sources: HedgeFollow, AQR, iShares, public filings
+        </div>
     </div>
 </div>
 
@@ -4770,121 +4780,185 @@ function renderDQAlerts(data) {
 }
 
 /* ============ FUND SCATTER CHART ============ */
+/* Fund data with categories and Max Drawdown */
+const FUND_DATA = [
+    /* COMPASS */
+    { x: 0.90, y: 18.56, label: 'COMPASS Signal', lev: 1, color: '#22c55e', cat: 'compass', maxDD: -26.9, aum: '0.1M', desc: 'Gross signal before execution costs' },
+    { x: 0.734, y: 15.16, label: 'COMPASS Net', lev: 1, color: '#22c55e', cat: 'compass', maxDD: -30.3, aum: '0.1M', desc: 'After 2.5% annual execution costs' },
+    /* Elite Multi-Strategy (high leverage) */
+    { x: 2.2, y: 19.2, label: 'Citadel Wellington', lev: 7, color: '#f97316', cat: 'elite', maxDD: -8.0, aum: '$66B', desc: 'Multi-strategy with 7x leverage' },
+    { x: 1.7, y: 12.9, label: 'D.E. Shaw', lev: 5, color: '#f97316', cat: 'elite', maxDD: -12.0, aum: '$60B', desc: 'Quantitative multi-strategy' },
+    { x: 1.8, y: 18.5, label: 'PDT Partners', lev: 4, color: '#f97316', cat: 'elite', maxDD: -10.0, aum: '$10B', desc: 'Statistical arbitrage' },
+    { x: 2.5, y: 14.0, label: 'Millennium', lev: 12, color: '#f97316', cat: 'elite', maxDD: -7.6, aum: '$64B', desc: 'Pod-based multi-strategy, 12x leverage' },
+    { x: 1.2, y: 12.0, label: 'Two Sigma', lev: 4, color: '#f97316', cat: 'elite', maxDD: -15.0, aum: '$60B', desc: 'AI/ML-driven quantitative' },
+    /* Systematic / Trend-Following */
+    { x: 0.85, y: 11.5, label: 'Bridgewater Pure Alpha', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -23.0, aum: '$150B', desc: 'Macro trend-following, risk parity' },
+    { x: 0.80, y: 11.6, label: 'Man AHL', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -20.0, aum: '$50B', desc: 'Systematic CTA / trend-following' },
+    { x: 0.78, y: 12.7, label: 'Winton', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -22.0, aum: '$6B', desc: 'Statistical trend-following' },
+    { x: 0.60, y: 8.8, label: 'Aspect Capital', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -25.0, aum: '$9B', desc: 'Diversified systematic CTA' },
+    /* Momentum Funds (long-only) */
+    { x: 0.75, y: 14.6, label: 'iShares MTUM', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -34.0, aum: '$10B', desc: 'Momentum factor ETF (MSCI USA)' },
+    { x: 0.70, y: 14.0, label: 'AQR Momentum', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -30.0, aum: '$3B', desc: 'Long-only US momentum strategy' },
+    { x: 0.55, y: 8.0, label: 'Renaissance RIEF', lev: 2, color: '#06b6d4', cat: 'momentum', maxDD: -28.0, aum: '$55B', desc: 'Public markets quantitative (external fund)' },
+    /* Benchmarks */
+    { x: 0.50, y: 10.4, label: 'S&P 500', lev: 1, color: '#6366f1', cat: 'benchmark', maxDD: -56.8, aum: '-', desc: 'US large-cap index (buy & hold)' },
+    { x: 0.65, y: 8.2, label: '60/40 Portfolio', lev: 1, color: '#6366f1', cat: 'benchmark', maxDD: -35.0, aum: '-', desc: '60% stocks / 40% bonds classic allocation' },
+];
+
+let _fundChart = null;
+let _fundFilter = 'all';
+
+function toggleFundCategory(cat) {
+    _fundFilter = cat;
+    /* Update button states */
+    document.querySelectorAll('#fund-comparison-card .chart-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('fund-btn-' + cat);
+    if (btn) btn.classList.add('active');
+    initFundScatterChart();
+}
+
 function initFundScatterChart() {
     const ctx = document.getElementById('fundScatterChart');
     if (!ctx) return;
 
-    /* Fund data: { x: Sharpe, y: CAGR%, label, leverage, color, radius } */
-    const funds = [
-        /* COMPASS */
-        { x: 0.90, y: 18.56, label: 'COMPASS Signal', lev: 1, color: '#22c55e', r: 7 },
-        { x: 0.734, y: 15.16, label: 'COMPASS Net', lev: 1, color: '#22c55e', r: 9 },
-        /* Elite Multi-Strategy (high leverage) */
-        { x: 2.2, y: 19.2, label: 'Citadel Wellington', lev: 7, color: '#f97316', r: 14 },
-        { x: 1.7, y: 12.9, label: 'D.E. Shaw', lev: 5, color: '#f97316', r: 12 },
-        { x: 1.8, y: 18.5, label: 'PDT Partners', lev: 4, color: '#f97316', r: 11 },
-        { x: 2.5, y: 14.0, label: 'Millennium', lev: 12, color: '#f97316', r: 18 },
-        { x: 1.2, y: 12.0, label: 'Two Sigma', lev: 4, color: '#f97316', r: 11 },
-        /* Systematic / Trend-Following */
-        { x: 0.85, y: 11.5, label: 'Bridgewater Pure Alpha', lev: 3, color: '#3b82f6', r: 10 },
-        { x: 0.80, y: 11.6, label: 'Man AHL', lev: 3, color: '#3b82f6', r: 10 },
-        { x: 0.78, y: 12.7, label: 'Winton', lev: 3, color: '#3b82f6', r: 10 },
-        { x: 0.60, y: 8.8, label: 'Aspect Capital', lev: 3, color: '#3b82f6', r: 10 },
-        /* Momentum Funds (long-only, no leverage) */
-        { x: 0.75, y: 14.6, label: 'iShares MTUM', lev: 1, color: '#06b6d4', r: 7 },
-        { x: 0.70, y: 14.0, label: 'AQR Momentum', lev: 1, color: '#06b6d4', r: 7 },
-        { x: 0.55, y: 8.0, label: 'Renaissance RIEF', lev: 2, color: '#06b6d4', r: 8 },
-        /* Benchmarks */
-        { x: 0.50, y: 10.4, label: 'S&P 500', lev: 1, color: '#6366f1', r: 7 },
-        { x: 0.65, y: 8.2, label: '60/40 Portfolio', lev: 1, color: '#6366f1', r: 7 },
-    ];
+    const filtered = _fundFilter === 'all' ? FUND_DATA
+        : FUND_DATA.filter(f => f.cat === _fundFilter || f.cat === 'compass');
 
+    /* Update badge */
+    const badge = document.getElementById('fund-count-badge');
+    if (badge) badge.textContent = filtered.length + ' funds';
+
+    /* Build datasets — one per category for proper legend control */
     const datasets = [{
-        data: funds.map(f => ({ x: f.x, y: f.y, label: f.label, lev: f.lev })),
-        backgroundColor: funds.map(f => f.label.startsWith('COMPASS') ? f.color : f.color + '99'),
-        borderColor: funds.map(f => f.color),
-        borderWidth: funds.map(f => f.label.startsWith('COMPASS') ? 3 : 1),
-        pointRadius: funds.map(f => f.r),
-        pointHoverRadius: funds.map(f => f.r + 3),
+        data: filtered.map(f => ({ x: f.x, y: f.y, r: f.cat === 'compass' ? 10 + f.lev * 2 : 5 + f.lev * 2.5,
+                                    label: f.label, lev: f.lev, maxDD: f.maxDD, aum: f.aum, desc: f.desc, cat: f.cat })),
+        backgroundColor: filtered.map(f => f.cat === 'compass' ? f.color : f.color + '88'),
+        borderColor: filtered.map(f => f.color),
+        borderWidth: filtered.map(f => f.cat === 'compass' ? 3 : 1.5),
+        hoverBorderWidth: 3,
+        hoverBorderColor: filtered.map(f => f.color),
     }];
 
-    new Chart(ctx, {
+    if (_fundChart) _fundChart.destroy();
+
+    _fundChart = new Chart(ctx, {
         type: 'bubble',
         data: { datasets: datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: 'nearest', intersect: true },
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(30, 30, 50, 0.92)',
-                    borderColor: 'rgba(255,255,255,0.1)',
+                    backgroundColor: 'rgba(20, 20, 40, 0.95)',
+                    borderColor: 'rgba(255,255,255,0.15)',
                     borderWidth: 1,
-                    titleFont: { family: "'Inter', sans-serif", size: 13, weight: '700' },
-                    bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
-                    padding: 12,
+                    titleColor: '#fff',
+                    bodyColor: '#d0d0e0',
+                    titleFont: { family: "'Inter', sans-serif", size: 14, weight: '700' },
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+                    footerFont: { family: "'Inter', sans-serif", size: 10, style: 'italic' },
+                    footerColor: '#888',
+                    padding: 14,
+                    cornerRadius: 8,
+                    displayColors: false,
                     callbacks: {
                         title: function(items) { return items[0].raw.label; },
                         label: function(item) {
+                            const d = item.raw;
                             return [
-                                'CAGR: ' + item.raw.y.toFixed(1) + '%',
-                                'Sharpe: ' + item.raw.x.toFixed(2),
-                                'Leverage: ' + item.raw.lev + 'x'
+                                'Net CAGR:    ' + d.y.toFixed(1) + '%',
+                                'Sharpe:      ' + d.x.toFixed(2),
+                                'Max DD:      ' + d.maxDD.toFixed(1) + '%',
+                                'Leverage:    ' + d.lev + 'x',
+                                'AUM:         ' + d.aum,
                             ];
+                        },
+                        footer: function(items) {
+                            return items[0].raw.desc;
                         }
                     }
                 },
+                /* Quadrant lines: COMPASS as reference */
+                annotation: {
+                    annotations: {
+                        compassCAGR: {
+                            type: 'line', yMin: 15.16, yMax: 15.16,
+                            borderColor: 'rgba(34,197,94,0.2)', borderWidth: 1, borderDash: [6, 4],
+                            label: { content: 'COMPASS Net 15.16%', display: true, position: 'start',
+                                     color: 'rgba(34,197,94,0.5)', font: {size: 9}, backgroundColor: 'transparent', padding: 2 }
+                        },
+                        compassSharpe: {
+                            type: 'line', xMin: 0.734, xMax: 0.734,
+                            borderColor: 'rgba(34,197,94,0.2)', borderWidth: 1, borderDash: [6, 4],
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Sharpe Ratio', color: '#9898b0', font: { family: "'Inter', sans-serif", size: 12, weight: '600' } },
-                    min: 0.2,
-                    max: 2.8,
+                    title: { display: true, text: 'Sharpe Ratio', color: '#7a7a90',
+                             font: { family: "'Inter', sans-serif", size: 12, weight: '600' } },
+                    min: 0.2, max: 2.8,
                     grid: { color: 'rgba(0,0,0,0.04)' },
-                    ticks: { color: '#5e5e78', font: { family: "'JetBrains Mono', monospace", size: 11 } },
-                    border: { color: 'rgba(0,0,0,0.05)' }
+                    ticks: { color: '#5e5e78', font: { family: "'JetBrains Mono', monospace", size: 11 },
+                             stepSize: 0.5 },
+                    border: { color: 'rgba(0,0,0,0.06)' }
                 },
                 y: {
-                    title: { display: true, text: 'Net CAGR (%)', color: '#9898b0', font: { family: "'Inter', sans-serif", size: 12, weight: '600' } },
-                    min: 4,
-                    max: 24,
+                    title: { display: true, text: 'Net CAGR (%)', color: '#7a7a90',
+                             font: { family: "'Inter', sans-serif", size: 12, weight: '600' } },
+                    min: 4, max: 24,
                     grid: { color: 'rgba(0,0,0,0.04)' },
-                    ticks: { color: '#5e5e78', font: { family: "'JetBrains Mono', monospace", size: 11 }, callback: v => v + '%' },
-                    border: { color: 'rgba(0,0,0,0.05)' }
+                    ticks: { color: '#5e5e78', font: { family: "'JetBrains Mono', monospace", size: 11 },
+                             callback: v => v + '%', stepSize: 2 },
+                    border: { color: 'rgba(0,0,0,0.06)' }
                 }
             },
-            /* Draw fund labels on chart */
+            /* Draw fund labels */
             animation: {
                 onComplete: function() {
                     const chart = this;
                     const ctx2 = chart.ctx;
                     ctx2.save();
-                    ctx2.font = "500 9px 'Inter', sans-serif";
                     ctx2.textAlign = 'left';
-                    chart.data.datasets[0].data.forEach(function(pt, i) {
-                        const meta = chart.getDatasetMeta(0).data[i];
-                        if (!meta) return;
-                        const px = meta.x;
-                        const py = meta.y;
-                        const f = funds[i];
-                        /* Pick offset so labels don't overlap points */
-                        let ox = f.r + 4, oy = -4;
-                        ctx2.textAlign = 'left';
-                        /* Special adjustments for crowded area */
-                        if (f.label === 'COMPASS Signal') { ox = f.r + 4; oy = -10; }
-                        if (f.label === 'COMPASS Net') { ox = f.r + 4; oy = 16; }
-                        if (f.label === 'iShares MTUM') { ox = f.r + 4; oy = -12; }
-                        if (f.label === 'AQR Momentum') { ox = f.r + 4; oy = 16; }
-                        if (f.label === 'Man AHL') { ox = f.r + 4; oy = 14; }
-                        if (f.label === 'Bridgewater Pure Alpha') { ox = f.r + 4; oy = -2; }
-                        if (f.label === 'S&P 500') { ox = f.r + 4; oy = -10; }
-                        if (f.label === '60/40 Portfolio') { ox = f.r + 4; oy = 14; }
-                        if (f.label === 'Aspect Capital') { ox = f.r + 4; oy = -10; }
-                        if (f.label === 'Renaissance RIEF') { ox = f.r + 4; oy = 14; }
-                        if (f.label === 'Millennium') { oy = -12; }
-                        if (f.label === 'Two Sigma') { oy = 14; }
-                        if (f.label === 'Winton') { oy = -10; }
-                        ctx2.fillStyle = f.color + 'cc';
+                    const meta = chart.getDatasetMeta(0);
+                    if (!meta || !meta.data) { ctx2.restore(); return; }
+                    meta.data.forEach(function(el, i) {
+                        const f = filtered[i];
+                        if (!f || !el) return;
+                        const px = el.x, py = el.y;
+                        const isCompass = f.cat === 'compass';
+                        /* Font weight */
+                        ctx2.font = isCompass ? "700 10px 'Inter', sans-serif" : "500 9px 'Inter', sans-serif";
+                        /* Label offsets */
+                        let ox = (f.cat === 'compass' ? 14 : 5 + f.lev * 2.5 + 4), oy = -6;
+                        /* Manual adjustments for overlapping labels */
+                        if (f.label === 'COMPASS Signal') { oy = -12; }
+                        if (f.label === 'COMPASS Net') { oy = 18; }
+                        if (f.label === 'iShares MTUM') { oy = -14; }
+                        if (f.label === 'AQR Momentum') { oy = 18; }
+                        if (f.label === 'Man AHL') { oy = 16; }
+                        if (f.label === 'Bridgewater Pure Alpha') { oy = -2; }
+                        if (f.label === 'S&P 500') { oy = -12; }
+                        if (f.label === '60/40 Portfolio') { oy = 16; }
+                        if (f.label === 'Aspect Capital') { oy = -12; }
+                        if (f.label === 'Renaissance RIEF') { oy = 16; }
+                        if (f.label === 'Millennium') { oy = -14; }
+                        if (f.label === 'Two Sigma') { oy = 16; }
+                        if (f.label === 'Winton') { oy = -12; }
+                        /* Draw background pill for COMPASS labels */
+                        if (isCompass) {
+                            const tw = ctx2.measureText(f.label).width;
+                            ctx2.fillStyle = 'rgba(34,197,94,0.1)';
+                            ctx2.beginPath();
+                            ctx2.roundRect(px + ox - 4, py + oy - 10, tw + 8, 14, 3);
+                            ctx2.fill();
+                            ctx2.fillStyle = '#22c55e';
+                        } else {
+                            ctx2.fillStyle = f.color + 'bb';
+                        }
                         ctx2.fillText(f.label, px + ox, py + oy);
                     });
                     ctx2.restore();
