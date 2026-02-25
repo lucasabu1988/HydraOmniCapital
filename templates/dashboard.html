@@ -12,21 +12,21 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --bg-root: #1e2030;
-    --bg-primary: #252840;
-    --bg-card: #2d3050;
-    --bg-card-hover: #353860;
-    --bg-elevated: #383c62;
-    --bg-glass: rgba(45, 48, 80, 0.75);
+    --bg-root: #303555;
+    --bg-primary: #383d60;
+    --bg-card: #3f4568;
+    --bg-card-hover: #484e75;
+    --bg-elevated: #4a5078;
+    --bg-glass: rgba(63, 69, 104, 0.80);
 
-    --border: rgba(255,255,255,0.10);
-    --border-active: rgba(255,255,255,0.18);
-    --border-accent: rgba(99, 102, 241, 0.35);
+    --border: rgba(255,255,255,0.12);
+    --border-active: rgba(255,255,255,0.22);
+    --border-accent: rgba(99, 102, 241, 0.40);
 
-    --text-primary: #f0f0f5;
-    --text-secondary: #b0b0c8;
-    --text-tertiary: #7878a0;
-    --text-muted: #555578;
+    --text-primary: #f2f2f8;
+    --text-secondary: #c0c0d8;
+    --text-tertiary: #8888b0;
+    --text-muted: #686890;
 
     --accent: #6366f1;
     --accent-light: #818cf8;
@@ -105,7 +105,7 @@ body::before {
 
 /* ============ TOP HEADER ============ */
 .header-bar {
-    background: rgba(37, 40, 64, 0.92);
+    background: rgba(56, 61, 96, 0.92);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
     padding: 10px 24px;
@@ -1375,7 +1375,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* ============ PAGE TABS ============ */
 .page-tabs {
-    background: rgba(37, 40, 64, 0.95);
+    background: rgba(56, 61, 96, 0.95);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
     padding: 0 24px;
@@ -3773,7 +3773,7 @@ function renderComparisonChart(json) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(45, 48, 80, 0.95)',
+                    backgroundColor: 'rgba(63, 69, 104, 0.95)',
                     borderColor: 'rgba(99, 102, 241, 0.3)',
                     borderWidth: 1,
                     titleColor: '#9898b0',
@@ -4278,7 +4278,7 @@ function initFundScatterChart() {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(37,40,64,0.95)',
+                    backgroundColor: 'rgba(56,61,96,0.95)',
                     borderColor: 'rgba(255,255,255,0.1)',
                     borderWidth: 1,
                     titleFont: { family: "'Inter', sans-serif", size: 13, weight: '700' },
