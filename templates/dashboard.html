@@ -1919,7 +1919,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 <!-- OFFLINE BANNER -->
 <div id="offline-banner">
-    SYSTEM OFFLINE &mdash; NO STATE DATA
+    CONNECTING TO SERVER...
     <span class="last-success" id="last-success-time"></span>
 </div>
 
@@ -3860,6 +3860,10 @@ async function fetchBacktestStatus() {
 }
 
 /* ============ FETCH & REFRESH ============ */
+let _fetchRetries = 0;
+const MAX_RETRIES = 5;
+const RETRY_DELAYS = [3000, 5000, 8000, 12000, 20000]; /* escalating retry */
+
 async function fetchAll() {
     try {
         const stateRes = await fetch('/api/state');
@@ -3870,11 +3874,20 @@ async function fetchAll() {
         if (stateData.status === 'offline') {
             const banner = document.getElementById('offline-banner');
             banner.style.display = 'block';
+            banner.textContent = _fetchRetries > 0
+                ? 'WAKING UP SERVER... RETRY ' + _fetchRetries + '/' + MAX_RETRIES
+                : 'SYSTEM OFFLINE \u2014 NO STATE DATA';
             if (lastSuccessTime) {
                 document.getElementById('last-success-time').textContent =
                     ' | Last valid data: ' + new Date(lastSuccessTime).toLocaleTimeString();
             }
+            /* Auto-retry if server is waking up */
+            if (_fetchRetries < MAX_RETRIES) {
+                setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
+                _fetchRetries++;
+            }
         } else {
+            _fetchRetries = 0;
             document.getElementById('offline-banner').style.display = 'none';
             lastSuccessTime = new Date().toISOString();
             const p = stateData.portfolio;
@@ -3896,9 +3909,13 @@ async function fetchAll() {
         console.error('Fetch error:', err);
         const banner = document.getElementById('offline-banner');
         banner.style.display = 'block';
-        if (lastSuccessTime) {
-            document.getElementById('last-success-time').textContent =
-                ' | Last valid data: ' + new Date(lastSuccessTime).toLocaleTimeString();
+        banner.innerHTML = _fetchRetries > 0
+            ? 'WAKING UP SERVER... RETRY ' + _fetchRetries + '/' + MAX_RETRIES
+            : 'CONNECTING TO SERVER...';
+        /* Auto-retry on network error (server waking up) */
+        if (_fetchRetries < MAX_RETRIES) {
+            setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
+            _fetchRetries++;
         }
     }
 }
