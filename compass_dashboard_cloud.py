@@ -291,6 +291,24 @@ def get_spy_start_price() -> Optional[float]:
     return None
 
 
+def _compute_real_trading_day(state: dict) -> int:
+    """Compute real trading day from last_trading_date (state counter may be stale)."""
+    saved_day = state.get('trading_day_counter', 0)
+    last_date_str = state.get('last_trading_date')
+    if not last_date_str:
+        return saved_day
+    try:
+        last_dt = date.fromisoformat(last_date_str)
+        today = date.today()
+        if today <= last_dt:
+            return saved_day
+        extra = sum(1 for d in range(1, (today - last_dt).days + 1)
+                    if (last_dt + timedelta(days=d)).weekday() < 5)
+        return saved_day + extra
+    except Exception:
+        return saved_day
+
+
 def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> dict:
     """Compute portfolio-level dashboard metrics."""
     portfolio_value = state.get('portfolio_value', 0)
@@ -376,7 +394,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'protection_stage': state.get('protection_stage', 0),
         'leverage': leverage,
         'recovery': recovery,
-        'trading_day': state.get('trading_day_counter', 0),
+        'trading_day': _compute_real_trading_day(state),
         'last_trading_date': state.get('last_trading_date'),
         'stop_events': state.get('stop_events', []),
         'timestamp': state.get('timestamp', ''),
