@@ -1987,6 +1987,12 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <span class="hdr-stat-value" id="day-display">--</span>
     </div>
     <span class="hdr-spacer"></span>
+    <div class="hdr-stat" id="hdr-spy-wrap" style="min-width:120px; text-align:right;">
+        <span class="hdr-stat-label">SPY</span>
+        <span class="hdr-stat-value mono" id="hdr-spy-price" style="font-size:14px; font-weight:700;">--</span>
+        <span class="hdr-stat-value mono" id="hdr-spy-chg" style="font-size:11px; margin-left:4px;">--</span>
+    </div>
+    <span class="hdr-sep">&middot;</span>
     <div class="hdr-stat" id="hdr-market-timer-wrap" style="min-width:180px; text-align:right;">
         <span class="hdr-stat-label" id="hdr-market-label">MARKET CLOSED</span>
         <span class="hdr-stat-value" id="hdr-market-countdown" style="font-size:13px;">--</span>
@@ -3953,6 +3959,28 @@ let _fetchRetries = 0;
 const MAX_RETRIES = 5;
 const RETRY_DELAYS = [3000, 5000, 8000, 12000, 20000];
 
+/* SPY live price tracker */
+let _spyPrevClose = null;
+function updateSpyTracker(prices) {
+    const priceEl = document.getElementById('hdr-spy-price');
+    const chgEl = document.getElementById('hdr-spy-chg');
+    if (!priceEl || !chgEl || !prices || !prices.SPY) return;
+    const spyPrice = prices.SPY;
+    priceEl.textContent = '$' + spyPrice.toFixed(2);
+    if (_spyPrevClose === null) _spyPrevClose = spyPrice;
+    const chg = ((spyPrice - _spyPrevClose) / _spyPrevClose) * 100;
+    if (Math.abs(chg) < 0.001) {
+        chgEl.textContent = '0.00%';
+        chgEl.style.color = 'var(--text-secondary)';
+    } else if (chg > 0) {
+        chgEl.textContent = '+' + chg.toFixed(2) + '%';
+        chgEl.style.color = 'var(--green)';
+    } else {
+        chgEl.textContent = chg.toFixed(2) + '%';
+        chgEl.style.color = 'var(--red)';
+    }
+}
+
 async function fetchAll() {
     try {
         const stateRes = await fetch('/api/state');
@@ -3980,6 +4008,7 @@ async function fetchAll() {
             updatePerfBanner(p);
             updatePreclose(stateData.preclose);
             updatePositions(stateData.position_details);
+            if (stateData.prices) updateSpyTracker(stateData.prices);
             const posDict = {};
             if (stateData.position_details) {
                 for (const pd of stateData.position_details) posDict[pd.symbol] = true;
