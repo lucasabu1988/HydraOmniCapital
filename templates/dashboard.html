@@ -1954,6 +1954,115 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .hdr-brand-text { font-size: 14px; }
     .hdr-stat { display: none; }
 }
+
+/* ============ ALGORITHM TERMINAL ============ */
+.term-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--orange);
+    border: none;
+    cursor: pointer;
+    z-index: 250;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-size: 22px;
+    color: #000;
+    font-weight: 900;
+    font-family: 'JetBrains Mono', monospace;
+}
+.term-fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(249, 115, 22, 0.55); }
+.term-fab.open { display: none; }
+
+.term-panel {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 420px;
+    height: 520px;
+    background: #0c0c0c;
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    border-radius: 16px;
+    z-index: 251;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 30px rgba(249,115,22,0.1);
+}
+.term-panel.open { display: flex; }
+
+.term-header {
+    background: rgba(249, 115, 22, 0.12);
+    border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.term-header-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--orange);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+.term-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: color 0.2s;
+}
+.term-close:hover { color: var(--orange); }
+
+.term-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(249,115,22,0.2) transparent;
+}
+.term-body::-webkit-scrollbar { width: 4px; }
+.term-body::-webkit-scrollbar-thumb { background: rgba(249,115,22,0.25); border-radius: 2px; }
+
+.term-msg { line-height: 1.5; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.term-msg-q { color: var(--orange); }
+.term-msg-q::before { content: '> '; opacity: 0.5; }
+.term-msg-a { color: var(--text-secondary); padding-left: 8px; border-left: 2px solid rgba(249,115,22,0.2); }
+.term-msg-sys { color: var(--text-muted); font-size: 11px; font-style: italic; }
+
+.term-input-wrap {
+    border-top: 1px solid rgba(249, 115, 22, 0.15);
+    padding: 12px 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.term-prompt { color: var(--orange); font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
+.term-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    caret-color: var(--orange);
+}
+.term-input::placeholder { color: var(--text-muted); }
+
 </style>
 </head>
 <body>
@@ -3128,6 +3237,23 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <div class="footer">OmniCapital COMPASS v8.2 &middot; Paper Trading &middot; No Leverage (1.0x) &middot; Pre-Close MOC @ 15:30 ET</div>
 
 </div><!-- /main -->
+
+<!-- ALGORITHM TERMINAL -->
+<button class="term-fab" id="term-fab" onclick="toggleTerminal()" title="Ask about the algorithm">&#9654;</button>
+<div class="term-panel" id="term-panel">
+    <div class="term-header">
+        <span class="term-header-title">COMPASS Terminal</span>
+        <button class="term-close" onclick="toggleTerminal()">&times;</button>
+    </div>
+    <div class="term-body" id="term-body">
+        <div class="term-msg term-msg-sys">Welcome to COMPASS Terminal. Ask anything about the algorithm.</div>
+        <div class="term-msg term-msg-sys">Try: "what is compass", "performance", "how does it work", "positions", "risk"</div>
+    </div>
+    <div class="term-input-wrap">
+        <span class="term-prompt">&#9654;</span>
+        <input class="term-input" id="term-input" type="text" placeholder="Ask about the algorithm..." autocomplete="off" onkeydown="if(event.key==='Enter')termSubmit()">
+    </div>
+</div>
 
 <script>
 /* ============ GLOBALS ============ */
@@ -4538,6 +4664,114 @@ document.addEventListener('DOMContentLoaded', function() {
     updateMarketTimer();
     setInterval(updateMarketTimer, 1000);
 });
+
+/* ============ ALGORITHM TERMINAL ============ */
+const TERM_KB = [
+    { keys: ['what is compass', 'compass', 'about', 'overview', 'explain'],
+      a: 'COMPASS (Cross-sectional Momentum, Position-Adjusted Risk Scaling) is a systematic long-only US equity momentum strategy. It ranks S&P 500 stocks by 90-day momentum, buys the top 5, holds for 5 trading days, and repeats. A regime filter (SPY vs SMA200) switches between 5 positions (bull) and 2 (bear).' },
+    { keys: ['how does it work', 'how it works', 'mechanism', 'strategy', 'logic'],
+      a: 'Every 5 trading days at 15:30 ET, COMPASS ranks its 40-stock universe by 90-day momentum (skipping the last 5 days to avoid reversal). It selects the top 5 (or 2 in risk-off) and executes Market-On-Close orders. Positions are vol-targeted to 15% annualized volatility, with leverage capped at 1.0x.' },
+    { keys: ['cagr', 'return', 'performance', 'results', 'backtest'],
+      a: 'Backtest (2000-2026): Signal CAGR 18.56%, Net CAGR 15.16% (after 2.5% execution costs). $100K grew to $8.43M (signal) / $3.93M (net). Sharpe 0.90, Sortino 1.24. Positive in 23 of 26 years.' },
+    { keys: ['sharpe', 'risk adjusted', 'sortino', 'calmar'],
+      a: 'Sharpe ratio: 0.90 | Sortino ratio: 1.24 | Calmar ratio: 0.69. The gross t-statistic of 3.74 clears the Harvey, Liu & Zhu (2016) threshold for newly discovered factors.' },
+    { keys: ['drawdown', 'max dd', 'worst', 'loss', 'crash'],
+      a: 'Maximum drawdown: -26.9% (signal), -30.3% (net). The portfolio stop (-15%) triggered 9 times in 26 years. Protection mode (post-stop recovery) accounts for ~27% of the backtest period. 8 of 11 protection periods were profitable.' },
+    { keys: ['position', 'how many', 'stocks', 'holdings'],
+      a: 'COMPASS holds 5 positions in risk-on (bull market) and 2 positions in risk-off (bear market). Positions are concentrated by design \u2014 diluting across more stocks degrades alpha.' },
+    { keys: ['regime', 'risk on', 'risk off', 'bull', 'bear', 'sma', 'filter'],
+      a: 'Regime filter: SPY must close above its 200-day SMA for 3 consecutive days to confirm risk-on. Below = risk-off (2 positions only). This is a macroeconomic liquidity proxy, not a microstructural signal.' },
+    { keys: ['stop', 'stop loss', 'trailing', 'protection', 'risk management'],
+      a: 'Three layers of risk management: (1) -8% position stop-loss, (2) trailing stop that activates at +5% gain and locks at +3%, (3) -15% portfolio circuit breaker. After a portfolio stop, staged recovery requires 63 days (Stage 1) then 126 days (Stage 2) before full exposure.' },
+    { keys: ['leverage', 'vol target', 'volatility', 'exposure', 'sizing'],
+      a: 'Vol-targeting at 15% annualized, with leverage range [0.3x, 1.0x]. Maximum leverage is 1.0x (no borrowing). Broker margin at 6% destroys -1.10% CAGR, so leverage is permanently disabled.' },
+    { keys: ['execution', 'moc', 'pre-close', 'trading', 'orders', 'when'],
+      a: 'Signal computed at 15:30 ET using Close[T-1] prices. Market-On-Close (MOC) orders submitted before 15:50 ET deadline. Execution at the official closing price. One signal, one execution window per cycle.' },
+    { keys: ['universe', 'which stocks', 'stock pool', 'tickers', 'selection'],
+      a: 'The universe is 40 stocks selected annually from a broad pool of ~113 large-cap S&P 500 stocks, ranked by dollar volume (price x volume as a market cap proxy). Annual rotation happens in January.' },
+    { keys: ['momentum', 'signal', 'lookback', 'ranking'],
+      a: 'Momentum signal: 90-day return, skipping the last 5 days (to avoid short-term reversal contamination). Stocks are ranked cross-sectionally \u2014 the top N by momentum are selected. 90 days is genuinely optimal, not overfit (tested via 36 experiments).' },
+    { keys: ['hold', 'rebalance', 'frequency', 'turnover', 'cycle'],
+      a: 'Hold period: 5 trading days. Rebalance every Monday (or next trading day). ~209 trades per year. The 5-day hold captures concentrated alpha before mean-reversion erodes it.' },
+    { keys: ['cost', 'fee', 'commission', 'slippage', 'transaction'],
+      a: 'Estimated execution costs: 2.5% annual (conservative). Breakdown: MOC slippage (~0.71%), commissions (~0.15%), margin cost (~0.43%), buffer. Industry benchmarks: AQR 0.23%, retail momentum 0.80%, COMPASS realistic 0.5-1.2%.' },
+    { keys: ['cash', 'yield', 'idle', 'aaa', 'interest'],
+      a: 'Cash earns Moody\'s Aaa IG Corporate yield (variable, ~4.8% average 2000-2025, sourced from FRED). This is a chassis upgrade that added +1.15% CAGR vs the old fixed 3.5% T-bill rate.' },
+    { keys: ['broker', 'ibkr', 'interactive', 'account', 'paper'],
+      a: 'IBKR (Interactive Brokers) via TWS API. Port 7497 = paper trading, 7496 = live. Mock mode with 53 unit tests. Safety guards: paper trading port verification, MOC deadline check, kill switch, $50K order size limit.' },
+    { keys: ['tax', 'ira', '401k', 'after tax'],
+      a: '~209 trades/year = short-term capital gains (taxed up to 37% + state). After-tax return in a taxable account: ~10-11%. Recommendation: trade in IRA/401(k) to defer taxes.' },
+    { keys: ['experiment', 'tried', 'failed', 'tested', 'optimization'],
+      a: '36 experiments conducted, 32 failed. The algorithm is inelastic \u2014 any parameter change degrades performance. Failed attempts include: short-selling, dynamic recovery, ensemble momentum, geographic expansion (EU/Asia), gold protection, MWF trading, profit targets, and more.' },
+    { keys: ['geographic', 'international', 'europe', 'asia', 'eu'],
+      a: 'Geographic expansion FAILED. EU (STOXX 600): -20.87% CAGR. Asia (N225): -19.71% CAGR. COMPASS is US-market-specific \u2014 its edge relies on US market microstructure.' },
+    { keys: ['alpha', 'edge', 'why', 'source', 'advantage'],
+      a: 'COMPASS exploits cross-sectional momentum (winners keep winning over short horizons) combined with a regime filter that avoids momentum crashes. The concentrated 5-position portfolio and 5-day hold period capture alpha before mean-reversion dilutes it.' },
+    { keys: ['capital', 'minimum', 'how much', 'starting', 'initial'],
+      a: 'Designed for $100,000 initial capital. At this size, trading S&P 500 large-caps means negligible market impact. Scaling note: at $500K+, dual-engine (COMPASS+RATTLESNAKE) becomes viable.' },
+    { keys: ['live', 'paper trading', 'status', 'running'],
+      a: 'Currently in paper trading mode (started Feb 19, 2026). Minimum 3-6 months before real capital (to capture a full quarterly earnings cycle). The IBKR scaffolding is production-ready.' },
+    { keys: ['help', 'commands', 'what can i ask', 'topics'],
+      a: 'You can ask about: what COMPASS is, how it works, performance (CAGR, Sharpe), risk management (stops, drawdown), execution (MOC, pre-close), positions, universe, momentum signal, leverage, costs, broker (IBKR), taxes, experiments, and more.' },
+];
+
+function toggleTerminal() {
+    const fab = document.getElementById('term-fab');
+    const panel = document.getElementById('term-panel');
+    const isOpen = panel.classList.contains('open');
+    if (isOpen) {
+        panel.classList.remove('open');
+        fab.classList.remove('open');
+    } else {
+        panel.classList.add('open');
+        fab.classList.add('open');
+        document.getElementById('term-input').focus();
+    }
+}
+
+function termMatch(input) {
+    const q = input.toLowerCase().trim();
+    if (!q) return null;
+    let best = null, bestScore = 0;
+    for (const entry of TERM_KB) {
+        let score = 0;
+        for (const key of entry.keys) {
+            if (q.includes(key)) score += key.length;
+            else {
+                /* partial word matching */
+                const words = key.split(' ');
+                for (const w of words) {
+                    if (w.length > 2 && q.includes(w)) score += w.length * 0.5;
+                }
+            }
+        }
+        if (score > bestScore) { bestScore = score; best = entry; }
+    }
+    return bestScore > 2 ? best : null;
+}
+
+function termSubmit() {
+    const input = document.getElementById('term-input');
+    const body = document.getElementById('term-body');
+    const q = input.value.trim();
+    if (!q) return;
+
+    /* Add question */
+    const qDiv = document.createElement('div');
+    qDiv.className = 'term-msg term-msg-q';
+    qDiv.textContent = q;
+    body.appendChild(qDiv);
+
+    /* Find answer */
+    const match = termMatch(q);
+    const aDiv = document.createElement('div');
+    aDiv.className = 'term-msg term-msg-a';
+    aDiv.textContent = match ? match.a : 'I don\'t have information about that. Try asking about: performance, positions, risk management, execution, momentum, leverage, costs, or type "help" for all topics.';
+    body.appendChild(aDiv);
+
+    input.value = '';
+    body.scrollTop = body.scrollHeight;
+}
 </script>
 
 </body>
