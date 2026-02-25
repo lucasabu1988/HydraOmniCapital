@@ -4411,13 +4411,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const mktOpen = 9 * 60 + 30, mktClose = 16 * 60;
         const isOpen = isWeekday && mins >= mktOpen && mins < mktClose;
         if (isOpen) {
-            lbl.textContent = 'Market Open';
+            lbl.textContent = 'LIVE PAPER TRADING';
             lbl.style.color = 'var(--green)';
             const left = (mktClose * 60) - (mins * 60 + s);
             const hh = Math.floor(left / 3600), mm = Math.floor((left % 3600) / 60), ss = left % 60;
             cd.textContent = 'closes ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
         } else {
-            lbl.textContent = 'Market Closed';
+            lbl.textContent = 'MARKET CLOSED';
             lbl.style.color = 'var(--text-muted)';
             let next = new Date(et);
             if (mins >= mktClose || !isWeekday) {
