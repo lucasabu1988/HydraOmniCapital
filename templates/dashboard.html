@@ -241,6 +241,38 @@ body::before {
 }
 .upd-wrapper:hover .upd-tooltip { display: block; }
 
+/* ============ STOCK TICKER TOOLTIP ============ */
+.ticker-tip-wrap {
+    position: relative; cursor: help; display: inline-block;
+}
+.ticker-tip {
+    display: none; position: absolute; bottom: calc(100% + 10px); left: 50%;
+    transform: translateX(-50%); z-index: 400;
+    background: #fffef5; color: #1a1a1a;
+    border: 1px solid #e0dcc8; border-left: 4px solid var(--primary);
+    border-radius: 6px; padding: 12px 14px;
+    min-width: 240px; max-width: 300px;
+    box-shadow: 2px 3px 12px rgba(0,0,0,0.12);
+    font-family: var(--font-body, system-ui); font-size: 12px; line-height: 1.5;
+    white-space: normal; pointer-events: none;
+}
+.ticker-tip::after {
+    content: ''; position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent; border-top-color: #fffef5;
+}
+.ticker-tip-name { font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #111; }
+.ticker-tip-sector {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 3px;
+    background: #f0eddf; color: #6b6545; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.ticker-tip-cap { font-size: 11px; color: #555; margin-bottom: 4px; }
+.ticker-tip-cap b { color: #222; }
+.ticker-tip-desc { font-size: 11px; color: #777; font-style: italic; }
+.ticker-tip-wrap:hover .ticker-tip { display: block; }
+
 /* ============ MAIN LAYOUT ============ */
 .main {
     position: relative;
@@ -3272,6 +3304,50 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </a>
 
 <script>
+/* ============ COMPANY INFO MAP (for ticker tooltips) ============ */
+const COMPANY_INFO = {
+    'TSLA': {name:'Tesla',sector:'Electric Vehicles',cap:'$1.1T',desc:'Electric vehicles, energy storage, and solar products manufacturer'},
+    'MSFT': {name:'Microsoft',sector:'Software',cap:'$3.1T',desc:'Cloud computing (Azure), Windows OS, Office 365, and AI platforms'},
+    'META': {name:'Meta Platforms',sector:'Social Media',cap:'$1.6T',desc:'Facebook, Instagram, WhatsApp, and metaverse/VR technologies'},
+    'AMZN': {name:'Amazon',sector:'E-Commerce / Cloud',cap:'$2.3T',desc:'E-commerce marketplace, AWS cloud computing, and digital streaming'},
+    'GOOGL': {name:'Alphabet',sector:'Internet / AI',cap:'$2.2T',desc:'Google Search, YouTube, Google Cloud, and Waymo autonomous vehicles'},
+    'AVGO': {name:'Broadcom',sector:'Semiconductors',cap:'$1.0T',desc:'Semiconductor and infrastructure software for data centers and networking'},
+    'UNH': {name:'UnitedHealth Group',sector:'Healthcare',cap:'$450B',desc:'Largest US health insurer with Optum health services division'},
+    'ORCL': {name:'Oracle',sector:'Software / Cloud',cap:'$400B',desc:'Enterprise database software, cloud infrastructure, and business applications'},
+    'MU':   {name:'Micron Technology',sector:'Semiconductors',cap:'$100B',desc:'Memory and storage semiconductors (DRAM, NAND flash) for data centers'},
+    'LLY':  {name:'Eli Lilly',sector:'Pharmaceuticals',cap:'$700B',desc:'Pharmaceuticals specializing in diabetes (Mounjaro), obesity, and oncology'},
+    'INTC': {name:'Intel',sector:'Semiconductors',cap:'$100B',desc:'Semiconductor design and manufacturing for PCs, data centers, and AI'},
+    'JPM':  {name:'JPMorgan Chase',sector:'Banking',cap:'$680B',desc:'Largest US bank by assets with investment banking, trading, and wealth management'},
+    'BRK-B':{name:'Berkshire Hathaway',sector:'Conglomerate',cap:'$1.0T',desc:'Diversified holding company led by Warren Buffett with insurance and investments'},
+    'COST': {name:'Costco',sector:'Retail',cap:'$400B',desc:'Membership-only warehouse retail chain with bulk consumer goods'},
+    'V':    {name:'Visa',sector:'Financial Services',cap:'$600B',desc:'Global digital payments network processing billions of transactions annually'},
+    'CRM':  {name:'Salesforce',sector:'Software / CRM',cap:'$280B',desc:'Cloud-based CRM platform for sales, marketing, and customer service'},
+    'WMT':  {name:'Walmart',sector:'Retail',cap:'$680B',desc:'Largest retailer globally with discount stores, grocery, and e-commerce'},
+    'BAC':  {name:'Bank of America',sector:'Banking',cap:'$340B',desc:'Major US bank with consumer banking, wealth management, and trading'},
+    'XOM':  {name:'Exxon Mobil',sector:'Energy',cap:'$480B',desc:'Largest US oil and gas company with upstream, downstream, and chemicals'},
+    'BA':   {name:'Boeing',sector:'Aerospace',cap:'$140B',desc:'Commercial airplanes, defense systems, and space launch vehicles'},
+    'GS':   {name:'Goldman Sachs',sector:'Investment Banking',cap:'$180B',desc:'Global investment banking, trading, asset management, and securities'},
+    'MA':   {name:'Mastercard',sector:'Financial Services',cap:'$470B',desc:'Global payment processing network for credit, debit, and prepaid cards'},
+    'NOW':  {name:'ServiceNow',sector:'Software / IT',cap:'$200B',desc:'Cloud platform for IT service management, workflows, and digital operations'},
+    'MRVL': {name:'Marvell Technology',sector:'Semiconductors',cap:'$75B',desc:'Data infrastructure semiconductors for cloud, 5G, and enterprise networking'},
+    'ADBE': {name:'Adobe',sector:'Software / Creative',cap:'$200B',desc:'Creative Cloud (Photoshop, Premiere), Document Cloud, and digital marketing'},
+    'JNJ':  {name:'Johnson & Johnson',sector:'Healthcare',cap:'$370B',desc:'Pharmaceuticals and medical devices for immunology, oncology, and surgery'},
+    'AMAT': {name:'Applied Materials',sector:'Semiconductors',cap:'$150B',desc:'Semiconductor manufacturing equipment for chip fabrication and display'},
+    'QCOM': {name:'Qualcomm',sector:'Semiconductors',cap:'$190B',desc:'Mobile chipsets (Snapdragon), wireless technology patents, and 5G modems'},
+    'HD':   {name:'Home Depot',sector:'Retail',cap:'$380B',desc:'Largest home improvement retailer in the US with DIY and pro segments'},
+    'TXN':  {name:'Texas Instruments',sector:'Semiconductors',cap:'$185B',desc:'Analog and embedded processing semiconductors for industrial and auto'},
+    'CVX':  {name:'Chevron',sector:'Energy',cap:'$280B',desc:'Integrated oil and gas company with global upstream and downstream operations'},
+    'GE':   {name:'GE Aerospace',sector:'Aerospace',cap:'$220B',desc:'Aviation jet engines, power generation, and renewable energy systems'},
+    'PG':   {name:'Procter & Gamble',sector:'Consumer Staples',cap:'$380B',desc:'Consumer goods giant with brands like Tide, Pampers, and Gillette'},
+    'MRK':  {name:'Merck',sector:'Pharmaceuticals',cap:'$250B',desc:'Pharmaceuticals and vaccines including Keytruda (cancer) and Gardasil (HPV)'},
+    'C':    {name:'Citigroup',sector:'Banking',cap:'$140B',desc:'Global banking institution with consumer banking, trading, and treasury services'},
+    'IBM':  {name:'IBM',sector:'Technology / AI',cap:'$210B',desc:'Enterprise cloud, AI (Watson), consulting, and mainframe computing'},
+    'WFC':  {name:'Wells Fargo',sector:'Banking',cap:'$240B',desc:'Major US bank focused on consumer and commercial banking with mortgage lending'},
+    'ABBV': {name:'AbbVie',sector:'Pharmaceuticals',cap:'$310B',desc:'Biopharmaceuticals with Humira/Skyrizi (immunology) and Botox (aesthetics)'},
+    'PFE':  {name:'Pfizer',sector:'Pharmaceuticals',cap:'$140B',desc:'Global pharmaceutical company with vaccines, oncology, and rare disease drugs'},
+    'LRCX': {name:'Lam Research',sector:'Semiconductors',cap:'$100B',desc:'Semiconductor wafer fabrication equipment for etch, deposition, and clean'},
+};
+
 /* ============ GLOBALS ============ */
 const REFRESH_MS = 30000;
 let countdownSec = 30;
@@ -3584,7 +3660,17 @@ function updatePositions(details) {
         html += '<div class="pos-card ' + cardCls + '">' +
             /* Top: Symbol + Live Price + P&L badge */
             '<div class="pos-top">' +
-                '<span class="pos-symbol">' + p.symbol + '</span>' +
+                (function(){
+                    const ci = COMPANY_INFO[p.symbol];
+                    if (!ci) return '<span class="pos-symbol">' + p.symbol + '</span>';
+                    return '<span class="ticker-tip-wrap"><span class="pos-symbol">' + p.symbol + '</span>' +
+                        '<div class="ticker-tip">' +
+                            '<div class="ticker-tip-name">' + ci.name + '</div>' +
+                            '<span class="ticker-tip-sector">' + ci.sector + '</span>' +
+                            '<div class="ticker-tip-cap">Market Cap: <b>' + ci.cap + '</b></div>' +
+                            '<div class="ticker-tip-desc">' + ci.desc + '</div>' +
+                        '</div></span>';
+                })() +
                 '<span style="font-size:15px; font-weight:700; color:var(--text-primary); font-family:var(--font-mono,monospace); margin-left:auto; margin-right:6px;">$' + p.current_price.toFixed(2) + '</span>' +
                 '<span class="pos-pnl-badge ' + pnlBadgeCls + '">' + fmtPct(p.pnl_pct) + '</span>' +
             '</div>' +
