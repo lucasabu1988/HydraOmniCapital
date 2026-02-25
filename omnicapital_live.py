@@ -1149,6 +1149,21 @@ class COMPASSLive:
         logger.info(f"CYCLE #{next_cycle} OPENED: {', '.join(new_positions)} | "
                     f"${new_value:,.0f}")
 
+        # WhatsApp/Email notification on rotation
+        if self.notifier and hasattr(self.notifier, 'send_rotation_alert'):
+            try:
+                closed_cycle_data = next((c for c in cycles if c.get('cycle') == next_cycle - 1), {})
+                self.notifier.send_rotation_alert(
+                    cycle_num=next_cycle - 1,
+                    closed_positions=self._pre_rotation_positions,
+                    new_positions=new_positions,
+                    compass_return=closed_cycle_data.get('compass_return', 0.0),
+                    spy_return=closed_cycle_data.get('spy_return', 0.0),
+                    alpha=closed_cycle_data.get('alpha', 0.0),
+                )
+            except Exception as e:
+                logger.warning(f"Rotation notification failed: {e}")
+
         # Auto git sync: commit + push cycle log to Render
         if _git_sync_available:
             closed_cycle = next_cycle - 1

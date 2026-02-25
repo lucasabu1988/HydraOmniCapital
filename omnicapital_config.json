@@ -22,6 +22,11 @@
         "recipients": []
     },
 
+    "whatsapp": {
+        "phone": "",
+        "apikey": ""
+    },
+
     "paths": {
         "state_dir": "state",
         "log_dir": "logs",

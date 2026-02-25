@@ -275,17 +275,35 @@ def _run_live_engine():
         trader = COMPASSLive(config)
         trader.load_state()
 
-        # Try notifications
+        # Try notifications (WhatsApp preferred, email fallback)
         try:
-            from omnicapital_notifications import EmailNotifier
             if os.path.exists(config_file):
                 with open(config_file, 'r') as f:
                     ext = json.load(f)
-                email_cfg = ext.get('email', {})
-                if email_cfg.get('smtp_server') and email_cfg.get('sender'):
-                    trader.notifier = EmailNotifier(**email_cfg)
-        except (ImportError, Exception):
-            pass
+
+                # WhatsApp via CallMeBot (preferred)
+                wa_cfg = ext.get('whatsapp', {})
+                if wa_cfg.get('phone') and wa_cfg.get('apikey'):
+                    try:
+                        from compass.notifications import WhatsAppNotifier
+                        trader.notifier = WhatsAppNotifier(**wa_cfg)
+                        logger.info("WhatsApp notifications enabled")
+                    except ImportError:
+                        from omnicapital_notifications import WhatsAppNotifier
+                        trader.notifier = WhatsAppNotifier(**wa_cfg)
+
+                # Email fallback
+                if trader.notifier is None:
+                    email_cfg = ext.get('email', {})
+                    if email_cfg.get('sender') and email_cfg.get('password'):
+                        try:
+                            from compass.notifications import EmailNotifier
+                            trader.notifier = EmailNotifier(**email_cfg)
+                        except ImportError:
+                            from omnicapital_notifications import EmailNotifier
+                            trader.notifier = EmailNotifier(**email_cfg)
+        except Exception as e:
+            logger.warning(f"Notification setup failed: {e}")
 
         # Connect broker
         trader.broker.connect()
