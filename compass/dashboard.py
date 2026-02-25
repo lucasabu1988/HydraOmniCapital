@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Suppress yfinance noise
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates'))
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 
@@ -58,9 +58,10 @@ COMPASS_CONFIG = {
     'MAX_PRICE_CHANGE_PCT': 0.20,
 }
 
-STATE_FILE = 'state/compass_state_latest.json'
-STATE_DIR = 'state'
-LOG_DIR = 'logs'
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATE_FILE = os.path.join(_PROJECT_ROOT, 'state', 'compass_state_latest.json')
+STATE_DIR = os.path.join(_PROJECT_ROOT, 'state')
+LOG_DIR = os.path.join(_PROJECT_ROOT, 'logs')
 PRICE_CACHE_SECONDS = 30
 KILL_FILE = 'STOP_TRADING'
 ET = ZoneInfo('America/New_York')
@@ -219,12 +220,12 @@ def _run_live_engine():
     global _live_engine, _engine_status
 
     try:
-        from omnicapital_live import COMPASSLive, CONFIG as LIVE_CONFIG
+        from compass.live import COMPASSLive, CONFIG as LIVE_CONFIG
 
         config = LIVE_CONFIG.copy()
 
         # Load external config if available
-        config_file = 'omnicapital_config.json'
+        config_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'omnicapital_config.json')
         if os.path.exists(config_file):
             try:
                 with open(config_file, 'r') as f:
@@ -237,7 +238,7 @@ def _run_live_engine():
 
         # Try notifications
         try:
-            from omnicapital_notifications import EmailNotifier
+            from compass.notifications import EmailNotifier
             if os.path.exists(config_file):
                 with open(config_file, 'r') as f:
                     ext = json.load(f)
@@ -1142,7 +1143,7 @@ def api_preflight():
     checks['state_dir'] = {'ok': state_dir_exists}
 
     # Config file
-    config_exists = os.path.exists('omnicapital_config.json')
+    config_exists = os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'omnicapital_config.json'))
     checks['config'] = {'ok': config_exists}
 
     # SPY regime

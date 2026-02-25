@@ -2124,7 +2124,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
     <span class="hdr-spacer"></span>
     <div class="hdr-stat" id="hdr-spy-wrap" style="min-width:120px; text-align:right;">
-        <span class="hdr-stat-label">SPY</span>
+        <span class="hdr-stat-label">S&amp;P 500</span>
         <span class="hdr-stat-value mono" id="hdr-spy-price" style="font-size:14px; font-weight:700;">--</span>
         <span class="hdr-stat-value mono" id="hdr-spy-chg" style="font-size:11px; margin-left:4px;">--</span>
     </div>
@@ -4103,8 +4103,9 @@ let _spyPrevClose = null;
 function updateSpyTracker(prices) {
     const priceEl = document.getElementById('hdr-spy-price');
     const chgEl = document.getElementById('hdr-spy-chg');
-    if (!priceEl || !chgEl || !prices || !prices.SPY) return;
-    const spyPrice = prices.SPY;
+    const idxPrice = prices['^GSPC'] || prices['GSPC'];
+    if (!priceEl || !chgEl || !prices || !idxPrice) return;
+    const spyPrice = idxPrice;
     priceEl.textContent = '$' + spyPrice.toFixed(2);
     if (_spyPrevClose === null) _spyPrevClose = spyPrice;
     const chg = ((spyPrice - _spyPrevClose) / _spyPrevClose) * 100;
