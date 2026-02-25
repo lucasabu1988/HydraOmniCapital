@@ -12,57 +12,57 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --bg-root: #303030;
-    --bg-primary: #303030;
-    --bg-card: #303030;
-    --bg-card-hover: #303030;
-    --bg-elevated: #303030;
-    --bg-glass: rgba(48, 48, 48, 0.95);
+    --bg-root: #0a0a0f;
+    --bg-primary: #10101a;
+    --bg-card: #161625;
+    --bg-card-hover: #1c1c30;
+    --bg-elevated: #1e1e32;
+    --bg-glass: rgba(22, 22, 37, 0.7);
 
-    --border: transparent;
-    --border-active: transparent;
-    --border-accent: transparent;
+    --border: rgba(255,255,255,0.06);
+    --border-active: rgba(255,255,255,0.12);
+    --border-accent: rgba(99, 102, 241, 0.3);
 
-    --text-primary: #f2f2f8;
-    --text-secondary: #c0c0d8;
-    --text-tertiary: #8888b0;
-    --text-muted: #686890;
+    --text-primary: #f0f0f5;
+    --text-secondary: #9898b0;
+    --text-tertiary: #5e5e78;
+    --text-muted: #3a3a52;
 
     --accent: #6366f1;
     --accent-light: #818cf8;
-    --accent-glow: rgba(99, 102, 241, 0.18);
-    --accent-strong-glow: rgba(99, 102, 241, 0.28);
+    --accent-glow: rgba(99, 102, 241, 0.15);
+    --accent-strong-glow: rgba(99, 102, 241, 0.25);
 
     --green: #22c55e;
-    --green-dim: rgba(34, 197, 94, 0.15);
-    --green-glow: rgba(34, 197, 94, 0.25);
+    --green-dim: rgba(34, 197, 94, 0.12);
+    --green-glow: rgba(34, 197, 94, 0.2);
     --red: #ef4444;
-    --red-dim: rgba(239, 68, 68, 0.15);
-    --red-glow: rgba(239, 68, 68, 0.25);
+    --red-dim: rgba(239, 68, 68, 0.12);
+    --red-glow: rgba(239, 68, 68, 0.2);
     --yellow: #eab308;
-    --yellow-dim: rgba(234, 179, 8, 0.15);
+    --yellow-dim: rgba(234, 179, 8, 0.12);
     --blue: #3b82f6;
-    --blue-dim: rgba(59, 130, 246, 0.15);
+    --blue-dim: rgba(59, 130, 246, 0.12);
     --cyan: #06b6d4;
-    --cyan-dim: rgba(6, 182, 212, 0.15);
+    --cyan-dim: rgba(6, 182, 212, 0.12);
     --orange: #f97316;
-    --orange-dim: rgba(249, 115, 22, 0.15);
+    --orange-dim: rgba(249, 115, 22, 0.12);
     --purple: #a855f7;
-    --purple-dim: rgba(168, 85, 247, 0.15);
+    --purple-dim: rgba(168, 85, 247, 0.12);
 
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
 
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
-    --shadow-lg: 0 8px 30px rgba(0,0,0,0.3);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
     --shadow-glow: 0 0 40px var(--accent-glow);
 }
 
 body {
-    font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg-root);
     color: var(--text-primary);
     line-height: 1.5;
@@ -105,15 +105,15 @@ body::before {
 
 /* ============ TOP HEADER ============ */
 .header-bar {
-    background: rgba(48, 48, 48, 0.95);
+    background: rgba(16, 16, 26, 0.9);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
-    padding: 14px 24px;
+    padding: 10px 24px;
     display: flex;
     align-items: center;
     gap: 20px;
     position: sticky;
-    top: 0;
+    top: 36px;
     z-index: 199;
 }
 .hdr-brand {
@@ -123,7 +123,7 @@ body::before {
 }
 .hdr-brand-icon {
     width: 40px; height: 40px;
-    background: #303030;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -131,7 +131,7 @@ body::before {
     font-weight: 800;
     font-size: 18px;
     color: white;
-    box-shadow: none;
+    box-shadow: 0 0 20px var(--accent-glow);
 }
 .hdr-brand-group {
     display: flex;
@@ -1375,15 +1375,15 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* ============ PAGE TABS ============ */
 .page-tabs {
-    background: rgba(48, 48, 48, 0.95);
+    background: rgba(16, 16, 26, 0.95);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
-    padding: 4px 24px;
+    padding: 0 24px;
     display: flex;
     align-items: stretch;
     gap: 0;
     position: sticky;
-    top: 55px;
+    top: 83px;
     z-index: 198;
 }
 .page-tab {
@@ -1926,28 +1926,38 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <!-- HEADER BAR -->
 <div class="header-bar">
     <div class="hdr-brand">
-        <div class="hdr-brand-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="1.5" opacity="0.6"/><circle cx="12" cy="12" r="3" stroke="white" stroke-width="1.2" opacity="0.4"/><path d="M12 2.5L13.5 10.5L12 9L10.5 10.5Z" fill="white"/><path d="M12 21.5L13.5 13.5L12 15L10.5 13.5Z" fill="white" opacity="0.4"/><path d="M2.5 12L10.5 10.5L9 12L10.5 13.5Z" fill="white" opacity="0.3"/><path d="M21.5 12L13.5 10.5L15 12L13.5 13.5Z" fill="white" opacity="0.3"/><line x1="12" y1="1" x2="12" y2="3.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        <div class="hdr-brand-icon">C</div>
         <div class="hdr-brand-group">
-            <span class="hdr-brand-text">COMPASS</span>
+            <span class="hdr-brand-text">COMPASS v8.2</span>
+            <span class="hdr-brand-sub">Made in Per&uacute;</span>
         </div>
     </div>
     <span class="hdr-sep">&middot;</span>
-    <span id="hdr-engine-status" style="display:inline-flex; align-items:center; gap:6px;">
-        <span id="hdr-engine-dot" style="width:8px; height:8px; border-radius:50%; background:var(--red);"></span>
-        <span id="hdr-engine-label" style="font-weight:600; font-size:13px; color:var(--red);">ENGINE OFF</span>
+    <span id="regime-tag" class="hdr-pill hdr-pill-on">
+        <span class="hdr-pill-dot"></span> RISK ON
     </span>
+    <span id="protection-tag" class="hdr-pill hdr-pill-norm">
+        <span class="hdr-pill-dot"></span> NORMAL
+    </span>
+    <div class="hdr-stat">
+        <span class="hdr-stat-label">Lev</span>
+        <span class="hdr-stat-value" id="leverage-display">1.0x</span>
+    </div>
+    <div class="hdr-stat">
+        <span class="hdr-stat-label">Day</span>
+        <span class="hdr-stat-value" id="day-display">--</span>
+    </div>
     <span class="hdr-spacer"></span>
-    <span id="hdr-market-timer" style="font-size:13px; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace;">
-        <span id="hdr-market-label">MARKET CLOSED</span>
-        <span id="hdr-market-countdown" style="margin-left:6px; color:var(--text-muted);"></span>
-    </span>
-    <!-- hidden but kept for JS compatibility -->
-    <span id="regime-tag" style="display:none;" class="hdr-pill hdr-pill-on"><span class="hdr-pill-dot"></span> RISK ON</span>
-    <span id="protection-tag" style="display:none;" class="hdr-pill hdr-pill-norm"><span class="hdr-pill-dot"></span> NORMAL</span>
-    <span id="leverage-display" style="display:none;">1.0x</span>
-    <span id="day-display" style="display:none;">--</span>
-    <span id="last-update" style="display:none;">--</span>
-    <span id="countdown" style="display:none;">30</span>
+    <div class="upd-wrapper">
+        <div class="hdr-time-group">
+            <span class="hdr-stat-label">Updated</span>
+            <span class="hdr-time" id="last-update">--</span>
+            <span class="hdr-countdown">&middot; <span id="countdown">30</span>s</span>
+        </div>
+        <div class="upd-tooltip" id="upd-tooltip">
+            Last update: --<br>Next refresh in: --
+        </div>
+    </div>
 </div>
 
 <!-- PAGE TABS -->
@@ -1983,8 +1993,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <!-- ==================== PAGE: DASHBOARD ==================== -->
 <div id="page-dashboard" class="page-content active">
 
-<!-- ENGINE BAR (hidden - internal use only) -->
-<div class="engine-bar" id="engine-bar" style="display:none;">
+<!-- ENGINE BAR -->
+<div class="engine-bar" id="engine-bar">
     <span class="engine-indicator ind-off" id="engine-dot"></span>
     <span class="engine-label" id="engine-label" style="color:var(--red);">ENGINE OFF</span>
     <span id="live-badge-el" class="engine-live-tag" style="display:none;">&#9679; LIVE</span>
@@ -3208,24 +3218,6 @@ function updatePreclose(preclose) {
             label.style.color = 'var(--text-muted)';
             seg.classList.remove('active');
     }
-
-    /* Sync header market timer */
-    const hdrMktLabel = document.getElementById('hdr-market-label');
-    const hdrMktCountdown = document.getElementById('hdr-market-countdown');
-    if (hdrMktLabel) {
-        if (preclose.phase === 'waiting' || preclose.phase === 'window_open' || preclose.phase === 'entries_done') {
-            hdrMktLabel.textContent = 'MARKET OPEN';
-            hdrMktLabel.style.color = 'var(--green)';
-            if (hdrMktCountdown) hdrMktCountdown.textContent = preclose.current_time_et + ' ET';
-        } else {
-            hdrMktLabel.textContent = 'MARKET CLOSED';
-            hdrMktLabel.style.color = 'var(--text-muted)';
-            /* Calculate time to next open (9:30 ET) */
-            if (hdrMktCountdown && preclose.current_time_et) {
-                hdrMktCountdown.textContent = preclose.current_time_et + ' ET';
-            }
-        }
-    }
 }
 
 function updateCards(p) {
@@ -3536,19 +3528,6 @@ function updateEngineUI(engine) {
         cyc.textContent = '';
         btnS.style.display = 'inline-block'; btnX.style.display = 'none';
     }
-
-    /* Sync header engine status */
-    const hdrDot = document.getElementById('hdr-engine-dot');
-    const hdrLbl = document.getElementById('hdr-engine-label');
-    if (hdrDot && hdrLbl) {
-        if (engine.running) {
-            hdrDot.style.background = 'var(--green)';
-            hdrLbl.textContent = 'ENGINE ON'; hdrLbl.style.color = 'var(--green)';
-        } else {
-            hdrDot.style.background = 'var(--red)';
-            hdrLbl.textContent = 'ENGINE OFF'; hdrLbl.style.color = 'var(--red)';
-        }
-    }
 }
 
 async function engineStart() {
@@ -3794,7 +3773,7 @@ function renderComparisonChart(json) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(48, 48, 48, 0.95)',
+                    backgroundColor: 'rgba(22, 22, 37, 0.95)',
                     borderColor: 'rgba(99, 102, 241, 0.3)',
                     borderWidth: 1,
                     titleColor: '#9898b0',
@@ -3862,7 +3841,7 @@ async function fetchBacktestStatus() {
 /* ============ FETCH & REFRESH ============ */
 let _fetchRetries = 0;
 const MAX_RETRIES = 5;
-const RETRY_DELAYS = [3000, 5000, 8000, 12000, 20000]; /* escalating retry */
+const RETRY_DELAYS = [3000, 5000, 8000, 12000, 20000];
 
 async function fetchAll() {
     try {
@@ -3876,12 +3855,7 @@ async function fetchAll() {
             banner.style.display = 'block';
             banner.textContent = _fetchRetries > 0
                 ? 'WAKING UP SERVER... RETRY ' + _fetchRetries + '/' + MAX_RETRIES
-                : 'SYSTEM OFFLINE \u2014 NO STATE DATA';
-            if (lastSuccessTime) {
-                document.getElementById('last-success-time').textContent =
-                    ' | Last valid data: ' + new Date(lastSuccessTime).toLocaleTimeString();
-            }
-            /* Auto-retry if server is waking up */
+                : 'CONNECTING TO SERVER...';
             if (_fetchRetries < MAX_RETRIES) {
                 setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
                 _fetchRetries++;
@@ -3912,7 +3886,6 @@ async function fetchAll() {
         banner.innerHTML = _fetchRetries > 0
             ? 'WAKING UP SERVER... RETRY ' + _fetchRetries + '/' + MAX_RETRIES
             : 'CONNECTING TO SERVER...';
-        /* Auto-retry on network error (server waking up) */
         if (_fetchRetries < MAX_RETRIES) {
             setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
             _fetchRetries++;
@@ -4316,7 +4289,7 @@ function initFundScatterChart() {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(48,48,48,0.95)',
+                    backgroundColor: 'rgba(16,16,26,0.95)',
                     borderColor: 'rgba(255,255,255,0.1)',
                     borderWidth: 1,
                     titleFont: { family: "'Inter', sans-serif", size: 13, weight: '700' },
@@ -4418,59 +4391,6 @@ document.addEventListener('DOMContentLoaded', function() {
         countdownSec = Math.max(0, countdownSec - 1);
         document.getElementById('countdown').textContent = countdownSec;
     }, 1000);
-
-    /* Header market timer — updates every second */
-    function updateMarketTimer() {
-        const hdrLabel = document.getElementById('hdr-market-label');
-        const hdrCountdown = document.getElementById('hdr-market-countdown');
-        if (!hdrLabel || !hdrCountdown) return;
-
-        const now = new Date();
-        /* Convert to ET */
-        const et = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
-        const day = et.getDay(); /* 0=Sun, 6=Sat */
-        const h = et.getHours(), m = et.getMinutes(), s = et.getSeconds();
-        const mins = h * 60 + m;
-
-        const isWeekday = day >= 1 && day <= 5;
-        const marketOpen = 9 * 60 + 30;   /* 9:30 */
-        const marketClose = 16 * 60;       /* 16:00 */
-        const isOpen = isWeekday && mins >= marketOpen && mins < marketClose;
-
-        if (isOpen) {
-            hdrLabel.textContent = 'MARKET OPEN';
-            hdrLabel.style.color = 'var(--green)';
-            const closeIn = (marketClose * 60) - (mins * 60 + s);
-            const ch = Math.floor(closeIn / 3600);
-            const cm = Math.floor((closeIn % 3600) / 60);
-            const cs = closeIn % 60;
-            hdrCountdown.textContent = 'closes in ' + ch + 'h ' + String(cm).padStart(2,'0') + 'm ' + String(cs).padStart(2,'0') + 's';
-        } else {
-            hdrLabel.textContent = 'MARKET CLOSED';
-            hdrLabel.style.color = 'var(--text-muted)';
-            /* Calculate time to next open */
-            let nextOpen = new Date(et);
-            if (mins >= marketClose || !isWeekday) {
-                /* Move to next day */
-                nextOpen.setDate(nextOpen.getDate() + 1);
-                nextOpen.setHours(9, 30, 0, 0);
-                /* Skip weekends */
-                while (nextOpen.getDay() === 0 || nextOpen.getDay() === 6) {
-                    nextOpen.setDate(nextOpen.getDate() + 1);
-                }
-            } else {
-                /* Before market open today */
-                nextOpen.setHours(9, 30, 0, 0);
-            }
-            const diff = Math.max(0, Math.floor((nextOpen - et) / 1000));
-            const dh = Math.floor(diff / 3600);
-            const dm = Math.floor((diff % 3600) / 60);
-            const ds = diff % 60;
-            hdrCountdown.textContent = 'opens in ' + dh + 'h ' + String(dm).padStart(2,'0') + 'm ' + String(ds).padStart(2,'0') + 's';
-        }
-    }
-    updateMarketTimer();
-    setInterval(updateMarketTimer, 1000);
 });
 </script>
 
