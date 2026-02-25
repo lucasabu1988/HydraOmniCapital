@@ -9,7 +9,7 @@ NO live trading engine — showcase/portfolio mode.
 Deploy: git push to GitHub → auto-deploy on Render.
 """
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 import json
 import os
 import glob
@@ -35,6 +35,12 @@ try:
     _HAS_REQUESTS = True
 except ImportError:
     _HAS_REQUESTS = False
+
+try:
+    import anthropic
+    _HAS_ANTHROPIC = True
+except ImportError:
+    _HAS_ANTHROPIC = False
 
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
@@ -1114,6 +1120,86 @@ def api_preflight():
         'checks': {'mode': 'showcase'},
         'server_time': datetime.now().isoformat(),
     })
+
+
+# ============================================================================
+# ALGORITHM TERMINAL (Conversational AI)
+# ============================================================================
+
+COMPASS_SYSTEM_PROMPT = """You are the COMPASS Terminal — a concise, expert assistant embedded in the COMPASS v8.2 trading dashboard. You answer questions about the COMPASS algorithm conversationally. Be friendly, direct, and use data. Keep answers under 3-4 sentences unless the user asks for detail.
+
+KEY FACTS:
+- COMPASS = Cross-sectional Momentum, Position-Adjusted Risk Scaling
+- Long-only US equity momentum strategy on S&P 500 large-caps
+- Backtest 2000-2026: Signal CAGR 18.56%, Net CAGR 15.16% (after 2.5% execution costs)
+- $100K → $8.43M (signal) / $3.93M (net) over 26 years
+- Sharpe 0.90, Sortino 1.24, Max DD -26.9% (signal), -30.3% (net)
+- Positive in 23 of 26 years. Gross t-stat 3.74 (clears Harvey-Liu-Zhu threshold)
+
+MECHANISM:
+- Every 5 trading days, ranks 40-stock universe by 90-day momentum (skip last 5 days)
+- Buys top 5 stocks (risk-on) or top 2 (risk-off) via Market-On-Close orders
+- Signal at 15:30 ET, MOC orders by 15:50 ET, execution at close ~16:00 ET
+- Vol-targeting 15% annualized, leverage [0.3x, 1.0x], max 1.0x (no borrowing)
+- Universe: 40 stocks from ~113 S&P 500 large-caps, annual rotation by dollar volume
+
+RISK MANAGEMENT:
+- -8% per position stop-loss
+- Trailing stop: activates at +5% gain, locks at +3%
+- -15% portfolio circuit breaker (triggered 9 times in 26 years)
+- Protection mode: staged recovery (63d Stage 1 → 126d Stage 2)
+- Regime filter: SPY above SMA(200) for 3 consecutive days = risk-on
+- Protection days: 27% of backtest — this is a feature, not a bug
+
+COSTS & EXECUTION:
+- 2.5% annual execution cost (conservative): MOC slippage + commissions + buffer
+- Cash earns Moody's Aaa IG Corporate yield (~4.8% avg, from FRED)
+- Broker: IBKR (Interactive Brokers), paper trading on port 7497
+- ~209 trades/year = short-term capital gains. Recommend IRA/401(k)
+
+EXPERIMENTS:
+- 36 experiments, 32 failed. Algorithm is inelastic (any change degrades it)
+- Failed: short-selling, ensemble momentum, geographic expansion (EU/Asia catastrophic), gold protection, MWF trading, profit targets, dynamic recovery
+- 90d lookback is genuinely optimal (not overfit). 5d hold captures alpha before mean-reversion
+
+CURRENT STATUS:
+- Paper trading since Feb 19, 2026. 5 positions, risk-on regime
+- Minimum 3-6 months paper trading before real capital
+- IBKR scaffolding is production-ready (53 unit tests passing)
+
+RULES:
+- Never give financial advice or recommendations to buy/sell specific stocks
+- If asked about something outside COMPASS, say you only know about the COMPASS algorithm
+- Be conversational and natural — you're a terminal assistant, not a search engine
+- Use numbers and data when relevant
+- You can respond in English or Spanish depending on what language the user writes in"""
+
+@app.route('/api/terminal', methods=['POST'])
+def api_terminal():
+    """Conversational AI terminal for algorithm Q&A."""
+    if not _HAS_ANTHROPIC:
+        return jsonify({'error': 'Anthropic SDK not available'}), 500
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'API key not configured'}), 500
+
+    data = request.get_json()
+    if not data or 'messages' not in data:
+        return jsonify({'error': 'Missing messages'}), 400
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model='claude-sonnet-4-20250514',
+            max_tokens=300,
+            system=COMPASS_SYSTEM_PROMPT,
+            messages=data['messages'][-10:],  # Keep last 10 messages for context
+        )
+        answer = response.content[0].text
+        return jsonify({'answer': answer})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ============================================================================
