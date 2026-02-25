@@ -1955,113 +1955,27 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .hdr-stat { display: none; }
 }
 
-/* ============ ALGORITHM TERMINAL ============ */
-.term-fab {
+/* ============ WHATSAPP CONTACT FAB ============ */
+.wa-fab {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 52px;
-    height: 52px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background: var(--orange);
+    background: #25D366;
     border: none;
     cursor: pointer;
     z-index: 250;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
     transition: transform 0.2s, box-shadow 0.2s;
-    font-size: 22px;
-    color: #000;
-    font-weight: 900;
-    font-family: 'JetBrains Mono', monospace;
+    text-decoration: none;
 }
-.term-fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(249, 115, 22, 0.55); }
-.term-fab.open { display: none; }
-
-.term-panel {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    width: 420px;
-    height: 520px;
-    background: #0c0c0c;
-    border: 1px solid rgba(249, 115, 22, 0.3);
-    border-radius: 16px;
-    z-index: 251;
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 30px rgba(249,115,22,0.1);
-}
-.term-panel.open { display: flex; }
-
-.term-header {
-    background: rgba(249, 115, 22, 0.12);
-    border-bottom: 1px solid rgba(249, 115, 22, 0.2);
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-.term-header-title {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--orange);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-}
-.term-close {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 0 4px;
-    transition: color 0.2s;
-}
-.term-close:hover { color: var(--orange); }
-
-.term-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(249,115,22,0.2) transparent;
-}
-.term-body::-webkit-scrollbar { width: 4px; }
-.term-body::-webkit-scrollbar-thumb { background: rgba(249,115,22,0.25); border-radius: 2px; }
-
-.term-msg { line-height: 1.5; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-.term-msg-q { color: var(--orange); }
-.term-msg-q::before { content: '> '; opacity: 0.5; }
-.term-msg-a { color: var(--text-secondary); padding-left: 8px; border-left: 2px solid rgba(249,115,22,0.2); }
-.term-msg-sys { color: var(--text-muted); font-size: 11px; font-style: italic; }
-
-.term-input-wrap {
-    border-top: 1px solid rgba(249, 115, 22, 0.15);
-    padding: 12px 16px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-.term-prompt { color: var(--orange); font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
-.term-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text-primary);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    caret-color: var(--orange);
-}
-.term-input::placeholder { color: var(--text-muted); }
+.wa-fab:hover { transform: scale(1.1); box-shadow: 0 6px 28px rgba(37, 211, 102, 0.6); }
+.wa-fab svg { width: 30px; height: 30px; fill: #fff; }
 
 </style>
 </head>
@@ -3238,22 +3152,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 </div><!-- /main -->
 
-<!-- ALGORITHM TERMINAL -->
-<button class="term-fab" id="term-fab" onclick="toggleTerminal()" title="Ask about the algorithm">&#9654;</button>
-<div class="term-panel" id="term-panel">
-    <div class="term-header">
-        <span class="term-header-title">COMPASS Terminal</span>
-        <button class="term-close" onclick="toggleTerminal()">&times;</button>
-    </div>
-    <div class="term-body" id="term-body">
-        <div class="term-msg term-msg-sys">Welcome to COMPASS Terminal. Ask anything about the algorithm.</div>
-        <div class="term-msg term-msg-sys">Try: "what is compass", "performance", "how does it work", "positions", "risk"</div>
-    </div>
-    <div class="term-input-wrap">
-        <span class="term-prompt">&#9654;</span>
-        <input class="term-input" id="term-input" type="text" placeholder="Ask about the algorithm..." autocomplete="off" onkeydown="if(event.key==='Enter')termSubmit()">
-    </div>
-</div>
+<!-- WHATSAPP CONTACT -->
+<a class="wa-fab" href="https://wa.me/51960427811" target="_blank" rel="noopener" title="Contact via WhatsApp">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.019-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</a>
 
 <script>
 /* ============ GLOBALS ============ */
@@ -4665,86 +4567,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateMarketTimer, 1000);
 });
 
-/* ============ ALGORITHM TERMINAL (Conversational AI) ============ */
-let _termMessages = []; /* conversation history for context */
-let _termBusy = false;
-
-function toggleTerminal() {
-    const fab = document.getElementById('term-fab');
-    const panel = document.getElementById('term-panel');
-    const isOpen = panel.classList.contains('open');
-    if (isOpen) {
-        panel.classList.remove('open');
-        fab.classList.remove('open');
-    } else {
-        panel.classList.add('open');
-        fab.classList.add('open');
-        document.getElementById('term-input').focus();
-    }
-}
-
-async function termSubmit() {
-    const input = document.getElementById('term-input');
-    const body = document.getElementById('term-body');
-    const q = input.value.trim();
-    if (!q || _termBusy) return;
-
-    /* Add user question */
-    const qDiv = document.createElement('div');
-    qDiv.className = 'term-msg term-msg-q';
-    qDiv.textContent = q;
-    body.appendChild(qDiv);
-    input.value = '';
-    body.scrollTop = body.scrollHeight;
-
-    /* Show typing indicator */
-    _termBusy = true;
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'term-msg term-msg-sys';
-    typingDiv.textContent = 'thinking...';
-    typingDiv.id = 'term-typing';
-    body.appendChild(typingDiv);
-    body.scrollTop = body.scrollHeight;
-
-    /* Add to conversation history */
-    _termMessages.push({role: 'user', content: q});
-
-    try {
-        const res = await fetch('/api/terminal', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({messages: _termMessages}),
-        });
-        const data = await res.json();
-
-        /* Remove typing indicator */
-        const typing = document.getElementById('term-typing');
-        if (typing) typing.remove();
-
-        const aDiv = document.createElement('div');
-        aDiv.className = 'term-msg term-msg-a';
-
-        if (data.answer) {
-            aDiv.textContent = data.answer;
-            _termMessages.push({role: 'assistant', content: data.answer});
-        } else {
-            aDiv.textContent = data.error || 'Connection error. Try again.';
-            aDiv.style.color = 'var(--red)';
-        }
-        body.appendChild(aDiv);
-    } catch (e) {
-        const typing = document.getElementById('term-typing');
-        if (typing) typing.remove();
-        const errDiv = document.createElement('div');
-        errDiv.className = 'term-msg term-msg-a';
-        errDiv.textContent = 'Connection error. Server may be waking up — try again in a few seconds.';
-        errDiv.style.color = 'var(--red)';
-        body.appendChild(errDiv);
-    }
-
-    _termBusy = false;
-    body.scrollTop = body.scrollHeight;
-}
+/* Terminal removed — replaced with WhatsApp contact FAB */
 </script>
 
 </body>
