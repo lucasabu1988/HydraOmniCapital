@@ -12,12 +12,12 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --bg-root: #303555;
-    --bg-primary: #383d60;
-    --bg-card: #3f4568;
-    --bg-card-hover: #484e75;
-    --bg-elevated: #4a5078;
-    --bg-glass: rgba(63, 69, 104, 0.80);
+    --bg-root: #000000;
+    --bg-primary: #0a0a0a;
+    --bg-card: #111111;
+    --bg-card-hover: #1a1a1a;
+    --bg-elevated: #1e1e1e;
+    --bg-glass: rgba(10, 10, 10, 0.85);
 
     --border: transparent;
     --border-active: transparent;
@@ -105,7 +105,7 @@ body::before {
 
 /* ============ TOP HEADER ============ */
 .header-bar {
-    background: rgba(56, 61, 96, 0.92);
+    background: rgba(10, 10, 10, 0.92);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
     padding: 14px 24px;
@@ -1375,7 +1375,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* ============ PAGE TABS ============ */
 .page-tabs {
-    background: rgba(56, 61, 96, 0.95);
+    background: rgba(10, 10, 10, 0.95);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
     padding: 4px 24px;
@@ -3773,7 +3773,7 @@ function renderComparisonChart(json) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(63, 69, 104, 0.95)',
+                    backgroundColor: 'rgba(10, 10, 10, 0.95)',
                     borderColor: 'rgba(99, 102, 241, 0.3)',
                     borderWidth: 1,
                     titleColor: '#9898b0',
@@ -4278,7 +4278,7 @@ function initFundScatterChart() {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(56,61,96,0.95)',
+                    backgroundColor: 'rgba(10,10,10,0.95)',
                     borderColor: 'rgba(255,255,255,0.1)',
                     borderWidth: 1,
                     titleFont: { family: "'Inter', sans-serif", size: 13, weight: '700' },
