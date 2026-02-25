@@ -1188,18 +1188,34 @@ def api_terminal():
     if not data or 'messages' not in data:
         return jsonify({'error': 'Missing messages'}), 400
 
-    try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model='claude-sonnet-4-20250514',
-            max_tokens=300,
-            system=COMPASS_SYSTEM_PROMPT,
-            messages=data['messages'][-10:],  # Keep last 10 messages for context
-        )
-        answer = response.content[0].text
-        return jsonify({'answer': answer})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    import time as _time
+    models = ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414']
+    client = anthropic.Anthropic(api_key=api_key)
+    msgs = data['messages'][-10:]
+    last_err = None
+
+    for model in models:
+        for attempt in range(3):
+            try:
+                response = client.messages.create(
+                    model=model,
+                    max_tokens=300,
+                    system=COMPASS_SYSTEM_PROMPT,
+                    messages=msgs,
+                )
+                answer = response.content[0].text
+                return jsonify({'answer': answer})
+            except anthropic.APIStatusError as e:
+                last_err = e
+                if e.status_code == 529:
+                    _time.sleep(2 * (attempt + 1))
+                    continue
+                break
+            except Exception as e:
+                last_err = e
+                break
+
+    return jsonify({'error': f'Service temporarily busy. Try again in a moment.'}), 503
 
 
 # ============================================================================
