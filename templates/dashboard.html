@@ -1998,8 +1998,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <!-- ==================== PAGE: DASHBOARD ==================== -->
 <div id="page-dashboard" class="page-content active">
 
-<!-- ENGINE BAR -->
-<div class="engine-bar" id="engine-bar">
+<!-- ENGINE BAR (hidden - internal use only) -->
+<div class="engine-bar" id="engine-bar" style="display:none;">
     <span class="engine-indicator ind-off" id="engine-dot"></span>
     <span class="engine-label" id="engine-label" style="color:var(--red);">ENGINE OFF</span>
     <span id="live-badge-el" class="engine-live-tag" style="display:none;">&#9679; LIVE</span>
@@ -2010,8 +2010,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     <button class="eng-btn eng-btn-stop" id="engine-btn-stop" onclick="showStopModal()" style="display:none;">STOP ENGINE</button>
 </div>
 
-<!-- PRODUCTION CONFIG -->
-<div class="engine-bar" style="gap:20px; border-left: 3px solid var(--accent);">
+<!-- PRODUCTION CONFIG (hidden - internal use only) -->
+<div class="engine-bar" style="display:none; gap:20px; border-left: 3px solid var(--accent);">
     <div style="display:flex; flex-direction:column; gap:2px;">
         <span style="font-size:10px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:1.5px; font-weight:600;">Production Config</span>
         <span style="font-size:12px; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;">COMPASS v8.2 &middot; No Leverage &middot; Pre-Close MOC (15:30 ET) &middot; Aaa IG Cash Yield</span>
