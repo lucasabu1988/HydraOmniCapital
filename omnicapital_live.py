@@ -33,10 +33,14 @@ from omnicapital_broker import PaperBroker, Order, Broker, Position
 
 # Git auto-sync (non-blocking, optional)
 try:
-    from git_sync import git_sync_async
+    from git_sync import git_sync_async, git_sync_rotation
     _git_sync_available = True
 except ImportError:
-    _git_sync_available = False
+    try:
+        from compass.git_sync import git_sync_async, git_sync_rotation
+        _git_sync_available = True
+    except ImportError:
+        _git_sync_available = False
 
 # ============================================================================
 # LOGGING
@@ -479,6 +483,11 @@ class COMPASSLive:
         self._last_state_save = datetime.now()
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
+
+        # Cycle log tracking
+        self._pre_rotation_value = None   # portfolio value before exits
+        self._pre_rotation_positions = []  # tickers before exits
+        self._rotation_sells_today = False # did we sell hold_expired today?
 
         # Notifications (set externally)
         self.notifier = None
@@ -953,6 +962,12 @@ class COMPASSLive:
         self.trades_today = []
         self._daily_open_done = False
         self._preclose_entries_done = False
+        self._rotation_sells_today = False
+
+        # Snapshot portfolio before any exits (for cycle log)
+        portfolio = self.broker.get_portfolio()
+        self._pre_rotation_value = portfolio.total_value
+        self._pre_rotation_positions = list(self.broker.positions.keys())
 
         logger.info(f"\n{'='*60}")
         logger.info(f"TRADING DAY {self.trading_day_counter} | {today}")
@@ -1029,14 +1044,178 @@ class COMPASSLive:
             self._preclose_entries_done = True
             return
 
+        # Capture positions before new entries (to detect rotation)
+        positions_before = set(self.broker.positions.keys())
+
         # Open new positions using momentum scores from historical data
         # The _hist_cache contains data up to yesterday's close (refreshed at open)
         # This is exactly the Close[T-1] signal validated in the backtest
         self.open_new_positions(prices)
 
+        # Detect rotation: if we had sells (hold_expired) today AND new buys
+        positions_after = set(self.broker.positions.keys())
+        had_sells = any(t['action'] == 'SELL' and t.get('exit_reason') == 'hold_expired'
+                        for t in self.trades_today)
+        had_buys = any(t['action'] == 'BUY' for t in self.trades_today)
+        if had_sells and had_buys:
+            self._update_cycle_log(prices)
+
         self._preclose_entries_done = True
         self.save_state()
         logger.info(f"[PRE-CLOSE] Entry signal complete")
+
+    # ------------------------------------------------------------------
+    # Cycle log (automatic 5-day rotation tracking)
+    # ------------------------------------------------------------------
+
+    def _update_cycle_log(self, prices: Dict[str, float]):
+        """Close the active cycle and open a new one in cycle_log.json.
+
+        Called automatically after a rotation (hold_expired sells + new buys).
+        Uses ^GSPC (S&P 500 index) for benchmark comparison.
+        """
+        log_file = os.path.join('state', 'cycle_log.json')
+        today = self.get_et_now().date().isoformat()
+
+        # Load existing log
+        cycles = []
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'r') as f:
+                    cycles = json.load(f)
+            except Exception:
+                cycles = []
+
+        # Get S&P 500 price for benchmark
+        gspc_price = None
+        try:
+            gspc = yf.download('^GSPC', period='5d', progress=False)
+            if len(gspc) > 0:
+                gspc_price = float(gspc['Close'].iloc[-1].iloc[0])
+        except Exception as e:
+            logger.warning(f"Could not fetch ^GSPC for cycle log: {e}")
+
+        # Portfolio value after rotation (new positions are in)
+        portfolio = self.broker.get_portfolio()
+        new_value = portfolio.total_value
+
+        # Close the active cycle
+        for cycle in cycles:
+            if cycle.get('status') == 'active':
+                cycle['end_date'] = today
+                cycle['status'] = 'closed'
+                cycle['portfolio_end'] = round(self._pre_rotation_value, 2)
+                if gspc_price and cycle.get('spy_start'):
+                    cycle['spy_end'] = round(gspc_price, 2)
+                    cycle['spy_return'] = round(
+                        (gspc_price - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
+                cycle['compass_return'] = round(
+                    (self._pre_rotation_value - cycle['portfolio_start'])
+                    / cycle['portfolio_start'] * 100, 2)
+                if cycle.get('compass_return') is not None and cycle.get('spy_return') is not None:
+                    cycle['alpha'] = round(cycle['compass_return'] - cycle['spy_return'], 2)
+
+                status_str = 'WIN' if cycle['compass_return'] >= 0 else 'LOSS'
+                logger.info(f"CYCLE #{cycle['cycle']} CLOSED: "
+                           f"COMPASS {cycle['compass_return']:+.2f}% | "
+                           f"S&P {cycle.get('spy_return', 0):+.2f}% | "
+                           f"Alpha {cycle.get('alpha', 0):+.2f}pp | {status_str}")
+                break
+
+        # Open new cycle
+        new_positions = list(self.broker.positions.keys())
+        next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
+
+        cycles.append({
+            'cycle': next_cycle,
+            'start_date': today,
+            'end_date': None,
+            'status': 'active',
+            'portfolio_start': round(new_value, 2),
+            'portfolio_end': None,
+            'spy_start': round(gspc_price, 2) if gspc_price else None,
+            'spy_end': None,
+            'positions': new_positions,
+            'compass_return': None,
+            'spy_return': None,
+            'alpha': None,
+        })
+
+        # Save
+        os.makedirs('state', exist_ok=True)
+        with open(log_file, 'w') as f:
+            json.dump(cycles, f, indent=2)
+
+        logger.info(f"CYCLE #{next_cycle} OPENED: {', '.join(new_positions)} | "
+                    f"${new_value:,.0f}")
+
+        # Auto git sync: commit + push cycle log to Render
+        if _git_sync_available:
+            closed_cycle = next_cycle - 1
+            closed_return = 0.0
+            closed_status = 'WIN'
+            for c in cycles:
+                if c.get('cycle') == closed_cycle:
+                    closed_return = c.get('compass_return', 0.0)
+                    closed_status = 'WIN' if closed_return >= 0 else 'LOSS'
+                    break
+            try:
+                git_sync_rotation(closed_cycle, closed_return, closed_status)
+            except Exception as e:
+                logger.warning(f"git sync rotation failed: {e}")
+
+    def _ensure_active_cycle(self):
+        """On startup, ensure cycle_log.json has an active cycle if we hold positions."""
+        if not self.broker.positions:
+            return
+
+        log_file = os.path.join('state', 'cycle_log.json')
+        cycles = []
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'r') as f:
+                    cycles = json.load(f)
+            except Exception:
+                cycles = []
+
+        has_active = any(c.get('status') == 'active' for c in cycles)
+        if has_active:
+            return
+
+        # No active cycle but we have positions — create one
+        portfolio = self.broker.get_portfolio()
+        gspc_price = None
+        try:
+            gspc = yf.download('^GSPC', period='5d', progress=False)
+            if len(gspc) > 0:
+                gspc_price = float(gspc['Close'].iloc[-1].iloc[0])
+        except Exception:
+            pass
+
+        next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
+        today = self.last_trading_date.isoformat() if self.last_trading_date else date.today().isoformat()
+
+        cycles.append({
+            'cycle': next_cycle,
+            'start_date': today,
+            'end_date': None,
+            'status': 'active',
+            'portfolio_start': round(portfolio.total_value, 2),
+            'portfolio_end': None,
+            'spy_start': round(gspc_price, 2) if gspc_price else None,
+            'spy_end': None,
+            'positions': list(self.broker.positions.keys()),
+            'compass_return': None,
+            'spy_return': None,
+            'alpha': None,
+        })
+
+        os.makedirs('state', exist_ok=True)
+        with open(log_file, 'w') as f:
+            json.dump(cycles, f, indent=2)
+
+        logger.info(f"CYCLE #{next_cycle} initialized on startup: "
+                    f"{list(self.broker.positions.keys())}")
 
     # ------------------------------------------------------------------
     # State persistence
@@ -1176,6 +1355,9 @@ class COMPASSLive:
             logger.info(f"  Cash: ${self.broker.cash:,.0f} | Peak: ${self.peak_value:,.0f}")
             logger.info(f"  Positions: {len(self.broker.positions)} | Day: {self.trading_day_counter}")
             logger.info(f"  Regime: {regime_str}{prot_str}")
+
+            # Ensure cycle log has an active cycle if we have positions
+            self._ensure_active_cycle()
 
         except Exception as e:
             logger.error(f"Error loading state: {e}")
