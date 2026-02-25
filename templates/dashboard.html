@@ -720,6 +720,47 @@ body::before {
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* ============ CYCLE LOG ============ */
+.cycle-log {
+    margin: 0 24px 12px;
+    border-radius: 14px;
+    overflow: hidden;
+}
+.cycle-log-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 12px 16px 8px;
+}
+.cycle-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+}
+.cycle-log-table th {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 6px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+.cycle-log-table td {
+    padding: 8px 12px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.cycle-log-table tr:last-child td { border-bottom: none; }
+.cycle-log-table .cl-active { color: var(--yellow); font-weight: 600; }
+.cycle-log-table .cl-pos { color: var(--green); }
+.cycle-log-table .cl-neg { color: var(--red); }
+.cycle-log-table .cl-tickers { color: var(--text-tertiary); font-size: 11px; }
+
 /* ============ POSITIONS — HERO SECTION ============ */
 .positions-hero {
     background: var(--bg-card);
@@ -2099,6 +2140,27 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         </div>
     </div>
     <div class="perf-banner-period" id="perf-period">Live test since --</div>
+</div>
+
+<!-- CYCLE LOG -->
+<div class="cycle-log" id="cycle-log-section">
+    <span class="cycle-log-title">5-Day Cycle Log &mdash; COMPASS vs SPY</span>
+    <table class="cycle-log-table">
+        <thead>
+            <tr>
+                <th>Cycle</th>
+                <th>Period</th>
+                <th>Tickers</th>
+                <th>COMPASS</th>
+                <th>SPY</th>
+                <th>Alpha</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="cycle-log-body">
+            <tr><td colspan="7" style="color:var(--text-muted); text-align:center;">Loading...</td></tr>
+        </tbody>
+    </table>
 </div>
 
 <!-- PORTFOLIO METRICS -->
@@ -3843,6 +3905,46 @@ async function fetchBacktestStatus() {
     } catch(e) { console.error('Backtest status error:', e); }
 }
 
+/* ============ CYCLE LOG ============ */
+async function fetchCycleLog() {
+    try {
+        const res = await fetch('/api/cycle-log');
+        const cycles = await res.json();
+        const tbody = document.getElementById('cycle-log-body');
+        if (!tbody || !cycles.length) {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;">No cycles completed yet</td></tr>';
+            return;
+        }
+        let html = '';
+        for (const c of cycles) {
+            const isActive = c.status === 'active';
+            const compass = c.compass_return != null ? (c.compass_return >= 0 ? '+' : '') + c.compass_return.toFixed(2) + '%' : '--';
+            const spy = c.spy_return != null ? (c.spy_return >= 0 ? '+' : '') + c.spy_return.toFixed(2) + '%' : '--';
+            const alpha = c.alpha != null ? (c.alpha >= 0 ? '+' : '') + c.alpha.toFixed(2) + ' pp' : '--';
+            const compassCls = c.compass_return > 0 ? 'cl-pos' : c.compass_return < 0 ? 'cl-neg' : '';
+            const spyCls = c.spy_return > 0 ? 'cl-pos' : c.spy_return < 0 ? 'cl-neg' : '';
+            const alphaCls = c.alpha > 0 ? 'cl-pos' : c.alpha < 0 ? 'cl-neg' : '';
+            const period = c.end_date ? c.start_date + ' → ' + c.end_date : c.start_date + ' → ...';
+            const tickers = c.positions ? c.positions.join(', ') : '--';
+            const status = isActive
+                ? '<span class="cl-active">● ACTIVE</span>'
+                : (c.compass_return != null && c.compass_return >= 0 ? '<span class="cl-pos">✓ WIN</span>' : '<span class="cl-neg">✗ LOSS</span>');
+            html += '<tr>' +
+                '<td>#' + c.cycle + '</td>' +
+                '<td>' + period + '</td>' +
+                '<td class="cl-tickers">' + tickers + '</td>' +
+                '<td class="' + compassCls + '">' + compass + '</td>' +
+                '<td class="' + spyCls + '">' + spy + '</td>' +
+                '<td class="' + alphaCls + '">' + alpha + '</td>' +
+                '<td>' + status + '</td>' +
+                '</tr>';
+        }
+        tbody.innerHTML = html;
+    } catch (e) {
+        console.error('Cycle log error:', e);
+    }
+}
+
 /* ============ FETCH & REFRESH ============ */
 let _fetchRetries = 0;
 const MAX_RETRIES = 5;
@@ -4380,6 +4482,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateEngineUI(data);
     }).catch(()=>{});
     fetchAll();
+    fetchCycleLog();
     fetchComparisonChart();
     fetchBacktestStatus();
     fetchActivityFeed();

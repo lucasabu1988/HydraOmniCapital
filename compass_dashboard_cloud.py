@@ -799,6 +799,19 @@ def api_logs():
     return jsonify({'logs': []})
 
 
+@app.route('/api/cycle-log')
+def api_cycle_log():
+    """Return the 5-day cycle performance log (COMPASS vs SPY)."""
+    log_file = os.path.join(STATE_DIR, 'cycle_log.json')
+    if not os.path.exists(log_file):
+        return jsonify([])
+    try:
+        with open(log_file, 'r') as f:
+            return jsonify(json.load(f))
+    except Exception:
+        return jsonify([])
+
+
 @app.route('/api/equity')
 def api_equity():
     """Return COMPASS equity curve data (full period from 2000)."""

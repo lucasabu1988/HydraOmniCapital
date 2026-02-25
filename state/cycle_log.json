@@ -1,0 +1,16 @@
+[
+  {
+    "cycle": 1,
+    "start_date": "2026-02-19",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 100000,
+    "portfolio_end": null,
+    "spy_start": 609.16,
+    "spy_end": null,
+    "positions": ["LRCX", "MU", "MRK", "XOM", "AMAT"],
+    "compass_return": null,
+    "spy_return": null,
+    "alpha": null
+  }
+]
