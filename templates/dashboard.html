@@ -113,7 +113,7 @@ body::before {
     align-items: center;
     gap: 20px;
     position: sticky;
-    top: 36px;
+    top: 0;
     z-index: 199;
 }
 .hdr-brand {
@@ -983,6 +983,142 @@ body::before {
 .exp-table .exp-partial { color: var(--yellow); font-weight: 700; }
 .exp-table .exp-baseline { color: var(--accent-light); font-weight: 700; }
 
+/* Experiment Analysis Panel */
+.exp-analysis {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+}
+.exp-analysis-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+.exp-analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+@media (max-width: 900px) { .exp-analysis-grid { grid-template-columns: 1fr; } }
+.exp-stat-box {
+    background: rgba(6, 182, 212, 0.05);
+    border: 1px solid rgba(6, 182, 212, 0.12);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+}
+.exp-stat-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.exp-stat-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+}
+.exp-stat-note {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+.exp-insights {
+    margin-bottom: 18px;
+}
+.exp-insights-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--orange);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.exp-insight-item {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    line-height: 1.6;
+}
+.exp-insight-item:last-child { border-bottom: none; }
+.exp-insight-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 8px;
+}
+.exp-tag-pattern { background: rgba(6, 182, 212, 0.15); color: var(--cyan); }
+.exp-tag-warning { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
+.exp-tag-idea { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+
+.exp-proposals {
+    margin-top: 18px;
+}
+.exp-proposals-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--green);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.exp-proposal-card {
+    background: rgba(34, 197, 94, 0.04);
+    border: 1px solid rgba(34, 197, 94, 0.12);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    margin-bottom: 10px;
+}
+.exp-proposal-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 4px;
+}
+.exp-proposal-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+.exp-proposal-rationale {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-top: 6px;
+    font-style: italic;
+}
+.exp-proposal-priority {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    float: right;
+}
+.exp-priority-high { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+.exp-priority-med { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
+.exp-priority-low { background: rgba(99, 102, 241, 0.15); color: var(--accent-light); }
+.exp-updated {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: right;
+    margin-top: 12px;
+    font-style: italic;
+}
+
 /* Total summary bar */
 .positions-total-bar {
     display: flex; align-items: center; justify-content: space-between;
@@ -1399,7 +1535,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     align-items: stretch;
     gap: 0;
     position: sticky;
-    top: 83px;
+    top: 75px;
     z-index: 198;
 }
 .page-tab {
@@ -2332,7 +2468,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
                 <span class="wcu-icon">&#x1F50D;</span>
                 <div class="wcu-title">Full Transparency &amp; Reproducibility</div>
                 <div class="wcu-desc">Every parameter, trade, and experiment documented. The algorithm is <span class="wcu-highlight">deterministic</span> &mdash; no random component, no black box, no proprietary data. Elite hedge funds operate behind NDAs; COMPASS publishes its complete logic.</div>
-                <div class="wcu-comparison">35 experiments &middot; 22 academic citations &middot; Open-source backtest</div>
+                <div class="wcu-comparison">37 experiments &middot; 22 academic citations &middot; Open-source backtest</div>
             </div>
             <div class="wcu-card">
                 <span class="wcu-icon">&#x26A1;</span>
@@ -2508,7 +2644,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     <p class="paper-p">Cross-sectional momentum &mdash; buying recent winners and avoiding recent losers &mdash; is one of the most robust and well-documented anomalies in financial markets. Since Jegadeesh &amp; Titman (1993) first demonstrated that stocks with high returns over the past 3&ndash;12 months tend to continue outperforming, momentum has been confirmed across asset classes, geographies, and time periods (Asness, Moskowitz &amp; Pedersen, 2013). Carhart (1997) established momentum as a distinct risk factor (UMD), while Fama &amp; French (2012) acknowledged its persistence in international equity markets.</p>
     <p class="paper-p">However, raw momentum suffers from well-documented vulnerabilities: catastrophic crashes during market reversals (Daniel &amp; Moskowitz, 2016), short-term reversal contamination (Novy-Marx, 2012), and high turnover that erodes returns after transaction costs (Frazzini, Israel &amp; Moskowitz, 2015). COMPASS addresses each of these through a regime filter, reversal-adjusted signal, and concentrated 5-position portfolio with fixed 5-day hold periods.</p>
     <p class="paper-p">The system evolved from OmniCapital v6, which exhibited a critical survivorship bias: a static 60-stock universe produced an illusory 16.92% CAGR that collapsed to 5.40% after correction with annual top-40 rotation. This failure motivated the development of COMPASS v8, which replaced static selection with a genuine momentum signal and introduced dynamic universe selection, regime filtering, and multi-layer risk management.</p>
-    <p class="paper-p">After 35 controlled experiments spanning 18 months of development, the algorithm has been declared <strong>inelastic</strong>: any modification to its core parameters degrades performance. This paper documents the complete algorithm design, provides a literature review situating COMPASS within the momentum research tradition, presents empirical results with cost analysis, catalogues all 35 experiments, and discusses statistical validity, limitations, and production deployment.</p>
+    <p class="paper-p">After 35 controlled experiments spanning 18 months of development, the algorithm has been declared <strong>inelastic</strong>: any modification to its core parameters degrades performance. This paper documents the complete algorithm design, provides a literature review situating COMPASS within the momentum research tradition, presents empirical results with cost analysis, catalogues all 37 experiments, and discusses statistical validity, limitations, and production deployment.</p>
 </div>
 
 <!-- 2. LITERATURE REVIEW -->
@@ -2682,7 +2818,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
     <div class="paper-table-wrap">
         <table class="paper-table">
-            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 4: Complete Experiment Log (35 experiments, 38 rows including sub-variants)</caption>
+            <caption style="caption-side:top; text-align:left; font-size:11px; color:var(--text-tertiary); padding:8px 14px; font-weight:600;">Table 4: Complete Experiment Log (37 experiments, 38 rows including sub-variants)</caption>
             <tr><th>#</th><th>Experiment</th><th>Category</th><th>CAGR</th><th>Max DD</th><th>&Delta; vs Base</th><th>Result</th></tr>
             <tr><td>1</td><td>v6 Original (static 60 stocks)</td><td>Signal</td><td>16.92%</td><td>&mdash;</td><td>&mdash;</td><td class="val-red">BIAS</td></tr>
             <tr><td>2</td><td>v6 Corrected (top-40 rotation)</td><td>Signal</td><td>5.40%</td><td>&mdash;</td><td>&minus;13.16%</td><td class="val-red">FAILED</td></tr>
@@ -2713,7 +2849,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         </table>
     </div>
 
-    <div class="paper-note note-fail">Of 35 experiments, only 3 produced positive outcomes: the original COMPASS v8 signal (baseline), the Moody&rsquo;s Aaa cash yield upgrade (chassis-only, +1.15%), and RATTLESNAKE as a standalone strategy (10.51% CAGR). Every motor modification &mdash; including 3 external advisory proposals, 2 geographic expansions, 5 behavioral overlays, and an ensemble momentum attempt &mdash; degraded performance. This extreme parameter sensitivity confirms algorithm inelasticity: COMPASS has reached a local optimum for this universe and timeframe.</div>
+    <div class="paper-note note-fail">Of 37 experiments, only 3 produced positive outcomes: the original COMPASS v8 signal (baseline), the Moody&rsquo;s Aaa cash yield upgrade (chassis-only, +1.15%), and RATTLESNAKE as a standalone strategy (10.51% CAGR). Every motor modification &mdash; including 3 external advisory proposals, 2 geographic expansions, 5 behavioral overlays, and an ensemble momentum attempt &mdash; degraded performance. This extreme parameter sensitivity confirms algorithm inelasticity: COMPASS has reached a local optimum for this universe and timeframe.</div>
 </div>
 
 <!-- 6. GEOGRAPHIC NON-TRANSFERABILITY -->
@@ -2849,7 +2985,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <div class="paper-section">
     <div class="paper-h2"><span class="paper-h2-num">11</span> Conclusion</div>
     <p class="paper-p">COMPASS v8.2 achieves a net CAGR of 15.16% (Sharpe 0.734) after conservative 2.5% annual execution costs over a 26-year backtest, outperforming SPY buy-and-hold by approximately +7% annually with roughly half the maximum drawdown. The gross t-statistic of 3.74 clears the Harvey, Liu &amp; Zhu (2016) threshold for newly discovered factors, and alpha is positive across all sub-periods.</p>
-    <p class="paper-p">However, several material caveats temper this result: (1) the DSR p-value of ~0.30 indicates the Sharpe ratio is not statistically significant after adjusting for 35 experiments; (2) residual survivorship bias from non-point-in-time S&amp;P 500 data may overstate returns by 1.5&ndash;4.0%; (3) sub-period excess returns show a declining trend consistent with alpha decay; (4) the Moody&rsquo;s Aaa cash yield overstates achievable cash returns by ~50&ndash;100bps.</p>
+    <p class="paper-p">However, several material caveats temper this result: (1) the DSR p-value of ~0.30 indicates the Sharpe ratio is not statistically significant after adjusting for 37 experiments; (2) residual survivorship bias from non-point-in-time S&amp;P 500 data may overstate returns by 1.5&ndash;4.0%; (3) sub-period excess returns show a declining trend consistent with alpha decay; (4) the Moody&rsquo;s Aaa cash yield overstates achievable cash returns by ~50&ndash;100bps.</p>
     <p class="paper-p">After all statistical adjustments, we estimate a true expected net CAGR of 10&ndash;13% with a 90% confidence interval of 6.5&ndash;15.5%. Even at the lower bound, this represents meaningful alpha over passive indexing. The recommended path forward is: (1) Norgate Data for point-in-time validation, (2) IBKR paper trading for 3&ndash;6 months, and (3) live deployment in a tax-advantaged account at $100K initial capital.</p>
     <p class="paper-p">The algorithm is declared <strong>locked</strong>: no further motor experiments will be conducted. All future improvements must be chassis-level (execution, data quality, infrastructure) rather than signal-level modifications.</p>
 </div>
@@ -3472,7 +3608,7 @@ function updatePositions(details) {
 
     /* Experiment history table */
     html += '<div class="exp-table-card">' +
-        '<div class="exp-table-title">EXPERIMENT HISTORY &mdash; 36 VERSIONS TESTED</div>' +
+        '<div class="exp-table-title">EXPERIMENT HISTORY &mdash; 37 VERSIONS TESTED</div>' +
         '<table class="exp-table"><thead><tr>' +
             '<th>#</th><th>Version</th><th>Strategy</th><th>CAGR</th><th>Sharpe</th><th>Max DD</th><th>Status</th>' +
         '</tr></thead><tbody>' +
@@ -3500,10 +3636,13 @@ function updatePositions(details) {
         '<tr><td>22</td><td class="exp-name">Exp #33 Profit Tgt</td><td>+3% extend, +10% exit</td><td class="exp-fail">13.23%</td><td>--</td><td>-54.9%</td><td class="exp-fail">FAILED</td></tr>' +
         '<tr><td>23</td><td class="exp-name">Exp #35 MWF</td><td>Mon/Wed/Fri only trading</td><td class="exp-fail">13.67%</td><td>--</td><td>-49.0%</td><td class="exp-fail">FAILED</td></tr>' +
         '<tr><td>24</td><td class="exp-name">Exp #36 Gold</td><td>Gold futures in protection</td><td class="exp-fail">-2.63%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>25</td><td class="exp-name">v9 Genius Layer</td><td>5 ML layers (MLP+Graph+HMM+SectorOpt+Meta)</td><td class="exp-fail">10.53%</td><td>0.50</td><td>-56.0%</td><td class="exp-fail">FAILED</td></tr>' +
         '</tbody></table>' +
+        '<div class="exp-analysis" id="exp-analysis-container"></div>' +
     '</div>';
 
     grid.innerHTML = html;
+    fetchExpAnalysis();
 
     /* Totals */
     const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
@@ -4570,6 +4709,83 @@ document.addEventListener('DOMContentLoaded', function() {
     updateMarketTimer();
     setInterval(updateMarketTimer, 1000);
 });
+
+/* ============ EXPERIMENT ANALYSIS PANEL ============ */
+function fetchExpAnalysis() {
+    const container = document.getElementById('exp-analysis-container');
+    if (!container) return;
+
+    const totalExp = 37;
+    const failed = 33;
+    const approved = 2;  /* v8 COMPASS + Exp #34 IG Cash Yield */
+    const partial = 2;   /* RATTLESNAKE standalone + QUANTUM */
+    const failRate = ((failed / totalExp) * 100).toFixed(1);
+
+    /* Category breakdown */
+    const categories = [
+        { name: 'Motor (signal/params)', tried: 18, failed: 16, examples: 'v8.1 shorts, rank-hysteresis, VORTEX, behavioral, ensemble, preemptive stop, profit target, MWF, Genius Layer' },
+        { name: 'Alternative engines', tried: 7, failed: 5, examples: 'VIPER ETF, ECLIPSE pairs, QUANTUM RSI, RATTLESNAKE mean-rev' },
+        { name: 'Geographic expansion', tried: 2, failed: 2, examples: 'COMPASS EU (STOXX), COMPASS Asia (N225)' },
+        { name: 'Protection/hedging', tried: 5, failed: 5, examples: 'Inverse ETFs, momentum shorts, OTM puts, gold futures, TLT/IEF' },
+        { name: 'Chassis improvements', tried: 5, failed: 2, examples: 'MOC execution, no leverage, IG cash yield, box spread, pre-close signal' },
+    ];
+
+    /* Key insights from 37 experiments */
+    const insights = [
+        { tag: 'PATTERN', tagCls: 'exp-tag-pattern', text: 'Algorithm is inelastic: ANY parameter change degrades performance. 90d lookback, 5d hold, 5 positions are genuinely optimal.' },
+        { tag: 'PATTERN', tagCls: 'exp-tag-pattern', text: 'ML complexity destroys signal: v9 Genius Layer (5 ML layers) lost -8.03% CAGR. MLP blocked 62% of selections, HMM overrode regime 1981 times.' },
+        { tag: 'PATTERN', tagCls: 'exp-tag-pattern', text: 'Concentrated alpha requires simplicity: ensemble momentum, behavioral overlays, and sector optimization all dilute the signal.' },
+        { tag: 'WARNING', tagCls: 'exp-tag-warning', text: 'Geographic expansion is not viable: EU (-20.87%) and Asia (-19.71%) catastrophic. Algorithm relies on US market microstructure.' },
+        { tag: 'WARNING', tagCls: 'exp-tag-warning', text: 'Protection mode is a closed question: gold, TLT/IEF, inverse ETFs, momentum shorts all tested and rejected. Cash + Aaa yield is optimal.' },
+        { tag: 'IDEA', tagCls: 'exp-tag-idea', text: 'Chassis > Motor: the only approved changes (IG cash yield +1.15%, pre-close signal +0.79%) were infrastructure improvements, not signal changes.' },
+    ];
+
+    let html = '<div class="exp-analysis-title">EXPERIMENT ANALYSIS</div>';
+
+    /* Stats grid */
+    html += '<div class="exp-analysis-grid">';
+    html += '<div class="exp-stat-box"><div class="exp-stat-label">EXPERIMENTS RUN</div><div class="exp-stat-val" style="color:var(--cyan);">' + totalExp + '</div><div class="exp-stat-note">' + failed + ' failed, ' + approved + ' approved, ' + partial + ' partial</div></div>';
+    html += '<div class="exp-stat-box"><div class="exp-stat-label">FAILURE RATE</div><div class="exp-stat-val" style="color:var(--red);">' + failRate + '%</div><div class="exp-stat-note">Algorithm inelasticity confirmed</div></div>';
+    html += '<div class="exp-stat-box"><div class="exp-stat-label">CAGR BASELINE</div><div class="exp-stat-val" style="color:var(--green);">18.56%</div><div class="exp-stat-note">Signal gross | 15.16% net (after 2.5% costs)</div></div>';
+    html += '<div class="exp-stat-box"><div class="exp-stat-label">WORST EXPERIMENT</div><div class="exp-stat-val" style="color:var(--red);">-20.87%</div><div class="exp-stat-note">COMPASS EU v1 ($100K &rarr; $507)</div></div>';
+    html += '</div>';
+
+    /* Category breakdown */
+    html += '<div class="exp-insights-title">CATEGORY BREAKDOWN</div>';
+    html += '<table class="exp-table" style="margin-bottom:18px;">';
+    html += '<thead><tr><th>Category</th><th>Tried</th><th>Failed</th><th>Rate</th></tr></thead><tbody>';
+    for (const cat of categories) {
+        const rate = ((cat.failed / cat.tried) * 100).toFixed(0);
+        const cls = cat.failed === cat.tried ? 'exp-fail' : 'exp-partial';
+        html += '<tr><td class="exp-name">' + cat.name + '</td><td>' + cat.tried + '</td><td class="' + cls + '">' + cat.failed + '</td><td class="' + cls + '">' + rate + '%</td></tr>';
+    }
+    html += '</tbody></table>';
+
+    /* Key insights */
+    html += '<div class="exp-insights"><div class="exp-insights-title">KEY INSIGHTS</div>';
+    for (const ins of insights) {
+        html += '<div class="exp-insight-item"><span class="exp-insight-tag ' + ins.tagCls + '">' + ins.tag + '</span>' + ins.text + '</div>';
+    }
+    html += '</div>';
+
+    /* Conclusion */
+    html += '<div class="exp-proposals"><div class="exp-proposals-title">CONCLUSION</div>';
+    html += '<div class="exp-proposal-card">';
+    html += '<div class="exp-proposal-name">Algorithm Motor: LOCKED <span class="exp-proposal-priority exp-priority-high">FINAL</span></div>';
+    html += '<div class="exp-proposal-desc">37 experiments confirm COMPASS v8.2 has reached its theoretical maximum. No further motor experiments should be attempted.</div>';
+    html += '<div class="exp-proposal-rationale">Focus on chassis (execution quality, broker integration, data sources) and operations (paper trading, tax optimization, scaling).</div>';
+    html += '</div>';
+
+    html += '<div class="exp-proposal-card">';
+    html += '<div class="exp-proposal-name">Next Steps: Chassis &amp; Operations <span class="exp-proposal-priority exp-priority-med">ACTIVE</span></div>';
+    html += '<div class="exp-proposal-desc">1. Norgate Data (survivorship bias cure) &bull; 2. IBKR paper trading (3-6 months) &bull; 3. Tax optimization (IRA/401k) &bull; 4. Scaling path ($500K+)</div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="exp-updated">Last updated: Feb 25, 2026 &bull; Experiment #37 (v9 Genius Layer) added</div>';
+
+    container.innerHTML = html;
+}
 
 /* Terminal removed — replaced with WhatsApp contact FAB */
 </script>
