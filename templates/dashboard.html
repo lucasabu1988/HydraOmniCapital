@@ -938,75 +938,50 @@ body::before {
     background: rgba(234,179,8,0.03);
 }
 
-/* Formula card in positions grid */
-.pos-formula-card {
+/* Experiment History Table (replaces formula card) */
+.exp-table-card {
     background: var(--bg-card);
-    padding: 16px 20px;
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
+    padding: 20px 24px;
     grid-column: span 3;
+    border-radius: var(--radius-md);
 }
-.pos-formula-left {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.pos-formula-label {
-    font-size: 9px;
+.exp-table-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 2px;
     color: var(--text-muted);
+    margin-bottom: 14px;
+    text-transform: uppercase;
 }
-.pos-formula-lines {
-    font-family: 'JetBrains Mono', 'Consolas', monospace;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--green);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    line-height: 1.6;
-}
-.pos-formula-lines sub {
-    font-size: 10px;
-    color: rgba(34, 197, 94, 0.7);
-}
-.pos-formula-dim {
-    color: rgba(34, 197, 94, 0.45);
+.exp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
 }
-.pos-formula-right {
-    flex: 1;
-    border: 1px solid rgba(249, 115, 22, 0.25);
-    border-radius: var(--radius-sm);
-    padding: 12px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    background: rgba(249, 115, 22, 0.03);
-}
-.pos-formula-right-label {
-    font-family: 'JetBrains Mono', 'Consolas', monospace;
+.exp-table th {
+    text-align: left;
+    padding: 6px 10px;
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 2px;
-    color: rgba(249, 115, 22, 0.5);
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
 }
-.pos-formula-explain {
-    font-family: 'JetBrains Mono', 'Consolas', monospace;
-    font-size: 11px;
+.exp-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    color: var(--text-secondary);
     font-weight: 500;
-    color: var(--orange);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    line-height: 1.6;
 }
-.pos-formula-explain-dim {
-    color: rgba(249, 115, 22, 0.45);
-}
+.exp-table tr:last-child td { border-bottom: none; }
+.exp-table .exp-name { color: var(--text-primary); font-weight: 700; }
+.exp-table .exp-pass { color: var(--green); font-weight: 700; }
+.exp-table .exp-fail { color: var(--red); font-weight: 700; }
+.exp-table .exp-partial { color: var(--yellow); font-weight: 700; }
+.exp-table .exp-baseline { color: var(--accent-light); font-weight: 700; }
 
 /* Total summary bar */
 .positions-total-bar {
@@ -2037,9 +2012,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     <div class="page-tab" data-page="social" onclick="switchPage('social')">
         <span class="page-tab-icon">&#9889;</span> Social Feed
     </div>
-    <div class="page-tab" data-page="paper" onclick="switchPage('paper')">
-        <span class="page-tab-icon">&#9830;</span> Research Paper
-    </div>
     <div class="page-tab" data-page="roadmap" onclick="switchPage('roadmap')">
         <span class="page-tab-icon">&#9654;</span> Launch Roadmap
     </div>
@@ -2486,8 +2458,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 </div><!-- /page-social -->
 
-<!-- ==================== PAGE: RESEARCH PAPER ==================== -->
-<div id="page-paper" class="page-content">
+<!-- ==================== PAGE: RESEARCH PAPER (REMOVED) ==================== -->
+<div id="page-paper" class="page-content" style="display:none;">
 <div class="paper-wrap">
 
 <!-- TITLE BLOCK -->
@@ -3492,34 +3464,37 @@ function updatePositions(details) {
         '</div>';
     }
 
-    /* Formula card fills empty grid slots */
-    html += '<div class="pos-formula-card">' +
-        '<div class="pos-formula-left">' +
-            '<div class="pos-formula-label">COMPASS v8.2 SIGNAL</div>' +
-            '<div class="pos-formula-lines">' +
-                '<span>R<sub>i</sub> = P<sub>i,t-5</sub> / P<sub>i,t-95</sub> &minus; 1</span>' +
-                '<span>rank(R) &rarr; top N stocks</span>' +
-                '<span class="pos-formula-dim">N = 5 (risk-on) | 2 (risk-off)</span>' +
-                '<span>&sigma;<sub>tgt</sub> = 15% &rarr; lev &isin; [0.3, 1.0]</span>' +
-                '<span>regime = SPY &gt; SMA(200)<sub>3d</sub></span>' +
-                '<span class="pos-formula-dim">stop: &minus;8% pos | &minus;15% port</span>' +
-                '<span class="pos-formula-dim">trail: +5% &rarr; +3% lock</span>' +
-                '<span class="pos-formula-dim">hold: 5d | lookback: 90d</span>' +
-            '</div>' +
-        '</div>' +
-        '<div class="pos-formula-right">' +
-            '<div class="pos-formula-right-label">EXPLANATION</div>' +
-            '<div class="pos-formula-explain">' +
-                '<span>R<sub>i</sub> &rarr; 90-day momentum return, skip last 5 days</span>' +
-                '<span>rank &rarr; cross-sectional sort, buy highest momentum</span>' +
-                '<span class="pos-formula-explain-dim">5 positions in bull market, 2 in bear</span>' +
-                '<span>&sigma;<sub>tgt</sub> &rarr; vol-target 15%, scale exposure [0.3x-1.0x]</span>' +
-                '<span>regime &rarr; SPY above 200-day SMA for 3 consecutive days</span>' +
-                '<span class="pos-formula-explain-dim">-8% per position stop-loss, -15% portfolio circuit breaker</span>' +
-                '<span class="pos-formula-explain-dim">trailing stop activates at +5% gain, locks at +3%</span>' +
-                '<span class="pos-formula-explain-dim">rebalance every 5 trading days</span>' +
-            '</div>' +
-        '</div>' +
+    /* Experiment history table */
+    html += '<div class="exp-table-card">' +
+        '<div class="exp-table-title">EXPERIMENT HISTORY &mdash; 36 VERSIONS TESTED</div>' +
+        '<table class="exp-table"><thead><tr>' +
+            '<th>#</th><th>Version</th><th>Strategy</th><th>CAGR</th><th>Sharpe</th><th>Max DD</th><th>Status</th>' +
+        '</tr></thead><tbody>' +
+        '<tr><td>1</td><td class="exp-name">COMPASS v8.2</td><td>Cross-sectional momentum + regime filter</td><td class="exp-pass">18.56%</td><td>0.90</td><td>-26.9%</td><td class="exp-pass">PRODUCTION</td></tr>' +
+        '<tr><td>2</td><td class="exp-name">COMPASS v8.2 Net</td><td>Production + 2.5% execution costs</td><td class="exp-pass">15.16%</td><td>0.734</td><td>-30.3%</td><td class="exp-pass">BASELINE</td></tr>' +
+        '<tr><td>3</td><td class="exp-name">COMPASS v6</td><td>Original (survivorship bias)</td><td class="exp-fail">5.40%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>4</td><td class="exp-name">COMPASS v8.1</td><td>Short-selling (Revenue/Debt)</td><td class="exp-fail">--</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>5</td><td class="exp-name">v8.3 Rank Hysteresis</td><td>Rank stability filter</td><td class="exp-fail">-4.56%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>6</td><td class="exp-name">v8.3 Cash Yield</td><td>Moody\'s Aaa IG variable yield</td><td class="exp-pass">+1.15%</td><td>--</td><td>--</td><td class="exp-pass">APPROVED</td></tr>' +
+        '<tr><td>7</td><td class="exp-name">VORTEX v1/v2/v3</td><td>Acceleration momentum</td><td class="exp-fail">--</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>8</td><td class="exp-name">Behavioral Overlays</td><td>Sentiment + behavioral filters</td><td class="exp-fail">-7~10%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>9</td><td class="exp-name">Dynamic Recovery</td><td>VIX/Breadth-based recovery</td><td class="exp-fail">--</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>10</td><td class="exp-name">Protection Shorts</td><td>Inverse ETFs during protection</td><td class="exp-fail">-$145K</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>11</td><td class="exp-name">Ensemble Momentum</td><td>60/90/120d blended lookback</td><td class="exp-fail">-7.43%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>12</td><td class="exp-name">Conditional Hold</td><td>Top5+ATR hold extension</td><td class="exp-fail">-3.93%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>13</td><td class="exp-name">Preemptive Stop</td><td>-8% early stop trigger</td><td class="exp-fail">-6.56%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>14</td><td class="exp-name">VIPER v1</td><td>ETF rotation (11 ETFs)</td><td class="exp-fail">5.84%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>15</td><td class="exp-name">VIPER v2</td><td>Sector ETF momentum</td><td class="exp-fail">3.59%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>16</td><td class="exp-name">RATTLESNAKE v1</td><td>Mean-reversion (S&P 100, RSI&lt;25)</td><td class="exp-partial">10.51%</td><td>0.74</td><td>--</td><td class="exp-partial">STANDALONE</td></tr>' +
+        '<tr><td>17</td><td class="exp-name">COMPASS+RATTLE</td><td>Dual-engine 50/50 split</td><td class="exp-fail">--</td><td>--</td><td>--</td><td class="exp-fail">REVERTED</td></tr>' +
+        '<tr><td>18</td><td class="exp-name">ECLIPSE v1</td><td>Engle-Granger pairs trading</td><td class="exp-fail">-3.37%</td><td>--</td><td>-79.3%</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>19</td><td class="exp-name">QUANTUM v1</td><td>RSI(2)+IBS mean reversion</td><td class="exp-partial">9.42%</td><td>0.831</td><td>--</td><td class="exp-partial">PARTIAL</td></tr>' +
+        '<tr><td>20</td><td class="exp-name">COMPASS EU v1</td><td>EU large-caps (STOXX 600)</td><td class="exp-fail">-20.87%</td><td>--</td><td>-88.3%</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>21</td><td class="exp-name">COMPASS Asia v1</td><td>Asian large-caps (N225)</td><td class="exp-fail">-19.71%</td><td>--</td><td>-94.5%</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>22</td><td class="exp-name">Exp #33 Profit Tgt</td><td>+3% extend, +10% exit</td><td class="exp-fail">13.23%</td><td>--</td><td>-54.9%</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>23</td><td class="exp-name">Exp #35 MWF</td><td>Mon/Wed/Fri only trading</td><td class="exp-fail">13.67%</td><td>--</td><td>-49.0%</td><td class="exp-fail">FAILED</td></tr>' +
+        '<tr><td>24</td><td class="exp-name">Exp #36 Gold</td><td>Gold futures in protection</td><td class="exp-fail">-2.63%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
+        '</tbody></table>' +
     '</div>';
 
     grid.innerHTML = html;
