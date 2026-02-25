@@ -12,52 +12,52 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --bg-root: #0a0a0f;
-    --bg-primary: #10101a;
-    --bg-card: #161625;
-    --bg-card-hover: #1c1c30;
-    --bg-elevated: #1e1e32;
-    --bg-glass: rgba(22, 22, 37, 0.7);
+    --bg-root: #1e2030;
+    --bg-primary: #252840;
+    --bg-card: #2d3050;
+    --bg-card-hover: #353860;
+    --bg-elevated: #383c62;
+    --bg-glass: rgba(45, 48, 80, 0.75);
 
-    --border: rgba(255,255,255,0.06);
-    --border-active: rgba(255,255,255,0.12);
-    --border-accent: rgba(99, 102, 241, 0.3);
+    --border: rgba(255,255,255,0.10);
+    --border-active: rgba(255,255,255,0.18);
+    --border-accent: rgba(99, 102, 241, 0.35);
 
     --text-primary: #f0f0f5;
-    --text-secondary: #9898b0;
-    --text-tertiary: #5e5e78;
-    --text-muted: #3a3a52;
+    --text-secondary: #b0b0c8;
+    --text-tertiary: #7878a0;
+    --text-muted: #555578;
 
     --accent: #6366f1;
     --accent-light: #818cf8;
-    --accent-glow: rgba(99, 102, 241, 0.15);
-    --accent-strong-glow: rgba(99, 102, 241, 0.25);
+    --accent-glow: rgba(99, 102, 241, 0.18);
+    --accent-strong-glow: rgba(99, 102, 241, 0.28);
 
     --green: #22c55e;
-    --green-dim: rgba(34, 197, 94, 0.12);
-    --green-glow: rgba(34, 197, 94, 0.2);
+    --green-dim: rgba(34, 197, 94, 0.15);
+    --green-glow: rgba(34, 197, 94, 0.25);
     --red: #ef4444;
-    --red-dim: rgba(239, 68, 68, 0.12);
-    --red-glow: rgba(239, 68, 68, 0.2);
+    --red-dim: rgba(239, 68, 68, 0.15);
+    --red-glow: rgba(239, 68, 68, 0.25);
     --yellow: #eab308;
-    --yellow-dim: rgba(234, 179, 8, 0.12);
+    --yellow-dim: rgba(234, 179, 8, 0.15);
     --blue: #3b82f6;
-    --blue-dim: rgba(59, 130, 246, 0.12);
+    --blue-dim: rgba(59, 130, 246, 0.15);
     --cyan: #06b6d4;
-    --cyan-dim: rgba(6, 182, 212, 0.12);
+    --cyan-dim: rgba(6, 182, 212, 0.15);
     --orange: #f97316;
-    --orange-dim: rgba(249, 115, 22, 0.12);
+    --orange-dim: rgba(249, 115, 22, 0.15);
     --purple: #a855f7;
-    --purple-dim: rgba(168, 85, 247, 0.12);
+    --purple-dim: rgba(168, 85, 247, 0.15);
 
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
 
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-    --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.3);
     --shadow-glow: 0 0 40px var(--accent-glow);
 }
 
@@ -105,7 +105,7 @@ body::before {
 
 /* ============ TOP HEADER ============ */
 .header-bar {
-    background: rgba(16, 16, 26, 0.9);
+    background: rgba(37, 40, 64, 0.92);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
     padding: 10px 24px;
@@ -1375,7 +1375,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* ============ PAGE TABS ============ */
 .page-tabs {
-    background: rgba(16, 16, 26, 0.95);
+    background: rgba(37, 40, 64, 0.95);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
     padding: 0 24px;
@@ -3773,7 +3773,7 @@ function renderComparisonChart(json) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(22, 22, 37, 0.95)',
+                    backgroundColor: 'rgba(45, 48, 80, 0.95)',
                     borderColor: 'rgba(99, 102, 241, 0.3)',
                     borderWidth: 1,
                     titleColor: '#9898b0',
@@ -4278,7 +4278,7 @@ function initFundScatterChart() {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(16,16,26,0.95)',
+                    backgroundColor: 'rgba(37,40,64,0.95)',
                     borderColor: 'rgba(255,255,255,0.1)',
                     borderWidth: 1,
                     titleFont: { family: "'Inter', sans-serif", size: 13, weight: '700' },
