@@ -16,7 +16,8 @@ import glob
 import numpy as np
 import pandas as pd
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time as dtime
+from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -749,13 +750,26 @@ def api_state():
     position_details = compute_position_details(state, prices)
     portfolio = compute_portfolio_metrics(state, prices)
 
-    # Pre-close status (static for showcase)
+    # Pre-close status (computed from real ET time)
+    ET = ZoneInfo('America/New_York')
+    now_et = datetime.now(ET)
+    is_weekday = now_et.weekday() < 5
+    current_time = now_et.time()
+    if not is_weekday or current_time < dtime(9, 30) or current_time >= dtime(16, 0):
+        preclose_phase = 'market_closed'
+    elif current_time < dtime(15, 30):
+        preclose_phase = 'waiting'
+    elif current_time <= dtime(15, 50):
+        preclose_phase = 'window_open'
+    else:
+        preclose_phase = 'entries_done'
+
     preclose_status = {
-        'phase': 'showcase',
+        'phase': preclose_phase,
         'signal_time': '15:30 ET',
         'moc_deadline': '15:50 ET',
-        'current_time_et': datetime.now().strftime('%H:%M:%S'),
-        'entries_done': False,
+        'current_time_et': now_et.strftime('%H:%M:%S'),
+        'entries_done': preclose_phase == 'entries_done',
     }
 
     return jsonify({
