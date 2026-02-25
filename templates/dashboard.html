@@ -1948,6 +1948,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <span class="hdr-stat-value" id="day-display">--</span>
     </div>
     <span class="hdr-spacer"></span>
+    <div class="hdr-stat" id="hdr-market-timer-wrap" style="min-width:180px; text-align:right;">
+        <span class="hdr-stat-label" id="hdr-market-label">MARKET CLOSED</span>
+        <span class="hdr-stat-value" id="hdr-market-countdown" style="font-size:13px;">--</span>
+    </div>
+    <span class="hdr-sep">&middot;</span>
     <div class="upd-wrapper">
         <div class="hdr-time-group">
             <span class="hdr-stat-label">Updated</span>
@@ -4391,6 +4396,44 @@ document.addEventListener('DOMContentLoaded', function() {
         countdownSec = Math.max(0, countdownSec - 1);
         document.getElementById('countdown').textContent = countdownSec;
     }, 1000);
+
+    /* Market open/close countdown timer */
+    function updateMarketTimer() {
+        const lbl = document.getElementById('hdr-market-label');
+        const cd = document.getElementById('hdr-market-countdown');
+        if (!lbl || !cd) return;
+        const now = new Date();
+        const et = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+        const day = et.getDay();
+        const h = et.getHours(), m = et.getMinutes(), s = et.getSeconds();
+        const mins = h * 60 + m;
+        const isWeekday = day >= 1 && day <= 5;
+        const mktOpen = 9 * 60 + 30, mktClose = 16 * 60;
+        const isOpen = isWeekday && mins >= mktOpen && mins < mktClose;
+        if (isOpen) {
+            lbl.textContent = 'Market Open';
+            lbl.style.color = 'var(--green)';
+            const left = (mktClose * 60) - (mins * 60 + s);
+            const hh = Math.floor(left / 3600), mm = Math.floor((left % 3600) / 60), ss = left % 60;
+            cd.textContent = 'closes ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
+        } else {
+            lbl.textContent = 'Market Closed';
+            lbl.style.color = 'var(--text-muted)';
+            let next = new Date(et);
+            if (mins >= mktClose || !isWeekday) {
+                next.setDate(next.getDate() + 1);
+                next.setHours(9, 30, 0, 0);
+                while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1);
+            } else {
+                next.setHours(9, 30, 0, 0);
+            }
+            const diff = Math.max(0, Math.floor((next - et) / 1000));
+            const hh = Math.floor(diff / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
+            cd.textContent = 'opens ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
+        }
+    }
+    updateMarketTimer();
+    setInterval(updateMarketTimer, 1000);
 });
 </script>
 
