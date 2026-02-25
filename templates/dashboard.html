@@ -1932,31 +1932,22 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         </div>
     </div>
     <span class="hdr-sep">&middot;</span>
-    <span id="regime-tag" class="hdr-pill hdr-pill-on">
-        <span class="hdr-pill-dot"></span> RISK ON
+    <span id="hdr-engine-status" style="display:inline-flex; align-items:center; gap:6px;">
+        <span id="hdr-engine-dot" style="width:8px; height:8px; border-radius:50%; background:var(--red);"></span>
+        <span id="hdr-engine-label" style="font-weight:600; font-size:13px; color:var(--red);">ENGINE OFF</span>
     </span>
-    <span id="protection-tag" class="hdr-pill hdr-pill-norm">
-        <span class="hdr-pill-dot"></span> NORMAL
-    </span>
-    <div class="hdr-stat">
-        <span class="hdr-stat-label">Lev</span>
-        <span class="hdr-stat-value" id="leverage-display">1.0x</span>
-    </div>
-    <div class="hdr-stat">
-        <span class="hdr-stat-label">Day</span>
-        <span class="hdr-stat-value" id="day-display">--</span>
-    </div>
     <span class="hdr-spacer"></span>
-    <div class="upd-wrapper">
-        <div class="hdr-time-group">
-            <span class="hdr-stat-label">Updated</span>
-            <span class="hdr-time" id="last-update">--</span>
-            <span class="hdr-countdown">&middot; <span id="countdown">30</span>s</span>
-        </div>
-        <div class="upd-tooltip" id="upd-tooltip">
-            Last update: --<br>Next refresh in: --
-        </div>
-    </div>
+    <span id="hdr-market-timer" style="font-size:13px; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace;">
+        <span id="hdr-market-label">MARKET CLOSED</span>
+        <span id="hdr-market-countdown" style="margin-left:6px; color:var(--text-muted);"></span>
+    </span>
+    <!-- hidden but kept for JS compatibility -->
+    <span id="regime-tag" style="display:none;" class="hdr-pill hdr-pill-on"><span class="hdr-pill-dot"></span> RISK ON</span>
+    <span id="protection-tag" style="display:none;" class="hdr-pill hdr-pill-norm"><span class="hdr-pill-dot"></span> NORMAL</span>
+    <span id="leverage-display" style="display:none;">1.0x</span>
+    <span id="day-display" style="display:none;">--</span>
+    <span id="last-update" style="display:none;">--</span>
+    <span id="countdown" style="display:none;">30</span>
 </div>
 
 <!-- PAGE TABS -->
@@ -3217,6 +3208,24 @@ function updatePreclose(preclose) {
             label.style.color = 'var(--text-muted)';
             seg.classList.remove('active');
     }
+
+    /* Sync header market timer */
+    const hdrMktLabel = document.getElementById('hdr-market-label');
+    const hdrMktCountdown = document.getElementById('hdr-market-countdown');
+    if (hdrMktLabel) {
+        if (preclose.phase === 'waiting' || preclose.phase === 'window_open' || preclose.phase === 'entries_done') {
+            hdrMktLabel.textContent = 'MARKET OPEN';
+            hdrMktLabel.style.color = 'var(--green)';
+            if (hdrMktCountdown) hdrMktCountdown.textContent = preclose.current_time_et + ' ET';
+        } else {
+            hdrMktLabel.textContent = 'MARKET CLOSED';
+            hdrMktLabel.style.color = 'var(--text-muted)';
+            /* Calculate time to next open (9:30 ET) */
+            if (hdrMktCountdown && preclose.current_time_et) {
+                hdrMktCountdown.textContent = preclose.current_time_et + ' ET';
+            }
+        }
+    }
 }
 
 function updateCards(p) {
@@ -3526,6 +3535,19 @@ function updateEngineUI(engine) {
         det.style.color = engine.error ? 'var(--red)' : 'var(--text-tertiary)';
         cyc.textContent = '';
         btnS.style.display = 'inline-block'; btnX.style.display = 'none';
+    }
+
+    /* Sync header engine status */
+    const hdrDot = document.getElementById('hdr-engine-dot');
+    const hdrLbl = document.getElementById('hdr-engine-label');
+    if (hdrDot && hdrLbl) {
+        if (engine.running) {
+            hdrDot.style.background = 'var(--green)';
+            hdrLbl.textContent = 'ENGINE ON'; hdrLbl.style.color = 'var(--green)';
+        } else {
+            hdrDot.style.background = 'var(--red)';
+            hdrLbl.textContent = 'ENGINE OFF'; hdrLbl.style.color = 'var(--red)';
+        }
     }
 }
 
@@ -4379,6 +4401,59 @@ document.addEventListener('DOMContentLoaded', function() {
         countdownSec = Math.max(0, countdownSec - 1);
         document.getElementById('countdown').textContent = countdownSec;
     }, 1000);
+
+    /* Header market timer — updates every second */
+    function updateMarketTimer() {
+        const hdrLabel = document.getElementById('hdr-market-label');
+        const hdrCountdown = document.getElementById('hdr-market-countdown');
+        if (!hdrLabel || !hdrCountdown) return;
+
+        const now = new Date();
+        /* Convert to ET */
+        const et = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+        const day = et.getDay(); /* 0=Sun, 6=Sat */
+        const h = et.getHours(), m = et.getMinutes(), s = et.getSeconds();
+        const mins = h * 60 + m;
+
+        const isWeekday = day >= 1 && day <= 5;
+        const marketOpen = 9 * 60 + 30;   /* 9:30 */
+        const marketClose = 16 * 60;       /* 16:00 */
+        const isOpen = isWeekday && mins >= marketOpen && mins < marketClose;
+
+        if (isOpen) {
+            hdrLabel.textContent = 'MARKET OPEN';
+            hdrLabel.style.color = 'var(--green)';
+            const closeIn = (marketClose * 60) - (mins * 60 + s);
+            const ch = Math.floor(closeIn / 3600);
+            const cm = Math.floor((closeIn % 3600) / 60);
+            const cs = closeIn % 60;
+            hdrCountdown.textContent = 'closes in ' + ch + 'h ' + String(cm).padStart(2,'0') + 'm ' + String(cs).padStart(2,'0') + 's';
+        } else {
+            hdrLabel.textContent = 'MARKET CLOSED';
+            hdrLabel.style.color = 'var(--text-muted)';
+            /* Calculate time to next open */
+            let nextOpen = new Date(et);
+            if (mins >= marketClose || !isWeekday) {
+                /* Move to next day */
+                nextOpen.setDate(nextOpen.getDate() + 1);
+                nextOpen.setHours(9, 30, 0, 0);
+                /* Skip weekends */
+                while (nextOpen.getDay() === 0 || nextOpen.getDay() === 6) {
+                    nextOpen.setDate(nextOpen.getDate() + 1);
+                }
+            } else {
+                /* Before market open today */
+                nextOpen.setHours(9, 30, 0, 0);
+            }
+            const diff = Math.max(0, Math.floor((nextOpen - et) / 1000));
+            const dh = Math.floor(diff / 3600);
+            const dm = Math.floor((diff % 3600) / 60);
+            const ds = diff % 60;
+            hdrCountdown.textContent = 'opens in ' + dh + 'h ' + String(dm).padStart(2,'0') + 'm ' + String(ds).padStart(2,'0') + 's';
+        }
+    }
+    updateMarketTimer();
+    setInterval(updateMarketTimer, 1000);
 });
 </script>
 
