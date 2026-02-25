@@ -73,7 +73,7 @@ CASH_YIELD_SOURCE = 'AAA'       # Moody's Aaa Corporate Bond Yield (FRED)
 
 # Data
 START_DATE = '2000-01-01'
-END_DATE = '2026-02-09'
+END_DATE = '2027-01-01'  # Far-future so yfinance always returns latest available data
 
 # Broad pool (~113 S&P 500 stocks)
 BROAD_POOL = [
