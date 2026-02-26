@@ -262,16 +262,17 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             current_price = current_price or entry_price or 0
 
         # Compute days held from actual entry_date (not stale trading_day_counter)
+        # Must match production logic: days_held = trading_day - entry_day_index
+        # On entry day: days_held = 0, next trading day: days_held = 1, etc.
+        # Exit when days_held >= HOLD_DAYS (5)
         if entry_date:
             try:
                 entry_dt = date.fromisoformat(entry_date)
                 today = date.today()
-                # Count weekdays from entry to today (inclusive = "day number")
+                # Count weekdays AFTER entry date (exclusive of entry day)
                 total_days = (today - entry_dt).days
-                trading_days = sum(1 for d in range(total_days + 1)
-                                  if (entry_dt + timedelta(days=d)).weekday() < 5)
-                # trading_days = day number (entry=day1, next=day2, etc.)
-                days_held = trading_days  # day number in the hold cycle
+                days_held = sum(1 for d in range(1, total_days + 1)
+                                if (entry_dt + timedelta(days=d)).weekday() < 5)
             except Exception:
                 days_held = trading_day - entry_day_index
         else:

@@ -207,7 +207,19 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             market_value = entry_price * shares if entry_price else 0
             current_price = current_price or entry_price or 0
 
-        days_held = trading_day - entry_day_index
+        # Compute days held from actual entry_date (not stale trading_day_counter)
+        # Must match production logic: on entry day days_held=0, next day=1, etc.
+        if entry_date:
+            try:
+                entry_dt = date.fromisoformat(entry_date)
+                today = date.today()
+                total_days = (today - entry_dt).days
+                days_held = sum(1 for d in range(1, total_days + 1)
+                                if (entry_dt + timedelta(days=d)).weekday() < 5)
+            except Exception:
+                days_held = trading_day - entry_day_index
+        else:
+            days_held = trading_day - entry_day_index
         days_remaining = max(0, COMPASS_CONFIG['HOLD_DAYS'] - days_held)
 
         trailing_active = high_price > entry_price * (1 + COMPASS_CONFIG['TRAILING_ACTIVATION'])
