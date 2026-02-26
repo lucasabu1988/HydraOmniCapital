@@ -4511,49 +4511,41 @@ let _fetchRetries = 0;
 const MAX_RETRIES = 5;
 const RETRY_DELAYS = [3000, 5000, 8000, 12000, 20000];
 
-/* SPY live price tracker */
-let _spyPrevClose = null;
-let _futuresPrevClose = null;
-function updateSpyTracker(prices) {
-    /* --- S&P 500 Index --- */
-    const priceEl = document.getElementById('hdr-spy-price');
-    const chgEl = document.getElementById('hdr-spy-chg');
-    const idxPrice = prices['^GSPC'] || prices['GSPC'];
-    if (priceEl && chgEl && prices && idxPrice) {
-        const spyPrice = idxPrice;
-        priceEl.textContent = '$' + spyPrice.toFixed(2);
-        if (_spyPrevClose === null) _spyPrevClose = spyPrice;
-        const chg = ((spyPrice - _spyPrevClose) / _spyPrevClose) * 100;
-        if (Math.abs(chg) < 0.001) {
-            chgEl.textContent = '0.00%';
-            chgEl.style.color = 'var(--text-secondary)';
-        } else if (chg > 0) {
-            chgEl.textContent = '+' + chg.toFixed(2) + '%';
-            chgEl.style.color = 'var(--green)';
-        } else {
-            chgEl.textContent = chg.toFixed(2) + '%';
-            chgEl.style.color = 'var(--red)';
-        }
+/* SPY & Futures live price tracker */
+function _applyPriceChg(priceEl, chgEl, currentPrice, prevClose) {
+    priceEl.textContent = '$' + currentPrice.toFixed(2);
+    if (!prevClose || prevClose <= 0) {
+        chgEl.textContent = '--';
+        chgEl.style.color = 'var(--text-secondary)';
+        return;
     }
-
+    var chg = ((currentPrice - prevClose) / prevClose) * 100;
+    if (Math.abs(chg) < 0.001) {
+        chgEl.textContent = '0.00%';
+        chgEl.style.color = 'var(--text-secondary)';
+    } else if (chg > 0) {
+        chgEl.textContent = '+' + chg.toFixed(2) + '%';
+        chgEl.style.color = 'var(--green)';
+    } else {
+        chgEl.textContent = chg.toFixed(2) + '%';
+        chgEl.style.color = 'var(--red)';
+    }
+}
+function updateSpyTracker(prices, prevCloses) {
+    var pc = prevCloses || {};
+    /* --- S&P 500 Index --- */
+    var priceEl = document.getElementById('hdr-spy-price');
+    var chgEl = document.getElementById('hdr-spy-chg');
+    var idxPrice = prices['^GSPC'] || prices['GSPC'];
+    if (priceEl && chgEl && idxPrice) {
+        _applyPriceChg(priceEl, chgEl, idxPrice, pc['^GSPC'] || pc['GSPC']);
+    }
     /* --- ES Futures --- */
-    const fPriceEl = document.getElementById('hdr-futures-price');
-    const fChgEl = document.getElementById('hdr-futures-chg');
-    const esPrice = prices['ES=F'];
+    var fPriceEl = document.getElementById('hdr-futures-price');
+    var fChgEl = document.getElementById('hdr-futures-chg');
+    var esPrice = prices['ES=F'];
     if (fPriceEl && fChgEl && esPrice) {
-        fPriceEl.textContent = '$' + esPrice.toFixed(2);
-        if (_futuresPrevClose === null) _futuresPrevClose = esPrice;
-        const fChg = ((esPrice - _futuresPrevClose) / _futuresPrevClose) * 100;
-        if (Math.abs(fChg) < 0.001) {
-            fChgEl.textContent = '0.00%';
-            fChgEl.style.color = 'var(--text-secondary)';
-        } else if (fChg > 0) {
-            fChgEl.textContent = '+' + fChg.toFixed(2) + '%';
-            fChgEl.style.color = 'var(--green)';
-        } else {
-            fChgEl.textContent = fChg.toFixed(2) + '%';
-            fChgEl.style.color = 'var(--red)';
-        }
+        _applyPriceChg(fPriceEl, fChgEl, esPrice, pc['ES=F']);
     }
 }
 
@@ -4584,7 +4576,7 @@ async function fetchAll() {
             updatePerfBanner(p);
             updatePreclose(stateData.preclose);
             updatePositions(stateData.position_details);
-            if (stateData.prices) updateSpyTracker(stateData.prices);
+            if (stateData.prices) updateSpyTracker(stateData.prices, stateData.prev_closes);
             const posDict = {};
             if (stateData.position_details) {
                 for (const pd of stateData.position_details) posDict[pd.symbol] = true;

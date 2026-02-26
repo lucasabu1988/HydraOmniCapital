@@ -392,32 +392,44 @@ def stop_engine():
 # ============================================================================
 
 _price_cache: Dict[str, float] = {}
+_prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
 
 
 def _fetch_single_price(symbol: str) -> tuple:
-    """Fetch a single price (for use in ThreadPoolExecutor)."""
+    """Fetch a single price (for use in ThreadPoolExecutor).
+    Returns (symbol, {'price': float, 'prev_close': float}) or (symbol, None)."""
     try:
         ticker = yf.Ticker(symbol)
         price = None
+        prev_close = None
         try:
-            price = ticker.fast_info.get('last_price', None)
+            fi = ticker.fast_info
+            price = fi.last_price
+            prev_close = fi.previous_close
         except Exception:
             pass
         if not price or price <= 0:
             hist = ticker.history(period='5d')
             if len(hist) > 0:
                 price = float(hist['Close'].iloc[-1])
+                if len(hist) > 1:
+                    prev_close = float(hist['Close'].iloc[-2])
         if price and price > 0:
-            return (symbol, float(price))
+            result = {'price': float(price)}
+            if prev_close and prev_close > 0:
+                result['prev_close'] = float(prev_close)
+            return (symbol, result)
     except Exception:
         pass
     return (symbol, None)
 
 
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
-    """Fetch current prices via yfinance with 30-second cache (async)."""
-    global _price_cache, _price_cache_time
+    """Fetch current prices via yfinance with 30-second cache (async).
+    Returns {symbol: price_float} for backward compatibility.
+    Previous close data stored in _prev_close_cache."""
+    global _price_cache, _prev_close_cache, _price_cache_time
 
     now = datetime.now()
     if _price_cache_time and (now - _price_cache_time).total_seconds() < PRICE_CACHE_SECONDS:
@@ -427,6 +439,7 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     else:
         missing = symbols
         _price_cache = {}
+        _prev_close_cache = {}
 
     # Async fetch for all missing symbols
     if missing:
@@ -434,9 +447,11 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
             futures = {executor.submit(_fetch_single_price, sym): sym for sym in missing}
             for future in as_completed(futures):
                 try:
-                    sym, price = future.result(timeout=30)
-                    if price is not None:
-                        _price_cache[sym] = price
+                    sym, result = future.result(timeout=30)
+                    if result is not None:
+                        _price_cache[sym] = result['price']
+                        if 'prev_close' in result:
+                            _prev_close_cache[sym] = result['prev_close']
                 except Exception:
                     pass
 
@@ -874,6 +889,7 @@ def api_state():
         'portfolio': portfolio,
         'position_details': position_details,
         'prices': prices,
+        'prev_closes': _prev_close_cache,
         'universe': state.get('current_universe', []),
         'universe_year': state.get('universe_year'),
         'config': COMPASS_CONFIG,
