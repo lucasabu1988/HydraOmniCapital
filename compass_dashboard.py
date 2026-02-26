@@ -579,12 +579,12 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
     results = []
     for symbol, pos_data in positions.items():
         meta = position_meta.get(symbol, {})
-        current_price = prices.get(symbol)
         entry_price = meta.get('entry_price', pos_data.get('avg_cost', 0))
         high_price = meta.get('high_price', entry_price)
         entry_day_index = meta.get('entry_day_index', 0)
         entry_date = meta.get('entry_date', '')
         shares = pos_data.get('shares', 0)
+        current_price = prices.get(symbol, entry_price)
 
         if current_price and entry_price and entry_price > 0:
             pnl_pct = (current_price - entry_price) / entry_price
@@ -596,7 +596,18 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             market_value = entry_price * shares if entry_price else 0
             current_price = current_price or entry_price or 0
 
-        days_held = trading_day - entry_day_index
+        # Compute days held from actual entry_date (not stale trading_day_counter)
+        if entry_date:
+            try:
+                entry_dt = date.fromisoformat(entry_date)
+                today = date.today()
+                total_days = (today - entry_dt).days
+                days_held = sum(1 for d in range(1, total_days + 1)
+                                if (entry_dt + timedelta(days=d)).weekday() < 5)
+            except Exception:
+                days_held = trading_day - entry_day_index
+        else:
+            days_held = trading_day - entry_day_index
         days_remaining = max(0, COMPASS_CONFIG['HOLD_DAYS'] - days_held)
 
         trailing_active = high_price > entry_price * (1 + COMPASS_CONFIG['TRAILING_ACTIVATION'])
@@ -663,6 +674,24 @@ def get_spy_start_price() -> Optional[float]:
     return None
 
 
+def _compute_real_trading_day(state: dict) -> int:
+    """Compute real trading day from last_trading_date (state counter may be stale)."""
+    saved_day = state.get('trading_day_counter', 0)
+    last_date_str = state.get('last_trading_date')
+    if not last_date_str:
+        return saved_day
+    try:
+        last_dt = date.fromisoformat(last_date_str)
+        today = date.today()
+        if today <= last_dt:
+            return saved_day
+        extra = sum(1 for d in range(1, (today - last_dt).days + 1)
+                    if (last_dt + timedelta(days=d)).weekday() < 5)
+        return saved_day + extra
+    except Exception:
+        return saved_day
+
+
 def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     """Compute portfolio-level dashboard metrics."""
     portfolio_value = state.get('portfolio_value', 0)
@@ -670,14 +699,21 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     cash = state.get('cash', 0)
     initial_capital = COMPASS_CONFIG['INITIAL_CAPITAL']
 
-    drawdown = (portfolio_value - peak_value) / peak_value if peak_value > 0 else 0
-    total_return = (portfolio_value - initial_capital) / initial_capital if initial_capital > 0 else 0
-
+    # Recompute invested value with live prices if available
     invested = 0
     positions = state.get('positions', {})
     for sym, pos in positions.items():
         price = prices.get(sym, pos.get('avg_cost', 0))
         invested += pos.get('shares', 0) * price
+
+    # If we have live prices, update portfolio_value
+    if prices and invested > 0:
+        portfolio_value = cash + invested
+        if portfolio_value > peak_value:
+            peak_value = portfolio_value
+
+    drawdown = (portfolio_value - peak_value) / peak_value if peak_value > 0 else 0
+    total_return = (portfolio_value - initial_capital) / initial_capital if initial_capital > 0 else 0
 
     recovery = None
     if state.get('in_protection') and state.get('stop_loss_day_index') is not None:
@@ -730,7 +766,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
 
     # Cash yield (Moody's Aaa IG Corporate)
     aaa_rate = fetch_aaa_yield()
-    trading_days_elapsed = state.get('trading_day_counter', 0)
+    trading_days_elapsed = _compute_real_trading_day(state)
     daily_yield = cash * (aaa_rate / 100 / 252) if cash > 0 else 0
     accumulated_yield = cash * (aaa_rate / 100 / 252) * trading_days_elapsed if cash > 0 else 0
 
