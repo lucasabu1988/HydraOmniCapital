@@ -1,6 +1,17 @@
-# AlphaMax Investment Algorithm
+<p align="center">
+  <img src="static/img/omnicapital_logo.png" alt="OmniCapital Logo" width="200">
+</p>
 
-Algoritmo financiero profesional para gestión de portafolios de equities con enfoque en **maximización de retornos** mediante gestión de riesgo dinámica.
+<h1 align="center">OmniCapital</h1>
+<h3 align="center">COMPASS v8.2 &mdash; Quantitative Momentum Strategy</h3>
+
+<p align="center">
+  <strong>15.16% Net CAGR</strong> | <strong>0.734 Sharpe</strong> | <strong>No Leverage</strong> | <strong>S&P 500 Universe</strong>
+</p>
+
+---
+
+Algoritmo cuantitativo de momentum cross-sectional sobre el S&P 500, con filtro de regimen SPY y vol-targeting.
 
 ## Características Principales
 

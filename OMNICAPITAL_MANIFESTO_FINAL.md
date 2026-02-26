@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="static/img/omnicapital_logo.png" alt="OmniCapital Logo" width="180">
+</p>
+
 # OMNICAPITAL
 ## El Manifiesto del Trading Sistematico
 

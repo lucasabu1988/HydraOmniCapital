@@ -1,4 +1,8 @@
-# OMNICAPITAL v8 COMPASS
+<p align="center">
+  <img src="static/img/omnicapital_logo.png" alt="OmniCapital Logo" width="180">
+</p>
+
+# OmniCapital — COMPASS v8.2
 ## Manifiesto del Algoritmo
 
 **Cross-sectional Momentum, Position-Adjusted Risk Scaling**
