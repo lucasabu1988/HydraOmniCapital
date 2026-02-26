@@ -5125,7 +5125,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(fetchActivityFeed, 30000);
     setInterval(fetchBacktestStatus, 60000);
     setInterval(fetchDataQuality, 300000);
-    setInterval(function() { fetchAll(); countdownSec = 30; }, REFRESH_MS);
+    setInterval(function() { fetchAll(); fetchCycleLog(); countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
         countdownSec = Math.max(0, countdownSec - 1);
         document.getElementById('countdown').textContent = countdownSec;

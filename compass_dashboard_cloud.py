@@ -938,7 +938,8 @@ def api_cycle_log():
             # Current portfolio value from state (updated by live engine)
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
-            symbols = list(positions.keys()) + ['SPY']
+            # Fetch ^GSPC (S&P 500 index) — cycle_log stores index values, not SPY ETF
+            symbols = list(positions.keys()) + ['^GSPC']
             prices = fetch_live_prices(symbols)
 
             # Portfolio value = sum(shares * current_price) + cash
@@ -957,12 +958,12 @@ def api_cycle_log():
                 c['portfolio_end'] = round(portfolio_now, 2)
                 c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
-            # SPY return
-            spy_price = prices.get('SPY')
+            # SPY return (use ^GSPC index to match spy_start stored in cycle_log)
+            gspc_price = prices.get('^GSPC')
             spy_start = c.get('spy_start')
-            if spy_price and spy_start and spy_start > 0:
-                c['spy_end'] = round(spy_price, 2)
-                c['spy_return'] = round((spy_price / spy_start - 1) * 100, 2)
+            if gspc_price and spy_start and spy_start > 0:
+                c['spy_end'] = round(gspc_price, 2)
+                c['spy_return'] = round((gspc_price / spy_start - 1) * 100, 2)
 
             # Alpha
             if c.get('compass_return') is not None and c.get('spy_return') is not None:
