@@ -398,7 +398,7 @@ def compute_volatility_weights(hist_data: Dict[str, pd.DataFrame],
 
 def compute_dynamic_leverage(spy_hist: pd.DataFrame, target_vol: float = 0.15,
                              vol_lookback: int = 20,
-                             lev_min: float = 0.3, lev_max: float = 2.0) -> float:
+                             lev_min: float = 0.3, lev_max: float = 1.0) -> float:
     """
     Leverage = target_vol / realized_vol(SPY), clipped to [min, max]
     """
@@ -812,6 +812,9 @@ class COMPASSLive:
                         self.notifier.send_trade_alert('SELL', symbol, pos.shares,
                                                        result.filled_price, exit_reason, pnl)
 
+                    # Save state immediately after fill (crash protection)
+                    self.save_state()
+
                 # Refresh positions for remaining checks
                 positions = self.broker.get_positions()
 
@@ -876,7 +879,9 @@ class COMPASSLive:
             max_per_position = portfolio.cash * 0.40
             position_value = min(position_value, max_per_position)
 
-            shares = position_value / price
+            shares = int(position_value / price)  # whole shares only (IBKR requirement)
+            if shares < 1:
+                continue
             cost = shares * price
             commission = shares * self.config['COMMISSION_PER_SHARE']
 
@@ -909,6 +914,9 @@ class COMPASSLive:
                 if self.notifier:
                     self.notifier.send_trade_alert('BUY', symbol, shares,
                                                    result.filled_price, None, None)
+
+                # Save state immediately after fill (crash protection)
+                self.save_state()
 
                 # Update portfolio for next iteration
                 portfolio = self.broker.get_portfolio()
@@ -1282,6 +1290,10 @@ class COMPASSLive:
             # Events
             'stop_events': self.stop_events,
 
+            # Intraday flags (prevents duplicate trades after mid-day restart)
+            '_daily_open_done': getattr(self, '_daily_open_done', False),
+            '_preclose_entries_done': getattr(self, '_preclose_entries_done', False),
+
             # Stats
             'stats': {
                 'cycles_completed': self._cycles_completed,
@@ -1291,13 +1303,22 @@ class COMPASSLive:
 
         os.makedirs('state', exist_ok=True)
         filename = f'state/compass_state_{datetime.now().strftime("%Y%m%d")}.json'
-
-        # Also save as 'latest'
         latest = 'state/compass_state_latest.json'
 
-        for f in [filename, latest]:
-            with open(f, 'w') as fp:
-                json.dump(state, fp, indent=2, default=str)
+        # Atomic write: temp file + rename (prevents corruption on crash)
+        import tempfile
+        for target in [filename, latest]:
+            try:
+                fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+                with os.fdopen(fd, 'w') as fp:
+                    json.dump(state, fp, indent=2, default=str)
+                os.replace(tmp_path, target)
+            except Exception as write_err:
+                logger.error(f"Atomic write failed for {target}: {write_err}")
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
         logger.info(f"State saved: {filename}")
 
@@ -1308,74 +1329,115 @@ class COMPASSLive:
             except Exception as e:
                 logger.debug(f"git sync queue failed: {e}")
 
-    def load_state(self):
-        """Load previous state"""
-        latest = 'state/compass_state_latest.json'
-        if not os.path.exists(latest):
-            # Try dated files
-            import glob
-            files = glob.glob('state/compass_state_*.json')
-            files = [f for f in files if 'latest' not in f]
-            if not files:
-                logger.info("No previous state found, starting fresh")
-                return
-            latest = max(files, key=os.path.getctime)
-
+    def _try_load_json(self, filepath: str) -> dict:
+        """Attempt to load and validate a state JSON file. Returns dict or None."""
         try:
-            with open(latest, 'r') as f:
+            with open(filepath, 'r') as f:
                 state = json.load(f)
+            # Sanity check: must have critical fields
+            if 'cash' not in state or 'positions' not in state:
+                logger.warning(f"State file {filepath} missing critical fields")
+                return None
+            return state
+        except (json.JSONDecodeError, IOError, OSError) as e:
+            logger.warning(f"Failed to load {filepath}: {e}")
+            return None
 
-            # Restore portfolio state
-            self.broker.cash = state.get('cash', self.config['PAPER_INITIAL_CASH'])
-            self.peak_value = state.get('peak_value', self.config['PAPER_INITIAL_CASH'])
+    def load_state(self):
+        """Load previous state with fallback chain: latest -> dated -> HALT."""
+        import glob
 
-            # Restore protection/recovery
-            self.in_protection = state.get('in_protection', False)
-            self.protection_stage = state.get('protection_stage', 0)
-            self.stop_loss_day_index = state.get('stop_loss_day_index')
-            self.post_stop_base = state.get('post_stop_base')
+        # Build candidate list: latest first, then dated files newest-first
+        candidates = []
+        latest = 'state/compass_state_latest.json'
+        if os.path.exists(latest):
+            candidates.append(latest)
+        dated_files = sorted(
+            [f for f in glob.glob('state/compass_state_2*.json') if 'latest' not in f],
+            key=os.path.getctime, reverse=True
+        )
+        candidates.extend(dated_files)
 
-            # Restore regime
-            self.current_regime = state.get('current_regime', True)
-            self.regime_consecutive = state.get('regime_consecutive', 0)
-            self.regime_last_raw = state.get('regime_last_raw', True)
+        if not candidates:
+            logger.info("No previous state found, starting fresh")
+            return
 
-            # Restore counters
-            self.trading_day_counter = state.get('trading_day_counter', 0)
-            ltd = state.get('last_trading_date')
-            self.last_trading_date = date.fromisoformat(ltd) if ltd else None
+        # Try each candidate until one loads successfully
+        state = None
+        loaded_from = None
+        for candidate in candidates:
+            state = self._try_load_json(candidate)
+            if state is not None:
+                loaded_from = candidate
+                break
 
-            # Restore positions
-            for symbol, data in state.get('positions', {}).items():
-                self.broker.positions[symbol] = Position(
-                    symbol=symbol,
-                    shares=data['shares'],
-                    avg_cost=data['avg_cost']
-                )
+        if state is None:
+            logger.error("ALL state files corrupted or invalid — HALTING to prevent wrong trades")
+            raise RuntimeError("Cannot load any valid state file. Manual intervention required.")
 
-            # Restore position metadata
-            self.position_meta = state.get('position_meta', {})
+        # Restore portfolio state
+        self.broker.cash = state.get('cash', self.config['PAPER_INITIAL_CASH'])
+        self.peak_value = state.get('peak_value', self.config['PAPER_INITIAL_CASH'])
 
-            # Restore universe
-            self.current_universe = state.get('current_universe', [])
-            self.universe_year = state.get('universe_year')
+        # Restore protection/recovery
+        self.in_protection = state.get('in_protection', False)
+        self.protection_stage = state.get('protection_stage', 0)
+        self.stop_loss_day_index = state.get('stop_loss_day_index')
+        self.post_stop_base = state.get('post_stop_base')
 
-            # Restore events
-            self.stop_events = state.get('stop_events', [])
+        # Restore regime
+        self.current_regime = state.get('current_regime', True)
+        self.regime_consecutive = state.get('regime_consecutive', 0)
+        self.regime_last_raw = state.get('regime_last_raw', True)
 
-            regime_str = "RISK_ON" if self.current_regime else "RISK_OFF"
-            prot_str = f" [PROTECTION S{self.protection_stage}]" if self.in_protection else ""
+        # Restore counters
+        self.trading_day_counter = state.get('trading_day_counter', 0)
+        ltd = state.get('last_trading_date')
+        self.last_trading_date = date.fromisoformat(ltd) if ltd else None
 
-            logger.info(f"State loaded from {latest}")
-            logger.info(f"  Cash: ${self.broker.cash:,.0f} | Peak: ${self.peak_value:,.0f}")
-            logger.info(f"  Positions: {len(self.broker.positions)} | Day: {self.trading_day_counter}")
-            logger.info(f"  Regime: {regime_str}{prot_str}")
+        # Restore positions
+        for symbol, data in state.get('positions', {}).items():
+            self.broker.positions[symbol] = Position(
+                symbol=symbol,
+                shares=data['shares'],
+                avg_cost=data['avg_cost']
+            )
 
-            # Ensure cycle log has an active cycle if we have positions
-            self._ensure_active_cycle()
+        # Restore position metadata
+        self.position_meta = state.get('position_meta', {})
 
-        except Exception as e:
-            logger.error(f"Error loading state: {e}")
+        # Restore universe
+        self.current_universe = state.get('current_universe', [])
+        self.universe_year = state.get('universe_year')
+
+        # Restore events
+        self.stop_events = state.get('stop_events', [])
+
+        # Restore intraday flags (prevents duplicate trades after mid-day restart)
+        self._daily_open_done = state.get('_daily_open_done', False)
+        self._preclose_entries_done = state.get('_preclose_entries_done', False)
+
+        regime_str = "RISK_ON" if self.current_regime else "RISK_OFF"
+        prot_str = f" [PROTECTION S{self.protection_stage}]" if self.in_protection else ""
+
+        logger.info(f"State loaded from {loaded_from}")
+        logger.info(f"  Cash: ${self.broker.cash:,.0f} | Peak: ${self.peak_value:,.0f}")
+        logger.info(f"  Positions: {len(self.broker.positions)} | Day: {self.trading_day_counter}")
+        logger.info(f"  Regime: {regime_str}{prot_str}")
+        if loaded_from != latest:
+            logger.warning(f"  Loaded from FALLBACK file (not latest): {loaded_from}")
+
+        # Position reconciliation (logs discrepancies vs broker)
+        if hasattr(self.broker, 'reconcile_positions'):
+            try:
+                recon = self.broker.reconcile_positions(state.get('positions', {}))
+                if recon.get('json_only') or recon.get('broker_only'):
+                    logger.warning(f"POSITION RECONCILIATION MISMATCH: {recon}")
+            except Exception as e:
+                logger.warning(f"Position reconciliation failed: {e}")
+
+        # Ensure cycle log has an active cycle if we have positions
+        self._ensure_active_cycle()
 
     # ------------------------------------------------------------------
     # Status logging
