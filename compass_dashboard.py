@@ -970,6 +970,86 @@ def api_cycle_log():
     return jsonify(cycles)
 
 
+@app.route('/api/live-chart')
+def api_live_chart():
+    """Return daily COMPASS vs S&P 500 indexed performance since live test start."""
+    import yfinance as yf
+
+    pattern = os.path.join(STATE_DIR, 'compass_state_2*.json')
+    state_files = sorted(f for f in glob.glob(pattern)
+                         if 'pre_rotation' not in f and 'latest' not in f)
+
+    if not state_files:
+        return jsonify({'dates': [], 'compass': [], 'spy': []})
+
+    compass_data = {}
+    first_value = None
+    for sf in state_files:
+        try:
+            with open(sf, 'r') as f:
+                s = json.load(f)
+            dt = s.get('last_trading_date')
+            val = s.get('portfolio_value')
+            if dt and val:
+                compass_data[dt] = val
+                if first_value is None:
+                    first_value = val
+        except Exception:
+            continue
+
+    if not compass_data or first_value is None:
+        return jsonify({'dates': [], 'compass': [], 'spy': []})
+
+    try:
+        state = read_state()
+        if state:
+            today_str = state.get('last_trading_date')
+            today_val = state.get('portfolio_value')
+            if today_str and today_val:
+                compass_data[today_str] = today_val
+    except Exception:
+        pass
+
+    dates = sorted(compass_data.keys())
+    start_date = dates[0]
+
+    spy_data = {}
+    try:
+        end_dt = date.today() + timedelta(days=1)
+        hist = yf.download('^GSPC', start=start_date,
+                         end=end_dt.isoformat(),
+                         progress=False, auto_adjust=True)
+        if len(hist) > 0:
+            for idx, row in hist.iterrows():
+                dt_str = idx.strftime('%Y-%m-%d')
+                spy_data[dt_str] = float(row['Close'])
+    except Exception:
+        pass
+
+    spy_first = spy_data.get(start_date)
+    result_dates = []
+    result_compass = []
+    result_spy = []
+
+    for dt in dates:
+        compass_val = compass_data[dt]
+        compass_indexed = (compass_val / first_value) * 100
+        result_dates.append(dt)
+        result_compass.append(round(compass_indexed, 2))
+        spy_val = spy_data.get(dt)
+        if spy_val and spy_first:
+            result_spy.append(round((spy_val / spy_first) * 100, 2))
+        else:
+            result_spy.append(result_spy[-1] if result_spy else 100.0)
+
+    return jsonify({
+        'dates': result_dates,
+        'compass': result_compass,
+        'spy': result_spy,
+        'start_date': start_date,
+    })
+
+
 @app.route('/api/equity')
 def api_equity():
     """Return COMPASS equity curve data."""
