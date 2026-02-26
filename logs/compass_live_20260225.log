@@ -965,3 +965,12 @@
 2026-02-26 15:09:28,653 - INFO - State saved: state/compass_state_20260226.json
 2026-02-26 15:14:36,518 - INFO - State saved: state/compass_state_20260226.json
 2026-02-26 15:19:42,893 - INFO - State saved: state/compass_state_20260226.json
+2026-02-26 15:19:43,088 - INFO - git sync: committed (auto: COMPASS state sync 2026-02-26 15:19)
+2026-02-26 15:19:44,318 - INFO - git sync: pushed to origin/main
+2026-02-26 15:24:50,525 - INFO - State saved: state/compass_state_20260226.json
+2026-02-26 15:29:58,409 - INFO - State saved: state/compass_state_20260226.json
+2026-02-26 15:30:59,688 - INFO - [PRE-CLOSE] Computing entry signal at 15:30:59 ET
+2026-02-26 15:30:59,695 - INFO - State saved: state/compass_state_20260226.json
+2026-02-26 15:30:59,696 - INFO - [PRE-CLOSE] Entry signal complete
+2026-02-26 15:30:59,699 - INFO - STATUS: $102,127 | DD:-0.3% | RISK_ON | Lev:1.00x | Pos:5/5 | [TXN(-1.2%), JNJ(-0.7%), GS(0.9%), CVX(0.2%), LLY(-1.0%)]
+2026-02-26 15:35:05,240 - INFO - State saved: state/compass_state_20260226.json
