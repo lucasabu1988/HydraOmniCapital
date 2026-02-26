@@ -154,10 +154,10 @@ body.dark .analytics-table tr:hover td { background: rgba(255,255,255,0.02); }
 body.dark .card-secondary {
     border-color: rgba(255,255,255,0.03);
 }
-.perf-banner, .positions-hero, .live-chart-card {
+.perf-banner, .positions-hero {
     box-shadow: var(--shadow-md);
 }
-body.dark .perf-banner, body.dark .positions-hero, body.dark .live-chart-card {
+body.dark .perf-banner, body.dark .positions-hero {
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     border-color: rgba(255,255,255,0.08);
 }
@@ -942,40 +942,6 @@ body::before {
     font-family: 'JetBrains Mono', monospace;
 }
 
-/* ============ LIVE PERFORMANCE CHART ============ */
-.live-chart-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    margin-bottom: 16px;
-    overflow: hidden;
-}
-.live-chart-header {
-    padding: 16px 24px 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-}
-.live-chart-title {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-}
-.live-chart-sub {
-    font-size: 10px;
-    color: var(--text-muted);
-    letter-spacing: 0.5px;
-}
-.live-chart-wrap {
-    padding: 4px 20px 16px;
-    height: 260px;
-}
-.live-chart-wrap canvas {
-    width: 100% !important;
-    height: 100% !important;
-}
 
 /* ============ CYCLE LOG ============ */
 .cycle-log {
@@ -2732,17 +2698,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         </div>
     </div>
     <div class="perf-banner-period" id="perf-period">Live test since --</div>
-</div>
-
-<!-- LIVE PERFORMANCE CHART: COMPASS vs S&P 500 -->
-<div class="live-chart-card anim-enter anim-d2" id="live-chart-section">
-    <div class="live-chart-header">
-        <span class="live-chart-title">Live Performance &mdash; COMPASS vs S&amp;P 500</span>
-        <span class="live-chart-sub" id="live-chart-sub">Indexed to 100 at launch</span>
-    </div>
-    <div class="live-chart-wrap">
-        <canvas id="live-perf-chart"></canvas>
-    </div>
 </div>
 
 <!-- CYCLE LOG -->
@@ -4709,151 +4664,6 @@ async function fetchBacktestStatus() {
     } catch(e) { console.error('Backtest status error:', e); }
 }
 
-/* ============ LIVE PERFORMANCE CHART ============ */
-let liveChart = null;
-
-async function fetchLiveChart() {
-    try {
-        const res = await fetch('/api/live-chart');
-        const data = await res.json();
-        if (!data.dates || data.dates.length < 2) return;
-
-        const ctx = document.getElementById('live-perf-chart');
-        if (!ctx) return;
-
-        /* Format dates for display (e.g. "Feb 19") */
-        const labels = data.dates.map(d => {
-            const dt = new Date(d + 'T12:00:00');
-            return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        });
-
-        /* Compute current alpha for subtitle */
-        const lastCompass = data.compass[data.compass.length - 1];
-        const lastSpy = data.spy[data.spy.length - 1];
-        const compassRet = (lastCompass - 100).toFixed(2);
-        const spyRet = (lastSpy - 100).toFixed(2);
-        const alpha = (lastCompass - lastSpy).toFixed(2);
-        const subEl = document.getElementById('live-chart-sub');
-        if (subEl) {
-            const aColor = alpha >= 0 ? 'var(--green)' : 'var(--red)';
-            subEl.innerHTML = 'COMPASS <b style="color:var(--green)">' +
-                (compassRet >= 0 ? '+' : '') + compassRet +
-                '%</b> &nbsp;|&nbsp; S&P 500 <b>' +
-                (spyRet >= 0 ? '+' : '') + spyRet +
-                '%</b> &nbsp;|&nbsp; Alpha <b style="color:' + aColor + '">' +
-                (alpha >= 0 ? '+' : '') + alpha + ' pp</b>';
-        }
-
-        const chartData = {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'COMPASS v8.2',
-                    data: data.compass,
-                    borderColor: '#22c55e',
-                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
-                    borderWidth: 2.5,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#22c55e',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 1.5,
-                    pointHoverRadius: 6,
-                    fill: true,
-                    tension: 0.3,
-                },
-                {
-                    label: 'S&P 500',
-                    data: data.spy,
-                    borderColor: '#94a3b8',
-                    backgroundColor: 'rgba(148, 163, 184, 0.05)',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointBackgroundColor: '#94a3b8',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 1,
-                    pointHoverRadius: 5,
-                    fill: true,
-                    tension: 0.3,
-                    borderDash: [6, 3],
-                }
-            ]
-        };
-
-        const chartOpts = {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    align: 'end',
-                    labels: {
-                        color: '#94a3b8',
-                        font: { size: 11, family: "'JetBrains Mono', monospace" },
-                        boxWidth: 14,
-                        padding: 12,
-                        usePointStyle: true,
-                        pointStyleWidth: 10,
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(15,23,42,0.95)',
-                    titleFont: { size: 11, family: "'JetBrains Mono', monospace" },
-                    bodyFont: { size: 11, family: "'JetBrains Mono', monospace" },
-                    padding: 10,
-                    cornerRadius: 8,
-                    callbacks: {
-                        label: function(ctx) {
-                            const val = ctx.parsed.y;
-                            const ret = (val - 100).toFixed(2);
-                            return ctx.dataset.label + ': ' + val.toFixed(2) +
-                                   ' (' + (ret >= 0 ? '+' : '') + ret + '%)';
-                        }
-                    }
-                },
-                annotation: {
-                    annotations: {
-                        baseline: {
-                            type: 'line',
-                            yMin: 100, yMax: 100,
-                            borderColor: 'rgba(148,163,184,0.25)',
-                            borderWidth: 1,
-                            borderDash: [4, 4],
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(148,163,184,0.08)' },
-                    ticks: {
-                        color: '#64748b',
-                        font: { size: 10, family: "'JetBrains Mono', monospace" },
-                    }
-                },
-                y: {
-                    grid: { color: 'rgba(148,163,184,0.08)' },
-                    ticks: {
-                        color: '#64748b',
-                        font: { size: 10, family: "'JetBrains Mono', monospace" },
-                        callback: function(v) { return v.toFixed(1); }
-                    }
-                }
-            }
-        };
-
-        if (liveChart) {
-            liveChart.data = chartData;
-            liveChart.update('none');
-        } else {
-            liveChart = new Chart(ctx, { type: 'line', data: chartData, options: chartOpts });
-        }
-    } catch (e) {
-        console.error('Live chart error:', e);
-    }
-}
-
 /* ============ CYCLE LOG ============ */
 async function fetchCycleLog() {
     try {
@@ -5535,7 +5345,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }).catch(()=>{});
     fetchAll();
     fetchCycleLog();
-    fetchLiveChart();
+
     fetchComparisonChart();
     fetchBacktestStatus();
     fetchActivityFeed();
@@ -5547,7 +5357,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(fetchActivityFeed, 30000);
     setInterval(fetchBacktestStatus, 60000);
     setInterval(fetchDataQuality, 300000);
-    setInterval(function() { fetchAll(); fetchCycleLog(); fetchLiveChart(); countdownSec = 30; }, REFRESH_MS);
+    setInterval(function() { fetchAll(); fetchCycleLog(); countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
         countdownSec = Math.max(0, countdownSec - 1);
         document.getElementById('countdown').textContent = countdownSec;
