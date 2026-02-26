@@ -869,3 +869,8 @@
 2026-02-26 10:21:28,940 - INFO - 127.0.0.1 - - [26/Feb/2026 10:21:28] "GET /api/logs HTTP/1.1" 200 -
 2026-02-26 10:21:29,232 - INFO - 127.0.0.1 - - [26/Feb/2026 10:21:29] "GET /api/state HTTP/1.1" 200 -
 2026-02-26 10:23:26,172 - INFO - State saved: state/compass_state_20260226.json
+2026-02-26 10:23:26,316 - INFO - git sync: committed (auto: COMPASS state sync 2026-02-26 10:23)
+2026-02-26 10:23:27,574 - INFO - git sync: pushed to origin/main
+2026-02-26 10:28:32,149 - INFO - State saved: state/compass_state_20260226.json
+2026-02-26 10:33:38,810 - INFO - State saved: state/compass_state_20260226.json
+2026-02-26 10:38:47,941 - INFO - State saved: state/compass_state_20260226.json
