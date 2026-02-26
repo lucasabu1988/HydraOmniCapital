@@ -3719,15 +3719,15 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <script>
 /* ============ DARK MODE ============ */
 function initDarkMode() {
-    var saved = localStorage.getItem('compass-dark-mode');
-    // Default to dark mode (professional trading terminal standard)
-    var isDark = saved !== null ? saved === 'true' : true;
+    // v2 key — forces dark default for users who had old 'compass-dark-mode' saved
+    var saved = localStorage.getItem('compass-theme-v2');
+    var isDark = saved !== null ? saved === 'dark' : true;
     if (isDark) document.body.classList.add('dark');
     updateDarkToggleIcon(isDark);
 }
 function toggleDarkMode() {
     var isDark = document.body.classList.toggle('dark');
-    localStorage.setItem('compass-dark-mode', isDark);
+    localStorage.setItem('compass-theme-v2', isDark ? 'dark' : 'light');
     updateDarkToggleIcon(isDark);
     // Update chart colors if charts exist
     if (typeof updateChartColors === 'function') updateChartColors();
