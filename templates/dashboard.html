@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>COMPASS v8.2 | OmniCapital</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%234f46e5'/%3E%3Cstop offset='100%25' stop-color='%239333ea'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='40' height='40' rx='8' fill='url(%23g)'/%3E%3Ctext x='20' y='28' text-anchor='middle' font-family='system-ui' font-weight='800' font-size='22' fill='white'%3EC%3C/text%3E%3C/svg%3E">
+<meta property="og:title" content="COMPASS v8.2 | Quantitative Momentum Strategy">
+<meta property="og:description" content="Cross-sectional momentum on S&P 500. 15.16% Net CAGR | 0.734 Sharpe | No Leverage. 26 years backtested, 39 experiments validated.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="COMPASS v8.2 | OmniCapital">
+<meta name="twitter:description" content="Quantitative Momentum Strategy. 15.16% Net CAGR, 0.734 Sharpe, No Leverage. S&P 500 universe.">
+<meta name="description" content="COMPASS v8.2 — Quantitative cross-sectional momentum strategy on S&P 500. 15.16% Net CAGR, 0.734 Sharpe ratio, no leverage. Live dashboard.">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
@@ -62,6 +70,99 @@
     --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
     --shadow-lg: 0 8px 30px rgba(0,0,0,0.10);
     --shadow-glow: 0 0 40px var(--accent-glow);
+}
+
+/* ============ DARK MODE ============ */
+body.dark {
+    --bg-root: #0c0c1d;
+    --bg-primary: #111127;
+    --bg-card: #161632;
+    --bg-card-hover: #1e1e42;
+    --bg-elevated: #1a1a38;
+    --bg-glass: rgba(12, 12, 29, 0.88);
+
+    --border: rgba(255,255,255,0.06);
+    --border-active: rgba(255,255,255,0.12);
+    --border-accent: rgba(99, 102, 241, 0.35);
+
+    --text-primary: #e4e4f0;
+    --text-secondary: #a0a0b8;
+    --text-tertiary: #6a6a82;
+    --text-muted: #404058;
+
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
+    --shadow-glow: 0 0 40px rgba(79, 70, 229, 0.15);
+}
+body.dark::before {
+    background:
+        radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(6, 182, 212, 0.03) 0%, transparent 50%);
+}
+body.dark .header-bar {
+    background: rgba(17, 17, 39, 0.92);
+}
+body.dark .page-tabs {
+    background: rgba(17, 17, 39, 0.95);
+}
+body.dark .landing-hero {
+    background: linear-gradient(135deg, #1a1650 0%, #312e81 50%, #4c1d95 100%);
+}
+body.dark .ticker-tip {
+    background: #1e1e38; color: #e4e4f0;
+    border-color: rgba(255,255,255,0.1); border-left-color: var(--accent);
+}
+body.dark .ticker-tip::after { border-top-color: #1e1e38; }
+body.dark .ticker-tip.tip-below::after { border-bottom-color: #1e1e38; }
+body.dark .ticker-tip-name { color: #e4e4f0; }
+body.dark .ticker-tip-sector { background: rgba(255,255,255,0.08); color: #a0a0b8; }
+body.dark .ticker-tip-cap { color: #8888a0; }
+body.dark .ticker-tip-cap b { color: #c0c0d0; }
+body.dark .wa-fab { box-shadow: 0 4px 20px rgba(37, 211, 102, 0.25); }
+
+/* Dark mode toggle */
+.dark-toggle {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    color: var(--text-tertiary);
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.dark-toggle:hover {
+    border-color: var(--border-active);
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+}
+
+/* ============ LOADING SKELETONS ============ */
+.skeleton {
+    background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-card-hover) 50%, var(--bg-elevated) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+    display: inline-block;
+    color: transparent !important;
+}
+.skeleton-line {
+    height: 14px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+.skeleton-value {
+    height: 28px;
+    width: 80%;
+    border-radius: 6px;
+}
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 body {
@@ -1595,11 +1696,80 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 
 /* ============ FOOTER ============ */
-.footer {
-    text-align: center; padding: 24px 0 16px;
-    color: var(--text-muted); font-size: 11px;
-    letter-spacing: 2px; text-transform: uppercase;
-    font-weight: 500;
+.footer-institutional {
+    border-top: 1px solid var(--border);
+    padding: 24px 28px 20px;
+    margin-top: 8px;
+}
+.footer-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.footer-brand-icon {
+    width: 24px; height: 24px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 12px; color: white;
+}
+.footer-brand-name {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.footer-version {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--accent-glow);
+    color: var(--accent-light);
+    letter-spacing: 0.5px;
+}
+.footer-status {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--green-dim);
+    color: var(--green);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.footer-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+.footer-disclaimer {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    line-height: 1.7;
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+.footer-copyright {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 /* ============ COLORS ============ */
@@ -2319,6 +2489,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
             Last update: --<br>Next refresh in: --
         </div>
     </div>
+    <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode" onclick="toggleDarkMode()">&#9790;</button>
 </div>
 
 <!-- PAGE TABS -->
@@ -2522,8 +2693,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <div class="metrics-grid">
     <div class="metric-card">
         <div class="metric-label">Portfolio Value</div>
-        <div class="metric-value" id="card-total">$--</div>
-        <div class="metric-sub" id="card-return">--</div>
+        <div class="metric-value" id="card-total"><span class="skeleton skeleton-value">&nbsp;</span></div>
+        <div class="metric-sub" id="card-return"><span class="skeleton skeleton-line" style="width:60%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Expected CAGR</div>
@@ -2532,23 +2703,23 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
     <div class="metric-card">
         <div class="metric-label">Cash</div>
-        <div class="metric-value" id="card-cash">$--</div>
-        <div class="metric-sub" id="card-invested">Invested: $--</div>
+        <div class="metric-value" id="card-cash"><span class="skeleton skeleton-value">&nbsp;</span></div>
+        <div class="metric-sub" id="card-invested"><span class="skeleton skeleton-line" style="width:70%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Drawdown</div>
-        <div class="metric-value" id="card-drawdown">--</div>
-        <div class="metric-sub" id="card-peak">Peak: $--</div>
+        <div class="metric-value" id="card-drawdown"><span class="skeleton skeleton-value" style="width:50%">&nbsp;</span></div>
+        <div class="metric-sub" id="card-peak"><span class="skeleton skeleton-line" style="width:65%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Positions</div>
-        <div class="metric-value" id="card-positions">-- / --</div>
-        <div class="metric-sub" id="card-maxpos">--</div>
+        <div class="metric-value" id="card-positions"><span class="skeleton skeleton-value" style="width:40%">&nbsp;</span></div>
+        <div class="metric-sub" id="card-maxpos"><span class="skeleton skeleton-line" style="width:55%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Cash Yield (Aaa)</div>
-        <div class="metric-value c-green" id="yield-daily">--</div>
-        <div class="metric-sub" id="yield-accum">Acum: $--</div>
+        <div class="metric-value c-green" id="yield-daily"><span class="skeleton skeleton-value" style="width:45%">&nbsp;</span></div>
+        <div class="metric-sub" id="yield-accum"><span class="skeleton skeleton-line" style="width:60%">&nbsp;</span></div>
     </div>
 </div>
 
@@ -2562,24 +2733,26 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <div class="positions-hero-summary" id="positions-summary">
             <div class="ph-stat">
                 <span class="ph-stat-label">Invested</span>
-                <span class="ph-stat-value c-white" id="ph-invested">$--</span>
+                <span class="ph-stat-value c-white" id="ph-invested"><span class="skeleton" style="width:80px;height:20px">&nbsp;</span></span>
             </div>
             <div class="ph-stat-divider"></div>
             <div class="ph-stat">
                 <span class="ph-stat-label">Total P&amp;L</span>
-                <span class="ph-stat-value" id="ph-total-pnl">$--</span>
+                <span class="ph-stat-value" id="ph-total-pnl"><span class="skeleton" style="width:70px;height:20px">&nbsp;</span></span>
             </div>
             <div class="ph-stat-divider"></div>
             <div class="ph-stat">
                 <span class="ph-stat-label">Return</span>
-                <span class="ph-stat-value" id="ph-total-pct">--</span>
+                <span class="ph-stat-value" id="ph-total-pct"><span class="skeleton" style="width:60px;height:20px">&nbsp;</span></span>
             </div>
         </div>
     </div>
     <div class="positions-grid" id="positions-grid">
-        <div class="positions-empty">
-            <div class="positions-empty-icon">&#9671;</div>
-            AWAITING DATA...
+        <div class="positions-empty" style="grid-column: 1 / -1;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+                <div class="skeleton" style="width:48px; height:48px; border-radius:12px;">&nbsp;</div>
+                <div style="color:var(--text-tertiary); font-size:13px; font-weight:500;">Loading positions...</div>
+            </div>
         </div>
     </div>
     <div class="positions-total-bar" id="positions-total-bar" style="display:none;">
@@ -2674,69 +2847,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     </div>
 </div>
 
-<!-- WHY CHOOSE COMPASS -->
-<div class="card full-width" id="why-choose-card">
-    <div class="card-header">
-        <span class="card-title">Why Choose COMPASS</span>
-        <span class="card-badge" style="color:var(--accent-light); background:var(--accent-glow);">value prop</span>
-    </div>
-    <div class="card-body">
-        <div class="wcu-grid">
-            <div class="wcu-card">
-                <span class="wcu-icon">&#x1F4B0;</span>
-                <div class="wcu-title">Institutional Returns, Zero Leverage</div>
-                <div class="wcu-desc">COMPASS delivers <span class="wcu-highlight">15.16% net CAGR</span> at 1.0x leverage &mdash; no margin, no borrowed capital, no liquidation risk. Citadel Wellington achieves 19.2% but at 7x+ leverage; Millennium&rsquo;s 14% requires 12x.</div>
-                <div class="wcu-comparison">Return/leverage: COMPASS <span>15.2%/1x = 15.2%</span> vs Citadel <span>19.2%/7x = 2.7%</span></div>
-            </div>
-            <div class="wcu-card">
-                <span class="wcu-icon">&#x1F3AF;</span>
-                <div class="wcu-title">Beats Every Accessible Alternative</div>
-                <div class="wcu-desc">Outperforms all accessible peers: iShares MTUM (<span class="wcu-highlight">14.6%</span>), AQR Momentum (<span class="wcu-highlight">14.0%</span>), S&amp;P 500 (<span class="wcu-highlight">10.4%</span>), and the 60/40 portfolio (<span class="wcu-highlight">8.2%</span>). Renaissance RIEF &mdash; the only open quant fund &mdash; returns just 8.0%.</div>
-                <div class="wcu-comparison">Beats MTUM by <span>+0.56%</span>, AQR by <span>+1.16%</span>, S&amp;P 500 by <span>+4.76%</span></div>
-            </div>
-            <div class="wcu-card">
-                <span class="wcu-icon">&#x1F6E1;&#xFE0F;</span>
-                <div class="wcu-title">Half the Drawdown of the Market</div>
-                <div class="wcu-desc">Max drawdown <span class="wcu-highlight">&minus;30.3%</span> vs SPY&rsquo;s &minus;55.2% in 2008. The regime filter keeps COMPASS in cash during 26.7% of trading time. During 2008&ndash;2009: COMPASS +2.3% while SPY lost &minus;20.1%.</div>
-                <div class="wcu-comparison">2008&ndash;2009: COMPASS <span>+2.3%</span> vs SPY <span>&minus;20.1%</span> = 22.4pp gap</div>
-            </div>
-            <div class="wcu-card">
-                <span class="wcu-icon">&#x1F50D;</span>
-                <div class="wcu-title">Full Transparency &amp; Reproducibility</div>
-                <div class="wcu-desc">Every parameter, trade, and experiment documented. The algorithm is <span class="wcu-highlight">deterministic</span> &mdash; no random component, no black box, no proprietary data. Elite hedge funds operate behind NDAs; COMPASS publishes its complete logic.</div>
-                <div class="wcu-comparison">37 experiments &middot; 22 academic citations &middot; Open-source backtest</div>
-            </div>
-            <div class="wcu-card">
-                <span class="wcu-icon">&#x26A1;</span>
-                <div class="wcu-title">Validated: 35 Experiments, 31 Failed</div>
-                <div class="wcu-desc">Every conceivable modification tested: alternative signals, behavioral overlays, geographic expansion, ensemble methods. <span class="wcu-highlight">31 of 35 failed</span> to beat baseline &mdash; proving a genuine local optimum, not a curve-fit.</div>
-                <div class="wcu-comparison">t-statistic <span>3.74</span> exceeds Harvey et al. threshold of 3.0</div>
-            </div>
-            <div class="wcu-card">
-                <span class="wcu-icon">&#x1F4C8;</span>
-                <div class="wcu-title">Alpha in Every Market Regime</div>
-                <div class="wcu-desc">Positive excess returns in all 6 sub-periods: dot-com (<span class="wcu-highlight">+27%</span>), GFC (<span class="wcu-highlight">+22.4%</span>), QE bull (<span class="wcu-highlight">+8.2%</span>), COVID (<span class="wcu-highlight">+7.2%</span>), AI rally (<span class="wcu-highlight">+5.1%</span>). 23/26 years positive.</div>
-                <div class="wcu-comparison">23/26 positive years &middot; Alpha in crashes AND bull markets</div>
-            </div>
-            <div class="wcu-card">
-                <span class="wcu-icon">&#x1F4B5;</span>
-                <div class="wcu-title">$100K Entry, No Minimum</div>
-                <div class="wcu-desc">Elite quant funds require $5M&ndash;$50M minimums and are closed to new investors. COMPASS runs with <span class="wcu-highlight">$100,000</span> on a standard IBKR account, trading S&amp;P 500 stocks with negligible market impact.</div>
-                <div class="wcu-comparison">Citadel: <span>$10M+</span> &middot; Millennium: <span>closed</span> &middot; COMPASS: <span>$100K</span></div>
-            </div>
-            <div class="wcu-card">
-                <span class="wcu-icon">&#x23F0;</span>
-                <div class="wcu-title">5 Minutes Per Day</div>
-                <div class="wcu-desc">Signal at 15:30 ET, MOC orders by close. <span class="wcu-highlight">Fully automated</span> &mdash; one signal, one execution window. Active management takes thousands of analyst hours; COMPASS needs a laptop and a broker.</div>
-                <div class="wcu-comparison">Signal 15:30 ET &rarr; MOC orders &rarr; Done by 16:00 ET</div>
-            </div>
-        </div>
-        <div class="wcu-bottom-line">
-            <div class="wcu-bottom-title">$100,000 &rarr; $3,930,000 in 26 Years</div>
-            <div class="wcu-bottom-sub">15.16% net CAGR after 2.5% costs &mdash; no leverage, no black box, no hedge fund minimums, half the drawdown of the S&amp;P 500. The same return class as Citadel and PDT Partners, in a transparent system accessible to any qualified investor.</div>
-        </div>
-    </div>
-</div>
 
 <!-- TRADE ANALYTICS -->
 <div class="card full-width" id="trade-analytics-card">
@@ -3498,7 +3608,29 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div><!-- /page-roadmap -->
 
 <!-- FOOTER -->
-<div class="footer">OmniCapital COMPASS v8.2 &middot; Paper Trading &middot; No Leverage (1.0x) &middot; Pre-Close MOC @ 15:30 ET</div>
+<footer class="footer-institutional">
+    <div class="footer-top">
+        <div class="footer-brand">
+            <div class="footer-brand-icon">C</div>
+            <span class="footer-brand-name">OmniCapital</span>
+            <span class="footer-version">v8.2</span>
+            <span class="footer-status">Paper Trading</span>
+        </div>
+        <div class="footer-meta">
+            <span>No Leverage (1.0x)</span>
+            <span>&middot;</span>
+            <span>Pre-Close MOC @ 15:30 ET</span>
+            <span>&middot;</span>
+            <span>S&amp;P 500 Universe</span>
+        </div>
+    </div>
+    <div class="footer-disclaimer">
+        This dashboard is for informational and educational purposes only. Not investment advice.
+        Past performance does not guarantee future results. All trading involves risk of loss.
+        COMPASS is a quantitative research project in paper trading phase.
+    </div>
+    <div class="footer-copyright">&copy; 2026 OmniCapital &middot; Lima, Per&uacute;</div>
+</footer>
 
 </div><!-- /main -->
 
@@ -3508,6 +3640,27 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </a>
 
 <script>
+/* ============ DARK MODE ============ */
+function initDarkMode() {
+    var saved = localStorage.getItem('compass-dark-mode');
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var isDark = saved !== null ? saved === 'true' : prefersDark;
+    if (isDark) document.body.classList.add('dark');
+    updateDarkToggleIcon(isDark);
+}
+function toggleDarkMode() {
+    var isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('compass-dark-mode', isDark);
+    updateDarkToggleIcon(isDark);
+    // Update chart colors if charts exist
+    if (typeof updateChartColors === 'function') updateChartColors();
+}
+function updateDarkToggleIcon(isDark) {
+    var btn = document.getElementById('dark-toggle');
+    if (btn) btn.innerHTML = isDark ? '&#9788;' : '&#9790;';
+}
+initDarkMode();
+
 /* ============ COMPANY INFO MAP (for ticker tooltips) ============ */
 const COMPANY_INFO = {
     'TSLA': {name:'Tesla',sector:'Electric Vehicles',cap:'$1.1T',desc:'Electric vehicles, energy storage, and solar products manufacturer'},
