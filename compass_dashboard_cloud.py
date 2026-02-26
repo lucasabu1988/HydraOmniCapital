@@ -1008,26 +1008,38 @@ def api_live_chart():
     if not compass_data or first_value is None:
         return jsonify({'dates': [], 'compass': [], 'spy': []})
 
-    # Add today's live value from latest state (may be fresher than dated file)
+    # Add today's live value from latest state, recalculated with live prices
     try:
         state = read_state()
         if state:
             today_str = state.get('last_trading_date')
-            today_val = state.get('portfolio_value')
-            if today_str and today_val:
-                compass_data[today_str] = today_val
+            if today_str:
+                # Recalculate with live prices (same as banner)
+                pos_symbols = list(state.get('positions', {}).keys())
+                if pos_symbols:
+                    live_prices = fetch_live_prices(pos_symbols)
+                    cash = state.get('cash', 0)
+                    invested = sum(
+                        state['positions'][s].get('shares', 0) * live_prices.get(s, state['positions'][s].get('avg_cost', 0))
+                        for s in state.get('positions', {})
+                    )
+                    today_val = cash + invested if invested > 0 else state.get('portfolio_value')
+                else:
+                    today_val = state.get('portfolio_value')
+                if today_val:
+                    compass_data[today_str] = today_val
     except Exception:
         pass
 
     dates = sorted(compass_data.keys())
     start_date = dates[0]
 
-    # 2. Fetch S&P 500 index data for the same period
+    # 2. Fetch SPY ETF data for the same period (matches banner which uses SPY)
     spy_data = {}
     if _HAS_YFINANCE:
         try:
             end_dt = date.today() + timedelta(days=1)
-            hist = yf.download('^GSPC', start=start_date,
+            hist = yf.download('SPY', start=start_date,
                              end=end_dt.isoformat(),
                              progress=False, auto_adjust=True)
             if len(hist) > 0:
@@ -1037,6 +1049,16 @@ def api_live_chart():
                 for idx, row in hist.iterrows():
                     dt_str = idx.strftime('%Y-%m-%d')
                     spy_data[dt_str] = float(row['Close'])
+        except Exception:
+            pass
+
+    # Use live SPY price for today (matches banner real-time value)
+    today_str = date.today().strftime('%Y-%m-%d')
+    if _HAS_YFINANCE and today_str in [d for d in dates]:
+        try:
+            live_spy = fetch_live_prices(['SPY'])
+            if 'SPY' in live_spy:
+                spy_data[today_str] = live_spy['SPY']
         except Exception:
             pass
 
