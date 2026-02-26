@@ -896,15 +896,65 @@ def api_logs():
 
 @app.route('/api/cycle-log')
 def api_cycle_log():
-    """Return the 5-day cycle performance log (COMPASS vs SPY)."""
+    """Return the 5-day cycle performance log (COMPASS vs SPY).
+
+    Active cycles are enriched with live prices so the dashboard
+    shows real-time COMPASS return, SPY return, and alpha.
+    """
     log_file = os.path.join(STATE_DIR, 'cycle_log.json')
     if not os.path.exists(log_file):
         return jsonify([])
     try:
         with open(log_file, 'r') as f:
-            return jsonify(json.load(f))
+            cycles = json.load(f)
     except Exception:
         return jsonify([])
+
+    # Enrich active cycles with live metrics
+    for c in cycles:
+        if c.get('status') != 'active':
+            continue
+        try:
+            state = read_state()
+            if not state:
+                continue
+
+            # Current portfolio value from state (updated by live engine)
+            positions = state.get('positions', {})
+            position_meta = state.get('position_meta', {})
+            symbols = list(positions.keys()) + ['SPY']
+            prices = fetch_live_prices(symbols)
+
+            # Portfolio value = sum(shares * current_price) + cash
+            portfolio_now = state.get('cash', 0)
+            for sym, pos in positions.items():
+                price = prices.get(sym)
+                if price:
+                    portfolio_now += pos.get('shares', 0) * price
+                else:
+                    # Fallback to entry price
+                    meta = position_meta.get(sym, {})
+                    portfolio_now += pos.get('shares', 0) * meta.get('entry_price', pos.get('avg_cost', 0))
+
+            port_start = c.get('portfolio_start')
+            if port_start and port_start > 0:
+                c['portfolio_end'] = round(portfolio_now, 2)
+                c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
+
+            # SPY return
+            spy_price = prices.get('SPY')
+            spy_start = c.get('spy_start')
+            if spy_price and spy_start and spy_start > 0:
+                c['spy_end'] = round(spy_price, 2)
+                c['spy_return'] = round((spy_price / spy_start - 1) * 100, 2)
+
+            # Alpha
+            if c.get('compass_return') is not None and c.get('spy_return') is not None:
+                c['alpha'] = round(c['compass_return'] - c['spy_return'], 2)
+        except Exception:
+            pass
+
+    return jsonify(cycles)
 
 
 @app.route('/api/equity')
