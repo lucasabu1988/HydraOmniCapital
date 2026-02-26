@@ -3862,40 +3862,7 @@ function updatePositions(details) {
         '</div>';
     }
 
-    /* Experiment history table */
-    html += '<div class="exp-table-card">' +
-        '<div class="exp-table-title">EXPERIMENT HISTORY &mdash; 37 VERSIONS TESTED</div>' +
-        '<table class="exp-table"><thead><tr>' +
-            '<th>#</th><th>Version</th><th>Strategy</th><th>CAGR</th><th>Sharpe</th><th>Max DD</th><th>Status</th>' +
-        '</tr></thead><tbody>' +
-        '<tr><td>1</td><td class="exp-name">COMPASS v8.2</td><td>Cross-sectional momentum + regime filter</td><td class="exp-pass">18.56%</td><td>0.90</td><td>-26.9%</td><td class="exp-pass">PRODUCTION</td></tr>' +
-        '<tr><td>2</td><td class="exp-name">COMPASS v8.2 Net</td><td>Production + 2.5% execution costs</td><td class="exp-pass">15.16%</td><td>0.734</td><td>-30.3%</td><td class="exp-pass">BASELINE</td></tr>' +
-        '<tr><td>3</td><td class="exp-name">COMPASS v6</td><td>Original (survivorship bias)</td><td class="exp-fail">5.40%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>4</td><td class="exp-name">COMPASS v8.1</td><td>Short-selling (Revenue/Debt)</td><td class="exp-fail">--</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>5</td><td class="exp-name">v8.3 Rank Hysteresis</td><td>Rank stability filter</td><td class="exp-fail">-4.56%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>6</td><td class="exp-name">v8.3 Cash Yield</td><td>Moody\'s Aaa IG variable yield</td><td class="exp-pass">+1.15%</td><td>--</td><td>--</td><td class="exp-pass">APPROVED</td></tr>' +
-        '<tr><td>7</td><td class="exp-name">VORTEX v1/v2/v3</td><td>Acceleration momentum</td><td class="exp-fail">--</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>8</td><td class="exp-name">Behavioral Overlays</td><td>Sentiment + behavioral filters</td><td class="exp-fail">-7~10%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>9</td><td class="exp-name">Dynamic Recovery</td><td>VIX/Breadth-based recovery</td><td class="exp-fail">--</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>10</td><td class="exp-name">Protection Shorts</td><td>Inverse ETFs during protection</td><td class="exp-fail">-$145K</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>11</td><td class="exp-name">Ensemble Momentum</td><td>60/90/120d blended lookback</td><td class="exp-fail">-7.43%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>12</td><td class="exp-name">Conditional Hold</td><td>Top5+ATR hold extension</td><td class="exp-fail">-3.93%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>13</td><td class="exp-name">Preemptive Stop</td><td>-8% early stop trigger</td><td class="exp-fail">-6.56%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>14</td><td class="exp-name">VIPER v1</td><td>ETF rotation (11 ETFs)</td><td class="exp-fail">5.84%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>15</td><td class="exp-name">VIPER v2</td><td>Sector ETF momentum</td><td class="exp-fail">3.59%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>16</td><td class="exp-name">RATTLESNAKE v1</td><td>Mean-reversion (S&P 100, RSI&lt;25)</td><td class="exp-partial">10.51%</td><td>0.74</td><td>--</td><td class="exp-partial">STANDALONE</td></tr>' +
-        '<tr><td>17</td><td class="exp-name">COMPASS+RATTLE</td><td>Dual-engine 50/50 split</td><td class="exp-fail">--</td><td>--</td><td>--</td><td class="exp-fail">REVERTED</td></tr>' +
-        '<tr><td>18</td><td class="exp-name">ECLIPSE v1</td><td>Engle-Granger pairs trading</td><td class="exp-fail">-3.37%</td><td>--</td><td>-79.3%</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>19</td><td class="exp-name">QUANTUM v1</td><td>RSI(2)+IBS mean reversion</td><td class="exp-partial">9.42%</td><td>0.831</td><td>--</td><td class="exp-partial">PARTIAL</td></tr>' +
-        '<tr><td>20</td><td class="exp-name">COMPASS EU v1</td><td>EU large-caps (STOXX 600)</td><td class="exp-fail">-20.87%</td><td>--</td><td>-88.3%</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>21</td><td class="exp-name">COMPASS Asia v1</td><td>Asian large-caps (N225)</td><td class="exp-fail">-19.71%</td><td>--</td><td>-94.5%</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>22</td><td class="exp-name">Exp #33 Profit Tgt</td><td>+3% extend, +10% exit</td><td class="exp-fail">13.23%</td><td>--</td><td>-54.9%</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>23</td><td class="exp-name">Exp #35 MWF</td><td>Mon/Wed/Fri only trading</td><td class="exp-fail">13.67%</td><td>--</td><td>-49.0%</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>24</td><td class="exp-name">Exp #36 Gold</td><td>Gold futures in protection</td><td class="exp-fail">-2.63%</td><td>--</td><td>--</td><td class="exp-fail">FAILED</td></tr>' +
-        '<tr><td>25</td><td class="exp-name">v9 Genius Layer</td><td>5 ML layers (MLP+Graph+HMM+SectorOpt+Meta)</td><td class="exp-fail">10.53%</td><td>0.50</td><td>-56.0%</td><td class="exp-fail">FAILED</td></tr>' +
-        '</tbody></table>' +
-        '<div class="exp-analysis" id="exp-analysis-container"></div>' +
-    '</div>';
+    /* Experiment history table — hidden (internal reference only) */
 
     grid.innerHTML = html;
 
