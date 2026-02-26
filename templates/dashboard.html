@@ -2258,10 +2258,15 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <span class="hdr-stat-value" id="day-display">--</span>
     </div>
     <span class="hdr-spacer"></span>
-    <div class="hdr-stat" id="hdr-spy-wrap" style="min-width:120px; text-align:right;">
+    <div class="hdr-stat" id="hdr-spy-wrap" style="min-width:110px; text-align:right;">
         <span class="hdr-stat-label">S&amp;P 500</span>
         <span class="hdr-stat-value mono" id="hdr-spy-price" style="font-size:14px; font-weight:700;">--</span>
         <span class="hdr-stat-value mono" id="hdr-spy-chg" style="font-size:11px; margin-left:4px;">--</span>
+    </div>
+    <div class="hdr-stat" id="hdr-futures-wrap" style="min-width:110px; text-align:right;">
+        <span class="hdr-stat-label">ES Futures</span>
+        <span class="hdr-stat-value mono" id="hdr-futures-price" style="font-size:14px; font-weight:700;">--</span>
+        <span class="hdr-stat-value mono" id="hdr-futures-chg" style="font-size:11px; margin-left:4px;">--</span>
     </div>
     <span class="hdr-sep">&middot;</span>
     <div class="hdr-stat" id="hdr-market-timer-wrap" style="min-width:180px; text-align:right;">
@@ -4508,24 +4513,47 @@ const RETRY_DELAYS = [3000, 5000, 8000, 12000, 20000];
 
 /* SPY live price tracker */
 let _spyPrevClose = null;
+let _futuresPrevClose = null;
 function updateSpyTracker(prices) {
+    /* --- S&P 500 Index --- */
     const priceEl = document.getElementById('hdr-spy-price');
     const chgEl = document.getElementById('hdr-spy-chg');
     const idxPrice = prices['^GSPC'] || prices['GSPC'];
-    if (!priceEl || !chgEl || !prices || !idxPrice) return;
-    const spyPrice = idxPrice;
-    priceEl.textContent = '$' + spyPrice.toFixed(2);
-    if (_spyPrevClose === null) _spyPrevClose = spyPrice;
-    const chg = ((spyPrice - _spyPrevClose) / _spyPrevClose) * 100;
-    if (Math.abs(chg) < 0.001) {
-        chgEl.textContent = '0.00%';
-        chgEl.style.color = 'var(--text-secondary)';
-    } else if (chg > 0) {
-        chgEl.textContent = '+' + chg.toFixed(2) + '%';
-        chgEl.style.color = 'var(--green)';
-    } else {
-        chgEl.textContent = chg.toFixed(2) + '%';
-        chgEl.style.color = 'var(--red)';
+    if (priceEl && chgEl && prices && idxPrice) {
+        const spyPrice = idxPrice;
+        priceEl.textContent = '$' + spyPrice.toFixed(2);
+        if (_spyPrevClose === null) _spyPrevClose = spyPrice;
+        const chg = ((spyPrice - _spyPrevClose) / _spyPrevClose) * 100;
+        if (Math.abs(chg) < 0.001) {
+            chgEl.textContent = '0.00%';
+            chgEl.style.color = 'var(--text-secondary)';
+        } else if (chg > 0) {
+            chgEl.textContent = '+' + chg.toFixed(2) + '%';
+            chgEl.style.color = 'var(--green)';
+        } else {
+            chgEl.textContent = chg.toFixed(2) + '%';
+            chgEl.style.color = 'var(--red)';
+        }
+    }
+
+    /* --- ES Futures --- */
+    const fPriceEl = document.getElementById('hdr-futures-price');
+    const fChgEl = document.getElementById('hdr-futures-chg');
+    const esPrice = prices['ES=F'];
+    if (fPriceEl && fChgEl && esPrice) {
+        fPriceEl.textContent = '$' + esPrice.toFixed(2);
+        if (_futuresPrevClose === null) _futuresPrevClose = esPrice;
+        const fChg = ((esPrice - _futuresPrevClose) / _futuresPrevClose) * 100;
+        if (Math.abs(fChg) < 0.001) {
+            fChgEl.textContent = '0.00%';
+            fChgEl.style.color = 'var(--text-secondary)';
+        } else if (fChg > 0) {
+            fChgEl.textContent = '+' + fChg.toFixed(2) + '%';
+            fChgEl.style.color = 'var(--green)';
+        } else {
+            fChgEl.textContent = fChg.toFixed(2) + '%';
+            fChgEl.style.color = 'var(--red)';
+        }
     }
 }
 

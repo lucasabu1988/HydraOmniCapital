@@ -772,7 +772,7 @@ def api_state():
         })
 
     # Collect all symbols for price fetching
-    symbols = ['SPY', '^GSPC'] + list(state.get('positions', {}).keys())
+    symbols = ['SPY', '^GSPC', 'ES=F'] + list(state.get('positions', {}).keys())
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
