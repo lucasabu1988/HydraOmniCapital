@@ -90,6 +90,18 @@ body.dark {
     --text-tertiary: #6a6a82;
     --text-muted: #404058;
 
+    --green: #22c55e;
+    --green-dim: rgba(34, 197, 94, 0.12);
+    --green-glow: rgba(34, 197, 94, 0.18);
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.12);
+    --red-glow: rgba(239, 68, 68, 0.18);
+    --yellow: #eab308;
+    --yellow-dim: rgba(234, 179, 8, 0.12);
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34, 211, 238, 0.12);
+    --accent-light: #818cf8;
+
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
     --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
@@ -121,6 +133,43 @@ body.dark .ticker-tip-sector { background: rgba(255,255,255,0.08); color: #a0a0b
 body.dark .ticker-tip-cap { color: #8888a0; }
 body.dark .ticker-tip-cap b { color: #c0c0d0; }
 body.dark .wa-fab { box-shadow: 0 4px 20px rgba(37, 211, 102, 0.25); }
+body.dark .positions-total-bar { background: var(--bg-elevated); }
+body.dark .prog-bar { background: rgba(255,255,255,0.04); }
+body.dark .pos-hold-bar { background: rgba(255,255,255,0.04); }
+body.dark .modal-overlay { background: rgba(0,0,0,0.85); }
+body.dark .perf-bar-track { background: rgba(255,255,255,0.04); }
+body.dark .sf-msg:hover { background: rgba(255,255,255,0.02); }
+body.dark .af-row:hover td, body.dark .af-row:hover { background: rgba(255,255,255,0.02); }
+body.dark .cycle-log-table td { border-bottom-color: rgba(255,255,255,0.03); }
+body.dark .analytics-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* Card elevation tiers */
+.card-hero {
+    box-shadow: var(--shadow-md) !important;
+    border-color: var(--border-accent) !important;
+}
+.card-secondary {
+    border-color: rgba(0,0,0,0.04);
+}
+body.dark .card-secondary {
+    border-color: rgba(255,255,255,0.03);
+}
+.perf-banner, .positions-hero, .live-chart-card {
+    box-shadow: var(--shadow-md);
+}
+body.dark .perf-banner, body.dark .positions-hero, body.dark .live-chart-card {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    border-color: rgba(255,255,255,0.08);
+}
+
+/* Brand icon heartbeat */
+@keyframes brand-heartbeat {
+    0%, 100% { box-shadow: 0 0 10px var(--accent-glow); }
+    50% { box-shadow: 0 0 24px var(--accent-strong-glow), 0 0 48px rgba(79, 70, 229, 0.08); }
+}
+.hdr-brand-icon {
+    animation: brand-heartbeat 3s ease-in-out infinite;
+}
 
 /* Dark mode toggle */
 .dark-toggle {
@@ -164,6 +213,24 @@ body.dark .wa-fab { box-shadow: 0 4px 20px rgba(37, 211, 102, 0.25); }
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
+
+/* ============ ENTRANCE ANIMATIONS ============ */
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.anim-enter {
+    opacity: 0;
+    animation: fadeSlideUp 0.5s ease-out forwards;
+}
+.anim-d1 { animation-delay: 0.05s; }
+.anim-d2 { animation-delay: 0.10s; }
+.anim-d3 { animation-delay: 0.15s; }
+.anim-d4 { animation-delay: 0.20s; }
+.anim-d5 { animation-delay: 0.25s; }
+.anim-d6 { animation-delay: 0.30s; }
+.anim-d7 { animation-delay: 0.35s; }
+.anim-d8 { animation-delay: 0.40s; }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -2411,22 +2478,32 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    background: #25D366;
+    background: #10b981;
     border: none;
     cursor: pointer;
     z-index: 250;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
-    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 3px 16px rgba(16, 185, 129, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
     text-decoration: none;
+    opacity: 0;
+    animation: fabAppear 0.4s ease-out 3s forwards;
 }
-.wa-fab:hover { transform: scale(1.1); box-shadow: 0 6px 28px rgba(37, 211, 102, 0.6); }
-.wa-fab svg { width: 30px; height: 30px; fill: #fff; }
+@keyframes fabAppear {
+    from { opacity: 0; transform: scale(0.8) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.wa-fab:hover {
+    transform: scale(1.08);
+    background: #25D366;
+    box-shadow: 0 5px 24px rgba(37, 211, 102, 0.5);
+}
+.wa-fab svg { width: 26px; height: 26px; fill: #fff; }
 
 </style>
 </head>
@@ -2623,7 +2700,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- UNIVERSE -->
-<div class="universe-bar" id="universe-bar">
+<div class="universe-bar anim-enter anim-d8" id="universe-bar">
     <span class="universe-bar-label" onclick="toggleUniverse()">
         <span class="toggle-arrow" id="universe-arrow">&#9660;</span>
         UNIVERSE <span class="universe-bar-count" id="universe-count">0</span>
@@ -2632,7 +2709,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- PERFORMANCE vs SPY — HERO BANNER -->
-<div class="perf-banner" id="perf-banner">
+<div class="perf-banner anim-enter anim-d1" id="perf-banner">
     <div class="perf-banner-inner">
         <!-- COMPASS side -->
         <div class="perf-side">
@@ -2658,7 +2735,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- LIVE PERFORMANCE CHART: COMPASS vs S&P 500 -->
-<div class="live-chart-card" id="live-chart-section">
+<div class="live-chart-card anim-enter anim-d2" id="live-chart-section">
     <div class="live-chart-header">
         <span class="live-chart-title">Live Performance &mdash; COMPASS vs S&amp;P 500</span>
         <span class="live-chart-sub" id="live-chart-sub">Indexed to 100 at launch</span>
@@ -2669,7 +2746,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- CYCLE LOG -->
-<div class="cycle-log" id="cycle-log-section">
+<div class="cycle-log anim-enter anim-d3" id="cycle-log-section">
     <span class="cycle-log-title">5-Day Cycle Log &mdash; COMPASS vs S&amp;P 500</span>
     <table class="cycle-log-table">
         <thead>
@@ -2690,7 +2767,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- PORTFOLIO METRICS -->
-<div class="metrics-grid">
+<div class="metrics-grid anim-enter anim-d4">
     <div class="metric-card">
         <div class="metric-label">Portfolio Value</div>
         <div class="metric-value" id="card-total"><span class="skeleton skeleton-value">&nbsp;</span></div>
@@ -2724,7 +2801,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- POSITIONS — HERO SECTION -->
-<div class="positions-hero" id="positions-hero">
+<div class="positions-hero anim-enter anim-d5" id="positions-hero">
     <div class="positions-hero-header">
         <div class="positions-hero-title">
             <div class="ph-icon">&#9670;</div>
@@ -2849,7 +2926,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 
 <!-- TRADE ANALYTICS -->
-<div class="card full-width" id="trade-analytics-card">
+<div class="card full-width anim-enter anim-d6" id="trade-analytics-card">
     <div class="card-header">
         <span class="card-title">Trade Analytics &mdash; Backtest Trades</span>
         <span class="card-badge" id="ta-badge" style="color:var(--green); background:var(--green-dim);">--</span>
@@ -2913,7 +2990,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 <!-- ACTIVITY FEED -->
-<div class="activity-feed" id="activity-feed">
+<div class="activity-feed anim-enter anim-d7" id="activity-feed">
     <div class="af-header">
         <div class="af-header-left">
             <div class="af-icon">&#9998;</div>
@@ -3643,8 +3720,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 /* ============ DARK MODE ============ */
 function initDarkMode() {
     var saved = localStorage.getItem('compass-dark-mode');
-    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var isDark = saved !== null ? saved === 'true' : prefersDark;
+    // Default to dark mode (professional trading terminal standard)
+    var isDark = saved !== null ? saved === 'true' : true;
     if (isDark) document.body.classList.add('dark');
     updateDarkToggleIcon(isDark);
 }
