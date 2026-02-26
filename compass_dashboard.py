@@ -1020,6 +1020,9 @@ def api_live_chart():
                          end=end_dt.isoformat(),
                          progress=False, auto_adjust=True)
         if len(hist) > 0:
+            # Flatten multi-level columns (yfinance returns MultiIndex)
+            if isinstance(hist.columns, pd.MultiIndex):
+                hist.columns = hist.columns.droplevel('Ticker')
             for idx, row in hist.iterrows():
                 dt_str = idx.strftime('%Y-%m-%d')
                 spy_data[dt_str] = float(row['Close'])
