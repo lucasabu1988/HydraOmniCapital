@@ -1614,6 +1614,87 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .page-content { display: none; }
 .page-content.active { display: block; }
 
+/* ============ LANDING HERO ============ */
+.landing-hero {
+    background: linear-gradient(135deg, #312e81 0%, #4f46e5 50%, #7c3aed 100%);
+    border-radius: 12px;
+    padding: 40px 32px 32px;
+    margin-bottom: 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.landing-hero::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 80%, rgba(124,58,237,0.2) 0%, transparent 50%);
+    pointer-events: none;
+}
+.landing-hero > * { position: relative; z-index: 1; }
+.lh-brand {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    margin-bottom: 6px;
+}
+.lh-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: linear-gradient(135deg, #6366f1, #a78bfa);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800; color: #fff;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+}
+.lh-title {
+    font-size: 28px; font-weight: 800; color: #fff;
+    letter-spacing: -0.5px;
+}
+.lh-tagline {
+    font-size: 14px; color: rgba(255,255,255,0.7);
+    letter-spacing: 2px; text-transform: uppercase; font-weight: 500;
+    margin-bottom: 28px;
+}
+.lh-stats {
+    display: flex; justify-content: center; gap: 16px;
+    margin-bottom: 28px; flex-wrap: wrap;
+}
+.lh-stat {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 16px 28px;
+    min-width: 140px;
+}
+.lh-stat-value {
+    font-size: 26px; font-weight: 800;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    color: #fff; display: block; line-height: 1.2;
+}
+.lh-stat-value.green { color: #4ade80; }
+.lh-stat-value.amber { color: #fbbf24; }
+.lh-stat-label {
+    font-size: 11px; color: rgba(255,255,255,0.6);
+    text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+    margin-top: 4px; display: block;
+}
+.lh-desc {
+    font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.85);
+    max-width: 640px; margin: 0 auto 20px;
+}
+.lh-desc strong { color: #fff; font-weight: 700; }
+.lh-disclaimer {
+    font-size: 11px; color: rgba(255,255,255,0.4);
+    max-width: 540px; margin: 0 auto;
+    line-height: 1.5; font-style: italic;
+}
+@media (max-width: 600px) {
+    .landing-hero { padding: 28px 16px 24px; }
+    .lh-title { font-size: 22px; }
+    .lh-stats { gap: 10px; }
+    .lh-stat { min-width: 100px; padding: 12px 16px; }
+    .lh-stat-value { font-size: 20px; }
+    .lh-desc { font-size: 13px; }
+}
+
 /* ============ ROADMAP ============ */
 .roadmap-header {
     text-align: center;
@@ -2229,6 +2310,38 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 <!-- ==================== PAGE: DASHBOARD ==================== -->
 <div id="page-dashboard" class="page-content active">
+
+<!-- LANDING HERO — Context for first-time visitors -->
+<div class="landing-hero">
+    <div class="lh-brand">
+        <div class="lh-icon">C</div>
+        <span class="lh-title">COMPASS v8.2</span>
+    </div>
+    <div class="lh-tagline">Quantitative Momentum &middot; S&amp;P 500 &middot; Long-Only</div>
+    <div class="lh-stats">
+        <div class="lh-stat">
+            <span class="lh-stat-value green">15.16%</span>
+            <span class="lh-stat-label">Net CAGR</span>
+        </div>
+        <div class="lh-stat">
+            <span class="lh-stat-value">0.734</span>
+            <span class="lh-stat-label">Sharpe Ratio</span>
+        </div>
+        <div class="lh-stat">
+            <span class="lh-stat-value amber">&minus;30.3%</span>
+            <span class="lh-stat-label">Max Drawdown</span>
+        </div>
+    </div>
+    <div class="lh-desc">
+        Cross-sectional momentum strategy on <strong>S&amp;P 500</strong> large-caps.
+        Validated across <strong>26 years</strong> (2000&ndash;2026) and <strong>39 experiments</strong>.
+        No leverage &middot; No black box &middot; Fully deterministic.
+    </div>
+    <div class="lh-disclaimer">
+        Past performance does not guarantee future results.
+        This is a live paper trading test, not investment advice.
+    </div>
+</div>
 
 <!-- ENGINE BAR (hidden - internal use only) -->
 <div class="engine-bar" id="engine-bar" style="display:none;">
