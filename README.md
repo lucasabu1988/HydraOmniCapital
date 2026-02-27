@@ -280,13 +280,26 @@ black src/
 mypy src/
 ```
 
-## Roadmap
+## Launch Roadmap
 
-- [ ] Integración con brokers (Alpaca, Interactive Brokers)
-- [ ] Machine Learning para selección de activos
-- [ ] Optimización de parámetros con walk-forward analysis
-- [ ] Dashboard web para monitoreo en tiempo real
-- [ ] Alertas por email/SMS
+### Completado
+- [x] Algoritmo COMPASS v8.2 validado (39 experimentos, motor LOCKED)
+- [x] Integración IBKR con mock mode (53 unit tests passing)
+- [x] Dashboard web en tiempo real (Flask)
+- [x] Net backtest con costos reales (15.16% CAGR neto)
+- [x] Cash yield Moody's Aaa IG Corporate (FRED variable)
+- [x] Pre-close execution model (signal 15:30 ET + MOC same-day)
+- [x] Safety guards: paper port verification, MOC deadline, kill switch, order limits
+- [x] Position reconciliation y audit trail
+
+### En Progreso
+- [ ] **Norgate Data** — S&P 500 point-in-time membership (cura survivorship bias + cross-valida yfinance)
+- [ ] **IBKR Paper Trading** — Iniciar TWS, set `ibkr_mock: false`, correr 3-6 meses minimo
+
+### Pendiente
+- [ ] **Ejecucion avanzada** — Passive limits dentro de MOC window > TWAP > MOC imbalance data
+- [ ] **Optimizacion fiscal** — Operar en IRA/401(k) (~209 trades/año = short-term gains)
+- [ ] **Escalado ($500K+)** — RATTLESNAKE dual-engine + IBKR portfolio margin para Box Spread
 
 ## Licencia
 
