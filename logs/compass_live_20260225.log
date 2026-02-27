@@ -992,3 +992,8 @@
 2026-02-27 09:35:03,094 - INFO - Portfolio: $101,902 | DD: -0.5% | Regime: RISK_ON | Leverage: 1.00x | Positions: 5/5
 2026-02-27 09:35:04,202 - INFO - STATUS: $101,902 | DD:-0.5% | RISK_ON | Lev:1.00x | Pos:5/5 | [TXN(-0.7%), JNJ(-0.4%), GS(-2.1%), CVX(0.3%), LLY(-0.5%)]
 2026-02-27 09:35:04,212 - INFO - State saved: state/compass_state_20260227.json
+2026-02-27 09:35:04,438 - INFO - git sync: committed (auto: COMPASS state sync 2026-02-27 09:35)
+2026-02-27 09:35:06,360 - INFO - git sync: pushed to origin/main
+2026-02-27 09:40:10,540 - INFO - State saved: state/compass_state_20260227.json
+2026-02-27 09:45:17,146 - INFO - State saved: state/compass_state_20260227.json
+2026-02-27 09:50:23,602 - INFO - State saved: state/compass_state_20260227.json
