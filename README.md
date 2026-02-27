@@ -6,12 +6,43 @@
 <h3 align="center">COMPASS v8.2 &mdash; Quantitative Momentum Strategy</h3>
 
 <p align="center">
-  <strong>15.16% Net CAGR</strong> | <strong>0.734 Sharpe</strong> | <strong>No Leverage</strong> | <strong>S&P 500 Universe</strong>
+  <strong>13.90% CAGR (Bias-Corrected)</strong> | <strong>0.646 Sharpe</strong> | <strong>-66% Max DD</strong> | <strong>S&P 500 Universe</strong>
 </p>
 
 ---
 
+## 🚨 Latest Update: Experiment 40 - Survivorship Bias Analysis (Feb 27, 2026)
+
+<div align="center">
+
+### 📊 SURVIVORSHIP BIAS QUANTIFIED: **+4.56% CAGR OVERESTIMATION**
+
+| Metric | Original (Biased) | Corrected (Realistic) | Difference |
+|--------|------------------|----------------------|------------|
+| **CAGR** | 18.46% | **13.90%** ✅ | **-4.56%** |
+| **Final Value** | $8.3M | **$3.0M** | -64.0% |
+| **Max Drawdown** | -36.18% | **-66.25%** | +83.1% |
+| **Sharpe Ratio** | 0.921 | **0.646** | -29.9% |
+
+**Key Finding**: The original backtest overestimated performance by excluding companies that failed, went bankrupt, or were delisted during the 26-year testing period (2000-2026).
+
+**Data Coverage**: 1,128 historical S&P 500 constituents analyzed, 756 stocks with price data obtained (72% coverage), 25 stocks filtered for data corruption.
+
+**View Full Report**: [EXP40_REPORT.html](backtests/EXP40_REPORT.html) | [EXP40_SUMMARY.md](backtests/EXP40_SUMMARY.md) | [PROJECT_STATE.md](PROJECT_STATE.md)
+
+</div>
+
+---
+
+## 📈 Strategy Overview
+
 Algoritmo cuantitativo de momentum cross-sectional sobre el S&P 500, con filtro de regimen SPY y vol-targeting.
+
+**Corrected Performance** (2000-2026, 26 years, including delisted stocks):
+- ✅ **13.90% CAGR** (realistic, survivorship bias removed)
+- 📊 **0.646 Sharpe Ratio** (risk-adjusted returns)
+- ⚠️ **-66.25% Maximum Drawdown** (true risk exposure)
+- 🔄 **5,309 Trades** executed over 26 years
 
 ## Características Principales
 
