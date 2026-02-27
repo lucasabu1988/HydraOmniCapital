@@ -1,5 +1,5 @@
 # OmniCapital - Estado del Proyecto
-## Checkpoint: 11 Febrero 2026
+## Checkpoint: 27 Febrero 2026
 
 ---
 
@@ -7,11 +7,70 @@
 
 | Aspecto | Estado |
 |---------|--------|
-| **Sistema Actual** | OmniCapital v6 FINAL (Refactored) |
-| **Performance** | 16.92% CAGR (2000-2026) |
-| **Estado** | ✅ Código live refactorizado y validado |
-| **v7** | Descartado - mantener v6 |
-| **Próximo Paso** | Ejecutar paper trading con conexión real |
+| **Sistema v6** | OmniCapital v6 FINAL - 16.92% CAGR |
+| **Sistema v8.2** | COMPASS v8.2 - **13.90% CAGR (bias-corrected)** |
+| **Último Experimento** | ✅ Exp40: Survivorship Bias Quantification |
+| **Bias Identificado** | **+4.56% CAGR** overestimation |
+| **Estado** | ✅ Análisis completo validado |
+| **Próximo Paso** | Review findings y decidir estrategia forward |
+
+---
+
+## EXPERIMENT 40: SURVIVORSHIP BIAS ANALYSIS (27 Feb 2026)
+
+### Hallazgos Principales
+
+**SURVIVORSHIP BIAS CUANTIFICADO: +4.56% CAGR**
+
+El backtest original de COMPASS v8.2 **sobrestimó** significativamente el rendimiento al usar solo acciones actuales del S&P 500.
+
+### Comparación de Resultados (2000-2026, 26 años)
+
+| Métrica | Original (Sesgado) | Corregido (Realista) | Diferencia |
+|---------|-------------------|---------------------|------------|
+| **Valor Final** | $8,313,069 | $2,990,414 | -$5.3M |
+| **CAGR** | **18.46%** | **13.90%** | **-4.56%** |
+| **Sharpe Ratio** | 0.921 | 0.646 | -0.275 |
+| **Max Drawdown** | -36.18% | -66.25% | -30.06% |
+| **Trades** | 5,457 | 5,309 | -148 |
+
+### Datos del Experimento
+
+- **Constituyentes históricos**: 1,128 tickers únicos (1996-2025)
+- **Cobertura de datos**: 756/1,051 acciones (72%)
+- **Filtrados por corrupción**: 25 acciones con anomalías extremas
+- **Fuentes**: GitHub (constituents), yfinance/Stooq (prices)
+
+### Acciones Problemáticas Identificadas
+
+Ejemplos de stocks con datos corruptos excluidas del análisis:
+- **CBE**: +3,399,900% single-day gain (reverse split error)
+- **CNG**: +1,069,705% gain (data corruption)
+- **BOL**: +706,122% gain (delisting artifact)
+- **TNB**: +671,900% gain (corporate action)
+- Total: 25 acciones filtradas por volatilidad extrema (>500% daily)
+
+### Interpretación
+
+1. **Sesgo de Supervivencia**: El CAGR real de COMPASS v8.2 es **13.90%**, no 18.46%
+2. **Sobrestimación**: +4.56% por año = **24.7% del CAGR original**
+3. **Riesgo Real**: El drawdown máximo casi se duplica (-66% vs -36%)
+4. **Causas**: Exclusión de quiebras (Lehman, Enron, WorldCom) y crisis 2008
+
+### Archivos Generados
+
+Todos en `backtests/`:
+- `exp40_comparison.txt` - Reporte detallado
+- `exp40_original_daily.csv` - Equity curve sesgado
+- `exp40_corrected_daily.csv` - Equity curve corregido
+- `exp40_original_trades.csv` - Trades del backtest sesgado
+- `exp40_corrected_trades.csv` - Trades del backtest corregido
+
+### Conclusión
+
+✅ **COMPASS v8.2 sigue siendo sólido con 13.90% CAGR real**
+⚠️ **Pero la estimación original estaba inflada +4.56% por survivorship bias**
+📊 **Este es el número honesto para comparar con benchmarks**
 
 ---
 
@@ -31,7 +90,9 @@
 | Archivo | Descripción | Estado |
 |---------|-------------|--------|
 | `omnicapital_v6_final_optimized.py` | Sistema v6 final backtest | ✅ Producción |
-| `omnicapital_live.py` | Trading live (refactored) | ✅ **Listo** |
+| `omnicapital_v8_compass.py` | COMPASS v8.2 strategy | ✅ Producción |
+| `exp40_survivorship_bias.py` | Exp40: Survivorship bias analysis | ✅ **Completado** |
+| `omnicapital_live.py` | Trading live (refactored) | ✅ Listo |
 | `omnicapital_data_feed.py` | Módulo de datos | ✅ Listo |
 | `omnicapital_broker.py` | Integración brokers | ✅ Listo |
 
@@ -180,11 +241,13 @@ type omnicapital_state_*.json
 | 10 Feb 2026 | v7 descartado | Complejidad sin beneficio |
 | 10 Feb 2026 | Paper trading primero | Validar antes de live |
 | 11 Feb 2026 | Refactorización live | Código más mantenible y robusto |
+| **27 Feb 2026** | **Exp40 completado** | **Survivorship bias cuantificado: +4.56% CAGR** |
+| **27 Feb 2026** | **COMPASS v8.2 validado** | **13.90% CAGR real (bias-corrected)** |
 
 ---
 
-**Última actualización**: 11 Febrero 2026  
-**Próxima revisión**: Al ejecutar con conexión real  
-**Estado**: 🟢 **Listo para paper trading**
+**Última actualización**: 27 Febrero 2026
+**Próxima revisión**: Decidir estrategia basada en hallazgos de Exp40
+**Estado**: 🟢 **Análisis de survivorship bias completado**
 
-*"In Simplicity We Trust. v6 is Enough."*
+*"In Honesty We Trust. Real numbers over inflated backtests."*

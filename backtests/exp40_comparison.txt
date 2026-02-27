@@ -1,0 +1,37 @@
+================================================================================
+EXPERIMENT 40: SURVIVORSHIP BIAS QUANTIFICATION
+COMPASS v8.2 Strategy Analysis
+================================================================================
+
+OBJECTIVE
+--------------------------------------------------------------------------------
+Quantify the survivorship bias in COMPASS v8.2 backtest by comparing:
+  - Original: Using only current S&P 500 stocks (survivorship bias present)
+  - Corrected: Using historical point-in-time S&P 500 universe (bias removed)
+
+DATA COVERAGE
+--------------------------------------------------------------------------------
+Original universe: 0 stocks
+Corrected universe: 0 stocks
+Period: 2000-01-01 to 2027-01-01
+
+RESULTS
+--------------------------------------------------------------------------------
+Metric                         Original             Corrected            Difference     
+--------------------------------------------------------------------------------
+Final Value                    $         8,313,069 $         2,990,414 $   -5,322,655
+CAGR                                        18.46%              13.90%         -4.56%
+Sharpe Ratio                                0.921              0.646        -0.275
+Max Drawdown                               -36.18%             -66.25%        -30.06%
+Trades                                      5,457              5,309          -148
+--------------------------------------------------------------------------------
+
+SURVIVORSHIP BIAS
+--------------------------------------------------------------------------------
+Bias magnitude: +4.56% CAGR
+Bias percentage: +24.7% of original CAGR
+
+INTERPRETATION:
+The original backtest overestimated performance by 4.56% per year.
+This is because it only included stocks that survived to present day,
+excluding failed companies that would have caused losses.

@@ -1,0 +1,9 @@
+symbol,reasons,max_single_day,volatility,price_range,data_points,first_date,last_date,first_price,last_price
+TNB,"Single-day gain: 671900%, Single-day loss: -100%, Volatility: 2671613%, Price range: 7098x",671900.0%,2671613%,7098.4x,207,2011-01-03,2011-12-30,0.6826900243759155,2300.0
+TIE,"Single-day gain: 111533%, Single-day loss: -100%, Volatility: 203345%, Price range: 1305x",111533.4%,203345%,1305.2x,252,2011-01-03,2011-12-30,17.020000457763672,7000.0
+CBE,"Single-day gain: 65263%, Single-day loss: -100%, Volatility: 65393%, Price range: 872x",65262.5%,65393%,872.0x,252,2011-01-03,2011-12-30,58.81999969482422,54.150001525878906
+CIN,"Single-day gain: 55449%, Single-day loss: -100%, Volatility: 68812%, Price range: 577x",55449.2%,68812%,576.9x,252,2011-01-03,2011-12-30,3.1935999393463135,10.0
+KRI,"Single-day gain: 5091%, Single-day loss: -98%, Volatility: 10743%",5091.5%,10743%,63.6x,250,2011-01-03,2011-12-30,13.479999542236328,12.399999618530273
+CFC,"Single-day gain: 4733%, Single-day loss: -98%, Volatility: 5804%",4733.3%,5804%,80.0x,251,2011-01-03,2011-12-30,76.5,40.0
+BOL,Volatility: 890%,526.9%,890%,6.7x,251,2011-01-04,2011-12-30,1.6299999952316284,1.6299999952316284
+MEE,Single-day loss: -97%,43.7%,209%,96.5x,251,2011-01-03,2011-12-30,27.12350082397461,0.2809999883174896
