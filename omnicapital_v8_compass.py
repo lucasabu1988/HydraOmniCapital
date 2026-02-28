@@ -36,6 +36,7 @@ MOMENTUM_SKIP = 5           # Dias recientes a excluir (reversal)
 MIN_MOMENTUM_STOCKS = 20    # Minimo de stocks con score valido para operar
 
 
+
 # Regime
 REGIME_SMA_PERIOD = 200     # SMA de SPY para regimen
 REGIME_CONFIRM_DAYS = 3     # Dias consecutivos para confirmar cambio de regimen
@@ -51,7 +52,7 @@ TRAILING_ACTIVATION = 0.05  # Activar trailing tras +5%
 TRAILING_STOP_PCT = 0.03    # Trailing stop: -3% desde max
 
 # Portfolio-level risk
-PORTFOLIO_STOP_LOSS = -0.15 # -15% drawdown del portfolio
+PORTFOLIO_STOP_LOSS = -0.15 # -15% drawdown del portfolio (validado exp46)
 
 # Recovery stages (time-based with regime confirmation)
 RECOVERY_STAGE_1_DAYS = 63  # 3 meses para stage 1 (leverage 0.3x -> 1.0x, reserva 70%)
@@ -504,7 +505,7 @@ def run_backtest(price_data: Dict[str, pd.DataFrame],
                 protection_stage = 2
                 print(f"  [RECOVERY S1] {date.strftime('%Y-%m-%d')}: Stage 2 | Value: ${portfolio_value:,.0f}")
 
-            if protection_stage == 2 and days_since_stop >= RECOVERY_STAGE_2_DAYS and is_regime_on:
+            elif protection_stage == 2 and days_since_stop >= RECOVERY_STAGE_2_DAYS and is_regime_on:
                 in_protection_mode = False
                 protection_stage = 0
                 peak_value = portfolio_value  # Reset peak from here
@@ -541,7 +542,7 @@ def run_backtest(price_data: Dict[str, pd.DataFrame],
                         'pnl': pnl,
                         'return': pnl / (pos['entry_price'] * pos['shares'])
                     })
-                del positions[symbol]
+                    del positions[symbol]
 
             in_protection_mode = True
             protection_stage = 1
@@ -655,7 +656,7 @@ def run_backtest(price_data: Dict[str, pd.DataFrame],
             # Filter out stocks already in portfolio
             available_scores = {s: sc for s, sc in scores.items() if s not in positions}
 
-            if len(available_scores) >= needed:
+            if len(scores) >= MIN_MOMENTUM_STOCKS and len(available_scores) >= needed:
                 # Select top N by score
                 ranked = sorted(available_scores.items(), key=lambda x: x[1], reverse=True)
                 selected = [s for s, _ in ranked[:needed]]
