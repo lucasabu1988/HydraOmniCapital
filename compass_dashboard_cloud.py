@@ -1,5 +1,5 @@
 """
-COMPASS v8.2 — Cloud Dashboard (Showcase)
+COMPASS v8.3 — Cloud Dashboard (Showcase)
 ==========================================
 Full-featured Flask dashboard for Render.com deployment.
 Shows live prices, backtest equity curves, trade analytics,
@@ -42,7 +42,7 @@ app = Flask(__name__)
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# COMPASS v8.2 PARAMETERS (read-only reference — ALGORITHM LOCKED)
+# COMPASS v8.3 PARAMETERS (read-only reference — ALGORITHM LOCKED)
 # ============================================================================
 
 COMPASS_CONFIG = {
@@ -50,19 +50,34 @@ COMPASS_CONFIG = {
     'POSITION_STOP_LOSS': -0.08,
     'TRAILING_ACTIVATION': 0.05,
     'TRAILING_STOP_PCT': 0.03,
-    'PORTFOLIO_STOP_LOSS': -0.15,
-    'RECOVERY_STAGE_1_DAYS': 63,
-    'RECOVERY_STAGE_2_DAYS': 126,
     'NUM_POSITIONS': 5,
     'NUM_POSITIONS_RISK_OFF': 2,
     'TARGET_VOL': 0.15,
-    'LEVERAGE_MIN': 0.3,
     'LEVERAGE_MAX': 1.0,       # No leverage in production
     'INITIAL_CAPITAL': 100_000,
     'COMMISSION_PER_SHARE': 0.001,
     'ORDER_TIMEOUT_SECONDS': 300,
     'MAX_FILL_DEVIATION': 0.02,
     'MAX_PRICE_CHANGE_PCT': 0.20,
+    # --- v8.3 Smooth DD Scaling ---
+    'DD_SCALE_TIER1': -0.10,
+    'DD_SCALE_TIER2': -0.20,
+    'DD_SCALE_TIER3': -0.35,
+    'LEV_FULL': 1.0,
+    'LEV_MID': 0.60,
+    'LEV_FLOOR': 0.30,
+    'CRASH_VEL_5D': -0.06,
+    'CRASH_VEL_10D': -0.10,
+    'CRASH_LEVERAGE': 0.15,
+    'CRASH_COOLDOWN': 10,
+    # --- v8.3 Exit Renewal ---
+    'HOLD_DAYS_MAX': 10,
+    'RENEWAL_PROFIT_MIN': 0.04,
+    'MOMENTUM_RENEWAL_THRESHOLD': 0.85,
+    # --- v8.3 Quality Filter ---
+    'QUALITY_VOL_MAX': 0.60,
+    'QUALITY_VOL_LOOKBACK': 63,
+    'QUALITY_MAX_SINGLE_DAY': 0.50,
 }
 
 STATE_FILE = 'state/compass_state_latest.json'
@@ -138,7 +153,7 @@ _spy_df = None
 def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
-    # Updated to use Exp40 bias-corrected data (13.90% CAGR)
+    # COMPASS v8.3 bias-corrected data (11.57% CAGR)
     csv_path = os.path.join('backtests', 'exp40_corrected_daily.csv')
     if os.path.exists(csv_path):
         try:
@@ -401,41 +416,34 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     drawdown = (portfolio_value - peak_value) / peak_value if peak_value > 0 else 0
     total_return = (portfolio_value - initial_capital) / initial_capital if initial_capital > 0 else 0
 
+    # v8.3: Smooth DD scaling info (no binary stop/recovery)
     recovery = None
-    if state.get('in_protection') and state.get('stop_loss_day_index') is not None:
-        days_since_stop = state['trading_day_counter'] - state['stop_loss_day_index']
-        stage = state.get('protection_stage', 1)
-        if stage == 1:
-            target_days = COMPASS_CONFIG['RECOVERY_STAGE_1_DAYS']
-            next_stage = 'Stage 2 (1.0x leverage, 3 positions)'
-        else:
-            target_days = COMPASS_CONFIG['RECOVERY_STAGE_2_DAYS']
-            next_stage = 'Full Recovery (vol targeting)'
-        pct = min(1.0, days_since_stop / target_days) if target_days > 0 else 0
+    dd_leverage = state.get('dd_leverage', 1.0)
+    crash_cooldown = state.get('crash_cooldown', 0)
+    if dd_leverage < COMPASS_CONFIG['LEV_FULL'] or crash_cooldown > 0:
         recovery = {
-            'stage': stage,
-            'days_elapsed': days_since_stop,
-            'days_needed': target_days,
-            'days_remaining': max(0, target_days - days_since_stop),
-            'pct': round(pct * 100, 1),
-            'next_stage': next_stage,
+            'dd_leverage': round(dd_leverage, 3),
+            'crash_cooldown': crash_cooldown,
+            'regime_score': round(state.get('regime_score', 1.0), 3),
         }
 
-    regime_str = 'RISK_ON' if state.get('current_regime', True) else 'RISK_OFF'
+    # v8.3: Continuous regime score
+    regime_score = state.get('regime_score', 1.0)
+    regime_str = f'SCORE_{regime_score:.2f}' if regime_score < 1.0 else 'RISK_ON'
 
-    if state.get('in_protection'):
-        leverage = 0.3 if state.get('protection_stage') == 1 else 1.0
-    elif not state.get('current_regime', True):
-        leverage = 1.0
-    else:
-        leverage = None
+    # v8.3: DD leverage (smooth scaling)
+    dd_leverage = state.get('dd_leverage', 1.0)
+    leverage = dd_leverage if dd_leverage < COMPASS_CONFIG['LEV_FULL'] else None
 
-    if state.get('in_protection'):
-        max_pos = 2 if state.get('protection_stage') == 1 else 3
-    elif not state.get('current_regime', True):
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
+    # v8.3: Positions from regime score
+    if regime_score >= 0.8:
+        max_pos = 5
+    elif regime_score >= 0.6:
+        max_pos = 4
+    elif regime_score >= 0.4:
+        max_pos = 3
     else:
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS']
+        max_pos = 2
 
     # SPY benchmark return over same live test period
     spy_start = get_spy_start_price()
@@ -464,8 +472,8 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'max_positions': max_pos,
         'regime': regime_str,
         'regime_consecutive': state.get('regime_consecutive', 0),
-        'in_protection': state.get('in_protection', False),
-        'protection_stage': state.get('protection_stage', 0),
+        'in_protection': dd_leverage < COMPASS_CONFIG['LEV_FULL'],
+        'regime_score': round(regime_score, 3),
         'leverage': leverage,
         'recovery': recovery,
         'trading_day': trading_days_elapsed,
@@ -1406,7 +1414,7 @@ def api_preflight():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("COMPASS v8.2 \u2014 Cloud Dashboard (Showcase)")
+    print("COMPASS v8.3 \u2014 Cloud Dashboard (Showcase)")
     print("=" * 60)
     print(f"Port: {port}")
     print(f"Mode: {'SHOWCASE' if SHOWCASE_MODE else 'local'}")
