@@ -2854,32 +2854,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 </div>
 
 
-<!-- IMPLEMENTATION SHORTFALL (LIVE) -->
-<div class="card full-width" id="is-tracking-card">
-    <div class="card-header">
-        <span class="card-title">Implementation Shortfall &mdash; Live Tracking</span>
-        <span class="card-badge" id="is-badge" style="color:var(--orange); background:rgba(255,165,0,0.15);">--</span>
-    </div>
-    <div class="card-body">
-        <div id="is-content" style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
-            <div style="color:var(--text-secondary); font-size:13px; padding:20px; text-align:center; width:100%;">
-                IS tracking active &mdash; metrics appear after first trade fill
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- DATA QUALITY SCORECARD -->
-<div class="card full-width" id="data-quality-card">
-    <div class="card-header">
-        <span class="card-title">Data Pipeline &mdash; Quality Scorecard</span>
-        <span class="card-badge" id="dq-badge" style="color:var(--cyan); background:var(--cyan-dim);">--</span>
-    </div>
-    <div class="card-body">
-        <div class="grid-6" id="dq-summary"></div>
-        <div id="dq-alerts" style="margin-top:8px;"></div>
-    </div>
-</div>
 
 <!-- ACTIVITY FEED -->
 <div class="activity-feed anim-enter anim-d7" id="activity-feed">
@@ -4455,9 +4429,6 @@ async function fetchAll() {
                 for (const pd of stateData.position_details) posDict[pd.symbol] = true;
             }
             updateUniverse(stateData.universe, posDict);
-            if (stateData.implementation_shortfall) {
-                updateISMetrics(stateData.implementation_shortfall);
-            }
         }
     } catch (err) {
         console.error('Fetch error:', err);
@@ -4475,39 +4446,6 @@ async function fetchAll() {
 
 /* (Monte Carlo removed — replaced by Fund Scatter Plot on dashboard) */
 
-/* ============ IMPLEMENTATION SHORTFALL (LIVE) ============ */
-function updateISMetrics(is) {
-    const badge = document.getElementById('is-badge');
-    const content = document.getElementById('is-content');
-    if (!is || !is.available) {
-        badge.textContent = 'waiting';
-        badge.style.color = 'var(--text-secondary)';
-        badge.style.background = 'rgba(0,0,0,0.05)';
-        return;
-    }
-
-    const avgColor = is.avg_is_bps <= 2 ? 'var(--green)' : is.avg_is_bps <= 5 ? 'var(--orange)' : 'var(--red)';
-    badge.textContent = is.avg_is_bps.toFixed(1) + ' bps avg';
-    badge.style.color = avgColor;
-    badge.style.background = is.avg_is_bps <= 2 ? 'var(--green-dim)' : is.avg_is_bps <= 5 ? 'rgba(255,165,0,0.15)' : 'rgba(255,60,60,0.15)';
-
-    const tile = (label, val, color) => `<div class="dq-tile"><div class="dq-label">${label}</div><div class="dq-val" style="color:${color || 'var(--text-primary)'};">${val}</div></div>`;
-
-    let html = '';
-    html += tile('Avg IS', is.avg_is_bps.toFixed(2) + ' bps', avgColor);
-    html += tile('Median IS', is.median_is_bps.toFixed(2) + ' bps', 'var(--text-primary)');
-    html += tile('Max IS', is.max_is_bps.toFixed(2) + ' bps', 'var(--orange)');
-    html += tile('Min IS', is.min_is_bps.toFixed(2) + ' bps', 'var(--cyan)');
-    html += tile('Total Fills', is.total_fills, 'var(--text-primary)');
-    html += tile('Buy Fills', is.total_buy_fills + (is.avg_buy_is_bps != null ? ' (' + is.avg_buy_is_bps.toFixed(1) + ' bps)' : ''), 'var(--green)');
-    html += tile('Sell Fills', is.total_sell_fills + (is.avg_sell_is_bps != null ? ' (' + is.avg_sell_is_bps.toFixed(1) + ' bps)' : ''), 'var(--red)');
-
-    if (is.today_fills) {
-        html += tile("Today's IS", is.today_avg_is_bps.toFixed(2) + ' bps (' + is.today_fills + ' fills)', 'var(--accent-light)');
-    }
-
-    content.innerHTML = html;
-}
 
 /* ============ TRADE ANALYTICS ============ */
 let taData = null;
@@ -4593,64 +4531,6 @@ function renderTATable(segKey) {
 
 
 
-/* ============ DATA QUALITY ============ */
-async function fetchDataQuality() {
-    try {
-        const res = await fetch('/api/data-quality');
-        const data = await res.json();
-        if (data.unavailable) {
-            document.getElementById('dq-summary').innerHTML =
-                '<div style="color:var(--text-secondary);font-size:12px;grid-column:1/-1;">' + data.message + '</div>';
-            document.getElementById('dq-badge').textContent = '--';
-            document.getElementById('dq-badge').style.color = 'var(--text-secondary)';
-            return;
-        }
-        if (data.error) {
-            document.getElementById('dq-summary').innerHTML =
-                '<div style="color:var(--red);font-size:12px;grid-column:1/-1;">Error: ' + data.error + '</div>';
-            return;
-        }
-        renderDQSummary(data);
-        renderDQAlerts(data);
-        document.getElementById('dq-badge').textContent = data.avg_quality + '/100';
-        const badgeEl = document.getElementById('dq-badge');
-        if (data.avg_quality >= 90) { badgeEl.style.color = 'var(--green)'; badgeEl.style.background = 'var(--green-dim)'; }
-        else if (data.avg_quality >= 70) { badgeEl.style.color = 'var(--yellow)'; badgeEl.style.background = 'var(--yellow-dim)'; }
-        else { badgeEl.style.color = 'var(--red)'; badgeEl.style.background = 'var(--red-dim)'; }
-    } catch(e) {
-        console.error('DQ error:', e);
-        document.getElementById('dq-summary').innerHTML =
-            '<div style="color:var(--red);font-size:12px;grid-column:1/-1;">Failed to load: ' + e.message + '</div>';
-    }
-}
-
-function renderDQSummary(data) {
-    const box = document.getElementById('dq-summary');
-    box.innerHTML = `
-        <div class="dq-tile"><div class="dq-label">Tickers</div><div class="dq-val">${data.total_tickers}</div></div>
-        <div class="dq-tile"><div class="dq-label">Avg Quality</div><div class="dq-val" style="color:${data.avg_quality>=90?'var(--green)':data.avg_quality>=70?'var(--yellow)':'var(--red)'};">${data.avg_quality}</div></div>
-        <div class="dq-tile"><div class="dq-label">Excellent</div><div class="dq-val" style="color:var(--green);">${data.excellent}</div></div>
-        <div class="dq-tile"><div class="dq-label">Good</div><div class="dq-val" style="color:var(--yellow);">${data.good}</div></div>
-        <div class="dq-tile"><div class="dq-label">Poor</div><div class="dq-val" style="color:${data.poor>0?'var(--red)':'var(--text-tertiary)'};">${data.poor}</div></div>
-        <div class="dq-tile"><div class="dq-label">Stale</div><div class="dq-val" style="color:${data.stale_count>0?'var(--orange)':'var(--text-tertiary)'};">${data.stale_count}</div></div>
-    `;
-}
-
-function renderDQAlerts(data) {
-    const box = document.getElementById('dq-alerts');
-    if (!data.alerts || data.alerts.length === 0) {
-        box.innerHTML = '<div style="font-size:11px;color:var(--green);">All data quality checks passed</div>';
-        return;
-    }
-    const shown = data.alerts.slice(0, 10);
-    let html = shown.map(a =>
-        `<div class="dq-alert-item"><span class="dq-level-${a.level}">[${a.level.toUpperCase()}]</span> ${a.ticker}: ${a.message}</div>`
-    ).join('');
-    if (data.alerts.length > 10) {
-        html += `<div class="dq-alert-item" style="color:var(--text-muted);">... and ${data.alerts.length - 10} more alerts</div>`;
-    }
-    box.innerHTML = html;
-}
 
 /* ============ FUND SCATTER CHART ============ */
 /* Fund data with categories and Max Drawdown */
@@ -4856,11 +4736,9 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchActivityFeed();
     fetchSocialFeed();
     fetchTradeAnalytics();
-    fetchDataQuality();
     setInterval(fetchSocialFeed, 300000);
     setInterval(fetchActivityFeed, 30000);
     setInterval(fetchBacktestStatus, 60000);
-    setInterval(fetchDataQuality, 300000);
     setInterval(function() { fetchAll(); fetchCycleLog(); countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
         countdownSec = Math.max(0, countdownSec - 1);

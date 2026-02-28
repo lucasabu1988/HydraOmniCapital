@@ -830,7 +830,6 @@ def fetch_social_feed(symbols: List[str]) -> List[dict]:
 
 _montecarlo_cache = None
 _trade_analytics_cache = None
-_data_quality_cache = None
 
 
 # ============================================================================
@@ -1348,10 +1347,6 @@ def api_trade_analytics():
         return jsonify({'error': f'Trade analytics unavailable: {str(e)}'})
 
 
-@app.route('/api/data-quality')
-def api_data_quality():
-    """Return data pipeline quality scorecard (not available in showcase mode)."""
-    return jsonify({'unavailable': True, 'message': 'Data pipeline runs locally — not available in showcase mode'})
 
 
 
