@@ -2719,7 +2719,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 <!-- COMPASS vs REAL FUNDS SCATTER PLOT -->
 <div class="card full-width" id="fund-comparison-card">
     <div class="card-header">
-        <span class="card-title">COMPASS vs Real Algorithmic Funds</span>
+        <span class="card-title">COMPASS vs Real Funds (Leverage-Adjusted)</span>
         <div style="display:flex; gap:8px; align-items:center;">
             <button class="chart-btn" onclick="toggleFundCategory('all')" id="fund-btn-all">All</button>
             <button class="chart-btn" onclick="toggleFundCategory('compass')" id="fund-btn-compass">COMPASS</button>
@@ -2740,7 +2740,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:rgba(99,102,241,0.6);border:2px solid #6366f1;"></span> Benchmarks</span>
         </div>
         <div style="margin-top:10px; font-size:10px; color:var(--text-muted);">
-            Bubble size = leverage multiple &middot; Medallion Fund excluded (39% CAGR, 12.5x leverage) &middot; Sources: HedgeFollow, AQR, iShares, public filings
+            Y-axis = CAGR &divide; Leverage &middot; Bubble size = leverage multiple &middot; Medallion excluded (39% / 12.5x = 3.1%) &middot; Sources: HedgeFollow, AQR, iShares, public filings
         </div>
     </div>
 </div>
@@ -4373,27 +4373,26 @@ function renderTATable(segKey) {
 /* ============ FUND SCATTER CHART ============ */
 /* Fund data with categories and Max Drawdown */
 const FUND_DATA = [
-    /* COMPASS */
-    { x: 0.90, y: 18.56, label: 'COMPASS Signal', lev: 1, color: '#22c55e', cat: 'compass', maxDD: -26.9, aum: '0.1M', desc: 'Gross signal before execution costs' },
-    { x: 0.734, y: 15.16, label: 'COMPASS Net', lev: 1, color: '#22c55e', cat: 'compass', maxDD: -30.3, aum: '0.1M', desc: 'After 2.5% annual execution costs' },
-    /* Elite Multi-Strategy (high leverage) */
-    { x: 2.2, y: 19.2, label: 'Citadel Wellington', lev: 7, color: '#f97316', cat: 'elite', maxDD: -8.0, aum: '$66B', desc: 'Multi-strategy with 7x leverage' },
-    { x: 1.7, y: 12.9, label: 'D.E. Shaw', lev: 5, color: '#f97316', cat: 'elite', maxDD: -12.0, aum: '$60B', desc: 'Quantitative multi-strategy' },
-    { x: 1.8, y: 18.5, label: 'PDT Partners', lev: 4, color: '#f97316', cat: 'elite', maxDD: -10.0, aum: '$10B', desc: 'Statistical arbitrage' },
-    { x: 2.5, y: 14.0, label: 'Millennium', lev: 12, color: '#f97316', cat: 'elite', maxDD: -7.6, aum: '$64B', desc: 'Pod-based multi-strategy, 12x leverage' },
-    { x: 1.2, y: 12.0, label: 'Two Sigma', lev: 4, color: '#f97316', cat: 'elite', maxDD: -15.0, aum: '$60B', desc: 'AI/ML-driven quantitative' },
-    /* Systematic / Trend-Following */
-    { x: 0.85, y: 11.5, label: 'Bridgewater Pure Alpha', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -23.0, aum: '$150B', desc: 'Macro trend-following, risk parity' },
-    { x: 0.80, y: 11.6, label: 'Man AHL', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -20.0, aum: '$50B', desc: 'Systematic CTA / trend-following' },
-    { x: 0.78, y: 12.7, label: 'Winton', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -22.0, aum: '$6B', desc: 'Statistical trend-following' },
-    { x: 0.60, y: 8.8, label: 'Aspect Capital', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -25.0, aum: '$9B', desc: 'Diversified systematic CTA' },
-    /* Momentum Funds (long-only) */
-    { x: 0.75, y: 14.6, label: 'iShares MTUM', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -34.0, aum: '$10B', desc: 'Momentum factor ETF (MSCI USA)' },
-    { x: 0.70, y: 14.0, label: 'AQR Momentum', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -30.0, aum: '$3B', desc: 'Long-only US momentum strategy' },
-    { x: 0.55, y: 8.0, label: 'Renaissance RIEF', lev: 2, color: '#06b6d4', cat: 'momentum', maxDD: -28.0, aum: '$55B', desc: 'Public markets quantitative (external fund)' },
-    /* Benchmarks */
-    { x: 0.50, y: 10.4, label: 'S&P 500', lev: 1, color: '#6366f1', cat: 'benchmark', maxDD: -56.8, aum: '-', desc: 'US large-cap index (buy & hold)' },
-    { x: 0.65, y: 8.2, label: '60/40 Portfolio', lev: 1, color: '#6366f1', cat: 'benchmark', maxDD: -35.0, aum: '-', desc: '60% stocks / 40% bonds classic allocation' },
+    /* COMPASS v8.3 (1x leverage) — leverage-adjusted = nominal */
+    { x: 0.80, y: 11.57, label: 'COMPASS v8.3', lev: 1, color: '#22c55e', cat: 'compass', maxDD: -29.6, aum: '0.1M', desc: 'v8.3 bias-corrected, no leverage, 0 stop events' },
+    /* Elite Multi-Strategy (high leverage) — y = nominal CAGR / leverage */
+    { x: 2.2, y: 2.74, label: 'Citadel Wellington', lev: 7, color: '#f97316', cat: 'elite', maxDD: -8.0, aum: '$66B', desc: 'Multi-strategy, 7x lev → 19.2% nominal / 7 = 2.7% per turn of leverage' },
+    { x: 1.7, y: 2.58, label: 'D.E. Shaw', lev: 5, color: '#f97316', cat: 'elite', maxDD: -12.0, aum: '$60B', desc: 'Quant multi-strategy, 5x lev → 12.9% nominal / 5 = 2.6%' },
+    { x: 1.8, y: 4.63, label: 'PDT Partners', lev: 4, color: '#f97316', cat: 'elite', maxDD: -10.0, aum: '$10B', desc: 'Statistical arbitrage, 4x lev → 18.5% nominal / 4 = 4.6%' },
+    { x: 2.5, y: 1.17, label: 'Millennium', lev: 12, color: '#f97316', cat: 'elite', maxDD: -7.6, aum: '$64B', desc: 'Pod-based, 12x lev → 14.0% nominal / 12 = 1.2%' },
+    { x: 1.2, y: 3.0, label: 'Two Sigma', lev: 4, color: '#f97316', cat: 'elite', maxDD: -15.0, aum: '$60B', desc: 'AI/ML-driven, 4x lev → 12.0% nominal / 4 = 3.0%' },
+    /* Systematic / Trend-Following — y = nominal / leverage */
+    { x: 0.85, y: 3.83, label: 'Bridgewater Pure Alpha', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -23.0, aum: '$150B', desc: 'Macro trend-following, 3x lev → 11.5% / 3 = 3.8%' },
+    { x: 0.80, y: 3.87, label: 'Man AHL', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -20.0, aum: '$50B', desc: 'Systematic CTA, 3x lev → 11.6% / 3 = 3.9%' },
+    { x: 0.78, y: 4.23, label: 'Winton', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -22.0, aum: '$6B', desc: 'Statistical trend-following, 3x lev → 12.7% / 3 = 4.2%' },
+    { x: 0.60, y: 2.93, label: 'Aspect Capital', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -25.0, aum: '$9B', desc: 'Diversified CTA, 3x lev → 8.8% / 3 = 2.9%' },
+    /* Momentum Funds (long-only, 1x) — leverage-adjusted = nominal */
+    { x: 0.75, y: 14.6, label: 'iShares MTUM', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -34.0, aum: '$10B', desc: 'Momentum factor ETF, 1x leverage' },
+    { x: 0.70, y: 14.0, label: 'AQR Momentum', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -30.0, aum: '$3B', desc: 'Long-only US momentum, 1x leverage' },
+    { x: 0.55, y: 4.0, label: 'Renaissance RIEF', lev: 2, color: '#06b6d4', cat: 'momentum', maxDD: -28.0, aum: '$55B', desc: 'Public markets quant, 2x lev → 8.0% / 2 = 4.0%' },
+    /* Benchmarks (1x) — leverage-adjusted = nominal */
+    { x: 0.50, y: 10.4, label: 'S&P 500', lev: 1, color: '#6366f1', cat: 'benchmark', maxDD: -56.8, aum: '-', desc: 'US large-cap index (buy & hold), 1x' },
+    { x: 0.65, y: 8.2, label: '60/40 Portfolio', lev: 1, color: '#6366f1', cat: 'benchmark', maxDD: -35.0, aum: '-', desc: '60/40 classic allocation, 1x' },
 ];
 
 let _fundChart = null;
@@ -4458,12 +4457,13 @@ function initFundScatterChart() {
                         title: function(items) { return items[0].raw.label; },
                         label: function(item) {
                             const d = item.raw;
+                            const nominalCAGR = d.y * d.lev;
                             return [
-                                'Net CAGR:    ' + d.y.toFixed(1) + '%',
-                                'Sharpe:      ' + d.x.toFixed(2),
-                                'Max DD:      ' + d.maxDD.toFixed(1) + '%',
-                                'Leverage:    ' + d.lev + 'x',
-                                'AUM:         ' + d.aum,
+                                'Lev-Adj CAGR: ' + d.y.toFixed(1) + '%  (nominal ' + nominalCAGR.toFixed(1) + '%)',
+                                'Sharpe:       ' + d.x.toFixed(2),
+                                'Max DD:       ' + d.maxDD.toFixed(1) + '%',
+                                'Leverage:     ' + d.lev + 'x',
+                                'AUM:          ' + d.aum,
                             ];
                         },
                         footer: function(items) {
@@ -4475,13 +4475,13 @@ function initFundScatterChart() {
                 annotation: {
                     annotations: {
                         compassCAGR: {
-                            type: 'line', yMin: 15.16, yMax: 15.16,
+                            type: 'line', yMin: 11.57, yMax: 11.57,
                             borderColor: 'rgba(34,197,94,0.2)', borderWidth: 1, borderDash: [6, 4],
-                            label: { content: 'COMPASS Net 15.16%', display: true, position: 'start',
+                            label: { content: 'COMPASS v8.3 — 11.57%', display: true, position: 'start',
                                      color: 'rgba(34,197,94,0.5)', font: {size: 9}, backgroundColor: 'transparent', padding: 2 }
                         },
                         compassSharpe: {
-                            type: 'line', xMin: 0.734, xMax: 0.734,
+                            type: 'line', xMin: 0.80, xMax: 0.80,
                             borderColor: 'rgba(34,197,94,0.2)', borderWidth: 1, borderDash: [6, 4],
                         }
                     }
@@ -4498,9 +4498,9 @@ function initFundScatterChart() {
                     border: { color: 'rgba(0,0,0,0.06)' }
                 },
                 y: {
-                    title: { display: true, text: 'Net CAGR (%)', color: '#7a7a90',
+                    title: { display: true, text: 'Leverage-Adjusted CAGR (%)  [CAGR / Leverage]', color: '#7a7a90',
                              font: { family: "'Inter', sans-serif", size: 12, weight: '600' } },
-                    min: 4, max: 24,
+                    min: 0, max: 16,
                     grid: { color: 'rgba(0,0,0,0.04)' },
                     ticks: { color: '#5e5e78', font: { family: "'JetBrains Mono', monospace", size: 11 },
                              callback: v => v + '%', stepSize: 2 },
@@ -4526,19 +4526,20 @@ function initFundScatterChart() {
                         /* Label offsets */
                         let ox = (f.cat === 'compass' ? 14 : 5 + f.lev * 2.5 + 4), oy = -6;
                         /* Manual adjustments for overlapping labels */
-                        if (f.label === 'COMPASS Signal') { oy = -12; }
-                        if (f.label === 'COMPASS Net') { oy = 18; }
+                        if (f.label === 'COMPASS v8.3') { oy = -14; }
                         if (f.label === 'iShares MTUM') { oy = -14; }
                         if (f.label === 'AQR Momentum') { oy = 18; }
                         if (f.label === 'Man AHL') { oy = 16; }
-                        if (f.label === 'Bridgewater Pure Alpha') { oy = -2; }
+                        if (f.label === 'Bridgewater Pure Alpha') { oy = 16; }
                         if (f.label === 'S&P 500') { oy = -12; }
                         if (f.label === '60/40 Portfolio') { oy = 16; }
                         if (f.label === 'Aspect Capital') { oy = -12; }
-                        if (f.label === 'Renaissance RIEF') { oy = 16; }
-                        if (f.label === 'Millennium') { oy = -14; }
-                        if (f.label === 'Two Sigma') { oy = 16; }
+                        if (f.label === 'Renaissance RIEF') { oy = -12; }
+                        if (f.label === 'Millennium') { oy = 16; }
+                        if (f.label === 'Two Sigma') { oy = -12; }
                         if (f.label === 'Winton') { oy = -12; }
+                        if (f.label === 'D.E. Shaw') { oy = 16; }
+                        if (f.label === 'PDT Partners') { oy = -12; }
                         /* Draw background pill for COMPASS labels */
                         if (isCompass) {
                             const tw = ctx2.measureText(f.label).width;
