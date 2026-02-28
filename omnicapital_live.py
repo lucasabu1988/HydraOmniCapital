@@ -735,8 +735,12 @@ class COMPASSLive:
     # Position exit logic (5 conditions from backtest)
     # ------------------------------------------------------------------
 
-    def check_position_exits(self, prices: Dict[str, float]):
-        """Check all 5 exit conditions for each position"""
+    def check_position_exits(self, prices: Dict[str, float],
+                             include_hold_expired: bool = False):
+        """Check exit conditions for each position.
+        Hold-expired exits only run at pre-close (15:30 ET), not at open.
+        Stops and trailing run at open + intraday.
+        """
         positions = self.broker.get_positions()
         max_positions = self.get_max_positions()
 
@@ -751,9 +755,10 @@ class COMPASSLive:
 
             exit_reason = None
 
-            # 1. Hold time expired
-            days_held = self.trading_day_counter - meta['entry_day_index']
-            if days_held >= self.config['HOLD_DAYS']:
+            # 1. Hold time expired (entry day counts as day 1)
+            #    Only checked at pre-close (15:30 ET) — sells + new entries together
+            days_held = self.trading_day_counter - meta['entry_day_index'] + 1
+            if include_hold_expired and days_held >= self.config['HOLD_DAYS']:
                 exit_reason = 'hold_expired'
 
             # 2. Position stop loss (-8%)
@@ -1033,9 +1038,10 @@ class COMPASSLive:
                 <= self.config['MOC_DEADLINE'])
 
     def execute_preclose_entries(self, prices: Dict[str, float]):
-        """Compute momentum signal and open new positions at pre-close.
+        """Pre-close rotation: sell hold-expired positions, then open new ones.
 
         Called once per day during the 15:30-15:50 ET window.
+        Sells (hold_expired) and buys happen together at pre-close/MOC.
         Signal uses yesterday's close (from _hist_cache), execution at
         current price (close to today's final close via MOC).
 
@@ -1052,10 +1058,13 @@ class COMPASSLive:
             self._preclose_entries_done = True
             return
 
-        # Capture positions before new entries (to detect rotation)
+        # Capture positions before rotation
         positions_before = set(self.broker.positions.keys())
 
-        # Open new positions using momentum scores from historical data
+        # 1. Sell hold-expired positions first (frees cash for new entries)
+        self.check_position_exits(prices, include_hold_expired=True)
+
+        # 2. Open new positions using momentum scores from historical data
         # The _hist_cache contains data up to yesterday's close (refreshed at open)
         # This is exactly the Close[T-1] signal validated in the backtest
         self.open_new_positions(prices)
