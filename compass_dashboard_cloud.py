@@ -911,10 +911,6 @@ def api_state():
     })
 
 
-@app.route('/api/logs')
-def api_logs():
-    """Return empty logs in showcase mode."""
-    return jsonify({'logs': []})
 
 
 @app.route('/api/cycle-log')

@@ -1552,101 +1552,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .dq-alert-item .dq-level-warning { color: var(--yellow); }
 .dq-alert-item .dq-level-error { color: var(--red); }
 
-/* ============ ACTIVITY FEED ============ */
-.activity-feed {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    margin-bottom: 16px;
-}
-.af-header {
-    padding: 14px 20px 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-}
-.af-header-left {
-    display: flex; align-items: center; gap: 10px;
-}
-.af-icon {
-    width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(6,182,212,0.15));
-    font-size: 14px;
-}
-.af-title {
-    font-size: 12px; font-weight: 700;
-    color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 1.5px;
-}
-.af-count {
-    font-size: 10px; color: var(--text-muted);
-    font-family: 'JetBrains Mono', monospace;
-}
-.af-body {
-    max-height: 320px;
-    overflow-y: auto;
-}
-.af-body::-webkit-scrollbar { width: 3px; }
-.af-body::-webkit-scrollbar-track { background: transparent; }
-.af-body::-webkit-scrollbar-thumb { background: var(--border-active); border-radius: 4px; }
-
-.af-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 8px 20px;
-    border-bottom: 1px solid rgba(0,0,0,0.04);
-    font-size: 12px;
-    transition: background 0.15s;
-}
-.af-row:hover { background: rgba(0,0,0,0.02); }
-.af-row:last-child { border-bottom: none; }
-.af-time {
-    flex-shrink: 0;
-    min-width: 56px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text-muted);
-    padding-top: 2px;
-}
-.af-tag {
-    flex-shrink: 0;
-    min-width: 54px;
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    text-align: center;
-}
-.af-tag-entry { color: var(--green); background: var(--green-dim); }
-.af-tag-exit { color: var(--red); background: var(--red-dim); }
-.af-tag-stop { color: var(--yellow); background: var(--yellow-dim); }
-.af-tag-regime { color: var(--purple); background: var(--purple-dim); }
-.af-tag-recovery { color: var(--cyan); background: var(--cyan-dim); }
-.af-tag-status { color: var(--text-tertiary); background: rgba(0,0,0,0.04); }
-.af-tag-warning { color: var(--orange); background: var(--orange-dim); }
-.af-tag-error { color: var(--red); background: var(--red-dim); }
-.af-tag-info { color: var(--text-tertiary); background: rgba(0,0,0,0.04); }
-.af-msg {
-    flex: 1;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-    word-break: break-word;
-}
-.af-empty {
-    color: var(--text-tertiary);
-    font-size: 12px;
-    padding: 30px 20px;
-    text-align: center;
-}
 
 /* ============ PRE-CLOSE INDICATOR ============ */
 .preclose-bar {
@@ -2855,19 +2760,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 
 
-<!-- ACTIVITY FEED -->
-<div class="activity-feed anim-enter anim-d7" id="activity-feed">
-    <div class="af-header">
-        <div class="af-header-left">
-            <div class="af-icon">&#9998;</div>
-            <span class="af-title">Activity Log</span>
-        </div>
-        <span class="af-count" id="af-count"></span>
-    </div>
-    <div class="af-body" id="af-body">
-        <div class="af-empty">Loading activity...</div>
-    </div>
-</div>
 
 </div><!-- /page-dashboard -->
 
@@ -4245,60 +4137,6 @@ async function fetchSocialFeed() {
 }
 
 
-/* ============ ACTIVITY FEED ============ */
-function updateActivityFeed(logs) {
-    const body = document.getElementById('af-body');
-    const countEl = document.getElementById('af-count');
-    if (!body) return;
-
-    if (!logs || logs.length === 0) {
-        body.innerHTML = '<div class="af-empty">No activity yet</div>';
-        if (countEl) countEl.textContent = '';
-        return;
-    }
-
-    if (countEl) countEl.textContent = logs.length + ' entries';
-
-    const tagMap = {
-        entry: 'af-tag-entry',
-        exit: 'af-tag-exit',
-        stop: 'af-tag-stop',
-        regime: 'af-tag-regime',
-        recovery: 'af-tag-recovery',
-        status: 'af-tag-status',
-        warning: 'af-tag-warning',
-        error: 'af-tag-error',
-        info: 'af-tag-info'
-    };
-
-    let html = '';
-    /* Show newest first */
-    const reversed = logs.slice().reverse();
-    for (const log of reversed) {
-        const tagCls = tagMap[log.type] || 'af-tag-info';
-        const label = (log.type || 'info').toUpperCase();
-        /* Extract just time from timestamp like "2026-02-20 11:40:21" */
-        let timeStr = '';
-        if (log.timestamp) {
-            const parts = log.timestamp.split(' ');
-            timeStr = parts.length >= 2 ? parts[1] : log.timestamp;
-        }
-        html += '<div class="af-row">' +
-            '<span class="af-time">' + escHtml(timeStr) + '</span>' +
-            '<span class="af-tag ' + tagCls + '">' + label + '</span>' +
-            '<span class="af-msg">' + escHtml(log.message) + '</span>' +
-        '</div>';
-    }
-    body.innerHTML = html;
-}
-
-async function fetchActivityFeed() {
-    try {
-        const res = await fetch('/api/logs');
-        const data = await res.json();
-        updateActivityFeed(data.logs);
-    } catch(e) { console.error('Activity feed error:', e); }
-}
 
 
 
@@ -4733,11 +4571,9 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchCycleLog();
 
     fetchBacktestStatus();
-    fetchActivityFeed();
     fetchSocialFeed();
     fetchTradeAnalytics();
     setInterval(fetchSocialFeed, 300000);
-    setInterval(fetchActivityFeed, 30000);
     setInterval(fetchBacktestStatus, 60000);
     setInterval(function() { fetchAll(); fetchCycleLog(); countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
