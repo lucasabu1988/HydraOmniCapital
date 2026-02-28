@@ -1,5 +1,5 @@
 # OmniCapital - Estado del Proyecto
-## Checkpoint: 27 Febrero 2026
+## Checkpoint: 28 Febrero 2026
 
 ---
 
@@ -9,10 +9,45 @@
 |---------|--------|
 | **Sistema v6** | OmniCapital v6 FINAL - 16.92% CAGR |
 | **Sistema v8.2** | COMPASS v8.2 - **13.90% CAGR (bias-corrected)** |
-| **Último Experimento** | ✅ Exp40: Survivorship Bias Quantification |
+| **Sistema v8.3** | COMPASS v8.3 - **Production Candidate** |
+| **Último Experimento** | ✅ exp48-exp53: COMPASS v8.3 implementation |
 | **Bias Identificado** | **+4.56% CAGR** overestimation |
-| **Estado** | ✅ Análisis completo validado |
-| **Próximo Paso** | Review findings y decidir estrategia forward |
+| **Estado** | ✅ v8.3 implementado, pendiente backtest |
+| **Próximo Paso** | Ejecutar backtest v8.3 y validar métricas |
+
+---
+
+## COMPASS v8.3 IMPLEMENTATION (28 Feb 2026)
+
+### Changes from v8.2
+
+| Step | File | Change |
+|------|------|--------|
+| Bug fixes | `omnicapital_v8_compass.py` | 3 critical bugs: capital vanish, recovery skip, MIN_MOMENTUM guard |
+| exp48 | `exp48_params_validated.py` | MOM=105d, WTrail 0.08/0.05 (validated from exp45b) |
+| exp49 | `exp49_risk_adj_momentum.py` | Risk-adjusted momentum: return/63d vol (Barroso-Santa-Clara 2015) |
+| exp50 | `exp50_smooth_dd.py` | Smooth DD scaling replaces binary -15% portfolio stop |
+| exp51 | `exp51_regime_sigmoid.py` | Sigmoid regime filter: continuous [0,1] replaces binary SPY>SMA200 |
+| exp52 | `exp52_exit_renewal.py` | Exit renewal for winners (with original_entry_idx bug fix) |
+| exp53 | `exp53_quality_filter.py` | Quality filter (vol>60%, data corruption) + comparison report |
+| **FINAL** | **`omnicapital_v83_compass.py`** | **Production candidate with all improvements** |
+
+### v8.3 Architecture
+
+- **Signal**: Cross-sectional momentum (105d) / realized vol + short-term reversal skip
+- **Regime**: Continuous sigmoid score from trend (60%) + volatility (40%), gradual 5→4→3→2 positions
+- **Risk**: Piecewise-linear DD scaling (tiers at -5%/-15%/-25%) + crash velocity circuit breaker
+- **Exits**: Hold 5d + exit renewal (max 10d, profit>4%, top 85%) + trailing stop + position stop
+- **Quality**: Vol filter (>60%) + data corruption filter (>50% single-day)
+
+### Acceptance Criteria (pending backtest)
+
+| Metric | v8.2 Baseline | Minimum | Target |
+|--------|--------------|---------|--------|
+| CAGR | 13.90% | 15.0% | 17.0% |
+| MaxDD | -66.25% | -55.0% | -45.0% |
+| Sharpe | 0.646 | 0.72 | 0.85 |
+| Stop Events | 10 | <=3 | 0 |
 
 ---
 
@@ -90,7 +125,8 @@ Todos en `backtests/`:
 | Archivo | Descripción | Estado |
 |---------|-------------|--------|
 | `omnicapital_v6_final_optimized.py` | Sistema v6 final backtest | ✅ Producción |
-| `omnicapital_v8_compass.py` | COMPASS v8.2 strategy | ✅ Producción |
+| `omnicapital_v8_compass.py` | COMPASS v8.2 strategy (bug-fixed) | ✅ Producción |
+| `omnicapital_v83_compass.py` | COMPASS v8.3 strategy | ✅ **Pendiente backtest** |
 | `exp40_survivorship_bias.py` | Exp40: Survivorship bias analysis | ✅ **Completado** |
 | `omnicapital_live.py` | Trading live (refactored) | ✅ Listo |
 | `omnicapital_data_feed.py` | Módulo de datos | ✅ Listo |
@@ -243,11 +279,12 @@ type omnicapital_state_*.json
 | 11 Feb 2026 | Refactorización live | Código más mantenible y robusto |
 | **27 Feb 2026** | **Exp40 completado** | **Survivorship bias cuantificado: +4.56% CAGR** |
 | **27 Feb 2026** | **COMPASS v8.2 validado** | **13.90% CAGR real (bias-corrected)** |
+| **28 Feb 2026** | **COMPASS v8.3 implementado** | **6 structural improvements, 3 bug fixes** |
 
 ---
 
-**Última actualización**: 27 Febrero 2026
-**Próxima revisión**: Decidir estrategia basada en hallazgos de Exp40
-**Estado**: 🟢 **Análisis de survivorship bias completado**
+**Última actualización**: 28 Febrero 2026
+**Próxima revisión**: Ejecutar backtest v8.3 y evaluar Go/No-Go gates
+**Estado**: 🟢 **COMPASS v8.3 implementado, pendiente validación**
 
 *"In Honesty We Trust. Real numbers over inflated backtests."*
