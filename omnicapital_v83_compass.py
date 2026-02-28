@@ -34,7 +34,7 @@ TOP_N = 40
 MIN_AGE_DAYS = 63
 
 # Signal
-MOMENTUM_LOOKBACK = 105     # Dias para momentum de medio plazo (validated exp45b)
+MOMENTUM_LOOKBACK = 90      # Dias para momentum de medio plazo (H3 optimized)
 MOMENTUM_SKIP = 5           # Dias recientes a excluir (reversal)
 MIN_MOMENTUM_STOCKS = 20    # Minimo de stocks con score valido para operar
 
@@ -45,8 +45,8 @@ HOLD_DAYS = 5               # Dias de hold (trading days)
 
 # Position-level risk
 POSITION_STOP_LOSS = -0.08  # -8% por posicion
-TRAILING_ACTIVATION = 0.08  # Activar trailing tras +8% (validated exp45b)
-TRAILING_STOP_PCT = 0.05    # Trailing stop: -5% desde max (validated exp45b)
+TRAILING_ACTIVATION = 0.05  # Activar trailing tras +5% (H3 optimized)
+TRAILING_STOP_PCT = 0.03    # Trailing stop: -3% desde max (H3 optimized)
 
 # Exit renewal (allow winners to extend hold)
 HOLD_DAYS_MAX = 10                   # Hard cap: absolute max days (conservative)
@@ -59,12 +59,12 @@ QUALITY_VOL_LOOKBACK = 63       # 3-month window for vol calculation
 QUALITY_MAX_SINGLE_DAY = 0.50   # Exclude if single-day move > 50% (data corruption)
 
 # Smooth drawdown scaling (replaces binary portfolio stop)
-DD_SCALE_TIER1 = -0.05      # Start reducing leverage at -5%
-DD_SCALE_TIER2 = -0.15      # Medium drawdown
-DD_SCALE_TIER3 = -0.25      # Deep drawdown floor
+DD_SCALE_TIER1 = -0.10      # Start reducing leverage at -10% (H3: widened from -5%)
+DD_SCALE_TIER2 = -0.20      # Medium drawdown (H3: widened from -15%)
+DD_SCALE_TIER3 = -0.35      # Deep drawdown floor (H3: widened from -25%)
 LEV_FULL       = 1.0        # Full leverage (no reduction)
-LEV_MID        = 0.50       # Medium drawdown leverage
-LEV_FLOOR      = 0.20       # Hard floor - never go below
+LEV_MID        = 0.60       # Medium drawdown leverage (H3: raised from 0.50)
+LEV_FLOOR      = 0.30       # Hard floor (H3: raised from 0.20)
 CRASH_VEL_5D   = -0.06      # 5-day crash velocity threshold
 CRASH_VEL_10D  = -0.10      # 10-day crash velocity threshold
 CRASH_LEVERAGE = 0.15       # Leverage during crash cooldown
