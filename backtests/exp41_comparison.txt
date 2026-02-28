@@ -1,0 +1,37 @@
+================================================================================
+EXPERIMENT 41: EXTENDED BACKTEST 1990-2026
+COMPASS v8.2 Strategy Analysis
+================================================================================
+
+OBJECTIVE
+--------------------------------------------------------------------------------
+Quantify the survivorship bias in COMPASS v8.2 backtest by comparing:
+  - Original: Using only current S&P 500 stocks (survivorship bias present)
+  - Corrected: Using historical point-in-time S&P 500 universe (bias removed)
+
+DATA COVERAGE
+--------------------------------------------------------------------------------
+Original universe: 0 stocks
+Corrected universe: 0 stocks
+Period: 1996-01-02 to 2027-01-01
+
+RESULTS
+--------------------------------------------------------------------------------
+Metric                         Original             Corrected            Difference     
+--------------------------------------------------------------------------------
+Final Value                    $         8,313,069 $         2,522,162 $   -5,790,907
+CAGR                                        18.46%              11.31%         -7.15%
+Sharpe Ratio                                0.921              0.528        -0.393
+Max Drawdown                               -36.18%             -63.41%        -27.22%
+Trades                                      5,457              6,480         1,023
+--------------------------------------------------------------------------------
+
+SURVIVORSHIP BIAS
+--------------------------------------------------------------------------------
+Bias magnitude: +7.15% CAGR
+Bias percentage: +38.7% of original CAGR
+
+INTERPRETATION:
+The original backtest overestimated performance by 7.15% per year.
+This is because it only included stocks that survived to present day,
+excluding failed companies that would have caused losses.
