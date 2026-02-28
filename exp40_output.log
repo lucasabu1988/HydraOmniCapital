@@ -1,0 +1,1390 @@
+================================================================================
+EXPERIMENT 40: SURVIVORSHIP BIAS QUANTIFICATION
+================================================================================
+
+Objective: Quantify survivorship bias in COMPASS v8.2 backtest
+Method: Compare original (current S&P 500) vs corrected (historical point-in-time)
+Period: 2000-01-01 to 2027-01-01
+
+Known problematic tickers: 14
+  Bankruptcies: 6
+  Acquisitions: 6
+
+[Import] Importing COMPASS v8.2 functions...
+================================================================================
+OMNICAPITAL v8 COMPASS
+Cross-sectional Momentum, Position-Adjusted Risk Scaling
+================================================================================
+
+Broad pool: 113 stocks | Top-40 annual rotation
+Signal: Momentum 90d (skip 5d) + Inverse Vol sizing
+Regime: SPY SMA200 | Vol target: 15%
+Hold: 5d | Pos stop: -8% | Port stop: -15%
+Cash yield: Moody's Aaa IG Corporate (FRED, variable)
+
+  [OK] Successfully imported COMPASS functions
+
+================================================================================
+STEP 1: DOWNLOAD S&P 500 HISTORICAL CONSTITUENTS
+================================================================================
+[Cache] Loading S&P 500 constituents history...
+  Loaded 5814 constituent change events
+  Date range: 1996-01-02 00:00:00 to 2025-08-12 00:00:00
+
+================================================================================
+STEP 2: BUILD POINT-IN-TIME UNIVERSE
+================================================================================
+
+[Building] Point-in-time universe by year...
+  2000: 173 tickers
+  2001: 153 tickers
+  2002: 94 tickers
+  2003: 57 tickers
+  2004: 53 tickers
+  2005: 65 tickers
+  2006: 88 tickers
+  2007: 127 tickers
+  2008: 134 tickers
+  2009: 116 tickers
+  2010: 74 tickers
+  2011: 49 tickers
+  2012: 51 tickers
+  2013: 59 tickers
+  2014: 59 tickers
+  2015: 75 tickers
+  2016: 92 tickers
+  2017: 93 tickers
+  2018: 90 tickers
+  2019: 95 tickers
+  2020: 544 tickers
+  2021: 539 tickers
+  2022: 542 tickers
+  2023: 548 tickers
+  2024: 544 tickers
+  2025: 48 tickers
+  2026: 9 tickers
+  2027: 0 tickers
+
+================================================================================
+STEP 3: DOWNLOAD EXPANDED PRICE DATA
+================================================================================
+
+[Download] Downloading expanded pool (current + delisted stocks)...
+  Total unique tickers: 1051
+  Current tickers: 113
+  Delisted tickers: 939
+
+  Downloading current stocks...
+    [20/113] Current: 20 success
+    [40/113] Current: 40 success
+    [60/113] Current: 60 success
+    [80/113] Current: 80 success
+    [100/113] Current: 100 success
+
+  Downloading delisted stocks (this may take a while)...
+$AAMRQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['AAMRQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$ABC: possibly delisted; no timezone found
+
+1 Failed download:
+['ABC']: possibly delisted; no timezone found
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ABKFQ"}}}
+$ABKFQ: possibly delisted; no timezone found
+
+1 Failed download:
+['ABKFQ']: possibly delisted; no timezone found
+$ABMD: possibly delisted; no timezone found
+
+1 Failed download:
+['ABMD']: possibly delisted; no timezone found
+    [10/939] Delisted: 6 success, 4 failed
+$ACAS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['ACAS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$ACKH: possibly delisted; no timezone found
+
+1 Failed download:
+['ACKH']: possibly delisted; no timezone found
+$ACS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['ACS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [20/939] Delisted: 13 success, 7 failed
+$ADS: possibly delisted; no timezone found
+
+1 Failed download:
+['ADS']: possibly delisted; no timezone found
+$AFS.A: possibly delisted; no timezone found
+
+1 Failed download:
+['AFS.A']: possibly delisted; no timezone found
+$AGC: possibly delisted; no timezone found
+
+1 Failed download:
+['AGC']: possibly delisted; no timezone found
+    [30/939] Delisted: 20 success, 10 failed
+$ALXN: possibly delisted; no timezone found
+
+1 Failed download:
+['ALXN']: possibly delisted; no timezone found
+    [40/939] Delisted: 29 success, 11 failed
+$AMCC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['AMCC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [50/939] Delisted: 38 success, 12 failed
+$ANDW: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['ANDW']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$ANSS: possibly delisted; no timezone found
+
+1 Failed download:
+['ANSS']: possibly delisted; no timezone found
+$ANTM: possibly delisted; no timezone found
+
+1 Failed download:
+['ANTM']: possibly delisted; no timezone found
+    [60/939] Delisted: 45 success, 15 failed
+$APCC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['APCC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$APOL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['APOL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$ARC: possibly delisted; no timezone found
+
+1 Failed download:
+['ARC']: possibly delisted; no timezone found
+$ARG: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['ARG']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [70/939] Delisted: 51 success, 19 failed
+$ASN: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['ASN']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$AT: possibly delisted; no timezone found
+
+1 Failed download:
+['AT']: possibly delisted; no timezone found
+$ATVI: possibly delisted; no timezone found
+
+1 Failed download:
+['ATVI']: possibly delisted; no timezone found
+    [80/939] Delisted: 58 success, 22 failed
+$AV: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['AV']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$AVP: possibly delisted; no timezone found
+
+1 Failed download:
+['AVP']: possibly delisted; no timezone found
+$AW: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['AW']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$AWE: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['AWE']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$AYE: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['AYE']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [90/939] Delisted: 63 success, 27 failed
+$AZA.A: possibly delisted; no timezone found
+
+1 Failed download:
+['AZA.A']: possibly delisted; no timezone found
+$BCR: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BCR']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [100/939] Delisted: 71 success, 29 failed
+$BDK: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BDK']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BF.B: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BF.B']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BFO: possibly delisted; no timezone found
+
+1 Failed download:
+['BFO']: possibly delisted; no timezone found
+$BGEN: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BGEN']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BGG: possibly delisted; no timezone found
+
+1 Failed download:
+['BGG']: possibly delisted; no timezone found
+    [110/939] Delisted: 75 success, 35 failed
+$BHMSQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BHMSQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BIG: possibly delisted; no timezone found
+
+1 Failed download:
+['BIG']: possibly delisted; no timezone found
+$BJS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BJS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BKB: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BKB']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [120/939] Delisted: 81 success, 39 failed
+$BLL: possibly delisted; no timezone found
+
+1 Failed download:
+['BLL']: possibly delisted; no timezone found
+$BLS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BLS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BMET: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BMET']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BMGCA: possibly delisted; no timezone found
+
+1 Failed download:
+['BMGCA']: possibly delisted; no timezone found
+$BNI: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BNI']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BRCM: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BRCM']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BRK.B: possibly delisted; no timezone found
+
+1 Failed download:
+['BRK.B']: possibly delisted; no timezone found
+    [130/939] Delisted: 84 success, 46 failed
+$BRL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BRL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BSC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BSC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BT: possibly delisted; no timezone found
+
+1 Failed download:
+['BT']: possibly delisted; no timezone found
+$BTUUQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BTUUQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$BVSN: possibly delisted; no timezone found
+
+1 Failed download:
+['BVSN']: possibly delisted; no timezone found
+    [140/939] Delisted: 89 success, 51 failed
+$BXLT: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['BXLT']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$CBH: possibly delisted; no timezone found
+
+1 Failed download:
+['CBH']: possibly delisted; no timezone found
+    [150/939] Delisted: 97 success, 53 failed
+$CBS: possibly delisted; no timezone found
+
+1 Failed download:
+['CBS']: possibly delisted; no timezone found
+$CBSS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CBSS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$CCTYQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CCTYQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$CDAY: possibly delisted; no timezone found
+
+1 Failed download:
+['CDAY']: possibly delisted; no timezone found
+    [160/939] Delisted: 103 success, 57 failed
+$CELG: possibly delisted; no timezone found
+
+1 Failed download:
+['CELG']: possibly delisted; no timezone found
+$CEN: possibly delisted; no timezone found
+
+1 Failed download:
+['CEN']: possibly delisted; no timezone found
+$CEPH: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CEPH']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$CERN: possibly delisted; no timezone found
+
+1 Failed download:
+['CERN']: possibly delisted; no timezone found
+    [170/939] Delisted: 109 success, 61 failed
+$CFN: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CFN']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$CGP: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CGP']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [180/939] Delisted: 117 success, 63 failed
+$CIT.A: possibly delisted; no timezone found
+
+1 Failed download:
+['CIT.A']: possibly delisted; no timezone found
+$CITGQ: possibly delisted; no timezone found
+
+1 Failed download:
+['CITGQ']: possibly delisted; no timezone found
+$CMCSK: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CMCSK']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [190/939] Delisted: 124 success, 66 failed
+$COC.B: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['COC.B']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [200/939] Delisted: 133 success, 67 failed
+$COG: possibly delisted; no timezone found
+
+1 Failed download:
+['COG']: possibly delisted; no timezone found
+$COV: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['COV']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [210/939] Delisted: 141 success, 69 failed
+$CPGX: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CPGX']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$CPNLQ: possibly delisted; no timezone found
+
+1 Failed download:
+['CPNLQ']: possibly delisted; no timezone found
+    [220/939] Delisted: 149 success, 71 failed
+$CTB: possibly delisted; no timezone found
+
+1 Failed download:
+['CTB']: possibly delisted; no timezone found
+$CTL: possibly delisted; no timezone found
+
+1 Failed download:
+['CTL']: possibly delisted; no timezone found
+$CTLT: possibly delisted; no timezone found
+
+1 Failed download:
+['CTLT']: possibly delisted; no timezone found
+    [230/939] Delisted: 156 success, 74 failed
+$CTX: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CTX']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$CTXS: possibly delisted; no timezone found
+
+1 Failed download:
+['CTXS']: possibly delisted; no timezone found
+$CVC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CVC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$CXO: possibly delisted; no timezone found
+
+1 Failed download:
+['CXO']: possibly delisted; no timezone found
+$CYM: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['CYM']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [240/939] Delisted: 161 success, 79 failed
+$DALRQ: possibly delisted; no timezone found
+
+1 Failed download:
+['DALRQ']: possibly delisted; no timezone found
+$DCNAQ: possibly delisted; no timezone found
+
+1 Failed download:
+['DCNAQ']: possibly delisted; no timezone found
+    [250/939] Delisted: 169 success, 81 failed
+$DF: possibly delisted; no timezone found
+
+1 Failed download:
+['DF']: possibly delisted; no timezone found
+$DFS: possibly delisted; no timezone found
+
+1 Failed download:
+['DFS']: possibly delisted; no timezone found
+$DISCA: possibly delisted; no timezone found
+
+1 Failed download:
+['DISCA']: possibly delisted; no timezone found
+$DISCK: possibly delisted; no timezone found
+
+1 Failed download:
+['DISCK']: possibly delisted; no timezone found
+$DISH: possibly delisted; no timezone found
+
+1 Failed download:
+['DISH']: possibly delisted; no timezone found
+    [260/939] Delisted: 174 success, 86 failed
+$DJ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['DJ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$DNR: possibly delisted; no timezone found
+
+1 Failed download:
+['DNR']: possibly delisted; no timezone found
+$DPHIQ: possibly delisted; no timezone found
+
+1 Failed download:
+['DPHIQ']: possibly delisted; no timezone found
+    [270/939] Delisted: 181 success, 89 failed
+$DRE: possibly delisted; no timezone found
+
+1 Failed download:
+['DRE']: possibly delisted; no timezone found
+$DWDP: possibly delisted; no timezone found
+
+1 Failed download:
+['DWDP']: possibly delisted; no timezone found
+    [280/939] Delisted: 189 success, 91 failed
+$EDS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['EDS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [290/939] Delisted: 198 success, 92 failed
+$EKDKQ: possibly delisted; no timezone found
+
+1 Failed download:
+['EKDKQ']: possibly delisted; no timezone found
+$ENDP: possibly delisted; no timezone found
+
+1 Failed download:
+['ENDP']: possibly delisted; no timezone found
+$ENRNQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['ENRNQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$EOP: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['EOP']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [300/939] Delisted: 204 success, 96 failed
+$ESV: possibly delisted; no timezone found
+
+1 Failed download:
+['ESV']: possibly delisted; no timezone found
+$ETFC: possibly delisted; no timezone found
+
+1 Failed download:
+['ETFC']: possibly delisted; no timezone found
+    [310/939] Delisted: 212 success, 98 failed
+    [320/939] Delisted: 222 success, 98 failed
+$FBF: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['FBF']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$FBHS: possibly delisted; no timezone found
+
+1 Failed download:
+['FBHS']: possibly delisted; no timezone found
+$FDC: possibly delisted; no timezone found
+
+1 Failed download:
+['FDC']: possibly delisted; no timezone found
+    [330/939] Delisted: 229 success, 101 failed
+$FDO: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['FDO']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$FI: possibly delisted; no timezone found
+
+1 Failed download:
+['FI']: possibly delisted; no timezone found
+$FII: possibly delisted; no timezone found
+
+1 Failed download:
+['FII']: possibly delisted; no timezone found
+    [340/939] Delisted: 236 success, 104 failed
+$FJ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['FJ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$FL: possibly delisted; no timezone found
+
+1 Failed download:
+['FL']: possibly delisted; no timezone found
+Failed to get ticker 'FLIR' reason: Failed to perform, curl: (28) Operation timed out after 10007 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+$FLIR: possibly delisted; no timezone found
+
+1 Failed download:
+['FLIR']: possibly delisted; no timezone found
+$FLT: possibly delisted; no timezone found
+
+1 Failed download:
+['FLT']: possibly delisted; no timezone found
+$FLTWQ: possibly delisted; no timezone found
+
+1 Failed download:
+['FLTWQ']: possibly delisted; no timezone found
+    [350/939] Delisted: 241 success, 109 failed
+$FRC: possibly delisted; no timezone found
+
+1 Failed download:
+['FRC']: possibly delisted; no timezone found
+$FRX: possibly delisted; no timezone found
+
+1 Failed download:
+['FRX']: possibly delisted; no timezone found
+    [360/939] Delisted: 249 success, 111 failed
+$FSL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['FSL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$FTL.A: possibly delisted; no timezone found
+
+1 Failed download:
+['FTL.A']: possibly delisted; no timezone found
+$FTR: possibly delisted; no timezone found
+
+1 Failed download:
+['FTR']: possibly delisted; no timezone found
+$FWLT: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['FWLT']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$GAPTQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['GAPTQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [370/939] Delisted: 254 success, 116 failed
+$GENZ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['GENZ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$GGP: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['GGP']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [380/939] Delisted: 262 success, 118 failed
+$GMCR: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['GMCR']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [390/939] Delisted: 271 success, 119 failed
+$GPS: possibly delisted; no timezone found
+
+1 Failed download:
+['GPS']: possibly delisted; no timezone found
+$GPU: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['GPU']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$GRA: possibly delisted; no timezone found
+
+1 Failed download:
+['GRA']: possibly delisted; no timezone found
+$GTW: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['GTW']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [400/939] Delisted: 277 success, 123 failed
+$GX: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['GX']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$HBI: possibly delisted; no timezone found
+
+1 Failed download:
+['HBI']: possibly delisted; no timezone found
+$HBOC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['HBOC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$HCBK: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['HCBK']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$HCR: possibly delisted; no timezone found
+
+1 Failed download:
+['HCR']: possibly delisted; no timezone found
+    [410/939] Delisted: 282 success, 128 failed
+$HES: possibly delisted; no timezone found
+
+1 Failed download:
+['HES']: possibly delisted; no timezone found
+$HFC: possibly delisted; no timezone found
+
+1 Failed download:
+['HFC']: possibly delisted; no timezone found
+$HMA: possibly delisted; no timezone found
+
+1 Failed download:
+['HMA']: possibly delisted; no timezone found
+$HNZ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['HNZ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [420/939] Delisted: 288 success, 132 failed
+$HPH: possibly delisted; no timezone found
+
+1 Failed download:
+['HPH']: possibly delisted; no timezone found
+$HRS: possibly delisted; no timezone found
+
+1 Failed download:
+['HRS']: possibly delisted; no timezone found
+    [430/939] Delisted: 296 success, 134 failed
+$HSP: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['HSP']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [440/939] Delisted: 305 success, 135 failed
+$IGT: possibly delisted; no timezone found
+
+1 Failed download:
+['IGT']: possibly delisted; no timezone found
+$IKN: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['IKN']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$IMNX: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['IMNX']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$INCLF: possibly delisted; no timezone found
+
+1 Failed download:
+['INCLF']: possibly delisted; no timezone found
+    [450/939] Delisted: 311 success, 139 failed
+$IPG: possibly delisted; no timezone found
+
+1 Failed download:
+['IPG']: possibly delisted; no timezone found
+    [460/939] Delisted: 320 success, 140 failed
+$JCP: possibly delisted; no timezone found
+
+1 Failed download:
+['JCP']: possibly delisted; no timezone found
+$JEC: possibly delisted; no timezone found
+
+1 Failed download:
+['JEC']: possibly delisted; no timezone found
+$JHF: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['JHF']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$JNPR: possibly delisted; no timezone found
+
+1 Failed download:
+['JNPR']: possibly delisted; no timezone found
+    [470/939] Delisted: 326 success, 144 failed
+$JNS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['JNS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$JNY: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['JNY']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$JOS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['JOS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$JOY: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['JOY']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$JP: possibly delisted; no timezone found
+
+1 Failed download:
+['JP']: possibly delisted; no timezone found
+$JWN: possibly delisted; no timezone found
+
+1 Failed download:
+['JWN']: possibly delisted; no timezone found
+$K: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['K']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01) (Yahoo error = "No data found, symbol may be delisted")
+$KATE: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['KATE']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [480/939] Delisted: 328 success, 152 failed
+$KORS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['KORS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [490/939] Delisted: 337 success, 153 failed
+$KRB: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['KRB']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$KRFT: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['KRFT']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$KSE: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['KSE']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$KSU: possibly delisted; no timezone found
+
+1 Failed download:
+['KSU']: possibly delisted; no timezone found
+$KWP: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['KWP']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [500/939] Delisted: 342 success, 158 failed
+$LDW.B: possibly delisted; no timezone found
+
+1 Failed download:
+['LDW.B']: possibly delisted; no timezone found
+$LEHMQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['LEHMQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [510/939] Delisted: 350 success, 160 failed
+$LLTC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['LLTC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$LM: possibly delisted; no timezone found
+
+1 Failed download:
+['LM']: possibly delisted; no timezone found
+$LO: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['LO']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$LSI: possibly delisted; no timezone found
+
+1 Failed download:
+['LSI']: possibly delisted; no timezone found
+    [520/939] Delisted: 356 success, 164 failed
+$LVLT: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['LVLT']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$LXK: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['LXK']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [530/939] Delisted: 364 success, 166 failed
+    [540/939] Delisted: 374 success, 166 failed
+$MDP: possibly delisted; no timezone found
+
+1 Failed download:
+['MDP']: possibly delisted; no timezone found
+$MDR: possibly delisted; no timezone found
+
+1 Failed download:
+['MDR']: possibly delisted; no timezone found
+$MEA: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MEA']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$MEL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MEL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$MERQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MERQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [550/939] Delisted: 379 success, 171 failed
+$MJN: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MJN']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$MKG: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MKG']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [560/939] Delisted: 387 success, 173 failed
+$MRO: possibly delisted; no timezone found
+
+1 Failed download:
+['MRO']: possibly delisted; no timezone found
+    [570/939] Delisted: 396 success, 174 failed
+$MTL: possibly delisted; no timezone found
+
+1 Failed download:
+['MTL']: possibly delisted; no timezone found
+$MTLQQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MTLQQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [580/939] Delisted: 404 success, 176 failed
+$MWV: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MWV']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$MWW: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MWW']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$MXIM: possibly delisted; no timezone found
+
+1 Failed download:
+['MXIM']: possibly delisted; no timezone found
+$MYG: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['MYG']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$MYL: possibly delisted; no timezone found
+
+1 Failed download:
+['MYL']: possibly delisted; no timezone found
+$MZIAQ: possibly delisted; no timezone found
+
+1 Failed download:
+['MZIAQ']: possibly delisted; no timezone found
+$NAV: possibly delisted; no timezone found
+
+1 Failed download:
+['NAV']: possibly delisted; no timezone found
+$NBL: possibly delisted; no timezone found
+
+1 Failed download:
+['NBL']: possibly delisted; no timezone found
+    [590/939] Delisted: 406 success, 184 failed
+$NCR: possibly delisted; no timezone found
+
+1 Failed download:
+['NCR']: possibly delisted; no timezone found
+$NFB: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['NFB']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [600/939] Delisted: 414 success, 186 failed
+$NLC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['NLC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$NLOK: possibly delisted; no timezone found
+
+1 Failed download:
+['NLOK']: possibly delisted; no timezone found
+$NLSN: possibly delisted; no timezone found
+
+1 Failed download:
+['NLSN']: possibly delisted; no timezone found
+    [610/939] Delisted: 421 success, 189 failed
+$NOVL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['NOVL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$NRTLQ: possibly delisted; no timezone found
+
+1 Failed download:
+['NRTLQ']: possibly delisted; no timezone found
+    [620/939] Delisted: 429 success, 191 failed
+$NXTL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['NXTL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$NYX: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['NYX']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$OAT: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['OAT']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$ODP: possibly delisted; no timezone found
+
+1 Failed download:
+['ODP']: possibly delisted; no timezone found
+    [630/939] Delisted: 435 success, 195 failed
+$OMX: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['OMX']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$ONE: possibly delisted; no timezone found
+
+1 Failed download:
+['ONE']: possibly delisted; no timezone found
+    [640/939] Delisted: 443 success, 197 failed
+$OWENQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['OWENQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$PARA: possibly delisted; no timezone found
+
+1 Failed download:
+['PARA']: possibly delisted; no timezone found
+$PBCT: possibly delisted; no timezone found
+
+1 Failed download:
+['PBCT']: possibly delisted; no timezone found
+    [650/939] Delisted: 450 success, 200 failed
+$PDCO: possibly delisted; no timezone found
+
+1 Failed download:
+['PDCO']: possibly delisted; no timezone found
+$PEAK: possibly delisted; no timezone found
+
+1 Failed download:
+['PEAK']: possibly delisted; no timezone found
+    [660/939] Delisted: 458 success, 202 failed
+$PETM: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['PETM']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$PGL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['PGL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$PHA: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['PHA']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [670/939] Delisted: 465 success, 205 failed
+$PKI: possibly delisted; no timezone found
+
+1 Failed download:
+['PKI']: possibly delisted; no timezone found
+$PMCS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['PMCS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$PNU: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['PNU']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [680/939] Delisted: 472 success, 208 failed
+$PRD: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['PRD']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$PSFT: possibly delisted; no timezone found
+
+1 Failed download:
+['PSFT']: possibly delisted; no timezone found
+    [690/939] Delisted: 480 success, 210 failed
+$PVT: possibly delisted; no timezone found
+
+1 Failed download:
+['PVT']: possibly delisted; no timezone found
+$PXD: possibly delisted; no timezone found
+
+1 Failed download:
+['PXD']: possibly delisted; no timezone found
+$QEP: possibly delisted; no timezone found
+
+1 Failed download:
+['QEP']: possibly delisted; no timezone found
+$QLGC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['QLGC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [700/939] Delisted: 485 success, 215 failed
+$QTRN: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['QTRN']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$RAD: possibly delisted; no timezone found
+
+1 Failed download:
+['RAD']: possibly delisted; no timezone found
+$RAI: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['RAI']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$RATL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['RATL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$RBD: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['RBD']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$RBK: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['RBK']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$RDC: possibly delisted; no timezone found
+
+1 Failed download:
+['RDC']: possibly delisted; no timezone found
+    [710/939] Delisted: 488 success, 222 failed
+$RDS.A: possibly delisted; no timezone found
+
+1 Failed download:
+['RDS.A']: possibly delisted; no timezone found
+$RE: possibly delisted; no timezone found
+
+1 Failed download:
+['RE']: possibly delisted; no timezone found
+$RHT: possibly delisted; no timezone found
+
+1 Failed download:
+['RHT']: possibly delisted; no timezone found
+$RLM: possibly delisted; no timezone found
+
+1 Failed download:
+['RLM']: possibly delisted; no timezone found
+    [720/939] Delisted: 494 success, 226 failed
+$RML: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['RML']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$RNB: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['RNB']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$ROH: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['ROH']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$RRD: possibly delisted; no timezone found
+
+1 Failed download:
+['RRD']: possibly delisted; no timezone found
+    [730/939] Delisted: 500 success, 230 failed
+$RTN: possibly delisted; no timezone found
+
+1 Failed download:
+['RTN']: possibly delisted; no timezone found
+$PKI): possibly delisted; no timezone found
+$(PREVIOUSLY: possibly delisted; no timezone found
+
+2 Failed downloads:
+['PKI)', '(PREVIOUSLY']: possibly delisted; no timezone found
+$SAPE: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SAPE']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$SBL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SBL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [740/939] Delisted: 507 success, 233 failed
+$SEBL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SEBL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$SFA: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SFA']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$SGID: possibly delisted; no timezone found
+
+1 Failed download:
+['SGID']: possibly delisted; no timezone found
+    [750/939] Delisted: 514 success, 236 failed
+$SIAL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SIAL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$SIVB: possibly delisted; no timezone found
+
+1 Failed download:
+['SIVB']: possibly delisted; no timezone found
+$SLR: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SLR']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [760/939] Delisted: 521 success, 239 failed
+$SMS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SMS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$SNI: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SNI']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$SOTR: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SOTR']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$SOV: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SOV']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [770/939] Delisted: 527 success, 243 failed
+$STJ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['STJ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [780/939] Delisted: 535 success, 245 failed
+$SWN: possibly delisted; no timezone found
+
+1 Failed download:
+['SWN']: possibly delisted; no timezone found
+$SWY: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SWY']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$SXCL: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['SXCL']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [790/939] Delisted: 542 success, 248 failed
+$SYMC: possibly delisted; no timezone found
+
+1 Failed download:
+['SYMC']: possibly delisted; no timezone found
+$TA: possibly delisted; no timezone found
+
+1 Failed download:
+['TA']: possibly delisted; no timezone found
+$TCOMA: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['TCOMA']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [800/939] Delisted: 549 success, 251 failed
+    [810/939] Delisted: 559 success, 251 failed
+$TIF: possibly delisted; no timezone found
+
+1 Failed download:
+['TIF']: possibly delisted; no timezone found
+$TIN: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['TIN']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$TMC.A: possibly delisted; no timezone found
+
+1 Failed download:
+['TMC.A']: possibly delisted; no timezone found
+$TMK: possibly delisted; no timezone found
+
+1 Failed download:
+['TMK']: possibly delisted; no timezone found
+    [820/939] Delisted: 565 success, 255 failed
+$TOY: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['TOY']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$TRB: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['TRB']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [830/939] Delisted: 573 success, 257 failed
+$TRW: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['TRW']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$TSG: possibly delisted; no timezone found
+
+1 Failed download:
+['TSG']: possibly delisted; no timezone found
+$TSS: possibly delisted; no timezone found
+
+1 Failed download:
+['TSS']: possibly delisted; no timezone found
+$TUP: possibly delisted; no timezone found
+
+1 Failed download:
+['TUP']: possibly delisted; no timezone found
+$TWC: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['TWC']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [840/939] Delisted: 578 success, 262 failed
+$TWTR: possibly delisted; no timezone found
+
+1 Failed download:
+['TWTR']: possibly delisted; no timezone found
+$TXU: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['TXU']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$UAWGQ: possibly delisted; no timezone found
+
+1 Failed download:
+['UAWGQ']: possibly delisted; no timezone found
+    [850/939] Delisted: 585 success, 265 failed
+$UMG: possibly delisted; no timezone found
+
+1 Failed download:
+['UMG']: possibly delisted; no timezone found
+    [860/939] Delisted: 594 success, 266 failed
+$UN: possibly delisted; no timezone found
+
+1 Failed download:
+['UN']: possibly delisted; no timezone found
+$UPR: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['UPR']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$USW: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['USW']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$UTX: possibly delisted; no timezone found
+
+1 Failed download:
+['UTX']: possibly delisted; no timezone found
+$VAR: possibly delisted; no timezone found
+
+1 Failed download:
+['VAR']: possibly delisted; no timezone found
+    [870/939] Delisted: 599 success, 271 failed
+$VIAB: possibly delisted; no timezone found
+
+1 Failed download:
+['VIAB']: possibly delisted; no timezone found
+$VIAC: possibly delisted; no timezone found
+
+1 Failed download:
+['VIAC']: possibly delisted; no timezone found
+    [880/939] Delisted: 607 success, 273 failed
+$VSTNQ: possibly delisted; no timezone found
+
+1 Failed download:
+['VSTNQ']: possibly delisted; no timezone found
+$VTSS: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['VTSS']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$WAMUQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['WAMUQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [890/939] Delisted: 614 success, 276 failed
+$WBA: possibly delisted; no timezone found
+
+1 Failed download:
+['WBA']: possibly delisted; no timezone found
+$WCG: possibly delisted; no timezone found
+
+1 Failed download:
+['WCG']: possibly delisted; no timezone found
+$WCOEQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['WCOEQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+    [900/939] Delisted: 621 success, 279 failed
+$WFM: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['WFM']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$WFT: possibly delisted; no timezone found
+
+1 Failed download:
+['WFT']: possibly delisted; no timezone found
+$WIN: possibly delisted; no timezone found
+
+1 Failed download:
+['WIN']: possibly delisted; no timezone found
+$WLA: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['WLA']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$WLL: possibly delisted; no timezone found
+
+1 Failed download:
+['WLL']: possibly delisted; no timezone found
+$WLP: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['WLP']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$WLTW: possibly delisted; no timezone found
+
+1 Failed download:
+['WLTW']: possibly delisted; no timezone found
+    [910/939] Delisted: 624 success, 286 failed
+$WNDXQ: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['WNDXQ']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$WPX: possibly delisted; no timezone found
+
+1 Failed download:
+['WPX']: possibly delisted; no timezone found
+$WRK: possibly delisted; no timezone found
+
+1 Failed download:
+['WRK']: possibly delisted; no timezone found
+    [920/939] Delisted: 631 success, 289 failed
+$WWY: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['WWY']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$WYE: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['WYE']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$X: possibly delisted; no timezone found
+
+1 Failed download:
+['X']: possibly delisted; no timezone found
+$XEC: possibly delisted; no timezone found
+
+1 Failed download:
+['XEC']: possibly delisted; no timezone found
+$XLNX: possibly delisted; no timezone found
+
+1 Failed download:
+['XLNX']: possibly delisted; no timezone found
+    [930/939] Delisted: 636 success, 294 failed
+$XTO: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['XTO']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+$YNR: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+1 Failed download:
+['YNR']: possibly delisted; no price data found  (1d 2000-01-01 -> 2027-01-01)
+
+[Download] Complete:
+  Total downloaded: 756 symbols
+  Current stocks failed: 0
+  Delisted stocks failed: 296
+  Failed delisted: ['AAMRQ', 'ABC', 'ABKFQ', 'ABMD', 'ACAS', 'ACKH', 'ACS', 'ADS', 'AFS.A', 'AGC', 'ALXN', 'AMCC', 'ANDW', 'ANSS', 'ANTM', 'APCC', 'APOL', 'ARC', 'ARG', 'ASN']...
+
+  Coverage: 71.9% (756/1051)
+
+================================================================================
+STEP 4: DOWNLOAD SPY AND CASH YIELD DATA
+================================================================================
+[Cache] Loading SPY data...
+[Cache] Loading Moody's Aaa yield data...
+  9863 daily rates, avg 4.87%
+
+================================================================================
+STEP 5: RUN CORRECTED BACKTEST (Point-in-Time Universe)
+================================================================================
+
+Computing annual top-40 rotation (point-in-time universe)...
+Traceback (most recent call last):
+  File "C:\Users\caslu\Desktop\NuevoProyecto\exp40_survivorship_bias.py", line 741, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\caslu\Desktop\NuevoProyecto\exp40_survivorship_bias.py", line 712, in main
+    annual_universe_corrected = compute_annual_top40(expanded_data)
+  File "C:\Users\caslu\Desktop\NuevoProyecto\omnicapital_v8_compass.py", line 234, in compute_annual_top40
+    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+  File "C:\Users\caslu\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\core\generic.py", line 1580, in __nonzero__
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: The truth value of a Series is ambiguous. Use a.empty, a.bool(), a.item(), a.any() or a.all().

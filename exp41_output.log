@@ -1,0 +1,366 @@
+================================================================================
+EXPERIMENT 41: EXTENDED BACKTEST 1996-2026 (30 YEARS)
+================================================================================
+
+Objective: Extend COMPASS v8.2 validation window from 26 years to 30 years
+Method: Run bias-corrected backtest using historical point-in-time constituents
+Period: 1996-01-02 to 2027-01-01 (30 years)
+Added: 1996-2000 period (late tech bubble formation)
+Note: Constituents data available from 1996 onwards
+
+Known problematic tickers: 14
+  Bankruptcies: 6
+  Acquisitions: 6
+
+[Import] Importing COMPASS v8.2 functions...
+================================================================================
+OMNICAPITAL v8 COMPASS
+Cross-sectional Momentum, Position-Adjusted Risk Scaling
+================================================================================
+
+Broad pool: 113 stocks | Top-40 annual rotation
+Signal: Momentum 90d (skip 5d) + Inverse Vol sizing
+Regime: SPY SMA200 | Vol target: 15%
+Hold: 5d | Pos stop: -8% | Port stop: -15%
+Cash yield: Moody's Aaa IG Corporate (FRED, variable)
+
+  [OK] Successfully imported COMPASS functions
+
+================================================================================
+STEP 1: DOWNLOAD S&P 500 HISTORICAL CONSTITUENTS
+================================================================================
+[Cache] Loading S&P 500 constituents history...
+  Loaded 5814 constituent change events
+  Date range: 1996-01-02 00:00:00 to 2025-08-12 00:00:00
+
+================================================================================
+STEP 2: BUILD POINT-IN-TIME UNIVERSE
+================================================================================
+
+[Building] Point-in-time universe by year...
+  1996: 486 tickers
+  1997: 514 tickers
+  1998: 124 tickers
+  1999: 143 tickers
+  2000: 173 tickers
+  2001: 153 tickers
+  2002: 94 tickers
+  2003: 57 tickers
+  2004: 53 tickers
+  2005: 65 tickers
+  2006: 88 tickers
+  2007: 127 tickers
+  2008: 134 tickers
+  2009: 116 tickers
+  2010: 74 tickers
+  2011: 49 tickers
+  2012: 51 tickers
+  2013: 59 tickers
+  2014: 59 tickers
+  2015: 75 tickers
+  2016: 92 tickers
+  2017: 93 tickers
+  2018: 90 tickers
+  2019: 95 tickers
+  2020: 544 tickers
+  2021: 539 tickers
+  2022: 542 tickers
+  2023: 548 tickers
+  2024: 544 tickers
+  2025: 48 tickers
+  2026: 9 tickers
+  2027: 0 tickers
+
+================================================================================
+STEP 3: DOWNLOAD EXPANDED PRICE DATA
+================================================================================
+[Cache] Loading expanded pool data...
+  Loaded data for 756 symbols
+
+[Filter] Checking for anomalous price data...
+  Filtered: 727 stocks kept, 25 removed
+  Removed stocks (showing first 10):
+    BOL: Extreme gain: 706122%
+    CBE: Extreme gain: 3399900%
+    CFC: Extreme gain: 449900%
+    CIN: Extreme gain: 56643%
+    CNG: Extreme gain: 1069705%
+    COMS: Extreme gain: 3082%
+    EQ: Extreme gain: 731%
+    FSH: Extreme gain: 2105%
+    GDW: Extreme gain: 799020%
+    GLK: Extreme vol: 350%
+    ... and 15 more
+
+================================================================================
+STEP 4: DOWNLOAD SPY AND CASH YIELD DATA
+================================================================================
+[Cache] Loading SPY data...
+[Cache] Loading Moody's Aaa yield data...
+  9863 daily rates, avg 4.87%
+
+================================================================================
+STEP 5: RUN CORRECTED BACKTEST (Point-in-Time Universe)
+================================================================================
+
+Computing annual top-40 rotation (point-in-time universe)...
+  2000: Initial top-40 = 40 stocks
+  2001: Top-40 | +6 added, -6 removed
+  2002: Top-40 | +7 added, -7 removed
+  2003: Top-40 | +10 added, -10 removed
+  2004: Top-40 | +5 added, -5 removed
+  2005: Top-40 | +7 added, -7 removed
+  2006: Top-40 | +7 added, -7 removed
+  2007: Top-40 | +6 added, -6 removed
+  2008: Top-40 | +6 added, -6 removed
+  2009: Top-40 | +9 added, -9 removed
+  2010: Top-40 | +5 added, -5 removed
+  2011: Top-40 | +8 added, -8 removed
+  2012: Top-40 | +5 added, -5 removed
+  2013: Top-40 | +7 added, -7 removed
+  2014: Top-40 | +6 added, -6 removed
+  2015: Top-40 | +6 added, -6 removed
+  2016: Top-40 | +6 added, -6 removed
+  2017: Top-40 | +6 added, -6 removed
+  2018: Top-40 | +5 added, -5 removed
+  2019: Top-40 | +6 added, -6 removed
+  2020: Top-40 | +6 added, -6 removed
+  2021: Top-40 | +8 added, -8 removed
+  2022: Top-40 | +5 added, -5 removed
+  2023: Top-40 | +6 added, -6 removed
+  2024: Top-40 | +7 added, -7 removed
+  2025: Top-40 | +4 added, -4 removed
+  2026: Top-40 | +6 added, -6 removed
+
+[INFO] Running COMPASS v8.2 backtest with CORRECTED universe (includes delisted stocks)...
+
+================================================================================
+RUNNING COMPASS BACKTEST
+================================================================================
+
+Computing market regime (SPY vs SMA200)...
+Period: 2000-01-03 to 2026-02-27
+Trading days: 6578
+
+  [STOP LOSS] 2000-10-30: DD -17.5% | Value: $103,923
+  Year 1: $95,975 | DD: -23.8% | Lev: 0.30x | RISK_OFF [PROTECTION S1] | Pos: 2
+  [RECOVERY S1] 2002-01-07: Stage 2 | Value: $89,852
+  [RECOVERY S2] 2002-01-07: Full recovery | Value: $89,852
+  Year 2: $91,121 | DD: 0.0% | Lev: 0.98x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2002-02-21: DD -15.5% | Value: $77,024
+  Year 3: $81,593 | DD: -10.5% | Lev: 0.30x | RISK_OFF [PROTECTION S1] | Pos: 2
+  [RECOVERY S1] 2003-04-16: Stage 2 | Value: $83,823
+  [RECOVERY S2] 2003-04-16: Full recovery | Value: $83,823
+  Year 4: $118,695 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 5: $135,907 | DD: -5.0% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2005-01-11: DD -16.4% | Value: $119,594
+  [RECOVERY S1] 2005-04-13: Stage 2 | Value: $125,846
+  [RECOVERY S2] 2005-07-13: Full recovery | Value: $132,044
+  Year 6: $168,039 | DD: -0.5% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2006-05-23: DD -15.1% | Value: $147,585
+  [RECOVERY S1] 2006-08-22: Stage 2 | Value: $152,282
+  [RECOVERY S2] 2006-11-20: Full recovery | Value: $161,935
+  Year 7: $160,112 | DD: -2.3% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 8: $189,387 | DD: -10.2% | Lev: 1.00x | RISK_OFF | Pos: 2
+
+  [STOP LOSS] 2008-01-16: DD -15.5% | Value: $178,331
+  [RECOVERY S1] 2008-05-19: Stage 2 | Value: $186,306
+  Year 9: $151,559 | DD: -28.1% | Lev: 1.00x | RISK_OFF [PROTECTION S2] | Pos: 3
+  [RECOVERY S2] 2009-06-02: Full recovery | Value: $214,119
+
+  [STOP LOSS] 2009-07-07: DD -15.5% | Value: $186,277
+  [RECOVERY S1] 2009-10-05: Stage 2 | Value: $199,742
+  [RECOVERY S2] 2010-01-05: Full recovery | Value: $178,399
+  Year 10: $174,640 | DD: -2.1% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 11: $185,106 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 12: $191,579 | DD: -5.0% | Lev: 0.87x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2012-05-16: DD -15.4% | Value: $178,779
+  [RECOVERY S1] 2012-08-15: Stage 2 | Value: $184,089
+  [RECOVERY S2] 2012-11-15: Full recovery | Value: $172,766
+  Year 13: $204,762 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 14: $315,549 | DD: -1.8% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 15: $326,719 | DD: -7.9% | Lev: 0.86x | RISK_ON | Pos: 5
+  Year 16: $389,536 | DD: -7.0% | Lev: 1.00x | RISK_OFF | Pos: 2
+  Year 17: $487,996 | DD: -0.8% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 18: $648,732 | DD: -0.8% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 19: $857,953 | DD: -3.3% | Lev: 1.00x | RISK_OFF | Pos: 2
+  Year 20: $1,117,146 | DD: -1.2% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2020-03-09: DD -17.9% | Value: $1,077,120
+  [RECOVERY S1] 2020-06-08: Stage 2 | Value: $1,373,963
+  [RECOVERY S2] 2020-09-04: Full recovery | Value: $1,672,084
+  Year 21: $2,179,061 | DD: -0.0% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2022-01-03: DD -36.8% | Value: $1,851,322
+  Year 22: $1,778,223 | DD: -39.3% | Lev: 0.30x | RISK_ON [PROTECTION S1] | Pos: 2
+  [RECOVERY S1] 2022-04-04: Stage 2 | Value: $1,270,082
+  [RECOVERY S2] 2022-12-02: Full recovery | Value: $1,185,001
+  Year 23: $1,063,614 | DD: -10.2% | Lev: 0.90x | RISK_ON | Pos: 5
+  Year 24: $1,328,740 | DD: -9.8% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2024-08-02: DD -15.3% | Value: $1,643,449
+  [RECOVERY S1] 2024-10-31: Stage 2 | Value: $1,657,879
+  Year 25: $2,043,777 | DD: 5.3% | Lev: 1.00x | RISK_ON [PROTECTION S2] | Pos: 3
+  [RECOVERY S2] 2025-02-04: Full recovery | Value: $2,257,240
+
+  [STOP LOSS] 2025-02-25: DD -15.1% | Value: $2,029,734
+  [RECOVERY S1] 2025-05-27: Stage 2 | Value: $2,008,087
+  [RECOVERY S2] 2025-08-26: Full recovery | Value: $2,249,813
+  Year 26: $3,113,487 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 5
+
+================================================================================
+STEP 6: RUN ORIGINAL BACKTEST (Current BROAD_POOL)
+================================================================================
+
+[INFO] Running COMPASS v8.2 backtest with ORIGINAL universe (current BROAD_POOL only)...
+[Cache] Loading broad pool data...
+  2000: Initial top-40 = 40 stocks
+  2001: Top-40 | +2 added, -2 removed
+  2002: Top-40 | +4 added, -4 removed
+  2003: Top-40 | +8 added, -8 removed
+  2004: Top-40 | +3 added, -3 removed
+  2005: Top-40 | +5 added, -5 removed
+  2006: Top-40 | +5 added, -5 removed
+  2007: Top-40 | +3 added, -3 removed
+  2008: Top-40 | +4 added, -4 removed
+  2009: Top-40 | +8 added, -8 removed
+  2010: Top-40 | +2 added, -2 removed
+  2011: Top-40 | +4 added, -4 removed
+  2012: Top-40 | +3 added, -3 removed
+  2013: Top-40 | +6 added, -6 removed
+  2014: Top-40 | +5 added, -5 removed
+  2015: Top-40 | +1 added, -1 removed
+  2016: Top-40 | +3 added, -3 removed
+  2017: Top-40 | +5 added, -5 removed
+  2018: Top-40 | +6 added, -6 removed
+  2019: Top-40 | +6 added, -6 removed
+  2020: Top-40 | +4 added, -4 removed
+  2021: Top-40 | +6 added, -6 removed
+  2022: Top-40 | +4 added, -4 removed
+  2023: Top-40 | +5 added, -5 removed
+  2024: Top-40 | +5 added, -5 removed
+  2025: Top-40 | +4 added, -4 removed
+  2026: Top-40 | +4 added, -4 removed
+
+================================================================================
+RUNNING COMPASS BACKTEST
+================================================================================
+
+Computing market regime (SPY vs SMA200)...
+Period: 2000-01-03 to 2026-02-24
+Trading days: 6575
+
+  [STOP LOSS] 2000-09-14: DD -15.7% | Value: $99,378
+  Year 1: $113,062 | DD: -4.1% | Lev: 0.30x | RISK_OFF [PROTECTION S1] | Pos: 2
+  [RECOVERY S1] 2002-01-07: Stage 2 | Value: $125,521
+  [RECOVERY S2] 2002-01-07: Full recovery | Value: $125,521
+  Year 2: $126,149 | DD: 0.0% | Lev: 0.98x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2002-05-03: DD -15.8% | Value: $106,429
+  Year 3: $97,658 | DD: -22.8% | Lev: 0.30x | RISK_OFF [PROTECTION S1] | Pos: 2
+  [RECOVERY S1] 2003-04-16: Stage 2 | Value: $96,309
+  [RECOVERY S2] 2003-04-16: Full recovery | Value: $96,309
+  Year 4: $129,570 | DD: -0.2% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 5: $133,662 | DD: -2.1% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 6: $169,566 | DD: -0.9% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2006-07-13: DD -15.5% | Value: $152,127
+  [RECOVERY S1] 2006-10-11: Stage 2 | Value: $155,957
+  Year 7: $166,333 | DD: -7.6% | Lev: 1.00x | RISK_ON [PROTECTION S2] | Pos: 3
+  [RECOVERY S2] 2007-01-12: Full recovery | Value: $168,725
+  Year 8: $205,093 | DD: -7.5% | Lev: 1.00x | RISK_OFF | Pos: 2
+
+  [STOP LOSS] 2008-02-05: DD -15.4% | Value: $187,653
+  [RECOVERY S1] 2008-05-19: Stage 2 | Value: $195,323
+  Year 9: $199,857 | DD: -9.9% | Lev: 1.00x | RISK_OFF [PROTECTION S2] | Pos: 3
+  [RECOVERY S2] 2009-06-02: Full recovery | Value: $282,035
+  Year 10: $301,993 | DD: -4.9% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 11: $344,712 | DD: -0.8% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 12: $373,458 | DD: -1.8% | Lev: 0.87x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2012-05-14: DD -15.1% | Value: $344,688
+  [RECOVERY S1] 2012-08-13: Stage 2 | Value: $361,451
+  [RECOVERY S2] 2012-11-13: Full recovery | Value: $357,048
+  Year 13: $415,119 | DD: -0.1% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 14: $552,158 | DD: -2.0% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 15: $567,843 | DD: -6.0% | Lev: 0.86x | RISK_ON | Pos: 5
+  Year 16: $626,230 | DD: -6.9% | Lev: 1.00x | RISK_OFF | Pos: 2
+  Year 17: $810,836 | DD: -0.8% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 18: $945,732 | DD: -0.7% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 19: $1,101,126 | DD: -2.8% | Lev: 1.00x | RISK_OFF | Pos: 2
+  Year 20: $1,564,254 | DD: -0.9% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2020-03-09: DD -17.0% | Value: $1,543,031
+  [RECOVERY S1] 2020-06-08: Stage 2 | Value: $1,978,300
+  [RECOVERY S2] 2020-09-04: Full recovery | Value: $2,720,508
+  Year 21: $3,266,724 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 5
+  Year 22: $3,869,465 | DD: -8.9% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2022-01-27: DD -18.0% | Value: $3,485,661
+  [RECOVERY S1] 2022-12-02: Stage 2 | Value: $3,110,615
+  [RECOVERY S2] 2022-12-02: Full recovery | Value: $3,110,615
+  Year 23: $2,986,510 | DD: -4.0% | Lev: 0.90x | RISK_ON | Pos: 5
+  Year 24: $4,870,537 | DD: -1.2% | Lev: 1.00x | RISK_ON | Pos: 5
+
+  [STOP LOSS] 2024-08-05: DD -17.3% | Value: $5,513,593
+  [RECOVERY S1] 2024-11-01: Stage 2 | Value: $5,873,057
+  Year 25: $7,021,571 | DD: 5.4% | Lev: 1.00x | RISK_ON [PROTECTION S2] | Pos: 3
+  [RECOVERY S2] 2025-02-05: Full recovery | Value: $6,929,289
+
+  [STOP LOSS] 2025-03-06: DD -17.2% | Value: $5,739,839
+  [RECOVERY S1] 2025-06-05: Stage 2 | Value: $5,141,320
+  [RECOVERY S2] 2025-09-05: Full recovery | Value: $5,362,556
+  Year 26: $8,187,143 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 5
+
+================================================================================
+STEP 7: COMPARE RESULTS AND QUANTIFY SURVIVORSHIP BIAS
+================================================================================
+
+================================================================================
+SURVIVORSHIP BIAS ANALYSIS
+================================================================================
+
+--------------------------------------------------------------------------------
+COMPARISON: ORIGINAL vs CORRECTED (Point-in-Time)
+--------------------------------------------------------------------------------
+
+Metric                         Original             Corrected            Difference     
+--------------------------------------------------------------------------------
+Final Portfolio Value          $         8,313,069 $         2,990,414 $   -5,322,655
+Total Return                              8213.07%            2890.41%      -5322.65%
+CAGR                                        18.46%              13.90%         -4.56%
+Sharpe Ratio                                0.921              0.646        -0.275
+Max Drawdown                               -36.18%             -66.25%        -30.06%
+Number of Trades                            5,457              5,309          -148
+Years Simulated                             26.09              26.10          0.01
+--------------------------------------------------------------------------------
+
+================================================================================
+  SURVIVORSHIP BIAS QUANTIFIED: +4.56% CAGR
+================================================================================
+
+  The original backtest (using only current S&P 500 stocks) overestimated
+  performance by 4.56% CAGR due to survivorship bias.
+
+  Original CAGR: 18.46%
+  Bias-corrected CAGR: 13.90%
+
+[SAVED] Results saved to backtests/ directory:
+  - exp41_comparison.txt (detailed comparison)
+  - exp41_original_daily.csv (original equity curve)
+  - exp41_corrected_daily.csv (corrected equity curve)
+  - exp41_original_trades.csv (original trades)
+  - exp41_corrected_trades.csv (corrected trades)
+
+================================================================================
+EXPERIMENT 41 COMPLETE
+================================================================================
+
+Next steps:
+1. Review backtests/exp41_comparison.txt for detailed metrics
+2. Check backtests/exp41_survivorship_analysis.csv for delisted stock impact
+3. Review backtests/exp41_survivorship_daily.csv for equity curve

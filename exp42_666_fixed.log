@@ -1,0 +1,337 @@
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ABKFQ"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ACKH"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: AFS.A"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ANSS"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: AZA.A"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: BMGCA"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: CIT.A"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: CITGQ"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: DALRQ"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: DCNAQ"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: DPHIQ"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: FI"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: FLTWQ"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: FTL.A"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: GFS.A"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: GIDL"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: HBI"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: HES"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: INCLF"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: IPG"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: K"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: LDW.B"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ODP"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: PARA"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: RVTY (PREVIOUSLY PKI)"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: SGID"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: SHN"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: TMC.A"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: UAWGQ"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: UMG"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: USHC"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: VSTNQ"}}}
+HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: WBA"}}}
+================================================================================
+EXPERIMENT 42: COMPASS v8.3 '666 FRAMEWORK' BACKTEST
+================================================================================
+
+Implementing mathematics PhD forum Tier 1 recommendations:
+  1. Lookback period: 90d -> 666 trading days (~2.6 years)
+  2. Stock selection: 40 -> 66 stocks
+  3. Sector constraint: Maximum 11 stocks per GICS sector
+  4. Rebalancing: 5-day hold -> 6.66% drift threshold
+
+Baseline (Exp41 v8.2): 11.31% CAGR, Sharpe 0.528, -63.41% max DD
+Period: 1996-01-02 to 2026 (30 years)
+
+================================================================================
+EXPERIMENT 41: EXTENDED BACKTEST 1996-2026 (30 YEARS)
+================================================================================
+
+Objective: Extend COMPASS v8.2 validation window from 26 years to 30 years
+Method: Run bias-corrected backtest using historical point-in-time constituents
+Period: 1996-01-02 to 2027-01-01 (30 years)
+Added: 1996-2000 period (late tech bubble formation)
+Note: Constituents data available from 1996 onwards
+
+Known problematic tickers: 14
+  Bankruptcies: 6
+  Acquisitions: 6
+
+[Import] Importing COMPASS v8.2 functions...
+================================================================================
+OMNICAPITAL v8 COMPASS
+Cross-sectional Momentum, Position-Adjusted Risk Scaling
+================================================================================
+
+Broad pool: 113 stocks | Top-40 annual rotation
+Signal: Momentum 90d (skip 5d) + Inverse Vol sizing
+Regime: SPY SMA200 | Vol target: 15%
+Hold: 5d | Pos stop: -8% | Port stop: -15%
+Cash yield: Moody's Aaa IG Corporate (FRED, variable)
+
+  [OK] Successfully imported COMPASS functions
+
+================================================================================
+STEP 1: LOAD HISTORICAL DATA (FROM EXP41 CACHE)
+================================================================================
+[Cache] Loading S&P 500 constituents history...
+  Loaded 5814 constituent change events
+  Date range: 1996-01-02 00:00:00 to 2025-08-12 00:00:00
+
+[Building] Point-in-time universe by year...
+  1996: 486 tickers
+  1997: 514 tickers
+  1998: 124 tickers
+  1999: 143 tickers
+  2000: 173 tickers
+  2001: 153 tickers
+  2002: 94 tickers
+  2003: 57 tickers
+  2004: 53 tickers
+  2005: 65 tickers
+  2006: 88 tickers
+  2007: 127 tickers
+  2008: 134 tickers
+  2009: 116 tickers
+  2010: 74 tickers
+  2011: 49 tickers
+  2012: 51 tickers
+  2013: 59 tickers
+  2014: 59 tickers
+  2015: 75 tickers
+  2016: 92 tickers
+  2017: 93 tickers
+  2018: 90 tickers
+  2019: 95 tickers
+  2020: 544 tickers
+  2021: 539 tickers
+  2022: 542 tickers
+  2023: 548 tickers
+  2024: 544 tickers
+  2025: 48 tickers
+  2026: 9 tickers
+  2027: 0 tickers
+[Cache] Loading expanded pool data...
+  Loaded data for 797 symbols
+
+[Filter] Checking for anomalous price data...
+  Filtered: 744 stocks kept, 50 removed
+  Removed stocks (showing first 10):
+    BAY: Extreme gain: 45971%
+    BOL: Extreme gain: 706122%
+    CAR: Extreme gain: 108%
+    CBE: Extreme gain: 3399900%
+    CFC: Extreme gain: 449900%
+    CIN: Extreme gain: 56643%
+    CNG: Extreme gain: 1069705%
+    COMS: Extreme gain: 3082%
+    CSR: Extreme gain: 120%
+    DEC: Extreme gain: inf%
+    ... and 40 more
+[Cache] Loading SPY data...
+[Cache] Loading Moody's Aaa yield data...
+  9863 daily rates, avg 4.87%
+
+================================================================================
+STEP 2: DOWNLOAD GICS SECTOR DATA
+================================================================================
+[Download] Downloading GICS sector classifications...
+  Trying Wikipedia S&P 500 list...
+  [FAIL] Wikipedia failed: HTTP Error 403: Forbidden
+  Filling gaps with yfinance...
+[Cache] Loading S&P 500 constituents history...
+  Loaded 5814 constituent change events
+  Date range: 1996-01-02 00:00:00 to 2025-08-12 00:00:00
+    Filled 20 sectors via yfinance...
+    Filled 40 sectors via yfinance...
+    Filled 60 sectors via yfinance...
+    Filled 80 sectors via yfinance...
+    Filled 100 sectors via yfinance...
+    Filled 120 sectors via yfinance...
+    Filled 140 sectors via yfinance...
+    Filled 160 sectors via yfinance...
+    Filled 180 sectors via yfinance...
+    Filled 200 sectors via yfinance...
+    Filled 220 sectors via yfinance...
+    Filled 240 sectors via yfinance...
+    Filled 260 sectors via yfinance...
+    Filled 280 sectors via yfinance...
+    Filled 300 sectors via yfinance...
+    Filled 320 sectors via yfinance...
+    Filled 340 sectors via yfinance...
+    Filled 360 sectors via yfinance...
+    Filled 380 sectors via yfinance...
+    Filled 400 sectors via yfinance...
+    Filled 420 sectors via yfinance...
+    Filled 440 sectors via yfinance...
+    Filled 460 sectors via yfinance...
+    Filled 480 sectors via yfinance...
+    Filled 500 sectors via yfinance...
+    Filled 520 sectors via yfinance...
+    Filled 540 sectors via yfinance...
+    Filled 560 sectors via yfinance...
+    Filled 580 sectors via yfinance...
+    Filled 600 sectors via yfinance...
+    Filled 620 sectors via yfinance...
+    Filled 640 sectors via yfinance...
+    Filled 660 sectors via yfinance...
+    Filled 680 sectors via yfinance...
+  [OK] Filled 689 additional sectors via yfinance
+
+[Download] Total sectors mapped: 694 tickers
+
+  Sector distribution:
+    Industrials: 109
+    Financial Services: 98
+    Technology: 97
+    Consumer Cyclical: 91
+    Healthcare: 79
+    Consumer Defensive: 43
+    Real Estate: 43
+    Energy: 42
+    Communication Services: 32
+    Utilities: 31
+    Basic Materials: 26
+    Financials: 3
+
+================================================================================
+STEP 3: COMPUTE ANNUAL TOP-66 UNIVERSE
+================================================================================
+
+Computing annual top-66 rotation (by dollar volume)...
+  1996: Initial top-40 = 40 stocks
+  1997: Top-40 | +4 added, -4 removed
+  1998: Top-40 | +7 added, -7 removed
+  1999: Top-40 | +7 added, -7 removed
+  2000: Top-40 | +9 added, -9 removed
+  2001: Top-40 | +9 added, -9 removed
+  2002: Top-40 | +6 added, -6 removed
+  2003: Top-40 | +10 added, -10 removed
+  2004: Top-40 | +4 added, -4 removed
+  2005: Top-40 | +8 added, -8 removed
+  2006: Top-40 | +7 added, -7 removed
+  2007: Top-40 | +6 added, -6 removed
+  2008: Top-40 | +6 added, -6 removed
+  2009: Top-40 | +9 added, -9 removed
+  2010: Top-40 | +5 added, -5 removed
+  2011: Top-40 | +8 added, -8 removed
+  2012: Top-40 | +4 added, -4 removed
+  2013: Top-40 | +6 added, -6 removed
+  2014: Top-40 | +6 added, -6 removed
+  2015: Top-40 | +6 added, -6 removed
+  2016: Top-40 | +5 added, -5 removed
+  2017: Top-40 | +6 added, -6 removed
+  2018: Top-40 | +5 added, -5 removed
+  2019: Top-40 | +6 added, -6 removed
+  2020: Top-40 | +7 added, -7 removed
+  2021: Top-40 | +7 added, -7 removed
+  2022: Top-40 | +3 added, -3 removed
+  2023: Top-40 | +5 added, -5 removed
+  2024: Top-40 | +8 added, -8 removed
+  2025: Top-40 | +5 added, -5 removed
+  2026: Top-40 | +5 added, -5 removed
+
+================================================================================
+STEP 4: RUN COMPASS v8.3 '666 FRAMEWORK' BACKTEST
+================================================================================
+
+================================================================================
+RUNNING COMPASS v8.3 '666 FRAMEWORK' BACKTEST
+================================================================================
+
+Computing market regime (SPY vs SMA200)...
+Period: 1996-01-02 to 2026-02-27
+Trading days: 7589
+Universe: Top-66 stocks, max 11 per sector
+Rebalancing: 6.66% drift threshold
+  [1996-12-27] Year 1.0 | Value: $103,547 | Positions: 0 | DD: 0.0%
+  [1997-12-26] Year 2.0 | Value: $107,235 | Positions: 0 | DD: 0.0%
+  [1998-12-28] Year 3.0 | Value: $111,055 | Positions: 0 | DD: 0.0%
+  [1999-12-28] Year 4.0 | Value: $119,094 | Positions: 0 | DD: 0.0%
+  [2000-12-26] Year 5.0 | Value: $128,535 | Positions: 0 | DD: 0.0%
+  [2002-01-02] Year 6.0 | Value: $137,967 | Positions: 0 | DD: 0.0%
+  [2003-01-02] Year 7.0 | Value: $147,220 | Positions: 0 | DD: 0.0%
+  [2004-01-02] Year 8.0 | Value: $155,798 | Positions: 0 | DD: 0.0%
+  [2005-01-03] Year 9.0 | Value: $164,812 | Positions: 0 | DD: 0.0%
+  [2006-01-03] Year 10.0 | Value: $173,667 | Positions: 0 | DD: 0.0%
+  [2007-01-04] Year 11.0 | Value: $183,652 | Positions: 0 | DD: 0.0%
+  [2008-01-04] Year 12.0 | Value: $194,145 | Positions: 0 | DD: 0.0%
+  [2009-01-05] Year 13.0 | Value: $205,391 | Positions: 0 | DD: 0.0%
+  [2010-01-05] Year 14.0 | Value: $216,605 | Positions: 0 | DD: 0.0%
+  [2011-01-04] Year 15.0 | Value: $227,567 | Positions: 0 | DD: 0.0%
+  [2012-01-04] Year 16.0 | Value: $238,346 | Positions: 0 | DD: 0.0%
+  [2013-01-07] Year 17.0 | Value: $247,263 | Positions: 0 | DD: 0.0%
+  [2014-01-07] Year 18.0 | Value: $257,983 | Positions: 0 | DD: 0.0%
+  [2015-01-07] Year 19.0 | Value: $268,904 | Positions: 0 | DD: 0.0%
+  [2016-01-07] Year 20.0 | Value: $279,592 | Positions: 0 | DD: 0.0%
+  [2017-01-06] Year 21.0 | Value: $290,013 | Positions: 0 | DD: 0.0%
+  [2018-01-08] Year 22.0 | Value: $301,056 | Positions: 0 | DD: 0.0%
+  [2019-01-09] Year 23.0 | Value: $313,145 | Positions: 0 | DD: 0.0%
+  [2020-01-09] Year 24.0 | Value: $323,855 | Positions: 0 | DD: 0.0%
+  [2021-01-08] Year 25.0 | Value: $331,936 | Positions: 0 | DD: 0.0%
+  [2022-01-07] Year 26.0 | Value: $341,068 | Positions: 0 | DD: 0.0%
+  [2023-01-10] Year 27.0 | Value: $355,362 | Positions: 0 | DD: 0.0%
+  [2024-01-11] Year 28.0 | Value: $372,938 | Positions: 0 | DD: 0.0%
+  [2025-01-14] Year 29.0 | Value: $392,299 | Positions: 0 | DD: 0.0%
+  [2026-01-15] Year 30.0 | Value: $413,574 | Positions: 0 | DD: 0.0%
+  [2026-02-27] Year 30.1 | Value: $415,243 | Positions: 0 | DD: 0.0%
+
+================================================================================
+BACKTEST COMPLETE
+================================================================================
+
+Final Value: $415,243
+Total Return: 315.24%
+CAGR: 4.84%
+Years: 30.12
+Total Trades: 0
+Total Commissions: $0.00
+Rebalance Events: 1686
+Stop Loss Events: 0
+Risk-On Days: 5903 (77.8%)
+Risk-Off Days: 1686 (22.2%)
+
+================================================================================
+STEP 5: SAVE RESULTS
+================================================================================
+  Saved: backtests/exp42_compass_666_daily.csv
+  Saved: backtests/exp42_compass_666_trades.csv
+  Saved: backtests/exp42_compass_666_rebalances.csv
+
+================================================================================
+STEP 6: COMPARE vs BASELINE (EXP41)
+================================================================================
+
+================================================================================
+PERFORMANCE COMPARISON: v8.2 (Baseline) vs v8.3 (666 Framework)
+================================================================================
+
+Metric                         v8.2 (Exp41)         v8.3 (666)           Improvement    
+-------------------------------------------------------------------------------------
+Final Value                    $         2,522,162 $           415,243 $   -2,106,919
+CAGR                                        11.31%               4.84%         -6.47%
+Sharpe Ratio                                0.528             57.739        57.211
+Max Drawdown                               -60.09%               0.00%         60.09%
+Total Trades                                6,480                  0        -6,480
+Commissions Paid               $               N/A $                 0           N/A
+-------------------------------------------------------------------------------------
+
+=====================================================================================
+  REGRESSION: -6.47% CAGR
+  The '666 Framework' underperformed v8.2 baseline by 6.47% per year
+=====================================================================================
+Traceback (most recent call last):
+  File "C:\Users\caslu\Desktop\NuevoProyecto\exp42_compass_666.py", line 1128, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\caslu\Desktop\NuevoProyecto\exp42_compass_666.py", line 1114, in main
+    compare_v82_v83(results_v83)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\caslu\Desktop\NuevoProyecto\exp42_compass_666.py", line 1004, in compare_v82_v83
+    f.write("  1. Lookback period: 180 days \u2192 666 trading days (~2.6 years)\n")
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\caslu\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 31: character maps to <undefined>

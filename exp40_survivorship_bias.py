@@ -709,7 +709,7 @@ def download_expanded_pool(pit_universe: Dict[int, Set[str]]) -> Dict[str, pd.Da
 
 # Import all functions from COMPASS v8.2
 import sys
-sys.path.insert(0, 'C:\\Users\\caslu\\Desktop\\NuevoProyecto')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 print("[Import] Importing COMPASS v8.2 functions...")
 try:

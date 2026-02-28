@@ -1,0 +1,1898 @@
+{
+  "generated_at": "2026-02-26T09:52:31.038272",
+  "total_tickers": 117,
+  "avg_quality_score": 94.9,
+  "tickers": {
+    "AAPL": {
+      "file_size_kb": 341.0,
+      "last_modified": "2026-02-25T16:24:54.184937",
+      "quality_score": 94.9,
+      "issues": [
+        "1 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "ABBV": {
+      "file_size_kb": 169.4,
+      "last_modified": "2026-02-25T16:24:54.891467",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 3306,
+      "date_range": [
+        "2013-01-02",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 13.1,
+      "completeness": 0.998
+    },
+    "ABT": {
+      "file_size_kb": 336.2,
+      "last_modified": "2026-02-25T16:24:55.867509",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "ACN": {
+      "file_size_kb": 311.9,
+      "last_modified": "2026-02-25T16:24:56.646413",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6186,
+      "date_range": [
+        "2001-07-19",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 24.6,
+      "completeness": 0.998
+    },
+    "ADBE": {
+      "file_size_kb": 286.1,
+      "last_modified": "2026-02-25T16:24:57.486978",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "AEP": {
+      "file_size_kb": 332.7,
+      "last_modified": "2026-02-25T16:24:58.418296",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "AIG": {
+      "file_size_kb": 335.2,
+      "last_modified": "2026-02-25T16:24:59.319102",
+      "quality_score": 94.9,
+      "issues": [
+        "3 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "AMAT": {
+      "file_size_kb": 335.9,
+      "last_modified": "2026-02-25T16:25:00.503455",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "AMD": {
+      "file_size_kb": 229.4,
+      "last_modified": "2026-02-25T16:25:01.284055",
+      "quality_score": 94.9,
+      "issues": [
+        "1 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "AMGN": {
+      "file_size_kb": 331.1,
+      "last_modified": "2026-02-25T16:25:02.085286",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "AMZN": {
+      "file_size_kb": 287.1,
+      "last_modified": "2026-02-25T16:25:02.983025",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "AVGO": {
+      "file_size_kb": 215.2,
+      "last_modified": "2026-02-25T16:25:04.400580",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 4163,
+      "date_range": [
+        "2009-08-06",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 16.6,
+      "completeness": 0.998
+    },
+    "AXP": {
+      "file_size_kb": 336.3,
+      "last_modified": "2026-02-25T16:25:05.267357",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "BA": {
+      "file_size_kb": 330.2,
+      "last_modified": "2026-02-25T16:25:06.183012",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "BAC": {
+      "file_size_kb": 338.4,
+      "last_modified": "2026-02-25T16:25:07.351121",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "BIIB": {
+      "file_size_kb": 266.7,
+      "last_modified": "2026-02-25T16:25:08.127500",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "BLK": {
+      "file_size_kb": 325.2,
+      "last_modified": "2026-02-25T16:25:09.049898",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "BMY": {
+      "file_size_kb": 335.6,
+      "last_modified": "2026-02-25T16:25:09.961626",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "BRK-B": {
+      "file_size_kb": 247.2,
+      "last_modified": "2026-02-25T16:25:10.793794",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "C": {
+      "file_size_kb": 335.3,
+      "last_modified": "2026-02-25T16:25:11.683189",
+      "quality_score": 94.9,
+      "issues": [
+        "1 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "CAT": {
+      "file_size_kb": 336.3,
+      "last_modified": "2026-02-25T16:25:12.681079",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "CB": {
+      "file_size_kb": 331.5,
+      "last_modified": "2026-02-25T16:25:13.515446",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "CDNS": {
+      "file_size_kb": 230.1,
+      "last_modified": "2026-02-25T16:25:14.366019",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "CL": {
+      "file_size_kb": 332.9,
+      "last_modified": "2026-02-25T16:25:15.237304",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "CMCSA": {
+      "file_size_kb": 334.2,
+      "last_modified": "2026-02-25T16:25:16.238652",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "COF": {
+      "file_size_kb": 335.4,
+      "last_modified": "2026-02-25T16:25:17.099279",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "COP": {
+      "file_size_kb": 337.1,
+      "last_modified": "2026-02-25T16:25:18.042887",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "COST": {
+      "file_size_kb": 332.9,
+      "last_modified": "2026-02-25T16:25:18.893339",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "CRM": {
+      "file_size_kb": 278.7,
+      "last_modified": "2026-02-25T16:25:19.692937",
+      "quality_score": 95.0,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 5453,
+      "date_range": [
+        "2004-06-23",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 21.7,
+      "completeness": 0.998
+    },
+    "CSCO": {
+      "file_size_kb": 331.4,
+      "last_modified": "2026-02-25T16:25:20.525131",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "CVX": {
+      "file_size_kb": 336.2,
+      "last_modified": "2026-02-25T16:25:21.498111",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "D": {
+      "file_size_kb": 332.8,
+      "last_modified": "2026-02-25T16:25:22.365789",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "DE": {
+      "file_size_kb": 334.7,
+      "last_modified": "2026-02-25T16:25:23.296824",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "DHR": {
+      "file_size_kb": 335.4,
+      "last_modified": "2026-02-25T16:25:24.283815",
+      "quality_score": 94.9,
+      "issues": [
+        "1 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "DIS": {
+      "file_size_kb": 334.8,
+      "last_modified": "2026-02-25T16:25:25.283622",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "DUK": {
+      "file_size_kb": 333.0,
+      "last_modified": "2026-02-25T16:25:26.167321",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "EL": {
+      "file_size_kb": 331.9,
+      "last_modified": "2026-02-25T16:25:27.060833",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "EMR": {
+      "file_size_kb": 333.5,
+      "last_modified": "2026-02-25T16:25:28.002280",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "EOG": {
+      "file_size_kb": 335.2,
+      "last_modified": "2026-02-25T16:25:28.873127",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "FDX": {
+      "file_size_kb": 333.2,
+      "last_modified": "2026-02-25T16:25:29.723006",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "GD": {
+      "file_size_kb": 332.3,
+      "last_modified": "2026-02-25T16:25:30.615665",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "GE": {
+      "file_size_kb": 335.0,
+      "last_modified": "2026-02-25T16:25:31.648421",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "GILD": {
+      "file_size_kb": 335.1,
+      "last_modified": "2026-02-25T16:25:32.498770",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "GIS": {
+      "file_size_kb": 332.7,
+      "last_modified": "2026-02-25T16:25:33.356741",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "GOOGL": {
+      "file_size_kb": 281.5,
+      "last_modified": "2026-02-25T16:25:34.241527",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 5413,
+      "date_range": [
+        "2004-08-19",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 21.5,
+      "completeness": 0.998
+    },
+    "GS": {
+      "file_size_kb": 336.4,
+      "last_modified": "2026-02-25T16:25:35.459997",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "HD": {
+      "file_size_kb": 336.5,
+      "last_modified": "2026-02-25T16:25:36.312704",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "HON": {
+      "file_size_kb": 335.5,
+      "last_modified": "2026-02-25T16:25:37.348815",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "IBM": {
+      "file_size_kb": 336.6,
+      "last_modified": "2026-02-25T16:25:38.433213",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "INTC": {
+      "file_size_kb": 338.0,
+      "last_modified": "2026-02-25T16:25:39.609707",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "INTU": {
+      "file_size_kb": 329.9,
+      "last_modified": "2026-02-25T16:25:40.440853",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "ISRG": {
+      "file_size_kb": 270.4,
+      "last_modified": "2026-02-25T16:25:41.305818",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6460,
+      "date_range": [
+        "2000-06-16",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 25.7,
+      "completeness": 0.998
+    },
+    "JNJ": {
+      "file_size_kb": 335.8,
+      "last_modified": "2026-02-25T16:25:42.254542",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "JPM": {
+      "file_size_kb": 338.0,
+      "last_modified": "2026-02-25T16:25:43.107035",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "KLAC": {
+      "file_size_kb": 334.5,
+      "last_modified": "2026-02-25T16:25:44.100866",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "KMB": {
+      "file_size_kb": 333.4,
+      "last_modified": "2026-02-25T16:25:44.999545",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "KO": {
+      "file_size_kb": 335.5,
+      "last_modified": "2026-02-25T16:25:45.884030",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "LLY": {
+      "file_size_kb": 334.8,
+      "last_modified": "2026-02-25T16:25:46.617849",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "LMT": {
+      "file_size_kb": 332.5,
+      "last_modified": "2026-02-25T16:25:47.351044",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "LOW": {
+      "file_size_kb": 336.1,
+      "last_modified": "2026-02-25T16:25:48.187983",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "LRCX": {
+      "file_size_kb": 332.5,
+      "last_modified": "2026-02-25T16:25:48.814373",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "MA": {
+      "file_size_kb": 256.0,
+      "last_modified": "2026-02-25T16:25:49.415664",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 4968,
+      "date_range": [
+        "2006-05-25",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 19.8,
+      "completeness": 0.998
+    },
+    "MCD": {
+      "file_size_kb": 333.5,
+      "last_modified": "2026-02-25T16:25:50.044013",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "MDT": {
+      "file_size_kb": 334.6,
+      "last_modified": "2026-02-25T16:25:50.720899",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "META": {
+      "file_size_kb": 178.4,
+      "last_modified": "2026-02-25T16:25:51.206805",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 3461,
+      "date_range": [
+        "2012-05-18",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 13.8,
+      "completeness": 0.997
+    },
+    "MMC": {
+      "file_size_kb": 334.9,
+      "last_modified": "2026-02-25T16:25:52.006216",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "MMM": {
+      "file_size_kb": 334.9,
+      "last_modified": "2026-02-25T16:25:52.838422",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "MO": {
+      "file_size_kb": 335.3,
+      "last_modified": "2026-02-25T16:25:53.634906",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "MPC": {
+      "file_size_kb": 188.3,
+      "last_modified": "2026-02-25T16:25:54.387743",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 3688,
+      "date_range": [
+        "2011-06-24",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 14.7,
+      "completeness": 0.997
+    },
+    "MRK": {
+      "file_size_kb": 337.0,
+      "last_modified": "2026-02-25T16:25:55.109503",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "MRVL": {
+      "file_size_kb": 325.9,
+      "last_modified": "2026-02-25T16:25:55.749712",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6450,
+      "date_range": [
+        "2000-06-30",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 25.7,
+      "completeness": 0.998
+    },
+    "MS": {
+      "file_size_kb": 337.1,
+      "last_modified": "2026-02-25T16:25:57.115518",
+      "quality_score": 94.9,
+      "issues": [
+        "1 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "MSFT": {
+      "file_size_kb": 338.8,
+      "last_modified": "2026-02-25T16:25:57.765245",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "MU": {
+      "file_size_kb": 325.6,
+      "last_modified": "2026-02-25T16:25:58.399010",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "NEE": {
+      "file_size_kb": 334.0,
+      "last_modified": "2026-02-25T16:25:59.249559",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "NFLX": {
+      "file_size_kb": 262.4,
+      "last_modified": "2026-02-25T16:25:59.848604",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 5977,
+      "date_range": [
+        "2002-05-23",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 23.8,
+      "completeness": 0.998
+    },
+    "NKE": {
+      "file_size_kb": 336.3,
+      "last_modified": "2026-02-25T16:26:00.542135",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "NOC": {
+      "file_size_kb": 333.8,
+      "last_modified": "2026-02-25T16:26:01.312254",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "NOW": {
+      "file_size_kb": 149.7,
+      "last_modified": "2026-02-25T16:26:01.792907",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 3432,
+      "date_range": [
+        "2012-06-29",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 13.7,
+      "completeness": 0.997
+    },
+    "NVDA": {
+      "file_size_kb": 338.1,
+      "last_modified": "2026-02-25T16:26:02.463796",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "ORCL": {
+      "file_size_kb": 332.5,
+      "last_modified": "2026-02-25T16:26:03.105361",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "OXY": {
+      "file_size_kb": 336.5,
+      "last_modified": "2026-02-25T16:26:03.872191",
+      "quality_score": 94.9,
+      "issues": [
+        "1 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "PANW": {
+      "file_size_kb": 148.8,
+      "last_modified": "2026-02-25T16:26:04.446791",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 3418,
+      "date_range": [
+        "2012-07-20",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 13.6,
+      "completeness": 0.997
+    },
+    "PEP": {
+      "file_size_kb": 334.2,
+      "last_modified": "2026-02-25T16:26:05.148823",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "PFE": {
+      "file_size_kb": 337.0,
+      "last_modified": "2026-02-25T16:26:05.813389",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "PG": {
+      "file_size_kb": 335.3,
+      "last_modified": "2026-02-25T16:26:06.585271",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "PM": {
+      "file_size_kb": 232.0,
+      "last_modified": "2026-02-25T16:26:07.105179",
+      "quality_score": 95.0,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 4514,
+      "date_range": [
+        "2008-03-17",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 17.9,
+      "completeness": 0.998
+    },
+    "PNC": {
+      "file_size_kb": 333.9,
+      "last_modified": "2026-02-25T16:26:07.791286",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "PSX": {
+      "file_size_kb": 177.4,
+      "last_modified": "2026-02-25T16:26:08.309181",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 3487,
+      "date_range": [
+        "2012-04-12",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 13.9,
+      "completeness": 0.998
+    },
+    "QCOM": {
+      "file_size_kb": 338.0,
+      "last_modified": "2026-02-25T16:26:08.960225",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "REGN": {
+      "file_size_kb": 323.5,
+      "last_modified": "2026-02-25T16:26:09.557133",
+      "quality_score": 94.9,
+      "issues": [
+        "2 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "RTX": {
+      "file_size_kb": 336.3,
+      "last_modified": "2026-02-25T16:26:10.245322",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "SBUX": {
+      "file_size_kb": 334.3,
+      "last_modified": "2026-02-25T16:26:10.855054",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "SCHW": {
+      "file_size_kb": 335.3,
+      "last_modified": "2026-02-25T16:26:11.519497",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "SLB": {
+      "file_size_kb": 337.2,
+      "last_modified": "2026-02-25T16:26:12.265676",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "SNPS": {
+      "file_size_kb": 247.4,
+      "last_modified": "2026-02-25T16:26:12.897295",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "SO": {
+      "file_size_kb": 332.4,
+      "last_modified": "2026-02-25T16:26:13.592452",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "SPY": {
+      "file_size_kb": 341.5,
+      "last_modified": "2026-02-25T16:26:14.403816",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "SYK": {
+      "file_size_kb": 330.7,
+      "last_modified": "2026-02-25T16:26:15.083051",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "T": {
+      "file_size_kb": 336.9,
+      "last_modified": "2026-02-25T16:26:16.175241",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "TFC": {
+      "file_size_kb": 333.8,
+      "last_modified": "2026-02-25T16:26:17.043494",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "TGT": {
+      "file_size_kb": 335.6,
+      "last_modified": "2026-02-25T16:26:17.930038",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "TMO": {
+      "file_size_kb": 329.4,
+      "last_modified": "2026-02-25T16:26:18.791729",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "TMUS": {
+      "file_size_kb": 238.6,
+      "last_modified": "2026-02-25T16:26:19.513205",
+      "quality_score": 95.0,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 4743,
+      "date_range": [
+        "2007-04-19",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 18.9,
+      "completeness": 0.998
+    },
+    "TSLA": {
+      "file_size_kb": 173.0,
+      "last_modified": "2026-02-25T16:26:20.205511",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 3938,
+      "date_range": [
+        "2010-06-29",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 15.7,
+      "completeness": 0.998
+    },
+    "TXN": {
+      "file_size_kb": 336.3,
+      "last_modified": "2026-02-25T16:26:21.181325",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "UNH": {
+      "file_size_kb": 336.1,
+      "last_modified": "2026-02-25T16:26:21.987485",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "UNP": {
+      "file_size_kb": 335.0,
+      "last_modified": "2026-02-25T16:26:22.821377",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "UPS": {
+      "file_size_kb": 333.6,
+      "last_modified": "2026-02-25T16:26:23.665181",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "USB": {
+      "file_size_kb": 334.7,
+      "last_modified": "2026-02-25T16:26:24.658466",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "V": {
+      "file_size_kb": 233.4,
+      "last_modified": "2026-02-25T16:26:25.492263",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 4512,
+      "date_range": [
+        "2008-03-19",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 17.9,
+      "completeness": 0.998
+    },
+    "VLO": {
+      "file_size_kb": 337.0,
+      "last_modified": "2026-02-25T16:26:26.337913",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "VRTX": {
+      "file_size_kb": 262.1,
+      "last_modified": "2026-02-25T16:26:27.007306",
+      "quality_score": 94.9,
+      "issues": [
+        "2 daily price changes > 50%"
+      ],
+      "checks_passed": 6,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "VZ": {
+      "file_size_kb": 336.2,
+      "last_modified": "2026-02-25T16:26:28.269556",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "WFC": {
+      "file_size_kb": 337.2,
+      "last_modified": "2026-02-25T16:26:29.113214",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "WMT": {
+      "file_size_kb": 338.2,
+      "last_modified": "2026-02-25T16:26:30.001125",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    },
+    "XOM": {
+      "file_size_kb": 337.4,
+      "last_modified": "2026-02-25T16:26:30.946848",
+      "quality_score": 94.9,
+      "issues": [],
+      "checks_passed": 7,
+      "total_checks": 7,
+      "row_count": 6575,
+      "date_range": [
+        "2000-01-03",
+        "2026-02-24"
+      ],
+      "freshness_days": 2,
+      "years_covered": 26.1,
+      "completeness": 0.998
+    }
+  },
+  "alerts": []
+}

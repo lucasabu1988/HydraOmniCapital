@@ -218,7 +218,7 @@ class YFinanceProvider(DataProvider):
     def calculate_returns(
         self,
         price_data: pd.DataFrame,
-        periods: List[int] = [1, 5, 20, 60, 252]
+        periods: Optional[List[int]] = None
     ) -> Dict[str, pd.DataFrame]:
         """
         Calcula retornos para diferentes períodos
@@ -230,8 +230,10 @@ class YFinanceProvider(DataProvider):
         Returns:
             Diccionario de DataFrames de retornos
         """
+        if periods is None:
+            periods = [1, 5, 20, 60, 252]
         returns = {}
-        
+
         for period in periods:
             if period == 1:
                 returns[f'daily'] = price_data.pct_change().dropna()

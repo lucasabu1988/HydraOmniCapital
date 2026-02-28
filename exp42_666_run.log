@@ -1,0 +1,13 @@
+================================================================================
+EXPERIMENT 42: COMPASS v8.3 '666 FRAMEWORK' BACKTEST
+================================================================================
+
+Implementing mathematics PhD forum Tier 1 recommendations:
+Traceback (most recent call last):
+  File "C:\Users\caslu\Desktop\NuevoProyecto\exp42_compass_666.py", line 109, in <module>
+    print(f"  1. Lookback period: 90d \u2192 {MOMENTUM_LOOKBACK} trading days (~{MOMENTUM_LOOKBACK/252:.1f} years)")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\caslu\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 26: character maps to <undefined>

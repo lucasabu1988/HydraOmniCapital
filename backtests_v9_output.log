@@ -1,0 +1,157 @@
+================================================================================
+COMPASS v9.0 "GENIUS LAYER" BACKTEST
+Experimental — v8.2 remains production (ALGORITHM LOCKED)
+================================================================================
+
+Layers: MLP Filter + Graph Momentum + HMM Regime + Sector Opt + Meta-Learning
+Universe: 113 stocks | Top-40 annual rotation
+Period: 2000-01-01 to 2026-02-09
+Seed: 666
+
+[Cache] Loading broad pool data...
+
+Symbols available: 113
+[Cache] Loading SPY data...
+SPY data: 6564 trading days
+[Cache] Loading VIX data...
+VIX data: 6564 trading days
+[Cache] Loading Moody's Aaa yield data...
+  9863 daily rates, avg 4.87%
+
+--- Computing Annual Top-40 ---
+  2000: Initial top-40 = 40 stocks
+  2001: Top-40 | +2 added, -2 removed
+  2002: Top-40 | +4 added, -4 removed
+  2003: Top-40 | +8 added, -8 removed
+  2004: Top-40 | +3 added, -3 removed
+  2005: Top-40 | +5 added, -5 removed
+  2006: Top-40 | +5 added, -5 removed
+  2007: Top-40 | +3 added, -3 removed
+  2008: Top-40 | +4 added, -4 removed
+  2009: Top-40 | +8 added, -8 removed
+  2010: Top-40 | +2 added, -2 removed
+  2011: Top-40 | +4 added, -4 removed
+  2012: Top-40 | +3 added, -3 removed
+  2013: Top-40 | +6 added, -6 removed
+  2014: Top-40 | +5 added, -5 removed
+  2015: Top-40 | +1 added, -1 removed
+  2016: Top-40 | +3 added, -3 removed
+  2017: Top-40 | +5 added, -5 removed
+  2018: Top-40 | +6 added, -6 removed
+  2019: Top-40 | +6 added, -6 removed
+  2020: Top-40 | +3 added, -3 removed
+  2021: Top-40 | +5 added, -5 removed
+  2022: Top-40 | +4 added, -4 removed
+  2023: Top-40 | +5 added, -5 removed
+  2024: Top-40 | +5 added, -5 removed
+  2025: Top-40 | +4 added, -4 removed
+  2026: Top-40 | +4 added, -4 removed
+
+================================================================================
+RUNNING COMPASS v9.0 GENIUS LAYER BACKTEST
+================================================================================
+
+Computing base regime (SPY vs SMA200)...
+Period: 2000-01-03 to 2026-02-06
+Trading days: 6564
+  Year 1: $110,417 | DD: -4.7% | Lev: 0.30x | RISK_OFF [PROTECTION S1] | Pos: 2 | HMM: 0.70
+  Year 2: $103,958 | DD: 0.0% | Lev: 0.98x | RISK_ON | Pos: 5 | HMM: 1.00
+  Year 3: $86,696 | DD: -17.7% | Lev: 0.30x | RISK_OFF [PROTECTION S1] | Pos: 2 | HMM: 0.00
+  Year 4: $108,042 | DD: 0.0% | Lev: 0.85x | RISK_ON | Pos: 3 | HMM: 0.40
+  Year 5: $106,197 | DD: -4.2% | Lev: 0.59x | RISK_ON | Pos: 2 | HMM: 0.00
+  Year 6: $114,050 | DD: -0.6% | Lev: 1.00x | RISK_ON | Pos: 4 | HMM: 0.64
+  Year 7: $133,351 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 3 | HMM: 0.40
+  Year 8: $167,570 | DD: -7.9% | Lev: 1.00x | RISK_OFF | Pos: 3 | HMM: 0.00
+  Year 9: $102,094 | DD: -43.9% | Lev: 1.00x | RISK_OFF [PROTECTION S2] | Pos: 3 | HMM: 0.00
+  Year 10: $143,715 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 3 | HMM: 0.40
+  Year 11: $145,274 | DD: -3.1% | Lev: 0.90x | RISK_ON | Pos: 5 | HMM: 0.98
+  Year 12: $174,613 | DD: -2.4% | Lev: 0.92x | RISK_ON | Pos: 5 | HMM: 0.99
+  Year 13: $180,911 | DD: 0.0% | Lev: 0.73x | RISK_ON | Pos: 2 | HMM: 0.11
+  Year 14: $212,901 | DD: -1.5% | Lev: 1.00x | RISK_ON | Pos: 3 | HMM: 0.31
+  Year 15: $223,568 | DD: -3.4% | Lev: 0.63x | RISK_ON | Pos: 2 | HMM: 0.02
+  Year 16: $250,124 | DD: -7.9% | Lev: 1.00x | RISK_OFF | Pos: 3 | HMM: 0.00
+  Year 17: $299,311 | DD: -0.7% | Lev: 1.00x | RISK_ON | Pos: 3 | HMM: 0.40
+  Year 18: $325,685 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 3 | HMM: 0.40
+  Year 19: $301,763 | DD: -11.1% | Lev: 1.00x | RISK_OFF | Pos: 3 | HMM: 0.00
+  Year 20: $389,588 | DD: -1.1% | Lev: 0.73x | RISK_ON | Pos: 3 | HMM: 0.01
+  Year 21: $657,977 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 3 | HMM: 0.40
+  Year 22: $855,831 | DD: -6.9% | Lev: 0.73x | RISK_ON | Pos: 2 | HMM: 0.01
+  Year 23: $802,499 | DD: -15.9% | Lev: 1.00x | RISK_ON [PROTECTION S2] | Pos: 3 | HMM: 1.00
+  Year 24: $982,060 | DD: -4.6% | Lev: 1.00x | RISK_ON | Pos: 4 | HMM: 0.65
+  Year 25: $1,279,220 | DD: -5.7% | Lev: 0.70x | RISK_ON [PROTECTION S2] | Pos: 3 | HMM: 0.23
+  Year 26: $1,439,700 | DD: 0.0% | Lev: 1.00x | RISK_ON | Pos: 3 | HMM: 0.40
+
+--- GENIUS LAYER STATS ---
+  MLP trains: 83
+  MLP filter passes: 40336
+  MLP blocks: 67287
+  Graph re-rankings: 2794
+  HMM fits: 101
+  HMM overrides: 1981
+  Meta adjustments: 4562
+
+================================================================================
+RESULTS - COMPASS v9.0 "GENIUS LAYER"
+================================================================================
+
+--- Performance ---
+Initial capital:        $        100,000
+Final value:            $   1,356,325.68
+Total return:                  1256.33%
+CAGR:                            10.53%
+Volatility (annual):             20.99%
+
+--- Risk-Adjusted ---
+Sharpe ratio:                      0.50
+Sortino ratio:                     0.65
+Calmar ratio:                      0.19
+Max drawdown:                   -55.96%
+
+--- Trading ---
+Trades executed:                  3,912
+Win rate:                        53.53%
+Avg P&L per trade:      $         279.55
+Avg winner:             $       2,971.47
+Avg loser:              $      -2,821.04
+
+--- Exit Reasons ---
+  hold_expired             :  3,125 (79.9%)
+  regime_reduce            :    282 (7.2%)
+  position_stop            :    261 (6.7%)
+  trailing_stop            :    206 (5.3%)
+  portfolio_stop           :     28 (0.7%)
+  universe_rotation        :     10 (0.3%)
+
+--- Risk Management ---
+Stop loss events:                    11
+Days in protection:               2,002 (30.5%)
+Risk-off days:                    25.7%
+
+--- Annual Returns ---
+Best year:                       63.19%
+Worst year:                     -43.91%
+Positive years:         20/26
+
+================================================================================
+COMPARISON: v9.0 GENIUS vs v8.2 COMPASS (BASELINE)
+================================================================================
+
+Metric                       v8.2 COMPASS     v9.0 GENIUS        Delta
+----------------------------------------------------------------------
+CAGR                              18.56%         10.53%      -8.03%
+Sharpe                               0.90            0.50        -0.40
+Max Drawdown                      -26.9%         -56.0%      -29.1%
+Final Value                        $8.43M $         1.36M      -83.9%
+Trades                             ~5,480           3,912
+Stop Events                             6              11
+
+>>> VERDICT: v8.2 WINS (as expected)
+>>> GENIUS lost 8.03% CAGR vs baseline
+Traceback (most recent call last):
+  File "C:\Users\caslu\Desktop\NuevoProyecto\compass_v9_genius_backtest.py", line 1445, in <module>
+    print(f">>> Experiment #{37}: GENIUS LAYER \u2192 FAILED")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\caslu\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 33: character maps to <undefined>

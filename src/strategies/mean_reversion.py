@@ -346,8 +346,9 @@ class MeanReversionStrategy(BaseStrategy):
         gain = (deltas.where(deltas > 0, 0)).rolling(window=period).mean()
         loss = (-deltas.where(deltas < 0, 0)).rolling(window=period).mean()
         
-        rs = gain / loss
+        rs = gain / loss.replace(0, np.nan)
         rsi = 100 - (100 / (1 + rs))
+        rsi = rsi.fillna(100.0)  # loss=0 means all gains, RSI=100
         
         return rsi.iloc[-1] if not pd.isna(rsi.iloc[-1]) else 50.0
 

@@ -141,7 +141,10 @@ def run_backtest(
     print(f"Capital Inicial: ${results['total_value'].iloc[0]:,.2f}")
     print(f"Capital Final: ${results['total_value'].iloc[-1]:,.2f}")
     print(f"Retorno Total: {total_return:.2%}")
-    print(f"Retorno Anualizado: {(1 + total_return) ** (252 / len(results)) - 1:.2%}")
+    if len(results) > 0:
+        print(f"Retorno Anualizado: {(1 + total_return) ** (252 / len(results)) - 1:.2%}")
+    else:
+        print("Retorno Anualizado: N/A (sin resultados)")
     print(f"Sharpe Ratio: {sharpe_ratio:.2f}")
     print(f"Max Drawdown: {max_drawdown:.2%}")
     print(f"Volatilidad: {results['returns'].std() * (252 ** 0.5):.2%}")

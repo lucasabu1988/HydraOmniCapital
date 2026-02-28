@@ -396,7 +396,7 @@ if __name__ == "__main__":
     print("RESUMEN EJECUTIVO")
     print("=" * 80)
     print(f"\nOmniCapital v6 Final Optimized:")
-    print(f"  - CAGR: {metrics['cagr']:.2%} (${metrics['initial']:,.0f} a ${metrics['final_equity']:,.0f} en {metrics['years']:.0f} años)"
+    print(f"  - CAGR: {metrics['cagr']:.2%} (${metrics['initial']:,.0f} a ${metrics['final_equity']:,.0f} en {metrics['years']:.0f} años)")
     print(f"  - Sharpe: {metrics['sharpe']:.2f} | Max DD: {metrics['max_drawdown']:.1%}")
     print(f"  - Stop loss: {abs(PORTFOLIO_STOP_LOSS):.0%} | Leverage: {LEVERAGE:.0f}:1")
     print(f"\nSistema listo para implementacion.")

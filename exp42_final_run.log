@@ -1,0 +1,46 @@
+================================================================================
+EXPERIMENT 42 (FIXED): COMPASS v8.3 '666 FRAMEWORK' BACKTEST
+================================================================================
+
+Implementing mathematics PhD forum Tier 1 recommendations:
+  1. Lookback period: 90d -> 666 trading days (~2.6 years)
+  2. Stock selection: 40 -> 66 stocks
+  3. Sector constraint: Maximum 11 stocks per GICS sector
+  4. Rebalancing: 5-day hold -> 6.66% drift threshold
+
+Baseline (Exp41 v8.2): 11.31% CAGR, Sharpe 0.528, -63.41% max DD
+Period: 1996-01-02 to 2026 (30 years)
+
+================================================================================
+EXPERIMENT 41: EXTENDED BACKTEST 1996-2026 (30 YEARS)
+================================================================================
+
+Objective: Extend COMPASS v8.2 validation window from 26 years to 30 years
+Method: Run bias-corrected backtest using historical point-in-time constituents
+Period: 1996-01-02 to 2027-01-01 (30 years)
+Added: 1996-2000 period (late tech bubble formation)
+Note: Constituents data available from 1996 onwards
+
+Known problematic tickers: 14
+  Bankruptcies: 6
+  Acquisitions: 6
+
+[Import] Importing COMPASS v8.2 functions...
+================================================================================
+OMNICAPITAL v8 COMPASS
+Cross-sectional Momentum, Position-Adjusted Risk Scaling
+================================================================================
+
+Broad pool: 113 stocks | Top-40 annual rotation
+Signal: Momentum 90d (skip 5d) + Inverse Vol sizing
+Regime: SPY SMA200 | Vol target: 15%
+Hold: 5d | Pos stop: -8% | Port stop: -15%
+Cash yield: Moody's Aaa IG Corporate (FRED, variable)
+
+  [OK] Successfully imported COMPASS functions
+Traceback (most recent call last):
+  File "C:\Users\caslu\Desktop\NuevoProyecto\exp42_compass_666_fixed.py", line 78, in <module>
+    from exp41_extended_1996 import (
+    ...<7 lines>...
+    )
+ImportError: cannot import name 'compute_market_regime' from 'exp41_extended_1996' (C:\Users\caslu\Desktop\NuevoProyecto\exp41_extended_1996.py)

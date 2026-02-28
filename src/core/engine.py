@@ -255,7 +255,7 @@ class TradingEngine:
             'position_value': position_sizing['position_value'],
             'risk_amount': position_sizing['risk_amount'],
             'sector': sector,
-            'beta': fundamental.roe if fundamental else 1.0  # Simplificado
+            'beta': getattr(fundamental, 'beta', 1.0) if fundamental else 1.0
         }
     
     def open_position(self, opportunity: Dict):
@@ -312,7 +312,10 @@ class TradingEngine:
             
             # Verificar take profit
             if position.take_profit_price:
-                progress = (current_price - position.entry_price) / (position.take_profit_price - position.entry_price)
+                if position.take_profit_price == position.entry_price:
+                    progress = 0.0
+                else:
+                    progress = (current_price - position.entry_price) / (position.take_profit_price - position.entry_price)
 
                 # Niveles de take profit parcial (using sold_tiers to track state)
                 if progress >= 1.0 and 1.0 not in position.sold_tiers:

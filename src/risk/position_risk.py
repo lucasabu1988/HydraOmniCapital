@@ -253,7 +253,10 @@ class PositionRiskManager:
             entry_price = position.entry_price
             take_profit_price = getattr(position, 'take_profit_price', entry_price * 1.15)
             
-            progress = (current_price - entry_price) / (take_profit_price - entry_price)
+            if take_profit_price == entry_price:
+                progress = 0.0
+            else:
+                progress = (current_price - entry_price) / (take_profit_price - entry_price)
             
             levels = partial_config.get('levels', [])
             for level in levels:
