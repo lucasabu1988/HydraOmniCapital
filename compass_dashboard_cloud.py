@@ -831,7 +831,6 @@ def fetch_social_feed(symbols: List[str]) -> List[dict]:
 _montecarlo_cache = None
 _trade_analytics_cache = None
 _data_quality_cache = None
-_exec_micro_cache = None
 
 
 # ============================================================================
@@ -1355,19 +1354,6 @@ def api_data_quality():
     return jsonify({'unavailable': True, 'message': 'Data pipeline runs locally — not available in showcase mode'})
 
 
-@app.route('/api/execution-microstructure')
-def api_execution_microstructure():
-    """Return execution microstructure analysis."""
-    global _exec_micro_cache
-    if _exec_micro_cache:
-        return jsonify(_exec_micro_cache)
-    try:
-        from compass_execution_microstructure import COMPASSExecutionMicrostructure
-        em = COMPASSExecutionMicrostructure()
-        _exec_micro_cache = em.run_all()
-        return jsonify(_exec_micro_cache)
-    except Exception as e:
-        return jsonify({'error': f'Execution analysis unavailable: {str(e)}'})
 
 
 # ============================================================================
