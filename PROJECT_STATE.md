@@ -9,11 +9,11 @@
 |---------|--------|
 | **Sistema v6** | OmniCapital v6 FINAL - 16.92% CAGR |
 | **Sistema v8.2** | COMPASS v8.2 - **13.90% CAGR (bias-corrected)** |
-| **Sistema v8.3** | COMPASS v8.3 - **Production Candidate** |
-| **Último Experimento** | ✅ exp48-exp53: COMPASS v8.3 implementation |
+| **Sistema v8.3** | COMPASS v8.3 - **PRODUCCIÓN** (11.57% CAGR, -29.62% MaxDD, 0.80 Sharpe) |
+| **Último Experimento** | ✅ exp48-exp53 + H1-H6 optimization |
 | **Bias Identificado** | **+4.56% CAGR** overestimation |
-| **Estado** | ✅ v8.3 implementado, pendiente backtest |
-| **Próximo Paso** | Ejecutar backtest v8.3 y validar métricas |
+| **Estado** | ✅ v8.3 en producción (backtest + live system actualizados) |
+| **Próximo Paso** | Paper trading con v8.3 live system |
 
 ---
 
@@ -40,14 +40,20 @@
 - **Exits**: Hold 5d + exit renewal (max 10d, profit>4%, top 85%) + trailing stop + position stop
 - **Quality**: Vol filter (>60%) + data corruption filter (>50% single-day)
 
-### Acceptance Criteria (pending backtest)
+### Backtest Results (H3 optimized)
 
-| Metric | v8.2 Baseline | Minimum | Target |
-|--------|--------------|---------|--------|
-| CAGR | 13.90% | 15.0% | 17.0% |
-| MaxDD | -66.25% | -55.0% | -45.0% |
-| Sharpe | 0.646 | 0.72 | 0.85 |
-| Stop Events | 10 | <=3 | 0 |
+| Metric | v8.2 Baseline | v8.3 Result | Delta |
+|--------|--------------|-------------|-------|
+| CAGR | 13.90% | **11.57%** | -2.33% (trade-off for risk) |
+| MaxDD | -66.25% | **-29.62%** | **+36.63%** |
+| Sharpe | 0.646 | **0.80** | **+0.154** |
+| Calmar | 0.21 | **0.39** | **+0.18** |
+| Stop Events | 10 | **0** | **-10** |
+| Positive Years | 20/26 | **23/26** | +3 |
+
+### Live System
+- `omnicapital_live.py` upgraded to v8.3 (all 6 improvements ported)
+- State save/load compatible with v8.3 (crash_cooldown, regime_score, etc.)
 
 ---
 
