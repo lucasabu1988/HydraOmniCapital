@@ -9,7 +9,7 @@ NO live trading engine — showcase/portfolio mode.
 Deploy: git push to GitHub → auto-deploy on Render.
 """
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template
 import json
 import os
 import glob
@@ -20,6 +20,7 @@ from datetime import datetime, date, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 # Optional imports (graceful if missing)
 try:
@@ -40,6 +41,15 @@ except ImportError:
 
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
 
 # ============================================================================
 # COMPASS v8.3 PARAMETERS (read-only reference — ALGORITHM LOCKED)
@@ -117,7 +127,10 @@ def fetch_aaa_yield() -> float:
         return _aaa_yield_rate
 
     try:
-        url = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=AAA&cosd=2025-01-01&coed=2026-12-31'
+        today = now.date()
+        cosd = f'{today.year - 1}-01-01'
+        coed = f'{today.year + 1}-12-31'
+        url = f'https://fred.stlouisfed.org/graph/fredgraph.csv?id=AAA&cosd={cosd}&coed={coed}'
         resp = http_requests.get(url, timeout=10)
         resp.raise_for_status()
         lines = resp.text.strip().split('\n')
@@ -177,6 +190,7 @@ _preload_data()
 _price_cache: Dict[str, float] = {}
 _prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
+_price_cache_lock = threading.Lock()
 
 
 def _fetch_single_price(symbol: str) -> tuple:
@@ -219,15 +233,16 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     if not _HAS_YFINANCE or not symbols:
         return {}
 
-    now = datetime.now()
-    if _price_cache_time and (now - _price_cache_time).total_seconds() < PRICE_CACHE_SECONDS:
-        missing = [s for s in symbols if s not in _price_cache]
-        if not missing:
-            return {s: _price_cache[s] for s in symbols if s in _price_cache}
-    else:
-        missing = symbols
-        _price_cache = {}
-        _prev_close_cache = {}
+    with _price_cache_lock:
+        now = datetime.now()
+        if _price_cache_time and (now - _price_cache_time).total_seconds() < PRICE_CACHE_SECONDS:
+            missing = [s for s in symbols if s not in _price_cache]
+            if not missing:
+                return {s: _price_cache[s] for s in symbols if s in _price_cache}
+        else:
+            missing = symbols
+            _price_cache = {}
+            _prev_close_cache = {}
 
     if missing:
         with ThreadPoolExecutor(max_workers=min(10, len(missing))) as executor:
@@ -242,7 +257,8 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
                 except Exception:
                     pass
 
-    _price_cache_time = now
+    with _price_cache_lock:
+        _price_cache_time = now
     return {s: _price_cache[s] for s in symbols if s in _price_cache}
 
 
@@ -640,7 +656,7 @@ def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
     if not _HAS_REQUESTS:
         return []
     items = []
-    headers = {'User-Agent': 'COMPASS-Dashboard admin@omnicapital.com'}
+    headers = {'User-Agent': os.environ.get('SEC_USER_AGENT', 'COMPASS-Dashboard contact@omnicapital.com')}
     start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
     for symbol in symbols:
@@ -1317,7 +1333,7 @@ def api_news():
 def api_montecarlo():
     """Return Monte Carlo simulation results."""
     global _montecarlo_cache
-    if _montecarlo_cache:
+    if _montecarlo_cache is not None:
         return jsonify(_montecarlo_cache)
     try:
         from compass_montecarlo import COMPASSMonteCarlo
@@ -1332,7 +1348,7 @@ def api_montecarlo():
 def api_trade_analytics():
     """Return trade segmentation analytics."""
     global _trade_analytics_cache
-    if _trade_analytics_cache:
+    if _trade_analytics_cache is not None:
         return jsonify(_trade_analytics_cache)
     try:
         from compass_trade_analytics import COMPASSTradeAnalytics

@@ -418,7 +418,7 @@ body::before {
 .ticker-tip {
     display: none; position: fixed; z-index: 9999;
     background: #fffef5; color: #1a1a1a;
-    border: 1px solid #e0dcc8; border-left: 4px solid var(--primary);
+    border: 1px solid #e0dcc8; border-left: 4px solid var(--accent);
     border-radius: 6px; padding: 12px 14px;
     width: 260px;
     box-shadow: 2px 3px 12px rgba(0,0,0,0.18);
@@ -820,8 +820,8 @@ body::before {
     color: var(--text-secondary); transition: all 0.15s;
     text-transform: uppercase; letter-spacing: 0.5px;
 }
-.chart-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
-.chart-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.chart-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chart-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .chart-hint {
     font-size: 10px; color: var(--text-muted); margin-left: auto;
     font-style: italic;
@@ -3469,10 +3469,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 </div><!-- /main -->
 
-<!-- WHATSAPP CONTACT -->
-<a class="wa-fab" href="https://wa.me/51960427811" target="_blank" rel="noopener" title="Contact via WhatsApp">
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.019-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-</a>
+<!-- Contact: use footer link instead of FAB -->
 
 <script>
 /* ============ DARK MODE ============ */
@@ -3644,10 +3641,19 @@ function updateStatusBar(p) {
 
     const pt = document.getElementById('protection-tag');
     if (p.in_protection) {
-        pt.innerHTML = '<span class="hdr-pill-dot"></span> PROT S' + p.protection_stage;
+        const ddLev = p.dd_leverage != null ? ' (' + (p.dd_leverage * 100).toFixed(0) + '%)' : '';
+        pt.textContent = '';
+        const dot = document.createElement('span');
+        dot.className = 'hdr-pill-dot';
+        pt.appendChild(dot);
+        pt.appendChild(document.createTextNode(' DD SCALING' + ddLev));
         pt.className = 'hdr-pill hdr-pill-prot';
     } else {
-        pt.innerHTML = '<span class="hdr-pill-dot"></span> NORMAL';
+        pt.textContent = '';
+        const dot = document.createElement('span');
+        dot.className = 'hdr-pill-dot';
+        pt.appendChild(dot);
+        pt.appendChild(document.createTextNode(' NORMAL'));
         pt.className = 'hdr-pill hdr-pill-norm';
     }
 
@@ -3712,7 +3718,8 @@ function updateCards(p) {
     const cagrSub = document.getElementById('card-cagr-sub');
     if (p.in_protection) {
         const levNow = p.leverage != null ? p.leverage.toFixed(1) + 'x' : '1.0x';
-        cagrSub.textContent = 'Lev: ' + levNow + ' (Protection S' + p.protection_stage + ')';
+        const ddLevPct = p.dd_leverage != null ? (p.dd_leverage * 100).toFixed(0) + '%' : '?';
+        cagrSub.textContent = 'Lev: ' + levNow + ' (DD Scale ' + ddLevPct + ')';
     } else {
         cagrSub.textContent = 'Pre-close MOC + costs, no lev';
     }
@@ -3726,7 +3733,7 @@ function updateCards(p) {
     document.getElementById('card-peak').textContent = 'Peak: ' + fmt$(p.peak_value);
 
     document.getElementById('card-positions').textContent = p.num_positions + ' / ' + p.max_positions;
-    document.getElementById('card-maxpos').textContent = p.regime + (p.in_protection ? ' | Prot S' + p.protection_stage : '');
+    document.getElementById('card-maxpos').textContent = p.regime + (p.in_protection ? ' | DD Scaling' : '');
 
     // Cash yield (Aaa IG Corporate)
     const yd = document.getElementById('yield-daily');
@@ -3854,8 +3861,9 @@ function updatePositions(details) {
             '<div class="pos-top">' +
                 (function(){
                     const ci = COMPANY_INFO[p.symbol];
-                    if (!ci) return '<span class="pos-symbol">' + p.symbol + '</span>';
-                    return '<span class="ticker-tip-wrap"><span class="pos-symbol">' + p.symbol + '</span>' +
+                    const safeSym = escHtml(p.symbol);
+                    if (!ci) return '<span class="pos-symbol">' + safeSym + '</span>';
+                    return '<span class="ticker-tip-wrap"><span class="pos-symbol">' + safeSym + '</span>' +
                         '<div class="ticker-tip">' +
                             '<div class="ticker-tip-name">' + ci.name + '</div>' +
                             '<span class="ticker-tip-sector">' + ci.sector + '</span>' +
@@ -4093,8 +4101,12 @@ function updateSocialFeed(messages) {
     let html = '';
     for (const m of messages) {
         const timeStr = sfTimeAgo(m.time);
-        const bodyHtml = m.url ?
-            '<a href="' + escHtml(m.url) + '" target="_blank" rel="noopener">' + highlightCashtags(m.body) + '</a>' :
+        let safeUrl = '';
+        if (m.url) {
+            try { const u = new URL(m.url); if (u.protocol === 'https:' || u.protocol === 'http:') safeUrl = m.url; } catch(e) {}
+        }
+        const bodyHtml = safeUrl ?
+            '<a href="' + escHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer">' + highlightCashtags(m.body) + '</a>' :
             highlightCashtags(m.body);
         const srcMap = {
             'reddit': ['sf-src-reddit', 'Reddit'],
@@ -4387,8 +4399,8 @@ const FUND_DATA = [
     { x: 0.78, y: 4.23, label: 'Winton', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -22.0, aum: '$6B', desc: 'Statistical trend-following, 3x lev → 12.7% / 3 = 4.2%' },
     { x: 0.60, y: 2.93, label: 'Aspect Capital', lev: 3, color: '#3b82f6', cat: 'systematic', maxDD: -25.0, aum: '$9B', desc: 'Diversified CTA, 3x lev → 8.8% / 3 = 2.9%' },
     /* Momentum Funds (long-only, 1x) — leverage-adjusted = nominal */
-    { x: 0.75, y: 14.6, label: 'iShares MTUM', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -34.0, aum: '$10B', desc: 'Momentum factor ETF, 1x leverage' },
-    { x: 0.70, y: 14.0, label: 'AQR Momentum', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -30.0, aum: '$3B', desc: 'Long-only US momentum, 1x leverage' },
+    { x: 0.97, y: 15.10, label: 'iShares MTUM', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -34.1, aum: '$21B', desc: 'MSCI USA Momentum SR Variant Index, 125 stocks, quarterly rebalance, 1x leverage' },
+    { x: 0.91, y: 13.96, label: 'AQR Momentum (AMOMX)', lev: 1, color: '#06b6d4', cat: 'momentum', maxDD: -34.3, aum: '$656M', desc: 'Composite momentum signal (price+earnings+residual), 320 stocks, 1x leverage' },
     { x: 0.55, y: 4.0, label: 'Renaissance RIEF', lev: 2, color: '#06b6d4', cat: 'momentum', maxDD: -28.0, aum: '$55B', desc: 'Public markets quant, 2x lev → 8.0% / 2 = 4.0%' },
     /* Benchmarks (1x) — leverage-adjusted = nominal */
     { x: 0.50, y: 10.4, label: 'S&P 500', lev: 1, color: '#6366f1', cat: 'benchmark', maxDD: -56.8, aum: '-', desc: 'US large-cap index (buy & hold), 1x' },
@@ -4500,7 +4512,7 @@ function initFundScatterChart() {
                 y: {
                     title: { display: true, text: 'Leverage-Adjusted CAGR (%)  [CAGR / Leverage]', color: '#7a7a90',
                              font: { family: "'Inter', sans-serif", size: 12, weight: '600' } },
-                    min: 0, max: 16,
+                    min: 0, max: 17,
                     grid: { color: 'rgba(0,0,0,0.04)' },
                     ticks: { color: '#5e5e78', font: { family: "'JetBrains Mono', monospace", size: 11 },
                              callback: v => v + '%', stepSize: 2 },
@@ -4528,7 +4540,7 @@ function initFundScatterChart() {
                         /* Manual adjustments for overlapping labels */
                         if (f.label === 'COMPASS v8.3') { oy = -14; }
                         if (f.label === 'iShares MTUM') { oy = -14; }
-                        if (f.label === 'AQR Momentum') { oy = 18; }
+                        if (f.label === 'AQR Momentum (AMOMX)') { oy = 18; }
                         if (f.label === 'Man AHL') { oy = 16; }
                         if (f.label === 'Bridgewater Pure Alpha') { oy = 16; }
                         if (f.label === 'S&P 500') { oy = -12; }
@@ -4588,9 +4600,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const cd = document.getElementById('hdr-market-countdown');
         if (!lbl || !cd) return;
         const now = new Date();
-        const et = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
-        const day = et.getDay();
-        const h = et.getHours(), m = et.getMinutes(), s = et.getSeconds();
+        const fmt = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            hour: 'numeric', minute: 'numeric', second: 'numeric',
+            hour12: false, weekday: 'short'
+        });
+        const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
+        const dayMap = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+        const day = dayMap[parts.weekday] ?? now.getDay();
+        const h = parseInt(parts.hour), m = parseInt(parts.minute), s = parseInt(parts.second);
         const mins = h * 60 + m;
         const isWeekday = day >= 1 && day <= 5;
         const mktOpen = 9 * 60 + 30, mktClose = 16 * 60;
@@ -4604,15 +4622,22 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             lbl.textContent = 'MARKET CLOSED';
             lbl.style.color = 'var(--text-muted)';
-            let next = new Date(et);
-            if (mins >= mktClose || !isWeekday) {
-                next.setDate(next.getDate() + 1);
-                next.setHours(9, 30, 0, 0);
-                while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1);
+            /* Calculate seconds until next market open using ET time components */
+            let secsToOpen = 0;
+            const secsNowInDay = h * 3600 + m * 60 + s;
+            const mktOpenSecs = 9 * 3600 + 30 * 60;
+            if (isWeekday && secsNowInDay < mktOpenSecs) {
+                /* Before market open today */
+                secsToOpen = mktOpenSecs - secsNowInDay;
             } else {
-                next.setHours(9, 30, 0, 0);
+                /* After close or weekend — count to next weekday 9:30 */
+                const secsLeftToday = 86400 - secsNowInDay;
+                let daysAhead = 1;
+                let nextDay = (day + 1) % 7;
+                while (nextDay === 0 || nextDay === 6) { daysAhead++; nextDay = (nextDay + 1) % 7; }
+                secsToOpen = secsLeftToday + (daysAhead - 1) * 86400 + mktOpenSecs;
             }
-            const diff = Math.max(0, Math.floor((next - et) / 1000));
+            const diff = Math.max(0, secsToOpen);
             const hh = Math.floor(diff / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
             cd.textContent = 'opens ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
         }
