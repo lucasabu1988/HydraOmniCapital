@@ -657,8 +657,8 @@
 <!-- ALGO HEADER -->
 <div class="algo-hero">
     <div class="algo-hero-title">COMPASS v8.4</div>
-    <div class="algo-hero-sub">Algorithm Deep Dive</div>
-    <div class="algo-hero-tagline">Cross-sectional momentum &middot; S&amp;P 500 &middot; Long-only &middot; No leverage</div>
+    <div class="algo-hero-sub">C&oacute;mo Funciona</div>
+    <div class="algo-hero-tagline">Compra las acciones con mejor rendimiento reciente &middot; S&amp;P 500 &middot; Sin deuda &middot; Completamente autom&aacute;tico</div>
 </div>
 
 <!-- PIPELINE FLOW -->
@@ -666,32 +666,32 @@
     <div class="algo-pipeline">
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#127760;</div>
-            <div class="algo-pipe-label">Universe</div>
-            <div class="algo-pipe-detail">113 stocks &rarr; Top 40</div>
+            <div class="algo-pipe-label">Universo</div>
+            <div class="algo-pipe-detail">Las 40 m&aacute;s l&iacute;quidas</div>
         </div>
         <div class="algo-pipe-arrow">&rarr;</div>
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#128200;</div>
-            <div class="algo-pipe-label">Signals</div>
-            <div class="algo-pipe-detail">90d momentum / vol</div>
+            <div class="algo-pipe-label">Se&ntilde;ales</div>
+            <div class="algo-pipe-detail">&iquest;Qui&eacute;n sube m&aacute;s fuerte?</div>
         </div>
         <div class="algo-pipe-arrow">&rarr;</div>
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#127919;</div>
-            <div class="algo-pipe-label">Regime</div>
-            <div class="algo-pipe-detail">Sigmoid filter 2-5 pos</div>
+            <div class="algo-pipe-label">Contexto</div>
+            <div class="algo-pipe-detail">&iquest;El mercado est&aacute; bien?</div>
         </div>
         <div class="algo-pipe-arrow">&rarr;</div>
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#9878;</div>
-            <div class="algo-pipe-label">Sizing</div>
-            <div class="algo-pipe-detail">Inverse-vol weighted</div>
+            <div class="algo-pipe-label">Tama&ntilde;o</div>
+            <div class="algo-pipe-detail">&iquest;Cu&aacute;nto en cada una?</div>
         </div>
         <div class="algo-pipe-arrow">&rarr;</div>
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#128737;</div>
-            <div class="algo-pipe-label">Risk</div>
-            <div class="algo-pipe-detail">Adaptive stops + DD scaling</div>
+            <div class="algo-pipe-label">Protecci&oacute;n</div>
+            <div class="algo-pipe-detail">&iquest;Cu&aacute;ndo vender?</div>
         </div>
     </div>
 </div>
@@ -701,10 +701,10 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">01</span>
-            <span class="algo-card-title">Universe Selection</span>
+            <span class="algo-card-title">&iquest;En qu&eacute; acciones invertimos?</span>
         </div>
         <div class="algo-card-body">
-            <p>COMPASS opera sobre un universo de <strong>113 acciones</strong> del S&amp;P 500 clasificadas en 7 sectores. Cada a&ntilde;o, las <strong>top 40 por volumen en d&oacute;lares</strong> son seleccionadas como universo activo.</p>
+            <p>De las ~500 empresas m&aacute;s grandes de Estados Unidos (el <strong>S&amp;P 500</strong>), COMPASS selecciona cada a&ntilde;o las <strong>40 que m&aacute;s se compran y venden</strong> en bolsa. Esto garantiza que siempre podamos entrar y salir r&aacute;pido, sin mover el precio. Las 113 acciones iniciales est&aacute;n distribuidas en 7 sectores de la econom&iacute;a:</p>
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
                     <div class="algo-mini-title">Sectores</div>
@@ -719,12 +719,12 @@
                     </div>
                 </div>
                 <div class="algo-mini-card">
-                    <div class="algo-mini-title">Filtros de entrada</div>
+                    <div class="algo-mini-title">Criterios de selecci&oacute;n</div>
                     <table class="algo-params-sm">
-                        <tr><td>TOP_N</td><td>40 stocks/a&ntilde;o</td></tr>
-                        <tr><td>MIN_AGE_DAYS</td><td>63 d&iacute;as m&iacute;nimo de historia</td></tr>
-                        <tr><td>Selecci&oacute;n</td><td>Avg. daily dollar volume</td></tr>
-                        <tr><td>Rotaci&oacute;n</td><td>Anual (1 enero)</td></tr>
+                        <tr><td>Cantidad</td><td>40 acciones por a&ntilde;o</td></tr>
+                        <tr><td>Antig&uuml;edad</td><td>M&iacute;nimo 63 d&iacute;as cotizando</td></tr>
+                        <tr><td>Orden</td><td>Por volumen diario negociado ($)</td></tr>
+                        <tr><td>Renovaci&oacute;n</td><td>Cada 1 de enero</td></tr>
                     </table>
                 </div>
             </div>
@@ -737,32 +737,33 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">02</span>
-            <span class="algo-card-title">Signal Generation</span>
+            <span class="algo-card-title">&iquest;C&oacute;mo elegimos qu&eacute; comprar?</span>
         </div>
         <div class="algo-card-body">
-            <p>Cada 5 d&iacute;as, COMPASS calcula un <strong>momentum score risk-adjusted</strong> para cada acci&oacute;n del universo. Las acciones se rankean cross-sectionally y las top N son seleccionadas.</p>
+            <p>Cada 5 d&iacute;as, COMPASS eval&uacute;a las 40 acciones y les asigna un <strong>puntaje de momentum</strong>: b&aacute;sicamente mide cu&aacute;les han subido m&aacute;s en los &uacute;ltimos 3 meses, descontando los &uacute;ltimos 5 d&iacute;as (porque las que suben mucho en pocos d&iacute;as suelen rebotar hacia abajo). Luego ajusta por volatilidad: una acci&oacute;n que sube 10% pero salta como monta&ntilde;a rusa vale menos que una que sube 10% de forma estable.</p>
             <div class="algo-formula-box">
-                <div class="algo-formula-label">Momentum Score</div>
+                <div class="algo-formula-label">F&oacute;rmula del Puntaje</div>
                 <code class="algo-formula">score = (return_90d &minus; return_5d) / realized_vol_63d</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">En simple: ganancia de 3 meses &divide; turbulencia = puntaje de calidad</p>
             </div>
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
-                    <div class="algo-mini-title">Par&aacute;metros de se&ntilde;al</div>
+                    <div class="algo-mini-title">C&oacute;mo calculamos el puntaje</div>
                     <table class="algo-params-sm">
-                        <tr><td>MOMENTUM_LOOKBACK</td><td>90 d&iacute;as</td></tr>
-                        <tr><td>MOMENTUM_SKIP</td><td>5 d&iacute;as (excluir reversi&oacute;n)</td></tr>
-                        <tr><td>VOL_LOOKBACK</td><td>20 d&iacute;as</td></tr>
-                        <tr><td>MIN_MOMENTUM_STOCKS</td><td>20 m&iacute;nimo v&aacute;lidos</td></tr>
+                        <tr><td>Ventana</td><td>Miramos los &uacute;ltimos 90 d&iacute;as</td></tr>
+                        <tr><td>Exclusi&oacute;n</td><td>Ignoramos los &uacute;ltimos 5 d&iacute;as (evita rebotes)</td></tr>
+                        <tr><td>Volatilidad</td><td>Medida sobre 20 d&iacute;as</td></tr>
+                        <tr><td>M&iacute;nimo</td><td>Al menos 20 acciones v&aacute;lidas para comparar</td></tr>
                     </table>
                 </div>
                 <div class="algo-mini-card">
-                    <div class="algo-mini-title">Quality Filter</div>
+                    <div class="algo-mini-title">Filtro de calidad</div>
                     <table class="algo-params-sm">
-                        <tr><td>QUALITY_VOL_MAX</td><td>0.60 (vol anualizada)</td></tr>
-                        <tr><td>QUALITY_VOL_LOOKBACK</td><td>63 d&iacute;as</td></tr>
-                        <tr><td>QUALITY_MAX_SINGLE_DAY</td><td>0.50 (mov. diario)</td></tr>
+                        <tr><td>Vol. m&aacute;xima</td><td>60% anualizada</td></tr>
+                        <tr><td>Periodo</td><td>Se mide sobre 63 d&iacute;as</td></tr>
+                        <tr><td>Salto m&aacute;ximo</td><td>50% en un solo d&iacute;a</td></tr>
                     </table>
-                    <p class="algo-note">Excluye acciones con volatilidad extrema o gaps anormales &gt;50% en un d&iacute;a.</p>
+                    <p class="algo-note">Descarta autom&aacute;ticamente acciones con movimientos err&aacute;ticos o saltos anormales. Si una acci&oacute;n se mueve demasiado, es demasiado riesgosa.</p>
                 </div>
             </div>
         </div>
@@ -774,54 +775,55 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">03</span>
-            <span class="algo-card-title">Regime Detector (Continuous Sigmoid)</span>
+            <span class="algo-card-title">&iquest;C&oacute;mo sabe si el mercado est&aacute; bien o mal?</span>
         </div>
         <div class="algo-card-body">
-            <p>El r&eacute;gimen de mercado se eval&uacute;a con una <strong>funci&oacute;n sigmoid continua</strong> que combina tendencia (60%) y volatilidad (40%) en un score [0, 1]. El score determina cu&aacute;ntas posiciones abrir.</p>
+            <p>Antes de comprar, COMPASS eval&uacute;a el estado general del mercado con un <strong>term&oacute;metro de 0 a 1</strong>. Si el mercado est&aacute; fuerte (&gt;0.65), compramos 5 acciones. Si est&aacute; d&eacute;bil (&lt;0.35), solo 2. Funciona como un <strong>sem&aacute;foro</strong>: verde = acelerar, amarillo = precauci&oacute;n, rojo = frenar. El term&oacute;metro combina dos factores: <strong>tendencia</strong> (60%) &mdash; &iquest;el mercado viene subiendo? &mdash; y <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia?</p>
 
             <div class="algo-formula-box">
-                <div class="algo-formula-label">Sigmoid Function</div>
+                <div class="algo-formula-label">F&oacute;rmula matem&aacute;tica (funci&oacute;n sigmoid)</div>
                 <code class="algo-formula">sigmoid(x, k=15) = 1 / (1 + e<sup>&minus;kx</sup>)</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">Esta funci&oacute;n convierte cualquier valor en un n&uacute;mero suave entre 0 y 1 &mdash; ideal para un &ldquo;term&oacute;metro&rdquo; de mercado.</p>
             </div>
 
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
-                    <div class="algo-mini-title">Trend Component (60%)</div>
+                    <div class="algo-mini-title">Tendencia (60% del score)</div>
                     <table class="algo-params-sm">
-                        <tr><td>Precio / SMA200</td><td>sigmoid(k=15)</td></tr>
-                        <tr><td>SMA50 / SMA200</td><td>sigmoid(k=30)</td></tr>
-                        <tr><td>Momentum 20d</td><td>sigmoid(k=15)</td></tr>
+                        <tr><td>&iquest;Precio arriba del promedio?</td><td>Precio vs. media de 200 d&iacute;as</td></tr>
+                        <tr><td>&iquest;Tendencia de mediano plazo?</td><td>Media 50d vs. media 200d</td></tr>
+                        <tr><td>&iquest;Sub&iacute;a &uacute;ltimo mes?</td><td>Momentum de 20 d&iacute;as</td></tr>
                     </table>
-                    <p class="algo-note">Promedio de 3 sub-scores sigmoid.</p>
+                    <p class="algo-note">Si las 3 respuestas son &ldquo;s&iacute;&rdquo;, la tendencia es fuerte.</p>
                 </div>
                 <div class="algo-mini-card">
-                    <div class="algo-mini-title">Volatility Component (40%)</div>
+                    <div class="algo-mini-title">Volatilidad (40% del score)</div>
                     <table class="algo-params-sm">
-                        <tr><td>Medici&oacute;n</td><td>10d realized vol</td></tr>
-                        <tr><td>Referencia</td><td>252d rolling distribution</td></tr>
-                        <tr><td>M&eacute;todo</td><td>Percentile rank invertido</td></tr>
+                        <tr><td>&iquest;Qu&eacute; mide?</td><td>Turbulencia de los &uacute;ltimos 10 d&iacute;as</td></tr>
+                        <tr><td>Comparaci&oacute;n</td><td>Contra el &uacute;ltimo a&ntilde;o (252 d&iacute;as)</td></tr>
+                        <tr><td>L&oacute;gica</td><td>M&aacute;s calma = mejor score</td></tr>
                     </table>
-                    <p class="algo-note">Alta volatilidad = score bajo.</p>
+                    <p class="algo-note">Mercado vol&aacute;til = puntaje bajo = menos compras.</p>
                 </div>
             </div>
 
             <div class="algo-formula-box" style="margin-top:16px;">
-                <div class="algo-formula-label">Composite Regime Score</div>
-                <code class="algo-formula">regime_score = 0.60 &times; trend + 0.40 &times; vol &nbsp;&nbsp; &isin; [0, 1]</code>
+                <div class="algo-formula-label">Puntaje combinado del mercado</div>
+                <code class="algo-formula">regime_score = 0.60 &times; tendencia + 0.40 &times; volatilidad &nbsp;&nbsp; &isin; [0, 1]</code>
             </div>
 
             <div class="algo-thresholds">
-                <div class="algo-threshold algo-th-bull"><span class="algo-th-score">&ge; 0.65</span><span class="algo-th-pos">5 posiciones</span><span class="algo-th-label">Strong Bull</span></div>
-                <div class="algo-threshold algo-th-mild-bull"><span class="algo-th-score">&ge; 0.50</span><span class="algo-th-pos">4 posiciones</span><span class="algo-th-label">Mild Bull</span></div>
-                <div class="algo-threshold algo-th-mild-bear"><span class="algo-th-score">&ge; 0.35</span><span class="algo-th-pos">3 posiciones</span><span class="algo-th-label">Mild Bear</span></div>
-                <div class="algo-threshold algo-th-bear"><span class="algo-th-score">&lt; 0.35</span><span class="algo-th-pos">2 posiciones</span><span class="algo-th-label">Bear / Risk-Off</span></div>
+                <div class="algo-threshold algo-th-bull"><span class="algo-th-score">&ge; 0.65</span><span class="algo-th-pos">5 posiciones</span><span class="algo-th-label">Mercado fuerte</span></div>
+                <div class="algo-threshold algo-th-mild-bull"><span class="algo-th-score">&ge; 0.50</span><span class="algo-th-pos">4 posiciones</span><span class="algo-th-label">Mercado moderado</span></div>
+                <div class="algo-threshold algo-th-mild-bear"><span class="algo-th-score">&ge; 0.35</span><span class="algo-th-pos">3 posiciones</span><span class="algo-th-label">Precauci&oacute;n</span></div>
+                <div class="algo-threshold algo-th-bear"><span class="algo-th-score">&lt; 0.35</span><span class="algo-th-pos">2 posiciones</span><span class="algo-th-label">Mercado d&eacute;bil</span></div>
             </div>
 
             <!-- BULL OVERRIDE -->
             <div class="algo-highlight">
                 <div class="algo-highlight-badge">v8.4</div>
                 <div class="algo-highlight-content">
-                    <strong>Bull Market Override:</strong> Cuando SPY &gt; SMA200 &times; 1.03 y regime_score &gt; 0.40, se a&ntilde;ade <strong>+1 posici&oacute;n</strong> al conteo base (m&aacute;x 5). Esto corrige 864 d&iacute;as de falso risk-off donde la componente de volatilidad arrastraba el score por debajo de 0.50 a pesar de tendencia alcista confirmada.
+                    <strong>Correcci&oacute;n de mercado alcista:</strong> A veces el mercado est&aacute; subiendo claramente (S&amp;P 500 un 3% por encima de su promedio) pero la turbulencia reciente arrastra el puntaje hacia abajo. En esos casos, COMPASS <strong>a&ntilde;ade +1 posici&oacute;n</strong> para no perderse ganancias por una se&ntilde;al falsa de precauci&oacute;n. Esto corrigi&oacute; 864 d&iacute;as donde el sistema hubiera invertido de menos sin motivo real.
                 </div>
             </div>
         </div>
@@ -833,21 +835,23 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">04</span>
-            <span class="algo-card-title">Risk Management</span>
+            <span class="algo-card-title">&iquest;C&oacute;mo nos protegemos de p&eacute;rdidas?</span>
         </div>
         <div class="algo-card-body">
+            <p>El riesgo es lo m&aacute;s importante. COMPASS tiene <strong>4 capas de protecci&oacute;n</strong> que funcionan como airbags en un auto: se activan autom&aacute;ticamente cuando algo sale mal, sin necesidad de intervenci&oacute;n humana.</p>
 
             <!-- ADAPTIVE STOPS -->
-            <h3 class="algo-sub-title">Adaptive Position Stops</h3>
+            <h3 class="algo-sub-title">L&iacute;mites de p&eacute;rdida personalizados</h3>
             <div class="algo-highlight">
                 <div class="algo-highlight-badge">v8.4</div>
                 <div class="algo-highlight-content">
-                    Los stops se ajustan a la volatilidad individual de cada acci&oacute;n al momento de entrada. Acciones tranquilas tienen stops tight; acciones vol&aacute;tiles tienen stops m&aacute;s amplios para evitar whipsaw.
+                    Cada acci&oacute;n tiene su propio l&iacute;mite de p&eacute;rdida adaptado a su comportamiento. Una acci&oacute;n estable como Johnson &amp; Johnson tiene un l&iacute;mite del &minus;6%; una acci&oacute;n vol&aacute;til como Tesla tendr&iacute;a &minus;15%. Esto evita vender prematuramente por movimientos normales del mercado.
                 </div>
             </div>
             <div class="algo-formula-box">
-                <div class="algo-formula-label">Adaptive Stop Formula</div>
+                <div class="algo-formula-label">F&oacute;rmula del l&iacute;mite adaptativo</div>
                 <code class="algo-formula">stop = max(&minus;0.15, min(&minus;0.06, &minus;2.5 &times; daily_vol))</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">En simple: l&iacute;mite = 2.5 veces la turbulencia diaria, pero nunca menos de &minus;6% ni m&aacute;s de &minus;15%</p>
             </div>
             <div class="algo-stops-grid">
                 <div class="algo-stop-example">
@@ -873,16 +877,17 @@
             </div>
 
             <!-- TRAILING STOP -->
-            <h3 class="algo-sub-title">Trailing Stop (Vol-Scaled)</h3>
-            <p>Se activa despu&eacute;s de +5% de ganancia. El trailing base (3%) se escala por la volatilidad de la acci&oacute;n respecto al baseline de 25%.</p>
+            <h3 class="algo-sub-title">Piso m&oacute;vil de ganancia</h3>
+            <p>Cuando una acci&oacute;n sube <strong>+5%</strong>, activamos un &ldquo;piso m&oacute;vil&rdquo; que la sigue hacia arriba. Si la acci&oacute;n luego baja un 3% desde su m&aacute;ximo, vendemos autom&aacute;ticamente y <strong>aseguramos la ganancia</strong>. Es como un seguro que se activa solo cuando ya hay algo que proteger.</p>
             <div class="algo-formula-box">
-                <div class="algo-formula-label">Trailing Stop</div>
+                <div class="algo-formula-label">F&oacute;rmula del piso m&oacute;vil</div>
                 <code class="algo-formula">trailing = 0.03 &times; (entry_vol / 0.25)</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">Acciones m&aacute;s vol&aacute;tiles tienen un piso m&aacute;s amplio para no salir por ruido</p>
             </div>
 
             <!-- DD SCALING -->
-            <h3 class="algo-sub-title">Drawdown Scaling (Smooth Leverage Reduction)</h3>
-            <p>El leverage se reduce de forma <strong>continua y suave</strong> conforme crece el drawdown del portafolio. Sin switches binarios.</p>
+            <h3 class="algo-sub-title">Reducci&oacute;n gradual de exposici&oacute;n</h3>
+            <p>Si el portafolio total est&aacute; perdiendo dinero, COMPASS reduce <strong>gradualmente</strong> cu&aacute;nto tiene invertido. Es como <strong>soltar el acelerador al acercarse a una curva</strong>: no frenamos de golpe, sino que reducimos velocidad proporcionalmente al peligro.</p>
             <div class="algo-dd-tiers">
                 <div class="algo-dd-tier">
                     <div class="algo-dd-bar" style="width:30%; background:var(--green);"></div>
@@ -915,13 +920,13 @@
             </div>
 
             <!-- CRASH BREAKER -->
-            <h3 class="algo-sub-title">Crash Velocity Circuit Breaker</h3>
-            <p>Detecci&oacute;n de crashes por velocidad de ca&iacute;da. Si SPY cae &minus;6% en 5 d&iacute;as o &minus;10% en 10 d&iacute;as, el leverage baja a 0.15x durante 10 d&iacute;as de cooldown.</p>
+            <h3 class="algo-sub-title">Freno de emergencia</h3>
+            <p>Si el S&amp;P 500 cae <strong>&minus;6% en una semana</strong> o <strong>&minus;10% en dos semanas</strong>, COMPASS activa un freno de emergencia: reduce la inversi&oacute;n al 15% y espera 10 d&iacute;as de &ldquo;enfriamiento&rdquo;. Esto protege contra crashes como el de marzo 2020 o la crisis de 2008.</p>
             <table class="algo-params-sm">
-                <tr><td>CRASH_VEL_5D</td><td>&minus;6% en 5 d&iacute;as</td></tr>
-                <tr><td>CRASH_VEL_10D</td><td>&minus;10% en 10 d&iacute;as</td></tr>
-                <tr><td>CRASH_LEVERAGE</td><td>0.15x</td></tr>
-                <tr><td>CRASH_COOLDOWN</td><td>10 d&iacute;as</td></tr>
+                <tr><td>Ca&iacute;da r&aacute;pida</td><td>&minus;6% en 5 d&iacute;as &rarr; activar freno</td></tr>
+                <tr><td>Ca&iacute;da prolongada</td><td>&minus;10% en 10 d&iacute;as &rarr; activar freno</td></tr>
+                <tr><td>Nivel de freno</td><td>Solo 15% del capital invertido</td></tr>
+                <tr><td>Enfriamiento</td><td>10 d&iacute;as antes de volver a la normalidad</td></tr>
             </table>
         </div>
     </div>
@@ -932,26 +937,27 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">05</span>
-            <span class="algo-card-title">Position Sizing &amp; Execution</span>
+            <span class="algo-card-title">&iquest;Cu&aacute;nto invertimos y cu&aacute;ndo?</span>
         </div>
         <div class="algo-card-body">
+            <p>COMPASS divide el capital entre las acciones seleccionadas de forma inteligente: las <strong>acciones m&aacute;s estables reciben m&aacute;s dinero</strong>, las m&aacute;s vol&aacute;tiles menos. Esto equilibra el riesgo. Cada posici&oacute;n se mantiene <strong>5 d&iacute;as</strong> (una semana burs&aacute;til), y puede extenderse hasta 10 d&iacute;as si sigue ganando.</p>
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
-                    <div class="algo-mini-title">Sizing</div>
+                    <div class="algo-mini-title">Tama&ntilde;o de posici&oacute;n</div>
                     <table class="algo-params-sm">
-                        <tr><td>M&eacute;todo</td><td>Inverse-vol weighted</td></tr>
-                        <tr><td>LEVERAGE_MAX</td><td>1.0x (sin apalancamiento)</td></tr>
-                        <tr><td>TARGET_VOL</td><td>0.15 (15% anualizado)</td></tr>
-                        <tr><td>Buffer</td><td>5% cash reservado</td></tr>
+                        <tr><td>M&eacute;todo</td><td>M&aacute;s peso a las estables, menos a las vol&aacute;tiles</td></tr>
+                        <tr><td>Apalancamiento</td><td>Ninguno (1.0x &mdash; solo dinero propio)</td></tr>
+                        <tr><td>Objetivo de riesgo</td><td>15% de volatilidad anual</td></tr>
+                        <tr><td>Reserva</td><td>5% siempre en efectivo como coj&iacute;n</td></tr>
                     </table>
                 </div>
                 <div class="algo-mini-card">
-                    <div class="algo-mini-title">Hold Period &amp; Renewal</div>
+                    <div class="algo-mini-title">Periodo de tenencia</div>
                     <table class="algo-params-sm">
-                        <tr><td>HOLD_DAYS</td><td>5 d&iacute;as (base)</td></tr>
-                        <tr><td>HOLD_DAYS_MAX</td><td>10 d&iacute;as (hard cap)</td></tr>
-                        <tr><td>RENEWAL_PROFIT_MIN</td><td>+4% para renovar</td></tr>
-                        <tr><td>MOMENTUM_RENEWAL</td><td>Top 85% para renovar</td></tr>
+                        <tr><td>Base</td><td>5 d&iacute;as (1 semana burs&aacute;til)</td></tr>
+                        <tr><td>M&aacute;ximo</td><td>10 d&iacute;as (extensi&oacute;n condicional)</td></tr>
+                        <tr><td>Renovar si</td><td>Ganancia &ge; +4%</td></tr>
+                        <tr><td>Y adem&aacute;s</td><td>Sigue en el top 85% de momentum</td></tr>
                     </table>
                 </div>
             </div>
@@ -960,31 +966,33 @@
             <div class="algo-highlight" style="margin-top: 16px;">
                 <div class="algo-highlight-badge">v8.4</div>
                 <div class="algo-highlight-content">
-                    <strong>Sector Concentration Limits:</strong> M&aacute;ximo <strong>3 posiciones por sector</strong> (MAX_PER_SECTOR = 3). Evita sobre-concentraci&oacute;n como 2022 donde 48 trades fueron en energ&iacute;a (CVX/XOM repetidamente).
+                    <strong>L&iacute;mite por sector:</strong> M&aacute;ximo <strong>3 acciones del mismo sector</strong>. Esto evita poner &ldquo;todos los huevos en la misma canasta&rdquo; &mdash; por ejemplo, en 2022 el algoritmo sin este l&iacute;mite hubiera comprado 48 veces acciones de energ&iacute;a (CVX/XOM), concentrando demasiado riesgo en un solo sector.
                 </div>
             </div>
 
             <div class="algo-mini-card" style="margin-top: 16px;">
-                <div class="algo-mini-title">Costos de ejecuci&oacute;n</div>
+                <div class="algo-mini-title">&iquest;Cu&aacute;ndo se ejecutan las &oacute;rdenes?</div>
                 <table class="algo-params-sm">
-                    <tr><td>COMMISSION</td><td>$0.001/share</td></tr>
-                    <tr><td>MARGIN_RATE</td><td>6% anual</td></tr>
-                    <tr><td>CASH_YIELD</td><td>Moody's Aaa IG (FRED, ~3.5%)</td></tr>
-                    <tr><td>Ejecuci&oacute;n</td><td>Pre-close 15:30 ET + MOC</td></tr>
+                    <tr><td>Se&ntilde;al</td><td>3:30 PM hora de Nueva York</td></tr>
+                    <tr><td>Ejecuci&oacute;n</td><td>Al cierre del mercado (4:00 PM ET)</td></tr>
+                    <tr><td>Comisi&oacute;n</td><td>$0.001 por acci&oacute;n (m&iacute;nima)</td></tr>
+                    <tr><td>Rendimiento del efectivo</td><td>~3.5% anual (bonos corporativos AAA)</td></tr>
                 </table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- SECTION 6: KEY PARAMETERS TABLE -->
+<!-- SECTION 6: KEY PARAMETERS TABLE (COLLAPSIBLE) -->
 <div class="algo-section">
     <div class="algo-card">
-        <div class="algo-card-header">
+        <div class="algo-card-header" style="cursor:pointer;" onclick="var b=document.getElementById('algo-params-body');var a=document.getElementById('algo-toggle-arrow');if(b.style.display==='none'){b.style.display='block';a.textContent='▼';}else{b.style.display='none';a.textContent='▶';}">
             <span class="algo-card-num">06</span>
-            <span class="algo-card-title">Complete Parameters Reference</span>
+            <span class="algo-card-title">Par&aacute;metros T&eacute;cnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);">(para expertos)</span></span>
+            <span id="algo-toggle-arrow" style="margin-left:auto;font-size:14px;color:var(--text-tertiary);">&#9654;</span>
         </div>
-        <div class="algo-card-body">
+        <div class="algo-card-body" id="algo-params-body" style="display:none;">
+            <p style="margin-bottom:16px;">Esta tabla contiene todos los par&aacute;metros exactos del algoritmo. Si no eres programador o analista cuantitativo, puedes saltar esta secci&oacute;n &mdash; todo lo importante ya se explic&oacute; arriba en lenguaje simple.</p>
             <div class="algo-params-full">
                 <table class="algo-params-table">
                     <thead>
@@ -1029,7 +1037,7 @@
 <!-- DISCLAIMER -->
 <div class="algo-section">
     <div class="algo-disclaimer">
-        Backtest period: 2000&ndash;2026 &middot; Bias-corrected with 1,128 historical S&amp;P 500 constituents &middot; 56 experiments validated &middot; Past performance does not guarantee future results.
+        Per&iacute;odo de prueba: 2000&ndash;2026 &middot; Corregido por sesgo de supervivencia con 1,128 acciones hist&oacute;ricas del S&amp;P 500 &middot; 56 experimentos validados &middot; Rendimientos pasados no garantizan resultados futuros.
     </div>
 </div>
 
