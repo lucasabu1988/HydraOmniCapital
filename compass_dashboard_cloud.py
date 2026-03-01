@@ -1,5 +1,5 @@
 """
-COMPASS v8.3 — Cloud Dashboard (Showcase)
+COMPASS v8.4 — Cloud Dashboard (Showcase)
 ==========================================
 Full-featured Flask dashboard for Render.com deployment.
 Shows live prices, backtest equity curves, trade analytics,
@@ -52,14 +52,11 @@ def set_security_headers(response):
     return response
 
 # ============================================================================
-# COMPASS v8.3 PARAMETERS (read-only reference — ALGORITHM LOCKED)
+# COMPASS v8.4 PARAMETERS (read-only reference — ALGORITHM LOCKED)
 # ============================================================================
 
 COMPASS_CONFIG = {
     'HOLD_DAYS': 5,
-    'POSITION_STOP_LOSS': -0.08,
-    'TRAILING_ACTIVATION': 0.05,
-    'TRAILING_STOP_PCT': 0.03,
     'NUM_POSITIONS': 5,
     'NUM_POSITIONS_RISK_OFF': 2,
     'TARGET_VOL': 0.15,
@@ -69,7 +66,19 @@ COMPASS_CONFIG = {
     'ORDER_TIMEOUT_SECONDS': 300,
     'MAX_FILL_DEVIATION': 0.02,
     'MAX_PRICE_CHANGE_PCT': 0.20,
-    # --- v8.3 Smooth DD Scaling ---
+    # --- v8.4 Adaptive Stops (volatility-scaled) ---
+    'STOP_DAILY_VOL_MULT': 2.5,
+    'STOP_FLOOR': -0.06,
+    'STOP_CEILING': -0.15,
+    'TRAILING_ACTIVATION': 0.05,
+    'TRAILING_STOP_PCT': 0.03,
+    'TRAILING_VOL_BASELINE': 0.25,
+    # --- v8.4 Bull Market Override ---
+    'BULL_OVERRIDE_THRESHOLD': 0.03,
+    'BULL_OVERRIDE_MIN_SCORE': 0.40,
+    # --- v8.4 Sector Concentration ---
+    'MAX_PER_SECTOR': 3,
+    # --- Smooth DD Scaling ---
     'DD_SCALE_TIER1': -0.10,
     'DD_SCALE_TIER2': -0.20,
     'DD_SCALE_TIER3': -0.35,
@@ -80,11 +89,11 @@ COMPASS_CONFIG = {
     'CRASH_VEL_10D': -0.10,
     'CRASH_LEVERAGE': 0.15,
     'CRASH_COOLDOWN': 10,
-    # --- v8.3 Exit Renewal ---
+    # --- Exit Renewal ---
     'HOLD_DAYS_MAX': 10,
     'RENEWAL_PROFIT_MIN': 0.04,
     'MOMENTUM_RENEWAL_THRESHOLD': 0.85,
-    # --- v8.3 Quality Filter ---
+    # --- Quality Filter ---
     'QUALITY_VOL_MAX': 0.60,
     'QUALITY_VOL_LOOKBACK': 63,
     'QUALITY_MAX_SINGLE_DAY': 0.50,
@@ -166,8 +175,8 @@ _spy_df = None
 def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
-    # COMPASS v8.3 bias-corrected data (11.57% CAGR, -29.62% MaxDD)
-    csv_path = os.path.join('backtests', 'v83_compass_daily.csv')
+    # COMPASS v8.4 bias-corrected data (12.20% CAGR, -31.99% MaxDD)
+    csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
@@ -432,7 +441,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     drawdown = (portfolio_value - peak_value) / peak_value if peak_value > 0 else 0
     total_return = (portfolio_value - initial_capital) / initial_capital if initial_capital > 0 else 0
 
-    # v8.3: Smooth DD scaling info (no binary stop/recovery)
+    # v8.4: Smooth DD scaling info (no binary stop/recovery)
     recovery = None
     dd_leverage = state.get('dd_leverage', 1.0)
     crash_cooldown = state.get('crash_cooldown', 0)
@@ -443,15 +452,15 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
             'regime_score': round(state.get('regime_score', 1.0), 3),
         }
 
-    # v8.3: Continuous regime score
+    # v8.4: Continuous regime score
     regime_score = state.get('regime_score', 1.0)
     regime_str = f'SCORE_{regime_score:.2f}' if regime_score < 1.0 else 'RISK_ON'
 
-    # v8.3: DD leverage (smooth scaling)
+    # v8.4: DD leverage (smooth scaling)
     dd_leverage = state.get('dd_leverage', 1.0)
     leverage = dd_leverage if dd_leverage < COMPASS_CONFIG['LEV_FULL'] else None
 
-    # v8.3: Positions from regime score
+    # v8.4: Positions from regime score
     if regime_score >= 0.8:
         max_pos = 5
     elif regime_score >= 0.6:
@@ -1114,7 +1123,7 @@ def api_equity():
     """Return COMPASS equity curve data (full period from 2000)."""
     df = _equity_df
     if df is None:
-        csv_path = os.path.join('backtests', 'v83_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
         try:
@@ -1209,7 +1218,7 @@ def api_equity_comparison():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v83_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -1302,7 +1311,7 @@ def api_annual_returns():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v83_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -1465,7 +1474,7 @@ def api_preflight():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("COMPASS v8.3 \u2014 Cloud Dashboard (Showcase)")
+    print("COMPASS v8.4 \u2014 Cloud Dashboard (Showcase)")
     print("=" * 60)
     print(f"Port: {port}")
     print(f"Mode: {'SHOWCASE' if SHOWCASE_MODE else 'local'}")

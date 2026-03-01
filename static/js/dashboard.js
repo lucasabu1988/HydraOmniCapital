@@ -797,8 +797,8 @@ function renderTATable(segKey) {
 /* ============ FUND SCATTER CHART ============ */
 /* Fund data with categories and Max Drawdown */
 const FUND_DATA = [
-    /* COMPASS v8.3 (1x leverage) — leverage-adjusted = nominal */
-    { x: 0.80, y: 11.57, label: 'COMPASS v8.3', lev: 1, color: '#22c55e', cat: 'compass', maxDD: -29.6, aum: '0.1M', desc: 'v8.3 bias-corrected, no leverage, 0 stop events' },
+    /* COMPASS v8.4 (1x leverage) — leverage-adjusted = nominal */
+    { x: 0.87, y: 12.20, label: 'COMPASS v8.4', lev: 1, color: '#22c55e', cat: 'compass', maxDD: -32.0, aum: '0.1M', desc: 'v8.4 bias-corrected, no leverage, bull override + adaptive stops + sector limits' },
     /* Elite Multi-Strategy (high leverage) — y = nominal CAGR / leverage */
     { x: 2.2, y: 2.74, label: 'Citadel Wellington', lev: 7, color: '#f97316', cat: 'elite', maxDD: -8.0, aum: '$66B', desc: 'Multi-strategy, 7x lev → 19.2% nominal / 7 = 2.7% per turn of leverage' },
     { x: 1.7, y: 2.58, label: 'D.E. Shaw', lev: 5, color: '#f97316', cat: 'elite', maxDD: -12.0, aum: '$60B', desc: 'Quant multi-strategy, 5x lev → 12.9% nominal / 5 = 2.6%' },
@@ -899,13 +899,13 @@ function initFundScatterChart() {
                 annotation: {
                     annotations: {
                         compassCAGR: {
-                            type: 'line', yMin: 11.57, yMax: 11.57,
+                            type: 'line', yMin: 12.20, yMax: 12.20,
                             borderColor: 'rgba(34,197,94,0.2)', borderWidth: 1, borderDash: [6, 4],
-                            label: { content: 'COMPASS v8.3 — 11.57%', display: true, position: 'start',
+                            label: { content: 'COMPASS v8.4 — 12.20%', display: true, position: 'start',
                                      color: 'rgba(34,197,94,0.5)', font: {size: 9}, backgroundColor: 'transparent', padding: 2 }
                         },
                         compassSharpe: {
-                            type: 'line', xMin: 0.80, xMax: 0.80,
+                            type: 'line', xMin: 0.87, xMax: 0.87,
                             borderColor: 'rgba(34,197,94,0.2)', borderWidth: 1, borderDash: [6, 4],
                         }
                     }
@@ -950,7 +950,7 @@ function initFundScatterChart() {
                         /* Label offsets */
                         let ox = (f.cat === 'compass' ? 14 : 5 + f.lev * 2.5 + 4), oy = -6;
                         /* Manual adjustments for overlapping labels */
-                        if (f.label === 'COMPASS v8.3') { oy = -14; }
+                        if (f.label === 'COMPASS v8.4') { oy = -14; }
                         if (f.label === 'iShares MTUM') { oy = -14; }
                         if (f.label === 'AQR Momentum (AMOMX)') { oy = 18; }
                         if (f.label === 'Man AHL') { oy = 16; }
@@ -1655,7 +1655,7 @@ function fetchExpAnalysis() {
     html += '<div class="exp-proposals"><div class="exp-proposals-title">CONCLUSION</div>';
     html += '<div class="exp-proposal-card">';
     html += '<div class="exp-proposal-name">Algorithm Motor: LOCKED <span class="exp-proposal-priority exp-priority-high">FINAL</span></div>';
-    html += '<div class="exp-proposal-desc">53 experiments confirm COMPASS v8.3 has reached optimal risk/return balance. 6 structural improvements + 3 bug fixes over v8.2.</div>';
+    html += '<div class="exp-proposal-desc">56 experiments confirm COMPASS v8.4 has reached optimal risk/return balance. 3 algorithmic improvements over v8.3: bull market override, adaptive stops, sector concentration limits.</div>';
     html += '<div class="exp-proposal-rationale">Focus on chassis (execution quality, broker integration, data sources) and operations (paper trading, tax optimization, scaling).</div>';
     html += '</div>';
 
