@@ -1299,13 +1299,25 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
     var badge = document.getElementById('ar-badge');
     if (badge) badge.textContent = positiveYears + '/' + totalYears + ' positive';
 
-    /* Colors */
-    var compassColors = compassRets.map(function(v) {
-        return v >= 0
-            ? (isDark ? 'rgba(34, 197, 94, 0.85)' : 'rgba(22, 163, 74, 0.85)')
-            : (isDark ? 'rgba(239, 68, 68, 0.85)' : 'rgba(220, 38, 38, 0.85)');
+    /* Colors — dim COMPASS bar when it underperforms SPY */
+    var compassColors = compassRets.map(function(v, i) {
+        var losesToSpy = (spyRets[i] != null && v < spyRets[i]);
+        if (v >= 0) {
+            return losesToSpy
+                ? (isDark ? 'rgba(34, 197, 94, 0.35)' : 'rgba(22, 163, 74, 0.35)')
+                : (isDark ? 'rgba(34, 197, 94, 0.85)' : 'rgba(22, 163, 74, 0.85)');
+        } else {
+            return losesToSpy
+                ? (isDark ? 'rgba(239, 68, 68, 0.85)' : 'rgba(220, 38, 38, 0.85)')
+                : (isDark ? 'rgba(239, 68, 68, 0.50)' : 'rgba(220, 38, 38, 0.50)');
+        }
     });
-    var spyColors = spyRets.map(function(v) {
+    var compassBorders = compassRets.map(function(v, i) {
+        var losesToSpy = (spyRets[i] != null && v < spyRets[i]);
+        if (!losesToSpy) return 'transparent';
+        return isDark ? 'rgba(250, 204, 21, 0.8)' : 'rgba(202, 138, 4, 0.8)';
+    });
+    var spyColors = spyRets.map(function() {
         return isDark ? 'rgba(99, 102, 241, 0.55)' : 'rgba(99, 102, 241, 0.45)';
     });
     var spyBorderColors = spyRets.map(function() {
@@ -1314,6 +1326,11 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
     var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
     var tickColor = isDark ? '#8888a0' : '#5e5e78';
     var zeroLineColor = isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+
+    /* Track which years COMPASS underperforms SPY */
+    var underperforms = data.map(function(d) {
+        return d.spy != null && d.compass < d.spy;
+    });
 
     /* Dynamic height: ~28px per year, min 380px */
     var chartH = Math.max(380, data.length * 28 + 60);
@@ -1336,10 +1353,13 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
     if (summaryEl) {
         /* Build summary using safe DOM methods */
         summaryEl.textContent = '';
+        var compassLosses = validPairs - compassWins;
         var items = [
             { dot: isDark ? '#22c55e' : '#16a34a', dotBorder: null, text: 'COMPASS', val: null },
             { dot: 'rgba(99,102,241,0.6)', dotBorder: 'rgba(99,102,241,0.8)', text: 'S&P 500', val: null },
-            { dot: null, text: 'Beats SPY:', val: compassWins + '/' + validPairs + ' years', color: 'var(--green)' },
+            { dot: isDark ? 'rgba(34,197,94,0.35)' : 'rgba(22,163,74,0.35)', dotBorder: isDark ? 'rgba(250,204,21,0.8)' : 'rgba(202,138,4,0.8)', text: 'Underperforms SPY', val: null },
+            { dot: null, text: 'Beats SPY:', val: compassWins + '/' + validPairs, color: 'var(--green)' },
+            { dot: null, text: 'Loses:', val: compassLosses + '/' + validPairs, color: 'var(--yellow)' },
             { dot: null, text: 'Avg Alpha:', val: (avgAlpha >= 0 ? '+' : '') + avgAlpha.toFixed(1) + ' pp/yr', color: avgAlpha >= 0 ? 'var(--green)' : 'var(--red)' },
         ];
         items.forEach(function(item) {
@@ -1375,6 +1395,8 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                     label: 'COMPASS',
                     data: compassRets,
                     backgroundColor: compassColors,
+                    borderColor: compassBorders,
+                    borderWidth: 1.5,
                     borderRadius: 3,
                     barPercentage: 0.82,
                     categoryPercentage: 0.7,
@@ -1451,8 +1473,19 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                 },
                 y: {
                     ticks: {
-                        color: tickColor,
-                        font: { family: "'JetBrains Mono', monospace", size: 11, weight: '600' },
+                        color: function(context) {
+                            var idx = context.index;
+                            if (underperforms[idx]) return isDark ? '#facc15' : '#ca8a04';
+                            return tickColor;
+                        },
+                        font: function(context) {
+                            var idx = context.index;
+                            return {
+                                family: "'JetBrains Mono', monospace",
+                                size: 11,
+                                weight: underperforms[idx] ? '800' : '600',
+                            };
+                        },
                     },
                     grid: { display: false },
                     border: { color: gridColor },
