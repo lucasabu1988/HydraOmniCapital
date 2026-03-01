@@ -1,0 +1,82 @@
+{
+  "generated_at": "2026-03-01T10:09:22.674729",
+  "trading_days": 7,
+  "learning_phase": 1,
+  "phase_description": "Phase 1 \u2014 Statistical summaries only. Need 63+ trading days for ML.",
+  "data_summary": {
+    "total_decisions": 7,
+    "completed_trades": 1,
+    "daily_snapshots": 7,
+    "decisions_by_type": {
+      "entry": 6,
+      "exit": 1
+    }
+  },
+  "trade_analytics": {
+    "n_completed_trades": 1,
+    "overall": {
+      "n": 1,
+      "mean_return": -0.067,
+      "mean_return_ci_95": [
+        -0.067,
+        -0.067
+      ],
+      "median_return": -0.067,
+      "std_return": NaN,
+      "win_rate": 0.0,
+      "stop_rate": 1.0,
+      "avg_days_held": 2.0,
+      "best": -0.067,
+      "worst": -0.067,
+      "sharpe_approx": null
+    },
+    "by_regime": {},
+    "by_sector": {},
+    "by_exit_reason": {
+      "position_stop_adaptive": {
+        "n": 1,
+        "mean_return": -0.067,
+        "mean_return_ci_95": [
+          -0.067,
+          -0.067
+        ],
+        "median_return": -0.067,
+        "std_return": NaN,
+        "win_rate": 0.0,
+        "stop_rate": 1.0,
+        "avg_days_held": 2.0,
+        "best": -0.067,
+        "worst": -0.067,
+        "sharpe_approx": null
+      }
+    },
+    "by_vol_bucket": {},
+    "stop_analysis": {
+      "total_stops": 1,
+      "overall_stop_rate": 1.0,
+      "avg_return_when_stopped": -0.067,
+      "avg_return_when_not_stopped": null,
+      "stop_by_vol_bucket": {}
+    }
+  },
+  "ml_models": {},
+  "stop_analysis": {
+    "status": "insufficient_data",
+    "n": 1,
+    "message": "Need at least 5 completed trades for stop analysis."
+  },
+  "portfolio_analytics": {
+    "n_days": 7,
+    "start_value": 99872.84,
+    "current_value": 102129.48,
+    "total_return": 0.0226,
+    "annualized_return_approx": 1.2353,
+    "daily_sharpe_annualized": 10.481,
+    "max_drawdown": -0.0032,
+    "daily_returns_mean": 0.00375,
+    "daily_returns_std": 0.00567
+  },
+  "parameter_suggestions": [],
+  "warnings": [],
+  "next_milestone": "Phase 2 ML begins in ~56 trading days (~2 months). Collect more entry/exit decisions and completed trade outcomes."
+}
