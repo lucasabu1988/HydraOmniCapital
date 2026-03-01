@@ -1054,6 +1054,15 @@ class COMPASSLive:
                         'exit_reason': exit_reason, 'pnl': pnl, 'return': ret,
                         'price': result.filled_price, 'is_bps': result.is_bps
                     })
+
+                    # Track stop exits for cycle log update when replacement enters
+                    if exit_reason in ('position_stop', 'trailing_stop'):
+                        if not hasattr(self, '_pending_stop_exits'):
+                            self._pending_stop_exits = []
+                        self._pending_stop_exits.append({
+                            'symbol': symbol, 'reason': exit_reason, 'return': ret
+                        })
+
                     stop_info = ""
                     if exit_reason == 'position_stop':
                         stop_info = f" | stop={adaptive_stop:.1%}"
@@ -1269,6 +1278,19 @@ class COMPASSLive:
                         )
                     except Exception as e:
                         logger.warning(f"ML entry logging failed for {symbol}: {e}")
+
+                # Cycle log: link this entry as replacement for a pending stop exit
+                if hasattr(self, '_pending_stop_exits') and self._pending_stop_exits:
+                    stop_exit = self._pending_stop_exits.pop(0)
+                    try:
+                        self._update_cycle_log_stop(
+                            stopped_symbol=stop_exit['symbol'],
+                            replacement_symbol=symbol,
+                            exit_reason=stop_exit['reason'],
+                            stop_return=stop_exit['return'],
+                        )
+                    except Exception as e:
+                        logger.warning(f"Cycle log stop update failed: {e}")
 
                 # Save state immediately after fill (crash protection)
                 self.save_state()
@@ -1524,9 +1546,11 @@ class COMPASSLive:
             'spy_start': round(gspc_price, 2) if gspc_price else None,
             'spy_end': None,
             'positions': new_positions,
+            'positions_current': list(new_positions),
             'compass_return': None,
             'spy_return': None,
             'alpha': None,
+            'stop_events': [],
         })
 
         # Save
@@ -1598,6 +1622,7 @@ class COMPASSLive:
         next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
         today = self.last_trading_date.isoformat() if self.last_trading_date else date.today().isoformat()
 
+        current_positions = list(self.broker.positions.keys())
         cycles.append({
             'cycle': next_cycle,
             'start_date': today,
@@ -1607,10 +1632,12 @@ class COMPASSLive:
             'portfolio_end': None,
             'spy_start': round(gspc_price, 2) if gspc_price else None,
             'spy_end': None,
-            'positions': list(self.broker.positions.keys()),
+            'positions': current_positions,
+            'positions_current': list(current_positions),
             'compass_return': None,
             'spy_return': None,
             'alpha': None,
+            'stop_events': [],
         })
 
         os.makedirs('state', exist_ok=True)
@@ -1619,6 +1646,53 @@ class COMPASSLive:
 
         logger.info(f"CYCLE #{next_cycle} initialized on startup: "
                     f"{list(self.broker.positions.keys())}")
+
+    def _update_cycle_log_stop(self, stopped_symbol: str, replacement_symbol: str,
+                                exit_reason: str, stop_return: float):
+        """Update the active cycle when a mid-cycle stop fires and a replacement enters.
+
+        Records the stop event and updates positions_current so the dashboard
+        shows the actual current holdings, not just the cycle-start snapshot.
+        """
+        log_file = os.path.join('state', 'cycle_log.json')
+        if not os.path.exists(log_file):
+            return
+        try:
+            with open(log_file, 'r') as f:
+                cycles = json.load(f)
+        except Exception:
+            return
+
+        for c in cycles:
+            if c.get('status') != 'active':
+                continue
+            if 'stop_events' not in c:
+                c['stop_events'] = []
+            if 'positions_current' not in c:
+                c['positions_current'] = list(c.get('positions', []))
+
+            today = self.get_et_now().date().isoformat()
+            c['stop_events'].append({
+                'date': today,
+                'stopped': stopped_symbol,
+                'replacement': replacement_symbol,
+                'reason': exit_reason,
+                'return': round(stop_return * 100, 1),
+            })
+
+            current = c['positions_current']
+            if stopped_symbol in current:
+                current.remove(stopped_symbol)
+            if replacement_symbol and replacement_symbol not in current:
+                current.append(replacement_symbol)
+            c['positions_current'] = current
+            break
+
+        try:
+            with open(log_file, 'w') as f:
+                json.dump(cycles, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to update cycle log stop: {e}")
 
     # ------------------------------------------------------------------
     # State persistence

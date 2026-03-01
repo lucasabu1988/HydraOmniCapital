@@ -598,7 +598,23 @@ async function fetchCycleLog() {
             const spyCls = c.spy_return > 0 ? 'cl-pos' : c.spy_return < 0 ? 'cl-neg' : '';
             const alphaCls = c.alpha > 0 ? 'cl-pos' : c.alpha < 0 ? 'cl-neg' : '';
             const period = c.end_date ? c.start_date + ' → ' + c.end_date : c.start_date + ' → ...';
-            const tickers = c.positions ? c.positions.join(', ') : '--';
+            // Build tickers display with stop replacements
+            var tickers = '--';
+            if (c.positions) {
+                var stops = c.stop_events || [];
+                var stoppedSet = {};
+                for (var si = 0; si < stops.length; si++) stoppedSet[stops[si].stopped] = stops[si].replacement;
+                var parts = [];
+                for (var ti = 0; ti < c.positions.length; ti++) {
+                    var tk = c.positions[ti];
+                    if (stoppedSet[tk]) {
+                        parts.push('<s style="opacity:.5">' + tk + '</s>→' + stoppedSet[tk]);
+                    } else {
+                        parts.push(tk);
+                    }
+                }
+                tickers = parts.join(', ');
+            }
             const status = isActive
                 ? '<span class="cl-active">● ACTIVE</span>'
                 : (c.compass_return != null && c.compass_return >= 0 ? '<span class="cl-pos">✓ WIN</span>' : '<span class="cl-neg">✗ LOSS</span>');

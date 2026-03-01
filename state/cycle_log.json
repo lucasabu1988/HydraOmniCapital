@@ -11,7 +11,8 @@
     "positions": ["LRCX", "MU", "MRK", "XOM", "AMAT"],
     "compass_return": 2.46,
     "spy_return": 1.23,
-    "alpha": 1.23
+    "alpha": 1.23,
+    "stop_events": []
   },
   {
     "cycle": 2,
@@ -23,8 +24,18 @@
     "spy_start": 6946.13,
     "spy_end": null,
     "positions": ["TXN", "JNJ", "GS", "CVX", "LLY"],
+    "positions_current": ["TXN", "JNJ", "MU", "CVX", "LLY"],
     "compass_return": null,
     "spy_return": null,
-    "alpha": null
+    "alpha": null,
+    "stop_events": [
+      {
+        "date": "2026-02-27",
+        "stopped": "GS",
+        "replacement": "MU",
+        "reason": "position_stop_adaptive",
+        "return": -6.7
+      }
+    ]
   }
 ]
