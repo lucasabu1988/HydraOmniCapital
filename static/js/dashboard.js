@@ -1269,11 +1269,167 @@ function renderEquityAndDrawdown(equity, milestones) {
     });
 }
 
+/* ============ ANNUAL RETURNS BAR CHART ============ */
+let _annualChart = null;
+
+async function fetchAnnualReturns() {
+    try {
+        var res = await fetch('/api/annual-returns');
+        var data = await res.json();
+        if (!data.data || data.data.length === 0) return;
+        renderAnnualReturns(data.data, data.positive_years, data.total_years);
+    } catch (e) {
+        console.error('Annual returns fetch error:', e);
+    }
+}
+
+function renderAnnualReturns(data, positiveYears, totalYears) {
+    var ctx = document.getElementById('annualReturnsChart');
+    if (!ctx) return;
+
+    var isDark = document.body.classList.contains('dark');
+    var years = data.map(function(d) { return d.year; });
+    var compassRets = data.map(function(d) { return d.compass; });
+    var spyRets = data.map(function(d) { return d.spy; });
+
+    /* Badge */
+    var badge = document.getElementById('ar-badge');
+    if (badge) badge.textContent = positiveYears + '/' + totalYears + ' positive years';
+
+    /* Colors */
+    var compassColors = compassRets.map(function(v) {
+        return v >= 0
+            ? (isDark ? 'rgba(34, 197, 94, 0.85)' : 'rgba(22, 163, 74, 0.85)')
+            : (isDark ? 'rgba(239, 68, 68, 0.85)' : 'rgba(220, 38, 38, 0.85)');
+    });
+    var spyColor = isDark ? 'rgba(99, 102, 241, 0.35)' : 'rgba(99, 102, 241, 0.30)';
+    var spyBorder = isDark ? 'rgba(99, 102, 241, 0.7)' : 'rgba(99, 102, 241, 0.6)';
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+    var tickColor = isDark ? '#8888a0' : '#5e5e78';
+    var zeroLineColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+
+    if (_annualChart) _annualChart.destroy();
+    _annualChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    label: 'COMPASS',
+                    data: compassRets,
+                    backgroundColor: compassColors,
+                    borderRadius: 3,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8,
+                    order: 1,
+                },
+                {
+                    label: 'S&P 500',
+                    data: spyRets,
+                    backgroundColor: spyColor,
+                    borderColor: spyBorder,
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8,
+                    order: 2,
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        color: tickColor,
+                        font: { family: "'Inter', sans-serif", size: 11, weight: '500' },
+                        boxWidth: 12,
+                        boxHeight: 12,
+                        borderRadius: 3,
+                        useBorderRadius: true,
+                        padding: 16,
+                        generateLabels: function(chart) {
+                            return [
+                                { text: 'COMPASS', fillStyle: isDark ? '#22c55e' : '#16a34a', strokeStyle: 'transparent', lineWidth: 0, borderRadius: 3 },
+                                { text: 'S&P 500', fillStyle: spyColor, strokeStyle: spyBorder, lineWidth: 1, borderRadius: 3 },
+                            ];
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(20, 20, 40, 0.95)',
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    borderWidth: 1,
+                    titleFont: { family: "'Inter', sans-serif", size: 13, weight: '700' },
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
+                    displayColors: true,
+                    callbacks: {
+                        title: function(items) { return items[0].label; },
+                        label: function(item) {
+                            var val = item.parsed.x;
+                            var sign = val >= 0 ? '+' : '';
+                            return ' ' + item.dataset.label + ': ' + sign + val.toFixed(2) + '%';
+                        },
+                        afterBody: function(items) {
+                            if (items.length >= 2 && items[0].parsed.x != null && items[1].parsed.x != null) {
+                                var diff = items[0].parsed.x - items[1].parsed.x;
+                                var sign = diff >= 0 ? '+' : '';
+                                return ['', ' Alpha: ' + sign + diff.toFixed(2) + ' pp'];
+                            }
+                            return [];
+                        }
+                    }
+                },
+                annotation: {
+                    annotations: {
+                        zeroLine: {
+                            type: 'line',
+                            xMin: 0, xMax: 0,
+                            borderColor: zeroLineColor,
+                            borderWidth: 1.5,
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true, text: 'Annual Return (%)', color: tickColor,
+                        font: { family: "'Inter', sans-serif", size: 11, weight: '600' }
+                    },
+                    ticks: {
+                        color: tickColor,
+                        font: { family: "'JetBrains Mono', monospace", size: 10 },
+                        callback: function(v) { return v + '%'; }
+                    },
+                    grid: { color: gridColor },
+                    border: { color: gridColor },
+                },
+                y: {
+                    ticks: {
+                        color: tickColor,
+                        font: { family: "'JetBrains Mono', monospace", size: 11 },
+                    },
+                    grid: { display: false },
+                    border: { color: gridColor },
+                }
+            }
+        }
+    });
+}
+
 /* ============ INIT ============ */
 document.addEventListener('DOMContentLoaded', function() {
     /* Init fund scatter chart (visible on dashboard load) */
     initFundScatterChart();
     fetchEquityData();
+    fetchAnnualReturns();
     fetchAll();
     fetchCycleLog();
 

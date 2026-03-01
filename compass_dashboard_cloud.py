@@ -1295,6 +1295,64 @@ def api_equity_comparison():
     })
 
 
+@app.route('/api/annual-returns')
+def api_annual_returns():
+    """Return COMPASS vs S&P 500 annual returns for bar chart."""
+    df = _equity_df
+    spy_df = _spy_df
+
+    if df is None:
+        csv_path = os.path.join('backtests', 'exp40_corrected_daily.csv')
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'No backtest data'})
+        try:
+            df = pd.read_csv(csv_path, parse_dates=['date'])
+        except Exception:
+            return jsonify({'error': 'Failed to read CSV'})
+
+    val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
+    df_copy = df[['date', val_col]].copy()
+    df_copy['year'] = df_copy['date'].dt.year
+
+    # COMPASS annual returns: last value of year / first value of year - 1
+    compass_annual = []
+    for year, grp in df_copy.groupby('year'):
+        start_val = float(grp[val_col].iloc[0])
+        end_val = float(grp[val_col].iloc[-1])
+        ret = ((end_val / start_val) - 1) * 100 if start_val > 0 else 0
+        compass_annual.append({'year': int(year), 'return': round(ret, 2)})
+
+    # SPY annual returns
+    spy_annual = {}
+    if spy_df is not None:
+        spy_copy = spy_df[['date', 'close']].copy()
+        spy_copy['year'] = spy_copy['date'].dt.year
+        for year, grp in spy_copy.groupby('year'):
+            start_val = float(grp['close'].iloc[0])
+            end_val = float(grp['close'].iloc[-1])
+            ret = ((end_val / start_val) - 1) * 100 if start_val > 0 else 0
+            spy_annual[int(year)] = round(ret, 2)
+
+    result = []
+    positive_years = 0
+    for item in compass_annual:
+        yr = item['year']
+        spy_ret = spy_annual.get(yr)
+        if item['return'] > 0:
+            positive_years += 1
+        result.append({
+            'year': yr,
+            'compass': item['return'],
+            'spy': spy_ret,
+        })
+
+    return jsonify({
+        'data': result,
+        'positive_years': positive_years,
+        'total_years': len(compass_annual),
+    })
+
+
 @app.route('/api/backtest/status')
 def api_backtest_status():
     return jsonify({
