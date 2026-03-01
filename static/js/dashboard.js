@@ -1497,12 +1497,11 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
 
     /* ── Container height ───────────────────────────────────────────────── */
     /*
-     * 22px per year + 80px top/bottom padding.
-     * Two bars share one category slot so 22px gives enough breathing room
-     * without the chart ballooning to 800px+.
+     * 30px per year + 80px top/bottom padding.
+     * Larger rows give better hover targets and clearer bar separation.
      * Minimum 440px to avoid a squashed look on small data sets.
      */
-    var PX_PER_YEAR = 22;
+    var PX_PER_YEAR = 30;
     var chartH = Math.max(440, data.length * PX_PER_YEAR + 80);
     var container = document.getElementById('annual-returns-container');
     if (container) container.style.height = chartH + 'px';
@@ -1544,7 +1543,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
+            interaction: { mode: 'index', intersect: false, axis: 'y' },
             /* Right padding: enough room for the COMPASS value labels */
             layout: { padding: { top: 4, bottom: 4, left: 0, right: 72 } },
             plugins: {
