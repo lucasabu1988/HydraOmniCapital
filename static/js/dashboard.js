@@ -984,10 +984,296 @@ function initFundScatterChart() {
     });
 }
 
+/* ============ EQUITY CURVE + UNDERWATER DRAWDOWN ============ */
+let _equityChart = null;
+let _underwaterChart = null;
+
+/* Known crisis events for annotation labels */
+const DRAWDOWN_EVENTS = [
+    { start: '2000-09', end: '2003-05', label: 'Dot-Com Bust' },
+    { start: '2007-10', end: '2009-09', label: 'GFC' },
+    { start: '2020-02', end: '2020-08', label: 'COVID' },
+    { start: '2022-01', end: '2023-10', label: 'Bear Market' },
+];
+
+function matchCrisisLabel(dateStr) {
+    for (var ev of DRAWDOWN_EVENTS) {
+        if (dateStr >= ev.start && dateStr <= ev.end) return ev.label;
+    }
+    return null;
+}
+
+function getDrawdownColor(dd) {
+    if (dd >= -10) return 'rgba(22, 163, 74, 0.6)';   /* green */
+    if (dd >= -20) return 'rgba(234, 179, 8, 0.6)';    /* yellow */
+    return 'rgba(220, 38, 38, 0.6)';                    /* red */
+}
+
+function getDarkDrawdownColor(dd) {
+    if (dd >= -10) return 'rgba(34, 197, 94, 0.5)';
+    if (dd >= -20) return 'rgba(250, 204, 21, 0.5)';
+    return 'rgba(239, 68, 68, 0.5)';
+}
+
+function updateChartColors() {
+    /* Called when dark mode toggles — rebuild charts with correct colors */
+    if (_equityChart || _underwaterChart) fetchEquityData();
+}
+
+async function fetchEquityData() {
+    try {
+        var res = await fetch('/api/equity');
+        var data = await res.json();
+        if (!data.equity || data.equity.length === 0) return;
+        renderEquityAndDrawdown(data.equity, data.milestones || []);
+    } catch (e) {
+        console.error('Equity fetch error:', e);
+    }
+}
+
+function renderEquityAndDrawdown(equity, milestones) {
+    var isDark = document.body.classList.contains('dark');
+    var dates = [];
+    var values = [];
+    var ddPcts = [];
+    var ddColors = [];
+
+    /* Compute drawdown from peak */
+    var peak = 0;
+    for (var i = 0; i < equity.length; i++) {
+        var pt = equity[i];
+        dates.push(pt.date);
+        values.push(pt.value);
+        if (pt.value > peak) peak = pt.value;
+        var dd = ((pt.value - peak) / peak) * 100;
+        ddPcts.push(dd);
+        ddColors.push(isDark ? getDarkDrawdownColor(dd) : getDrawdownColor(dd));
+    }
+
+    /* Badge with date range */
+    var badge = document.getElementById('eq-badge');
+    if (badge) {
+        badge.textContent = dates[0].slice(0, 4) + '–' + dates[dates.length - 1].slice(0, 4) + ' · ' + equity.length + ' points';
+    }
+
+    /* Annotations for crisis events on underwater chart */
+    var annotations = {};
+    var labeledCrises = {};
+    var worstByEvent = {};
+    for (var j = 0; j < ddPcts.length; j++) {
+        var crisis = matchCrisisLabel(dates[j].slice(0, 7));
+        if (crisis && ddPcts[j] < (worstByEvent[crisis] || 0)) {
+            worstByEvent[crisis] = ddPcts[j];
+            labeledCrises[crisis] = j;
+        }
+    }
+    Object.keys(labeledCrises).forEach(function(name) {
+        var idx = labeledCrises[name];
+        var worstDD = worstByEvent[name];
+        annotations['crisis_' + name] = {
+            type: 'label',
+            xValue: dates[idx],
+            yValue: worstDD,
+            content: name + ' ' + worstDD.toFixed(1) + '%',
+            color: isDark ? '#f87171' : '#dc2626',
+            font: { size: 10, weight: '600', family: "'Inter', sans-serif" },
+            position: { x: 'center', y: 'start' },
+            yAdjust: -14,
+        };
+    });
+
+    /* Grid colors */
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+    var tickColor = isDark ? '#8888a0' : '#5e5e78';
+
+    /* ---- EQUITY CURVE ---- */
+    var eqCtx = document.getElementById('equityCurveChart');
+    if (!eqCtx) return;
+
+    /* Milestone annotations for equity chart */
+    var eqAnnotations = {};
+    if (milestones) {
+        milestones.forEach(function(m, mi) {
+            if (m.type === 'milestone') {
+                eqAnnotations['ms_' + mi] = {
+                    type: 'point',
+                    xValue: m.date,
+                    yValue: m.value,
+                    radius: 4,
+                    backgroundColor: isDark ? '#22c55e' : '#16a34a',
+                    borderColor: isDark ? '#22c55e' : '#16a34a',
+                    borderWidth: 2,
+                };
+                eqAnnotations['ms_label_' + mi] = {
+                    type: 'label',
+                    xValue: m.date,
+                    yValue: m.value,
+                    content: m.label,
+                    color: isDark ? '#4ade80' : '#16a34a',
+                    font: { size: 10, weight: '600' },
+                    yAdjust: -16,
+                };
+            }
+        });
+    }
+
+    if (_equityChart) _equityChart.destroy();
+    _equityChart = new Chart(eqCtx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                data: values,
+                borderColor: isDark ? '#4ade80' : '#16a34a',
+                borderWidth: 1.5,
+                fill: true,
+                backgroundColor: isDark ? 'rgba(34,197,94,0.08)' : 'rgba(22,163,74,0.06)',
+                pointRadius: 0,
+                tension: 0.1,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(20, 20, 40, 0.95)',
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    borderWidth: 1,
+                    titleFont: { family: "'Inter', sans-serif", size: 12, weight: '600' },
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+                    displayColors: false,
+                    callbacks: {
+                        label: function(ctx) {
+                            return '$' + ctx.parsed.y.toLocaleString();
+                        }
+                    }
+                },
+                annotation: { annotations: eqAnnotations },
+                zoom: {
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'x',
+                    },
+                    pan: { enabled: true, mode: 'x' },
+                },
+            },
+            scales: {
+                x: {
+                    type: 'category',
+                    ticks: {
+                        color: tickColor,
+                        font: { family: "'JetBrains Mono', monospace", size: 10 },
+                        maxTicksLimit: 12,
+                        callback: function(val, idx) {
+                            var d = this.getLabelForValue(val);
+                            return d ? d.slice(0, 4) : '';
+                        }
+                    },
+                    grid: { color: gridColor },
+                    border: { color: gridColor },
+                },
+                y: {
+                    ticks: {
+                        color: tickColor,
+                        font: { family: "'JetBrains Mono', monospace", size: 10 },
+                        callback: function(v) {
+                            if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+                            if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+                            return '$' + v;
+                        }
+                    },
+                    grid: { color: gridColor },
+                    border: { color: gridColor },
+                }
+            }
+        }
+    });
+
+    /* ---- UNDERWATER CHART ---- */
+    var uwCtx = document.getElementById('underwaterChart');
+    if (!uwCtx) return;
+
+    if (_underwaterChart) _underwaterChart.destroy();
+    _underwaterChart = new Chart(uwCtx, {
+        type: 'bar',
+        data: {
+            labels: dates,
+            datasets: [{
+                data: ddPcts,
+                backgroundColor: ddColors,
+                borderWidth: 0,
+                barPercentage: 1.0,
+                categoryPercentage: 1.0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(20, 20, 40, 0.95)',
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    borderWidth: 1,
+                    titleFont: { family: "'Inter', sans-serif", size: 12, weight: '600' },
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+                    displayColors: false,
+                    callbacks: {
+                        label: function(ctx) {
+                            return 'Drawdown: ' + ctx.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                },
+                annotation: { annotations: annotations },
+                zoom: {
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'x',
+                    },
+                    pan: { enabled: true, mode: 'x' },
+                },
+            },
+            scales: {
+                x: {
+                    type: 'category',
+                    ticks: {
+                        color: tickColor,
+                        font: { family: "'JetBrains Mono', monospace", size: 10 },
+                        maxTicksLimit: 12,
+                        callback: function(val, idx) {
+                            var d = this.getLabelForValue(val);
+                            return d ? d.slice(0, 4) : '';
+                        }
+                    },
+                    grid: { color: gridColor },
+                    border: { color: gridColor },
+                },
+                y: {
+                    max: 0,
+                    ticks: {
+                        color: tickColor,
+                        font: { family: "'JetBrains Mono', monospace", size: 10 },
+                        callback: function(v) { return v + '%'; },
+                    },
+                    grid: { color: gridColor },
+                    border: { color: gridColor },
+                }
+            }
+        }
+    });
+}
+
 /* ============ INIT ============ */
 document.addEventListener('DOMContentLoaded', function() {
     /* Init fund scatter chart (visible on dashboard load) */
     initFundScatterChart();
+    fetchEquityData();
     fetchAll();
     fetchCycleLog();
 

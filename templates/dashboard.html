@@ -357,6 +357,24 @@
 </div>
 
 
+<!-- EQUITY CURVE + UNDERWATER DRAWDOWN -->
+<div class="card full-width" id="equity-drawdown-card">
+    <div class="card-header">
+        <span class="card-title">Equity Curve &amp; Drawdown (2000&ndash;2026)</span>
+        <span class="card-badge" style="color:var(--green); background:var(--green-dim);" id="eq-badge">Loading...</span>
+    </div>
+    <div class="card-body">
+        <div style="position:relative; width:100%; height:320px;"><canvas id="equityCurveChart"></canvas></div>
+        <div class="uw-divider"></div>
+        <div style="position:relative; width:100%; height:180px;"><canvas id="underwaterChart"></canvas></div>
+        <div class="uw-legend">
+            <span class="uw-legend-item"><span class="uw-legend-dot" style="background:var(--green);"></span> 0% to &minus;10%</span>
+            <span class="uw-legend-item"><span class="uw-legend-dot" style="background:var(--yellow);"></span> &minus;10% to &minus;20%</span>
+            <span class="uw-legend-item"><span class="uw-legend-dot" style="background:var(--red);"></span> &gt; &minus;20%</span>
+        </div>
+    </div>
+</div>
+
 <!-- TRADE ANALYTICS -->
 <div class="card full-width anim-enter anim-d6" id="trade-analytics-card">
     <div class="card-header">
