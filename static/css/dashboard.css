@@ -664,13 +664,13 @@ body::before {
 }
 
 @media (max-width: 1100px) {
-    .positions-grid { grid-template-columns: repeat(3, 1fr); }
+    .positions-grid { --pos-cols: 3 !important; }
 }
 @media (max-width: 800px) {
-    .positions-grid { grid-template-columns: repeat(2, 1fr); }
+    .positions-grid { --pos-cols: 2 !important; }
 }
 @media (max-width: 500px) {
-    .positions-grid { grid-template-columns: 1fr; }
+    .positions-grid { --pos-cols: 1 !important; }
 }
 
 
@@ -1020,7 +1020,7 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
 /* Position cards grid */
 .positions-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(var(--pos-cols, 4), 1fr);
     gap: 1px;
     background: var(--border);
     border-top: 1px solid var(--border);
@@ -2050,7 +2050,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .perf-vs-alpha { font-size: 20px; }
     .page-tabs { gap: 0; }
     .page-tab { padding: 10px 12px; font-size: 12px; }
-    .positions-grid { grid-template-columns: repeat(2, 1fr); }
+    .positions-grid { --pos-cols: 2 !important; }
 }
 @media (max-width: 480px) {
     body { font-size: 13px; }
@@ -2058,7 +2058,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .hdr-brand-text { font-size: 16px; }
     .hdr-brand-icon { width: 36px; height: 36px; }
     #hdr-spy-wrap { min-width: auto !important; }
-    .positions-grid { grid-template-columns: 1fr; }
+    .positions-grid { --pos-cols: 1 !important; }
     .perf-side-value { font-size: 20px; }
     .ph-stat-value { font-size: 14px; }
 }

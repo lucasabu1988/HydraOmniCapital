@@ -404,7 +404,29 @@ function updatePositions(details) {
 
     /* Experiment history table — hidden (internal reference only) */
 
+    /* Adaptive column count — eliminates empty grid cells */
+    var cols = 4;
+    var n = details.length;
+    if (n <= 0) cols = 4;
+    else if (n <= 2) cols = 2;
+    else if (n <= 4) cols = 4;
+    else if (n <= 6) cols = 3;
+    else if (n <= 8) cols = 4;
+    else cols = 5;
+    grid.style.setProperty('--pos-cols', cols);
+
     grid.innerHTML = html;
+
+    /* Staggered fade-in for position cards */
+    grid.querySelectorAll('.pos-card').forEach(function(card, i) {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(4px)';
+        setTimeout(function() {
+            card.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, i * 30);
+    });
 
     /* --- Tooltip positioning (fixed, never clipped) --- */
     grid.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
