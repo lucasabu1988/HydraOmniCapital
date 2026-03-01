@@ -68,6 +68,12 @@ const REFRESH_MS = 30000;
 let countdownSec = 30;
 let currentPositions = {};
 let lastSuccessTime = null;
+/* Social feed state */
+let sfMessages = [];
+let sfActiveSource = 'all';
+let sfActiveTicker = 'all';
+let sfActiveView = 'timeline';
+let sfSymbols = [];
 /* ============ PAGE SWITCHING ============ */
 function switchPage(page) {
     document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
@@ -506,71 +512,252 @@ function sfTimeAgo(isoStr) {
 
 function highlightCashtags(text) {
     if (!text) return '';
-    /* Highlight $TICKER and #TICKER patterns */
     return escHtml(text).replace(/(\$[A-Z]{1,5})/g, '<span class="sf-cashtag">$1</span>')
                         .replace(/(#[A-Z]{1,5})/g, '<span class="sf-cashtag">$1</span>');
 }
 
-function updateSocialFeed(messages) {
-    const panel = document.getElementById('sf-body');
-    const countEl = document.getElementById('sf-count');
-    if (!panel) return;
+function sfDisplaySymbol(symbol) {
+    if (!symbol || symbol === 'MKT') return 'Mercado';
+    return '$' + escHtml(symbol);
+}
 
+function sfGetTierClass(source) {
+    if (source === 'sec' || source === 'seekingalpha') return 'sf-msg-tier1';
+    if (source === 'reddit') return 'sf-msg-tier3';
+    return 'sf-msg-tier2';
+}
+
+function sfGetTierOrder(source) {
+    var order = { sec: 1, seekingalpha: 2, news: 3, google: 4, marketwatch: 5, reddit: 6 };
+    return order[source] || 7;
+}
+
+/* Note: innerHTML usage follows existing codebase pattern — all text is sanitized via escHtml() */
+function sfRenderMessage(m) {
+    var tierCls = sfGetTierClass(m.source);
+    var timeStr = sfTimeAgo(m.time);
+    var safeUrl = '';
+    if (m.url) { try { var u = new URL(m.url); if (u.protocol === 'https:' || u.protocol === 'http:') safeUrl = m.url; } catch(e) {} }
+    var bodyHtml = safeUrl ?
+        '<a href="' + escHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer">' + highlightCashtags(m.body) + '</a>' :
+        highlightCashtags(m.body);
+    var srcMap = {
+        'reddit': ['sf-src-reddit', 'Reddit'],
+        'news': ['sf-src-news', 'Yahoo Finance'],
+        'seekingalpha': ['sf-src-seekingalpha', 'SeekingAlpha'],
+        'sec': ['sf-src-sec', 'SEC'],
+        'google': ['sf-src-google', 'Google News'],
+        'marketwatch': ['sf-src-marketwatch', 'MarketWatch'],
+    };
+    var arr = srcMap[m.source] || ['sf-src-news', m.source || 'News'];
+    var srcCls = arr[0], srcLabel = arr[1];
+    var sentimentHtml = m.sentiment === 'bullish' ?
+        '<span class="sf-sentiment sf-sentiment-bull">Alcista</span>' :
+        m.sentiment === 'bearish' ?
+        '<span class="sf-sentiment sf-sentiment-bear">Bajista</span>' : '';
+
+    return '<div class="' + tierCls + '">' +
+        '<div class="sf-msg-badge">' +
+            '<span class="sf-ticker">' + sfDisplaySymbol(m.symbol) + '</span>' +
+            sentimentHtml +
+        '</div>' +
+        '<div class="sf-msg-content">' +
+            '<div class="sf-msg-text">' + bodyHtml + '</div>' +
+            '<div class="sf-msg-meta">' +
+                '<span class="sf-source ' + srcCls + '">' + srcLabel + '</span>' +
+                '<span class="sf-msg-user">' + escHtml(m.user) + '</span>' +
+                (timeStr ? '<span class="sf-msg-time">' + timeStr + '</span>' : '') +
+            '</div>' +
+        '</div>' +
+    '</div>';
+}
+
+function sfApplyFilters() {
+    return sfMessages.filter(function(m) {
+        if (sfActiveSource !== 'all' && m.source !== sfActiveSource) return false;
+        if (sfActiveTicker !== 'all' && m.symbol !== sfActiveTicker) return false;
+        return true;
+    });
+}
+
+function sfUpdateStats(filtered) {
+    var bull = 0, bear = 0, neutral = 0;
+    var tickerCounts = {};
+    var newestTime = null;
+    for (var i = 0; i < filtered.length; i++) {
+        var m = filtered[i];
+        if (m.sentiment === 'bullish') bull++;
+        else if (m.sentiment === 'bearish') bear++;
+        else neutral++;
+        var sym = m.symbol || 'MKT';
+        tickerCounts[sym] = (tickerCounts[sym] || 0) + 1;
+        if (m.time) { try { var t = new Date(m.time); if (!newestTime || t > newestTime) newestTime = t; } catch(e) {} }
+    }
+    var el;
+    el = document.getElementById('sf-stat-total'); if (el) el.textContent = filtered.length;
+    el = document.getElementById('sf-stat-bull'); if (el) el.textContent = bull;
+    el = document.getElementById('sf-stat-bear'); if (el) el.textContent = bear;
+    el = document.getElementById('sf-stat-neutral'); if (el) el.textContent = neutral;
+    var topTicker = '--', topCount = 0;
+    for (var sym in tickerCounts) { if (tickerCounts[sym] > topCount) { topCount = tickerCounts[sym]; topTicker = sym; } }
+    el = document.getElementById('sf-stat-top-ticker');
+    if (el) el.textContent = (topTicker === 'MKT' ? 'Mercado' : '$' + topTicker) + ' (' + topCount + ')';
+    el = document.getElementById('sf-stat-freshness');
+    if (el) el.textContent = newestTime ? (sfTimeAgo(newestTime.toISOString()) || 'ahora') : '--';
+}
+
+function sfRenderTimeline(filtered) {
+    var tier1 = [], tier2 = [], tier3 = [];
+    for (var i = 0; i < filtered.length; i++) {
+        var m = filtered[i];
+        if (m.source === 'sec' || m.source === 'seekingalpha') tier1.push(m);
+        else if (m.source === 'reddit') tier3.push(m);
+        else tier2.push(m);
+    }
+    var html = '';
+    if (tier1.length > 0) {
+        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">An\u00e1lisis &amp; Regulatorio</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier1.length + '</span></div>';
+        for (var i = 0; i < tier1.length; i++) html += sfRenderMessage(tier1[i]);
+        html += '</div>';
+    }
+    if (tier2.length > 0) {
+        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">Noticias</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier2.length + '</span></div>';
+        for (var i = 0; i < tier2.length; i++) html += sfRenderMessage(tier2[i]);
+        html += '</div>';
+    }
+    if (tier3.length > 0) {
+        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">Comunidad</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier3.length + '</span></div>';
+        for (var i = 0; i < tier3.length; i++) html += sfRenderMessage(tier3[i]);
+        html += '</div>';
+    }
+    return html;
+}
+
+function sfRenderGrouped(filtered) {
+    var groups = {}, order = [];
+    for (var i = 0; i < filtered.length; i++) {
+        var m = filtered[i], sym = m.symbol || 'MKT';
+        if (!groups[sym]) { groups[sym] = []; order.push(sym); }
+        groups[sym].push(m);
+    }
+    order.sort(function(a, b) { if (a === 'MKT') return 1; if (b === 'MKT') return -1; return a.localeCompare(b); });
+    var html = '<div class="sf-grouped-container">';
+    for (var g = 0; g < order.length; g++) {
+        var sym = order[g], msgs = groups[sym];
+        var bull = 0, bear = 0;
+        for (var i = 0; i < msgs.length; i++) { if (msgs[i].sentiment === 'bullish') bull++; else if (msgs[i].sentiment === 'bearish') bear++; }
+        msgs.sort(function(a, b) { var d = sfGetTierOrder(a.source) - sfGetTierOrder(b.source); return d !== 0 ? d : (b.time || '').localeCompare(a.time || ''); });
+        var displaySym = sym === 'MKT' ? 'Mercado' : '$' + escHtml(sym);
+        html += '<div class="sf-ticker-group"><div class="sf-ticker-group-header">' +
+            '<span class="sf-ticker-group-symbol">' + displaySym + '</span>' +
+            '<span class="sf-ticker-group-count">' + msgs.length + ' publicaciones</span>' +
+            '<div class="sf-ticker-group-sentiment">' +
+            (bull > 0 ? '<span class="sf-sentiment sf-sentiment-bull">' + bull + ' alcista</span>' : '') +
+            (bear > 0 ? '<span class="sf-sentiment sf-sentiment-bear">' + bear + ' bajista</span>' : '') +
+            '</div></div><div class="sf-ticker-group-body">';
+        for (var i = 0; i < msgs.length; i++) html += sfRenderMessage(msgs[i]);
+        html += '</div></div>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function sfRender() {
+    var panel = document.getElementById('sf-body');
+    var skeleton = document.getElementById('sf-skeleton');
+    if (!panel) return;
+    if (skeleton) skeleton.style.display = 'none';
+    var filtered = sfApplyFilters();
+    sfUpdateStats(filtered);
+    if (filtered.length === 0) {
+        panel.textContent = '';
+        var noRes = document.createElement('div');
+        noRes.className = 'sf-no-results';
+        noRes.textContent = '';
+        var icon = document.createElement('div');
+        icon.className = 'sf-no-results-icon';
+        icon.textContent = '\uD83D\uDD0D';
+        var txt = document.createElement('div');
+        txt.className = 'sf-no-results-text';
+        txt.textContent = 'No hay publicaciones para estos filtros';
+        noRes.appendChild(icon);
+        noRes.appendChild(txt);
+        panel.appendChild(noRes);
+        return;
+    }
+    /* Using innerHTML for performance with large feed lists - all text sanitized via escHtml() */
+    panel.innerHTML = sfActiveView === 'grouped' ? sfRenderGrouped(filtered) : sfRenderTimeline(filtered);
+}
+
+function sfBuildTickerPills() {
+    var container = document.getElementById('sf-ticker-filters');
+    if (!container) return;
+    var existing = container.querySelectorAll('.sf-pill[data-ticker]:not([data-ticker="all"])');
+    for (var i = 0; i < existing.length; i++) existing[i].remove();
+    var seen = {}, syms = [];
+    for (var i = 0; i < sfMessages.length; i++) {
+        var s = sfMessages[i].symbol || 'MKT';
+        if (!seen[s]) { seen[s] = true; syms.push(s); }
+    }
+    syms.sort(function(a, b) { if (a === 'MKT') return 1; if (b === 'MKT') return -1; return a.localeCompare(b); });
+    for (var i = 0; i < syms.length; i++) {
+        var btn = document.createElement('button');
+        btn.className = 'sf-pill';
+        btn.setAttribute('data-ticker', syms[i]);
+        btn.textContent = syms[i] === 'MKT' ? 'Mercado' : '$' + syms[i];
+        container.appendChild(btn);
+    }
+}
+
+function sfInitFilters() {
+    var srcC = document.getElementById('sf-source-filters');
+    if (srcC) srcC.addEventListener('click', function(e) {
+        var pill = e.target.closest('.sf-pill'); if (!pill) return;
+        srcC.querySelectorAll('.sf-pill').forEach(function(p) { p.classList.remove('sf-pill-active'); });
+        pill.classList.add('sf-pill-active');
+        sfActiveSource = pill.getAttribute('data-source');
+        sfRender();
+    });
+    var tickC = document.getElementById('sf-ticker-filters');
+    if (tickC) tickC.addEventListener('click', function(e) {
+        var pill = e.target.closest('.sf-pill'); if (!pill) return;
+        tickC.querySelectorAll('.sf-pill').forEach(function(p) { p.classList.remove('sf-pill-active'); });
+        pill.classList.add('sf-pill-active');
+        sfActiveTicker = pill.getAttribute('data-ticker');
+        sfRender();
+    });
+    var viewC = document.getElementById('sf-view-toggle');
+    if (viewC) viewC.addEventListener('click', function(e) {
+        var pill = e.target.closest('.sf-pill'); if (!pill) return;
+        viewC.querySelectorAll('.sf-pill').forEach(function(p) { p.classList.remove('sf-pill-active'); });
+        pill.classList.add('sf-pill-active');
+        sfActiveView = pill.getAttribute('data-view');
+        sfRender();
+    });
+}
+
+function updateSocialFeed(data) {
+    var messages = data.messages || data;
     if (!messages || messages.length === 0) {
-        panel.innerHTML = '<div class="sf-empty">Loading social feed...</div>';
+        var skeleton = document.getElementById('sf-skeleton');
+        if (skeleton) skeleton.style.display = 'block';
+        var countEl = document.getElementById('sf-count');
         if (countEl) countEl.textContent = '';
         return;
     }
-
-    if (countEl) countEl.textContent = messages.length + ' posts';
-
-    let html = '';
-    for (const m of messages) {
-        const timeStr = sfTimeAgo(m.time);
-        let safeUrl = '';
-        if (m.url) {
-            try { const u = new URL(m.url); if (u.protocol === 'https:' || u.protocol === 'http:') safeUrl = m.url; } catch(e) {}
-        }
-        const bodyHtml = safeUrl ?
-            '<a href="' + escHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer">' + highlightCashtags(m.body) + '</a>' :
-            highlightCashtags(m.body);
-        const srcMap = {
-            'reddit': ['sf-src-reddit', 'Reddit'],
-            'news': ['sf-src-news', 'News'],
-            'seekingalpha': ['sf-src-seekingalpha', 'SeekingAlpha'],
-            'sec': ['sf-src-sec', 'SEC'],
-            'google': ['sf-src-google', 'Google'],
-            'marketwatch': ['sf-src-marketwatch', 'MarketWatch'],
-        };
-        const [srcCls, srcLabel] = srcMap[m.source] || ['sf-src-news', m.source || 'News'];
-        const sentimentHtml = m.sentiment === 'bullish' ?
-            '<span class="sf-sentiment sf-sentiment-bull">Bull</span>' :
-            m.sentiment === 'bearish' ?
-            '<span class="sf-sentiment sf-sentiment-bear">Bear</span>' : '';
-
-        html += '<div class="sf-msg">' +
-            '<div class="sf-msg-badge">' +
-                '<span class="sf-ticker">$' + escHtml(m.symbol) + '</span>' +
-                sentimentHtml +
-            '</div>' +
-            '<div class="sf-msg-content">' +
-                '<div class="sf-msg-text">' + bodyHtml + '</div>' +
-                '<div class="sf-msg-meta">' +
-                    '<span class="sf-source ' + srcCls + '">' + srcLabel + '</span>' +
-                    '<span class="sf-msg-user">' + escHtml(m.user) + '</span>' +
-                    (timeStr ? '<span class="sf-msg-time">' + timeStr + '</span>' : '') +
-                '</div>' +
-            '</div>' +
-        '</div>';
-    }
-    panel.innerHTML = html;
+    sfMessages = messages;
+    sfSymbols = data.symbols || sfSymbols;
+    var countEl = document.getElementById('sf-count');
+    if (countEl) countEl.textContent = messages.length + ' publicaciones';
+    sfBuildTickerPills();
+    sfRender();
 }
 
 async function fetchSocialFeed() {
     try {
-        const res = await fetch('/api/social-feed');
-        const data = await res.json();
-        updateSocialFeed(data.messages);
+        var res = await fetch('/api/social-feed');
+        var data = await res.json();
+        updateSocialFeed(data);
     } catch(e) { console.error('Social feed error:', e); }
 }
 
@@ -1549,6 +1736,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchAll();
     fetchCycleLog();
 
+    sfInitFilters();
     fetchSocialFeed();
     fetchTradeAnalytics();
     setInterval(fetchSocialFeed, 300000);
