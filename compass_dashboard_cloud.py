@@ -337,7 +337,7 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
 
         trailing_active = high_price > entry_price * (1 + COMPASS_CONFIG['TRAILING_ACTIVATION'])
         trailing_stop_level = high_price * (1 - COMPASS_CONFIG['TRAILING_STOP_PCT']) if trailing_active else None
-        position_stop_level = entry_price * (1 + COMPASS_CONFIG['POSITION_STOP_LOSS'])
+        position_stop_level = entry_price * (1 + COMPASS_CONFIG['STOP_FLOOR'])
 
         near_stop = False
         if current_price:
