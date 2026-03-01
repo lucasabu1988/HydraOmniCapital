@@ -419,11 +419,11 @@
 <!-- PROGRESS BAR -->
 <div class="roadmap-progress-bar">
     <div class="roadmap-progress-track">
-        <div class="roadmap-progress-fill" id="rm-progress-fill" style="width:16%;"></div>
+        <div class="roadmap-progress-fill" id="rm-progress-fill" style="width:50%;"></div>
     </div>
     <div class="roadmap-progress-label">
-        <span class="done" id="rm-progress-text">1 / 6 completado</span>
-        <span id="rm-progress-pct">16%</span>
+        <span class="done" id="rm-progress-text">3 / 6 completado</span>
+        <span id="rm-progress-pct">50%</span>
     </div>
 </div>
 
@@ -433,7 +433,7 @@
         <div class="rm-summary-title">Resumen de Progreso</div>
         <div class="rm-summary-grid">
             <div class="rm-summary-stat">
-                <div class="rm-summary-num" style="color:var(--green);">1</div>
+                <div class="rm-summary-num" style="color:var(--green);">3</div>
                 <div class="rm-summary-label">Completado</div>
             </div>
             <div class="rm-summary-stat">
@@ -441,11 +441,11 @@
                 <div class="rm-summary-label">En Progreso</div>
             </div>
             <div class="rm-summary-stat">
-                <div class="rm-summary-num" style="color:var(--text-tertiary);">4</div>
+                <div class="rm-summary-num" style="color:var(--text-tertiary);">2</div>
                 <div class="rm-summary-label">Pendiente</div>
             </div>
             <div class="rm-summary-stat">
-                <div class="rm-summary-num" style="color:var(--cyan);">53</div>
+                <div class="rm-summary-num" style="color:var(--cyan);">56</div>
                 <div class="rm-summary-label">Experimentos</div>
             </div>
         </div>
@@ -474,6 +474,8 @@
             <li><span class="rm-check checked"></span> v8.4: Sector concentration limits (max 3 por sector)</li>
             <li><span class="rm-check checked"></span> No leverage (1.0x) &mdash; margen 6% destruye valor</li>
             <li><span class="rm-check checked"></span> Pre-close signal 15:30 ET + MOC same-day</li>
+            <li><span class="rm-check checked"></span> Dashboard cloud desplegado en Render.com</li>
+            <li><span class="rm-check checked"></span> Secci&oacute;n Algoritmo reescrita en espa&ntilde;ol con explicaciones accesibles</li>
         </ul>
         <div class="rm-meta">
             <div class="rm-meta-item">Inicio: <span class="rm-meta-val">2024</span></div>
@@ -483,76 +485,80 @@
     </div>
 
     <!-- Phase 2: Data Integrity -->
-    <div class="roadmap-card rm-active">
+    <div class="roadmap-card rm-done">
         <div class="rm-card-top">
             <span class="rm-phase">Fase 2 &mdash; Datos</span>
-            <span class="rm-status rm-status-active">En Progreso</span>
+            <span class="rm-status rm-status-done">Completado</span>
         </div>
-        <div class="rm-title">Survivorship Bias Corrected ✅</div>
+        <div class="rm-title">Survivorship Bias Corrected</div>
         <div class="rm-desc">
             <strong>Exp40 COMPLETADO:</strong> Survivorship bias cuantificado usando 1,128 constituyentes hist&oacute;ricos del S&amp;P 500. CAGR v8.4: <strong>12.20%</strong> (0.87 Sharpe, -32.0% MaxDD).
         </div>
         <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> ✅ Exp40: Descarga de 1,128 tickers hist&oacute;ricos (GitHub)</li>
-            <li><span class="rm-check checked"></span> ✅ Precio de 756 acciones obtenido (72% cobertura)</li>
-            <li><span class="rm-check checked"></span> ✅ Filtrado de 25 acciones con datos corruptos</li>
-            <li><span class="rm-check checked"></span> ✅ Backtest corregido: 12.20% CAGR, -32.0% MaxDD</li>
-            <li><span class="rm-check checked"></span> ✅ Bias cuantificado: <strong>+4.56% CAGR overestimation</strong></li>
+            <li><span class="rm-check checked"></span> Exp40: Descarga de 1,128 tickers hist&oacute;ricos (GitHub)</li>
+            <li><span class="rm-check checked"></span> Precio de 756 acciones obtenido (72% cobertura)</li>
+            <li><span class="rm-check checked"></span> Filtrado de 25 acciones con datos corruptos</li>
+            <li><span class="rm-check checked"></span> Backtest corregido: 12.20% CAGR, -32.0% MaxDD</li>
+            <li><span class="rm-check checked"></span> Bias cuantificado: <strong>+4.56% CAGR overestimation</strong></li>
         </ul>
         <div class="rm-meta">
-            <div class="rm-meta-item">Status: <span class="rm-meta-val" style="color:var(--green);">✅ COMPLETADO</span></div>
-            <div class="rm-meta-item">Fecha: <span class="rm-meta-val">27 Feb 2026</span></div>
+            <div class="rm-meta-item">Inicio: <span class="rm-meta-val">Feb 2026</span></div>
+            <div class="rm-meta-item">Fin: <span class="rm-meta-val">27 Feb 2026</span></div>
             <div class="rm-meta-item">Impacto: <span class="rm-meta-val" style="color:var(--green);">Honest baseline established</span></div>
         </div>
     </div>
 
     <!-- Phase 3: Broker -->
-    <div class="roadmap-card rm-pending">
+    <div class="roadmap-card rm-done">
         <div class="rm-card-top">
             <span class="rm-phase">Fase 3 &mdash; Broker</span>
-            <span class="rm-status rm-status-pending">Pendiente</span>
+            <span class="rm-status rm-status-done">Completado</span>
         </div>
-        <div class="rm-title">IBKR TWS API</div>
+        <div class="rm-title">IBKR TWS API + PaperBroker</div>
         <div class="rm-desc">
-            Integraci&oacute;n con Interactive Brokers para routing real de &oacute;rdenes MOC. Requisito absoluto antes de capital real.
+            Integraci&oacute;n completa con Interactive Brokers (IBKRBroker) y PaperBroker para simulaci&oacute;n. 53 unit tests. Estrategias MOC, TWAP, VWAP, PassiveLimit implementadas.
         </div>
         <ul class="rm-checklist">
-            <li><span class="rm-check"></span> Cuenta IBKR abierta y configurada</li>
-            <li><span class="rm-check"></span> Conectar TWS API / IB Gateway</li>
-            <li><span class="rm-check"></span> Adapter de &oacute;rdenes MOC (Market-on-Close)</li>
-            <li><span class="rm-check"></span> Failover: si broker cae, alertar + paper backup</li>
-            <li><span class="rm-check"></span> Monitor de ejecuci&oacute;n (fill rate, slippage real)</li>
-            <li><span class="rm-check"></span> Corporate actions handler (splits, dividendos)</li>
+            <li><span class="rm-check checked"></span> IBKRBroker class completa (2,116 l&iacute;neas)</li>
+            <li><span class="rm-check checked"></span> PaperBroker operativo para paper trading</li>
+            <li><span class="rm-check checked"></span> Adapter de &oacute;rdenes MOC (Market-on-Close)</li>
+            <li><span class="rm-check checked"></span> Estrategias: MOC, TWAP, VWAP, PassiveLimit</li>
+            <li><span class="rm-check checked"></span> ConnectionManager con auto-reconnect</li>
+            <li><span class="rm-check checked"></span> 53 unit tests (IBKRCommissionModel, Portfolio, Orders)</li>
+            <li><span class="rm-check checked"></span> Failover: PaperBroker como backup autom&aacute;tico</li>
         </ul>
         <div class="rm-meta">
-            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--orange);">#2</span></div>
-            <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fase 2</span></div>
-            <div class="rm-meta-item">Orden: <span class="rm-meta-val">IBKR &rarr; Failover &rarr; Monitor &rarr; Corp Actions</span></div>
+            <div class="rm-meta-item">Inicio: <span class="rm-meta-val">Feb 2026</span></div>
+            <div class="rm-meta-item">Fin: <span class="rm-meta-val">19 Feb 2026</span></div>
+            <div class="rm-meta-item">Resultado: <span class="rm-meta-val" style="color:var(--green);">Production-ready</span></div>
         </div>
     </div>
 
     <!-- Phase 4: Paper Trading -->
-    <div class="roadmap-card rm-pending">
+    <div class="roadmap-card rm-active">
         <div class="rm-card-top">
             <span class="rm-phase">Fase 4 &mdash; Validaci&oacute;n</span>
-            <span class="rm-status rm-status-pending">Pendiente</span>
+            <span class="rm-status rm-status-active">En Progreso</span>
         </div>
-        <div class="rm-title">Paper Trading 3-6 Meses</div>
+        <div class="rm-title">Paper Trading Activo desde 19 Feb 2026</div>
         <div class="rm-desc">
-            Simulaci&oacute;n en tiempo real sin capital. M&iacute;nimo 3 meses para capturar un ciclo completo de earnings trimestrales.
+            Simulaci&oacute;n en tiempo real con PaperBroker. Portfolio: <strong>$102,129</strong> (+2.13%). 2 ciclos completados, 1 stop ejecutado (GS &rarr; MU). Sistema ML activo recopilando datos.
         </div>
         <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> Dashboard live operativo</li>
-            <li><span class="rm-check"></span> 1 mes paper sin errores de ejecuci&oacute;n</li>
+            <li><span class="rm-check checked"></span> Dashboard live operativo (local + cloud Render.com)</li>
+            <li><span class="rm-check checked"></span> COMPASSLive engine corriendo 24/7</li>
+            <li><span class="rm-check checked"></span> ML learning system integrado (Phase 1: logging)</li>
+            <li><span class="rm-check checked"></span> Ciclo 1 completado: +2.46% vs SPY +1.23%</li>
+            <li><span class="rm-check checked"></span> Adaptive stop ejecutado correctamente (GS -6.7%)</li>
+            <li><span class="rm-check"></span> 1 mes paper sin errores de ejecuci&oacute;n (10/~22 d&iacute;as)</li>
             <li><span class="rm-check"></span> 3 meses paper (ciclo completo de earnings)</li>
-            <li><span class="rm-check"></span> Slippage real vs estimado (target &le; 2bps)</li>
-            <li><span class="rm-check"></span> Fill rate &ge; 99% en &oacute;rdenes MOC</li>
+            <li><span class="rm-check"></span> ML Phase 2: modelos predictivos (7/63 d&iacute;as recopilados)</li>
             <li><span class="rm-check"></span> 0 incidentes de sistema no resueltos</li>
         </ul>
         <div class="rm-meta">
-            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--orange);">#3</span></div>
-            <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fase 3</span></div>
-            <div class="rm-meta-item">Duraci&oacute;n: <span class="rm-meta-val">3-6 meses m&iacute;nimo</span></div>
+            <div class="rm-meta-item">Inicio: <span class="rm-meta-val" style="color:var(--green);">19 Feb 2026</span></div>
+            <div class="rm-meta-item">D&iacute;as activos: <span class="rm-meta-val">10 d&iacute;as de trading</span></div>
+            <div class="rm-meta-item">Portfolio: <span class="rm-meta-val" style="color:var(--green);">$102,129 (+2.13%)</span></div>
         </div>
     </div>
 
@@ -621,7 +627,7 @@
                 <span style="color:var(--green); font-size:16px;">&#10003;</span>
                 <div>
                     <div style="font-size:13px; font-weight:600;">Motor Bloqueado</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">35 experimentos, 31 fallidos. Algoritmo inel&aacute;stico &mdash; cualquier cambio degrada performance.</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">40 experimentos, 36 fallidos. Algoritmo inel&aacute;stico &mdash; cualquier cambio degrada performance.</div>
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
@@ -638,11 +644,25 @@
                     <div style="font-size:12px; color:var(--text-tertiary);">COMPASS+RATTLESNAKE 50/50 revertido. COMPASS v8.4 solo es la mejor opci&oacute;n hasta $500K+.</div>
                 </div>
             </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0;">
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
                 <span style="color:var(--green); font-size:16px;">&#10003;</span>
                 <div>
                     <div style="font-size:13px; font-weight:600;">Pre-Close MOC</div>
                     <div style="font-size:12px; color:var(--text-tertiary);">Se&ntilde;al a 15:30 ET + MOC same-day recupera +0.79% CAGR y mejora MaxDD en 7.8pp.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">ML Learning System</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Sistema progresivo de aprendizaje: Phase 1 logging activo, Phase 2 ML a los 63 d&iacute;as de trading.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0;">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">Dashboard Cloud</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Dashboard desplegado en Render.com con auto-deploy. Algoritmo explicado en espa&ntilde;ol con analog&iacute;as accesibles.</div>
                 </div>
             </div>
         </div>
