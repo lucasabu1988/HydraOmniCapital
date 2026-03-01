@@ -30,6 +30,8 @@
 
 <!-- HEADER BAR -->
 <div class="header-bar">
+
+    <!-- BRAND -->
     <div class="hdr-brand">
         <div class="hdr-brand-icon"><img src="/static/img/omnicapital_logo.png" alt="OmniCapital"></div>
         <div class="hdr-brand-group">
@@ -37,49 +39,66 @@
             <span class="hdr-brand-sub">Made in Per&uacute;</span>
         </div>
     </div>
-    <span class="hdr-sep hdr-hide-mobile">&middot;</span>
-    <span id="regime-tag" class="hdr-pill hdr-pill-on hdr-hide-mobile">
-        <span class="hdr-pill-dot"></span> RISK ON
-    </span>
-    <span id="protection-tag" class="hdr-pill hdr-pill-norm hdr-hide-mobile">
-        <span class="hdr-pill-dot"></span> NORMAL
-    </span>
-    <div class="hdr-stat hdr-hide-mobile">
-        <span class="hdr-stat-label">Lev</span>
-        <span class="hdr-stat-value" id="leverage-display">1.0x</span>
+
+    <!-- REGIME GROUP: pills + micro-stats -->
+    <div class="hdr-divider hdr-hide-mobile"></div>
+    <div class="hdr-group hdr-hide-mobile">
+        <span id="regime-tag" class="hdr-pill hdr-pill-on">
+            <span class="hdr-pill-dot"></span>RISK ON
+        </span>
+        <span id="protection-tag" class="hdr-pill hdr-pill-norm">
+            <span class="hdr-pill-dot"></span>NORMAL
+        </span>
+        <div class="hdr-stat">
+            <span class="hdr-stat-label">Lev</span>
+            <span class="hdr-stat-value" id="leverage-display">1.0x</span>
+        </div>
+        <div class="hdr-stat">
+            <span class="hdr-stat-label">Day</span>
+            <span class="hdr-stat-value" id="day-display">--</span>
+        </div>
     </div>
-    <div class="hdr-stat hdr-hide-mobile">
-        <span class="hdr-stat-label">Day</span>
-        <span class="hdr-stat-value" id="day-display">--</span>
-    </div>
+
+    <!-- SPACER pushes market data to the right -->
     <span class="hdr-spacer"></span>
-    <div class="hdr-stat" id="hdr-spy-wrap" style="min-width:110px; text-align:right;">
-        <span class="hdr-stat-label">S&amp;P 500</span>
-        <span class="hdr-stat-value mono" id="hdr-spy-price" style="font-size:14px; font-weight:700;">--</span>
-        <span class="hdr-stat-value mono" id="hdr-spy-chg" style="font-size:11px; margin-left:4px;">--</span>
+
+    <!-- MARKET DATA GROUP: S&P + ES Futures -->
+    <div class="hdr-group hdr-hide-mobile">
+        <div class="hdr-stat" id="hdr-futures-wrap" style="text-align:right;">
+            <span class="hdr-stat-label">ES Futures</span>
+            <span class="hdr-stat-value mono" id="hdr-futures-price" style="font-size:13px; font-weight:700;">--</span>
+            <span class="hdr-stat-value mono" id="hdr-futures-chg" style="font-size:11px;">--</span>
+        </div>
+        <div class="hdr-stat" id="hdr-spy-wrap" style="text-align:right;">
+            <span class="hdr-stat-label">S&amp;P 500</span>
+            <span class="hdr-stat-value mono" id="hdr-spy-price" style="font-size:13px; font-weight:700;">--</span>
+            <span class="hdr-stat-value mono" id="hdr-spy-chg" style="font-size:11px;">--</span>
+        </div>
     </div>
-    <div class="hdr-stat hdr-hide-mobile" id="hdr-futures-wrap" style="min-width:110px; text-align:right;">
-        <span class="hdr-stat-label">ES Futures</span>
-        <span class="hdr-stat-value mono" id="hdr-futures-price" style="font-size:14px; font-weight:700;">--</span>
-        <span class="hdr-stat-value mono" id="hdr-futures-chg" style="font-size:11px; margin-left:4px;">--</span>
-    </div>
-    <span class="hdr-sep hdr-hide-mobile">&middot;</span>
-    <div class="hdr-stat hdr-hide-mobile" id="hdr-market-timer-wrap" style="min-width:180px; text-align:right;">
+
+    <!-- MARKET TIMER -->
+    <div class="hdr-divider hdr-hide-mobile"></div>
+    <div class="hdr-stat hdr-hide-mobile" id="hdr-market-timer-wrap" style="text-align:right;">
         <span class="hdr-stat-label" id="hdr-market-label">MERCADO CERRADO</span>
-        <span class="hdr-stat-value" id="hdr-market-countdown" style="font-size:13px;">--</span>
+        <span class="hdr-stat-value" id="hdr-market-countdown">--</span>
     </div>
-    <span class="hdr-sep hdr-hide-mobile">&middot;</span>
+
+    <!-- UPDATE BADGE -->
+    <div class="hdr-divider hdr-hide-mobile"></div>
     <div class="upd-wrapper hdr-hide-mobile">
         <div class="hdr-time-group">
-            <span class="hdr-stat-label">Actualizado</span>
+            <span class="hdr-stat-label">Upd</span>
             <span class="hdr-time" id="last-update">--</span>
-            <span class="hdr-countdown">&middot; <span id="countdown">30</span>s</span>
+            <span class="hdr-countdown"><span id="countdown">30</span>s</span>
         </div>
         <div class="upd-tooltip" id="upd-tooltip">
             Last update: --<br>Next refresh in: --
         </div>
     </div>
+
+    <!-- DARK MODE TOGGLE -->
     <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode" onclick="toggleDarkMode()">&#9790;</button>
+
 </div>
 
 <!-- PAGE TABS -->
@@ -347,8 +366,41 @@
         <span class="card-badge" style="color:var(--green); background:var(--green-dim);" id="ar-badge">Cargando...</span>
     </div>
     <div class="card-body">
-        <div id="annual-returns-container" style="position:relative; width:100%; height:420px;"><canvas id="annualReturnsChart"></canvas></div>
-        <div id="ar-summary" class="ar-summary"></div>
+        <!-- Legend sits above the chart, right-aligned -->
+        <div class="ar-legend">
+            <div class="ar-legend-item"><div class="ar-legend-swatch compass-pos"></div> COMPASS positivo</div>
+            <div class="ar-legend-item"><div class="ar-legend-swatch compass-neg"></div> COMPASS negativo</div>
+            <div class="ar-legend-item"><div class="ar-legend-swatch spy"></div> S&amp;P 500</div>
+        </div>
+        <!-- Chart canvas — height driven by JS -->
+        <div id="annual-returns-container" style="position:relative; width:100%; height:420px;">
+            <canvas id="annualReturnsChart"></canvas>
+        </div>
+        <!-- Stat bar — populated by JS -->
+        <div id="ar-stat-bar" class="ar-stat-bar">
+            <div class="ar-stat">
+                <span class="ar-stat-label">A&ntilde;os positivos</span>
+                <span class="ar-stat-value positive" id="ar-stat-positive">--</span>
+                <span class="ar-stat-sub">de <span id="ar-stat-total">--</span> a&ntilde;os</span>
+            </div>
+            <div class="ar-stat">
+                <span class="ar-stat-label">Bate al S&amp;P</span>
+                <span class="ar-stat-value positive" id="ar-stat-beats">--</span>
+                <span class="ar-stat-sub">a&ntilde;os con alfa &gt; 0</span>
+            </div>
+            <div class="ar-stat">
+                <span class="ar-stat-label">Pierde al S&amp;P</span>
+                <span class="ar-stat-value negative" id="ar-stat-loses">--</span>
+                <span class="ar-stat-sub">a&ntilde;os con alfa &lt; 0</span>
+            </div>
+            <div class="ar-stat">
+                <span class="ar-stat-label">Alfa promedio</span>
+                <span class="ar-stat-value neutral" id="ar-stat-alpha">--</span>
+                <span class="ar-stat-sub">pp / a&ntilde;o vs S&amp;P</span>
+            </div>
+        </div>
+        <!-- Hidden legacy element — kept for any JS that references it -->
+        <div id="ar-summary" class="ar-summary" aria-hidden="true"></div>
     </div>
 </div>
 

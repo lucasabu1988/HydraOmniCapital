@@ -1375,52 +1375,19 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
     var compassRets = data.map(function(d) { return d.compass; });
     var spyRets = data.map(function(d) { return d.spy; });
 
-    /* Badge */
+    /* ── Badge ─────────────────────────────────────────────────────────── */
     var badge = document.getElementById('ar-badge');
-    if (badge) badge.textContent = positiveYears + '/' + totalYears + ' positive';
+    if (badge) badge.textContent = positiveYears + '/' + totalYears + ' positivos';
 
-    /* Colors — dim COMPASS bar when it underperforms SPY */
-    var compassColors = compassRets.map(function(v, i) {
-        var losesToSpy = (spyRets[i] != null && v < spyRets[i]);
-        if (v >= 0) {
-            return losesToSpy
-                ? (isDark ? 'rgba(34, 197, 94, 0.35)' : 'rgba(22, 163, 74, 0.35)')
-                : (isDark ? 'rgba(34, 197, 94, 0.85)' : 'rgba(22, 163, 74, 0.85)');
-        } else {
-            return losesToSpy
-                ? (isDark ? 'rgba(239, 68, 68, 0.85)' : 'rgba(220, 38, 38, 0.85)')
-                : (isDark ? 'rgba(239, 68, 68, 0.50)' : 'rgba(220, 38, 38, 0.50)');
-        }
-    });
-    var compassBorders = compassRets.map(function(v, i) {
-        var losesToSpy = (spyRets[i] != null && v < spyRets[i]);
-        if (!losesToSpy) return 'transparent';
-        return isDark ? 'rgba(250, 204, 21, 0.8)' : 'rgba(202, 138, 4, 0.8)';
-    });
-    var spyColors = spyRets.map(function() {
-        return isDark ? 'rgba(99, 102, 241, 0.55)' : 'rgba(99, 102, 241, 0.45)';
-    });
-    var spyBorderColors = spyRets.map(function() {
-        return isDark ? 'rgba(99, 102, 241, 0.8)' : 'rgba(99, 102, 241, 0.7)';
-    });
-    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-    var tickColor = isDark ? '#8888a0' : '#5e5e78';
-    var zeroLineColor = isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
-
-    /* Track which years COMPASS underperforms SPY */
+    /* ── Per-year derived flags ─────────────────────────────────────────── */
     var underperforms = data.map(function(d) {
         return d.spy != null && d.compass < d.spy;
     });
 
-    /* Dynamic height: ~28px per year, min 380px */
-    var chartH = Math.max(380, data.length * 28 + 60);
-    var container = document.getElementById('annual-returns-container');
-    if (container) container.style.height = chartH + 'px';
-
-    /* Build summary stats */
+    /* ── Stat block ─────────────────────────────────────────────────────── */
     var compassWins = 0;
-    var totalAlpha = 0;
-    var validPairs = 0;
+    var totalAlpha  = 0;
+    var validPairs  = 0;
     data.forEach(function(d) {
         if (d.spy != null) {
             if (d.compass > d.spy) compassWins++;
@@ -1428,43 +1395,66 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             validPairs++;
         }
     });
-    var avgAlpha = validPairs > 0 ? totalAlpha / validPairs : 0;
-    var summaryEl = document.getElementById('ar-summary');
-    if (summaryEl) {
-        /* Build summary using safe DOM methods */
-        summaryEl.textContent = '';
-        var compassLosses = validPairs - compassWins;
-        var items = [
-            { dot: isDark ? '#22c55e' : '#16a34a', dotBorder: null, text: 'COMPASS', val: null },
-            { dot: 'rgba(99,102,241,0.6)', dotBorder: 'rgba(99,102,241,0.8)', text: 'S&P 500', val: null },
-            { dot: isDark ? 'rgba(34,197,94,0.35)' : 'rgba(22,163,74,0.35)', dotBorder: isDark ? 'rgba(250,204,21,0.8)' : 'rgba(202,138,4,0.8)', text: 'Underperforms SPY', val: null },
-            { dot: null, text: 'Beats SPY:', val: compassWins + '/' + validPairs, color: 'var(--green)' },
-            { dot: null, text: 'Loses:', val: compassLosses + '/' + validPairs, color: 'var(--yellow)' },
-            { dot: null, text: 'Avg Alpha:', val: (avgAlpha >= 0 ? '+' : '') + avgAlpha.toFixed(1) + ' pp/yr', color: avgAlpha >= 0 ? 'var(--green)' : 'var(--red)' },
-        ];
-        items.forEach(function(item) {
-            var span = document.createElement('span');
-            span.className = 'ar-summary-item';
-            if (item.dot) {
-                var dot = document.createElement('span');
-                dot.className = 'ar-summary-dot';
-                dot.style.background = item.dot;
-                if (item.dotBorder) dot.style.border = '1px solid ' + item.dotBorder;
-                span.appendChild(dot);
-            }
-            var txt = document.createTextNode(' ' + item.text + ' ');
-            span.appendChild(txt);
-            if (item.val) {
-                var valSpan = document.createElement('span');
-                valSpan.className = 'ar-summary-val';
-                valSpan.style.color = item.color;
-                valSpan.textContent = item.val;
-                span.appendChild(valSpan);
-            }
-            summaryEl.appendChild(span);
-        });
+    var compassLosses = validPairs - compassWins;
+    var avgAlpha      = validPairs > 0 ? totalAlpha / validPairs : 0;
+    var alphaSign     = avgAlpha >= 0 ? '+' : '';
+
+    /* Write to new stat-bar elements */
+    var elPositive = document.getElementById('ar-stat-positive');
+    var elTotal    = document.getElementById('ar-stat-total');
+    var elBeats    = document.getElementById('ar-stat-beats');
+    var elLoses    = document.getElementById('ar-stat-loses');
+    var elAlpha    = document.getElementById('ar-stat-alpha');
+    if (elPositive) elPositive.textContent = positiveYears;
+    if (elTotal)    elTotal.textContent    = totalYears;
+    if (elBeats)    elBeats.textContent    = compassWins + '/' + validPairs;
+    if (elLoses) {
+        elLoses.textContent = compassLosses + '/' + validPairs;
+        /* Colour the "loses" count red only when meaningful */
+        elLoses.className = 'ar-stat-value' + (compassLosses > 0 ? ' negative' : ' positive');
+    }
+    if (elAlpha) {
+        elAlpha.textContent = alphaSign + avgAlpha.toFixed(1) + ' pp';
+        elAlpha.className   = 'ar-stat-value' + (avgAlpha >= 0 ? ' positive' : ' negative');
     }
 
+    /* ── Design tokens ──────────────────────────────────────────────────── */
+    /*
+     * COMPASS bars:  solid green (positive) / solid red (negative).
+     *                No opacity tricks — colour alone carries the sign.
+     * SPY bars:      low-opacity indigo ghost — pure reference, not competitor.
+     * Underperform:  communicated through a small yellow diamond drawn on the
+     *                Y-axis tick by the custom plugin, not through bar colour.
+     */
+    var compassColors = compassRets.map(function(v) {
+        if (v >= 0) return isDark ? '#22c55e' : '#16a34a';
+        return isDark ? '#ef4444' : '#dc2626';
+    });
+    var spyColors = spyRets.map(function(v) {
+        if (v == null) return 'transparent';
+        return isDark ? 'rgba(99, 102, 241, 0.28)' : 'rgba(99, 102, 241, 0.22)';
+    });
+    var spyBorderColors = spyRets.map(function(v) {
+        if (v == null) return 'transparent';
+        return isDark ? 'rgba(99, 102, 241, 0.55)' : 'rgba(99, 102, 241, 0.50)';
+    });
+
+    var gridColor     = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
+    var zeroLineColor = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.20)';
+
+    /* ── Container height ───────────────────────────────────────────────── */
+    /*
+     * 22px per year + 80px top/bottom padding.
+     * Two bars share one category slot so 22px gives enough breathing room
+     * without the chart ballooning to 800px+.
+     * Minimum 440px to avoid a squashed look on small data sets.
+     */
+    var PX_PER_YEAR = 22;
+    var chartH = Math.max(440, data.length * PX_PER_YEAR + 80);
+    var container = document.getElementById('annual-returns-container');
+    if (container) container.style.height = chartH + 'px';
+
+    /* ── Chart ──────────────────────────────────────────────────────────── */
     if (_annualChart) _annualChart.destroy();
     _annualChart = new Chart(ctx, {
         type: 'bar',
@@ -1475,11 +1465,13 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                     label: 'COMPASS',
                     data: compassRets,
                     backgroundColor: compassColors,
-                    borderColor: compassBorders,
-                    borderWidth: 1.5,
-                    borderRadius: 3,
-                    barPercentage: 0.82,
-                    categoryPercentage: 0.7,
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    borderRadius: { topRight: 2, bottomRight: 2, topLeft: 0, bottomLeft: 0 },
+                    borderSkipped: false,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.72,
+                    order: 1,
                 },
                 {
                     label: 'S&P 500',
@@ -1487,9 +1479,11 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                     backgroundColor: spyColors,
                     borderColor: spyBorderColors,
                     borderWidth: 1,
-                    borderRadius: 3,
-                    barPercentage: 0.82,
-                    categoryPercentage: 0.7,
+                    borderRadius: { topRight: 2, bottomRight: 2, topLeft: 0, bottomLeft: 0 },
+                    borderSkipped: false,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.72,
+                    order: 2,
                 }
             ]
         },
@@ -1498,28 +1492,44 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
-            layout: { padding: { right: 60 } },
+            /* Right padding: enough room for the COMPASS value labels */
+            layout: { padding: { top: 4, bottom: 4, left: 0, right: 72 } },
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(20, 20, 40, 0.95)',
-                    borderColor: 'rgba(255,255,255,0.15)',
+                    backgroundColor: isDark ? 'rgba(14,14,30,0.97)' : 'rgba(255,255,255,0.97)',
+                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)',
                     borderWidth: 1,
+                    padding: { x: 14, y: 10 },
+                    titleColor: isDark ? '#e4e4f0' : '#1a1a2e',
+                    bodyColor:  isDark ? '#a0a0b8' : '#555570',
                     titleFont: { family: "'Inter', sans-serif", size: 13, weight: '700' },
-                    bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
+                    bodyFont:  { family: "'JetBrains Mono', monospace", size: 12 },
                     displayColors: true,
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 4,
                     callbacks: {
-                        title: function(items) { return items[0].label; },
+                        title: function(items) {
+                            return String(items[0].label);
+                        },
                         label: function(item) {
                             var val = item.parsed.x;
+                            if (val == null) return '';
                             var sign = val >= 0 ? '+' : '';
-                            return ' ' + item.dataset.label + ': ' + sign + val.toFixed(2) + '%';
+                            return '  ' + item.dataset.label + ':  ' + sign + val.toFixed(2) + '%';
                         },
                         afterBody: function(items) {
-                            if (items.length >= 2 && items[0].parsed.x != null && items[1].parsed.x != null) {
-                                var diff = items[0].parsed.x - items[1].parsed.x;
+                            var compass = null, spy = null;
+                            items.forEach(function(it) {
+                                if (it.dataset.label === 'COMPASS') compass = it.parsed.x;
+                                if (it.dataset.label === 'S&P 500') spy = it.parsed.x;
+                            });
+                            if (compass != null && spy != null) {
+                                var diff = compass - spy;
                                 var sign = diff >= 0 ? '+' : '';
-                                return ['', ' Alpha: ' + sign + diff.toFixed(2) + ' pp'];
+                                var line = '  Alpha:  ' + sign + diff.toFixed(2) + ' pp';
+                                return ['', line];
                             }
                             return [];
                         }
@@ -1531,75 +1541,127 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                             type: 'line',
                             xMin: 0, xMax: 0,
                             borderColor: zeroLineColor,
-                            borderWidth: 1.5,
-                            borderDash: [4, 3],
+                            borderWidth: 1,
+                            borderDash: [3, 4],
                         }
                     }
                 }
             },
             scales: {
                 x: {
+                    position: 'bottom',
                     title: {
-                        display: true, text: 'Annual Return (%)', color: tickColor,
-                        font: { family: "'Inter', sans-serif", size: 11, weight: '600' }
+                        display: false
                     },
                     ticks: {
-                        color: tickColor,
+                        color: isDark ? '#404060' : '#a0a0b8',
                         font: { family: "'JetBrains Mono', monospace", size: 10 },
-                        callback: function(v) { return v + '%'; }
+                        maxTicksLimit: 9,
+                        callback: function(v) {
+                            return (v >= 0 ? '+' : '') + v + '%';
+                        }
                     },
-                    grid: { color: gridColor },
-                    border: { color: gridColor },
+                    grid: {
+                        color: gridColor,
+                        drawTicks: false,
+                    },
+                    border: { color: 'transparent' },
                 },
                 y: {
                     ticks: {
-                        color: function(context) {
-                            var idx = context.index;
-                            if (underperforms[idx]) return isDark ? '#facc15' : '#ca8a04';
-                            return tickColor;
+                        color: isDark ? '#707090' : '#7070a0',
+                        font: {
+                            family: "'JetBrains Mono', monospace",
+                            size: 11,
+                            weight: '500',
                         },
-                        font: function(context) {
-                            var idx = context.index;
-                            return {
-                                family: "'JetBrains Mono', monospace",
-                                size: 11,
-                                weight: underperforms[idx] ? '800' : '600',
-                            };
-                        },
+                        /* remove default padding so year label sits tight */
+                        padding: 8,
                     },
                     grid: { display: false },
-                    border: { color: gridColor },
+                    border: { color: 'transparent' },
                 }
             }
         },
-        plugins: [{
-            id: 'barValueLabels',
-            afterDatasetsDraw: function(chart) {
-                var ctx2 = chart.ctx;
-                ctx2.save();
-                var darkNow = document.body.classList.contains('dark');
-                chart.data.datasets.forEach(function(dataset, di) {
-                    var meta = chart.getDatasetMeta(di);
+        plugins: [
+            /*
+             * Plugin 1 — COMPASS value labels
+             * Drawn only for dataset 0 (COMPASS).
+             * Positive bars: label to the RIGHT of bar end.
+             * Negative bars: label to the LEFT of bar end.
+             * Font: 10px JetBrains Mono / colour tracks sign.
+             */
+            {
+                id: 'arValueLabels',
+                afterDatasetsDraw: function(chart, args, opts) {
+                    if (args.index !== 0) return;   /* COMPASS only */
+                    var c      = chart.ctx;
+                    var dkNow  = document.body.classList.contains('dark');
+                    var meta   = chart.getDatasetMeta(0);
+                    var ds     = chart.data.datasets[0];
+
+                    c.save();
+                    c.font         = "600 10px 'JetBrains Mono', monospace";
+                    c.textBaseline = 'middle';
+
                     meta.data.forEach(function(bar, i) {
-                        var val = dataset.data[i];
+                        var val = ds.data[i];
                         if (val == null) return;
-                        var sign = val >= 0 ? '+' : '';
+
+                        var sign  = val >= 0 ? '+' : '';
                         var label = sign + val.toFixed(1) + '%';
-                        ctx2.font = "600 10px 'JetBrains Mono', monospace";
-                        ctx2.textBaseline = 'middle';
-                        ctx2.fillStyle = darkNow ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.55)';
+                        var OFFSET = 5;
+
                         if (val >= 0) {
-                            ctx2.textAlign = 'left';
-                            ctx2.fillText(label, bar.x + 4, bar.y);
+                            c.textAlign = 'left';
+                            c.fillStyle = dkNow ? 'rgba(34,197,94,0.9)' : 'rgba(22,163,74,0.9)';
+                            c.fillText(label, bar.x + OFFSET, bar.y);
                         } else {
-                            ctx2.textAlign = 'right';
-                            ctx2.fillText(label, bar.x - 4, bar.y);
+                            c.textAlign = 'right';
+                            c.fillStyle = dkNow ? 'rgba(239,68,68,0.9)' : 'rgba(220,38,38,0.9)';
+                            c.fillText(label, bar.x - OFFSET, bar.y);
                         }
                     });
-                });
-                ctx2.restore();
+                    c.restore();
+                }
+            },
+            /*
+             * Plugin 2 — Underperformance marker
+             * For years where COMPASS < SPY, paint a 3px wide yellow left-edge
+             * accent on the Y axis tick area. This signals underperformance without
+             * mutating bar colour, keeping the colour system clean.
+             */
+            {
+                id: 'arUnderperformTick',
+                afterDraw: function(chart) {
+                    var c      = chart.ctx;
+                    var yScale = chart.scales.y;
+                    var dkNow  = document.body.classList.contains('dark');
+                    var accentColor = dkNow ? 'rgba(234,179,8,0.75)' : 'rgba(202,138,4,0.75)';
+
+                    c.save();
+                    underperforms.forEach(function(isUnder, i) {
+                        if (!isUnder) return;
+                        var meta    = chart.getDatasetMeta(0);
+                        var barEl   = meta.data[i];
+                        if (!barEl) return;
+                        /* Vertical centre of this category band */
+                        var midY  = barEl.base !== undefined ? (yScale.getPixelForValue(i)) : barEl.y;
+                        var halfH = (yScale.getPixelForValue(0) - yScale.getPixelForValue(1)) * 0.40;
+                        var chartX = chart.chartArea.left;
+
+                        /* 3px yellow accent bar on the far left of the chart area */
+                        c.fillStyle = accentColor;
+                        c.beginPath();
+                        c.roundRect
+                            ? c.roundRect(chartX - 3, midY - halfH, 3, halfH * 2, 1)
+                            : c.rect(chartX - 3, midY - halfH, 3, halfH * 2);
+                        c.fill();
+                    });
+                    c.restore();
+                }
             }
-        }]
+        ]
     });
 }
 

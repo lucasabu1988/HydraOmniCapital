@@ -93,7 +93,18 @@ body.dark::before {
         radial-gradient(ellipse at 50% 80%, rgba(6, 182, 212, 0.03) 0%, transparent 50%);
 }
 body.dark .header-bar {
-    background: rgba(17, 17, 39, 0.92);
+    background: rgba(17, 17, 39, 0.95);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+body.dark .hdr-divider {
+    background: rgba(255, 255, 255, 0.08);
+}
+body.dark .upd-wrapper {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+body.dark .upd-wrapper:hover {
+    border-color: rgba(255, 255, 255, 0.14);
 }
 body.dark .page-tabs {
     background: rgba(17, 17, 39, 0.95);
@@ -151,16 +162,17 @@ body.dark .perf-banner, body.dark .positions-hero {
 
 /* Dark mode toggle */
 .dark-toggle {
-    width: 36px; height: 36px;
+    width: 32px; height: 32px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: transparent;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
+    font-size: 15px;
     color: var(--text-tertiary);
     transition: all 0.2s;
     flex-shrink: 0;
+    margin-left: 12px;
 }
 .dark-toggle:hover {
     border-color: var(--border-active);
@@ -254,28 +266,50 @@ body::before {
 
 /* ============ TOP HEADER ============ */
 .header-bar {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid var(--border);
-    padding: 10px 24px;
+    padding: 0 24px;
+    height: 56px;
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 0;
     position: sticky;
     top: 0;
     z-index: 199;
 }
+
+/* Vertical divider used between header groups */
+.hdr-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+    margin: 0 16px;
+}
+
+/* Grouped clusters inside the header */
+.hdr-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
 .hdr-brand {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
 }
 .hdr-brand-icon {
-    width: 44px; height: 44px;
+    width: 36px; height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    filter: drop-shadow(0 0 12px var(--accent-glow));
+    filter: drop-shadow(0 0 10px var(--accent-glow));
+    flex-shrink: 0;
 }
 .hdr-brand-icon img {
     width: 100%; height: 100%;
@@ -285,51 +319,67 @@ body::before {
     display: flex;
     flex-direction: column;
     line-height: 1;
+    gap: 2px;
 }
 .hdr-brand-text {
     font-weight: 800;
-    font-size: 22px;
-    letter-spacing: 0.5px;
+    font-size: 18px;
+    letter-spacing: 0.3px;
     background: linear-gradient(135deg, var(--text-primary), var(--accent-light));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    white-space: nowrap;
 }
 .hdr-brand-sub {
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 4px;
+    letter-spacing: 3.5px;
     text-transform: uppercase;
     background: linear-gradient(90deg, #D91023, #D91023 30%, #FFFFFF 40%, #FFFFFF 60%, #D91023 70%, #D91023);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-top: 2px;
     text-shadow: none;
 }
-.hdr-sep { color: var(--text-muted); font-size: 16px; }
+
+/* Legacy separator dots — hidden; replaced by .hdr-divider */
+.hdr-sep { display: none; }
+
+/* ---- REGIME PILLS ---- */
 .hdr-pill {
+    /* Explicit height + vertical centering prevent any flex-parent
+       from squishing the pill's padding into oblivion */
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    height: 26px;
+    padding: 0 11px;
+    border-radius: 13px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1;
+    text-transform: uppercase;
+    /* Prevent the browser's inline layout from adding
+       descender space below the element */
+    vertical-align: middle;
 }
 .hdr-pill-on {
     background: var(--green-dim);
     color: var(--green);
-    border: 1px solid rgba(34,197,94,0.2);
+    border: 1px solid rgba(34, 197, 94, 0.25);
 }
 .hdr-pill-off {
     background: var(--red-dim);
     color: var(--red);
-    border: 1px solid rgba(239,68,68,0.2);
+    border: 1px solid rgba(239, 68, 68, 0.25);
 }
 .hdr-pill-prot {
     background: var(--red-dim);
     color: var(--red);
-    border: 1px solid rgba(239,68,68,0.2);
+    border: 1px solid rgba(239, 68, 68, 0.25);
 }
 .hdr-pill-norm {
     background: var(--accent-glow);
@@ -340,51 +390,129 @@ body::before {
     width: 6px; height: 6px;
     border-radius: 50%;
     background: currentColor;
+    flex-shrink: 0;
 }
 .hdr-pill-on .hdr-pill-dot { animation: pulse-dot 2s ease-in-out infinite; }
 @keyframes pulse-dot {
-    0%,100% { box-shadow: 0 0 0px currentColor; opacity: 1; }
-    50% { box-shadow: 0 0 8px currentColor; opacity: 0.7; }
+    0%, 100% { box-shadow: 0 0 0px currentColor; opacity: 1; }
+    50% { box-shadow: 0 0 6px currentColor; opacity: 0.65; }
 }
+
+/* ---- REGIME MICRO STATS (Lev, Day) ---- */
 .hdr-stat {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 0;
+    flex-shrink: 0;
 }
-.hdr-stat-label { font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; font-weight: 500; }
+.hdr-stat-label {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    line-height: 1;
+}
 .hdr-stat-value {
     font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
     color: var(--text-primary);
     font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
 }
-.hdr-spacer { flex: 1; }
+
+/* ---- MARKET DATA STATS (S&P 500, ES Futures) ---- */
+/* These use inline style overrides in HTML — we reinforce here */
+#hdr-spy-wrap,
+#hdr-futures-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex-shrink: 0;
+    min-width: 0 !important; /* override inline style; let content dictate */
+    text-align: right;
+}
+#hdr-spy-wrap .hdr-stat-label,
+#hdr-futures-wrap .hdr-stat-label {
+    text-align: right;
+}
+
+/* ---- MARKET TIMER ---- */
+#hdr-market-timer-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex-shrink: 0;
+    min-width: 0 !important;
+    text-align: right;
+}
+#hdr-market-timer-wrap .hdr-stat-label {
+    text-align: right;
+}
+#hdr-market-countdown {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px !important;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* ---- UPDATE SECTION ---- */
+.hdr-spacer { flex: 1; min-width: 0; }
+
 .hdr-time-group {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 6px;
 }
 .hdr-time {
     font-family: 'JetBrains Mono', monospace;
     color: var(--accent-light);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
+    white-space: nowrap;
 }
 .hdr-countdown {
     font-family: 'JetBrains Mono', monospace;
-    color: var(--text-tertiary);
-    font-size: 12px;
+    color: var(--text-muted);
+    font-size: 11px;
+    white-space: nowrap;
 }
-#countdown { color: var(--cyan); font-weight: 600; }
+#countdown { color: var(--cyan); font-weight: 700; }
+
 .upd-wrapper {
-    position: relative; cursor: help;
-    display: inline-flex; align-items: center; gap: 6px;
+    position: relative;
+    cursor: help;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+    transition: border-color 0.2s;
+}
+.upd-wrapper:hover {
+    border-color: var(--border-active);
 }
 .upd-tooltip {
-    display: none; position: absolute; bottom: 140%; left: 50%;
-    transform: translateX(-50%); background: var(--bg-elevated); color: var(--text-primary);
-    padding: 8px 14px; font-size: 12px; white-space: nowrap;
-    border: 1px solid var(--border-active); z-index: 300; border-radius: var(--radius-sm);
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    left: auto;
+    transform: none;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    padding: 8px 14px;
+    font-size: 12px;
+    white-space: nowrap;
+    border: 1px solid var(--border-active);
+    z-index: 300;
+    border-radius: var(--radius-sm);
     box-shadow: var(--shadow-lg);
 }
 .upd-wrapper:hover .upd-tooltip { display: block; }
@@ -2028,11 +2156,22 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 @media (max-width: 768px) {
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-    .header-bar { flex-wrap: wrap; gap: 8px; padding: 8px 16px; }
+    .header-bar {
+        height: 48px;
+        padding: 0 16px;
+        gap: 0;
+    }
     .hdr-hide-mobile { display: none !important; }
-    .hdr-spacer { display: none; }
-    .hdr-brand { flex: 1; min-width: 0; }
-    #hdr-spy-wrap { min-width: auto !important; margin-left: auto; }
+    .hdr-spacer { flex: 1; }
+    .hdr-brand { flex-shrink: 0; }
+    /* On mobile, spy wrap sits at far right with auto left margin */
+    #hdr-spy-wrap {
+        min-width: 0 !important;
+        text-align: right;
+        margin-left: auto;
+    }
+    .hdr-divider { margin: 0 10px; }
+    .upd-wrapper { padding: 3px 8px; }
     .metric-value { font-size: 20px; }
     .main { padding: 12px 16px; }
     .perf-banner-inner { flex-direction: column; gap: 16px; padding: 16px; }
@@ -2046,9 +2185,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 @media (max-width: 480px) {
     body { font-size: 13px; }
     .metric-value { font-size: 18px; }
-    .hdr-brand-text { font-size: 16px; }
-    .hdr-brand-icon { width: 36px; height: 36px; }
-    #hdr-spy-wrap { min-width: auto !important; }
+    .hdr-brand-text { font-size: 15px; }
+    .hdr-brand-icon { width: 30px; height: 30px; }
+    .hdr-brand-sub { display: none; }
+    #hdr-spy-wrap { min-width: 0 !important; }
     .perf-side-value { font-size: 20px; }
     .ph-stat-value { font-size: 14px; }
 }
@@ -2109,34 +2249,91 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border-radius: 2px;
 }
 
-/* Annual Returns summary */
-.ar-summary {
-    display: flex;
-    gap: 24px;
-    margin-top: 14px;
-    padding: 12px 16px;
-    border-radius: 8px;
-    background: var(--surface);
+/* ============ ANNUAL RETURNS CHART ============ */
+
+/* Stat bar that replaces the old floating legend */
+.ar-stat-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    margin-top: 16px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
     border: 1px solid var(--border);
-    font-size: 12px;
-    color: var(--text-secondary);
-    flex-wrap: wrap;
-    justify-content: center;
 }
-.ar-summary-item {
+.ar-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 8px;
+    background: var(--bg-elevated);
+    transition: background 0.15s;
+}
+.ar-stat:hover {
+    background: var(--bg-card-hover);
+}
+.ar-stat-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.ar-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+.ar-stat-value.positive { color: var(--green); }
+.ar-stat-value.negative { color: var(--red); }
+.ar-stat-value.neutral  { color: var(--accent-light); }
+.ar-stat-sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* Legend row: COMPASS swatch + SPY swatch */
+.ar-legend {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 12px;
+    justify-content: flex-end;
+    padding-right: 4px;
+}
+.ar-legend-item {
     display: flex;
     align-items: center;
     gap: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
 }
-.ar-summary-dot {
-    width: 10px;
-    height: 10px;
+.ar-legend-swatch {
+    width: 20px;
+    height: 4px;
     border-radius: 2px;
+    flex-shrink: 0;
 }
-.ar-summary-val {
-    font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
+.ar-legend-swatch.compass-pos { background: #22c55e; }
+.ar-legend-swatch.compass-neg { background: #ef4444; }
+.ar-legend-swatch.spy         { background: rgba(99,102,241,0.7); }
+
+/* Responsive: stack stat bar to 2×2 on narrow screens */
+@media (max-width: 600px) {
+    .ar-stat-bar { grid-template-columns: 1fr 1fr; }
+    .ar-stat-value { font-size: 15px; }
 }
+
+/* Keep old selectors alive in case anything references them — but zero them out */
+.ar-summary { display: none; }
+.ar-summary-item, .ar-summary-dot, .ar-summary-val { display: none; }
 
 /* ============ ALGORITHM PAGE ============ */
 .algo-hero {
