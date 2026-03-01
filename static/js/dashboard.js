@@ -493,9 +493,42 @@ function updateUniverse(universe, positions) {
     const held = positions || {};
     for (const sym of universe) {
         const isHeld = sym in held;
-        html += '<span class="uni-badge' + (isHeld ? ' held' : '') + '">' + sym + '</span>';
+        const ci = COMPANY_INFO[sym];
+        if (ci) {
+            html += '<span class="ticker-tip-wrap"><span class="uni-badge' + (isHeld ? ' held' : '') + '">' + escHtml(sym) + '</span>' +
+                '<div class="ticker-tip">' +
+                    '<div class="ticker-tip-name">' + ci.name + '</div>' +
+                    '<span class="ticker-tip-sector">' + ci.sector + '</span>' +
+                    '<div class="ticker-tip-cap">Market Cap: <b>' + ci.cap + '</b></div>' +
+                    '<div class="ticker-tip-desc">' + ci.desc + '</div>' +
+                '</div></span>';
+        } else {
+            html += '<span class="uni-badge' + (isHeld ? ' held' : '') + '">' + escHtml(sym) + '</span>';
+        }
     }
     grid.innerHTML = html;
+
+    grid.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
+        var tip = wrap.querySelector('.ticker-tip');
+        if (!tip) return;
+        wrap.addEventListener('mouseenter', function() {
+            var rect = wrap.getBoundingClientRect();
+            tip.style.display = 'block';
+            var tipW = 260;
+            var left = rect.left;
+            if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
+            if (left < 12) left = 12;
+            var top = rect.top - tip.offsetHeight - 10;
+            if (top < 8) { top = rect.bottom + 10; tip.classList.add('tip-below'); }
+            else { tip.classList.remove('tip-below'); }
+            tip.style.left = left + 'px';
+            tip.style.top = top + 'px';
+            var arrowLeft = (rect.left + rect.width / 2) - left;
+            arrowLeft = Math.max(14, Math.min(arrowLeft, tipW - 14));
+            tip.style.setProperty('--arrow-left', arrowLeft + 'px');
+        });
+        wrap.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+    });
 }
 
 /* ============ SOCIAL FEED ============ */
