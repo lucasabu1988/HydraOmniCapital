@@ -24,7 +24,7 @@
 
 <!-- OFFLINE BANNER -->
 <div id="offline-banner">
-    CONNECTING TO SERVER...
+    CONECTANDO AL SERVIDOR...
     <span class="last-success" id="last-success-time"></span>
 </div>
 
@@ -65,13 +65,13 @@
     </div>
     <span class="hdr-sep hdr-hide-mobile">&middot;</span>
     <div class="hdr-stat hdr-hide-mobile" id="hdr-market-timer-wrap" style="min-width:180px; text-align:right;">
-        <span class="hdr-stat-label" id="hdr-market-label">MARKET CLOSED</span>
+        <span class="hdr-stat-label" id="hdr-market-label">MERCADO CERRADO</span>
         <span class="hdr-stat-value" id="hdr-market-countdown" style="font-size:13px;">--</span>
     </div>
     <span class="hdr-sep hdr-hide-mobile">&middot;</span>
     <div class="upd-wrapper hdr-hide-mobile">
         <div class="hdr-time-group">
-            <span class="hdr-stat-label">Updated</span>
+            <span class="hdr-stat-label">Actualizado</span>
             <span class="hdr-time" id="last-update">--</span>
             <span class="hdr-countdown">&middot; <span id="countdown">30</span>s</span>
         </div>
@@ -85,16 +85,16 @@
 <!-- PAGE TABS -->
 <div class="page-tabs">
     <div class="page-tab active" data-page="dashboard" onclick="switchPage('dashboard')">
-        <span class="page-tab-icon">&#9632;</span> Dashboard
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Dashboard
     </div>
     <div class="page-tab" data-page="social" onclick="switchPage('social')">
-        <span class="page-tab-icon">&#9889;</span> Social Feed
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Noticias
     </div>
     <div class="page-tab" data-page="roadmap" onclick="switchPage('roadmap')">
-        <span class="page-tab-icon">&#9654;</span> Launch Roadmap
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Roadmap
     </div>
     <div class="page-tab" data-page="algoritmo" onclick="switchPage('algoritmo')">
-        <span class="page-tab-icon">&#9881;</span> Algoritmo
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Algoritmo
     </div>
 </div>
 
@@ -139,7 +139,7 @@
 <div class="preclose-bar" id="preclose-bar">
     <div class="preclose-phase" id="preclose-phase">
         <span class="preclose-dot preclose-dot-closed" id="preclose-dot"></span>
-        <span id="preclose-label">MARKET CLOSED</span>
+        <span id="preclose-label">MERCADO CERRADO</span>
     </div>
     <div class="preclose-timeline">
         <div class="preclose-segment preclose-seg-pre">
@@ -188,7 +188,7 @@
             <span class="perf-side-sub" id="perf-spy-sub">$-- &rarr; $--</span>
         </div>
     </div>
-    <div class="perf-banner-period" id="perf-period">Live test since --</div>
+    <div class="perf-banner-period" id="perf-period">Test en vivo desde --</div>
     <!-- BACKTEST CONTEXT ROW -->
     <div class="perf-backtest-row">
         <div class="perf-bt-label">Backtest (2000&ndash;2026)</div>
@@ -230,21 +230,21 @@
 
 <!-- CYCLE LOG -->
 <div class="cycle-log anim-enter anim-d3" id="cycle-log-section">
-    <span class="cycle-log-title">5-Day Cycle Log &mdash; COMPASS vs S&amp;P 500</span>
+    <span class="cycle-log-title">Ciclos de 5 D&iacute;as &mdash; COMPASS vs S&amp;P 500</span>
     <table class="cycle-log-table">
         <thead>
             <tr>
                 <th>Cycle</th>
                 <th>Period</th>
                 <th>Tickers</th>
-                <th>COMPASS</th>
-                <th>S&amp;P 500</th>
-                <th>Alpha</th>
+                <th class="cl-num">COMPASS</th>
+                <th class="cl-num">S&amp;P 500</th>
+                <th class="cl-num">Alpha</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody id="cycle-log-body">
-            <tr><td colspan="7" style="color:var(--text-muted); text-align:center;">Loading...</td></tr>
+            <tr><td colspan="7" style="color:var(--text-muted); text-align:center;">Cargando...</td></tr>
         </tbody>
     </table>
 </div>
@@ -252,17 +252,17 @@
 <!-- PORTFOLIO METRICS -->
 <div class="metrics-grid anim-enter anim-d4">
     <div class="metric-card">
-        <div class="metric-label">Portfolio Value</div>
+        <div class="metric-label">Valor del Portfolio</div>
         <div class="metric-value" id="card-total"><span class="skeleton skeleton-value">&nbsp;</span></div>
         <div class="metric-sub" id="card-return"><span class="skeleton skeleton-line" style="width:60%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Expected CAGR</div>
+        <div class="metric-label">CAGR Esperado</div>
         <div class="metric-value c-accent" id="card-cagr">12.20%</div>
         <div class="metric-sub" id="card-cagr-sub">Bias-corrected (v8.4) | No leverage</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Cash</div>
+        <div class="metric-label">Efectivo</div>
         <div class="metric-value" id="card-cash"><span class="skeleton skeleton-value">&nbsp;</span></div>
         <div class="metric-sub" id="card-invested"><span class="skeleton skeleton-line" style="width:70%">&nbsp;</span></div>
     </div>
@@ -272,12 +272,12 @@
         <div class="metric-sub" id="card-peak"><span class="skeleton skeleton-line" style="width:65%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Positions</div>
+        <div class="metric-label">Posiciones</div>
         <div class="metric-value" id="card-positions"><span class="skeleton skeleton-value" style="width:40%">&nbsp;</span></div>
         <div class="metric-sub" id="card-maxpos"><span class="skeleton skeleton-line" style="width:55%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Cash Yield (Aaa)</div>
+        <div class="metric-label">Rendimiento Efectivo (Aaa)</div>
         <div class="metric-value c-green" id="yield-daily"><span class="skeleton skeleton-value" style="width:45%">&nbsp;</span></div>
         <div class="metric-sub" id="yield-accum"><span class="skeleton skeleton-line" style="width:60%">&nbsp;</span></div>
     </div>
@@ -288,11 +288,11 @@
     <div class="positions-hero-header">
         <div class="positions-hero-title">
             <div class="ph-icon">&#9670;</div>
-            Positions
+            Posiciones
         </div>
         <div class="positions-hero-summary" id="positions-summary">
             <div class="ph-stat">
-                <span class="ph-stat-label">Invested</span>
+                <span class="ph-stat-label">Invertido</span>
                 <span class="ph-stat-value c-white" id="ph-invested"><span class="skeleton" style="width:80px;height:20px">&nbsp;</span></span>
             </div>
             <div class="ph-stat-divider"></div>
@@ -302,7 +302,7 @@
             </div>
             <div class="ph-stat-divider"></div>
             <div class="ph-stat">
-                <span class="ph-stat-label">Return</span>
+                <span class="ph-stat-label">Retorno</span>
                 <span class="ph-stat-value" id="ph-total-pct"><span class="skeleton" style="width:60px;height:20px">&nbsp;</span></span>
             </div>
         </div>
@@ -311,7 +311,7 @@
         <div class="positions-empty" style="grid-column: 1 / -1;">
             <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
                 <div class="skeleton" style="width:48px; height:48px; border-radius:12px;">&nbsp;</div>
-                <div style="color:var(--text-tertiary); font-size:13px; font-weight:500;">Loading positions...</div>
+                <div style="color:var(--text-tertiary); font-size:13px; font-weight:500;">Cargando posiciones...</div>
             </div>
         </div>
     </div>
@@ -341,7 +341,7 @@
 <!-- COMPASS vs REAL FUNDS SCATTER PLOT -->
 <div class="card full-width" id="fund-comparison-card">
     <div class="card-header">
-        <span class="card-title">COMPASS vs Real Funds (Leverage-Adjusted)</span>
+        <span class="card-title">COMPASS vs Fondos Reales (Ajustado por Apalancamiento)</span>
         <div style="display:flex; gap:8px; align-items:center;">
             <button class="chart-btn" onclick="toggleFundCategory('all')" id="fund-btn-all">All</button>
             <button class="chart-btn" onclick="toggleFundCategory('compass')" id="fund-btn-compass">COMPASS</button>
@@ -361,7 +361,7 @@
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:rgba(6,182,212,0.6);border:2px solid #06b6d4;"></span> Momentum (long-only)</span>
             <span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:50%;background:rgba(99,102,241,0.6);border:2px solid #6366f1;"></span> Benchmarks</span>
         </div>
-        <div style="margin-top:10px; font-size:10px; color:var(--text-muted);">
+        <div style="margin-top:10px; font-size:11px; color:var(--text-muted);">
             Y-axis = CAGR &divide; Leverage &middot; Bubble size = leverage multiple &middot; Medallion excluded (39% / 12.5x = 3.1%) &middot; Sources: HedgeFollow, AQR, iShares, public filings
         </div>
     </div>
@@ -371,8 +371,8 @@
 <!-- ANNUAL RETURNS BAR CHART -->
 <div class="card full-width" id="annual-returns-card">
     <div class="card-header">
-        <span class="card-title">Annual Returns &mdash; COMPASS vs S&amp;P 500</span>
-        <span class="card-badge" style="color:var(--green); background:var(--green-dim);" id="ar-badge">Loading...</span>
+        <span class="card-title">Retornos Anuales &mdash; COMPASS vs S&amp;P 500</span>
+        <span class="card-badge" style="color:var(--green); background:var(--green-dim);" id="ar-badge">Cargando...</span>
     </div>
     <div class="card-body">
         <div id="annual-returns-container" style="position:relative; width:100%; height:420px;"><canvas id="annualReturnsChart"></canvas></div>
@@ -383,12 +383,12 @@
 <!-- TRADE ANALYTICS -->
 <div class="card full-width anim-enter anim-d6" id="trade-analytics-card">
     <div class="card-header">
-        <span class="card-title">Trade Analytics &mdash; Backtest Trades</span>
+        <span class="card-title">An&aacute;lisis de Trades &mdash; Backtest</span>
         <span class="card-badge" id="ta-badge" style="color:var(--green); background:var(--green-dim);">--</span>
     </div>
     <div class="card-body">
         <div id="ta-segments" style="display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap;"></div>
-        <div id="ta-table-container" style="overflow-x:auto;"></div>
+        <div id="ta-table-container" style="overflow-x:auto; border-radius:var(--radius-sm); border:1px solid var(--border);"></div>
     </div>
 </div>
 

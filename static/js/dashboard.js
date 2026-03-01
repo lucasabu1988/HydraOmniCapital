@@ -125,10 +125,10 @@ function escHtml(s) {
 function updateStatusBar(p) {
     const rt = document.getElementById('regime-tag');
     if (p.regime === 'RISK_ON') {
-        rt.innerHTML = '<span class="hdr-pill-dot"></span> RISK ON';
+        rt.innerHTML = '<span class="hdr-pill-dot"></span> Risk On';
         rt.className = 'hdr-pill hdr-pill-on';
     } else {
-        rt.innerHTML = '<span class="hdr-pill-dot"></span> RISK OFF';
+        rt.innerHTML = '<span class="hdr-pill-dot"></span> Risk Off';
         rt.className = 'hdr-pill hdr-pill-off';
     }
 
@@ -160,7 +160,7 @@ function updateStatusBar(p) {
 
     const ts = p.timestamp ? new Date(p.timestamp).toLocaleString() : '--';
     document.getElementById('upd-tooltip').innerHTML =
-        'Last update: ' + ts + '<br>Next refresh in: ' + countdownSec + 's';
+        '\u00daltima actualizaci\u00f3n: ' + ts + '<br>Pr\u00f3xima en: ' + countdownSec + 's';
 }
 
 function updatePreclose(preclose) {
@@ -175,25 +175,25 @@ function updatePreclose(preclose) {
     switch (preclose.phase) {
         case 'waiting':
             dot.className = 'preclose-dot preclose-dot-waiting';
-            label.textContent = 'WAITING FOR 15:30 SIGNAL';
+            label.textContent = 'ESPERANDO SE\u00d1AL 15:30';
             label.style.color = 'var(--text-tertiary)';
             seg.classList.remove('active');
             break;
         case 'window_open':
             dot.className = 'preclose-dot preclose-dot-window';
-            label.textContent = 'PRE-CLOSE WINDOW OPEN';
+            label.textContent = 'VENTANA PRE-CIERRE ABIERTA';
             label.style.color = 'var(--yellow)';
             seg.classList.add('active');
             break;
         case 'entries_done':
             dot.className = 'preclose-dot preclose-dot-done';
-            label.textContent = 'MOC ENTRIES SENT';
+            label.textContent = '\u00d3RDENES MOC ENVIADAS';
             label.style.color = 'var(--green)';
             seg.classList.add('active');
             break;
         default: /* market_closed */
             dot.className = 'preclose-dot preclose-dot-closed';
-            label.textContent = 'MARKET CLOSED';
+            label.textContent = 'MERCADO CERRADO';
             label.style.color = 'var(--text-muted)';
             seg.classList.remove('active');
     }
@@ -221,15 +221,16 @@ function updateCards(p) {
     }
 
     document.getElementById('card-cash').textContent = fmt$(p.cash);
-    document.getElementById('card-invested').textContent = 'Invested: ' + fmt$(p.invested);
+    document.getElementById('card-invested').textContent = 'Invertido: ' + fmt$(p.invested);
 
     const dd = document.getElementById('card-drawdown');
     dd.textContent = fmtPct(p.drawdown);
     dd.className = 'metric-value ' + (p.drawdown > -5 ? 'c-green' : p.drawdown > -10 ? 'c-yellow' : 'c-red');
-    document.getElementById('card-peak').textContent = 'Peak: ' + fmt$(p.peak_value);
+    document.getElementById('card-peak').textContent = 'M\u00e1ximo: ' + fmt$(p.peak_value);
 
     document.getElementById('card-positions').textContent = p.num_positions + ' / ' + p.max_positions;
-    document.getElementById('card-maxpos').textContent = p.regime + (p.in_protection ? ' | DD Scaling' : '');
+    var regimeLabel = p.regime === 'RISK_ON' ? 'Risk On' : 'Risk Off';
+    document.getElementById('card-maxpos').textContent = regimeLabel + (p.in_protection ? ' | DD Scaling' : '');
 
     // Cash yield (Aaa IG Corporate)
     const yd = document.getElementById('yield-daily');
@@ -278,12 +279,12 @@ function updatePerfBanner(p) {
         if (diff >= 0) {
             alphaEl.textContent = '+' + absDiff + ' pp';
             alphaEl.className = 'perf-vs-alpha c-green';
-            alphaLabel.textContent = 'Beating SPY';
+            alphaLabel.textContent = 'Superando SPY';
             alphaLabel.style.color = 'var(--green)';
         } else {
             alphaEl.textContent = '-' + absDiff + ' pp';
             alphaEl.className = 'perf-vs-alpha c-red';
-            alphaLabel.textContent = 'Trailing SPY';
+            alphaLabel.textContent = 'Detr\u00e1s de SPY';
             alphaLabel.style.color = 'var(--red)';
         }
     } else {
@@ -297,7 +298,7 @@ function updatePerfBanner(p) {
     if (p.last_trading_date) {
         const days = p.trading_day || '?';
         document.getElementById('perf-period').textContent =
-            'Live test \u00B7 Day ' + days + ' \u00B7 Started Feb 19, 2026';
+            'Test en vivo \u00B7 D\u00eda ' + days + ' \u00B7 Inicio Feb 19, 2026';
     }
 }
 
@@ -308,7 +309,7 @@ function updatePositions(details) {
     currentPositions = {};
 
     if (!details || details.length === 0) {
-        grid.innerHTML = '<div class="positions-empty"><div class="positions-empty-icon">&#9671;</div>NO POSITIONS</div>';
+        grid.innerHTML = '<div class="positions-empty"><div class="positions-empty-icon">&#9671;</div>SIN POSICIONES</div>';
         totalBar.style.display = 'none';
         document.getElementById('ph-invested').textContent = '$0';
         document.getElementById('ph-total-pnl').textContent = '$0';
@@ -396,7 +397,7 @@ function updatePositions(details) {
                 '</div>' +
                 trailHtml +
                 (p.sector ? '<div class="pos-stop-item"><span class="pos-stop-dot" style="background:var(--purple);"></span><span class="pos-stop-label">' + p.sector + '</span></div>' : '') +
-                (p.near_stop ? '<span style="margin-left:auto; font-size:10px; font-weight:700; color:var(--yellow); letter-spacing:0.5px;">&#9888; NEAR STOP</span>' : '') +
+                (p.near_stop ? '<span style="margin-left:auto; font-size:11px; font-weight:700; color:var(--yellow); letter-spacing:0.5px;">&#9888; CERCA DEL STOP</span>' : '') +
             '</div>' +
         '</div>';
     }
@@ -455,7 +456,7 @@ function updatePositions(details) {
 
     /* Bottom bar */
     totalBar.style.display = 'flex';
-    document.getElementById('pt-count').textContent = details.length + ' Position' + (details.length !== 1 ? 's' : '');
+    document.getElementById('pt-count').textContent = details.length + (details.length !== 1 ? ' Posiciones' : ' Posici\u00f3n');
     document.getElementById('pt-value').textContent = fmt$(totalValue);
     const ptPnl = document.getElementById('pt-pnl');
     ptPnl.textContent = fmt$(totalPnl);
@@ -772,7 +773,7 @@ async function fetchCycleLog() {
         const cycles = await res.json();
         const tbody = document.getElementById('cycle-log-body');
         if (!tbody || !cycles.length) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;">No cycles completed yet</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;">No hay ciclos completados a\u00fan</td></tr>';
             return;
         }
         let html = '';
@@ -809,9 +810,9 @@ async function fetchCycleLog() {
                 '<td>#' + c.cycle + '</td>' +
                 '<td>' + period + '</td>' +
                 '<td class="cl-tickers">' + tickers + '</td>' +
-                '<td class="' + compassCls + '">' + compass + '</td>' +
-                '<td class="' + spyCls + '">' + spy + '</td>' +
-                '<td class="' + alphaCls + '">' + alpha + '</td>' +
+                '<td class="cl-num ' + compassCls + '">' + compass + '</td>' +
+                '<td class="cl-num ' + spyCls + '">' + spy + '</td>' +
+                '<td class="cl-num ' + alphaCls + '">' + alpha + '</td>' +
                 '<td>' + status + '</td>' +
                 '</tr>';
         }
@@ -873,8 +874,8 @@ async function fetchAll() {
             const banner = document.getElementById('offline-banner');
             banner.style.display = 'block';
             banner.textContent = _fetchRetries > 0
-                ? 'WAKING UP SERVER... RETRY ' + _fetchRetries + '/' + MAX_RETRIES
-                : 'CONNECTING TO SERVER...';
+                ? 'DESPERTANDO SERVIDOR... INTENTO ' + _fetchRetries + '/' + MAX_RETRIES
+                : 'CONECTANDO AL SERVIDOR...';
             if (_fetchRetries < MAX_RETRIES) {
                 setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
                 _fetchRetries++;
@@ -901,8 +902,8 @@ async function fetchAll() {
         const banner = document.getElementById('offline-banner');
         banner.style.display = 'block';
         banner.innerHTML = _fetchRetries > 0
-            ? 'WAKING UP SERVER... RETRY ' + _fetchRetries + '/' + MAX_RETRIES
-            : 'CONNECTING TO SERVER...';
+            ? 'DESPERTANDO SERVIDOR... INTENTO ' + _fetchRetries + '/' + MAX_RETRIES
+            : 'CONECTANDO AL SERVIDOR...';
         if (_fetchRetries < MAX_RETRIES) {
             setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
             _fetchRetries++;
@@ -1766,13 +1767,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const mktOpen = 9 * 60 + 30, mktClose = 16 * 60;
         const isOpen = isWeekday && mins >= mktOpen && mins < mktClose;
         if (isOpen) {
-            lbl.textContent = 'LIVE PAPER TRADING';
+            lbl.textContent = 'PAPER TRADING EN VIVO';
             lbl.style.color = 'var(--green)';
             const left = (mktClose * 60) - (mins * 60 + s);
             const hh = Math.floor(left / 3600), mm = Math.floor((left % 3600) / 60), ss = left % 60;
-            cd.textContent = 'closes ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
+            cd.textContent = 'cierra ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
         } else {
-            lbl.textContent = 'MARKET CLOSED';
+            lbl.textContent = 'MERCADO CERRADO';
             lbl.style.color = 'var(--text-muted)';
             /* Calculate seconds until next market open using ET time components */
             let secsToOpen = 0;
@@ -1791,7 +1792,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const diff = Math.max(0, secsToOpen);
             const hh = Math.floor(diff / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
-            cd.textContent = 'opens ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
+            cd.textContent = 'abre ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
         }
     }
     updateMarketTimer();
