@@ -1018,6 +1018,7 @@ function getDarkDrawdownColor(dd) {
 function updateChartColors() {
     /* Called when dark mode toggles — rebuild charts with correct colors */
     if (_equityChart || _underwaterChart) fetchEquityData();
+    if (_annualData) renderAnnualReturns(_annualData.data, _annualData.positive, _annualData.total);
 }
 
 async function fetchEquityData() {
@@ -1271,12 +1272,14 @@ function renderEquityAndDrawdown(equity, milestones) {
 
 /* ============ ANNUAL RETURNS BAR CHART ============ */
 let _annualChart = null;
+let _annualData = null;
 
 async function fetchAnnualReturns() {
     try {
         var res = await fetch('/api/annual-returns');
         var data = await res.json();
         if (!data.data || data.data.length === 0) return;
+        _annualData = { data: data.data, positive: data.positive_years, total: data.total_years };
         renderAnnualReturns(data.data, data.positive_years, data.total_years);
     } catch (e) {
         console.error('Annual returns fetch error:', e);
@@ -1294,7 +1297,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
 
     /* Badge */
     var badge = document.getElementById('ar-badge');
-    if (badge) badge.textContent = positiveYears + '/' + totalYears + ' positive years';
+    if (badge) badge.textContent = positiveYears + '/' + totalYears + ' positive';
 
     /* Colors */
     var compassColors = compassRets.map(function(v) {
@@ -1302,11 +1305,65 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             ? (isDark ? 'rgba(34, 197, 94, 0.85)' : 'rgba(22, 163, 74, 0.85)')
             : (isDark ? 'rgba(239, 68, 68, 0.85)' : 'rgba(220, 38, 38, 0.85)');
     });
-    var spyColor = isDark ? 'rgba(99, 102, 241, 0.35)' : 'rgba(99, 102, 241, 0.30)';
-    var spyBorder = isDark ? 'rgba(99, 102, 241, 0.7)' : 'rgba(99, 102, 241, 0.6)';
+    var spyColors = spyRets.map(function(v) {
+        return isDark ? 'rgba(99, 102, 241, 0.55)' : 'rgba(99, 102, 241, 0.45)';
+    });
+    var spyBorderColors = spyRets.map(function() {
+        return isDark ? 'rgba(99, 102, 241, 0.8)' : 'rgba(99, 102, 241, 0.7)';
+    });
     var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
     var tickColor = isDark ? '#8888a0' : '#5e5e78';
-    var zeroLineColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+    var zeroLineColor = isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+
+    /* Dynamic height: ~28px per year, min 380px */
+    var chartH = Math.max(380, data.length * 28 + 60);
+    var container = document.getElementById('annual-returns-container');
+    if (container) container.style.height = chartH + 'px';
+
+    /* Build summary stats */
+    var compassWins = 0;
+    var totalAlpha = 0;
+    var validPairs = 0;
+    data.forEach(function(d) {
+        if (d.spy != null) {
+            if (d.compass > d.spy) compassWins++;
+            totalAlpha += (d.compass - d.spy);
+            validPairs++;
+        }
+    });
+    var avgAlpha = validPairs > 0 ? totalAlpha / validPairs : 0;
+    var summaryEl = document.getElementById('ar-summary');
+    if (summaryEl) {
+        /* Build summary using safe DOM methods */
+        summaryEl.textContent = '';
+        var items = [
+            { dot: isDark ? '#22c55e' : '#16a34a', dotBorder: null, text: 'COMPASS', val: null },
+            { dot: 'rgba(99,102,241,0.6)', dotBorder: 'rgba(99,102,241,0.8)', text: 'S&P 500', val: null },
+            { dot: null, text: 'Beats SPY:', val: compassWins + '/' + validPairs + ' years', color: 'var(--green)' },
+            { dot: null, text: 'Avg Alpha:', val: (avgAlpha >= 0 ? '+' : '') + avgAlpha.toFixed(1) + ' pp/yr', color: avgAlpha >= 0 ? 'var(--green)' : 'var(--red)' },
+        ];
+        items.forEach(function(item) {
+            var span = document.createElement('span');
+            span.className = 'ar-summary-item';
+            if (item.dot) {
+                var dot = document.createElement('span');
+                dot.className = 'ar-summary-dot';
+                dot.style.background = item.dot;
+                if (item.dotBorder) dot.style.border = '1px solid ' + item.dotBorder;
+                span.appendChild(dot);
+            }
+            var txt = document.createTextNode(' ' + item.text + ' ');
+            span.appendChild(txt);
+            if (item.val) {
+                var valSpan = document.createElement('span');
+                valSpan.className = 'ar-summary-val';
+                valSpan.style.color = item.color;
+                valSpan.textContent = item.val;
+                span.appendChild(valSpan);
+            }
+            summaryEl.appendChild(span);
+        });
+    }
 
     if (_annualChart) _annualChart.destroy();
     _annualChart = new Chart(ctx, {
@@ -1319,20 +1376,18 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                     data: compassRets,
                     backgroundColor: compassColors,
                     borderRadius: 3,
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8,
-                    order: 1,
+                    barPercentage: 0.82,
+                    categoryPercentage: 0.7,
                 },
                 {
                     label: 'S&P 500',
                     data: spyRets,
-                    backgroundColor: spyColor,
-                    borderColor: spyBorder,
+                    backgroundColor: spyColors,
+                    borderColor: spyBorderColors,
                     borderWidth: 1,
                     borderRadius: 3,
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.8,
-                    order: 2,
+                    barPercentage: 0.82,
+                    categoryPercentage: 0.7,
                 }
             ]
         },
@@ -1341,27 +1396,9 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
+            layout: { padding: { right: 60 } },
             plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    align: 'end',
-                    labels: {
-                        color: tickColor,
-                        font: { family: "'Inter', sans-serif", size: 11, weight: '500' },
-                        boxWidth: 12,
-                        boxHeight: 12,
-                        borderRadius: 3,
-                        useBorderRadius: true,
-                        padding: 16,
-                        generateLabels: function(chart) {
-                            return [
-                                { text: 'COMPASS', fillStyle: isDark ? '#22c55e' : '#16a34a', strokeStyle: 'transparent', lineWidth: 0, borderRadius: 3 },
-                                { text: 'S&P 500', fillStyle: spyColor, strokeStyle: spyBorder, lineWidth: 1, borderRadius: 3 },
-                            ];
-                        }
-                    }
-                },
+                legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(20, 20, 40, 0.95)',
                     borderColor: 'rgba(255,255,255,0.15)',
@@ -1393,6 +1430,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                             xMin: 0, xMax: 0,
                             borderColor: zeroLineColor,
                             borderWidth: 1.5,
+                            borderDash: [4, 3],
                         }
                     }
                 }
@@ -1414,13 +1452,41 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                 y: {
                     ticks: {
                         color: tickColor,
-                        font: { family: "'JetBrains Mono', monospace", size: 11 },
+                        font: { family: "'JetBrains Mono', monospace", size: 11, weight: '600' },
                     },
                     grid: { display: false },
                     border: { color: gridColor },
                 }
             }
-        }
+        },
+        plugins: [{
+            id: 'barValueLabels',
+            afterDatasetsDraw: function(chart) {
+                var ctx2 = chart.ctx;
+                ctx2.save();
+                var darkNow = document.body.classList.contains('dark');
+                chart.data.datasets.forEach(function(dataset, di) {
+                    var meta = chart.getDatasetMeta(di);
+                    meta.data.forEach(function(bar, i) {
+                        var val = dataset.data[i];
+                        if (val == null) return;
+                        var sign = val >= 0 ? '+' : '';
+                        var label = sign + val.toFixed(1) + '%';
+                        ctx2.font = "600 10px 'JetBrains Mono', monospace";
+                        ctx2.textBaseline = 'middle';
+                        ctx2.fillStyle = darkNow ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.55)';
+                        if (val >= 0) {
+                            ctx2.textAlign = 'left';
+                            ctx2.fillText(label, bar.x + 4, bar.y);
+                        } else {
+                            ctx2.textAlign = 'right';
+                            ctx2.fillText(label, bar.x - 4, bar.y);
+                        }
+                    });
+                });
+                ctx2.restore();
+            }
+        }]
     });
 }
 
