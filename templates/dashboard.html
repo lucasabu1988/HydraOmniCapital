@@ -1957,15 +1957,20 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 @media (max-width: 768px) {
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-    .header-bar { flex-wrap: wrap; gap: 10px; padding: 8px 16px; }
+    .header-bar { flex-wrap: wrap; gap: 8px; padding: 8px 16px; }
+    .hdr-hide-mobile { display: none !important; }
+    .hdr-spacer { display: none; }
+    .hdr-brand { flex: 1; min-width: 0; }
+    #hdr-spy-wrap { min-width: auto !important; margin-left: auto; }
     .metric-value { font-size: 20px; }
     .main { padding: 12px 16px; }
 }
 @media (max-width: 480px) {
     body { font-size: 13px; }
     .metric-value { font-size: 18px; }
-    .hdr-brand-text { font-size: 14px; }
-    .hdr-stat { display: none; }
+    .hdr-brand-text { font-size: 16px; }
+    .hdr-brand-icon { width: 36px; height: 36px; }
+    #hdr-spy-wrap { min-width: auto !important; }
 }
 
 /* ============ WHATSAPP CONTACT FAB ============ */
@@ -2019,18 +2024,18 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
             <span class="hdr-brand-sub">Made in Per&uacute;</span>
         </div>
     </div>
-    <span class="hdr-sep">&middot;</span>
-    <span id="regime-tag" class="hdr-pill hdr-pill-on">
+    <span class="hdr-sep hdr-hide-mobile">&middot;</span>
+    <span id="regime-tag" class="hdr-pill hdr-pill-on hdr-hide-mobile">
         <span class="hdr-pill-dot"></span> RISK ON
     </span>
-    <span id="protection-tag" class="hdr-pill hdr-pill-norm">
+    <span id="protection-tag" class="hdr-pill hdr-pill-norm hdr-hide-mobile">
         <span class="hdr-pill-dot"></span> NORMAL
     </span>
-    <div class="hdr-stat">
+    <div class="hdr-stat hdr-hide-mobile">
         <span class="hdr-stat-label">Lev</span>
         <span class="hdr-stat-value" id="leverage-display">1.0x</span>
     </div>
-    <div class="hdr-stat">
+    <div class="hdr-stat hdr-hide-mobile">
         <span class="hdr-stat-label">Day</span>
         <span class="hdr-stat-value" id="day-display">--</span>
     </div>
@@ -2040,18 +2045,18 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         <span class="hdr-stat-value mono" id="hdr-spy-price" style="font-size:14px; font-weight:700;">--</span>
         <span class="hdr-stat-value mono" id="hdr-spy-chg" style="font-size:11px; margin-left:4px;">--</span>
     </div>
-    <div class="hdr-stat" id="hdr-futures-wrap" style="min-width:110px; text-align:right;">
+    <div class="hdr-stat hdr-hide-mobile" id="hdr-futures-wrap" style="min-width:110px; text-align:right;">
         <span class="hdr-stat-label">ES Futures</span>
         <span class="hdr-stat-value mono" id="hdr-futures-price" style="font-size:14px; font-weight:700;">--</span>
         <span class="hdr-stat-value mono" id="hdr-futures-chg" style="font-size:11px; margin-left:4px;">--</span>
     </div>
-    <span class="hdr-sep">&middot;</span>
-    <div class="hdr-stat" id="hdr-market-timer-wrap" style="min-width:180px; text-align:right;">
+    <span class="hdr-sep hdr-hide-mobile">&middot;</span>
+    <div class="hdr-stat hdr-hide-mobile" id="hdr-market-timer-wrap" style="min-width:180px; text-align:right;">
         <span class="hdr-stat-label" id="hdr-market-label">MARKET CLOSED</span>
         <span class="hdr-stat-value" id="hdr-market-countdown" style="font-size:13px;">--</span>
     </div>
-    <span class="hdr-sep">&middot;</span>
-    <div class="upd-wrapper">
+    <span class="hdr-sep hdr-hide-mobile">&middot;</span>
+    <div class="upd-wrapper hdr-hide-mobile">
         <div class="hdr-time-group">
             <span class="hdr-stat-label">Updated</span>
             <span class="hdr-time" id="last-update">--</span>
