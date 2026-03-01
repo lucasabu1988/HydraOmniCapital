@@ -1,5 +1,5 @@
 """
-COMPASS v8.2 Trade Analytics Engine
+COMPASS v8.4 Trade Analytics Engine
 ====================================
 Inspired by Google Cloud Data Science Guide (Cases 3+6: Segmentation + Analysis).
 
@@ -17,8 +17,8 @@ import pandas as pd
 from datetime import datetime
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-TRADES_CSV = os.path.join(SCRIPT_DIR, 'backtests', 'v8_compass_trades.csv')
-DAILY_CSV = os.path.join(SCRIPT_DIR, 'backtests', 'v8_compass_daily.csv')
+TRADES_CSV = os.path.join(SCRIPT_DIR, 'backtests', 'v84_compass_trades.csv')
+DAILY_CSV = os.path.join(SCRIPT_DIR, 'backtests', 'v84_compass_daily.csv')
 
 # GICS sector mapping for COMPASS universe
 SECTOR_MAP = {
@@ -64,7 +64,7 @@ SECTOR_MAP = {
 
 
 class COMPASSTradeAnalytics:
-    """Trade outcome analytics engine for COMPASS v8.2 backtest trades."""
+    """Trade outcome analytics engine for COMPASS v8.4 backtest trades."""
 
     def __init__(self, trades_csv=TRADES_CSV, daily_csv=DAILY_CSV):
         self.trades_csv = trades_csv
