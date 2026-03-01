@@ -93,6 +93,9 @@
     <div class="page-tab" data-page="roadmap" onclick="switchPage('roadmap')">
         <span class="page-tab-icon">&#9654;</span> Launch Roadmap
     </div>
+    <div class="page-tab" data-page="algoritmo" onclick="switchPage('algoritmo')">
+        <span class="page-tab-icon">&#9881;</span> Algoritmo
+    </div>
 </div>
 
 <div class="main">
@@ -647,6 +650,390 @@
 </div>
 
 </div><!-- /page-roadmap -->
+
+<!-- ==================== PAGE: ALGORITMO ==================== -->
+<div id="page-algoritmo" class="page-content">
+
+<!-- ALGO HEADER -->
+<div class="algo-hero">
+    <div class="algo-hero-title">COMPASS v8.4</div>
+    <div class="algo-hero-sub">Algorithm Deep Dive</div>
+    <div class="algo-hero-tagline">Cross-sectional momentum &middot; S&amp;P 500 &middot; Long-only &middot; No leverage</div>
+</div>
+
+<!-- PIPELINE FLOW -->
+<div class="algo-section">
+    <div class="algo-pipeline">
+        <div class="algo-pipe-step">
+            <div class="algo-pipe-icon">&#127760;</div>
+            <div class="algo-pipe-label">Universe</div>
+            <div class="algo-pipe-detail">113 stocks &rarr; Top 40</div>
+        </div>
+        <div class="algo-pipe-arrow">&rarr;</div>
+        <div class="algo-pipe-step">
+            <div class="algo-pipe-icon">&#128200;</div>
+            <div class="algo-pipe-label">Signals</div>
+            <div class="algo-pipe-detail">90d momentum / vol</div>
+        </div>
+        <div class="algo-pipe-arrow">&rarr;</div>
+        <div class="algo-pipe-step">
+            <div class="algo-pipe-icon">&#127919;</div>
+            <div class="algo-pipe-label">Regime</div>
+            <div class="algo-pipe-detail">Sigmoid filter 2-5 pos</div>
+        </div>
+        <div class="algo-pipe-arrow">&rarr;</div>
+        <div class="algo-pipe-step">
+            <div class="algo-pipe-icon">&#9878;</div>
+            <div class="algo-pipe-label">Sizing</div>
+            <div class="algo-pipe-detail">Inverse-vol weighted</div>
+        </div>
+        <div class="algo-pipe-arrow">&rarr;</div>
+        <div class="algo-pipe-step">
+            <div class="algo-pipe-icon">&#128737;</div>
+            <div class="algo-pipe-label">Risk</div>
+            <div class="algo-pipe-detail">Adaptive stops + DD scaling</div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 1: UNIVERSE -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">01</span>
+            <span class="algo-card-title">Universe Selection</span>
+        </div>
+        <div class="algo-card-body">
+            <p>COMPASS opera sobre un universo de <strong>113 acciones</strong> del S&amp;P 500 clasificadas en 7 sectores. Cada a&ntilde;o, las <strong>top 40 por volumen en d&oacute;lares</strong> son seleccionadas como universo activo.</p>
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Sectores</div>
+                    <div class="algo-sector-list">
+                        <span class="algo-sector"><strong>Technology</strong> (25)</span>
+                        <span class="algo-sector"><strong>Consumer</strong> (20)</span>
+                        <span class="algo-sector"><strong>Financials</strong> (18)</span>
+                        <span class="algo-sector"><strong>Healthcare</strong> (18)</span>
+                        <span class="algo-sector"><strong>Industrials</strong> (14)</span>
+                        <span class="algo-sector"><strong>Energy</strong> (9)</span>
+                        <span class="algo-sector"><strong>Utilities &amp; Telecom</strong> (9)</span>
+                    </div>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Filtros de entrada</div>
+                    <table class="algo-params-sm">
+                        <tr><td>TOP_N</td><td>40 stocks/a&ntilde;o</td></tr>
+                        <tr><td>MIN_AGE_DAYS</td><td>63 d&iacute;as m&iacute;nimo de historia</td></tr>
+                        <tr><td>Selecci&oacute;n</td><td>Avg. daily dollar volume</td></tr>
+                        <tr><td>Rotaci&oacute;n</td><td>Anual (1 enero)</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 2: SIGNAL GENERATION -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">02</span>
+            <span class="algo-card-title">Signal Generation</span>
+        </div>
+        <div class="algo-card-body">
+            <p>Cada 5 d&iacute;as, COMPASS calcula un <strong>momentum score risk-adjusted</strong> para cada acci&oacute;n del universo. Las acciones se rankean cross-sectionally y las top N son seleccionadas.</p>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Momentum Score</div>
+                <code class="algo-formula">score = (return_90d &minus; return_5d) / realized_vol_63d</code>
+            </div>
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Par&aacute;metros de se&ntilde;al</div>
+                    <table class="algo-params-sm">
+                        <tr><td>MOMENTUM_LOOKBACK</td><td>90 d&iacute;as</td></tr>
+                        <tr><td>MOMENTUM_SKIP</td><td>5 d&iacute;as (excluir reversi&oacute;n)</td></tr>
+                        <tr><td>VOL_LOOKBACK</td><td>20 d&iacute;as</td></tr>
+                        <tr><td>MIN_MOMENTUM_STOCKS</td><td>20 m&iacute;nimo v&aacute;lidos</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Quality Filter</div>
+                    <table class="algo-params-sm">
+                        <tr><td>QUALITY_VOL_MAX</td><td>0.60 (vol anualizada)</td></tr>
+                        <tr><td>QUALITY_VOL_LOOKBACK</td><td>63 d&iacute;as</td></tr>
+                        <tr><td>QUALITY_MAX_SINGLE_DAY</td><td>0.50 (mov. diario)</td></tr>
+                    </table>
+                    <p class="algo-note">Excluye acciones con volatilidad extrema o gaps anormales &gt;50% en un d&iacute;a.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 3: REGIME DETECTOR -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">03</span>
+            <span class="algo-card-title">Regime Detector (Continuous Sigmoid)</span>
+        </div>
+        <div class="algo-card-body">
+            <p>El r&eacute;gimen de mercado se eval&uacute;a con una <strong>funci&oacute;n sigmoid continua</strong> que combina tendencia (60%) y volatilidad (40%) en un score [0, 1]. El score determina cu&aacute;ntas posiciones abrir.</p>
+
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Sigmoid Function</div>
+                <code class="algo-formula">sigmoid(x, k=15) = 1 / (1 + e<sup>&minus;kx</sup>)</code>
+            </div>
+
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Trend Component (60%)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Precio / SMA200</td><td>sigmoid(k=15)</td></tr>
+                        <tr><td>SMA50 / SMA200</td><td>sigmoid(k=30)</td></tr>
+                        <tr><td>Momentum 20d</td><td>sigmoid(k=15)</td></tr>
+                    </table>
+                    <p class="algo-note">Promedio de 3 sub-scores sigmoid.</p>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Volatility Component (40%)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Medici&oacute;n</td><td>10d realized vol</td></tr>
+                        <tr><td>Referencia</td><td>252d rolling distribution</td></tr>
+                        <tr><td>M&eacute;todo</td><td>Percentile rank invertido</td></tr>
+                    </table>
+                    <p class="algo-note">Alta volatilidad = score bajo.</p>
+                </div>
+            </div>
+
+            <div class="algo-formula-box" style="margin-top:16px;">
+                <div class="algo-formula-label">Composite Regime Score</div>
+                <code class="algo-formula">regime_score = 0.60 &times; trend + 0.40 &times; vol &nbsp;&nbsp; &isin; [0, 1]</code>
+            </div>
+
+            <div class="algo-thresholds">
+                <div class="algo-threshold algo-th-bull"><span class="algo-th-score">&ge; 0.65</span><span class="algo-th-pos">5 posiciones</span><span class="algo-th-label">Strong Bull</span></div>
+                <div class="algo-threshold algo-th-mild-bull"><span class="algo-th-score">&ge; 0.50</span><span class="algo-th-pos">4 posiciones</span><span class="algo-th-label">Mild Bull</span></div>
+                <div class="algo-threshold algo-th-mild-bear"><span class="algo-th-score">&ge; 0.35</span><span class="algo-th-pos">3 posiciones</span><span class="algo-th-label">Mild Bear</span></div>
+                <div class="algo-threshold algo-th-bear"><span class="algo-th-score">&lt; 0.35</span><span class="algo-th-pos">2 posiciones</span><span class="algo-th-label">Bear / Risk-Off</span></div>
+            </div>
+
+            <!-- BULL OVERRIDE -->
+            <div class="algo-highlight">
+                <div class="algo-highlight-badge">v8.4</div>
+                <div class="algo-highlight-content">
+                    <strong>Bull Market Override:</strong> Cuando SPY &gt; SMA200 &times; 1.03 y regime_score &gt; 0.40, se a&ntilde;ade <strong>+1 posici&oacute;n</strong> al conteo base (m&aacute;x 5). Esto corrige 864 d&iacute;as de falso risk-off donde la componente de volatilidad arrastraba el score por debajo de 0.50 a pesar de tendencia alcista confirmada.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 4: RISK MANAGEMENT -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">04</span>
+            <span class="algo-card-title">Risk Management</span>
+        </div>
+        <div class="algo-card-body">
+
+            <!-- ADAPTIVE STOPS -->
+            <h3 class="algo-sub-title">Adaptive Position Stops</h3>
+            <div class="algo-highlight">
+                <div class="algo-highlight-badge">v8.4</div>
+                <div class="algo-highlight-content">
+                    Los stops se ajustan a la volatilidad individual de cada acci&oacute;n al momento de entrada. Acciones tranquilas tienen stops tight; acciones vol&aacute;tiles tienen stops m&aacute;s amplios para evitar whipsaw.
+                </div>
+            </div>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Adaptive Stop Formula</div>
+                <code class="algo-formula">stop = max(&minus;0.15, min(&minus;0.06, &minus;2.5 &times; daily_vol))</code>
+            </div>
+            <div class="algo-stops-grid">
+                <div class="algo-stop-example">
+                    <span class="algo-stop-vol">Vol 1.5%</span>
+                    <span class="algo-stop-val" style="color:var(--green);">&minus;6.0%</span>
+                    <span class="algo-stop-desc">Low-vol (tight)</span>
+                </div>
+                <div class="algo-stop-example">
+                    <span class="algo-stop-vol">Vol 3.0%</span>
+                    <span class="algo-stop-val" style="color:var(--accent);">&minus;7.5%</span>
+                    <span class="algo-stop-desc">Medio</span>
+                </div>
+                <div class="algo-stop-example">
+                    <span class="algo-stop-vol">Vol 4.5%</span>
+                    <span class="algo-stop-val" style="color:#f59e0b;">&minus;11.3%</span>
+                    <span class="algo-stop-desc">Alto</span>
+                </div>
+                <div class="algo-stop-example">
+                    <span class="algo-stop-vol">Vol 6.0%+</span>
+                    <span class="algo-stop-val" style="color:var(--red);">&minus;15.0%</span>
+                    <span class="algo-stop-desc">Extremo (ceiling)</span>
+                </div>
+            </div>
+
+            <!-- TRAILING STOP -->
+            <h3 class="algo-sub-title">Trailing Stop (Vol-Scaled)</h3>
+            <p>Se activa despu&eacute;s de +5% de ganancia. El trailing base (3%) se escala por la volatilidad de la acci&oacute;n respecto al baseline de 25%.</p>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Trailing Stop</div>
+                <code class="algo-formula">trailing = 0.03 &times; (entry_vol / 0.25)</code>
+            </div>
+
+            <!-- DD SCALING -->
+            <h3 class="algo-sub-title">Drawdown Scaling (Smooth Leverage Reduction)</h3>
+            <p>El leverage se reduce de forma <strong>continua y suave</strong> conforme crece el drawdown del portafolio. Sin switches binarios.</p>
+            <div class="algo-dd-tiers">
+                <div class="algo-dd-tier">
+                    <div class="algo-dd-bar" style="width:30%; background:var(--green);"></div>
+                    <div class="algo-dd-info">
+                        <span class="algo-dd-range">0% a &minus;10%</span>
+                        <span class="algo-dd-lev">1.0x</span>
+                    </div>
+                </div>
+                <div class="algo-dd-tier">
+                    <div class="algo-dd-bar" style="width:50%; background:#f59e0b;"></div>
+                    <div class="algo-dd-info">
+                        <span class="algo-dd-range">&minus;10% a &minus;20%</span>
+                        <span class="algo-dd-lev">1.0x &rarr; 0.60x</span>
+                    </div>
+                </div>
+                <div class="algo-dd-tier">
+                    <div class="algo-dd-bar" style="width:70%; background:#f97316;"></div>
+                    <div class="algo-dd-info">
+                        <span class="algo-dd-range">&minus;20% a &minus;35%</span>
+                        <span class="algo-dd-lev">0.60x &rarr; 0.30x</span>
+                    </div>
+                </div>
+                <div class="algo-dd-tier">
+                    <div class="algo-dd-bar" style="width:90%; background:var(--red);"></div>
+                    <div class="algo-dd-info">
+                        <span class="algo-dd-range">&lt; &minus;35%</span>
+                        <span class="algo-dd-lev">0.30x floor</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CRASH BREAKER -->
+            <h3 class="algo-sub-title">Crash Velocity Circuit Breaker</h3>
+            <p>Detecci&oacute;n de crashes por velocidad de ca&iacute;da. Si SPY cae &minus;6% en 5 d&iacute;as o &minus;10% en 10 d&iacute;as, el leverage baja a 0.15x durante 10 d&iacute;as de cooldown.</p>
+            <table class="algo-params-sm">
+                <tr><td>CRASH_VEL_5D</td><td>&minus;6% en 5 d&iacute;as</td></tr>
+                <tr><td>CRASH_VEL_10D</td><td>&minus;10% en 10 d&iacute;as</td></tr>
+                <tr><td>CRASH_LEVERAGE</td><td>0.15x</td></tr>
+                <tr><td>CRASH_COOLDOWN</td><td>10 d&iacute;as</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 5: POSITION SIZING & EXECUTION -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">05</span>
+            <span class="algo-card-title">Position Sizing &amp; Execution</span>
+        </div>
+        <div class="algo-card-body">
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Sizing</div>
+                    <table class="algo-params-sm">
+                        <tr><td>M&eacute;todo</td><td>Inverse-vol weighted</td></tr>
+                        <tr><td>LEVERAGE_MAX</td><td>1.0x (sin apalancamiento)</td></tr>
+                        <tr><td>TARGET_VOL</td><td>0.15 (15% anualizado)</td></tr>
+                        <tr><td>Buffer</td><td>5% cash reservado</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Hold Period &amp; Renewal</div>
+                    <table class="algo-params-sm">
+                        <tr><td>HOLD_DAYS</td><td>5 d&iacute;as (base)</td></tr>
+                        <tr><td>HOLD_DAYS_MAX</td><td>10 d&iacute;as (hard cap)</td></tr>
+                        <tr><td>RENEWAL_PROFIT_MIN</td><td>+4% para renovar</td></tr>
+                        <tr><td>MOMENTUM_RENEWAL</td><td>Top 85% para renovar</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTOR CONCENTRATION -->
+            <div class="algo-highlight" style="margin-top: 16px;">
+                <div class="algo-highlight-badge">v8.4</div>
+                <div class="algo-highlight-content">
+                    <strong>Sector Concentration Limits:</strong> M&aacute;ximo <strong>3 posiciones por sector</strong> (MAX_PER_SECTOR = 3). Evita sobre-concentraci&oacute;n como 2022 donde 48 trades fueron en energ&iacute;a (CVX/XOM repetidamente).
+                </div>
+            </div>
+
+            <div class="algo-mini-card" style="margin-top: 16px;">
+                <div class="algo-mini-title">Costos de ejecuci&oacute;n</div>
+                <table class="algo-params-sm">
+                    <tr><td>COMMISSION</td><td>$0.001/share</td></tr>
+                    <tr><td>MARGIN_RATE</td><td>6% anual</td></tr>
+                    <tr><td>CASH_YIELD</td><td>Moody's Aaa IG (FRED, ~3.5%)</td></tr>
+                    <tr><td>Ejecuci&oacute;n</td><td>Pre-close 15:30 ET + MOC</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 6: KEY PARAMETERS TABLE -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">06</span>
+            <span class="algo-card-title">Complete Parameters Reference</span>
+        </div>
+        <div class="algo-card-body">
+            <div class="algo-params-full">
+                <table class="algo-params-table">
+                    <thead>
+                        <tr><th>Par&aacute;metro</th><th>Valor</th><th>Descripci&oacute;n</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="algo-params-group"><td colspan="3">Estrategia Core</td></tr>
+                        <tr><td>TOP_N</td><td>40</td><td>Tama&ntilde;o del universo activo anual</td></tr>
+                        <tr><td>NUM_POSITIONS</td><td>5</td><td>M&aacute;x posiciones en risk-on</td></tr>
+                        <tr><td>NUM_POSITIONS_RISK_OFF</td><td>2</td><td>M&iacute;n posiciones en risk-off</td></tr>
+                        <tr><td>HOLD_DAYS</td><td>5</td><td>Periodo base de holding (d&iacute;as)</td></tr>
+                        <tr><td>MOMENTUM_LOOKBACK</td><td>90</td><td>Ventana de momentum primario</td></tr>
+                        <tr><td>MOMENTUM_SKIP</td><td>5</td><td>Excluir reversi&oacute;n reciente</td></tr>
+
+                        <tr class="algo-params-group"><td colspan="3">Adaptive Stops (v8.4)</td></tr>
+                        <tr><td>STOP_DAILY_VOL_MULT</td><td>2.5</td><td>Multiplicador de vol diaria</td></tr>
+                        <tr><td>STOP_FLOOR</td><td>&minus;6%</td><td>Stop m&aacute;s tight</td></tr>
+                        <tr><td>STOP_CEILING</td><td>&minus;15%</td><td>Stop m&aacute;s amplio</td></tr>
+                        <tr><td>TRAILING_ACTIVATION</td><td>+5%</td><td>Activar trailing despu&eacute;s de</td></tr>
+                        <tr><td>TRAILING_STOP_PCT</td><td>3%</td><td>Trailing base</td></tr>
+                        <tr><td>TRAILING_VOL_BASELINE</td><td>0.25</td><td>Vol baseline para scaling</td></tr>
+
+                        <tr class="algo-params-group"><td colspan="3">Regime &amp; Bull Override (v8.4)</td></tr>
+                        <tr><td>BULL_OVERRIDE_THRESHOLD</td><td>0.03</td><td>SPY &gt; SMA200 &times; 1.03</td></tr>
+                        <tr><td>BULL_OVERRIDE_MIN_SCORE</td><td>0.40</td><td>Score m&iacute;nimo para override</td></tr>
+                        <tr><td>MAX_PER_SECTOR</td><td>3</td><td>M&aacute;x posiciones por sector</td></tr>
+
+                        <tr class="algo-params-group"><td colspan="3">Drawdown Scaling</td></tr>
+                        <tr><td>DD_SCALE_TIER1</td><td>&minus;10%</td><td>Inicio de reducci&oacute;n</td></tr>
+                        <tr><td>DD_SCALE_TIER2</td><td>&minus;20%</td><td>Mid-tier</td></tr>
+                        <tr><td>DD_SCALE_TIER3</td><td>&minus;35%</td><td>Floor de deep drawdown</td></tr>
+                        <tr><td>CRASH_VEL_5D</td><td>&minus;6%</td><td>Crash threshold 5 d&iacute;as</td></tr>
+                        <tr><td>CRASH_VEL_10D</td><td>&minus;10%</td><td>Crash threshold 10 d&iacute;as</td></tr>
+                        <tr><td>CRASH_LEVERAGE</td><td>0.15</td><td>Leverage en crash mode</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DISCLAIMER -->
+<div class="algo-section">
+    <div class="algo-disclaimer">
+        Backtest period: 2000&ndash;2026 &middot; Bias-corrected with 1,128 historical S&amp;P 500 constituents &middot; 56 experiments validated &middot; Past performance does not guarantee future results.
+    </div>
+</div>
+
+</div><!-- /page-algoritmo -->
 
 <!-- FOOTER -->
 <footer class="footer-institutional">

@@ -42,7 +42,8 @@
       "entry_day_index": 5,
       "high_price": 213.89999389648438,
       "entry_vol": 0.4428,
-      "entry_daily_vol": 0.0279
+      "entry_daily_vol": 0.0279,
+      "sector": "Technology"
     },
     "JNJ": {
       "entry_price": 245.1999969482422,
@@ -50,7 +51,8 @@
       "entry_day_index": 5,
       "high_price": 248.80999755859375,
       "entry_vol": 0.1420,
-      "entry_daily_vol": 0.0089
+      "entry_daily_vol": 0.0089,
+      "sector": "Healthcare"
     },
     "MU": {
       "entry_price": 412.37,
@@ -58,7 +60,8 @@
       "entry_day_index": 7,
       "high_price": 417.96,
       "entry_vol": 0.6827,
-      "entry_daily_vol": 0.0430
+      "entry_daily_vol": 0.0430,
+      "sector": "Technology"
     },
     "CVX": {
       "entry_price": 184.24000549316406,
@@ -66,7 +69,8 @@
       "entry_day_index": 5,
       "high_price": 187.47500610351562,
       "entry_vol": 0.2131,
-      "entry_daily_vol": 0.0134
+      "entry_daily_vol": 0.0134,
+      "sector": "Energy"
     },
     "LLY": {
       "entry_price": 1029.1300048828125,
@@ -74,7 +78,8 @@
       "entry_day_index": 5,
       "high_price": 1050.3699951171875,
       "entry_vol": 0.5684,
-      "entry_daily_vol": 0.0358
+      "entry_daily_vol": 0.0358,
+      "sector": "Healthcare"
     }
   },
   "current_universe": [
