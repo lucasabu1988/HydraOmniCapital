@@ -422,19 +422,24 @@ body::before {
     white-space: nowrap;
 }
 
-/* ---- MARKET DATA STATS (S&P 500, ES Futures) ---- */
-/* These use inline style overrides in HTML — we reinforce here */
+/* ---- MARKET DATA STATS ---- */
 #hdr-spy-wrap,
-#hdr-futures-wrap {
+#hdr-futures-wrap,
+#hdr-nq-wrap,
+#hdr-tnx-wrap,
+#hdr-dxy-wrap {
     display: flex;
     flex-direction: column;
     gap: 0;
     flex-shrink: 0;
-    min-width: 0 !important; /* override inline style; let content dictate */
+    min-width: 0 !important;
     text-align: right;
 }
 #hdr-spy-wrap .hdr-stat-label,
-#hdr-futures-wrap .hdr-stat-label {
+#hdr-futures-wrap .hdr-stat-label,
+#hdr-nq-wrap .hdr-stat-label,
+#hdr-tnx-wrap .hdr-stat-label,
+#hdr-dxy-wrap .hdr-stat-label {
     text-align: right;
 }
 

@@ -927,6 +927,61 @@ function updateSpyTracker(prices, prevCloses) {
     if (fPriceEl && fChgEl && esPrice) {
         _applyPriceChg(fPriceEl, fChgEl, esPrice, pc['ES=F']);
     }
+    /* --- NQ Futures --- */
+    var nqPriceEl = document.getElementById('hdr-nq-price');
+    var nqChgEl = document.getElementById('hdr-nq-chg');
+    var nqPrice = prices['NQ=F'];
+    if (nqPriceEl && nqChgEl && nqPrice) {
+        _applyPriceChg(nqPriceEl, nqChgEl, nqPrice, pc['NQ=F']);
+    }
+    /* --- 10Y Treasury Yield (^TNX returns value * 10, e.g. 42.5 = 4.25%) --- */
+    var tnxPriceEl = document.getElementById('hdr-tnx-price');
+    var tnxChgEl = document.getElementById('hdr-tnx-chg');
+    var tnxRaw = prices['^TNX'] || prices['TNX'];
+    if (tnxPriceEl && tnxChgEl && tnxRaw) {
+        tnxPriceEl.textContent = (tnxRaw / 10).toFixed(2) + '%';
+        var tnxPrev = pc['^TNX'] || pc['TNX'];
+        if (tnxPrev && tnxPrev > 0) {
+            var tnxChg = ((tnxRaw - tnxPrev) / tnxPrev) * 100;
+            if (Math.abs(tnxChg) < 0.001) {
+                tnxChgEl.textContent = '0.00%';
+                tnxChgEl.style.color = 'var(--text-secondary)';
+            } else if (tnxChg > 0) {
+                tnxChgEl.textContent = '+' + tnxChg.toFixed(2) + '%';
+                tnxChgEl.style.color = 'var(--red)';
+            } else {
+                tnxChgEl.textContent = tnxChg.toFixed(2) + '%';
+                tnxChgEl.style.color = 'var(--green)';
+            }
+        } else {
+            tnxChgEl.textContent = '--';
+            tnxChgEl.style.color = 'var(--text-secondary)';
+        }
+    }
+    /* --- DXY Dollar Index --- */
+    var dxyPriceEl = document.getElementById('hdr-dxy-price');
+    var dxyChgEl = document.getElementById('hdr-dxy-chg');
+    var dxyPrice = prices['DX-Y.NYB'] || prices['DX=F'];
+    if (dxyPriceEl && dxyChgEl && dxyPrice) {
+        dxyPriceEl.textContent = dxyPrice.toFixed(2);
+        var dxyPrev = pc['DX-Y.NYB'] || pc['DX=F'];
+        if (dxyPrev && dxyPrev > 0) {
+            var dxyChg = ((dxyPrice - dxyPrev) / dxyPrev) * 100;
+            if (Math.abs(dxyChg) < 0.001) {
+                dxyChgEl.textContent = '0.00%';
+                dxyChgEl.style.color = 'var(--text-secondary)';
+            } else if (dxyChg > 0) {
+                dxyChgEl.textContent = '+' + dxyChg.toFixed(2) + '%';
+                dxyChgEl.style.color = 'var(--green)';
+            } else {
+                dxyChgEl.textContent = dxyChg.toFixed(2) + '%';
+                dxyChgEl.style.color = 'var(--red)';
+            }
+        } else {
+            dxyChgEl.textContent = '--';
+            dxyChgEl.style.color = 'var(--text-secondary)';
+        }
+    }
 }
 
 async function fetchAll() {
