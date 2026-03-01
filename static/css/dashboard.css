@@ -2373,8 +2373,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* Pipeline flow */
 .algo-section {
-    max-width: 960px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0;
     padding: 0 20px;
 }
 .algo-pipeline {
