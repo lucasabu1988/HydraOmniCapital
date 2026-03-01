@@ -36,3 +36,8 @@ universe_tests/
 # Temp files
 STOP_TRADING
 demo_state.json
+
+# Claude Code local config
+.claude/*.local.md
+.claude/*.local.json
+.claude/agent-memory/
