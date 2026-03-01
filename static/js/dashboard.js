@@ -385,10 +385,11 @@ function updatePositions(details) {
             '<div class="pos-stops">' +
                 '<div class="pos-stop-item">' +
                     '<span class="pos-stop-dot" style="background:var(--red);"></span>' +
-                    '<span class="pos-stop-label">Stop</span>' +
+                    '<span class="pos-stop-label">Stop' + (p.adaptive_stop_pct != null ? ' (' + p.adaptive_stop_pct.toFixed(0) + '%)' : '') + '</span>' +
                     '<span class="pos-stop-val">$' + p.position_stop_level.toFixed(2) + '</span>' +
                 '</div>' +
                 trailHtml +
+                (p.sector ? '<div class="pos-stop-item"><span class="pos-stop-dot" style="background:var(--purple);"></span><span class="pos-stop-label">' + p.sector + '</span></div>' : '') +
                 (p.near_stop ? '<span style="margin-left:auto; font-size:10px; font-weight:700; color:var(--yellow); letter-spacing:0.5px;">&#9888; NEAR STOP</span>' : '') +
             '</div>' +
         '</div>';

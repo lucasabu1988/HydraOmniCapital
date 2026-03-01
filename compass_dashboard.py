@@ -1,8 +1,10 @@
 """
-COMPASS v8.2 — Live Dashboard + Trading Engine
+COMPASS v8.4 — Live Dashboard + Trading Engine
 ================================================
 All-in-one: Flask dashboard + COMPASSLive trading engine
 running as a background thread. Single process, single launch.
+
+v8.4 features: Adaptive stops (vol-scaled) | Bull market override | Sector concentration limits
 
 Run:  python compass_dashboard.py
 View: http://localhost:5000
@@ -33,25 +35,42 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 
 # ============================================================================
-# COMPASS v8.2 PARAMETERS (read-only reference, must match omnicapital_live.py)
+# COMPASS v8.4 PARAMETERS (read-only reference, must match omnicapital_live.py)
 # ============================================================================
 
 COMPASS_CONFIG = {
     # Algorithm (LOCKED)
     'HOLD_DAYS': 5,
-    'POSITION_STOP_LOSS': -0.08,
+    'POSITION_STOP_LOSS': -0.08,           # Fallback for pre-v8.4 positions
     'TRAILING_ACTIVATION': 0.05,
     'TRAILING_STOP_PCT': 0.03,
-    'PORTFOLIO_STOP_LOSS': -0.15,
-    'RECOVERY_STAGE_1_DAYS': 63,
-    'RECOVERY_STAGE_2_DAYS': 126,
     'NUM_POSITIONS': 5,
     'NUM_POSITIONS_RISK_OFF': 2,
     'TARGET_VOL': 0.15,
     'LEVERAGE_MIN': 0.3,
     'LEVERAGE_MAX': 1.0,          # Production: no leverage (broker margin destroys value)
+    'LEV_FULL': 1.0,
     'INITIAL_CAPITAL': 100_000,
     'CASH_YIELD_SOURCE': "Moody's Aaa IG Corporate (FRED)",
+
+    # --- v8.4 Adaptive Stops (volatility-scaled) ---
+    'STOP_DAILY_VOL_MULT': 2.5,
+    'STOP_FLOOR': -0.06,                   # Tightest stop for low-vol stocks
+    'STOP_CEILING': -0.15,                 # Widest stop for high-vol stocks
+    'TRAILING_VOL_BASELINE': 0.25,
+
+    # --- v8.4 Bull Market Override ---
+    'BULL_OVERRIDE_THRESHOLD': 0.03,       # SPY > SMA200 * 1.03 -> +1 position
+    'BULL_OVERRIDE_MIN_SCORE': 0.40,
+
+    # --- v8.4 Sector Concentration ---
+    'MAX_PER_SECTOR': 3,
+
+    # --- Smooth DD Scaling (replaces binary portfolio stop) ---
+    'DD_SCALE_TIER1': -0.10,
+    'DD_SCALE_TIER2': -0.20,
+    'DD_SCALE_TIER3': -0.35,
+
     # Chassis
     'ORDER_TIMEOUT_SECONDS': 300,
     'MAX_FILL_DEVIATION': 0.02,
@@ -611,10 +630,27 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             days_held = trading_day - entry_day_index + 1
         days_remaining = max(0, COMPASS_CONFIG['HOLD_DAYS'] - days_held)
 
+        # v8.4: Adaptive trailing stop (vol-scaled)
         trailing_active = high_price > entry_price * (1 + COMPASS_CONFIG['TRAILING_ACTIVATION'])
-        trailing_stop_level = high_price * (1 - COMPASS_CONFIG['TRAILING_STOP_PCT']) if trailing_active else None
+        if trailing_active:
+            entry_vol = meta.get('entry_vol', COMPASS_CONFIG['TRAILING_VOL_BASELINE'])
+            vol_ratio = entry_vol / COMPASS_CONFIG['TRAILING_VOL_BASELINE']
+            scaled_trailing = COMPASS_CONFIG['TRAILING_STOP_PCT'] * vol_ratio
+            trailing_stop_level = high_price * (1 - scaled_trailing)
+        else:
+            trailing_stop_level = None
 
-        position_stop_level = entry_price * (1 + COMPASS_CONFIG['POSITION_STOP_LOSS'])
+        # v8.4: Adaptive position stop (vol-scaled)
+        entry_daily_vol = meta.get('entry_daily_vol')
+        if entry_daily_vol is not None:
+            raw_stop = -COMPASS_CONFIG['STOP_DAILY_VOL_MULT'] * entry_daily_vol
+            adaptive_stop = max(COMPASS_CONFIG['STOP_CEILING'], min(COMPASS_CONFIG['STOP_FLOOR'], raw_stop))
+        else:
+            adaptive_stop = COMPASS_CONFIG['POSITION_STOP_LOSS']  # fallback
+        position_stop_level = entry_price * (1 + adaptive_stop)
+
+        # Sector from meta
+        sector = meta.get('sector', 'Unknown')
 
         near_stop = False
         if current_price:
@@ -637,8 +673,10 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             'trailing_active': trailing_active,
             'trailing_stop_level': round(trailing_stop_level, 2) if trailing_stop_level else None,
             'position_stop_level': round(position_stop_level, 2),
+            'adaptive_stop_pct': round(adaptive_stop * 100, 2),
             'entry_date': entry_date,
             'near_stop': near_stop,
+            'sector': sector,
         })
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)
@@ -750,12 +788,16 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         # Normal RISK_ON: vol-targeting capped at 1.0x
         leverage = 1.0
 
-    if state.get('in_protection'):
-        max_pos = 2 if state.get('protection_stage') == 1 else 3
-    elif not state.get('current_regime', True):
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
-    else:
+    # v8.4: Positions from regime score (smooth, with bull override potential)
+    regime_score = state.get('current_regime_score', 1.0 if state.get('current_regime', True) else 0.0)
+    if regime_score >= 0.65:
         max_pos = COMPASS_CONFIG['NUM_POSITIONS']
+    elif regime_score >= 0.50:
+        max_pos = max(COMPASS_CONFIG['NUM_POSITIONS'] - 1, COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF'] + 1)
+    elif regime_score >= 0.35:
+        max_pos = max(COMPASS_CONFIG['NUM_POSITIONS'] - 2, COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF'] + 1)
+    else:
+        max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
 
     # SPY benchmark return over same live test period
     spy_start = get_spy_start_price()
@@ -783,6 +825,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         'num_positions': len(positions),
         'max_positions': max_pos,
         'regime': regime_str,
+        'regime_score': round(regime_score, 2),
         'regime_consecutive': state.get('regime_consecutive', 0),
         'in_protection': state.get('in_protection', False),
         'protection_stage': state.get('protection_stage', 0),
@@ -2009,13 +2052,16 @@ if __name__ == '__main__':
     os.makedirs('logs', exist_ok=True)
 
     print("=" * 60)
-    print("COMPASS v8.2 — Live Trading Dashboard")
+    print("COMPASS v8.4 — Live Trading Dashboard")
+    print("Adaptive Stops | Bull Override | Sector Limits")
     print("=" * 60)
     print(f"State file: {os.path.abspath(STATE_FILE)}")
     print(f"Log dir:    {os.path.abspath(LOG_DIR)}")
     print(f"Dashboard:  http://localhost:5000")
     print(f"Engine:     Controlled via dashboard UI")
-    print(f"Backtest:   Auto-refresh daily after 16:15 ET")
+    print(f"Stops:      Adaptive {COMPASS_CONFIG['STOP_FLOOR']:.0%} to {COMPASS_CONFIG['STOP_CEILING']:.0%} (vol-scaled)")
+    print(f"Bull:       SPY > SMA200*{1+COMPASS_CONFIG['BULL_OVERRIDE_THRESHOLD']:.0%} -> +1 pos")
+    print(f"Sectors:    Max {COMPASS_CONFIG['MAX_PER_SECTOR']} positions per sector")
     print(f"Leverage:   Max {COMPASS_CONFIG['LEVERAGE_MAX']:.1f}x (no leverage -- broker margin destroys value)")
     print(f"Execution:  Pre-close signal @ 15:30 ET -> same-day MOC (+0.79% CAGR)")
     print(f"Chassis:    async fetch | fill breaker {COMPASS_CONFIG['MAX_FILL_DEVIATION']:.0%} | "

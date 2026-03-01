@@ -335,9 +335,26 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             days_held = trading_day - entry_day_index
         days_remaining = max(0, COMPASS_CONFIG['HOLD_DAYS'] - days_held)
 
+        # v8.4: Adaptive trailing stop (vol-scaled)
         trailing_active = high_price > entry_price * (1 + COMPASS_CONFIG['TRAILING_ACTIVATION'])
-        trailing_stop_level = high_price * (1 - COMPASS_CONFIG['TRAILING_STOP_PCT']) if trailing_active else None
-        position_stop_level = entry_price * (1 + COMPASS_CONFIG['STOP_FLOOR'])
+        if trailing_active:
+            entry_vol = meta.get('entry_vol', COMPASS_CONFIG.get('TRAILING_VOL_BASELINE', 0.25))
+            vol_ratio = entry_vol / COMPASS_CONFIG.get('TRAILING_VOL_BASELINE', 0.25)
+            scaled_trailing = COMPASS_CONFIG['TRAILING_STOP_PCT'] * vol_ratio
+            trailing_stop_level = high_price * (1 - scaled_trailing)
+        else:
+            trailing_stop_level = None
+
+        # v8.4: Adaptive position stop (vol-scaled)
+        entry_daily_vol = meta.get('entry_daily_vol')
+        if entry_daily_vol is not None:
+            raw_stop = -COMPASS_CONFIG['STOP_DAILY_VOL_MULT'] * entry_daily_vol
+            adaptive_stop = max(COMPASS_CONFIG['STOP_CEILING'], min(COMPASS_CONFIG['STOP_FLOOR'], raw_stop))
+        else:
+            adaptive_stop = COMPASS_CONFIG['STOP_FLOOR']  # fallback to floor
+        position_stop_level = entry_price * (1 + adaptive_stop)
+
+        sector = meta.get('sector', 'Unknown')
 
         near_stop = False
         if current_price:
@@ -360,8 +377,10 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             'trailing_active': trailing_active,
             'trailing_stop_level': round(trailing_stop_level, 2) if trailing_stop_level else None,
             'position_stop_level': round(position_stop_level, 2),
+            'adaptive_stop_pct': round(adaptive_stop * 100, 2),
             'entry_date': entry_date,
             'near_stop': near_stop,
+            'sector': sector,
         })
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)

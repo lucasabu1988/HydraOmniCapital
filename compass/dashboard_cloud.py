@@ -1,5 +1,5 @@
 """
-COMPASS v8.2 — Cloud Dashboard (Showcase)
+COMPASS v8.4 — Cloud Dashboard (Showcase)
 ==========================================
 Full-featured Flask dashboard for Render.com deployment.
 Shows live prices, backtest equity curves, trade analytics,
@@ -16,9 +16,11 @@ import glob
 import numpy as np
 import pandas as pd
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time as dtime
+from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 # Optional imports (graceful if missing)
 try:
@@ -35,31 +37,66 @@ try:
 except ImportError:
     _HAS_REQUESTS = False
 
+# anthropic SDK removed — terminal replaced with WhatsApp contact
+
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
 
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
 # ============================================================================
-# COMPASS v8.2 PARAMETERS (read-only reference — ALGORITHM LOCKED)
+# COMPASS v8.4 PARAMETERS (read-only reference — ALGORITHM LOCKED)
 # ============================================================================
 
 COMPASS_CONFIG = {
     'HOLD_DAYS': 5,
-    'POSITION_STOP_LOSS': -0.08,
-    'TRAILING_ACTIVATION': 0.05,
-    'TRAILING_STOP_PCT': 0.03,
-    'PORTFOLIO_STOP_LOSS': -0.15,
-    'RECOVERY_STAGE_1_DAYS': 63,
-    'RECOVERY_STAGE_2_DAYS': 126,
     'NUM_POSITIONS': 5,
     'NUM_POSITIONS_RISK_OFF': 2,
     'TARGET_VOL': 0.15,
-    'LEVERAGE_MIN': 0.3,
     'LEVERAGE_MAX': 1.0,       # No leverage in production
     'INITIAL_CAPITAL': 100_000,
     'COMMISSION_PER_SHARE': 0.001,
     'ORDER_TIMEOUT_SECONDS': 300,
     'MAX_FILL_DEVIATION': 0.02,
     'MAX_PRICE_CHANGE_PCT': 0.20,
+    # --- v8.4 Adaptive Stops (volatility-scaled) ---
+    'STOP_DAILY_VOL_MULT': 2.5,
+    'STOP_FLOOR': -0.06,
+    'STOP_CEILING': -0.15,
+    'TRAILING_ACTIVATION': 0.05,
+    'TRAILING_STOP_PCT': 0.03,
+    'TRAILING_VOL_BASELINE': 0.25,
+    # --- v8.4 Bull Market Override ---
+    'BULL_OVERRIDE_THRESHOLD': 0.03,
+    'BULL_OVERRIDE_MIN_SCORE': 0.40,
+    # --- v8.4 Sector Concentration ---
+    'MAX_PER_SECTOR': 3,
+    # --- Smooth DD Scaling ---
+    'DD_SCALE_TIER1': -0.10,
+    'DD_SCALE_TIER2': -0.20,
+    'DD_SCALE_TIER3': -0.35,
+    'LEV_FULL': 1.0,
+    'LEV_MID': 0.60,
+    'LEV_FLOOR': 0.30,
+    'CRASH_VEL_5D': -0.06,
+    'CRASH_VEL_10D': -0.10,
+    'CRASH_LEVERAGE': 0.15,
+    'CRASH_COOLDOWN': 10,
+    # --- Exit Renewal ---
+    'HOLD_DAYS_MAX': 10,
+    'RENEWAL_PROFIT_MIN': 0.04,
+    'MOMENTUM_RENEWAL_THRESHOLD': 0.85,
+    # --- Quality Filter ---
+    'QUALITY_VOL_MAX': 0.60,
+    'QUALITY_VOL_LOOKBACK': 63,
+    'QUALITY_MAX_SINGLE_DAY': 0.50,
 }
 
 STATE_FILE = 'state/compass_state_latest.json'
@@ -74,6 +111,60 @@ _spy_start_price = None
 SHOWCASE_MODE = os.environ.get('COMPASS_MODE', 'showcase') == 'showcase'
 
 # ============================================================================
+# MOODY'S AAA YIELD (FRED)
+# ============================================================================
+
+_aaa_yield_rate: Optional[float] = None  # Annual % (e.g. 4.8 means 4.8%)
+_aaa_yield_cache_time: Optional[datetime] = None
+AAA_YIELD_CACHE_SECONDS = 3600  # refresh hourly
+AAA_YIELD_FALLBACK = 4.8  # fallback if FRED unavailable
+
+
+def fetch_aaa_yield() -> float:
+    """Fetch current Moody's Aaa Corporate Bond Yield from FRED CSV endpoint.
+    Returns annual yield as percentage (e.g. 4.8 for 4.8%). Cached for 1 hour."""
+    global _aaa_yield_rate, _aaa_yield_cache_time
+
+    now = datetime.now()
+    if _aaa_yield_rate is not None and _aaa_yield_cache_time and \
+       (now - _aaa_yield_cache_time).total_seconds() < AAA_YIELD_CACHE_SECONDS:
+        return _aaa_yield_rate
+
+    if not _HAS_REQUESTS:
+        _aaa_yield_rate = AAA_YIELD_FALLBACK
+        _aaa_yield_cache_time = now
+        return _aaa_yield_rate
+
+    try:
+        today = now.date()
+        cosd = f'{today.year - 1}-01-01'
+        coed = f'{today.year + 1}-12-31'
+        url = f'https://fred.stlouisfed.org/graph/fredgraph.csv?id=AAA&cosd={cosd}&coed={coed}'
+        resp = http_requests.get(url, timeout=10)
+        resp.raise_for_status()
+        lines = resp.text.strip().split('\n')
+        # Find last valid (non-".") value
+        for line in reversed(lines[1:]):
+            parts = line.split(',')
+            if len(parts) == 2 and parts[1].strip() != '.':
+                try:
+                    rate = float(parts[1].strip())
+                    if 0 < rate < 20:  # sanity check
+                        _aaa_yield_rate = rate
+                        _aaa_yield_cache_time = now
+                        logger.info(f"Aaa yield fetched: {rate:.2f}%")
+                        return rate
+                except ValueError:
+                    continue
+    except Exception as e:
+        logger.warning(f"FRED Aaa yield fetch failed: {e}")
+
+    _aaa_yield_rate = AAA_YIELD_FALLBACK
+    _aaa_yield_cache_time = now
+    return _aaa_yield_rate
+
+
+# ============================================================================
 # DATA PRELOAD (at import time — shared across gunicorn workers via --preload)
 # ============================================================================
 
@@ -84,7 +175,8 @@ _spy_df = None
 def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
-    csv_path = os.path.join('backtests', 'v8_compass_daily.csv')
+    # COMPASS v8.4 bias-corrected data (12.20% CAGR, -31.99% MaxDD)
+    csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
@@ -105,59 +197,77 @@ _preload_data()
 # ============================================================================
 
 _price_cache: Dict[str, float] = {}
+_prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
+_price_cache_lock = threading.Lock()
 
 
 def _fetch_single_price(symbol: str) -> tuple:
-    """Fetch a single price (for use in ThreadPoolExecutor)."""
+    """Fetch a single price + previous close (for use in ThreadPoolExecutor).
+    Returns (symbol, {'price': float, 'prev_close': float}) or (symbol, None)."""
     if not _HAS_YFINANCE:
         return (symbol, None)
     try:
         ticker = yf.Ticker(symbol)
         price = None
+        prev_close = None
         try:
-            price = ticker.fast_info.get('last_price', None)
+            fi = ticker.fast_info
+            price = fi.last_price
+            prev_close = fi.previous_close
         except Exception:
             pass
         if not price or price <= 0:
             hist = ticker.history(period='5d')
             if len(hist) > 0:
                 price = float(hist['Close'].iloc[-1])
+                if len(hist) > 1:
+                    prev_close = float(hist['Close'].iloc[-2])
         if price and price > 0:
-            return (symbol, float(price))
+            result = {'price': float(price)}
+            if prev_close and prev_close > 0:
+                result['prev_close'] = float(prev_close)
+            return (symbol, result)
     except Exception:
         pass
     return (symbol, None)
 
 
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
-    """Fetch current prices via yfinance with 30-second cache."""
-    global _price_cache, _price_cache_time
+    """Fetch current prices via yfinance with 30-second cache.
+    Returns {symbol: price_float} for backward compatibility.
+    Previous close data stored in _prev_close_cache."""
+    global _price_cache, _prev_close_cache, _price_cache_time
 
     if not _HAS_YFINANCE or not symbols:
         return {}
 
-    now = datetime.now()
-    if _price_cache_time and (now - _price_cache_time).total_seconds() < PRICE_CACHE_SECONDS:
-        missing = [s for s in symbols if s not in _price_cache]
-        if not missing:
-            return {s: _price_cache[s] for s in symbols if s in _price_cache}
-    else:
-        missing = symbols
-        _price_cache.clear()
+    with _price_cache_lock:
+        now = datetime.now()
+        if _price_cache_time and (now - _price_cache_time).total_seconds() < PRICE_CACHE_SECONDS:
+            missing = [s for s in symbols if s not in _price_cache]
+            if not missing:
+                return {s: _price_cache[s] for s in symbols if s in _price_cache}
+        else:
+            missing = symbols
+            _price_cache = {}
+            _prev_close_cache = {}
 
     if missing:
         with ThreadPoolExecutor(max_workers=min(10, len(missing))) as executor:
             futures = {executor.submit(_fetch_single_price, sym): sym for sym in missing}
             for future in as_completed(futures):
                 try:
-                    sym, price = future.result(timeout=30)
-                    if price is not None:
-                        _price_cache[sym] = price
+                    sym, result = future.result(timeout=30)
+                    if result is not None:
+                        _price_cache[sym] = result['price']
+                        if 'prev_close' in result:
+                            _prev_close_cache[sym] = result['prev_close']
                 except Exception:
                     pass
 
-    _price_cache_time = now
+    with _price_cache_lock:
+        _price_cache_time = now
     return {s: _price_cache[s] for s in symbols if s in _price_cache}
 
 
@@ -208,11 +318,14 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             current_price = current_price or entry_price or 0
 
         # Compute days held from actual entry_date (not stale trading_day_counter)
-        # Must match production logic: on entry day days_held=0, next day=1, etc.
+        # Must match production logic: days_held = trading_day - entry_day_index
+        # On entry day: days_held = 0, next trading day: days_held = 1, etc.
+        # Exit when days_held >= HOLD_DAYS (5)
         if entry_date:
             try:
                 entry_dt = date.fromisoformat(entry_date)
                 today = date.today()
+                # Count weekdays AFTER entry date (exclusive of entry day)
                 total_days = (today - entry_dt).days
                 days_held = sum(1 for d in range(1, total_days + 1)
                                 if (entry_dt + timedelta(days=d)).weekday() < 5)
@@ -222,9 +335,26 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             days_held = trading_day - entry_day_index
         days_remaining = max(0, COMPASS_CONFIG['HOLD_DAYS'] - days_held)
 
+        # v8.4: Adaptive trailing stop (vol-scaled)
         trailing_active = high_price > entry_price * (1 + COMPASS_CONFIG['TRAILING_ACTIVATION'])
-        trailing_stop_level = high_price * (1 - COMPASS_CONFIG['TRAILING_STOP_PCT']) if trailing_active else None
-        position_stop_level = entry_price * (1 + COMPASS_CONFIG['POSITION_STOP_LOSS'])
+        if trailing_active:
+            entry_vol = meta.get('entry_vol', COMPASS_CONFIG.get('TRAILING_VOL_BASELINE', 0.25))
+            vol_ratio = entry_vol / COMPASS_CONFIG.get('TRAILING_VOL_BASELINE', 0.25)
+            scaled_trailing = COMPASS_CONFIG['TRAILING_STOP_PCT'] * vol_ratio
+            trailing_stop_level = high_price * (1 - scaled_trailing)
+        else:
+            trailing_stop_level = None
+
+        # v8.4: Adaptive position stop (vol-scaled)
+        entry_daily_vol = meta.get('entry_daily_vol')
+        if entry_daily_vol is not None:
+            raw_stop = -COMPASS_CONFIG['STOP_DAILY_VOL_MULT'] * entry_daily_vol
+            adaptive_stop = max(COMPASS_CONFIG['STOP_CEILING'], min(COMPASS_CONFIG['STOP_FLOOR'], raw_stop))
+        else:
+            adaptive_stop = COMPASS_CONFIG['STOP_FLOOR']  # fallback to floor
+        position_stop_level = entry_price * (1 + adaptive_stop)
+
+        sector = meta.get('sector', 'Unknown')
 
         near_stop = False
         if current_price:
@@ -247,8 +377,10 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             'trailing_active': trailing_active,
             'trailing_stop_level': round(trailing_stop_level, 2) if trailing_stop_level else None,
             'position_stop_level': round(position_stop_level, 2),
+            'adaptive_stop_pct': round(adaptive_stop * 100, 2),
             'entry_date': entry_date,
             'near_stop': near_stop,
+            'sector': sector,
         })
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)
@@ -286,6 +418,24 @@ def get_spy_start_price() -> Optional[float]:
     return None
 
 
+def _compute_real_trading_day(state: dict) -> int:
+    """Compute real trading day from last_trading_date (state counter may be stale)."""
+    saved_day = state.get('trading_day_counter', 0)
+    last_date_str = state.get('last_trading_date')
+    if not last_date_str:
+        return saved_day
+    try:
+        last_dt = date.fromisoformat(last_date_str)
+        today = date.today()
+        if today <= last_dt:
+            return saved_day
+        extra = sum(1 for d in range(1, (today - last_dt).days + 1)
+                    if (last_dt + timedelta(days=d)).weekday() < 5)
+        return saved_day + extra
+    except Exception:
+        return saved_day
+
+
 def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> dict:
     """Compute portfolio-level dashboard metrics."""
     portfolio_value = state.get('portfolio_value', 0)
@@ -310,41 +460,34 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     drawdown = (portfolio_value - peak_value) / peak_value if peak_value > 0 else 0
     total_return = (portfolio_value - initial_capital) / initial_capital if initial_capital > 0 else 0
 
+    # v8.4: Smooth DD scaling info (no binary stop/recovery)
     recovery = None
-    if state.get('in_protection') and state.get('stop_loss_day_index') is not None:
-        days_since_stop = state['trading_day_counter'] - state['stop_loss_day_index']
-        stage = state.get('protection_stage', 1)
-        if stage == 1:
-            target_days = COMPASS_CONFIG['RECOVERY_STAGE_1_DAYS']
-            next_stage = 'Stage 2 (1.0x leverage, 3 positions)'
-        else:
-            target_days = COMPASS_CONFIG['RECOVERY_STAGE_2_DAYS']
-            next_stage = 'Full Recovery (vol targeting)'
-        pct = min(1.0, days_since_stop / target_days) if target_days > 0 else 0
+    dd_leverage = state.get('dd_leverage', 1.0)
+    crash_cooldown = state.get('crash_cooldown', 0)
+    if dd_leverage < COMPASS_CONFIG['LEV_FULL'] or crash_cooldown > 0:
         recovery = {
-            'stage': stage,
-            'days_elapsed': days_since_stop,
-            'days_needed': target_days,
-            'days_remaining': max(0, target_days - days_since_stop),
-            'pct': round(pct * 100, 1),
-            'next_stage': next_stage,
+            'dd_leverage': round(dd_leverage, 3),
+            'crash_cooldown': crash_cooldown,
+            'regime_score': round(state.get('regime_score', 1.0), 3),
         }
 
-    regime_str = 'RISK_ON' if state.get('current_regime', True) else 'RISK_OFF'
+    # v8.4: Continuous regime score
+    regime_score = state.get('regime_score', 1.0)
+    regime_str = f'SCORE_{regime_score:.2f}' if regime_score < 1.0 else 'RISK_ON'
 
-    if state.get('in_protection'):
-        leverage = 0.3 if state.get('protection_stage') == 1 else 1.0
-    elif not state.get('current_regime', True):
-        leverage = 1.0
-    else:
-        leverage = None
+    # v8.4: DD leverage (smooth scaling)
+    dd_leverage = state.get('dd_leverage', 1.0)
+    leverage = dd_leverage if dd_leverage < COMPASS_CONFIG['LEV_FULL'] else None
 
-    if state.get('in_protection'):
-        max_pos = 2 if state.get('protection_stage') == 1 else 3
-    elif not state.get('current_regime', True):
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
+    # v8.4: Positions from regime score
+    if regime_score >= 0.8:
+        max_pos = 5
+    elif regime_score >= 0.6:
+        max_pos = 4
+    elif regime_score >= 0.4:
+        max_pos = 3
     else:
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS']
+        max_pos = 2
 
     # SPY benchmark return over same live test period
     spy_start = get_spy_start_price()
@@ -353,6 +496,12 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         spy_return = round((spy_current - spy_start) / spy_start * 100, 2)
     else:
         spy_return = None
+
+    # Cash yield (Moody's Aaa IG Corporate)
+    aaa_rate = fetch_aaa_yield()  # annual % (e.g. 4.8)
+    daily_yield = cash * (aaa_rate / 100 / 252) if cash > 0 else 0
+    trading_days_elapsed = _compute_real_trading_day(state)
+    accumulated_yield = cash * (aaa_rate / 100 / 252) * trading_days_elapsed if cash > 0 else 0
 
     return {
         'portfolio_value': round(portfolio_value, 2),
@@ -367,15 +516,18 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'max_positions': max_pos,
         'regime': regime_str,
         'regime_consecutive': state.get('regime_consecutive', 0),
-        'in_protection': state.get('in_protection', False),
-        'protection_stage': state.get('protection_stage', 0),
+        'in_protection': dd_leverage < COMPASS_CONFIG['LEV_FULL'],
+        'regime_score': round(regime_score, 3),
         'leverage': leverage,
         'recovery': recovery,
-        'trading_day': state.get('trading_day_counter', 0),
+        'trading_day': trading_days_elapsed,
         'last_trading_date': state.get('last_trading_date'),
         'stop_events': state.get('stop_events', []),
         'timestamp': state.get('timestamp', ''),
         'uptime_minutes': state.get('stats', {}).get('uptime_minutes', 0),
+        'aaa_rate': round(aaa_rate, 2),
+        'daily_yield': round(daily_yield, 2),
+        'accumulated_yield': round(accumulated_yield, 2),
     }
 
 
@@ -532,7 +684,7 @@ def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
     if not _HAS_REQUESTS:
         return []
     items = []
-    headers = {'User-Agent': 'COMPASS-Dashboard admin@omnicapital.com'}
+    headers = {'User-Agent': os.environ.get('SEC_USER_AGENT', 'COMPASS-Dashboard contact@omnicapital.com')}
     start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
     for symbol in symbols:
@@ -722,8 +874,6 @@ def fetch_social_feed(symbols: List[str]) -> List[dict]:
 
 _montecarlo_cache = None
 _trade_analytics_cache = None
-_data_quality_cache = None
-_exec_micro_cache = None
 
 
 # ============================================================================
@@ -753,7 +903,7 @@ def api_state():
             },
         })
 
-    # Fetch live prices for positions + SPY
+    # Fetch live prices for positions + SPY + ES Futures
     symbols = ['SPY', '^GSPC', 'ES=F'] + list(state.get('positions', {}).keys())
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
@@ -761,13 +911,26 @@ def api_state():
     position_details = compute_position_details(state, prices)
     portfolio = compute_portfolio_metrics(state, prices)
 
-    # Pre-close status (static for showcase)
+    # Pre-close status (computed from real ET time)
+    ET = ZoneInfo('America/New_York')
+    now_et = datetime.now(ET)
+    is_weekday = now_et.weekday() < 5
+    current_time = now_et.time()
+    if not is_weekday or current_time < dtime(9, 30) or current_time >= dtime(16, 0):
+        preclose_phase = 'market_closed'
+    elif current_time < dtime(15, 30):
+        preclose_phase = 'waiting'
+    elif current_time <= dtime(15, 50):
+        preclose_phase = 'window_open'
+    else:
+        preclose_phase = 'entries_done'
+
     preclose_status = {
-        'phase': 'showcase',
+        'phase': preclose_phase,
         'signal_time': '15:30 ET',
         'moc_deadline': '15:50 ET',
-        'current_time_et': datetime.now().strftime('%H:%M:%S'),
-        'entries_done': False,
+        'current_time_et': now_et.strftime('%H:%M:%S'),
+        'entries_done': preclose_phase == 'entries_done',
     }
 
     return jsonify({
@@ -775,6 +938,7 @@ def api_state():
         'portfolio': portfolio,
         'position_details': position_details,
         'prices': prices,
+        'prev_closes': _prev_close_cache,
         'universe': state.get('current_universe', []),
         'universe_year': state.get('universe_year'),
         'config': COMPASS_CONFIG,
@@ -791,10 +955,186 @@ def api_state():
     })
 
 
-@app.route('/api/logs')
-def api_logs():
-    """Return empty logs in showcase mode."""
-    return jsonify({'logs': []})
+
+
+@app.route('/api/cycle-log')
+def api_cycle_log():
+    """Return the 5-day cycle performance log (COMPASS vs SPY).
+
+    Active cycles are enriched with live prices so the dashboard
+    shows real-time COMPASS return, SPY return, and alpha.
+    """
+    log_file = os.path.join(STATE_DIR, 'cycle_log.json')
+    if not os.path.exists(log_file):
+        return jsonify([])
+    try:
+        with open(log_file, 'r') as f:
+            cycles = json.load(f)
+    except Exception:
+        return jsonify([])
+
+    # Enrich active cycles with live metrics
+    for c in cycles:
+        if c.get('status') != 'active':
+            continue
+        try:
+            state = read_state()
+            if not state:
+                continue
+
+            # Current portfolio value from state (updated by live engine)
+            positions = state.get('positions', {})
+            position_meta = state.get('position_meta', {})
+            # Fetch ^GSPC (S&P 500 index) — cycle_log stores index values, not SPY ETF
+            symbols = list(positions.keys()) + ['^GSPC']
+            prices = fetch_live_prices(symbols)
+
+            # Portfolio value = sum(shares * current_price) + cash
+            portfolio_now = state.get('cash', 0)
+            for sym, pos in positions.items():
+                price = prices.get(sym)
+                if price:
+                    portfolio_now += pos.get('shares', 0) * price
+                else:
+                    # Fallback to entry price
+                    meta = position_meta.get(sym, {})
+                    portfolio_now += pos.get('shares', 0) * meta.get('entry_price', pos.get('avg_cost', 0))
+
+            port_start = c.get('portfolio_start')
+            if port_start and port_start > 0:
+                c['portfolio_end'] = round(portfolio_now, 2)
+                c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
+
+            # SPY return (use ^GSPC index to match spy_start stored in cycle_log)
+            gspc_price = prices.get('^GSPC')
+            spy_start = c.get('spy_start')
+            if gspc_price and spy_start and spy_start > 0:
+                c['spy_end'] = round(gspc_price, 2)
+                c['spy_return'] = round((gspc_price / spy_start - 1) * 100, 2)
+
+            # Alpha
+            if c.get('compass_return') is not None and c.get('spy_return') is not None:
+                c['alpha'] = round(c['compass_return'] - c['spy_return'], 2)
+        except Exception:
+            pass
+
+    return jsonify(cycles)
+
+
+@app.route('/api/live-chart')
+def api_live_chart():
+    """Return daily COMPASS vs S&P 500 indexed performance since live test start.
+
+    Reads historical state files for COMPASS portfolio values and
+    fetches SPY/^GSPC data from yfinance. Both series are indexed
+    to 100 on the start date for easy visual comparison.
+    """
+    # 1. Read all dated state files for COMPASS daily values
+    pattern = os.path.join(STATE_DIR, 'compass_state_2*.json')
+    state_files = sorted(f for f in glob.glob(pattern)
+                         if 'pre_rotation' not in f and 'latest' not in f)
+
+    if not state_files:
+        return jsonify({'dates': [], 'compass': [], 'spy': []})
+
+    compass_data = {}  # date_str -> portfolio_value
+    first_value = None
+    for sf in state_files:
+        try:
+            with open(sf, 'r') as f:
+                s = json.load(f)
+            dt = s.get('last_trading_date')
+            val = s.get('portfolio_value')
+            if dt and val:
+                compass_data[dt] = val
+                if first_value is None:
+                    first_value = val
+        except Exception:
+            continue
+
+    if not compass_data or first_value is None:
+        return jsonify({'dates': [], 'compass': [], 'spy': []})
+
+    # Add today's live value from latest state, recalculated with live prices
+    try:
+        state = read_state()
+        if state:
+            today_str = state.get('last_trading_date')
+            if today_str:
+                # Recalculate with live prices (same as banner)
+                pos_symbols = list(state.get('positions', {}).keys())
+                if pos_symbols:
+                    live_prices = fetch_live_prices(pos_symbols)
+                    cash = state.get('cash', 0)
+                    invested = sum(
+                        state['positions'][s].get('shares', 0) * live_prices.get(s, state['positions'][s].get('avg_cost', 0))
+                        for s in state.get('positions', {})
+                    )
+                    today_val = cash + invested if invested > 0 else state.get('portfolio_value')
+                else:
+                    today_val = state.get('portfolio_value')
+                if today_val:
+                    compass_data[today_str] = today_val
+    except Exception:
+        pass
+
+    dates = sorted(compass_data.keys())
+    start_date = dates[0]
+
+    # 2. Fetch SPY ETF data for the same period (matches banner which uses SPY)
+    spy_data = {}
+    if _HAS_YFINANCE:
+        try:
+            end_dt = date.today() + timedelta(days=1)
+            hist = yf.download('SPY', start=start_date,
+                             end=end_dt.isoformat(),
+                             progress=False, auto_adjust=True)
+            if len(hist) > 0:
+                # Flatten multi-level columns (yfinance returns MultiIndex)
+                if isinstance(hist.columns, pd.MultiIndex):
+                    hist.columns = hist.columns.droplevel('Ticker')
+                for idx, row in hist.iterrows():
+                    dt_str = idx.strftime('%Y-%m-%d')
+                    spy_data[dt_str] = float(row['Close'])
+        except Exception:
+            pass
+
+    # Use live SPY price for today (matches banner real-time value)
+    today_str = date.today().strftime('%Y-%m-%d')
+    if _HAS_YFINANCE and today_str in [d for d in dates]:
+        try:
+            live_spy = fetch_live_prices(['SPY'])
+            if 'SPY' in live_spy:
+                spy_data[today_str] = live_spy['SPY']
+        except Exception:
+            pass
+
+    # 3. Build aligned series indexed to 100
+    spy_first = spy_data.get(start_date)
+    result_dates = []
+    result_compass = []
+    result_spy = []
+
+    for dt in dates:
+        compass_val = compass_data[dt]
+        compass_indexed = (compass_val / first_value) * 100
+
+        result_dates.append(dt)
+        result_compass.append(round(compass_indexed, 2))
+
+        spy_val = spy_data.get(dt)
+        if spy_val and spy_first:
+            result_spy.append(round((spy_val / spy_first) * 100, 2))
+        else:
+            # Interpolate: use last known value
+            result_spy.append(result_spy[-1] if result_spy else 100.0)
+
+    return jsonify({
+        'dates': result_dates,
+        'compass': result_compass,
+        'spy': result_spy,
+        'start_date': start_date,
+    })
 
 
 @app.route('/api/equity')
@@ -802,7 +1142,7 @@ def api_equity():
     """Return COMPASS equity curve data (full period from 2000)."""
     df = _equity_df
     if df is None:
-        csv_path = os.path.join('backtests', 'v8_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
         try:
@@ -897,7 +1237,7 @@ def api_equity_comparison():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v8_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -983,6 +1323,64 @@ def api_equity_comparison():
     })
 
 
+@app.route('/api/annual-returns')
+def api_annual_returns():
+    """Return COMPASS vs S&P 500 annual returns for bar chart."""
+    df = _equity_df
+    spy_df = _spy_df
+
+    if df is None:
+        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'No backtest data'})
+        try:
+            df = pd.read_csv(csv_path, parse_dates=['date'])
+        except Exception:
+            return jsonify({'error': 'Failed to read CSV'})
+
+    val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
+    df_copy = df[['date', val_col]].copy()
+    df_copy['year'] = df_copy['date'].dt.year
+
+    # COMPASS annual returns: last value of year / first value of year - 1
+    compass_annual = []
+    for year, grp in df_copy.groupby('year'):
+        start_val = float(grp[val_col].iloc[0])
+        end_val = float(grp[val_col].iloc[-1])
+        ret = ((end_val / start_val) - 1) * 100 if start_val > 0 else 0
+        compass_annual.append({'year': int(year), 'return': round(ret, 2)})
+
+    # SPY annual returns
+    spy_annual = {}
+    if spy_df is not None:
+        spy_copy = spy_df[['date', 'close']].copy()
+        spy_copy['year'] = spy_copy['date'].dt.year
+        for year, grp in spy_copy.groupby('year'):
+            start_val = float(grp['close'].iloc[0])
+            end_val = float(grp['close'].iloc[-1])
+            ret = ((end_val / start_val) - 1) * 100 if start_val > 0 else 0
+            spy_annual[int(year)] = round(ret, 2)
+
+    result = []
+    positive_years = 0
+    for item in compass_annual:
+        yr = item['year']
+        spy_ret = spy_annual.get(yr)
+        if item['return'] > 0:
+            positive_years += 1
+        result.append({
+            'year': yr,
+            'compass': item['return'],
+            'spy': spy_ret,
+        })
+
+    return jsonify({
+        'data': result,
+        'positive_years': positive_years,
+        'total_years': len(compass_annual),
+    })
+
+
 @app.route('/api/backtest/status')
 def api_backtest_status():
     return jsonify({
@@ -1021,7 +1419,7 @@ def api_news():
 def api_montecarlo():
     """Return Monte Carlo simulation results."""
     global _montecarlo_cache
-    if _montecarlo_cache:
+    if _montecarlo_cache is not None:
         return jsonify(_montecarlo_cache)
     try:
         from compass_montecarlo import COMPASSMonteCarlo
@@ -1036,7 +1434,7 @@ def api_montecarlo():
 def api_trade_analytics():
     """Return trade segmentation analytics."""
     global _trade_analytics_cache
-    if _trade_analytics_cache:
+    if _trade_analytics_cache is not None:
         return jsonify(_trade_analytics_cache)
     try:
         from compass_trade_analytics import COMPASSTradeAnalytics
@@ -1047,25 +1445,8 @@ def api_trade_analytics():
         return jsonify({'error': f'Trade analytics unavailable: {str(e)}'})
 
 
-@app.route('/api/data-quality')
-def api_data_quality():
-    """Return data pipeline quality scorecard (not available in showcase mode)."""
-    return jsonify({'unavailable': True, 'message': 'Data pipeline runs locally — not available in showcase mode'})
 
 
-@app.route('/api/execution-microstructure')
-def api_execution_microstructure():
-    """Return execution microstructure analysis."""
-    global _exec_micro_cache
-    if _exec_micro_cache:
-        return jsonify(_exec_micro_cache)
-    try:
-        from compass_execution_microstructure import COMPASSExecutionMicrostructure
-        em = COMPASSExecutionMicrostructure()
-        _exec_micro_cache = em.run_all()
-        return jsonify(_exec_micro_cache)
-    except Exception as e:
-        return jsonify({'error': f'Execution analysis unavailable: {str(e)}'})
 
 
 # ============================================================================
@@ -1101,6 +1482,10 @@ def api_preflight():
     })
 
 
+
+# Terminal removed — replaced with WhatsApp contact FAB
+
+
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
@@ -1108,7 +1493,7 @@ def api_preflight():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("COMPASS v8.2 \u2014 Cloud Dashboard (Showcase)")
+    print("COMPASS v8.4 \u2014 Cloud Dashboard (Showcase)")
     print("=" * 60)
     print(f"Port: {port}")
     print(f"Mode: {'SHOWCASE' if SHOWCASE_MODE else 'local'}")

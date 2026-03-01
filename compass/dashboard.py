@@ -1,8 +1,10 @@
 """
-COMPASS v8.2 — Live Dashboard + Trading Engine
+COMPASS v8.4 — Live Dashboard + Trading Engine
 ================================================
 All-in-one: Flask dashboard + COMPASSLive trading engine
 running as a background thread. Single process, single launch.
+
+v8.4 features: Adaptive stops (vol-scaled) | Bull market override | Sector concentration limits
 
 Run:  python compass_dashboard.py
 View: http://localhost:5000
@@ -28,40 +30,56 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Suppress yfinance noise
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 
-app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates'))
+app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 
 # ============================================================================
-# COMPASS v8.2 PARAMETERS (read-only reference, must match omnicapital_live.py)
+# COMPASS v8.4 PARAMETERS (read-only reference, must match omnicapital_live.py)
 # ============================================================================
 
 COMPASS_CONFIG = {
     # Algorithm (LOCKED)
     'HOLD_DAYS': 5,
-    'POSITION_STOP_LOSS': -0.08,
+    'POSITION_STOP_LOSS': -0.08,           # Fallback for pre-v8.4 positions
     'TRAILING_ACTIVATION': 0.05,
     'TRAILING_STOP_PCT': 0.03,
-    'PORTFOLIO_STOP_LOSS': -0.15,
-    'RECOVERY_STAGE_1_DAYS': 63,
-    'RECOVERY_STAGE_2_DAYS': 126,
     'NUM_POSITIONS': 5,
     'NUM_POSITIONS_RISK_OFF': 2,
     'TARGET_VOL': 0.15,
     'LEVERAGE_MIN': 0.3,
     'LEVERAGE_MAX': 1.0,          # Production: no leverage (broker margin destroys value)
+    'LEV_FULL': 1.0,
     'INITIAL_CAPITAL': 100_000,
     'CASH_YIELD_SOURCE': "Moody's Aaa IG Corporate (FRED)",
+
+    # --- v8.4 Adaptive Stops (volatility-scaled) ---
+    'STOP_DAILY_VOL_MULT': 2.5,
+    'STOP_FLOOR': -0.06,                   # Tightest stop for low-vol stocks
+    'STOP_CEILING': -0.15,                 # Widest stop for high-vol stocks
+    'TRAILING_VOL_BASELINE': 0.25,
+
+    # --- v8.4 Bull Market Override ---
+    'BULL_OVERRIDE_THRESHOLD': 0.03,       # SPY > SMA200 * 1.03 -> +1 position
+    'BULL_OVERRIDE_MIN_SCORE': 0.40,
+
+    # --- v8.4 Sector Concentration ---
+    'MAX_PER_SECTOR': 3,
+
+    # --- Smooth DD Scaling (replaces binary portfolio stop) ---
+    'DD_SCALE_TIER1': -0.10,
+    'DD_SCALE_TIER2': -0.20,
+    'DD_SCALE_TIER3': -0.35,
+
     # Chassis
     'ORDER_TIMEOUT_SECONDS': 300,
     'MAX_FILL_DEVIATION': 0.02,
     'MAX_PRICE_CHANGE_PCT': 0.20,
 }
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATE_FILE = os.path.join(_PROJECT_ROOT, 'state', 'compass_state_latest.json')
-STATE_DIR = os.path.join(_PROJECT_ROOT, 'state')
-LOG_DIR = os.path.join(_PROJECT_ROOT, 'logs')
+STATE_FILE = 'state/compass_state_latest.json'
+STATE_DIR = 'state'
+LOG_DIR = 'logs'
 PRICE_CACHE_SECONDS = 30
 KILL_FILE = 'STOP_TRADING'
 ET = ZoneInfo('America/New_York')
@@ -260,12 +278,12 @@ def _run_live_engine():
     global _live_engine, _engine_status
 
     try:
-        from compass.live import COMPASSLive, CONFIG as LIVE_CONFIG
+        from omnicapital_live import COMPASSLive, CONFIG as LIVE_CONFIG
 
         config = LIVE_CONFIG.copy()
 
         # Load external config if available
-        config_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'omnicapital_config.json')
+        config_file = 'omnicapital_config.json'
         if os.path.exists(config_file):
             try:
                 with open(config_file, 'r') as f:
@@ -276,17 +294,35 @@ def _run_live_engine():
         trader = COMPASSLive(config)
         trader.load_state()
 
-        # Try notifications
+        # Try notifications (WhatsApp preferred, email fallback)
         try:
-            from compass.notifications import EmailNotifier
             if os.path.exists(config_file):
                 with open(config_file, 'r') as f:
                     ext = json.load(f)
-                email_cfg = ext.get('email', {})
-                if email_cfg.get('smtp_server') and email_cfg.get('sender'):
-                    trader.notifier = EmailNotifier(**email_cfg)
-        except (ImportError, Exception):
-            pass
+
+                # WhatsApp via CallMeBot (preferred)
+                wa_cfg = ext.get('whatsapp', {})
+                if wa_cfg.get('phone') and wa_cfg.get('apikey'):
+                    try:
+                        from compass.notifications import WhatsAppNotifier
+                        trader.notifier = WhatsAppNotifier(**wa_cfg)
+                        logger.info("WhatsApp notifications enabled")
+                    except ImportError:
+                        from omnicapital_notifications import WhatsAppNotifier
+                        trader.notifier = WhatsAppNotifier(**wa_cfg)
+
+                # Email fallback
+                if trader.notifier is None:
+                    email_cfg = ext.get('email', {})
+                    if email_cfg.get('sender') and email_cfg.get('password'):
+                        try:
+                            from compass.notifications import EmailNotifier
+                            trader.notifier = EmailNotifier(**email_cfg)
+                        except ImportError:
+                            from omnicapital_notifications import EmailNotifier
+                            trader.notifier = EmailNotifier(**email_cfg)
+        except Exception as e:
+            logger.warning(f"Notification setup failed: {e}")
 
         # Connect broker
         trader.broker.connect()
@@ -375,32 +411,44 @@ def stop_engine():
 # ============================================================================
 
 _price_cache: Dict[str, float] = {}
+_prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
 
 
 def _fetch_single_price(symbol: str) -> tuple:
-    """Fetch a single price (for use in ThreadPoolExecutor)."""
+    """Fetch a single price (for use in ThreadPoolExecutor).
+    Returns (symbol, {'price': float, 'prev_close': float}) or (symbol, None)."""
     try:
         ticker = yf.Ticker(symbol)
         price = None
+        prev_close = None
         try:
-            price = ticker.fast_info.get('last_price', None)
+            fi = ticker.fast_info
+            price = fi.last_price
+            prev_close = fi.previous_close
         except Exception:
             pass
         if not price or price <= 0:
             hist = ticker.history(period='5d')
             if len(hist) > 0:
                 price = float(hist['Close'].iloc[-1])
+                if len(hist) > 1:
+                    prev_close = float(hist['Close'].iloc[-2])
         if price and price > 0:
-            return (symbol, float(price))
+            result = {'price': float(price)}
+            if prev_close and prev_close > 0:
+                result['prev_close'] = float(prev_close)
+            return (symbol, result)
     except Exception:
         pass
     return (symbol, None)
 
 
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
-    """Fetch current prices via yfinance with 30-second cache (async)."""
-    global _price_cache, _price_cache_time
+    """Fetch current prices via yfinance with 30-second cache (async).
+    Returns {symbol: price_float} for backward compatibility.
+    Previous close data stored in _prev_close_cache."""
+    global _price_cache, _prev_close_cache, _price_cache_time
 
     now = datetime.now()
     if _price_cache_time and (now - _price_cache_time).total_seconds() < PRICE_CACHE_SECONDS:
@@ -410,6 +458,7 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     else:
         missing = symbols
         _price_cache = {}
+        _prev_close_cache = {}
 
     # Async fetch for all missing symbols
     if missing:
@@ -417,9 +466,11 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
             futures = {executor.submit(_fetch_single_price, sym): sym for sym in missing}
             for future in as_completed(futures):
                 try:
-                    sym, price = future.result(timeout=30)
-                    if price is not None:
-                        _price_cache[sym] = price
+                    sym, result = future.result(timeout=30)
+                    if result is not None:
+                        _price_cache[sym] = result['price']
+                        if 'prev_close' in result:
+                            _prev_close_cache[sym] = result['prev_close']
                 except Exception:
                     pass
 
@@ -547,12 +598,12 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
     results = []
     for symbol, pos_data in positions.items():
         meta = position_meta.get(symbol, {})
-        current_price = prices.get(symbol)
         entry_price = meta.get('entry_price', pos_data.get('avg_cost', 0))
         high_price = meta.get('high_price', entry_price)
         entry_day_index = meta.get('entry_day_index', 0)
         entry_date = meta.get('entry_date', '')
         shares = pos_data.get('shares', 0)
+        current_price = prices.get(symbol, entry_price)
 
         if current_price and entry_price and entry_price > 0:
             pnl_pct = (current_price - entry_price) / entry_price
@@ -564,13 +615,42 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             market_value = entry_price * shares if entry_price else 0
             current_price = current_price or entry_price or 0
 
-        days_held = trading_day - entry_day_index
+        # Compute days held from actual entry_date (entry day counts as day 1)
+        if entry_date:
+            try:
+                entry_dt = date.fromisoformat(entry_date)
+                today = date.today()
+                total_days = (today - entry_dt).days
+                # Count trading days from entry to today, inclusive of entry day (+1)
+                days_held = 1 + sum(1 for d in range(1, total_days + 1)
+                                    if (entry_dt + timedelta(days=d)).weekday() < 5)
+            except Exception:
+                days_held = trading_day - entry_day_index + 1
+        else:
+            days_held = trading_day - entry_day_index + 1
         days_remaining = max(0, COMPASS_CONFIG['HOLD_DAYS'] - days_held)
 
+        # v8.4: Adaptive trailing stop (vol-scaled)
         trailing_active = high_price > entry_price * (1 + COMPASS_CONFIG['TRAILING_ACTIVATION'])
-        trailing_stop_level = high_price * (1 - COMPASS_CONFIG['TRAILING_STOP_PCT']) if trailing_active else None
+        if trailing_active:
+            entry_vol = meta.get('entry_vol', COMPASS_CONFIG['TRAILING_VOL_BASELINE'])
+            vol_ratio = entry_vol / COMPASS_CONFIG['TRAILING_VOL_BASELINE']
+            scaled_trailing = COMPASS_CONFIG['TRAILING_STOP_PCT'] * vol_ratio
+            trailing_stop_level = high_price * (1 - scaled_trailing)
+        else:
+            trailing_stop_level = None
 
-        position_stop_level = entry_price * (1 + COMPASS_CONFIG['POSITION_STOP_LOSS'])
+        # v8.4: Adaptive position stop (vol-scaled)
+        entry_daily_vol = meta.get('entry_daily_vol')
+        if entry_daily_vol is not None:
+            raw_stop = -COMPASS_CONFIG['STOP_DAILY_VOL_MULT'] * entry_daily_vol
+            adaptive_stop = max(COMPASS_CONFIG['STOP_CEILING'], min(COMPASS_CONFIG['STOP_FLOOR'], raw_stop))
+        else:
+            adaptive_stop = COMPASS_CONFIG['POSITION_STOP_LOSS']  # fallback
+        position_stop_level = entry_price * (1 + adaptive_stop)
+
+        # Sector from meta
+        sector = meta.get('sector', 'Unknown')
 
         near_stop = False
         if current_price:
@@ -593,8 +673,10 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             'trailing_active': trailing_active,
             'trailing_stop_level': round(trailing_stop_level, 2) if trailing_stop_level else None,
             'position_stop_level': round(position_stop_level, 2),
+            'adaptive_stop_pct': round(adaptive_stop * 100, 2),
             'entry_date': entry_date,
             'near_stop': near_stop,
+            'sector': sector,
         })
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)
@@ -631,6 +713,24 @@ def get_spy_start_price() -> Optional[float]:
     return None
 
 
+def _compute_real_trading_day(state: dict) -> int:
+    """Compute real trading day from last_trading_date (state counter may be stale)."""
+    saved_day = state.get('trading_day_counter', 0)
+    last_date_str = state.get('last_trading_date')
+    if not last_date_str:
+        return saved_day
+    try:
+        last_dt = date.fromisoformat(last_date_str)
+        today = date.today()
+        if today <= last_dt:
+            return saved_day
+        extra = sum(1 for d in range(1, (today - last_dt).days + 1)
+                    if (last_dt + timedelta(days=d)).weekday() < 5)
+        return saved_day + extra
+    except Exception:
+        return saved_day
+
+
 def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     """Compute portfolio-level dashboard metrics."""
     portfolio_value = state.get('portfolio_value', 0)
@@ -638,14 +738,21 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     cash = state.get('cash', 0)
     initial_capital = COMPASS_CONFIG['INITIAL_CAPITAL']
 
-    drawdown = (portfolio_value - peak_value) / peak_value if peak_value > 0 else 0
-    total_return = (portfolio_value - initial_capital) / initial_capital if initial_capital > 0 else 0
-
+    # Recompute invested value with live prices if available
     invested = 0
     positions = state.get('positions', {})
     for sym, pos in positions.items():
         price = prices.get(sym, pos.get('avg_cost', 0))
         invested += pos.get('shares', 0) * price
+
+    # If we have live prices, update portfolio_value
+    if prices and invested > 0:
+        portfolio_value = cash + invested
+        if portfolio_value > peak_value:
+            peak_value = portfolio_value
+
+    drawdown = (portfolio_value - peak_value) / peak_value if peak_value > 0 else 0
+    total_return = (portfolio_value - initial_capital) / initial_capital if initial_capital > 0 else 0
 
     recovery = None
     if state.get('in_protection') and state.get('stop_loss_day_index') is not None:
@@ -681,12 +788,16 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         # Normal RISK_ON: vol-targeting capped at 1.0x
         leverage = 1.0
 
-    if state.get('in_protection'):
-        max_pos = 2 if state.get('protection_stage') == 1 else 3
-    elif not state.get('current_regime', True):
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
-    else:
+    # v8.4: Positions from regime score (smooth, with bull override potential)
+    regime_score = state.get('current_regime_score', 1.0 if state.get('current_regime', True) else 0.0)
+    if regime_score >= 0.65:
         max_pos = COMPASS_CONFIG['NUM_POSITIONS']
+    elif regime_score >= 0.50:
+        max_pos = max(COMPASS_CONFIG['NUM_POSITIONS'] - 1, COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF'] + 1)
+    elif regime_score >= 0.35:
+        max_pos = max(COMPASS_CONFIG['NUM_POSITIONS'] - 2, COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF'] + 1)
+    else:
+        max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
 
     # SPY benchmark return over same live test period
     spy_start = get_spy_start_price()
@@ -698,7 +809,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
 
     # Cash yield (Moody's Aaa IG Corporate)
     aaa_rate = fetch_aaa_yield()
-    trading_days_elapsed = state.get('trading_day_counter', 0)
+    trading_days_elapsed = _compute_real_trading_day(state)
     daily_yield = cash * (aaa_rate / 100 / 252) if cash > 0 else 0
     accumulated_yield = cash * (aaa_rate / 100 / 252) * trading_days_elapsed if cash > 0 else 0
 
@@ -714,6 +825,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         'num_positions': len(positions),
         'max_positions': max_pos,
         'regime': regime_str,
+        'regime_score': round(regime_score, 2),
         'regime_consecutive': state.get('regime_consecutive', 0),
         'in_protection': state.get('in_protection', False),
         'protection_stage': state.get('protection_stage', 0),
@@ -755,7 +867,7 @@ def api_state():
         })
 
     # Collect all symbols for price fetching
-    symbols = ['SPY', '^GSPC'] + list(state.get('positions', {}).keys())
+    symbols = ['SPY', '^GSPC', 'ES=F'] + list(state.get('positions', {}).keys())
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
@@ -857,6 +969,7 @@ def api_state():
         'portfolio': portfolio,
         'position_details': position_details,
         'prices': prices,
+        'prev_closes': _prev_close_cache,
         'universe': state.get('current_universe', []),
         'universe_year': state.get('universe_year'),
         'config': COMPASS_CONFIG,
@@ -873,6 +986,173 @@ def api_logs():
     """Return recent log entries."""
     logs = read_recent_logs(max_lines=80)
     return jsonify({'logs': logs})
+
+
+@app.route('/api/cycle-log')
+def api_cycle_log():
+    """Return the 5-day cycle performance log (COMPASS vs S&P 500).
+
+    Active cycles are enriched with live prices so the dashboard
+    shows real-time COMPASS return, SPY return, and alpha.
+    """
+    log_file = os.path.join(STATE_DIR, 'cycle_log.json')
+    if not os.path.exists(log_file):
+        return jsonify([])
+    try:
+        with open(log_file, 'r') as f:
+            cycles = json.load(f)
+    except Exception:
+        return jsonify([])
+
+    # Enrich active cycles with live metrics
+    for c in cycles:
+        if c.get('status') != 'active':
+            continue
+        try:
+            state = read_state()
+            if not state:
+                continue
+
+            positions = state.get('positions', {})
+            position_meta = state.get('position_meta', {})
+            # Fetch ^GSPC (S&P 500 index) — cycle_log stores index values, not SPY ETF
+            symbols = list(positions.keys()) + ['^GSPC']
+            prices = fetch_live_prices(symbols)
+
+            # Portfolio value = sum(shares * current_price) + cash
+            portfolio_now = state.get('cash', 0)
+            for sym, pos in positions.items():
+                price = prices.get(sym)
+                if price:
+                    portfolio_now += pos.get('shares', 0) * price
+                else:
+                    meta = position_meta.get(sym, {})
+                    portfolio_now += pos.get('shares', 0) * meta.get('entry_price', pos.get('avg_cost', 0))
+
+            port_start = c.get('portfolio_start')
+            if port_start and port_start > 0:
+                c['portfolio_end'] = round(portfolio_now, 2)
+                c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
+
+            # SPY return (use ^GSPC index to match spy_start stored in cycle_log)
+            gspc_price = prices.get('^GSPC')
+            spy_start = c.get('spy_start')
+            if gspc_price and spy_start and spy_start > 0:
+                c['spy_end'] = round(gspc_price, 2)
+                c['spy_return'] = round((gspc_price / spy_start - 1) * 100, 2)
+
+            # Alpha
+            if c.get('compass_return') is not None and c.get('spy_return') is not None:
+                c['alpha'] = round(c['compass_return'] - c['spy_return'], 2)
+        except Exception:
+            pass
+
+    return jsonify(cycles)
+
+
+@app.route('/api/live-chart')
+def api_live_chart():
+    """Return daily COMPASS vs S&P 500 indexed performance since live test start."""
+    import yfinance as yf
+
+    pattern = os.path.join(STATE_DIR, 'compass_state_2*.json')
+    state_files = sorted(f for f in glob.glob(pattern)
+                         if 'pre_rotation' not in f and 'latest' not in f)
+
+    if not state_files:
+        return jsonify({'dates': [], 'compass': [], 'spy': []})
+
+    compass_data = {}
+    first_value = None
+    for sf in state_files:
+        try:
+            with open(sf, 'r') as f:
+                s = json.load(f)
+            dt = s.get('last_trading_date')
+            val = s.get('portfolio_value')
+            if dt and val:
+                compass_data[dt] = val
+                if first_value is None:
+                    first_value = val
+        except Exception:
+            continue
+
+    if not compass_data or first_value is None:
+        return jsonify({'dates': [], 'compass': [], 'spy': []})
+
+    # Add today's live value from latest state, recalculated with live prices
+    try:
+        state = read_state()
+        if state:
+            today_str = state.get('last_trading_date')
+            if today_str:
+                pos_symbols = list(state.get('positions', {}).keys())
+                if pos_symbols:
+                    live_prices = fetch_live_prices(pos_symbols)
+                    cash = state.get('cash', 0)
+                    invested = sum(
+                        state['positions'][s].get('shares', 0) * live_prices.get(s, state['positions'][s].get('avg_cost', 0))
+                        for s in state.get('positions', {})
+                    )
+                    today_val = cash + invested if invested > 0 else state.get('portfolio_value')
+                else:
+                    today_val = state.get('portfolio_value')
+                if today_val:
+                    compass_data[today_str] = today_val
+    except Exception:
+        pass
+
+    dates = sorted(compass_data.keys())
+    start_date = dates[0]
+
+    spy_data = {}
+    try:
+        end_dt = date.today() + timedelta(days=1)
+        hist = yf.download('SPY', start=start_date,
+                         end=end_dt.isoformat(),
+                         progress=False, auto_adjust=True)
+        if len(hist) > 0:
+            # Flatten multi-level columns (yfinance returns MultiIndex)
+            if isinstance(hist.columns, pd.MultiIndex):
+                hist.columns = hist.columns.droplevel('Ticker')
+            for idx, row in hist.iterrows():
+                dt_str = idx.strftime('%Y-%m-%d')
+                spy_data[dt_str] = float(row['Close'])
+    except Exception:
+        pass
+
+    # Use live SPY price for today (matches banner real-time value)
+    today_str = date.today().strftime('%Y-%m-%d')
+    if today_str in [d for d in dates]:
+        try:
+            live_spy = fetch_live_prices(['SPY'])
+            if 'SPY' in live_spy:
+                spy_data[today_str] = live_spy['SPY']
+        except Exception:
+            pass
+
+    spy_first = spy_data.get(start_date)
+    result_dates = []
+    result_compass = []
+    result_spy = []
+
+    for dt in dates:
+        compass_val = compass_data[dt]
+        compass_indexed = (compass_val / first_value) * 100
+        result_dates.append(dt)
+        result_compass.append(round(compass_indexed, 2))
+        spy_val = spy_data.get(dt)
+        if spy_val and spy_first:
+            result_spy.append(round((spy_val / spy_first) * 100, 2))
+        else:
+            result_spy.append(result_spy[-1] if result_spy else 100.0)
+
+    return jsonify({
+        'dates': result_dates,
+        'compass': result_compass,
+        'spy': result_spy,
+        'start_date': start_date,
+    })
 
 
 @app.route('/api/equity')
@@ -1192,7 +1472,7 @@ def api_preflight():
     checks['state_dir'] = {'ok': state_dir_exists}
 
     # Config file
-    config_exists = os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'omnicapital_config.json'))
+    config_exists = os.path.exists('omnicapital_config.json')
     checks['config'] = {'ok': config_exists}
 
     # SPY regime
@@ -1772,13 +2052,16 @@ if __name__ == '__main__':
     os.makedirs('logs', exist_ok=True)
 
     print("=" * 60)
-    print("COMPASS v8.2 — Live Trading Dashboard")
+    print("COMPASS v8.4 — Live Trading Dashboard")
+    print("Adaptive Stops | Bull Override | Sector Limits")
     print("=" * 60)
     print(f"State file: {os.path.abspath(STATE_FILE)}")
     print(f"Log dir:    {os.path.abspath(LOG_DIR)}")
     print(f"Dashboard:  http://localhost:5000")
     print(f"Engine:     Controlled via dashboard UI")
-    print(f"Backtest:   Auto-refresh daily after 16:15 ET")
+    print(f"Stops:      Adaptive {COMPASS_CONFIG['STOP_FLOOR']:.0%} to {COMPASS_CONFIG['STOP_CEILING']:.0%} (vol-scaled)")
+    print(f"Bull:       SPY > SMA200*{1+COMPASS_CONFIG['BULL_OVERRIDE_THRESHOLD']:.0%} -> +1 pos")
+    print(f"Sectors:    Max {COMPASS_CONFIG['MAX_PER_SECTOR']} positions per sector")
     print(f"Leverage:   Max {COMPASS_CONFIG['LEVERAGE_MAX']:.1f}x (no leverage -- broker margin destroys value)")
     print(f"Execution:  Pre-close signal @ 15:30 ET -> same-day MOC (+0.79% CAGR)")
     print(f"Chassis:    async fetch | fill breaker {COMPASS_CONFIG['MAX_FILL_DEVIATION']:.0%} | "

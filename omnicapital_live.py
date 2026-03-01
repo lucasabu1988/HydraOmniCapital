@@ -1,15 +1,19 @@
 """
-OmniCapital v8.3 COMPASS - Live Trading System
+OmniCapital v8.4 COMPASS - Live Trading System
 ================================================
-Sistema de trading en vivo basado en COMPASS v8.3.
+Sistema de trading en vivo basado en COMPASS v8.4.
 Porta fielmente la logica del backtest a ejecucion en tiempo real.
 
 Signal: Risk-adjusted cross-sectional momentum (90d return / 63d vol) + short-term reversal (5d skip)
 Regime: Sigmoid composite score (SMA200 + SMA50/200 cross + 20d momentum + vol rank)
 Sizing: Inverse volatility weighting
 Leverage: Smooth drawdown scaling + volatility targeting + crash velocity brake
-Exits: Hold time (5d) + position stop (-8%) + trailing stop (3% desde max) + exit renewal for winners
+Exits: Hold time (5d) + adaptive stop (vol-scaled -6% to -15%) + vol-scaled trailing stop + exit renewal for winners
 Quality: Filter extreme-vol / corrupt-data stocks from universe
+
+v8.4 improvements over v8.3:
+  - Adaptive stops: position stop = -2.5 * daily_vol (clamped -6% to -15%)
+  - Vol-scaled trailing: trailing_pct scaled by entry_vol / baseline_vol
 """
 
 import pandas as pd
@@ -58,7 +62,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# COMPASS v8.3 PARAMETERS (identical to backtest)
+# COMPASS v8.4 PARAMETERS (identical to backtest)
 # ============================================================================
 
 CONFIG = {
@@ -72,10 +76,23 @@ CONFIG = {
     'NUM_POSITIONS_RISK_OFF': 2,
     'HOLD_DAYS': 5,
 
-    # Position-level risk
-    'POSITION_STOP_LOSS': -0.08,
+    # Position-level risk (v8.4: adaptive stops)
+    'POSITION_STOP_LOSS': -0.08,           # Fallback if no entry_daily_vol available
     'TRAILING_ACTIVATION': 0.05,
     'TRAILING_STOP_PCT': 0.03,
+
+    # v8.4: Adaptive stops (vol-scaled)
+    'STOP_DAILY_VOL_MULT': 2.5,            # Stop = -2.5 * daily_vol
+    'STOP_FLOOR': -0.06,                   # Tightest stop for low-vol stocks
+    'STOP_CEILING': -0.15,                 # Widest stop for high-vol stocks
+    'TRAILING_VOL_BASELINE': 0.25,         # Baseline annualized vol for trailing scaling
+
+    # v8.4: Bull market override (regime recalibration)
+    'BULL_OVERRIDE_THRESHOLD': 0.03,       # SPY > SMA200 * 1.03 -> bump +1 position
+    'BULL_OVERRIDE_MIN_SCORE': 0.40,       # Only override if regime_score > this
+
+    # v8.4: Sector concentration limits
+    'MAX_PER_SECTOR': 3,                   # Max open positions per sector
 
     # Smooth drawdown scaling
     'DD_SCALE_TIER1': -0.10,
@@ -172,6 +189,48 @@ BROAD_POOL = [
     # Telecom
     'VZ', 'T', 'TMUS', 'CMCSA',
 ]
+
+# v8.4: Sector map for concentration limits
+SECTOR_MAP = {
+    # Technology
+    'AAPL': 'Technology', 'MSFT': 'Technology', 'NVDA': 'Technology', 'GOOGL': 'Technology',
+    'META': 'Technology', 'AVGO': 'Technology', 'ADBE': 'Technology', 'CRM': 'Technology',
+    'AMD': 'Technology', 'INTC': 'Technology', 'CSCO': 'Technology', 'IBM': 'Technology',
+    'TXN': 'Technology', 'QCOM': 'Technology', 'ORCL': 'Technology', 'ACN': 'Technology',
+    'NOW': 'Technology', 'INTU': 'Technology', 'AMAT': 'Technology', 'MU': 'Technology',
+    'LRCX': 'Technology', 'SNPS': 'Technology', 'CDNS': 'Technology', 'KLAC': 'Technology',
+    'MRVL': 'Technology',
+    # Financials
+    'BRK-B': 'Financials', 'JPM': 'Financials', 'V': 'Financials', 'MA': 'Financials',
+    'BAC': 'Financials', 'WFC': 'Financials', 'GS': 'Financials', 'MS': 'Financials',
+    'AXP': 'Financials', 'BLK': 'Financials', 'SCHW': 'Financials', 'C': 'Financials',
+    'USB': 'Financials', 'PNC': 'Financials', 'TFC': 'Financials', 'CB': 'Financials',
+    'MMC': 'Financials', 'AIG': 'Financials',
+    # Healthcare
+    'UNH': 'Healthcare', 'JNJ': 'Healthcare', 'LLY': 'Healthcare', 'ABBV': 'Healthcare',
+    'MRK': 'Healthcare', 'PFE': 'Healthcare', 'TMO': 'Healthcare', 'ABT': 'Healthcare',
+    'DHR': 'Healthcare', 'AMGN': 'Healthcare', 'BMY': 'Healthcare', 'MDT': 'Healthcare',
+    'ISRG': 'Healthcare', 'SYK': 'Healthcare', 'GILD': 'Healthcare', 'REGN': 'Healthcare',
+    'VRTX': 'Healthcare', 'BIIB': 'Healthcare',
+    # Consumer
+    'AMZN': 'Consumer', 'TSLA': 'Consumer', 'WMT': 'Consumer', 'HD': 'Consumer',
+    'PG': 'Consumer', 'COST': 'Consumer', 'KO': 'Consumer', 'PEP': 'Consumer',
+    'NKE': 'Consumer', 'MCD': 'Consumer', 'DIS': 'Consumer', 'SBUX': 'Consumer',
+    'TGT': 'Consumer', 'LOW': 'Consumer', 'CL': 'Consumer', 'KMB': 'Consumer',
+    'GIS': 'Consumer', 'EL': 'Consumer', 'MO': 'Consumer', 'PM': 'Consumer',
+    # Energy
+    'XOM': 'Energy', 'CVX': 'Energy', 'COP': 'Energy', 'SLB': 'Energy',
+    'EOG': 'Energy', 'OXY': 'Energy', 'MPC': 'Energy', 'PSX': 'Energy', 'VLO': 'Energy',
+    # Industrials
+    'GE': 'Industrials', 'CAT': 'Industrials', 'BA': 'Industrials', 'HON': 'Industrials',
+    'UNP': 'Industrials', 'RTX': 'Industrials', 'LMT': 'Industrials', 'DE': 'Industrials',
+    'UPS': 'Industrials', 'FDX': 'Industrials', 'MMM': 'Industrials', 'GD': 'Industrials',
+    'NOC': 'Industrials', 'EMR': 'Industrials',
+    # Utilities
+    'NEE': 'Utilities', 'DUK': 'Utilities', 'SO': 'Utilities', 'D': 'Utilities', 'AEP': 'Utilities',
+    # Telecom
+    'VZ': 'Telecom', 'T': 'Telecom', 'TMUS': 'Telecom', 'CMCSA': 'Telecom',
+}
 
 
 # ============================================================================
@@ -364,16 +423,33 @@ def compute_live_regime_score(spy_hist: pd.DataFrame) -> float:
 
 def regime_score_to_positions(regime_score: float,
                                num_positions: int = 5,
-                               num_positions_risk_off: int = 2) -> int:
-    """Convert continuous regime score to number of positions."""
+                               num_positions_risk_off: int = 2,
+                               spy_close: Optional[float] = None,
+                               sma200: Optional[float] = None,
+                               bull_threshold: float = 0.03,
+                               bull_min_score: float = 0.40) -> int:
+    """Convert continuous regime score to number of positions.
+    v8.4: Bull market override -- when SPY is >3% above SMA200 and score > 0.40,
+    bump positions by +1 (capped at max). Prevents vol spikes from
+    reducing positions during confirmed uptrends.
+    """
     if regime_score >= 0.65:
-        return num_positions
+        base = num_positions
     elif regime_score >= 0.50:
-        return max(num_positions - 1, num_positions_risk_off + 1)
+        base = max(num_positions - 1, num_positions_risk_off + 1)
     elif regime_score >= 0.35:
-        return max(num_positions - 2, num_positions_risk_off + 1)
+        base = max(num_positions - 2, num_positions_risk_off + 1)
     else:
-        return num_positions_risk_off
+        base = num_positions_risk_off
+
+    # v8.4 Bull override: +1 position when SPY clearly above SMA200
+    if (spy_close is not None and sma200 is not None
+            and sma200 > 0 and regime_score > bull_min_score):
+        pct_above = (spy_close / sma200) - 1.0
+        if pct_above >= bull_threshold:
+            base = min(base + 1, num_positions)
+
+    return base
 
 
 def compute_momentum_scores(hist_data: Dict[str, pd.DataFrame],
@@ -476,6 +552,76 @@ def compute_quality_filter(hist_data: Dict[str, pd.DataFrame],
     if len(passed) < 5:
         return tradeable
     return passed
+
+
+# ============================================================================
+# v8.4: ADAPTIVE STOPS
+# ============================================================================
+
+def compute_adaptive_stop(entry_daily_vol: float, config: Dict) -> float:
+    """
+    v8.4: Compute adaptive position stop loss based on entry-time daily volatility.
+    Stop = max(CEILING, min(FLOOR, -MULT * daily_vol))
+
+    Examples (MULT=2.5, FLOOR=-6%, CEILING=-15%):
+      Low-vol  (daily_vol=1.0%):  stop = -6.0%  (FLOOR)
+      Med-vol  (daily_vol=2.5%):  stop = -6.25%
+      Typical  (daily_vol=3.5%):  stop = -8.75%
+      High-vol (daily_vol=4.5%):  stop = -11.25%
+      Very-high (daily_vol=6%+):  stop = -15.0% (CEILING)
+    """
+    raw_stop = -config['STOP_DAILY_VOL_MULT'] * entry_daily_vol
+    return max(config['STOP_CEILING'], min(config['STOP_FLOOR'], raw_stop))
+
+
+def compute_entry_vol(hist_data: Dict[str, pd.DataFrame],
+                      symbol: str, lookback: int = 20) -> Tuple[float, float]:
+    """
+    v8.4: Compute volatility for a stock at entry time using most recent data.
+    Returns (annualized_vol, daily_vol).
+    Daily vol is used for adaptive stop calculation.
+    Falls back to (0.25, 0.016) if insufficient data.
+    """
+    DEFAULT_ANN = 0.25
+    DEFAULT_DAILY = DEFAULT_ANN / np.sqrt(252)
+
+    if symbol not in hist_data:
+        return (DEFAULT_ANN, DEFAULT_DAILY)
+    df = hist_data[symbol]
+    if len(df) < lookback + 2:
+        return (DEFAULT_ANN, DEFAULT_DAILY)
+
+    returns = df['Close'].iloc[-(lookback + 1):].pct_change().dropna()
+    if len(returns) < lookback - 2:
+        return (DEFAULT_ANN, DEFAULT_DAILY)
+
+    daily_vol = float(returns.std())
+    ann_vol = daily_vol * np.sqrt(252)
+    return (max(ann_vol, 0.05), max(daily_vol, 0.003))
+
+
+def filter_by_sector_concentration(ranked_candidates: List[Tuple[str, float]],
+                                    current_positions: dict,
+                                    max_per_sector: int = 3) -> List[str]:
+    """
+    v8.4: Filter ranked candidates by sector concentration limits.
+    Iterates through ranked candidates and only selects those whose sector
+    has room (< max_per_sector positions).
+    """
+    from collections import defaultdict
+    sector_counts: Dict[str, int] = defaultdict(int)
+    for sym in current_positions:
+        sector = SECTOR_MAP.get(sym, 'Unknown')
+        sector_counts[sector] += 1
+
+    selected = []
+    for symbol, score in ranked_candidates:
+        sector = SECTOR_MAP.get(symbol, 'Unknown')
+        if sector_counts[sector] < max_per_sector:
+            selected.append(symbol)
+            sector_counts[sector] += 1
+
+    return selected
 
 
 def compute_dynamic_leverage(spy_hist: pd.DataFrame, target_vol: float = 0.15,
@@ -591,12 +737,14 @@ class COMPASSLive:
         self.notifier = None
 
         logger.info("=" * 70)
-        logger.info("OMNICAPITAL v8.3 COMPASS - LIVE TRADING")
+        logger.info("OMNICAPITAL v8.4 COMPASS - LIVE TRADING")
         logger.info("=" * 70)
         logger.info(f"Signal: Risk-adj momentum {config['MOMENTUM_LOOKBACK']}d (skip {config['MOMENTUM_SKIP']}d)")
         logger.info(f"Regime: Sigmoid composite score | Vol target: {config['TARGET_VOL']:.0%}")
-        logger.info(f"Hold: {config['HOLD_DAYS']}d | Pos stop: {config['POSITION_STOP_LOSS']:.0%}")
-        logger.info(f"Trailing: +{config['TRAILING_ACTIVATION']:.0%} / -{config['TRAILING_STOP_PCT']:.0%}")
+        logger.info(f"Hold: {config['HOLD_DAYS']}d | Adaptive stop: {config['STOP_FLOOR']:.0%} to {config['STOP_CEILING']:.0%} (vol-scaled)")
+        logger.info(f"Trailing: +{config['TRAILING_ACTIVATION']:.0%} / -{config['TRAILING_STOP_PCT']:.0%} (vol-scaled)")
+        logger.info(f"Bull override: SPY > SMA200*{1+config['BULL_OVERRIDE_THRESHOLD']:.0%} & score>{config['BULL_OVERRIDE_MIN_SCORE']:.0%} -> +1 pos")
+        logger.info(f"Sector limit: max {config['MAX_PER_SECTOR']} positions per sector")
         logger.info(f"DD tiers: T1={config['DD_SCALE_TIER1']:.0%} T2={config['DD_SCALE_TIER2']:.0%} T3={config['DD_SCALE_TIER3']:.0%}")
         logger.info(f"Crash brake: 5d={config['CRASH_VEL_5D']:.0%} 10d={config['CRASH_VEL_10D']:.0%} -> {config['CRASH_LEVERAGE']:.0%} lev")
         logger.info(f"Exit renewal: max {config['HOLD_DAYS_MAX']}d | min profit {config['RENEWAL_PROFIT_MIN']:.0%} | mom pctl {config['MOMENTUM_RENEWAL_THRESHOLD']:.0%}")
@@ -747,11 +895,20 @@ class COMPASSLive:
         return max(min(dd_lev, vol_lev), self.config['LEV_FLOOR'])
 
     def get_max_positions(self) -> int:
-        """Determine max positions from regime score (gradual)"""
+        """Determine max positions from regime score (v8.4: with bull override)"""
+        spy_close = None
+        sma200 = None
+        if self._spy_hist is not None and len(self._spy_hist) >= 200:
+            spy_close = float(self._spy_hist['Close'].iloc[-1])
+            sma200 = float(self._spy_hist['Close'].iloc[-200:].mean())
         return regime_score_to_positions(
             self.current_regime_score,
             self.config['NUM_POSITIONS'],
-            self.config['NUM_POSITIONS_RISK_OFF']
+            self.config['NUM_POSITIONS_RISK_OFF'],
+            spy_close=spy_close,
+            sma200=sma200,
+            bull_threshold=self.config['BULL_OVERRIDE_THRESHOLD'],
+            bull_min_score=self.config['BULL_OVERRIDE_MIN_SCORE']
         )
 
     # ------------------------------------------------------------------
@@ -790,16 +947,25 @@ class COMPASSLive:
                 else:
                     exit_reason = 'hold_expired'
 
-            # 2. Position stop loss (-8%)
+            # 2. Position stop loss (v8.4: adaptive, vol-scaled)
             pos_return = (price - meta['entry_price']) / meta['entry_price']
-            if pos_return <= self.config['POSITION_STOP_LOSS']:
+            entry_daily_vol = meta.get('entry_daily_vol')
+            if entry_daily_vol is not None:
+                adaptive_stop = compute_adaptive_stop(entry_daily_vol, self.config)
+            else:
+                adaptive_stop = self.config['POSITION_STOP_LOSS']  # fallback for pre-v8.4 positions
+            if pos_return <= adaptive_stop:
                 exit_reason = 'position_stop'
 
-            # 3. Trailing stop
+            # 3. Trailing stop (v8.4: vol-scaled)
             if price > meta['high_price']:
                 meta['high_price'] = price
             if meta['high_price'] > meta['entry_price'] * (1 + self.config['TRAILING_ACTIVATION']):
-                trailing_level = meta['high_price'] * (1 - self.config['TRAILING_STOP_PCT'])
+                baseline = self.config['TRAILING_VOL_BASELINE']
+                entry_vol = meta.get('entry_vol', baseline)
+                vol_ratio = entry_vol / baseline
+                scaled_trailing = self.config['TRAILING_STOP_PCT'] * vol_ratio
+                trailing_level = meta['high_price'] * (1 - scaled_trailing)
                 if price <= trailing_level:
                     exit_reason = 'trailing_stop'
 
@@ -839,8 +1005,13 @@ class COMPASSLive:
                         'exit_reason': exit_reason, 'pnl': pnl, 'return': ret,
                         'price': result.filled_price, 'is_bps': result.is_bps
                     })
+                    stop_info = ""
+                    if exit_reason == 'position_stop':
+                        stop_info = f" | stop={adaptive_stop:.1%}"
+                    elif exit_reason == 'trailing_stop':
+                        stop_info = f" | trail_lvl=${trailing_level:.2f}"
                     logger.info(f"EXIT [{exit_reason}] {symbol} @ ${result.filled_price:.2f} | "
-                                f"PnL: ${pnl:+,.0f} ({ret:+.1%})")
+                                f"PnL: ${pnl:+,.0f} ({ret:+.1%}){stop_info}")
 
                     if self.notifier:
                         self.notifier.send_trade_alert('SELL', symbol, pos.shares,
@@ -920,9 +1091,12 @@ class COMPASSLive:
         if len(available) < needed:
             return
 
-        # Select top N by score
+        # v8.4: Select top N by score WITH sector concentration limits
         ranked = sorted(available.items(), key=lambda x: x[1], reverse=True)
-        selected = [s for s, _ in ranked[:needed]]
+        sector_filtered = filter_by_sector_concentration(
+            ranked, positions, self.config['MAX_PER_SECTOR']
+        )
+        selected = sector_filtered[:needed]
 
         # Compute inverse-vol weights
         weights = compute_volatility_weights(
@@ -959,12 +1133,21 @@ class COMPASSLive:
             result = self._submit_order(order, prices)
 
             if result.status == 'FILLED':
+                # v8.4: Compute entry-time vol for adaptive stops
+                entry_vol, entry_daily_vol = compute_entry_vol(
+                    self._hist_cache, symbol, self.config['VOL_LOOKBACK']
+                )
+                adaptive_stop = compute_adaptive_stop(entry_daily_vol, self.config)
+
                 self.position_meta[symbol] = {
                     'entry_price': result.filled_price,
                     'entry_date': self.get_et_now().date().isoformat(),
                     'entry_day_index': self.trading_day_counter,
                     'original_entry_day_index': self.trading_day_counter,
                     'high_price': result.filled_price,
+                    'entry_vol': entry_vol,              # v8.4: annualized vol
+                    'entry_daily_vol': entry_daily_vol,  # v8.4: daily vol for stop calc
+                    'sector': SECTOR_MAP.get(symbol, 'Unknown'),  # v8.4: sector tracking
                 }
 
                 self.trades_today.append({
@@ -974,7 +1157,8 @@ class COMPASSLive:
                     'is_bps': result.is_bps
                 })
                 logger.info(f"ENTRY {symbol}: {shares:.1f} shares @ ${result.filled_price:.2f} "
-                            f"(${cost:,.0f} | wt={weight:.1%} | lev={current_leverage:.2f}x)")
+                            f"(${cost:,.0f} | wt={weight:.1%} | lev={current_leverage:.2f}x | "
+                            f"stop={adaptive_stop:.1%})")
 
                 if self.notifier:
                     self.notifier.send_trade_alert('BUY', symbol, shares,
@@ -1307,7 +1491,7 @@ class COMPASSLive:
         """Save full system state to JSON"""
         portfolio = self.broker.get_portfolio()
         state = {
-            'version': '8.3',
+            'version': '8.4',
             'timestamp': datetime.now().isoformat(),
 
             # Portfolio
@@ -1502,10 +1686,16 @@ class COMPASSLive:
         regime_str = f"score={self.current_regime_score:.2f}"
 
         positions = self.broker.get_positions()
+        pos_parts = []
+        for s, m in self.position_meta.items():
+            if s not in positions:
+                continue
+            ret = (prices.get(s, m.get('entry_price', 0)) - m.get('entry_price', 0)) / m.get('entry_price', 1)
+            edv = m.get('entry_daily_vol')
+            stop = compute_adaptive_stop(edv, self.config) if edv else self.config['POSITION_STOP_LOSS']
+            pos_parts.append(f"{s}({ret:.1%}|stop={stop:.0%})")
         pos_str = ", ".join([
-            f"{s}({(prices.get(s, m.get('entry_price', 0)) - m.get('entry_price', 0)) / m.get('entry_price', 1):.1%})"
-            for s, m in self.position_meta.items()
-            if s in positions
+            p for p in pos_parts
         ])
 
         logger.info(f"STATUS: ${portfolio.total_value:,.0f} | DD:{drawdown:.1%} | "
