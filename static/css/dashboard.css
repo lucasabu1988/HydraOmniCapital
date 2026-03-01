@@ -293,7 +293,7 @@ body::before {
 .hdr-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 14px;
     flex-shrink: 0;
 }
 
@@ -367,9 +367,9 @@ body::before {
     vertical-align: middle;
 }
 .hdr-pill-on {
-    background: var(--green-dim);
+    background: rgba(34, 197, 94, 0.10);
     color: var(--green);
-    border: 1px solid rgba(34, 197, 94, 0.25);
+    border: 1px solid rgba(34, 197, 94, 0.30);
 }
 .hdr-pill-off {
     background: var(--red-dim);
@@ -382,9 +382,9 @@ body::before {
     border: 1px solid rgba(239, 68, 68, 0.25);
 }
 .hdr-pill-norm {
-    background: var(--accent-glow);
+    background: rgba(99, 102, 241, 0.10);
     color: var(--accent-light);
-    border: 1px solid var(--border-accent);
+    border: 1px solid rgba(99, 102, 241, 0.30);
 }
 .hdr-pill-dot {
     width: 6px; height: 6px;
