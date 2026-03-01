@@ -836,7 +836,97 @@ body::before {
     padding: 0 28px 14px;
     font-family: 'JetBrains Mono', monospace;
 }
-
+/* Backtest context row */
+.perf-backtest-row {
+    border-top: 1px solid var(--border);
+    padding: 16px 28px 18px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.perf-bt-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    min-width: 110px;
+}
+.perf-bt-bars {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.perf-bt-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.perf-bt-name {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-tertiary);
+    width: 60px;
+    text-align: right;
+    flex-shrink: 0;
+}
+.perf-bt-bar-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 200px;
+}
+body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
+.perf-bt-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+}
+.perf-bt-bar-compass {
+    background: linear-gradient(90deg, var(--green), var(--accent-light));
+}
+.perf-bt-bar-spy {
+    background: var(--text-muted);
+}
+.perf-bt-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.perf-bt-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.perf-bt-stat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.perf-bt-sep {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+@media (max-width: 1200px) {
+    .perf-backtest-row { flex-wrap: wrap; gap: 12px; }
+    .perf-bt-stats { width: 100%; justify-content: center; padding-top: 4px; }
+}
+@media (max-width: 768px) {
+    .perf-backtest-row { flex-direction: column; align-items: stretch; padding: 14px 16px 16px; gap: 10px; }
+    .perf-bt-label { text-align: center; min-width: auto; }
+    .perf-bt-bar-track { max-width: none; }
+    .perf-bt-stats { flex-wrap: wrap; justify-content: center; gap: 6px; }
+}
 
 /* ============ CYCLE LOG ============ */
 .cycle-log {
@@ -2173,6 +2263,35 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         </div>
     </div>
     <div class="perf-banner-period" id="perf-period">Live test since --</div>
+    <!-- BACKTEST CONTEXT ROW -->
+    <div class="perf-backtest-row">
+        <div class="perf-bt-label">Backtest (2000&ndash;2026)</div>
+        <div class="perf-bt-bars">
+            <div class="perf-bt-item">
+                <span class="perf-bt-name">COMPASS</span>
+                <div class="perf-bt-bar-track">
+                    <div class="perf-bt-bar-fill perf-bt-bar-compass" style="width:100%"></div>
+                </div>
+                <span class="perf-bt-val c-green">$100K &rarr; $1.8M</span>
+            </div>
+            <div class="perf-bt-item">
+                <span class="perf-bt-name">S&amp;P 500</span>
+                <div class="perf-bt-bar-track">
+                    <div class="perf-bt-bar-fill perf-bt-bar-spy" style="width:40%"></div>
+                </div>
+                <span class="perf-bt-val">$100K &rarr; $720K</span>
+            </div>
+        </div>
+        <div class="perf-bt-stats">
+            <span class="perf-bt-stat">11.57% CAGR</span>
+            <span class="perf-bt-sep">&middot;</span>
+            <span class="perf-bt-stat">0.80 Sharpe</span>
+            <span class="perf-bt-sep">&middot;</span>
+            <span class="perf-bt-stat">&minus;29.6% MaxDD</span>
+            <span class="perf-bt-sep">&middot;</span>
+            <span class="perf-bt-stat">23/26 positive years</span>
+        </div>
+    </div>
 </div>
 
 <!-- CYCLE LOG -->
