@@ -663,15 +663,7 @@ body::before {
     .sf-stat-value { font-size: 12px; }
 }
 
-@media (max-width: 1100px) {
-    .positions-grid { --pos-cols: 3 !important; }
-}
-@media (max-width: 800px) {
-    .positions-grid { --pos-cols: 2 !important; }
-}
-@media (max-width: 500px) {
-    .positions-grid { --pos-cols: 1 !important; }
-}
+/* positions-grid columns set by JS (adaptive to position count + viewport) */
 
 
 /* ============ PROGRESS BAR ============ */
@@ -2050,7 +2042,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .perf-vs-alpha { font-size: 20px; }
     .page-tabs { gap: 0; }
     .page-tab { padding: 10px 12px; font-size: 12px; }
-    .positions-grid { --pos-cols: 2 !important; }
 }
 @media (max-width: 480px) {
     body { font-size: 13px; }
@@ -2058,7 +2049,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .hdr-brand-text { font-size: 16px; }
     .hdr-brand-icon { width: 36px; height: 36px; }
     #hdr-spy-wrap { min-width: auto !important; }
-    .positions-grid { --pos-cols: 1 !important; }
     .perf-side-value { font-size: 20px; }
     .ph-stat-value { font-size: 14px; }
 }

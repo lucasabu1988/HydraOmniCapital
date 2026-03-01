@@ -405,14 +405,23 @@ function updatePositions(details) {
     /* Experiment history table — hidden (internal reference only) */
 
     /* Adaptive column count — eliminates empty grid cells */
-    var cols = 4;
     var n = details.length;
+    var cols;
     if (n <= 0) cols = 4;
-    else if (n <= 2) cols = 2;
-    else if (n <= 4) cols = 4;
-    else if (n <= 6) cols = 3;
-    else if (n <= 8) cols = 4;
-    else cols = 5;
+    else if (n <= 3) cols = n;
+    else if (n === 4) cols = 4;
+    else if (n === 5) cols = 5;
+    else if (n === 6) cols = 3;
+    else if (n === 7) cols = 4;
+    else if (n === 8) cols = 4;
+    else if (n === 9) cols = 3;
+    else if (n === 10) cols = 5;
+    else cols = 4;
+    /* Cap columns for narrow viewports */
+    var vw = window.innerWidth;
+    if (vw <= 480) cols = Math.min(cols, 1);
+    else if (vw <= 800) cols = Math.min(cols, 2);
+    else if (vw <= 1100) cols = Math.min(cols, 3);
     grid.style.setProperty('--pos-cols', cols);
 
     grid.innerHTML = html;
