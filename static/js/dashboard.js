@@ -437,37 +437,31 @@ function updatePositions(details) {
         }, i * 30);
     });
 
-    /* --- Tooltip positioning (fixed, never clipped) --- */
+    /* --- Tooltip positioning (appended to body to escape overflow:hidden) --- */
     grid.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
         var tip = wrap.querySelector('.ticker-tip');
         if (!tip) return;
+        document.body.appendChild(tip);
         wrap.addEventListener('mouseenter', function(e) {
             var rect = wrap.getBoundingClientRect();
             tip.style.display = 'block';
-            /* Position above the ticker, left-aligned to it */
-            var tipW = 260;
+            tip.style.visibility = 'hidden';
+            var tipW = 240;
+            var tipH = tip.offsetHeight;
+            tip.style.visibility = '';
             var left = rect.left;
-            /* Keep within viewport */
             if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
             if (left < 12) left = 12;
-            var top = rect.top - tip.offsetHeight - 10;
-            /* If above would go off screen, show below */
-            if (top < 8) {
-                top = rect.bottom + 10;
-                tip.classList.add('tip-below');
-            } else {
-                tip.classList.remove('tip-below');
-            }
+            var top = rect.top - tipH - 8;
+            if (top < 4) { top = rect.bottom + 8; tip.classList.add('tip-below'); }
+            else { tip.classList.remove('tip-below'); }
             tip.style.left = left + 'px';
             tip.style.top = top + 'px';
-            /* Adjust arrow to point at ticker center */
             var arrowLeft = (rect.left + rect.width / 2) - left;
             arrowLeft = Math.max(14, Math.min(arrowLeft, tipW - 14));
             tip.style.setProperty('--arrow-left', arrowLeft + 'px');
         });
-        wrap.addEventListener('mouseleave', function() {
-            tip.style.display = 'none';
-        });
+        wrap.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
     });
 
     fetchExpAnalysis();
@@ -542,15 +536,19 @@ function updateUniverse(universe, positions) {
     grid.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
         var tip = wrap.querySelector('.ticker-tip');
         if (!tip) return;
+        document.body.appendChild(tip);
         wrap.addEventListener('mouseenter', function() {
             var rect = wrap.getBoundingClientRect();
             tip.style.display = 'block';
-            var tipW = 260;
+            tip.style.visibility = 'hidden';
+            var tipW = 240;
+            var tipH = tip.offsetHeight;
+            tip.style.visibility = '';
             var left = rect.left;
             if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
             if (left < 12) left = 12;
-            var top = rect.top - tip.offsetHeight - 10;
-            if (top < 8) { top = rect.bottom + 10; tip.classList.add('tip-below'); }
+            var top = rect.top - tipH - 8;
+            if (top < 4) { top = rect.bottom + 8; tip.classList.add('tip-below'); }
             else { tip.classList.remove('tip-below'); }
             tip.style.left = left + 'px';
             tip.style.top = top + 'px';
