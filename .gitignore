@@ -11,10 +11,12 @@ venv/
 data_cache/
 *.pkl
 
-# Old log dumps (too large, pre-live-test)
-logs/omnicapital_*.json
-logs/omnicapital_*.log
-logs/monitor_snapshot_*.json
+# Logs (runtime)
+logs/
+!logs/.gitkeep
+
+# State backups
+state/compass_state_*_backup*.json
 
 # Secrets
 omnicapital_config.json
