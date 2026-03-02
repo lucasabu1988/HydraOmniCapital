@@ -247,20 +247,27 @@ function updateRegimeBand(p) {
     var needle = document.getElementById('rb-needle');
     needle.style.left = pct + '%';
 
+    var needleLabel = document.getElementById('rb-needle-label');
+    needleLabel.textContent = score != null ? score.toFixed(2) : '--';
+
     var fill = document.getElementById('rb-fill');
     fill.style.width = pct + '%';
     if (score >= 0.65) {
         fill.style.background = 'linear-gradient(90deg, var(--red), var(--yellow), var(--green))';
         scoreEl.style.color = 'var(--green)';
+        needleLabel.style.color = 'var(--green)';
     } else if (score >= 0.50) {
         fill.style.background = 'linear-gradient(90deg, var(--red), var(--yellow))';
         scoreEl.style.color = 'var(--yellow)';
+        needleLabel.style.color = 'var(--yellow)';
     } else if (score >= 0.35) {
         fill.style.background = 'linear-gradient(90deg, var(--red), var(--yellow))';
         scoreEl.style.color = 'var(--yellow)';
+        needleLabel.style.color = 'var(--yellow)';
     } else {
         fill.style.background = 'var(--red)';
         scoreEl.style.color = 'var(--red)';
+        needleLabel.style.color = 'var(--red)';
     }
 
     var tag = document.getElementById('rb-tag');
