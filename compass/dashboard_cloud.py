@@ -414,26 +414,26 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         recovery = {
             'dd_leverage': round(dd_leverage, 3),
             'crash_cooldown': crash_cooldown,
-            'regime_score': round(state.get('regime_score', 1.0), 3),
+            'regime_score': round(state.get('current_regime_score', 1.0 if state.get('current_regime', True) else 0.0), 3),
         }
 
     # v8.4: Continuous regime score
-    regime_score = state.get('regime_score', 1.0)
-    regime_str = f'SCORE_{regime_score:.2f}' if regime_score < 1.0 else 'RISK_ON'
+    regime_score = state.get('current_regime_score', 1.0 if state.get('current_regime', True) else 0.0)
+    regime_str = 'RISK_ON' if regime_score >= 0.65 else 'RISK_OFF'
 
     # v8.4: DD leverage (smooth scaling)
     dd_leverage = state.get('dd_leverage', 1.0)
     leverage = dd_leverage if dd_leverage < COMPASS_CONFIG['LEV_FULL'] else None
 
-    # v8.4: Positions from regime score
-    if regime_score >= 0.8:
-        max_pos = 5
-    elif regime_score >= 0.6:
-        max_pos = 4
-    elif regime_score >= 0.4:
-        max_pos = 3
+    # v8.4: Positions from regime score (thresholds match local dashboard)
+    if regime_score >= 0.65:
+        max_pos = COMPASS_CONFIG['NUM_POSITIONS']
+    elif regime_score >= 0.50:
+        max_pos = COMPASS_CONFIG['NUM_POSITIONS'] - 1
+    elif regime_score >= 0.35:
+        max_pos = COMPASS_CONFIG['NUM_POSITIONS'] - 2
     else:
-        max_pos = 2
+        max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
 
     # SPY benchmark return over same live test period
     spy_start = get_spy_start_price()
