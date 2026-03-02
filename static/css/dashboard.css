@@ -2412,6 +2412,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border-radius: var(--radius-lg, 12px);
     margin-bottom: 16px;
     overflow: hidden;
+    max-width: 100%;
 }
 .algo-card-header {
     display: flex;
@@ -2449,7 +2450,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 /* 2-column grid */
 .algo-grid-2 {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 14px;
 }
 
@@ -2459,6 +2460,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 16px;
+    min-width: 0;
+    overflow: hidden;
 }
 .algo-mini-title {
     font-size: 12px; font-weight: 700;
@@ -2478,18 +2481,21 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 .algo-params-sm td {
     padding: 5px 0;
     border-bottom: 1px solid var(--border);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 .algo-params-sm td:first-child {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     font-weight: 600;
     color: var(--accent-light);
-    white-space: nowrap;
     padding-right: 12px;
+    width: 40%;
 }
 .algo-params-sm td:last-child {
     color: var(--text-secondary);
