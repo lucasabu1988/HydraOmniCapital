@@ -232,6 +232,53 @@ function updateCards(p) {
     document.getElementById('card-maxpos').textContent = regimeLabel + (p.in_protection ? ' | DD Scaling' : '');
 }
 
+function updateRegimeBand(p) {
+    var score = p.regime_score;
+    var cons = p.regime_consecutive;
+
+    var scoreEl = document.getElementById('rb-score');
+    scoreEl.textContent = score != null ? score.toFixed(2) : '--';
+
+    var consEl = document.getElementById('rb-consecutive');
+    consEl.textContent = cons != null ? cons + ' d' : '--';
+
+    var pct = score != null ? Math.min(Math.max(score * 100, 0), 100) : 0;
+
+    var needle = document.getElementById('rb-needle');
+    needle.style.left = pct + '%';
+
+    var fill = document.getElementById('rb-fill');
+    fill.style.width = pct + '%';
+    if (score >= 0.65) {
+        fill.style.background = 'linear-gradient(90deg, var(--red), var(--yellow), var(--green))';
+        scoreEl.style.color = 'var(--green)';
+    } else if (score >= 0.50) {
+        fill.style.background = 'linear-gradient(90deg, var(--red), var(--yellow))';
+        scoreEl.style.color = 'var(--yellow)';
+    } else if (score >= 0.35) {
+        fill.style.background = 'linear-gradient(90deg, var(--red), var(--yellow))';
+        scoreEl.style.color = 'var(--yellow)';
+    } else {
+        fill.style.background = 'var(--red)';
+        scoreEl.style.color = 'var(--red)';
+    }
+
+    var tag = document.getElementById('rb-tag');
+    if (score >= 0.65) {
+        tag.textContent = 'RISK ON (' + p.max_positions + ' pos)';
+        tag.style.cssText = 'background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,0.3)';
+    } else if (score >= 0.50) {
+        tag.textContent = 'TRANSICI\u00d3N (' + p.max_positions + ' pos)';
+        tag.style.cssText = 'background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(234,179,8,0.3)';
+    } else if (score >= 0.35) {
+        tag.textContent = 'CAUTELA (' + p.max_positions + ' pos)';
+        tag.style.cssText = 'background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(234,179,8,0.3)';
+    } else {
+        tag.textContent = 'RISK OFF (' + p.max_positions + ' pos)';
+        tag.style.cssText = 'background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,0.3)';
+    }
+}
+
 
 function updatePerfBanner(p) {
     const adjPortfolio = p.portfolio_value;
@@ -990,6 +1037,7 @@ async function fetchAll() {
             const p = stateData.portfolio;
             updateStatusBar(p);
             updateCards(p);
+            updateRegimeBand(p);
             updatePerfBanner(p);
             updatePreclose(stateData.preclose);
             updatePositions(stateData.position_details);
