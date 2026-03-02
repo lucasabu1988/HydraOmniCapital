@@ -1482,7 +1482,7 @@ class COMPASSLive:
         """Close the active cycle and open a new one in cycle_log.json.
 
         Called automatically after a rotation (hold_expired sells + new buys).
-        Uses ^GSPC (S&P 500 index) for benchmark comparison.
+        Uses SPY ETF for benchmark comparison (unified with global P&L benchmark).
         """
         log_file = os.path.join('state', 'cycle_log.json')
         today = self.get_et_now().date().isoformat()
@@ -1496,14 +1496,14 @@ class COMPASSLive:
             except Exception:
                 cycles = []
 
-        # Get S&P 500 price for benchmark
-        gspc_price = None
+        # Get SPY price for benchmark (unified with global P&L)
+        spy_price = None
         try:
-            gspc = yf.download('^GSPC', period='5d', progress=False)
-            if len(gspc) > 0:
-                gspc_price = float(gspc['Close'].iloc[-1].iloc[0])
+            spy = yf.download('SPY', period='5d', progress=False)
+            if len(spy) > 0:
+                spy_price = float(spy['Close'].iloc[-1].iloc[0])
         except Exception as e:
-            logger.warning(f"Could not fetch ^GSPC for cycle log: {e}")
+            logger.warning(f"Could not fetch SPY for cycle log: {e}")
 
         # Portfolio value after rotation (new positions are in)
         portfolio = self.broker.get_portfolio()
@@ -1515,10 +1515,10 @@ class COMPASSLive:
                 cycle['end_date'] = today
                 cycle['status'] = 'closed'
                 cycle['portfolio_end'] = round(self._pre_rotation_value, 2)
-                if gspc_price and cycle.get('spy_start'):
-                    cycle['spy_end'] = round(gspc_price, 2)
+                if spy_price and cycle.get('spy_start'):
+                    cycle['spy_end'] = round(spy_price, 2)
                     cycle['spy_return'] = round(
-                        (gspc_price - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
+                        (spy_price - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
                 cycle['compass_return'] = round(
                     (self._pre_rotation_value - cycle['portfolio_start'])
                     / cycle['portfolio_start'] * 100, 2)
@@ -1543,7 +1543,7 @@ class COMPASSLive:
             'status': 'active',
             'portfolio_start': round(new_value, 2),
             'portfolio_end': None,
-            'spy_start': round(gspc_price, 2) if gspc_price else None,
+            'spy_start': round(spy_price, 2) if spy_price else None,
             'spy_end': None,
             'positions': new_positions,
             'positions_current': list(new_positions),
@@ -1611,11 +1611,11 @@ class COMPASSLive:
 
         # No active cycle but we have positions — create one
         portfolio = self.broker.get_portfolio()
-        gspc_price = None
+        spy_price = None
         try:
-            gspc = yf.download('^GSPC', period='5d', progress=False)
-            if len(gspc) > 0:
-                gspc_price = float(gspc['Close'].iloc[-1].iloc[0])
+            spy = yf.download('SPY', period='5d', progress=False)
+            if len(spy) > 0:
+                spy_price = float(spy['Close'].iloc[-1].iloc[0])
         except Exception:
             pass
 
@@ -1630,7 +1630,7 @@ class COMPASSLive:
             'status': 'active',
             'portfolio_start': round(portfolio.total_value, 2),
             'portfolio_end': None,
-            'spy_start': round(gspc_price, 2) if gspc_price else None,
+            'spy_start': round(spy_price, 2) if spy_price else None,
             'spy_end': None,
             'positions': current_positions,
             'positions_current': list(current_positions),
