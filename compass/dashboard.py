@@ -89,45 +89,6 @@ MARKET_CLOSE = dtime(16, 0)
 # SPY benchmark: cached start price for live test period return
 _spy_start_price = None
 
-# Moody's Aaa yield (FRED)
-_aaa_yield_rate: Optional[float] = None
-_aaa_yield_cache_time: Optional[datetime] = None
-AAA_YIELD_CACHE_SECONDS = 3600
-AAA_YIELD_FALLBACK = 4.8
-
-
-def fetch_aaa_yield() -> float:
-    """Fetch current Moody's Aaa Corporate Bond Yield from FRED. Cached 1 hour."""
-    global _aaa_yield_rate, _aaa_yield_cache_time
-    import requests as _req
-
-    now = datetime.now()
-    if _aaa_yield_rate is not None and _aaa_yield_cache_time and \
-       (now - _aaa_yield_cache_time).total_seconds() < AAA_YIELD_CACHE_SECONDS:
-        return _aaa_yield_rate
-
-    try:
-        url = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=AAA&cosd=2025-01-01&coed=2026-12-31'
-        resp = _req.get(url, timeout=10)
-        resp.raise_for_status()
-        lines = resp.text.strip().split('\n')
-        for line in reversed(lines[1:]):
-            parts = line.split(',')
-            if len(parts) == 2 and parts[1].strip() != '.':
-                try:
-                    rate = float(parts[1].strip())
-                    if 0 < rate < 20:
-                        _aaa_yield_rate = rate
-                        _aaa_yield_cache_time = now
-                        return rate
-                except ValueError:
-                    continue
-    except Exception:
-        pass
-
-    _aaa_yield_rate = AAA_YIELD_FALLBACK
-    _aaa_yield_cache_time = now
-    return _aaa_yield_rate
 
 # Broad pool (must match omnicapital_live.py)
 BROAD_POOL = [
@@ -807,11 +768,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     else:
         spy_return = None
 
-    # Cash yield (Moody's Aaa IG Corporate)
-    aaa_rate = fetch_aaa_yield()
     trading_days_elapsed = _compute_real_trading_day(state)
-    daily_yield = cash * (aaa_rate / 100 / 252) if cash > 0 else 0
-    accumulated_yield = cash * (aaa_rate / 100 / 252) * trading_days_elapsed if cash > 0 else 0
 
     return {
         'portfolio_value': round(portfolio_value, 2),
@@ -836,9 +793,6 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         'stop_events': state.get('stop_events', []),
         'timestamp': state.get('timestamp', ''),
         'uptime_minutes': state.get('stats', {}).get('uptime_minutes', 0),
-        'aaa_rate': round(aaa_rate, 2),
-        'daily_yield': round(daily_yield, 2),
-        'accumulated_yield': round(accumulated_yield, 2),
     }
 
 
@@ -1015,8 +969,8 @@ def api_cycle_log():
 
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
-            # Fetch ^GSPC (S&P 500 index) — cycle_log stores index values, not SPY ETF
-            symbols = list(positions.keys()) + ['^GSPC']
+            # Fetch SPY ETF — unified benchmark with global P&L
+            symbols = list(positions.keys()) + ['SPY']
             prices = fetch_live_prices(symbols)
 
             # Portfolio value = sum(shares * current_price) + cash
@@ -1034,12 +988,12 @@ def api_cycle_log():
                 c['portfolio_end'] = round(portfolio_now, 2)
                 c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
-            # SPY return (use ^GSPC index to match spy_start stored in cycle_log)
-            gspc_price = prices.get('^GSPC')
+            # SPY return (unified benchmark with global P&L)
+            spy_price = prices.get('SPY')
             spy_start = c.get('spy_start')
-            if gspc_price and spy_start and spy_start > 0:
-                c['spy_end'] = round(gspc_price, 2)
-                c['spy_return'] = round((gspc_price / spy_start - 1) * 100, 2)
+            if spy_price and spy_start and spy_start > 0:
+                c['spy_end'] = round(spy_price, 2)
+                c['spy_return'] = round((spy_price / spy_start - 1) * 100, 2)
 
             # Alpha
             if c.get('compass_return') is not None and c.get('spy_return') is not None:

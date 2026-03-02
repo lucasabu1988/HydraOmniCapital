@@ -200,8 +200,7 @@ function updatePreclose(preclose) {
 }
 
 function updateCards(p) {
-    const yieldAdj = p.accumulated_yield || 0;
-    const adjPortfolio = p.portfolio_value + yieldAdj;
+    const adjPortfolio = p.portfolio_value;
     const adjReturn = ((adjPortfolio - p.initial_capital) / p.initial_capital * 100);
     const total = document.getElementById('card-total');
     total.textContent = fmt$(adjPortfolio);
@@ -231,24 +230,11 @@ function updateCards(p) {
     document.getElementById('card-positions').textContent = p.num_positions + ' / ' + p.max_positions;
     var regimeLabel = p.regime === 'RISK_ON' ? 'Risk On' : 'Risk Off';
     document.getElementById('card-maxpos').textContent = regimeLabel + (p.in_protection ? ' | DD Scaling' : '');
-
-    // Cash yield (Aaa IG Corporate)
-    const yd = document.getElementById('yield-daily');
-    if (p.daily_yield != null) {
-        yd.textContent = '+$' + p.daily_yield.toFixed(2) + '/d';
-        yd.className = 'metric-value c-green';
-    }
-    const ya = document.getElementById('yield-accum');
-    if (ya && p.accumulated_yield != null) {
-        ya.textContent = 'Acum: +$' + p.accumulated_yield.toFixed(2) + ' (' + (p.aaa_rate || 0).toFixed(1) + '%)';
-    }
 }
 
 
 function updatePerfBanner(p) {
-    /* COMPASS side — include accumulated cash yield in P&L */
-    const yieldAdj = p.accumulated_yield || 0;
-    const adjPortfolio = p.portfolio_value + yieldAdj;
+    const adjPortfolio = p.portfolio_value;
     const adjReturn = ((adjPortfolio - p.initial_capital) / p.initial_capital * 100);
     const compassVal = document.getElementById('perf-compass-val');
     compassVal.textContent = fmtPct(adjReturn);

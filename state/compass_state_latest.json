@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-02T10:00:37.076578",
-  "cash": 12604.64,
+  "timestamp": "2026-03-02T10:25:22.287020",
+  "cash": 28563.021789640035,
   "peak_value": 102460.29390536588,
-  "portfolio_value": 102062.04305403294,
+  "portfolio_value": 101773.11527241924,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     102441.23423810309
@@ -19,10 +19,6 @@
     "JNJ": {
       "shares": 142.8053272656006,
       "avg_cost": 245.1999969482422
-    },
-    "MU": {
-      "shares": 39.593932,
-      "avg_cost": 412.37
     },
     "CVX": {
       "shares": 82.61250956283592,
@@ -52,20 +48,11 @@
       "entry_daily_vol": 0.0089,
       "sector": "Healthcare"
     },
-    "MU": {
-      "entry_price": 412.37,
-      "entry_date": "2026-02-27",
-      "entry_day_index": 7,
-      "high_price": 417.96,
-      "entry_vol": 0.6827,
-      "entry_daily_vol": 0.043,
-      "sector": "Technology"
-    },
     "CVX": {
       "entry_price": 184.24000549316406,
       "entry_date": "2026-02-25",
       "entry_day_index": 5,
-      "high_price": 189.610107421875,
+      "high_price": 189.99000549316406,
       "entry_vol": 0.2131,
       "entry_daily_vol": 0.0134,
       "sector": "Energy"
@@ -141,7 +128,7 @@
   "_daily_open_done": true,
   "_preclose_entries_done": false,
   "stats": {
-    "cycles_completed": 29,
-    "uptime_minutes": 41.10155415
+    "cycles_completed": 21,
+    "uptime_minutes": 20.546301866666667
   }
 }
