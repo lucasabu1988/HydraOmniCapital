@@ -1040,7 +1040,7 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
 
 /* ============ CYCLE LOG ============ */
 .cycle-log {
-    margin: 0 24px 12px;
+    margin: 0 0 12px;
     border-radius: 14px;
     overflow: hidden;
     background: var(--bg-card);
