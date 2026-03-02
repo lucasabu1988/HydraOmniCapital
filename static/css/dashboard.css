@@ -1833,7 +1833,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     align-items: stretch;
     gap: 0;
     position: sticky;
-    top: 75px;
+    top: 56px;
     z-index: 198;
 }
 .page-tab {
@@ -2184,7 +2184,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .perf-vs-divider { display: none; }
     .perf-side-value { font-size: 24px; }
     .perf-vs-alpha { font-size: 20px; }
-    .page-tabs { gap: 0; }
+    .page-tabs { gap: 0; top: 48px; }
     .page-tab { padding: 10px 12px; font-size: 12px; }
 }
 @media (max-width: 480px) {
