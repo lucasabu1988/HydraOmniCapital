@@ -1054,6 +1054,59 @@ async function fetchAll() {
                 for (const pd of stateData.position_details) posDict[pd.symbol] = true;
             }
             updateUniverse(stateData.universe, posDict);
+
+            // Overlay status
+            fetch('/api/overlay-status')
+                .then(r => r.json())
+                .then(d => {
+                    if (!d.available) {
+                        document.getElementById('ov-scalar').textContent = 'OFF';
+                        document.getElementById('ov-tag').textContent = 'Unavailable';
+                        document.getElementById('ov-tag').className = 'regime-band-tag';
+                        return;
+                    }
+                    const scalar = d.capital_scalar;
+                    document.getElementById('ov-scalar').textContent = scalar.toFixed(2);
+
+                    const tag = document.getElementById('ov-tag');
+                    tag.textContent = d.scalar_label;
+                    tag.className = 'regime-band-tag';
+                    if (d.scalar_color === 'green') tag.style.cssText = 'color:var(--green); background:var(--green-dim);';
+                    else if (d.scalar_color === 'yellow') tag.style.cssText = 'color:var(--yellow); background:var(--yellow-dim);';
+                    else tag.style.cssText = 'color:var(--red); background:var(--red-dim);';
+
+                    const colorVal = v => v >= 0.90 ? 'var(--green)' : v >= 0.60 ? 'var(--yellow)' : 'var(--red)';
+                    const bso = d.per_overlay.bso;
+                    const m2 = d.per_overlay.m2;
+                    const fomc = d.per_overlay.fomc;
+
+                    const bsoEl = document.getElementById('ov-bso');
+                    bsoEl.textContent = bso.toFixed(2);
+                    bsoEl.style.color = colorVal(bso);
+
+                    const m2El = document.getElementById('ov-m2');
+                    m2El.textContent = m2.toFixed(2);
+                    m2El.style.color = colorVal(m2);
+
+                    const fomcEl = document.getElementById('ov-fomc');
+                    fomcEl.textContent = fomc.toFixed(2);
+                    fomcEl.style.color = colorVal(fomc);
+
+                    const fedEl = document.getElementById('ov-fed');
+                    fedEl.textContent = d.fed_emergency_active ? 'ACTIVE' : 'Inactive';
+                    fedEl.style.color = d.fed_emergency_active ? 'var(--red)' : 'var(--text-muted)';
+
+                    const creditEl = document.getElementById('ov-credit');
+                    const excluded = d.credit_filter.excluded_sectors;
+                    if (excluded && excluded.length > 0) {
+                        creditEl.textContent = excluded.join(', ');
+                        creditEl.style.color = 'var(--red)';
+                    } else {
+                        creditEl.textContent = 'Clear';
+                        creditEl.style.color = 'var(--green)';
+                    }
+                })
+                .catch(() => {});
         }
     } catch (err) {
         console.error('Fetch error:', err);

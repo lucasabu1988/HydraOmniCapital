@@ -2056,6 +2056,49 @@ def api_engine_status():
     return jsonify(_engine_status)
 
 
+@app.route('/api/overlay-status')
+def api_overlay_status():
+    """Return current overlay signals and diagnostics."""
+    state = read_state()
+    if not state:
+        return jsonify({'available': False, 'error': 'No state file'})
+
+    overlay = state.get('overlay', {})
+
+    # Color coding for scalar
+    scalar = overlay.get('capital_scalar', 1.0)
+    if scalar >= 0.90:
+        scalar_color = 'green'
+        scalar_label = 'Normal'
+    elif scalar >= 0.60:
+        scalar_color = 'yellow'
+        scalar_label = 'Cautious'
+    else:
+        scalar_color = 'red'
+        scalar_label = 'Stressed'
+
+    per_overlay = overlay.get('per_overlay', {})
+    diag = overlay.get('diagnostics', {})
+
+    return jsonify({
+        'available': overlay.get('available', False),
+        'capital_scalar': scalar,
+        'scalar_color': scalar_color,
+        'scalar_label': scalar_label,
+        'position_floor': overlay.get('position_floor'),
+        'per_overlay': {
+            'bso': per_overlay.get('bso', 1.0),
+            'm2': per_overlay.get('m2', 1.0),
+            'fomc': per_overlay.get('fomc', 1.0),
+        },
+        'fed_emergency_active': bool(overlay.get('position_floor')),
+        'credit_filter': {
+            'hy_bps': diag.get('credit_filter', {}).get('hy_bps'),
+            'excluded_sectors': diag.get('credit_filter', {}).get('excluded', []),
+        },
+    })
+
+
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
