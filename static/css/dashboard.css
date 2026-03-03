@@ -2598,7 +2598,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border-radius: 8px;
     padding: 16px;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
 }
 .algo-mini-title {
     font-size: 12px; font-weight: 700;
@@ -2618,7 +2618,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
-    table-layout: fixed;
+    table-layout: auto;
 }
 .algo-params-sm td {
     padding: 5px 0;
@@ -2632,7 +2632,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     font-weight: 600;
     color: var(--accent-light);
     padding-right: 12px;
-    width: 40%;
+    white-space: nowrap;
 }
 .algo-params-sm td:last-child {
     color: var(--text-secondary);

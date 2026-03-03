@@ -391,7 +391,7 @@ function updatePositions(details) {
         }
 
         const priceChange = p.current_price - p.entry_price;
-        const priceChangeSign = priceChange >= 0 ? '+' : '';
+        const priceChangeSign = priceChange >= 0 ? '+' : '-';
 
         html += '<div class="pos-card ' + cardCls + '">' +
             /* Top: Symbol + Live Price + P&L badge */
