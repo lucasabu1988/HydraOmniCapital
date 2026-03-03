@@ -6,12 +6,12 @@
 <title>OmniCapital | COMPASS v8.4</title>
 <link rel="icon" type="image/png" href="/static/img/omnicapital_logo.png">
 <meta property="og:title" content="OmniCapital | Quantitative Momentum Strategy">
-<meta property="og:description" content="Cross-sectional momentum on S&P 500. 12.20% CAGR | 0.87 Sharpe | -31.99% MaxDD | No Leverage. 26 years backtested, 56 experiments validated.">
+<meta property="og:description" content="Cross-sectional momentum on S&P 500. 12.02% CAGR | 0.88 Sharpe | -32.56% MaxDD | No Leverage. 26 years backtested, 56 experiments validated.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="OmniCapital | COMPASS v8.4">
-<meta name="twitter:description" content="Quantitative Momentum Strategy. 12.20% CAGR, 0.87 Sharpe, -31.99% MaxDD, No Leverage. S&P 500 universe.">
-<meta name="description" content="COMPASS v8.4 — Quantitative cross-sectional momentum strategy on S&P 500. 12.20% CAGR, 0.87 Sharpe, -31.99% MaxDD, no leverage. Live dashboard.">
+<meta name="twitter:description" content="Quantitative Momentum Strategy. 12.02% CAGR, 0.88 Sharpe, -32.56% MaxDD, No Leverage. S&P 500 universe.">
+<meta name="description" content="COMPASS v8.4 — Quantitative cross-sectional momentum strategy on S&P 500. 12.02% CAGR, 0.88 Sharpe, -32.56% MaxDD, no leverage. Live dashboard.">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
@@ -118,15 +118,15 @@
     <div class="lh-tagline">Quantitative Momentum &middot; S&amp;P 500 &middot; Long-Only</div>
     <div class="lh-stats">
         <div class="lh-stat">
-            <span class="lh-stat-value green">12.20%</span>
+            <span class="lh-stat-value green">12.02%</span>
             <span class="lh-stat-label">CAGR (Bias-Corrected)</span>
         </div>
         <div class="lh-stat">
-            <span class="lh-stat-value">0.87</span>
+            <span class="lh-stat-value">0.88</span>
             <span class="lh-stat-label">Sharpe Ratio</span>
         </div>
         <div class="lh-stat">
-            <span class="lh-stat-value amber">&minus;32.0%</span>
+            <span class="lh-stat-value amber">&minus;32.6%</span>
             <span class="lh-stat-label">Max Drawdown</span>
         </div>
     </div>
@@ -204,16 +204,16 @@
                 <div class="perf-bt-bar-track">
                     <div class="perf-bt-bar-fill perf-bt-bar-compass" style="width:100%"></div>
                 </div>
-                <span class="perf-bt-val c-green">$100K &rarr; $2.0M</span>
+                <span class="perf-bt-val c-green">$100K &rarr; $1.9M</span>
             </div>
             <div class="perf-bt-stats" style="margin:2px 0 8px;">
-                <span class="perf-bt-stat" style="color:var(--green);">12.20% CAGR</span>
+                <span class="perf-bt-stat" style="color:var(--green);">12.02% CAGR</span>
                 <span class="perf-bt-sep">&middot;</span>
-                <span class="perf-bt-stat">0.87 Sharpe</span>
+                <span class="perf-bt-stat">0.88 Sharpe</span>
                 <span class="perf-bt-sep">&middot;</span>
-                <span class="perf-bt-stat">&minus;32.0% MaxDD</span>
+                <span class="perf-bt-stat">&minus;32.6% MaxDD</span>
                 <span class="perf-bt-sep">&middot;</span>
-                <span class="perf-bt-stat">23/27 positive years</span>
+                <span class="perf-bt-stat">24/27 positive years</span>
             </div>
             <div class="perf-bt-item">
                 <span class="perf-bt-name">S&amp;P 500</span>
@@ -265,7 +265,7 @@
     </div>
     <div class="metric-card">
         <div class="metric-label">CAGR Esperado</div>
-        <div class="metric-value c-accent" id="card-cagr">12.20%</div>
+        <div class="metric-value c-accent" id="card-cagr">12.02%</div>
         <div class="metric-sub" id="card-cagr-sub">Bias-corrected (v8.4) | No leverage</div>
     </div>
     <div class="metric-card">
@@ -316,6 +316,18 @@
     <div class="regime-band-right">
         <span class="regime-band-label">Consecutivos</span>
         <span class="regime-band-cons" id="rb-consecutive">--</span>
+    </div>
+</div>
+<!-- REGIME EXPLANATION -->
+<div class="regime-band anim-enter anim-d5" style="margin-top:0; border-top:1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding:0.75rem 1.2rem; flex-direction:column; gap:0.5rem;">
+    <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
+        <strong style="color:var(--text-primary);">Regime Score</strong> &mdash; Term&oacute;metro del mercado de 0 a 1. Combina <strong>tendencia</strong> (60%) &mdash; &iquest;el S&amp;P 500 viene subiendo? &mdash; con <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia? Determina cu&aacute;ntas posiciones mantener: 5 en mercado fuerte (&ge;0.65), 4 en moderado (&ge;0.50), 3 en precauci&oacute;n (&ge;0.35), 2 en mercado d&eacute;bil (&lt;0.35).
+    </p>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.4rem 1.2rem; font-size:0.72rem; color:var(--text-tertiary); line-height:1.45;">
+        <div><strong style="color:var(--accent);">Tendencia (60%)</strong> &mdash; Eval&uacute;a 3 se&ntilde;ales: precio vs media de 200d, media 50d vs 200d, y momentum de 20d. Usa una <a href="https://es.wikipedia.org/wiki/Funci%C3%B3n_sigmoide" target="_blank" rel="noopener" style="color:var(--text-secondary);">funci&oacute;n sigmoid</a> para producir un valor suave entre 0 y 1.</div>
+        <div><strong style="color:var(--accent);">Volatilidad (40%)</strong> &mdash; Mide la turbulencia de los &uacute;ltimos 10 d&iacute;as comparada con el &uacute;ltimo a&ntilde;o. M&aacute;s calma = mejor score. Un mercado vol&aacute;til reduce el n&uacute;mero de posiciones autom&aacute;ticamente.</div>
+        <div><strong style="color:var(--accent);">Bull Override</strong> &mdash; Si el S&amp;P 500 est&aacute; &gt;3% sobre su SMA200 y el momentum confirma (&gt;40%), se a&ntilde;ade +1 posici&oacute;n. Corrige 864 d&iacute;as donde la volatilidad daba una se&ntilde;al falsa de precauci&oacute;n.</div>
+        <div><strong style="color:var(--accent);">Consecutivos</strong> &mdash; N&uacute;mero de d&iacute;as seguidos en el mismo r&eacute;gimen. Un r&eacute;gimen estable por muchos d&iacute;as indica una tendencia consolidada; cambios frecuentes indican incertidumbre.</div>
     </div>
 </div>
 
@@ -627,7 +639,7 @@
             Algoritmo de momentum cross-sectional con filtro sigmoid de r&eacute;gimen, bull market override, adaptive stops, sector concentration, DD scaling suave, exit renewal, y quality filter. 56 experimentos.
         </div>
         <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> Backtest 2000-2026: <strong style="color:var(--green);">12.20% CAGR</strong>, 0.87 Sharpe (bias-corrected)</li>
+            <li><span class="rm-check checked"></span> Backtest 2000-2026: <strong style="color:var(--green);">12.02% CAGR</strong>, 0.88 Sharpe (bias-corrected, con overlay macro)</li>
             <li><span class="rm-check checked"></span> <strong>Exp40: Survivorship bias cuantificado (+4.56% sobreestimaci&oacute;n)</strong></li>
             <li><span class="rm-check checked"></span> 56 experimentos, 1,128 tickers hist&oacute;ricos validados</li>
             <li><span class="rm-check checked"></span> v8.4: Bull market override (+1 pos cuando SPY &gt; SMA200*1.03)</li>
@@ -641,7 +653,7 @@
         <div class="rm-meta">
             <div class="rm-meta-item">Inicio: <span class="rm-meta-val">2024</span></div>
             <div class="rm-meta-item">Fin: <span class="rm-meta-val">Mar 2026</span></div>
-            <div class="rm-meta-item">Resultado: <span class="rm-meta-val" style="color:var(--green);">$100K &rarr; ~$2.0M (honest v8.4)</span></div>
+            <div class="rm-meta-item">Resultado: <span class="rm-meta-val" style="color:var(--green);">$100K &rarr; ~$1.9M (honest v8.4 + overlay)</span></div>
         </div>
     </div>
 
@@ -653,13 +665,13 @@
         </div>
         <div class="rm-title">Survivorship Bias Corrected</div>
         <div class="rm-desc">
-            <strong>Exp40 COMPLETADO:</strong> Survivorship bias cuantificado usando 1,128 constituyentes hist&oacute;ricos del S&amp;P 500. CAGR v8.4: <strong>12.20%</strong> (0.87 Sharpe, -32.0% MaxDD).
+            <strong>Exp40 COMPLETADO:</strong> Survivorship bias cuantificado usando 1,128 constituyentes hist&oacute;ricos del S&amp;P 500. CAGR v8.4: <strong>12.02%</strong> (0.88 Sharpe, -32.6% MaxDD, con overlay macro).
         </div>
         <ul class="rm-checklist">
             <li><span class="rm-check checked"></span> Exp40: Descarga de 1,128 tickers hist&oacute;ricos (GitHub)</li>
             <li><span class="rm-check checked"></span> Precio de 756 acciones obtenido (72% cobertura)</li>
             <li><span class="rm-check checked"></span> Filtrado de 25 acciones con datos corruptos</li>
-            <li><span class="rm-check checked"></span> Backtest corregido: 12.20% CAGR, -32.0% MaxDD</li>
+            <li><span class="rm-check checked"></span> Backtest corregido: 12.02% CAGR, -32.6% MaxDD (con overlay macro)</li>
             <li><span class="rm-check checked"></span> Bias cuantificado: <strong>+4.56% CAGR overestimation</strong></li>
         </ul>
         <div class="rm-meta">

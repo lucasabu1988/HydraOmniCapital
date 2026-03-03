@@ -24,7 +24,7 @@
     "spy_start": 693.15,
     "spy_end": null,
     "positions": ["TXN", "JNJ", "GS", "CVX", "LLY"],
-    "positions_current": ["TXN", "JNJ", "MU", "CVX", "LLY"],
+    "positions_current": ["TXN", "JNJ", "CVX", "LLY"],
     "compass_return": null,
     "spy_return": null,
     "alpha": null,
@@ -35,6 +35,13 @@
         "replacement": "MU",
         "reason": "position_stop_adaptive",
         "return": -6.7
+      },
+      {
+        "date": "2026-03-02",
+        "stopped": "MU",
+        "replacement": null,
+        "reason": "regime_reduce",
+        "return": -2.26
       }
     ]
   }
