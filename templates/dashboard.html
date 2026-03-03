@@ -1180,11 +1180,99 @@
     </div>
 </div>
 
-<!-- SECTION 6: KEY PARAMETERS TABLE (COLLAPSIBLE) -->
+<!-- SECTION 6: MACRO OVERLAY SYSTEM (NEW) -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">06</span>
+            <span class="algo-card-title">&iquest;C&oacute;mo anticipa las crisis antes de que lleguen?</span>
+        </div>
+        <div class="algo-card-body">
+            <p>Adem&aacute;s de las protecciones internas (stops, drawdown scaling), COMPASS tiene un <strong>sistema de alerta temprana macroecon&oacute;mica</strong> que monitorea 6 indicadores de la Reserva Federal en tiempo real. Funciona como un <strong>radar meteorol&oacute;gico</strong>: detecta la tormenta antes de que llegue, y reduce autom&aacute;ticamente la exposici&oacute;n del portafolio.</p>
+
+            <div class="algo-highlight" style="margin-top: 16px;">
+                <div class="algo-highlight-badge">NUEVO</div>
+                <div class="algo-highlight-content">
+                    El overlay no modifica el algoritmo &mdash; s&oacute;lo reduce el capital asignado a nuevas posiciones cuando detecta estr&eacute;s financiero. En mercados normales, el multiplicador es <strong>1.00</strong> (sin efecto). En crisis, puede reducirse hasta <strong>0.25</strong> (solo 25% del capital normal).
+                </div>
+            </div>
+
+            <!-- 5 OVERLAY COMPONENTS -->
+            <h3 class="algo-sub-title">5 componentes del radar macro</h3>
+
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title" style="color:var(--accent);">&#9670; BSO &mdash; Estr&eacute;s Bancario</div>
+                    <p style="margin:8px 0; font-size:13px;">Combina tres indicadores de estr&eacute;s financiero del sistema bancario. Cuando los bancos est&aacute;n bajo presi&oacute;n, las acciones suelen seguir.</p>
+                    <table class="algo-params-sm">
+                        <tr><td>NFCI</td><td>Condiciones financieras nacionales (40%)</td></tr>
+                        <tr><td>STLFSI</td><td>&Iacute;ndice de estr&eacute;s de St. Louis Fed (25%)</td></tr>
+                        <tr><td>HY OAS</td><td>Spread de bonos high-yield (35%)</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title" style="color:var(--accent);">&#9670; M2 &mdash; Momentum Monetario</div>
+                    <p style="margin:8px 0; font-size:13px;">Mide la aceleraci&oacute;n del dinero en circulaci&oacute;n. Cuando la oferta monetaria se desacelera, es una se&ntilde;al de que la liquidez est&aacute; disminuyendo &mdash; viento en contra para las acciones de momentum.</p>
+                    <table class="algo-params-sm">
+                        <tr><td>Se&ntilde;al</td><td>Cambio 3 meses en crecimiento YoY de M2</td></tr>
+                        <tr><td>Umbral</td><td>&minus;1.5pp desaceleraci&oacute;n &rarr; reducir capital</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="algo-grid-2" style="margin-top:12px;">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title" style="color:var(--accent);">&#9670; FOMC &mdash; Sorpresas de la Fed</div>
+                    <p style="margin:8px 0; font-size:13px;">Detecta movimientos sorpresa en la tasa de la Reserva Federal. Un cambio no programado de &gt;25bps es una se&ntilde;al de que algo inusual est&aacute; pasando. El efecto se disipa gradualmente en 14 d&iacute;as.</p>
+                    <table class="algo-params-sm">
+                        <tr><td>Sorpresa leve</td><td>&gt;25bps en 3 d&iacute;as &rarr; capital al 75%</td></tr>
+                        <tr><td>Sorpresa fuerte</td><td>&gt;50bps en 3 d&iacute;as &rarr; capital al 50%</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title" style="color:var(--accent);">&#9670; Fed Emergency &mdash; Intervenci&oacute;n de Emergencia</div>
+                    <p style="margin:8px 0; font-size:13px;">Detecta cuando la Fed expande su balance masivamente (&gt;5% en 30 d&iacute;as), como en 2009 (QE), 2020 (COVID) y 2023 (SVB). En emergencia, el sistema mantiene un m&iacute;nimo de 2 posiciones durante 90 d&iacute;as.</p>
+                    <table class="algo-params-sm">
+                        <tr><td>Activaci&oacute;n</td><td>WALCL sube &gt;5% en 30 d&iacute;as</td></tr>
+                        <tr><td>Efecto</td><td>Piso de 2 posiciones por 90 d&iacute;as</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="algo-mini-card" style="margin-top:12px;">
+                <div class="algo-mini-title" style="color:var(--accent);">&#9670; Credit &mdash; Filtro de Sectores en Crisis</div>
+                <p style="margin:8px 0; font-size:13px;">Cuando el mercado de cr&eacute;dito colapsa (spread HY en niveles de crisis), excluye los sectores m&aacute;s vulnerables del universo de inversi&oacute;n. Esto solo se activa en eventos extremos como la crisis financiera de 2008.</p>
+                <table class="algo-params-sm">
+                    <tr><td>HY &gt; 1000bps</td><td>Excluir sector Financiero</td></tr>
+                    <tr><td>HY &gt; 1500bps</td><td>Excluir Financiero + Energ&iacute;a</td></tr>
+                </table>
+            </div>
+
+            <!-- CONDITIONAL DAMPING -->
+            <h3 class="algo-sub-title">Amortiguaci&oacute;n condicional</h3>
+            <p>Un detalle cr&iacute;tico: cuando el drawdown scaling ya est&aacute; activo (el portafolio ya est&aacute; perdiendo), el overlay solo aplica el <strong>25% de su se&ntilde;al</strong>. Esto evita reducir el capital dos veces &mdash; el drawdown scaling y el overlay trabajan juntos sin competir.</p>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Regla de amortiguaci&oacute;n</div>
+                <code class="algo-formula">Si DD-scaling activo: scalar_final = 1.0 &minus; 0.25 &times; (1.0 &minus; overlay_scalar)</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">Si el portafolio NO est&aacute; en drawdown, se usa la se&ntilde;al completa del overlay</p>
+            </div>
+
+            <!-- BACKTEST RESULTS -->
+            <h3 class="algo-sub-title">Resultados del backtest</h3>
+            <p>El overlay fue validado con walk-forward testing (2000&ndash;2019 desarrollo, 2020&ndash;2026 fuera de muestra):</p>
+            <table class="algo-params-sm">
+                <tr><td>Costo en retorno</td><td>&minus;0.20% CAGR (m&iacute;nimo)</td></tr>
+                <tr><td>Mejora en MaxDD (OOS)</td><td>De &minus;25.85% a &minus;22.13% (+3.72pp)</td></tr>
+                <tr><td>Mejora en Sharpe (OOS)</td><td>+0.021</td></tr>
+                <tr><td>Datos fuente</td><td>8 series FRED (p&uacute;blicas, sin API key)</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 7: KEY PARAMETERS TABLE (COLLAPSIBLE) -->
 <div class="algo-section">
     <div class="algo-card">
         <div class="algo-card-header" style="cursor:pointer;" onclick="var b=document.getElementById('algo-params-body');var a=document.getElementById('algo-toggle-arrow');if(b.style.display==='none'){b.style.display='block';a.textContent='▼';}else{b.style.display='none';a.textContent='▶';}">
-            <span class="algo-card-num">06</span>
+            <span class="algo-card-num">07</span>
             <span class="algo-card-title">Par&aacute;metros T&eacute;cnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);">(para expertos)</span></span>
             <span id="algo-toggle-arrow" style="margin-left:auto;font-size:14px;color:var(--text-tertiary);">&#9654;</span>
         </div>
