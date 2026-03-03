@@ -53,6 +53,18 @@ try:
 except ImportError:
     _ml_available = False
 
+# Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
+try:
+    from compass_fred_data import download_all_overlay_data
+    from compass_overlays import (
+        BankingStressOverlay, M2MomentumIndicator, FOMCSurpriseSignal,
+        FedEmergencySignal, CreditSectorPreFilter, compute_overlay_signals,
+        OVERLAY_FLOOR,
+    )
+    _overlay_available = True
+except ImportError:
+    _overlay_available = False
+
 # ============================================================================
 # LOGGING
 # ============================================================================
@@ -752,6 +764,30 @@ class COMPASSLive:
             except Exception as e:
                 logger.warning(f"ML Learning System failed to init: {e}")
 
+        # Overlay system (v3 config: BSO + M2 + FOMC + FedEmergency + CreditFilter)
+        # Cash Optimization DISABLED (loses ~1% CAGR during ZIRP)
+        self._overlay_available = False
+        self._fred_data = {}
+        self._overlays = {}
+        self._credit_filter = None
+        self._overlay_result = {}  # Latest overlay diagnostics
+        self._overlay_damping = 0.25  # Conditional damping factor
+
+        if _overlay_available:
+            try:
+                self._fred_data = download_all_overlay_data()
+                self._overlays = {
+                    'bso': BankingStressOverlay(self._fred_data),
+                    'm2': M2MomentumIndicator(self._fred_data),
+                    'fomc': FOMCSurpriseSignal(self._fred_data),
+                    'fed_emergency': FedEmergencySignal(self._fred_data),
+                }
+                self._credit_filter = CreditSectorPreFilter(self._fred_data, SECTOR_MAP)
+                self._overlay_available = True
+                logger.info("Overlay System (v3): ACTIVE — BSO + M2 + FOMC + FedEmergency + CreditFilter")
+            except Exception as e:
+                logger.warning(f"Overlay system failed to init (degrading to scalar=1.0): {e}")
+
         logger.info("=" * 70)
         logger.info("OMNICAPITAL v8.4 COMPASS - LIVE TRADING")
         logger.info("=" * 70)
@@ -771,6 +807,10 @@ class COMPASSLive:
                      f"-> same-day MOC (deadline {config['MOC_DEADLINE'].strftime('%H:%M')} ET)")
         logger.info(f"Chassis: async fetch | order timeout {config.get('ORDER_TIMEOUT_SECONDS', 300)}s | "
                      f"fill breaker {config.get('MAX_FILL_DEVIATION', 0.02):.0%} | data validation")
+        if self._overlay_available:
+            logger.info(f"Overlays: BSO + M2 + FOMC + FedEmergency + CreditFilter (damping={self._overlay_damping})")
+        else:
+            logger.info("Overlays: DISABLED (FRED data unavailable)")
 
     # ------------------------------------------------------------------
     # Market hours
@@ -829,6 +869,21 @@ class COMPASSLive:
 
         logger.info(f"Historical data refreshed: {len(self._hist_cache)} stocks")
         self._hist_date = today
+
+        # Refresh overlay FRED data (daily, uses cache if network fails)
+        if self._overlay_available:
+            try:
+                self._fred_data = download_all_overlay_data(force_refresh=True)
+                self._overlays = {
+                    'bso': BankingStressOverlay(self._fred_data),
+                    'm2': M2MomentumIndicator(self._fred_data),
+                    'fomc': FOMCSurpriseSignal(self._fred_data),
+                    'fed_emergency': FedEmergencySignal(self._fred_data),
+                }
+                self._credit_filter = CreditSectorPreFilter(self._fred_data, SECTOR_MAP)
+                logger.info("FRED overlay data refreshed")
+            except Exception as e:
+                logger.warning(f"FRED refresh failed, using cached data: {e}")
 
     def refresh_universe(self):
         """Refresh top-N universe if new year"""
@@ -917,7 +972,7 @@ class COMPASSLive:
         if self._spy_hist is not None and len(self._spy_hist) >= 200:
             spy_close = float(self._spy_hist['Close'].iloc[-1])
             sma200 = float(self._spy_hist['Close'].iloc[-200:].mean())
-        return regime_score_to_positions(
+        max_pos = regime_score_to_positions(
             self.current_regime_score,
             self.config['NUM_POSITIONS'],
             self.config['NUM_POSITIONS_RISK_OFF'],
@@ -926,6 +981,15 @@ class COMPASSLive:
             bull_threshold=self.config['BULL_OVERRIDE_THRESHOLD'],
             bull_min_score=self.config['BULL_OVERRIDE_MIN_SCORE']
         )
+
+        # Overlay: Fed Emergency position floor
+        if self._overlay_available and self._overlay_result:
+            floor = self._overlay_result.get('position_floor')
+            if floor is not None and floor > max_pos:
+                logger.info(f"Fed Emergency floor: {max_pos} -> {floor} positions")
+                max_pos = floor
+
+        return max_pos
 
     # ------------------------------------------------------------------
     # Position exit logic (5 conditions from backtest)
@@ -1131,6 +1195,18 @@ class COMPASSLive:
             self.config['QUALITY_MAX_SINGLE_DAY']
         )
 
+        # Overlay: credit sector pre-filter (exclude Financials/Energy at crisis HY levels)
+        if self._overlay_available and self._credit_filter is not None:
+            try:
+                today = pd.Timestamp(self.get_et_now().date())
+                pre_filter_count = len(tradeable)
+                tradeable = self._credit_filter.filter_universe(tradeable, today)
+                if len(tradeable) < pre_filter_count:
+                    excluded = pre_filter_count - len(tradeable)
+                    logger.info(f"Overlay credit filter: excluded {excluded} stocks from stressed sectors")
+            except Exception as e:
+                logger.warning(f"Credit filter failed (skipping): {e}")
+
         if len(tradeable) < self.config['MIN_MOMENTUM_STOCKS']:
             logger.debug(f"Not enough tradeable stocks: {len(tradeable)}")
             return
@@ -1189,7 +1265,38 @@ class COMPASSLive:
 
         # Effective capital with leverage
         current_leverage = self.get_current_leverage()
-        effective_capital = portfolio.cash * current_leverage * 0.95
+
+        # Overlay: compute capital scalar with conditional damping
+        overlay_scalar = 1.0
+        damped_scalar = 1.0
+        if self._overlay_available and self._overlays:
+            try:
+                today = pd.Timestamp(self.get_et_now().date())
+                self._overlay_result = compute_overlay_signals(
+                    self._overlays, today, self._credit_filter
+                )
+                overlay_scalar = self._overlay_result.get('capital_scalar', 1.0)
+
+                # Conditional damping: avoid double-counting with DD-scaling
+                portfolio_val = self.broker.get_portfolio().total_value
+                drawdown = (portfolio_val - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
+                dd_lev = _dd_leverage(drawdown, self.config)
+
+                if dd_lev < 1.0:
+                    # DD-scaling active: only apply 25% of overlay reduction
+                    damped_scalar = 1.0 - self._overlay_damping * (1.0 - overlay_scalar)
+                else:
+                    # DD-scaling inactive: full overlay signal (early warning)
+                    damped_scalar = overlay_scalar
+
+                if damped_scalar < 1.0:
+                    logger.info(f"Overlay scalar={overlay_scalar:.3f} damped={damped_scalar:.3f} "
+                                f"(dd_lev={dd_lev:.2f})")
+            except Exception as e:
+                logger.warning(f"Overlay computation failed (using scalar=1.0): {e}")
+                damped_scalar = 1.0
+
+        effective_capital = portfolio.cash * current_leverage * 0.95 * damped_scalar
 
         for symbol in selected:
             price = prices.get(symbol)
@@ -1743,6 +1850,15 @@ class COMPASSLive:
             # Intraday flags (prevents duplicate trades after mid-day restart)
             '_daily_open_done': getattr(self, '_daily_open_done', False),
             '_preclose_entries_done': getattr(self, '_preclose_entries_done', False),
+
+            # Overlay diagnostics
+            'overlay': {
+                'available': self._overlay_available,
+                'capital_scalar': self._overlay_result.get('capital_scalar', 1.0) if self._overlay_result else 1.0,
+                'per_overlay': self._overlay_result.get('per_overlay_scalars', {}) if self._overlay_result else {},
+                'position_floor': self._overlay_result.get('position_floor') if self._overlay_result else None,
+                'diagnostics': self._overlay_result.get('diagnostics', {}) if self._overlay_result else {},
+            },
 
             # Stats
             'stats': {
