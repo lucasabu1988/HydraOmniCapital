@@ -1327,11 +1327,162 @@
     </div>
 </div>
 
-<!-- SECTION 7: KEY PARAMETERS TABLE (COLLAPSIBLE) -->
+<!-- SECTION 7: MACHINE LEARNING -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">07</span>
+            <span class="algo-card-title">&iquest;C&oacute;mo aprende de sus propios resultados?</span>
+        </div>
+        <div class="algo-card-body">
+            <p>COMPASS incluye un <strong>sistema de aprendizaje autom&aacute;tico progresivo</strong> que registra cada decisi&oacute;n del algoritmo (compras, ventas, posiciones descartadas, cambios de r&eacute;gimen) y analiza los resultados para detectar patrones. Funciona como un <strong>diario de trading inteligente</strong>: primero observa y acumula datos, luego comienza a extraer conclusiones estad&iacute;sticas, y finalmente entrena modelos predictivos cuando tiene suficiente evidencia.</p>
+
+            <div class="algo-highlight">
+                <div class="algo-highlight-badge">NUEVO</div>
+                <div class="algo-highlight-content">
+                    El sistema ML <strong>nunca modifica el algoritmo autom&aacute;ticamente</strong>. Solo genera reportes e insights que un humano revisa. Todas las operaciones ML est&aacute;n envueltas en <code>try/except</code> &mdash; si algo falla, el motor de trading sigue funcionando sin interrupci&oacute;n.
+                </div>
+            </div>
+
+            <!-- PRINCIPIO FUNDAMENTAL -->
+            <h3 class="algo-sub-title">Principio fundamental: cero sesgo de anticipaci&oacute;n</h3>
+            <p>El error m&aacute;s com&uacute;n en machine learning financiero es el <a href="https://en.wikipedia.org/wiki/Look-ahead_bias" target="_blank" rel="noopener" style="color:var(--accent);">look-ahead bias</a> (sesgo de anticipaci&oacute;n): usar informaci&oacute;n futura para tomar decisiones pasadas. COMPASS elimina esto <strong>por construcci&oacute;n</strong>: cada registro captura &uacute;nicamente datos disponibles en el momento exacto de la decisi&oacute;n. El precio de entrada se registra antes del fill, y el resultado se registra despu&eacute;s del cierre de la posici&oacute;n.</p>
+
+            <!-- 3 FASES -->
+            <h3 class="algo-sub-title">3 fases de aprendizaje</h3>
+            <p>La cantidad de datos determina qu&eacute; tipo de an&aacute;lisis es seguro hacer. Entrenar un modelo con 10 trades es como sacar conclusiones de lanzar una moneda 10 veces &mdash; insuficiente. Por eso el sistema <strong>escala progresivamente</strong>:</p>
+
+            <div class="algo-thresholds" style="margin-bottom:16px;">
+                <div class="algo-threshold algo-th-mild-bear" style="flex:1;"><span class="algo-th-score">Fase 1</span><span class="algo-th-pos">0&ndash;63 d&iacute;as</span><span class="algo-th-label">Solo estad&iacute;sticas</span></div>
+                <div class="algo-threshold algo-th-mild-bull" style="flex:1;"><span class="algo-th-score">Fase 2</span><span class="algo-th-pos">63&ndash;252 d&iacute;as</span><span class="algo-th-label">Modelos ligeros</span></div>
+                <div class="algo-threshold algo-th-bull" style="flex:1;"><span class="algo-th-score">Fase 3</span><span class="algo-th-pos">252+ d&iacute;as</span><span class="algo-th-label">ML supervisado</span></div>
+            </div>
+
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Fase 1 &mdash; Observar (0&ndash;63 d&iacute;as)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Qu&eacute; hace</td><td>Registra cada decisi&oacute;n y calcula estad&iacute;sticas descriptivas</td></tr>
+                        <tr><td>An&aacute;lisis</td><td>Retorno medio, tasa de acierto, tasa de stop, desglose por r&eacute;gimen/sector/volatilidad</td></tr>
+                        <tr><td>Confianza</td><td>Intervalos bootstrap (2,000 remuestreos, IC 95%)</td></tr>
+                        <tr><td>Modelos</td><td>Ninguno &mdash; datos insuficientes para ML</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Fase 2 &mdash; Primeras se&ntilde;ales (63&ndash;252 d&iacute;as)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Regresi&oacute;n</td><td><a href="https://en.wikipedia.org/wiki/Ridge_regression" target="_blank" rel="noopener" style="color:var(--accent);">Ridge</a> (&alpha;=10.0) &mdash; fuerte regularizaci&oacute;n L2</td></tr>
+                        <tr><td>Clasificaci&oacute;n</td><td><a href="https://en.wikipedia.org/wiki/Logistic_regression" target="_blank" rel="noopener" style="color:var(--accent);">Log&iacute;stica</a> (C=0.1) &mdash; predice ganar/perder</td></tr>
+                        <tr><td>Validaci&oacute;n</td><td>3-fold cross-validation (R&sup2; y AUC)</td></tr>
+                        <tr><td>Cautela</td><td>N&lt;100: coeficientes sesgados a cero intencionalmente</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="algo-mini-card" style="margin-top:14px;">
+                <div class="algo-mini-title">Fase 3 &mdash; ML completo (252+ d&iacute;as)</div>
+                <table class="algo-params-sm">
+                    <tr><td>Modelo primario</td><td><a href="https://lightgbm.readthedocs.io/" target="_blank" rel="noopener" style="color:var(--accent);">LightGBM</a> &mdash; gradient boosting con 200 &aacute;rboles, profundidad 3, regularizaci&oacute;n L1+L2</td></tr>
+                    <tr><td>Modelo alternativo</td><td><a href="https://en.wikipedia.org/wiki/Random_forest" target="_blank" rel="noopener" style="color:var(--accent);">Random Forest</a> &mdash; 200 &aacute;rboles, profundidad 4 (si LightGBM no disponible)</td></tr>
+                    <tr><td>Validaci&oacute;n</td><td>5-fold cross-validation con R&sup2;</td></tr>
+                    <tr><td>Monitoreo</td><td>Top 10 features por importancia &mdash; detecta si las se&ntilde;ales de momentum est&aacute;n perdiendo poder</td></tr>
+                </table>
+            </div>
+
+            <!-- QUE REGISTRA -->
+            <h3 class="algo-sub-title">&iquest;Qu&eacute; registra en cada operaci&oacute;n?</h3>
+            <p>Cada vez que COMPASS toma una decisi&oacute;n, el sistema ML captura un <strong>snapshot completo</strong> del contexto: el estado del mercado, el puntaje de momentum, la volatilidad, el r&eacute;gimen, el drawdown del portafolio, y m&aacute;s. Esto crea un dataset que vincula <em>condiciones de entrada</em> con <em>resultados reales</em>.</p>
+
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Tipos de decisiones</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Compra</td><td>Acci&oacute;n seleccionada y comprada</td></tr>
+                        <tr><td>Venta</td><td>Stop, trailing, expiraci&oacute;n o reducci&oacute;n de r&eacute;gimen</td></tr>
+                        <tr><td>Descarte</td><td>Candidata no seleccionada (l&iacute;mite sector, sin cash, etc.)</td></tr>
+                        <tr><td>Hold</td><td>Posici&oacute;n revisada pero no vendida</td></tr>
+                        <tr><td>R&eacute;gimen</td><td>Cambio de r&eacute;gimen (bull &harr; bear)</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Features capturadas (30+)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Momentum</td><td>Score, rank percentil, score&sup2;</td></tr>
+                        <tr><td>Volatilidad</td><td>Vol diaria, anualizada, bucket (low/med/high)</td></tr>
+                        <tr><td>Mercado</td><td>Regime score, SPY vs SMA200, SPY vol 10d</td></tr>
+                        <tr><td>Portfolio</td><td>Drawdown, leverage, crash cooldown</td></tr>
+                        <tr><td>Sector</td><td>One-hot encoding (8 sectores)</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- RESULTADO -->
+            <h3 class="algo-sub-title">Clasificaci&oacute;n de resultados</h3>
+            <p>Cuando una posici&oacute;n se cierra, el sistema clasifica el resultado en 5 categor&iacute;as y calcula el <strong>alfa vs S&amp;P 500</strong> durante el per&iacute;odo de tenencia:</p>
+
+            <div class="algo-thresholds" style="margin-bottom:16px;">
+                <div class="algo-threshold algo-th-bull" style="flex:1;"><span class="algo-th-score">Strong Win</span><span class="algo-th-pos">&gt; +4%</span><span class="algo-th-label">Victoria clara</span></div>
+                <div class="algo-threshold algo-th-mild-bull" style="flex:1;"><span class="algo-th-score">Weak Win</span><span class="algo-th-pos">0% a +4%</span><span class="algo-th-label">Ganancia menor</span></div>
+                <div class="algo-threshold" style="flex:1; border-color:var(--text-tertiary);"><span class="algo-th-score" style="color:var(--text-tertiary);">Flat</span><span class="algo-th-pos">&asymp; 0%</span><span class="algo-th-label">Sin cambio</span></div>
+                <div class="algo-threshold algo-th-mild-bear" style="flex:1;"><span class="algo-th-score">Weak Loss</span><span class="algo-th-pos">0% a &minus;6%</span><span class="algo-th-label">P&eacute;rdida menor</span></div>
+                <div class="algo-threshold algo-th-bear" style="flex:1;"><span class="algo-th-score">Stop Loss</span><span class="algo-th-pos">&lt; &minus;6%</span><span class="algo-th-label">Stop activado</span></div>
+            </div>
+
+            <!-- STOP OPTIMIZER -->
+            <h3 class="algo-sub-title">Optimizador de stops</h3>
+            <p>Un m&oacute;dulo especializado analiza los patrones de stop loss agrupados por <strong>bucket de volatilidad</strong> (baja &lt;1.5%, media, alta &gt;3%). Si detecta que los stops se activan con demasiada frecuencia en un bucket, sugiere aflojar el l&iacute;mite; si se activan muy poco, sugiere ajustarlo. Tambi&eacute;n detecta si los stops est&aacute;n disparando por <strong>ruido intrad&iacute;a</strong> en vez de ca&iacute;das genuinas.</p>
+
+            <!-- PRINCIPIOS TEORICOS -->
+            <h3 class="algo-sub-title">Principios te&oacute;ricos</h3>
+            <table class="algo-params-sm">
+                <tr><td>Zero look-ahead</td><td>Solo datos disponibles al momento de la decisi&oacute;n. Elimina el sesgo m&aacute;s destructivo en ML financiero.</td></tr>
+                <tr><td>Hip&oacute;tesis, no hechos</td><td>Todo modelo es provisional. Los intervalos de confianza cuantifican la incertidumbre en cada estad&iacute;stica.</td></tr>
+                <tr><td>An&aacute;lisis condicional</td><td>Resultados estratificados por r&eacute;gimen + volatilidad. Evita mezclar periodos ganadores (bull) con perdedores (bear).</td></tr>
+                <tr><td>Regularizaci&oacute;n adaptativa</td><td>La fuerza de regularizaci&oacute;n escala con los datos: Ridge &alpha;=10 con pocos datos, LightGBM reg=0.1 con muchos.</td></tr>
+                <tr><td>Bootstrap CI</td><td><a href="https://en.wikipedia.org/wiki/Bootstrapping_(statistics)" target="_blank" rel="noopener" style="color:var(--accent);">Bootstrap</a> con 2,000 remuestreos para intervalos de confianza al 95% en retorno medio.</td></tr>
+                <tr><td>Escalamiento progresivo</td><td>No entrenar modelos hasta tener datos suficientes. Previene optimizaci&oacute;n prematura sobre muestras peque&ntilde;as.</td></tr>
+            </table>
+
+            <!-- FLUJO DE DATOS -->
+            <h3 class="algo-sub-title">Flujo de datos</h3>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Arquitectura del sistema ML</div>
+                <code class="algo-formula" style="font-size:11px; white-space:pre; line-height:1.6;">Motor de Trading &rarr; on_entry() / on_exit() / on_skip() &rarr; decisions.jsonl + outcomes.jsonl
+Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &rarr; insights.json</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0;">Todos los datos se almacenan en formato JSONL (append-only). Los modelos solo guardan metadatos en JSON &mdash; sin archivos binarios.</p>
+            </div>
+
+            <!-- ESTADO ACTUAL -->
+            <h3 class="algo-sub-title">Estado actual</h3>
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Progreso</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Fase actual</td><td><strong>Fase 1</strong> &mdash; Recopilando datos</td></tr>
+                        <tr><td>D&iacute;as de trading</td><td>9 de 63 necesarios para Fase 2</td></tr>
+                        <tr><td>Trades completados</td><td>2 (GS stop loss, MU regime reduce)</td></tr>
+                        <tr><td>Pr&oacute;ximo hito</td><td>Fase 2 en ~54 d&iacute;as (~2 meses)</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Datos recopilados</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Decisiones</td><td>8+ registros (entries, exits, skips)</td></tr>
+                        <tr><td>Snapshots diarios</td><td>9+ capturas del estado del portfolio</td></tr>
+                        <tr><td>Features por trade</td><td>30+ variables por cada decisi&oacute;n</td></tr>
+                        <tr><td>Ejecuci&oacute;n</td><td>Aprendizaje autom&aacute;tico cada 5 d&iacute;as</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 8: KEY PARAMETERS TABLE (COLLAPSIBLE) -->
 <div class="algo-section">
     <div class="algo-card">
         <div class="algo-card-header" style="cursor:pointer;" onclick="var b=document.getElementById('algo-params-body');var a=document.getElementById('algo-toggle-arrow');if(b.style.display==='none'){b.style.display='block';a.textContent='▼';}else{b.style.display='none';a.textContent='▶';}">
-            <span class="algo-card-num">07</span>
+            <span class="algo-card-num">08</span>
             <span class="algo-card-title">Par&aacute;metros T&eacute;cnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);">(para expertos)</span></span>
             <span id="algo-toggle-arrow" style="margin-left:auto;font-size:14px;color:var(--text-tertiary);">&#9654;</span>
         </div>
