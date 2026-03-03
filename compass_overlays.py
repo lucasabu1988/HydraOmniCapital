@@ -102,6 +102,8 @@ class M2MomentumIndicator:
 
     def __init__(self, fred_data: dict):
         self.m2 = fred_data.get('M2SL')
+        ff = fred_data.get('FEDFUNDS')
+        self.fed_funds = ff if ff is not None else fred_data.get('DFF')
 
     def compute_scalar(self, date: pd.Timestamp) -> float:
         if self.m2 is None or len(self.m2) == 0:
@@ -111,6 +113,14 @@ class M2MomentumIndicator:
         prior = self.m2[self.m2.index <= date_n]
         if len(prior) < 460:  # need ~15 months of daily data
             return 1.0
+
+        # ZIRP Guard: disable M2 overlay when Fed Funds < 1.0%
+        # During ZIRP, M2 growth is Fed policy (QE), not an organic risk signal.
+        ZIRP_THRESHOLD = 1.0
+        if self.fed_funds is not None:
+            ff_val = _get_latest(self.fed_funds, date)
+            if ff_val is not None and ff_val < ZIRP_THRESHOLD:
+                return 1.0
 
         idx = len(prior) - 1
         current_m2 = prior.iloc[idx]

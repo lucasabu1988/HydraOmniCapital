@@ -79,6 +79,24 @@ class TestM2MomentumIndicator:
         scalar = m2.compute_scalar(pd.Timestamp('2017-06-15'))
         assert scalar == 1.0, f"Normal M2 in 2017 should be 1.0, got {scalar}"
 
+    def test_zirp_guard_2010_q1(self, fred_data):
+        """During ZIRP (Jan 2010, Fed Funds ~0.12%), M2 scalar should be 1.0."""
+        m2 = M2MomentumIndicator(fred_data)
+        scalar = m2.compute_scalar(pd.Timestamp('2010-01-15'))
+        assert scalar == 1.0, f"ZIRP guard should disable M2 in Jan 2010, got {scalar}"
+
+    def test_zirp_guard_2021(self, fred_data):
+        """During ZIRP (May 2021, Fed Funds ~0.06%), M2 scalar should be 1.0."""
+        m2 = M2MomentumIndicator(fred_data)
+        scalar = m2.compute_scalar(pd.Timestamp('2021-05-15'))
+        assert scalar == 1.0, f"ZIRP guard should disable M2 in May 2021, got {scalar}"
+
+    def test_no_zirp_guard_2023(self, fred_data):
+        """During tightening (Mar 2023, Fed Funds ~4.6%), M2 scalar should still fire."""
+        m2 = M2MomentumIndicator(fred_data)
+        scalar = m2.compute_scalar(pd.Timestamp('2023-03-15'))
+        assert scalar < 1.0, f"M2 should still restrict in Mar 2023 (no ZIRP), got {scalar}"
+
 
 # ============================================================================
 # FOMC Surprise Tests
