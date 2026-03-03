@@ -24,6 +24,8 @@ FRED_SERIES = {
     'M2SL':          {'start': '1959-01-01', 'desc': 'M2 Money Stock (Billions USD, SA)'},
     # FOMC Surprise
     'DFF':           {'start': '1954-07-01', 'desc': 'Federal Funds Effective Rate (%)'},
+    # M2 ZIRP Guard (context for M2 overlay)
+    'FEDFUNDS':      {'start': '1954-07-01', 'desc': 'Federal Funds Effective Rate Monthly (%)'},
     # Fed Emergency
     'WALCL':         {'start': '2002-12-18', 'desc': 'Fed Total Assets (Millions USD)'},
     # Cash Optimization

@@ -11,7 +11,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from compass_fred_data import download_all_overlay_data
+from compass_fred_data import download_all_overlay_data, download_fred_series
 from compass_overlays import (
     BankingStressOverlay, M2MomentumIndicator, FOMCSurpriseSignal,
     FedEmergencySignal, CashOptimization, CreditSectorPreFilter,
@@ -161,6 +161,25 @@ class TestCashOptimization:
         assert daily is not None
         annual_approx = daily * 252 * 100
         assert annual_approx < 0.5, f"Should be near-zero in 2012, got {annual_approx:.2f}%"
+
+
+class TestFedFundsData:
+    def test_fedfunds_in_registry(self, fred_data):
+        """FEDFUNDS should be downloaded as part of overlay data."""
+        assert 'FEDFUNDS' in fred_data, "FEDFUNDS missing from fred_data dict"
+        assert fred_data['FEDFUNDS'] is not None, "FEDFUNDS series is None"
+
+    def test_fedfunds_zirp_2010(self, fred_data):
+        """Fed Funds should be near-zero in 2010 (ZIRP)."""
+        ff = fred_data['FEDFUNDS']
+        val = ff[ff.index <= pd.Timestamp('2010-01-15')].iloc[-1]
+        assert val < 0.25, f"Fed Funds should be <0.25% in Jan 2010, got {val}"
+
+    def test_fedfunds_hiking_2023(self, fred_data):
+        """Fed Funds should be >4% in 2023 (hiking cycle)."""
+        ff = fred_data['FEDFUNDS']
+        val = ff[ff.index <= pd.Timestamp('2023-06-15')].iloc[-1]
+        assert val > 4.0, f"Fed Funds should be >4% in Jun 2023, got {val}"
 
 
 # ============================================================================
