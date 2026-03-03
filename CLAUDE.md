@@ -133,3 +133,17 @@ Before completing any code change:
 - Always commit and push when asked — no confirmation needed
 - Dashboard changes should be verified visually (Playwright screenshots)
 - Keep cloud and local dashboards in sync
+
+## Agent & Plugin Autonomy
+Agents and plugins should act **proactively** without being explicitly invoked:
+- **code-reviewer / coderabbit**: Auto-review after any significant code change
+- **code-simplifier**: Auto-simplify after implementing features or fixes
+- **pr-review-toolkit**: Auto-analyze PRs when created
+- **hookify**: Enforce rules continuously
+- **serena**: Use for semantic code navigation whenever exploring the codebase
+- **playwright**: Auto-screenshot dashboard after frontend changes
+- **verification-before-completion**: Always verify before claiming work is done
+- **systematic-debugging**: Auto-engage when errors or test failures occur
+- **brainstorming**: Auto-engage before any new feature or algorithm change
+
+Agents should intervene freely based on context — do not wait for explicit user invocation. If a plugin or agent is relevant to the current task, use it.
