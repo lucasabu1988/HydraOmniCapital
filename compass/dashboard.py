@@ -967,6 +967,21 @@ def api_cycle_log():
             if not state:
                 continue
 
+            # Check if this is the first day of the cycle (just opened today)
+            # On the first day, positions were bought at close — no real PnL yet
+            cycle_start = c.get('start_date')
+            last_trading = state.get('last_trading_date')
+            is_first_day = (cycle_start == last_trading) if cycle_start and last_trading else False
+
+            if is_first_day:
+                # Don't show PnL on the opening day — no movement has occurred
+                c['compass_return'] = 0.0
+                c['spy_return'] = 0.0
+                c['alpha'] = 0.0
+                c['portfolio_end'] = c.get('portfolio_start')
+                c['spy_end'] = c.get('spy_start')
+                continue
+
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
             # Fetch SPY ETF — unified benchmark with global P&L

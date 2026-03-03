@@ -4,8 +4,8 @@
     "start_date": "2026-02-19",
     "end_date": "2026-02-25",
     "status": "closed",
-    "portfolio_start": 100000,
-    "portfolio_end": 102460.29,
+    "portfolio_start": 100000.00,
+    "portfolio_end": 102460.01,
     "spy_start": 684.48,
     "spy_end": 693.15,
     "positions": [
@@ -25,10 +25,10 @@
     "start_date": "2026-02-25",
     "end_date": "2026-03-03",
     "status": "closed",
-    "portfolio_start": 102460.29,
-    "portfolio_end": 101575.23,
+    "portfolio_start": 102460.01,
+    "portfolio_end": 100717.26,
     "spy_start": 693.15,
-    "spy_end": 681.21,
+    "spy_end": 680.33,
     "positions": [
       "TXN",
       "JNJ",
@@ -42,9 +42,9 @@
       "CVX",
       "LLY"
     ],
-    "compass_return": -0.86,
-    "spy_return": -1.72,
-    "alpha": 0.86,
+    "compass_return": -1.70,
+    "spy_return": -1.85,
+    "alpha": 0.15,
     "stop_events": [
       {
         "date": "2026-02-27",
@@ -67,9 +67,9 @@
     "start_date": "2026-03-03",
     "end_date": null,
     "status": "active",
-    "portfolio_start": 100852.95,
+    "portfolio_start": 100717.26,
     "portfolio_end": null,
-    "spy_start": 681.21,
+    "spy_start": 680.33,
     "spy_end": null,
     "positions": [
       "MRK",

@@ -1460,6 +1460,12 @@ class COMPASSLive:
         portfolio = self.broker.get_portfolio()
         self._pre_rotation_value = portfolio.total_value
         self._pre_rotation_positions = list(self.broker.positions.keys())
+        # Deep copy position data for close-price reconstruction in _update_cycle_log
+        self._pre_rotation_positions_data = {
+            sym: {'shares': pos.shares, 'avg_cost': pos.avg_cost}
+            for sym, pos in self.broker.positions.items()
+        }
+        self._pre_rotation_cash = self.broker.cash
 
         logger.info(f"\n{'='*60}")
         logger.info(f"TRADING DAY {self.trading_day_counter} | {today}")
@@ -1585,11 +1591,51 @@ class COMPASSLive:
     # Cycle log (automatic 5-day rotation tracking)
     # ------------------------------------------------------------------
 
+    def _reconstruct_close_portfolio(self, positions_dict, cash):
+        """Reconstruct portfolio value using today's close prices.
+
+        Called after rotation to compute accurate end-of-cycle value.
+        Uses yfinance close prices for the positions that were just sold.
+        """
+        try:
+            symbols = list(positions_dict.keys())
+            if not symbols:
+                return cash
+            data = yf.download(symbols + ['SPY'], period='2d', progress=False)
+            if len(data) == 0:
+                return None
+            total = cash
+            for sym, pos in positions_dict.items():
+                shares = pos.get('shares', 0)
+                try:
+                    if len(symbols) == 1:
+                        close = float(data['Close'].iloc[-1])
+                    else:
+                        close = float(data['Close'][sym].iloc[-1])
+                    total += shares * close
+                except Exception:
+                    total += shares * pos.get('avg_cost', 0)
+            return total
+        except Exception as e:
+            logger.warning(f"Could not reconstruct close portfolio: {e}")
+            return None
+
+    def _get_spy_close(self):
+        """Get SPY close price for today (or latest available)."""
+        try:
+            spy = yf.download('SPY', period='2d', progress=False)
+            if len(spy) > 0:
+                return float(spy['Close'].iloc[-1].iloc[0])
+        except Exception as e:
+            logger.warning(f"Could not fetch SPY close: {e}")
+        return None
+
     def _update_cycle_log(self, prices: Dict[str, float]):
         """Close the active cycle and open a new one in cycle_log.json.
 
         Called automatically after a rotation (hold_expired sells + new buys).
-        Uses SPY ETF for benchmark comparison (unified with global P&L benchmark).
+        Uses close prices for all values: portfolio end = cash + sum(shares * close),
+        SPY benchmark = SPY close. Cycle N+1 start = Cycle N end (no gaps).
         """
         log_file = os.path.join('state', 'cycle_log.json')
         today = self.get_et_now().date().isoformat()
@@ -1603,31 +1649,32 @@ class COMPASSLive:
             except Exception:
                 cycles = []
 
-        # Get SPY price for benchmark (unified with global P&L)
-        spy_price = None
-        try:
-            spy = yf.download('SPY', period='5d', progress=False)
-            if len(spy) > 0:
-                spy_price = float(spy['Close'].iloc[-1].iloc[0])
-        except Exception as e:
-            logger.warning(f"Could not fetch SPY for cycle log: {e}")
+        # Reconstruct close-price portfolio value from pre-rotation positions
+        # _pre_rotation_positions_data is set in execute_new_day() with full position dicts
+        pre_rot_positions = getattr(self, '_pre_rotation_positions_data', {})
+        pre_rot_cash = getattr(self, '_pre_rotation_cash', self.broker.cash)
 
-        # Portfolio value after rotation (new positions are in)
-        portfolio = self.broker.get_portfolio()
-        new_value = portfolio.total_value
+        close_portfolio_value = self._reconstruct_close_portfolio(pre_rot_positions, pre_rot_cash)
+        if close_portfolio_value is None:
+            # Fallback: use the pre-rotation snapshot (less accurate but better than nothing)
+            close_portfolio_value = self._pre_rotation_value
+            logger.warning("Could not reconstruct close portfolio, using pre-rotation snapshot")
+
+        # SPY close price (today's close — same timing as position closes)
+        spy_close = self._get_spy_close()
 
         # Close the active cycle
         for cycle in cycles:
             if cycle.get('status') == 'active':
                 cycle['end_date'] = today
                 cycle['status'] = 'closed'
-                cycle['portfolio_end'] = round(self._pre_rotation_value, 2)
-                if spy_price and cycle.get('spy_start'):
-                    cycle['spy_end'] = round(spy_price, 2)
+                cycle['portfolio_end'] = round(close_portfolio_value, 2)
+                if spy_close and cycle.get('spy_start'):
+                    cycle['spy_end'] = round(spy_close, 2)
                     cycle['spy_return'] = round(
-                        (spy_price - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
+                        (spy_close - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
                 cycle['compass_return'] = round(
-                    (self._pre_rotation_value - cycle['portfolio_start'])
+                    (close_portfolio_value - cycle['portfolio_start'])
                     / cycle['portfolio_start'] * 100, 2)
                 if cycle.get('compass_return') is not None and cycle.get('spy_return') is not None:
                     cycle['alpha'] = round(cycle['compass_return'] - cycle['spy_return'], 2)
@@ -1639,6 +1686,10 @@ class COMPASSLive:
                            f"Alpha {cycle.get('alpha', 0):+.2f}pp | {status_str}")
                 break
 
+        # New cycle start = old cycle end (close-to-close, no gaps)
+        new_start_value = close_portfolio_value
+        new_spy_start = spy_close
+
         # Open new cycle
         new_positions = list(self.broker.positions.keys())
         next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
@@ -1648,9 +1699,9 @@ class COMPASSLive:
             'start_date': today,
             'end_date': None,
             'status': 'active',
-            'portfolio_start': round(new_value, 2),
+            'portfolio_start': round(new_start_value, 2),
             'portfolio_end': None,
-            'spy_start': round(spy_price, 2) if spy_price else None,
+            'spy_start': round(new_spy_start, 2) if new_spy_start else None,
             'spy_end': None,
             'positions': new_positions,
             'positions_current': list(new_positions),
