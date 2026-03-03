@@ -359,23 +359,23 @@
         </div>
     </div>
     <div style="display:flex; gap:1.2rem; align-items:center; flex:1; flex-wrap:wrap; padding:0.25rem 0;">
-        <div style="text-align:center;">
+        <div style="text-align:center; cursor:help;" title="Banking Stress Overlay — Composite of NFCI (40%), STLFSI (25%), and HY spread (35%). Reduces capital when financial stress indicators exceed P85-P95 thresholds.">
             <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">BSO</div>
             <div style="font-size:0.95rem; font-weight:600;" id="ov-bso">--</div>
         </div>
-        <div style="text-align:center;">
+        <div style="text-align:center; cursor:help;" title="M2 Momentum — Tracks 3-month acceleration in M2 money supply YoY growth. Negative M2MI (monetary deceleration) reduces capital allocation.">
             <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">M2</div>
             <div style="font-size:0.95rem; font-weight:600;" id="ov-m2">--</div>
         </div>
-        <div style="text-align:center;">
+        <div style="text-align:center; cursor:help;" title="FOMC Surprise — Detects unexpected Fed Funds rate moves (>25bps in 3 days). Temporarily reduces capital, decaying over 14 days.">
             <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">FOMC</div>
             <div style="font-size:0.95rem; font-weight:600;" id="ov-fomc">--</div>
         </div>
-        <div style="text-align:center;">
+        <div style="text-align:center; cursor:help;" title="Fed Emergency — Detects emergency Fed balance sheet expansion (>5% in 30 days). Sets a minimum position floor of 2 for 90 days.">
             <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Fed Emerg.</div>
             <div style="font-size:0.95rem; font-weight:600;" id="ov-fed">--</div>
         </div>
-        <div style="text-align:center;">
+        <div style="text-align:center; cursor:help;" title="Credit Sector Filter — Excludes Financials when HY spread > 1000bps, and Energy when > 1500bps (crisis-level credit stress).">
             <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Credit</div>
             <div style="font-size:0.95rem; font-weight:600;" id="ov-credit">--</div>
         </div>
