@@ -918,7 +918,7 @@ async function fetchCycleLog() {
             }
             const status = isActive
                 ? '<span class="cl-active">● ACTIVE</span>'
-                : (c.compass_return != null && c.compass_return >= 0 ? '<span class="cl-pos">✓ WIN</span>' : '<span class="cl-neg">✗ LOSS</span>');
+                : (c.alpha != null && c.alpha >= 0 ? '<span class="cl-pos">✓ WIN</span>' : '<span class="cl-neg">✗ LOSS</span>');
             html += '<tr>' +
                 '<td>#' + c.cycle + '</td>' +
                 '<td>' + period + '</td>' +

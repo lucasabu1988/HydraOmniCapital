@@ -1679,7 +1679,7 @@ class COMPASSLive:
                 if cycle.get('compass_return') is not None and cycle.get('spy_return') is not None:
                     cycle['alpha'] = round(cycle['compass_return'] - cycle['spy_return'], 2)
 
-                status_str = 'WIN' if cycle['compass_return'] >= 0 else 'LOSS'
+                status_str = 'WIN' if cycle.get('alpha', 0) >= 0 else 'LOSS'
                 logger.info(f"CYCLE #{cycle['cycle']} CLOSED: "
                            f"COMPASS {cycle['compass_return']:+.2f}% | "
                            f"S&P {cycle.get('spy_return', 0):+.2f}% | "

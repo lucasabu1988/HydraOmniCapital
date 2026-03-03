@@ -390,7 +390,7 @@ class WhatsAppNotifier:
                             new_positions: list, compass_return: float,
                             spy_return: float, alpha: float):
         """Alert on 5-day rotation with cycle summary"""
-        status = "WIN" if compass_return >= 0 else "LOSS"
+        status = "WIN" if alpha >= 0 else "LOSS"
         text = (f"ROTATION #{cycle_num} {status}\n"
                 f"COMPASS: {compass_return:+.2f}% | S&P: {spy_return:+.2f}%\n"
                 f"Alpha: {alpha:+.2f}pp\n"
