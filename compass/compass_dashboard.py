@@ -308,6 +308,12 @@ def _run_live_engine():
         _engine_status['error'] = None
         _engine_status['cycles'] = 0
 
+        # Initial state save so overlay data and fresh state are immediately available
+        try:
+            trader.save_state()
+        except Exception as e:
+            logger.warning(f"Initial state save failed: {e}")
+
         # Main loop (same as omnicapital_live.py run(), but with stop flag)
         while _engine_status['running']:
             # Kill switch
@@ -2074,11 +2080,21 @@ def api_engine_status():
 @app.route('/api/overlay-status')
 def api_overlay_status():
     """Return current overlay signals and diagnostics."""
-    state = read_state()
-    if not state:
-        return jsonify({'available': False, 'error': 'No state file'})
-
-    overlay = state.get('overlay', {})
+    # Prefer live engine data (state file may be stale after restart)
+    overlay = {}
+    if _live_engine and hasattr(_live_engine, '_overlay_available'):
+        overlay = {
+            'available': _live_engine._overlay_available,
+            'capital_scalar': _live_engine._overlay_result.get('capital_scalar', 1.0) if _live_engine._overlay_result else 1.0,
+            'per_overlay': _live_engine._overlay_result.get('per_overlay_scalars', {}) if _live_engine._overlay_result else {},
+            'position_floor': _live_engine._overlay_result.get('position_floor') if _live_engine._overlay_result else None,
+            'diagnostics': _live_engine._overlay_result.get('diagnostics', {}) if _live_engine._overlay_result else {},
+        }
+    else:
+        state = read_state()
+        if not state:
+            return jsonify({'available': False, 'error': 'No state file'})
+        overlay = state.get('overlay', {})
 
     # Color coding for scalar
     scalar = overlay.get('capital_scalar', 1.0)
