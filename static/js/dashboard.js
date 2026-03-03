@@ -888,22 +888,33 @@ async function fetchCycleLog() {
             const spyCls = c.spy_return > 0 ? 'cl-pos' : c.spy_return < 0 ? 'cl-neg' : '';
             const alphaCls = c.alpha > 0 ? 'cl-pos' : c.alpha < 0 ? 'cl-neg' : '';
             const period = c.end_date ? c.start_date + ' → ' + c.end_date : c.start_date + ' → ...';
-            // Build tickers display with stop replacements
+            // Build tickers display — use positions_current for active cycles
             var tickers = '--';
-            if (c.positions) {
+            var displayPositions = (isActive && c.positions_current) ? c.positions_current : c.positions;
+            if (displayPositions) {
                 var stops = c.stop_events || [];
-                var stoppedSet = {};
-                for (var si = 0; si < stops.length; si++) stoppedSet[stops[si].stopped] = stops[si].replacement;
-                var parts = [];
-                for (var ti = 0; ti < c.positions.length; ti++) {
-                    var tk = c.positions[ti];
-                    if (stoppedSet[tk]) {
-                        parts.push('<s style="opacity:.5">' + tk + '</s>→' + stoppedSet[tk]);
-                    } else {
-                        parts.push(tk);
-                    }
+                var stoppedTickers = [];
+                for (var si = 0; si < stops.length; si++) {
+                    stoppedTickers.push(stops[si].stopped);
+                    if (stops[si].replacement) stoppedTickers.push(stops[si].replacement + '(repl)');
                 }
-                tickers = parts.join(', ');
+                var parts = [];
+                for (var ti = 0; ti < displayPositions.length; ti++) {
+                    parts.push(displayPositions[ti]);
+                }
+                // Show stopped tickers as strikethrough prefix
+                var stoppedParts = [];
+                for (var si = 0; si < stops.length; si++) {
+                    var s = stops[si];
+                    var label = '<s style="opacity:.5">' + s.stopped + '</s>';
+                    if (s.replacement) label += '→<s style="opacity:.5">' + s.replacement + '</s>';
+                    stoppedParts.push(label);
+                }
+                if (stoppedParts.length > 0) {
+                    tickers = stoppedParts.join(', ') + ' · ' + parts.join(', ');
+                } else {
+                    tickers = parts.join(', ');
+                }
             }
             const status = isActive
                 ? '<span class="cl-active">● ACTIVE</span>'
