@@ -266,3 +266,44 @@ class TestAggregation:
             f"Calm market should have scalar >= 0.90, got {result['capital_scalar']}"
         assert result['position_floor'] is None, "No emergency in 2017"
         assert result['cash_rate_override'] is not None, "Should have T-bill rate"
+
+
+class TestVRecoveryBoost:
+    """Test the V-recovery momentum boost logic."""
+
+    def test_strong_v_recovery_boost(self):
+        """10d return >= 8% during protection should give +0.20 boost."""
+        from compass_overlay_backtest import compute_v_recovery_boost
+        boost = compute_v_recovery_boost(spy_ret_10d=0.09, spy_ret_20d=0.12, in_protection=True)
+        assert boost == 0.20, f"Expected 0.20 boost for 9% 10d return, got {boost}"
+
+    def test_moderate_recovery_boost(self):
+        """10d return 5-8% during protection should give +0.10 boost."""
+        from compass_overlay_backtest import compute_v_recovery_boost
+        boost = compute_v_recovery_boost(spy_ret_10d=0.06, spy_ret_20d=0.08, in_protection=True)
+        assert boost == 0.10, f"Expected 0.10 boost for 6% 10d return, got {boost}"
+
+    def test_sustained_recovery_boost(self):
+        """20d return >= 10% (but 10d < 8%) should give +0.15 boost."""
+        from compass_overlay_backtest import compute_v_recovery_boost
+        boost = compute_v_recovery_boost(spy_ret_10d=0.04, spy_ret_20d=0.11, in_protection=True)
+        assert boost == 0.15, f"Expected 0.15 boost for 11% 20d return, got {boost}"
+
+    def test_no_boost_outside_protection(self):
+        """No boost when not in protection mode."""
+        from compass_overlay_backtest import compute_v_recovery_boost
+        boost = compute_v_recovery_boost(spy_ret_10d=0.15, spy_ret_20d=0.20, in_protection=False)
+        assert boost == 0.0, f"Should be 0 outside protection, got {boost}"
+
+    def test_no_boost_weak_recovery(self):
+        """No boost for weak recoveries (<5% in 10d, <10% in 20d)."""
+        from compass_overlay_backtest import compute_v_recovery_boost
+        boost = compute_v_recovery_boost(spy_ret_10d=0.03, spy_ret_20d=0.06, in_protection=True)
+        assert boost == 0.0, f"Should be 0 for weak recovery, got {boost}"
+
+    def test_regime_score_capped_at_1(self):
+        """Boosted regime score should never exceed 1.0."""
+        from compass_overlay_backtest import compute_v_recovery_boost
+        boost = compute_v_recovery_boost(spy_ret_10d=0.20, spy_ret_20d=0.25, in_protection=True)
+        effective = min(1.0, 0.90 + boost)
+        assert effective == 1.0, f"Should cap at 1.0, got {effective}"

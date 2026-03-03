@@ -67,6 +67,39 @@ from compass_overlays import (
 
 
 # =============================================================================
+# V-RECOVERY MOMENTUM BOOST
+# =============================================================================
+
+V_RECOVERY_10D_STRONG = 0.08
+V_RECOVERY_10D_MODERATE = 0.05
+V_RECOVERY_20D_SUSTAINED = 0.10
+
+V_RECOVERY_BOOST_STRONG = 0.20
+V_RECOVERY_BOOST_SUSTAINED = 0.15
+V_RECOVERY_BOOST_MODERATE = 0.10
+
+
+def compute_v_recovery_boost(spy_ret_10d: float, spy_ret_20d: float,
+                              in_protection: bool) -> float:
+    """Compute regime score boost based on SPY short-term momentum.
+
+    Only active during protection mode (drawdown > -10%).
+    Returns a value to ADD to regime_score (0.0 to 0.20).
+    """
+    if not in_protection:
+        return 0.0
+
+    if spy_ret_10d >= V_RECOVERY_10D_STRONG:
+        return V_RECOVERY_BOOST_STRONG
+    elif spy_ret_20d >= V_RECOVERY_20D_SUSTAINED:
+        return V_RECOVERY_BOOST_SUSTAINED
+    elif spy_ret_10d >= V_RECOVERY_10D_MODERATE:
+        return V_RECOVERY_BOOST_MODERATE
+    else:
+        return 0.0
+
+
+# =============================================================================
 # OVERLAY-ENHANCED BACKTEST
 # =============================================================================
 
@@ -165,21 +198,33 @@ def run_backtest_overlay(price_data: Dict[str, pd.DataFrame],
         drawdown = (portfolio_value - peak_value) / peak_value if peak_value > 0 else 0
 
         # Regime
-        regime_score = compute_regime_score(spy_data, date)
-        is_risk_on = regime_score >= 0.50
-        if is_risk_on:
-            risk_on_days += 1
-        else:
-            risk_off_days += 1
+        regime_score_raw = compute_regime_score(spy_data, date)
 
-        # Leverage
+        # Leverage (compute BEFORE boost so we know if we're in protection)
         dd_leverage_val, crash_cooldown = compute_smooth_leverage(
             drawdown, portfolio_values, max(i - 1, 0), crash_cooldown
         )
         vol_leverage = compute_dynamic_leverage(spy_data, date)
         current_leverage = max(min(dd_leverage_val, vol_leverage), LEV_FLOOR)
 
-        # Max positions from regime score
+        # V-Recovery Momentum Boost: accelerate re-entry when SPY shows strong momentum
+        in_protection = dd_leverage_val < LEV_FULL
+        v_recovery_boost = 0.0
+        if in_protection and date in spy_data.index and i >= 20:
+            spy_closes = spy_data.loc[:date, 'Close']
+            if len(spy_closes) >= 21:
+                spy_ret_10d = (spy_closes.iloc[-1] / spy_closes.iloc[-11]) - 1.0
+                spy_ret_20d = (spy_closes.iloc[-1] / spy_closes.iloc[-21]) - 1.0
+                v_recovery_boost = compute_v_recovery_boost(spy_ret_10d, spy_ret_20d, in_protection)
+
+        regime_score = min(1.0, regime_score_raw + v_recovery_boost)
+        is_risk_on = regime_score >= 0.50
+        if is_risk_on:
+            risk_on_days += 1
+        else:
+            risk_off_days += 1
+
+        # Max positions from regime score (with boost applied)
         spy_trend = get_spy_trend_data(spy_data, date)
         if spy_trend is not None:
             spy_close_now, sma200_now = spy_trend
@@ -364,6 +409,7 @@ def run_backtest_overlay(price_data: Dict[str, pd.DataFrame],
             'fomc_scalar': overlay_result['per_overlay_scalars'].get('fomc', 1.0),
             'fed_emergency': 1 if position_floor is not None else 0,
             'cash_rate_daily': cash_rate_override if cash_rate_override else 0.0,
+            'v_recovery_boost': v_recovery_boost,
         })
 
         # Annual progress log
