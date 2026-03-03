@@ -1300,9 +1300,9 @@ def api_equity_comparison():
 @app.route('/api/annual-returns')
 def api_annual_returns():
     """Return COMPASS vs S&P 500 annual returns for bar chart."""
-    csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
+    csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
     if not os.path.exists(csv_path):
-        csv_path = os.path.join('backtests', 'v8_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
     if not os.path.exists(csv_path):
         return jsonify({'error': 'No backtest data'})
 

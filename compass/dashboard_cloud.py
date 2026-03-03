@@ -121,8 +121,8 @@ _spy_df = None
 def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
-    # COMPASS v8.4 bias-corrected data (12.20% CAGR, -31.99% MaxDD)
-    csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
+    # COMPASS v8.4 bias-corrected data with overlay (12.02% CAGR, -32.56% MaxDD)
+    csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
@@ -1081,7 +1081,7 @@ def api_equity():
     """Return COMPASS equity curve data (full period from 2000)."""
     df = _equity_df
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
         try:
@@ -1176,7 +1176,7 @@ def api_equity_comparison():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -1269,7 +1269,7 @@ def api_annual_returns():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_compass_daily.csv')
+        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:

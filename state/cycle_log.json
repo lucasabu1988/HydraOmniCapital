@@ -8,7 +8,13 @@
     "portfolio_end": 102460.29,
     "spy_start": 684.48,
     "spy_end": 693.15,
-    "positions": ["LRCX", "MU", "MRK", "XOM", "AMAT"],
+    "positions": [
+      "LRCX",
+      "MU",
+      "MRK",
+      "XOM",
+      "AMAT"
+    ],
     "compass_return": 2.46,
     "spy_return": 1.27,
     "alpha": 1.19,
@@ -17,17 +23,28 @@
   {
     "cycle": 2,
     "start_date": "2026-02-25",
-    "end_date": null,
-    "status": "active",
+    "end_date": "2026-03-03",
+    "status": "closed",
     "portfolio_start": 102460.29,
-    "portfolio_end": null,
+    "portfolio_end": 101575.23,
     "spy_start": 693.15,
-    "spy_end": null,
-    "positions": ["TXN", "JNJ", "GS", "CVX", "LLY"],
-    "positions_current": ["TXN", "JNJ", "CVX", "LLY"],
-    "compass_return": null,
-    "spy_return": null,
-    "alpha": null,
+    "spy_end": 681.21,
+    "positions": [
+      "TXN",
+      "JNJ",
+      "GS",
+      "CVX",
+      "LLY"
+    ],
+    "positions_current": [
+      "TXN",
+      "JNJ",
+      "CVX",
+      "LLY"
+    ],
+    "compass_return": -0.86,
+    "spy_return": -1.72,
+    "alpha": 0.86,
     "stop_events": [
       {
         "date": "2026-02-27",
@@ -44,5 +61,29 @@
         "return": -2.26
       }
     ]
+  },
+  {
+    "cycle": 3,
+    "start_date": "2026-03-03",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 100852.95,
+    "portfolio_end": null,
+    "spy_start": 681.21,
+    "spy_end": null,
+    "positions": [
+      "MRK",
+      "JNJ",
+      "AMAT"
+    ],
+    "positions_current": [
+      "MRK",
+      "JNJ",
+      "AMAT"
+    ],
+    "compass_return": null,
+    "spy_return": null,
+    "alpha": null,
+    "stop_events": []
   }
 ]

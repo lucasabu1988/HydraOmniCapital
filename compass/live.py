@@ -1,15 +1,19 @@
 """
-OmniCapital v8.2 COMPASS - Live Trading System
+OmniCapital v8.4 COMPASS - Live Trading System
 ================================================
-Sistema de trading en vivo basado en COMPASS v8.2.
+Sistema de trading en vivo basado en COMPASS v8.4.
 Porta fielmente la logica del backtest a ejecucion en tiempo real.
 
-Signal: Cross-sectional momentum (90d) + short-term reversal (5d skip)
-Regime: SPY > SMA200 = RISK_ON, SPY < SMA200 = RISK_OFF
+Signal: Risk-adjusted cross-sectional momentum (90d return / 63d vol) + short-term reversal (5d skip)
+Regime: Sigmoid composite score (SMA200 + SMA50/200 cross + 20d momentum + vol rank)
 Sizing: Inverse volatility weighting
-Leverage: Volatility targeting (auto-reduce en crisis)
-Exits: Hold time (5d) + position stop (-8%) + trailing stop (3% desde max)
-Recovery: Gradual en 3 etapas
+Leverage: Smooth drawdown scaling + volatility targeting + crash velocity brake
+Exits: Hold time (5d) + adaptive stop (vol-scaled -6% to -15%) + vol-scaled trailing stop + exit renewal for winners
+Quality: Filter extreme-vol / corrupt-data stocks from universe
+
+v8.4 improvements over v8.3:
+  - Adaptive stops: position stop = -2.5 * daily_vol (clamped -6% to -15%)
+  - Vol-scaled trailing: trailing_pct scaled by entry_vol / baseline_vol
 """
 
 import pandas as pd
@@ -27,20 +31,39 @@ from zoneinfo import ZoneInfo
 
 warnings.filterwarnings('ignore')
 
-# Ensure working directory is project root (for state/, logs/, etc.)
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-os.chdir(_PROJECT_ROOT)
-
 # Importar modulos propios
-from compass.data_feed import YahooDataFeed, MarketDataManager, HistoricalDataLoader
-from compass.broker import PaperBroker, IBKRBroker, Order, Broker, Position
+from omnicapital_data_feed import YahooDataFeed, MarketDataManager, HistoricalDataLoader
+from omnicapital_broker import PaperBroker, Order, Broker, Position
 
 # Git auto-sync (non-blocking, optional)
 try:
-    from compass.git_sync import git_sync_async
+    from git_sync import git_sync_async, git_sync_rotation
     _git_sync_available = True
 except ImportError:
-    _git_sync_available = False
+    try:
+        from compass.git_sync import git_sync_async, git_sync_rotation
+        _git_sync_available = True
+    except ImportError:
+        _git_sync_available = False
+
+# ML Learning System (non-blocking, optional)
+try:
+    from compass_ml_learning import COMPASSMLOrchestrator
+    _ml_available = True
+except ImportError:
+    _ml_available = False
+
+# Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
+try:
+    from compass_fred_data import download_all_overlay_data
+    from compass_overlays import (
+        BankingStressOverlay, M2MomentumIndicator, FOMCSurpriseSignal,
+        FedEmergencySignal, CreditSectorPreFilter, compute_overlay_signals,
+        OVERLAY_FLOOR,
+    )
+    _overlay_available = True
+except ImportError:
+    _overlay_available = False
 
 # ============================================================================
 # LOGGING
@@ -58,7 +81,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# COMPASS v8.2 PARAMETERS (identical to backtest)
+# COMPASS v8.4 PARAMETERS (identical to backtest)
 # ============================================================================
 
 CONFIG = {
@@ -67,30 +90,53 @@ CONFIG = {
     'MOMENTUM_SKIP': 5,
     'MIN_MOMENTUM_STOCKS': 20,
 
-    # Regime
-    'REGIME_SMA_PERIOD': 200,
-    'REGIME_CONFIRM_DAYS': 3,
-
     # Positions
     'NUM_POSITIONS': 5,
     'NUM_POSITIONS_RISK_OFF': 2,
     'HOLD_DAYS': 5,
 
-    # Position-level risk
-    'POSITION_STOP_LOSS': -0.08,
+    # Position-level risk (v8.4: adaptive stops)
+    'POSITION_STOP_LOSS': -0.08,           # Fallback if no entry_daily_vol available
     'TRAILING_ACTIVATION': 0.05,
     'TRAILING_STOP_PCT': 0.03,
 
-    # Portfolio-level risk
-    'PORTFOLIO_STOP_LOSS': -0.15,
+    # v8.4: Adaptive stops (vol-scaled)
+    'STOP_DAILY_VOL_MULT': 2.5,            # Stop = -2.5 * daily_vol
+    'STOP_FLOOR': -0.06,                   # Tightest stop for low-vol stocks
+    'STOP_CEILING': -0.15,                 # Widest stop for high-vol stocks
+    'TRAILING_VOL_BASELINE': 0.25,         # Baseline annualized vol for trailing scaling
 
-    # Recovery stages (time-based with regime confirmation)
-    'RECOVERY_STAGE_1_DAYS': 63,
-    'RECOVERY_STAGE_2_DAYS': 126,
+    # v8.4: Bull market override (regime recalibration)
+    'BULL_OVERRIDE_THRESHOLD': 0.03,       # SPY > SMA200 * 1.03 -> bump +1 position
+    'BULL_OVERRIDE_MIN_SCORE': 0.40,       # Only override if regime_score > this
+
+    # v8.4: Sector concentration limits
+    'MAX_PER_SECTOR': 3,                   # Max open positions per sector
+
+    # Smooth drawdown scaling
+    'DD_SCALE_TIER1': -0.10,
+    'DD_SCALE_TIER2': -0.20,
+    'DD_SCALE_TIER3': -0.35,
+    'LEV_FULL': 1.0,
+    'LEV_MID': 0.60,
+    'LEV_FLOOR': 0.30,
+    'CRASH_VEL_5D': -0.06,
+    'CRASH_VEL_10D': -0.10,
+    'CRASH_LEVERAGE': 0.15,
+    'CRASH_COOLDOWN': 10,
+
+    # Exit renewal
+    'HOLD_DAYS_MAX': 10,
+    'RENEWAL_PROFIT_MIN': 0.04,
+    'MOMENTUM_RENEWAL_THRESHOLD': 0.85,
+
+    # Quality filter
+    'QUALITY_VOL_MAX': 0.60,
+    'QUALITY_VOL_LOOKBACK': 63,
+    'QUALITY_MAX_SINGLE_DAY': 0.50,
 
     # Leverage & Vol targeting
     'TARGET_VOL': 0.15,
-    'LEVERAGE_MIN': 0.3,
     'LEVERAGE_MAX': 1.0,          # Production: no leverage (broker margin destroys value)
     'VOL_LOOKBACK': 20,
 
@@ -113,13 +159,8 @@ CONFIG = {
     'MOC_DEADLINE': time(15, 50),           # NYSE MOC deadline
 
     # Broker
-    'BROKER_TYPE': 'PAPER',       # 'PAPER' or 'IBKR'
+    'BROKER_TYPE': 'PAPER',
     'PAPER_INITIAL_CASH': 100_000,
-    'IBKR_HOST': '127.0.0.1',
-    'IBKR_PORT': 7497,            # 7497=paper, 7496=live
-    'IBKR_CLIENT_ID': 1,
-    'IBKR_MOCK': True,            # True=mock (no TWS needed), False=live
-    'MAX_ORDER_VALUE': 50_000,    # Safety: max single order value
 
     # Data feed
     'DATA_FEED': 'YAHOO',
@@ -167,6 +208,48 @@ BROAD_POOL = [
     # Telecom
     'VZ', 'T', 'TMUS', 'CMCSA',
 ]
+
+# v8.4: Sector map for concentration limits
+SECTOR_MAP = {
+    # Technology
+    'AAPL': 'Technology', 'MSFT': 'Technology', 'NVDA': 'Technology', 'GOOGL': 'Technology',
+    'META': 'Technology', 'AVGO': 'Technology', 'ADBE': 'Technology', 'CRM': 'Technology',
+    'AMD': 'Technology', 'INTC': 'Technology', 'CSCO': 'Technology', 'IBM': 'Technology',
+    'TXN': 'Technology', 'QCOM': 'Technology', 'ORCL': 'Technology', 'ACN': 'Technology',
+    'NOW': 'Technology', 'INTU': 'Technology', 'AMAT': 'Technology', 'MU': 'Technology',
+    'LRCX': 'Technology', 'SNPS': 'Technology', 'CDNS': 'Technology', 'KLAC': 'Technology',
+    'MRVL': 'Technology',
+    # Financials
+    'BRK-B': 'Financials', 'JPM': 'Financials', 'V': 'Financials', 'MA': 'Financials',
+    'BAC': 'Financials', 'WFC': 'Financials', 'GS': 'Financials', 'MS': 'Financials',
+    'AXP': 'Financials', 'BLK': 'Financials', 'SCHW': 'Financials', 'C': 'Financials',
+    'USB': 'Financials', 'PNC': 'Financials', 'TFC': 'Financials', 'CB': 'Financials',
+    'MMC': 'Financials', 'AIG': 'Financials',
+    # Healthcare
+    'UNH': 'Healthcare', 'JNJ': 'Healthcare', 'LLY': 'Healthcare', 'ABBV': 'Healthcare',
+    'MRK': 'Healthcare', 'PFE': 'Healthcare', 'TMO': 'Healthcare', 'ABT': 'Healthcare',
+    'DHR': 'Healthcare', 'AMGN': 'Healthcare', 'BMY': 'Healthcare', 'MDT': 'Healthcare',
+    'ISRG': 'Healthcare', 'SYK': 'Healthcare', 'GILD': 'Healthcare', 'REGN': 'Healthcare',
+    'VRTX': 'Healthcare', 'BIIB': 'Healthcare',
+    # Consumer
+    'AMZN': 'Consumer', 'TSLA': 'Consumer', 'WMT': 'Consumer', 'HD': 'Consumer',
+    'PG': 'Consumer', 'COST': 'Consumer', 'KO': 'Consumer', 'PEP': 'Consumer',
+    'NKE': 'Consumer', 'MCD': 'Consumer', 'DIS': 'Consumer', 'SBUX': 'Consumer',
+    'TGT': 'Consumer', 'LOW': 'Consumer', 'CL': 'Consumer', 'KMB': 'Consumer',
+    'GIS': 'Consumer', 'EL': 'Consumer', 'MO': 'Consumer', 'PM': 'Consumer',
+    # Energy
+    'XOM': 'Energy', 'CVX': 'Energy', 'COP': 'Energy', 'SLB': 'Energy',
+    'EOG': 'Energy', 'OXY': 'Energy', 'MPC': 'Energy', 'PSX': 'Energy', 'VLO': 'Energy',
+    # Industrials
+    'GE': 'Industrials', 'CAT': 'Industrials', 'BA': 'Industrials', 'HON': 'Industrials',
+    'UNP': 'Industrials', 'RTX': 'Industrials', 'LMT': 'Industrials', 'DE': 'Industrials',
+    'UPS': 'Industrials', 'FDX': 'Industrials', 'MMM': 'Industrials', 'GD': 'Industrials',
+    'NOC': 'Industrials', 'EMR': 'Industrials',
+    # Utilities
+    'NEE': 'Utilities', 'DUK': 'Utilities', 'SO': 'Utilities', 'D': 'Utilities', 'AEP': 'Utilities',
+    # Telecom
+    'VZ': 'Telecom', 'T': 'Telecom', 'TMUS': 'Telecom', 'CMCSA': 'Telecom',
+}
 
 
 # ============================================================================
@@ -272,7 +355,7 @@ class DataValidator:
 
 
 # ============================================================================
-# COMPASS v8.2 SIGNAL FUNCTIONS
+# COMPASS v8.3 SIGNAL FUNCTIONS
 # ============================================================================
 
 def compute_annual_top40(broad_pool: List[str], top_n: int = 40) -> List[str]:
@@ -306,50 +389,96 @@ def compute_annual_top40(broad_pool: List[str], top_n: int = 40) -> List[str]:
     return top_n_symbols
 
 
-def compute_live_regime(spy_hist: pd.DataFrame, sma_period: int = 200,
-                        confirm_days: int = 3) -> Tuple[bool, int, bool]:
+def _sigmoid(x: float, k: float = 15.0) -> float:
+    """Logistic sigmoid: maps (-inf, +inf) -> (0, 1)."""
+    z = float(np.clip(k * x, -20.0, 20.0))
+    return 1.0 / (1.0 + np.exp(-z))
+
+
+def compute_live_regime_score(spy_hist: pd.DataFrame) -> float:
     """
-    Compute current market regime from SPY history.
-    Returns: (is_risk_on, consecutive_count, last_raw_signal)
+    Compute continuous market regime score [0.0, 1.0] from SPY history.
+    0.0 = extreme bear, 1.0 = strong bull.
     """
-    if len(spy_hist) < sma_period + confirm_days:
-        return True, 0, True  # Default RISK_ON
+    if len(spy_hist) < 252:
+        return 0.5
 
-    close = spy_hist['Close']
-    sma = close.rolling(sma_period).mean()
+    spy_close = spy_hist['Close']
+    current = float(spy_close.iloc[-1])
 
-    # Get last N+1 days to compute confirmation
-    raw_signals = (close > sma).iloc[-confirm_days - 5:]
+    sma200 = float(spy_close.iloc[-200:].mean())
+    sma50 = float(spy_close.iloc[-50:].mean())
 
-    current_regime = True
-    consecutive = 0
-    last_raw = True
+    if sma200 <= 0:
+        return 0.5
 
-    for val in raw_signals:
-        if pd.isna(val):
-            continue
-        raw = bool(val)
-        if raw == last_raw:
-            consecutive += 1
-        else:
-            consecutive = 1
-            last_raw = raw
-        if raw != current_regime and consecutive >= confirm_days:
-            current_regime = raw
+    dist_200 = (current / sma200) - 1.0
+    sig_200 = _sigmoid(dist_200, k=15.0)
 
-    return current_regime, consecutive, last_raw
+    cross = (sma50 / sma200) - 1.0 if sma200 > 0 else 0.0
+    sig_cross = _sigmoid(cross, k=30.0)
+
+    if len(spy_close) >= 21:
+        price_20d_ago = float(spy_close.iloc[-21])
+        sig_mom = _sigmoid((current / price_20d_ago) - 1.0, k=15.0) if price_20d_ago > 0 else 0.5
+    else:
+        sig_mom = 0.5
+
+    trend_score = (sig_200 + sig_cross + sig_mom) / 3.0
+
+    returns = spy_close.pct_change().dropna()
+    vol_score = 0.5
+    if len(returns) >= 262:
+        current_vol = float(returns.iloc[-10:].std() * np.sqrt(252))
+        rolling_vol = returns.iloc[-252:].rolling(window=10).std() * np.sqrt(252)
+        rolling_vol = rolling_vol.dropna()
+        if len(rolling_vol) >= 20 and current_vol > 0:
+            pct_rank = float((rolling_vol <= current_vol).sum()) / len(rolling_vol)
+            vol_score = 1.0 - pct_rank
+
+    composite = 0.60 * trend_score + 0.40 * vol_score
+    return float(np.clip(composite, 0.0, 1.0))
+
+
+def regime_score_to_positions(regime_score: float,
+                               num_positions: int = 5,
+                               num_positions_risk_off: int = 2,
+                               spy_close: Optional[float] = None,
+                               sma200: Optional[float] = None,
+                               bull_threshold: float = 0.03,
+                               bull_min_score: float = 0.40) -> int:
+    """Convert continuous regime score to number of positions.
+    v8.4: Bull market override -- when SPY is >3% above SMA200 and score > 0.40,
+    bump positions by +1 (capped at max). Prevents vol spikes from
+    reducing positions during confirmed uptrends.
+    """
+    if regime_score >= 0.65:
+        base = num_positions
+    elif regime_score >= 0.50:
+        base = max(num_positions - 1, num_positions_risk_off + 1)
+    elif regime_score >= 0.35:
+        base = max(num_positions - 2, num_positions_risk_off + 1)
+    else:
+        base = num_positions_risk_off
+
+    # v8.4 Bull override: +1 position when SPY clearly above SMA200
+    if (spy_close is not None and sma200 is not None
+            and sma200 > 0 and regime_score > bull_min_score):
+        pct_above = (spy_close / sma200) - 1.0
+        if pct_above >= bull_threshold:
+            base = min(base + 1, num_positions)
+
+    return base
 
 
 def compute_momentum_scores(hist_data: Dict[str, pd.DataFrame],
                             tradeable: List[str],
                             lookback: int = 90,
                             skip: int = 5) -> Dict[str, float]:
-    """
-    Compute cross-sectional momentum score for each stock.
-    Score = momentum_90d - skip_5d (high = strong trend + recent pullback)
-    """
+    """Compute risk-adjusted momentum score (return / realized vol)."""
     scores = {}
     needed = lookback + skip
+    RISK_ADJ_VOL_WINDOW = 63
 
     for symbol in tradeable:
         if symbol not in hist_data:
@@ -365,9 +494,24 @@ def compute_momentum_scores(hist_data: Dict[str, pd.DataFrame],
         if close_lookback <= 0 or close_skip <= 0 or close_today <= 0:
             continue
 
-        momentum_90d = (close_skip / close_lookback) - 1.0
+        momentum_raw = (close_skip / close_lookback) - 1.0
         skip_5d = (close_today / close_skip) - 1.0
-        scores[symbol] = momentum_90d - skip_5d
+        raw_score = momentum_raw - skip_5d
+
+        # Risk adjustment
+        vol_window = min(RISK_ADJ_VOL_WINDOW, len(df) - 2)
+        if vol_window >= 20:
+            returns = df['Close'].iloc[-(vol_window + 1):].pct_change().dropna()
+            if len(returns) >= 15:
+                ann_vol = float(returns.std() * (252 ** 0.5))
+                if ann_vol > 0.01:
+                    scores[symbol] = raw_score / ann_vol
+                else:
+                    scores[symbol] = raw_score
+            else:
+                scores[symbol] = raw_score
+        else:
+            scores[symbol] = raw_score
 
     return scores
 
@@ -401,9 +545,107 @@ def compute_volatility_weights(hist_data: Dict[str, pd.DataFrame],
     return {s: w / total for s, w in raw_weights.items()}
 
 
+def compute_quality_filter(hist_data: Dict[str, pd.DataFrame],
+                           tradeable: List[str],
+                           vol_max: float = 0.60,
+                           vol_lookback: int = 63,
+                           max_single_day: float = 0.50) -> List[str]:
+    """Filter out stocks with extreme vol or data corruption."""
+    passed = []
+    for symbol in tradeable:
+        if symbol not in hist_data:
+            continue
+        df = hist_data[symbol]
+        if len(df) < vol_lookback + 2:
+            passed.append(symbol)
+            continue
+        rets = df['Close'].iloc[-(vol_lookback + 1):].pct_change().dropna()
+        if len(rets) < vol_lookback - 5:
+            passed.append(symbol)
+            continue
+        if float(rets.abs().max()) > max_single_day:
+            continue
+        ann_vol = float(rets.std() * np.sqrt(252))
+        if ann_vol <= vol_max:
+            passed.append(symbol)
+    if len(passed) < 5:
+        return tradeable
+    return passed
+
+
+# ============================================================================
+# v8.4: ADAPTIVE STOPS
+# ============================================================================
+
+def compute_adaptive_stop(entry_daily_vol: float, config: Dict) -> float:
+    """
+    v8.4: Compute adaptive position stop loss based on entry-time daily volatility.
+    Stop = max(CEILING, min(FLOOR, -MULT * daily_vol))
+
+    Examples (MULT=2.5, FLOOR=-6%, CEILING=-15%):
+      Low-vol  (daily_vol=1.0%):  stop = -6.0%  (FLOOR)
+      Med-vol  (daily_vol=2.5%):  stop = -6.25%
+      Typical  (daily_vol=3.5%):  stop = -8.75%
+      High-vol (daily_vol=4.5%):  stop = -11.25%
+      Very-high (daily_vol=6%+):  stop = -15.0% (CEILING)
+    """
+    raw_stop = -config['STOP_DAILY_VOL_MULT'] * entry_daily_vol
+    return max(config['STOP_CEILING'], min(config['STOP_FLOOR'], raw_stop))
+
+
+def compute_entry_vol(hist_data: Dict[str, pd.DataFrame],
+                      symbol: str, lookback: int = 20) -> Tuple[float, float]:
+    """
+    v8.4: Compute volatility for a stock at entry time using most recent data.
+    Returns (annualized_vol, daily_vol).
+    Daily vol is used for adaptive stop calculation.
+    Falls back to (0.25, 0.016) if insufficient data.
+    """
+    DEFAULT_ANN = 0.25
+    DEFAULT_DAILY = DEFAULT_ANN / np.sqrt(252)
+
+    if symbol not in hist_data:
+        return (DEFAULT_ANN, DEFAULT_DAILY)
+    df = hist_data[symbol]
+    if len(df) < lookback + 2:
+        return (DEFAULT_ANN, DEFAULT_DAILY)
+
+    returns = df['Close'].iloc[-(lookback + 1):].pct_change().dropna()
+    if len(returns) < lookback - 2:
+        return (DEFAULT_ANN, DEFAULT_DAILY)
+
+    daily_vol = float(returns.std())
+    ann_vol = daily_vol * np.sqrt(252)
+    return (max(ann_vol, 0.05), max(daily_vol, 0.003))
+
+
+def filter_by_sector_concentration(ranked_candidates: List[Tuple[str, float]],
+                                    current_positions: dict,
+                                    max_per_sector: int = 3) -> List[str]:
+    """
+    v8.4: Filter ranked candidates by sector concentration limits.
+    Iterates through ranked candidates and only selects those whose sector
+    has room (< max_per_sector positions).
+    """
+    from collections import defaultdict
+    sector_counts: Dict[str, int] = defaultdict(int)
+    for sym in current_positions:
+        sector = SECTOR_MAP.get(sym, 'Unknown')
+        sector_counts[sector] += 1
+
+    selected = []
+    for symbol, score in ranked_candidates:
+        sector = SECTOR_MAP.get(symbol, 'Unknown')
+        if sector_counts[sector] < max_per_sector:
+            selected.append(symbol)
+            sector_counts[sector] += 1
+
+    return selected
+
+
 def compute_dynamic_leverage(spy_hist: pd.DataFrame, target_vol: float = 0.15,
                              vol_lookback: int = 20,
-                             lev_min: float = 0.3, lev_max: float = 2.0) -> float:
+                             lev_min: float = 0.3, lev_max: float = 1.0) -> float:
     """
     Leverage = target_vol / realized_vol(SPY), clipped to [min, max]
     """
@@ -419,12 +661,29 @@ def compute_dynamic_leverage(spy_hist: pd.DataFrame, target_vol: float = 0.15,
     return max(lev_min, min(lev_max, leverage))
 
 
+def _dd_leverage(drawdown: float, config: Dict) -> float:
+    """Piecewise-linear drawdown leverage scaling."""
+    dd = drawdown
+    t1, t2, t3 = config['DD_SCALE_TIER1'], config['DD_SCALE_TIER2'], config['DD_SCALE_TIER3']
+    lf, lm, lfl = config['LEV_FULL'], config['LEV_MID'], config['LEV_FLOOR']
+    if dd >= t1:
+        return lf
+    elif dd >= t2:
+        frac = (dd - t1) / (t2 - t1)
+        return lf + frac * (lm - lf)
+    elif dd >= t3:
+        frac = (dd - t2) / (t3 - t2)
+        return lm + frac * (lfl - lm)
+    else:
+        return lfl
+
+
 # ============================================================================
 # LIVE TRADING SYSTEM
 # ============================================================================
 
 class COMPASSLive:
-    """COMPASS v8.2 Live Trading System"""
+    """COMPASS v8.3 Live Trading System"""
 
     def __init__(self, config: Dict):
         self.config = config
@@ -434,46 +693,27 @@ class COMPASSLive:
         # Data feed
         self.data_feed = YahooDataFeed(cache_duration=config['DATA_CACHE_DURATION'])
 
-        # Broker (config-driven: PAPER or IBKR)
-        broker_type = config.get('BROKER_TYPE', 'PAPER')
-        if broker_type == 'IBKR':
-            self.broker = IBKRBroker(
-                host=config.get('IBKR_HOST', '127.0.0.1'),
-                port=config.get('IBKR_PORT', 7497),
-                client_id=config.get('IBKR_CLIENT_ID', 1),
-                mock=config.get('IBKR_MOCK', True),
-                max_order_value=config.get('MAX_ORDER_VALUE', 50_000),
-                price_feed=self.data_feed,
-            )
-            if config.get('IBKR_MOCK', True):
-                self.broker._mock_cash = config['PAPER_INITIAL_CASH']
-            logger.info(f"Broker: IBKR ({'MOCK' if config.get('IBKR_MOCK', True) else 'LIVE'})")
-        else:
-            self.broker = PaperBroker(
-                initial_cash=config['PAPER_INITIAL_CASH'],
-                commission_per_share=config['COMMISSION_PER_SHARE'],
-                max_fill_deviation=config.get('MAX_FILL_DEVIATION', 0.02)
-            )
-            self.broker.set_price_feed(self.data_feed)
-            logger.info("Broker: PAPER")
+        # Broker
+        self.broker = PaperBroker(
+            initial_cash=config['PAPER_INITIAL_CASH'],
+            commission_per_share=config['COMMISSION_PER_SHARE'],
+            max_fill_deviation=config.get('MAX_FILL_DEVIATION', 0.02)
+        )
+        self.broker.set_price_feed(self.data_feed)
 
         # Execution strategy (chassis improvement — OFF by default)
         # Set to ExecutionStrategy instance to activate TWAP/VWAP/Passive
         # None = current MOC behavior preserved exactly
         self.execution_strategy = None
 
-        # ---- COMPASS v8.2 State ----
+        # ---- COMPASS v8.3 State ----
         # Portfolio
         self.peak_value = float(config['PAPER_INITIAL_CASH'])
-        self.in_protection = False
-        self.protection_stage = 0  # 0=none, 1=stage1(0.3x), 2=stage2(1.0x)
-        self.stop_loss_day_index = None
-        self.post_stop_base = None
+        self.crash_cooldown = 0
+        self.portfolio_values_history = []  # For crash velocity tracking
 
-        # Regime
-        self.current_regime = True  # True = RISK_ON
-        self.regime_consecutive = 0
-        self.regime_last_raw = True
+        # Regime (continuous sigmoid score)
+        self.current_regime_score = 0.5
 
         # Trading day counter (incremented each market day the system runs)
         self.trading_day_counter = 0
@@ -481,7 +721,10 @@ class COMPASSLive:
 
         # Position metadata (beyond what broker tracks)
         self.position_meta: Dict[str, dict] = {}
-        # Each: {entry_price, entry_date, entry_day_index, high_price}
+        # Each: {entry_price, entry_date, entry_day_index, original_entry_day_index, high_price}
+
+        # Cached momentum scores (for exit renewal checks)
+        self._current_scores: Dict[str, float] = {}
 
         # Universe
         self.current_universe: List[str] = []
@@ -504,24 +747,70 @@ class COMPASSLive:
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
 
+        # Cycle log tracking
+        self._pre_rotation_value = None   # portfolio value before exits
+        self._pre_rotation_positions = []  # tickers before exits
+        self._rotation_sells_today = False # did we sell hold_expired today?
+
         # Notifications (set externally)
         self.notifier = None
 
+        # ML Learning System
+        self.ml = None
+        if _ml_available:
+            try:
+                self.ml = COMPASSMLOrchestrator()
+                logger.info("ML Learning System: ACTIVE")
+            except Exception as e:
+                logger.warning(f"ML Learning System failed to init: {e}")
+
+        # Overlay system (v3 config: BSO + M2 + FOMC + FedEmergency + CreditFilter)
+        # Cash Optimization DISABLED (loses ~1% CAGR during ZIRP)
+        self._overlay_available = False
+        self._fred_data = {}
+        self._overlays = {}
+        self._credit_filter = None
+        self._overlay_result = {}  # Latest overlay diagnostics
+        self._overlay_damping = 0.25  # Conditional damping factor
+
+        if _overlay_available:
+            try:
+                self._fred_data = download_all_overlay_data()
+                self._overlays = {
+                    'bso': BankingStressOverlay(self._fred_data),
+                    'm2': M2MomentumIndicator(self._fred_data),
+                    'fomc': FOMCSurpriseSignal(self._fred_data),
+                    'fed_emergency': FedEmergencySignal(self._fred_data),
+                }
+                self._credit_filter = CreditSectorPreFilter(self._fred_data, SECTOR_MAP)
+                self._overlay_available = True
+                logger.info("Overlay System (v3): ACTIVE — BSO + M2 + FOMC + FedEmergency + CreditFilter")
+            except Exception as e:
+                logger.warning(f"Overlay system failed to init (degrading to scalar=1.0): {e}")
+
         logger.info("=" * 70)
-        logger.info("OMNICAPITAL v8.2 COMPASS - LIVE TRADING")
+        logger.info("OMNICAPITAL v8.4 COMPASS - LIVE TRADING")
         logger.info("=" * 70)
-        logger.info(f"Signal: Momentum {config['MOMENTUM_LOOKBACK']}d (skip {config['MOMENTUM_SKIP']}d)")
-        logger.info(f"Regime: SPY SMA{config['REGIME_SMA_PERIOD']} | Vol target: {config['TARGET_VOL']:.0%}")
-        logger.info(f"Hold: {config['HOLD_DAYS']}d | Pos stop: {config['POSITION_STOP_LOSS']:.0%}")
-        logger.info(f"Trailing: +{config['TRAILING_ACTIVATION']:.0%} / -{config['TRAILING_STOP_PCT']:.0%}")
-        logger.info(f"Portfolio stop: {config['PORTFOLIO_STOP_LOSS']:.0%}")
+        logger.info(f"Signal: Risk-adj momentum {config['MOMENTUM_LOOKBACK']}d (skip {config['MOMENTUM_SKIP']}d)")
+        logger.info(f"Regime: Sigmoid composite score | Vol target: {config['TARGET_VOL']:.0%}")
+        logger.info(f"Hold: {config['HOLD_DAYS']}d | Adaptive stop: {config['STOP_FLOOR']:.0%} to {config['STOP_CEILING']:.0%} (vol-scaled)")
+        logger.info(f"Trailing: +{config['TRAILING_ACTIVATION']:.0%} / -{config['TRAILING_STOP_PCT']:.0%} (vol-scaled)")
+        logger.info(f"Bull override: SPY > SMA200*{1+config['BULL_OVERRIDE_THRESHOLD']:.0%} & score>{config['BULL_OVERRIDE_MIN_SCORE']:.0%} -> +1 pos")
+        logger.info(f"Sector limit: max {config['MAX_PER_SECTOR']} positions per sector")
+        logger.info(f"DD tiers: T1={config['DD_SCALE_TIER1']:.0%} T2={config['DD_SCALE_TIER2']:.0%} T3={config['DD_SCALE_TIER3']:.0%}")
+        logger.info(f"Crash brake: 5d={config['CRASH_VEL_5D']:.0%} 10d={config['CRASH_VEL_10D']:.0%} -> {config['CRASH_LEVERAGE']:.0%} lev")
+        logger.info(f"Exit renewal: max {config['HOLD_DAYS_MAX']}d | min profit {config['RENEWAL_PROFIT_MIN']:.0%} | mom pctl {config['MOMENTUM_RENEWAL_THRESHOLD']:.0%}")
+        logger.info(f"Quality filter: vol_max={config['QUALITY_VOL_MAX']:.0%} | max_single_day={config['QUALITY_MAX_SINGLE_DAY']:.0%}")
         logger.info(f"Leverage: max {config['LEVERAGE_MAX']:.1f}x (no leverage -- broker margin destroys value)")
-        logger.info(f"Recovery: S1={config['RECOVERY_STAGE_1_DAYS']}d (0.3x), S2={config['RECOVERY_STAGE_2_DAYS']}d (1.0x)")
         logger.info(f"Universe: {len(BROAD_POOL)} broad pool -> top {config['TOP_N']}")
         logger.info(f"Execution: Pre-close signal @ {config['PRECLOSE_SIGNAL_TIME'].strftime('%H:%M')} ET "
                      f"-> same-day MOC (deadline {config['MOC_DEADLINE'].strftime('%H:%M')} ET)")
         logger.info(f"Chassis: async fetch | order timeout {config.get('ORDER_TIMEOUT_SECONDS', 300)}s | "
                      f"fill breaker {config.get('MAX_FILL_DEVIATION', 0.02):.0%} | data validation")
+        if self._overlay_available:
+            logger.info(f"Overlays: BSO + M2 + FOMC + FedEmergency + CreditFilter (damping={self._overlay_damping})")
+        else:
+            logger.info("Overlays: DISABLED (FRED data unavailable)")
 
     # ------------------------------------------------------------------
     # Market hours
@@ -581,6 +870,21 @@ class COMPASSLive:
         logger.info(f"Historical data refreshed: {len(self._hist_cache)} stocks")
         self._hist_date = today
 
+        # Refresh overlay FRED data (daily, uses cache if network fails)
+        if self._overlay_available:
+            try:
+                self._fred_data = download_all_overlay_data(force_refresh=True)
+                self._overlays = {
+                    'bso': BankingStressOverlay(self._fred_data),
+                    'm2': M2MomentumIndicator(self._fred_data),
+                    'fomc': FOMCSurpriseSignal(self._fred_data),
+                    'fed_emergency': FedEmergencySignal(self._fred_data),
+                }
+                self._credit_filter = CreditSectorPreFilter(self._fred_data, SECTOR_MAP)
+                logger.info("FRED overlay data refreshed")
+            except Exception as e:
+                logger.warning(f"FRED refresh failed, using cached data: {e}")
+
     def refresh_universe(self):
         """Refresh top-N universe if new year"""
         current_year = self.get_et_now().year
@@ -597,161 +901,106 @@ class COMPASSLive:
     # ------------------------------------------------------------------
 
     def update_regime(self):
-        """Update market regime based on SPY vs SMA200"""
-        if self._spy_hist is None or len(self._spy_hist) < self.config['REGIME_SMA_PERIOD']:
+        """Update market regime using continuous sigmoid score"""
+        if self._spy_hist is None or len(self._spy_hist) < 252:
             return
-
-        old_regime = self.current_regime
-        self.current_regime, self.regime_consecutive, self.regime_last_raw = \
-            compute_live_regime(
-                self._spy_hist,
-                self.config['REGIME_SMA_PERIOD'],
-                self.config['REGIME_CONFIRM_DAYS']
-            )
-
-        if self.current_regime != old_regime:
-            regime_str = "RISK_ON" if self.current_regime else "RISK_OFF"
-            logger.info(f"REGIME CHANGE -> {regime_str}")
+        old_score = self.current_regime_score
+        self.current_regime_score = compute_live_regime_score(self._spy_hist)
+        old_risk_on = old_score >= 0.50
+        new_risk_on = self.current_regime_score >= 0.50
+        if old_risk_on != new_risk_on:
+            regime_str = "RISK_ON" if new_risk_on else "RISK_OFF"
+            logger.info(f"REGIME CHANGE -> {regime_str} (score: {self.current_regime_score:.2f})")
             if self.notifier:
                 spy_price = self._spy_hist['Close'].iloc[-1]
-                sma = self._spy_hist['Close'].rolling(self.config['REGIME_SMA_PERIOD']).mean().iloc[-1]
-                self.notifier.send_regime_change_alert(self.current_regime, spy_price, sma)
+                sma = self._spy_hist['Close'].rolling(200).mean().iloc[-1]
+                self.notifier.send_regime_change_alert(new_risk_on, spy_price, sma)
 
     # ------------------------------------------------------------------
     # Leverage computation
     # ------------------------------------------------------------------
 
     def get_current_leverage(self) -> float:
-        """Determine current leverage based on protection/regime/vol"""
-        if self.in_protection:
-            if self.protection_stage == 1:
-                return 0.3
-            else:
-                return 1.0
-        elif not self.current_regime:  # RISK_OFF
-            return 1.0
-        else:  # RISK_ON, normal
-            if self._spy_hist is not None:
-                return compute_dynamic_leverage(
-                    self._spy_hist,
-                    self.config['TARGET_VOL'],
-                    self.config['VOL_LOOKBACK'],
-                    self.config['LEVERAGE_MIN'],
-                    self.config['LEVERAGE_MAX']
-                )
-            return 1.0
-
-    def get_max_positions(self) -> int:
-        """Determine max positions based on regime/protection"""
-        if self.in_protection:
-            if self.protection_stage == 1:
-                return 2
-            else:
-                return 3
-        elif not self.current_regime:
-            return self.config['NUM_POSITIONS_RISK_OFF']
-        else:
-            return self.config['NUM_POSITIONS']
-
-    # ------------------------------------------------------------------
-    # Recovery logic
-    # ------------------------------------------------------------------
-
-    def check_recovery(self):
-        """Check and advance recovery stages (time-based + regime)"""
-        if not self.in_protection or self.stop_loss_day_index is None:
-            return
-
-        days_since_stop = self.trading_day_counter - self.stop_loss_day_index
-
-        if self.protection_stage == 1 and \
-           days_since_stop >= self.config['RECOVERY_STAGE_1_DAYS'] and \
-           self.current_regime:
-            self.protection_stage = 2
-            portfolio = self.broker.get_portfolio()
-            logger.info(f"[RECOVERY S1] Stage 2 | Value: ${portfolio.total_value:,.0f}")
-            if self.notifier:
-                self.notifier.send_recovery_stage_alert(2, portfolio.total_value)
-
-        if self.protection_stage == 2 and \
-           days_since_stop >= self.config['RECOVERY_STAGE_2_DAYS'] and \
-           self.current_regime:
-            self.in_protection = False
-            self.protection_stage = 0
-            portfolio = self.broker.get_portfolio()
-            self.peak_value = portfolio.total_value
-            self.stop_loss_day_index = None
-            self.post_stop_base = None
-            logger.info(f"[RECOVERY S2] Full recovery | Value: ${portfolio.total_value:,.0f}")
-            if self.notifier:
-                self.notifier.send_recovery_stage_alert(0, portfolio.total_value)
-
-    # ------------------------------------------------------------------
-    # Portfolio stop loss
-    # ------------------------------------------------------------------
-
-    def check_portfolio_stop(self, prices: Dict[str, float]) -> bool:
-        """Check and execute portfolio-level stop loss"""
+        """Determine current leverage: min(dd_scaling, vol_targeting)"""
         portfolio = self.broker.get_portfolio()
         pv = portfolio.total_value
 
-        # Update peak (only when not in protection)
-        if pv > self.peak_value and not self.in_protection:
+        # Update peak
+        if pv > self.peak_value:
             self.peak_value = pv
 
         drawdown = (pv - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
 
-        if drawdown <= self.config['PORTFOLIO_STOP_LOSS'] and not self.in_protection:
-            logger.warning(f"[STOP LOSS] DD {drawdown:.1%} | Value: ${pv:,.0f}")
+        # DD scaling
+        dd_lev = _dd_leverage(drawdown, self.config)
 
-            # Close ALL positions
-            positions = self.broker.get_positions()
-            for symbol in list(positions.keys()):
-                price = prices.get(symbol)
-                if price:
-                    pos = positions[symbol]
-                    decision_px = prices.get(symbol, pos.avg_cost)
-                    order = Order(symbol=symbol, action='SELL',
-                                  quantity=pos.shares, order_type='MARKET',
-                                  decision_price=decision_px)
-                    result = self._submit_order(order, prices)
-                    if result.status == 'FILLED':
-                        meta = self.position_meta.pop(symbol, {})
-                        entry_price = meta.get('entry_price', pos.avg_cost)
-                        pnl = (result.filled_price - entry_price) * pos.shares - result.commission
-                        self.trades_today.append({
-                            'symbol': symbol, 'action': 'SELL',
-                            'exit_reason': 'portfolio_stop', 'pnl': pnl,
-                            'is_bps': result.is_bps
-                        })
-                        logger.info(f"  Closed {symbol}: PnL ${pnl:+,.0f}")
+        # Crash velocity check
+        if self.crash_cooldown > 0:
+            dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
+            self.crash_cooldown -= 1
+        elif len(self.portfolio_values_history) >= 5:
+            current_val = pv
+            val_5d = self.portfolio_values_history[-5]
+            if val_5d > 0:
+                ret_5d = (current_val / val_5d) - 1.0
+                if ret_5d <= self.config['CRASH_VEL_5D']:
+                    dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
+                    self.crash_cooldown = self.config['CRASH_COOLDOWN'] - 1
+            if self.crash_cooldown == 0 and len(self.portfolio_values_history) >= 10:
+                val_10d = self.portfolio_values_history[-10]
+                if val_10d > 0:
+                    ret_10d = (current_val / val_10d) - 1.0
+                    if ret_10d <= self.config['CRASH_VEL_10D']:
+                        dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
+                        self.crash_cooldown = self.config['CRASH_COOLDOWN'] - 1
 
-            # Enter protection
-            self.in_protection = True
-            self.protection_stage = 1
-            self.stop_loss_day_index = self.trading_day_counter
-            self.post_stop_base = self.broker.cash
+        # Vol targeting
+        vol_lev = 1.0
+        if self._spy_hist is not None:
+            vol_lev = compute_dynamic_leverage(
+                self._spy_hist, self.config['TARGET_VOL'],
+                self.config['VOL_LOOKBACK'],
+                self.config['LEV_FLOOR'], self.config['LEVERAGE_MAX']
+            )
 
-            self.stop_events.append({
-                'date': datetime.now().isoformat(),
-                'portfolio_value': pv,
-                'drawdown': drawdown
-            })
+        return max(min(dd_lev, vol_lev), self.config['LEV_FLOOR'])
 
-            if self.notifier:
-                self.notifier.send_portfolio_stop_alert(pv, drawdown, self.peak_value)
+    def get_max_positions(self) -> int:
+        """Determine max positions from regime score (v8.4: with bull override)"""
+        spy_close = None
+        sma200 = None
+        if self._spy_hist is not None and len(self._spy_hist) >= 200:
+            spy_close = float(self._spy_hist['Close'].iloc[-1])
+            sma200 = float(self._spy_hist['Close'].iloc[-200:].mean())
+        max_pos = regime_score_to_positions(
+            self.current_regime_score,
+            self.config['NUM_POSITIONS'],
+            self.config['NUM_POSITIONS_RISK_OFF'],
+            spy_close=spy_close,
+            sma200=sma200,
+            bull_threshold=self.config['BULL_OVERRIDE_THRESHOLD'],
+            bull_min_score=self.config['BULL_OVERRIDE_MIN_SCORE']
+        )
 
-            self.save_state()
-            return True
+        # Overlay: Fed Emergency position floor
+        if self._overlay_available and self._overlay_result:
+            floor = self._overlay_result.get('position_floor')
+            if floor is not None and floor > max_pos:
+                logger.info(f"Fed Emergency floor: {max_pos} -> {floor} positions")
+                max_pos = floor
 
-        return False
+        return max_pos
 
     # ------------------------------------------------------------------
     # Position exit logic (5 conditions from backtest)
     # ------------------------------------------------------------------
 
-    def check_position_exits(self, prices: Dict[str, float]):
-        """Check all 5 exit conditions for each position"""
+    def check_position_exits(self, prices: Dict[str, float],
+                             include_hold_expired: bool = False):
+        """Check exit conditions for each position.
+        Hold-expired exits only run at pre-close (15:30 ET), not at open.
+        Stops and trailing run at open + intraday.
+        """
         positions = self.broker.get_positions()
         max_positions = self.get_max_positions()
 
@@ -766,21 +1015,37 @@ class COMPASSLive:
 
             exit_reason = None
 
-            # 1. Hold time expired
-            days_held = self.trading_day_counter - meta['entry_day_index']
-            if days_held >= self.config['HOLD_DAYS']:
-                exit_reason = 'hold_expired'
+            # 1. Hold time expired (entry day counts as day 1)
+            #    Only checked at pre-close (15:30 ET) — sells + new entries together
+            days_held = self.trading_day_counter - meta['entry_day_index'] + 1
+            total_days_held = self.trading_day_counter - meta.get('original_entry_day_index', meta['entry_day_index']) + 1
+            if include_hold_expired and days_held >= self.config['HOLD_DAYS']:
+                # Check renewal for winners
+                if self._should_renew(symbol, meta, price, total_days_held):
+                    meta['entry_day_index'] = self.trading_day_counter
+                    logger.info(f"RENEWAL {symbol} @ ${price:.2f} | total days: {total_days_held}")
+                else:
+                    exit_reason = 'hold_expired'
 
-            # 2. Position stop loss (-8%)
+            # 2. Position stop loss (v8.4: adaptive, vol-scaled)
             pos_return = (price - meta['entry_price']) / meta['entry_price']
-            if pos_return <= self.config['POSITION_STOP_LOSS']:
+            entry_daily_vol = meta.get('entry_daily_vol')
+            if entry_daily_vol is not None:
+                adaptive_stop = compute_adaptive_stop(entry_daily_vol, self.config)
+            else:
+                adaptive_stop = self.config['POSITION_STOP_LOSS']  # fallback for pre-v8.4 positions
+            if pos_return <= adaptive_stop:
                 exit_reason = 'position_stop'
 
-            # 3. Trailing stop
+            # 3. Trailing stop (v8.4: vol-scaled)
             if price > meta['high_price']:
                 meta['high_price'] = price
             if meta['high_price'] > meta['entry_price'] * (1 + self.config['TRAILING_ACTIVATION']):
-                trailing_level = meta['high_price'] * (1 - self.config['TRAILING_STOP_PCT'])
+                baseline = self.config['TRAILING_VOL_BASELINE']
+                entry_vol = meta.get('entry_vol', baseline)
+                vol_ratio = entry_vol / baseline
+                scaled_trailing = self.config['TRAILING_STOP_PCT'] * vol_ratio
+                trailing_level = meta['high_price'] * (1 - scaled_trailing)
                 if price <= trailing_level:
                     exit_reason = 'trailing_stop'
 
@@ -813,6 +1078,39 @@ class COMPASSLive:
                 if result.status == 'FILLED':
                     pnl = (result.filled_price - meta['entry_price']) * pos.shares - result.commission
                     ret = pnl / (meta['entry_price'] * pos.shares) if meta['entry_price'] * pos.shares > 0 else 0
+
+                    # ML: log exit decision (before meta is popped)
+                    if self.ml:
+                        try:
+                            portfolio_now = self.broker.get_portfolio()
+                            drawdown = (portfolio_now.total_value - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
+                            self.ml.on_exit(
+                                symbol=symbol,
+                                sector=SECTOR_MAP.get(symbol, meta.get('sector', 'Unknown')),
+                                exit_reason=exit_reason,
+                                entry_price=meta['entry_price'],
+                                exit_price=result.filled_price,
+                                pnl_usd=pnl,
+                                days_held=days_held,
+                                high_price=meta['high_price'],
+                                entry_vol_ann=meta.get('entry_vol', 0.25),
+                                entry_daily_vol=meta.get('entry_daily_vol', 0.016),
+                                adaptive_stop_pct=adaptive_stop,
+                                entry_momentum_score=self._current_scores.get(symbol, 0.0),
+                                entry_momentum_rank=0.5,
+                                regime_score=self.current_regime_score,
+                                max_positions_target=max_positions,
+                                current_n_positions=len(positions),
+                                portfolio_value=portfolio_now.total_value,
+                                portfolio_drawdown=drawdown,
+                                current_leverage=self.get_current_leverage(),
+                                crash_cooldown=self.crash_cooldown,
+                                trading_day=self.trading_day_counter,
+                                spy_hist=self._spy_hist,
+                            )
+                        except Exception as e:
+                            logger.warning(f"ML exit logging failed for {symbol}: {e}")
+
                     self.position_meta.pop(symbol, None)
 
                     self.trades_today.append({
@@ -820,15 +1118,54 @@ class COMPASSLive:
                         'exit_reason': exit_reason, 'pnl': pnl, 'return': ret,
                         'price': result.filled_price, 'is_bps': result.is_bps
                     })
+
+                    # Track stop exits for cycle log update when replacement enters
+                    if exit_reason in ('position_stop', 'trailing_stop'):
+                        if not hasattr(self, '_pending_stop_exits'):
+                            self._pending_stop_exits = []
+                        self._pending_stop_exits.append({
+                            'symbol': symbol, 'reason': exit_reason, 'return': ret
+                        })
+
+                    stop_info = ""
+                    if exit_reason == 'position_stop':
+                        stop_info = f" | stop={adaptive_stop:.1%}"
+                    elif exit_reason == 'trailing_stop':
+                        stop_info = f" | trail_lvl=${trailing_level:.2f}"
                     logger.info(f"EXIT [{exit_reason}] {symbol} @ ${result.filled_price:.2f} | "
-                                f"PnL: ${pnl:+,.0f} ({ret:+.1%})")
+                                f"PnL: ${pnl:+,.0f} ({ret:+.1%}){stop_info}")
 
                     if self.notifier:
                         self.notifier.send_trade_alert('SELL', symbol, pos.shares,
                                                        result.filled_price, exit_reason, pnl)
 
+                    # Save state immediately after fill (crash protection)
+                    self.save_state()
+
                 # Refresh positions for remaining checks
                 positions = self.broker.get_positions()
+
+    def _should_renew(self, symbol: str, meta: dict, price: float, total_days: int) -> bool:
+        """Check if position should renew instead of closing."""
+        if total_days >= self.config['HOLD_DAYS_MAX']:
+            return False
+        entry_price = meta.get('entry_price', price)
+        if entry_price <= 0:
+            return False
+        pos_return = (price - entry_price) / entry_price
+        if pos_return < self.config['RENEWAL_PROFIT_MIN']:
+            return False
+        if not hasattr(self, '_current_scores') or not self._current_scores:
+            return False
+        if symbol not in self._current_scores:
+            return False
+        all_scores = sorted(self._current_scores.values(), reverse=True)
+        n = len(all_scores)
+        if n < 3:
+            return False
+        rank_above = sum(1 for s in all_scores if s > self._current_scores[symbol])
+        percentile = 1.0 - (rank_above / n)
+        return percentile >= self.config['MOMENTUM_RENEWAL_THRESHOLD']
 
     # ------------------------------------------------------------------
     # Position entry logic
@@ -850,6 +1187,25 @@ class COMPASSLive:
         # Get tradeable symbols from universe with valid data
         tradeable = [s for s in self.current_universe
                      if s in self._hist_cache and s in prices]
+        # Quality filter
+        tradeable = compute_quality_filter(
+            self._hist_cache, tradeable,
+            self.config['QUALITY_VOL_MAX'],
+            self.config['QUALITY_VOL_LOOKBACK'],
+            self.config['QUALITY_MAX_SINGLE_DAY']
+        )
+
+        # Overlay: credit sector pre-filter (exclude Financials/Energy at crisis HY levels)
+        if self._overlay_available and self._credit_filter is not None:
+            try:
+                today = pd.Timestamp(self.get_et_now().date())
+                pre_filter_count = len(tradeable)
+                tradeable = self._credit_filter.filter_universe(tradeable, today)
+                if len(tradeable) < pre_filter_count:
+                    excluded = pre_filter_count - len(tradeable)
+                    logger.info(f"Overlay credit filter: excluded {excluded} stocks from stressed sectors")
+            except Exception as e:
+                logger.warning(f"Credit filter failed (skipping): {e}")
 
         if len(tradeable) < self.config['MIN_MOMENTUM_STOCKS']:
             logger.debug(f"Not enough tradeable stocks: {len(tradeable)}")
@@ -861,6 +1217,7 @@ class COMPASSLive:
             self.config['MOMENTUM_LOOKBACK'],
             self.config['MOMENTUM_SKIP']
         )
+        self._current_scores = scores  # Cache for renewal checks
 
         # Filter out stocks already in portfolio
         available = {s: sc for s, sc in scores.items() if s not in positions}
@@ -868,9 +1225,38 @@ class COMPASSLive:
         if len(available) < needed:
             return
 
-        # Select top N by score
+        # v8.4: Select top N by score WITH sector concentration limits
         ranked = sorted(available.items(), key=lambda x: x[1], reverse=True)
-        selected = [s for s, _ in ranked[:needed]]
+        sector_filtered = filter_by_sector_concentration(
+            ranked, positions, self.config['MAX_PER_SECTOR']
+        )
+        selected = sector_filtered[:needed]
+
+        # ML: log skipped candidates (top-10 not selected)
+        if self.ml:
+            try:
+                selected_set = set(selected)
+                drawdown = (portfolio.total_value - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
+                sector_filtered_set = set(sector_filtered)
+                for rank_idx, (sym, sc) in enumerate(ranked[:20]):
+                    if sym in selected_set:
+                        continue
+                    skip_reason = 'sector_limit' if sym not in sector_filtered_set else 'not_top_n'
+                    self.ml.on_skip(
+                        symbol=sym,
+                        sector=SECTOR_MAP.get(sym, 'Unknown'),
+                        skip_reason=skip_reason,
+                        universe_rank=rank_idx + 1,
+                        momentum_score=sc,
+                        regime_score=self.current_regime_score,
+                        trading_day=self.trading_day_counter,
+                        portfolio_value=portfolio.total_value,
+                        portfolio_drawdown=drawdown,
+                        current_n_positions=len(positions),
+                        max_positions_target=max_positions,
+                    )
+            except Exception as e:
+                logger.warning(f"ML skip logging failed: {e}")
 
         # Compute inverse-vol weights
         weights = compute_volatility_weights(
@@ -879,7 +1265,38 @@ class COMPASSLive:
 
         # Effective capital with leverage
         current_leverage = self.get_current_leverage()
-        effective_capital = portfolio.cash * current_leverage * 0.95
+
+        # Overlay: compute capital scalar with conditional damping
+        overlay_scalar = 1.0
+        damped_scalar = 1.0
+        if self._overlay_available and self._overlays:
+            try:
+                today = pd.Timestamp(self.get_et_now().date())
+                self._overlay_result = compute_overlay_signals(
+                    self._overlays, today, self._credit_filter
+                )
+                overlay_scalar = self._overlay_result.get('capital_scalar', 1.0)
+
+                # Conditional damping: avoid double-counting with DD-scaling
+                portfolio_val = self.broker.get_portfolio().total_value
+                drawdown = (portfolio_val - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
+                dd_lev = _dd_leverage(drawdown, self.config)
+
+                if dd_lev < 1.0:
+                    # DD-scaling active: only apply 25% of overlay reduction
+                    damped_scalar = 1.0 - self._overlay_damping * (1.0 - overlay_scalar)
+                else:
+                    # DD-scaling inactive: full overlay signal (early warning)
+                    damped_scalar = overlay_scalar
+
+                if damped_scalar < 1.0:
+                    logger.info(f"Overlay scalar={overlay_scalar:.3f} damped={damped_scalar:.3f} "
+                                f"(dd_lev={dd_lev:.2f})")
+            except Exception as e:
+                logger.warning(f"Overlay computation failed (using scalar=1.0): {e}")
+                damped_scalar = 1.0
+
+        effective_capital = portfolio.cash * current_leverage * 0.95 * damped_scalar
 
         for symbol in selected:
             price = prices.get(symbol)
@@ -891,7 +1308,9 @@ class COMPASSLive:
             max_per_position = portfolio.cash * 0.40
             position_value = min(position_value, max_per_position)
 
-            shares = position_value / price
+            shares = int(position_value / price)  # whole shares only (IBKR requirement)
+            if shares < 1:
+                continue
             cost = shares * price
             commission = shares * self.config['COMMISSION_PER_SHARE']
 
@@ -905,11 +1324,21 @@ class COMPASSLive:
             result = self._submit_order(order, prices)
 
             if result.status == 'FILLED':
+                # v8.4: Compute entry-time vol for adaptive stops
+                entry_vol, entry_daily_vol = compute_entry_vol(
+                    self._hist_cache, symbol, self.config['VOL_LOOKBACK']
+                )
+                adaptive_stop = compute_adaptive_stop(entry_daily_vol, self.config)
+
                 self.position_meta[symbol] = {
                     'entry_price': result.filled_price,
                     'entry_date': self.get_et_now().date().isoformat(),
                     'entry_day_index': self.trading_day_counter,
+                    'original_entry_day_index': self.trading_day_counter,
                     'high_price': result.filled_price,
+                    'entry_vol': entry_vol,              # v8.4: annualized vol
+                    'entry_daily_vol': entry_daily_vol,  # v8.4: daily vol for stop calc
+                    'sector': SECTOR_MAP.get(symbol, 'Unknown'),  # v8.4: sector tracking
                 }
 
                 self.trades_today.append({
@@ -919,11 +1348,59 @@ class COMPASSLive:
                     'is_bps': result.is_bps
                 })
                 logger.info(f"ENTRY {symbol}: {shares:.1f} shares @ ${result.filled_price:.2f} "
-                            f"(${cost:,.0f} | wt={weight:.1%} | lev={current_leverage:.2f}x)")
+                            f"(${cost:,.0f} | wt={weight:.1%} | lev={current_leverage:.2f}x | "
+                            f"stop={adaptive_stop:.1%})")
 
                 if self.notifier:
                     self.notifier.send_trade_alert('BUY', symbol, shares,
                                                    result.filled_price, None, None)
+
+                # ML: log entry decision
+                if self.ml:
+                    try:
+                        all_scores_sorted = sorted(scores.values(), reverse=True)
+                        n_scores = len(all_scores_sorted)
+                        rank_above = sum(1 for s in all_scores_sorted if s > scores.get(symbol, 0))
+                        momentum_rank = 1.0 - (rank_above / max(1, n_scores))
+                        drawdown = (portfolio.total_value - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
+
+                        self.ml.on_entry(
+                            symbol=symbol,
+                            sector=SECTOR_MAP.get(symbol, 'Unknown'),
+                            momentum_score=scores.get(symbol, 0.0),
+                            momentum_rank=momentum_rank,
+                            entry_vol_ann=entry_vol,
+                            entry_daily_vol=entry_daily_vol,
+                            adaptive_stop_pct=adaptive_stop,
+                            trailing_stop_pct=self.config['TRAILING_STOP_PCT'],
+                            regime_score=self.current_regime_score,
+                            max_positions_target=max_positions,
+                            current_n_positions=len(self.broker.get_positions()),
+                            portfolio_value=portfolio.total_value,
+                            portfolio_drawdown=drawdown,
+                            current_leverage=current_leverage,
+                            crash_cooldown=self.crash_cooldown,
+                            trading_day=self.trading_day_counter,
+                            spy_hist=self._spy_hist,
+                        )
+                    except Exception as e:
+                        logger.warning(f"ML entry logging failed for {symbol}: {e}")
+
+                # Cycle log: link this entry as replacement for a pending stop exit
+                if hasattr(self, '_pending_stop_exits') and self._pending_stop_exits:
+                    stop_exit = self._pending_stop_exits.pop(0)
+                    try:
+                        self._update_cycle_log_stop(
+                            stopped_symbol=stop_exit['symbol'],
+                            replacement_symbol=symbol,
+                            exit_reason=stop_exit['reason'],
+                            stop_return=stop_exit['return'],
+                        )
+                    except Exception as e:
+                        logger.warning(f"Cycle log stop update failed: {e}")
+
+                # Save state immediately after fill (crash protection)
+                self.save_state()
 
                 # Update portfolio for next iteration
                 portfolio = self.broker.get_portfolio()
@@ -977,6 +1454,12 @@ class COMPASSLive:
         self.trades_today = []
         self._daily_open_done = False
         self._preclose_entries_done = False
+        self._rotation_sells_today = False
+
+        # Snapshot portfolio before any exits (for cycle log)
+        portfolio = self.broker.get_portfolio()
+        self._pre_rotation_value = portfolio.total_value
+        self._pre_rotation_positions = list(self.broker.positions.keys())
 
         logger.info(f"\n{'='*60}")
         logger.info(f"TRADING DAY {self.trading_day_counter} | {today}")
@@ -991,33 +1474,59 @@ class COMPASSLive:
         # 3. Update regime
         self.update_regime()
 
-        # 4. Check recovery
-        self.check_recovery()
+        # 4. Track portfolio value for crash velocity
+        portfolio = self.broker.get_portfolio()
+        self.portfolio_values_history.append(portfolio.total_value)
 
         # Log status
         current_leverage = self.get_current_leverage()
         max_pos = self.get_max_positions()
-        regime_str = "RISK_ON" if self.current_regime else "RISK_OFF"
-        prot_str = f" [PROTECTION S{self.protection_stage}]" if self.in_protection else ""
+        regime_str = f"score={self.current_regime_score:.2f}"
 
-        portfolio = self.broker.get_portfolio()
         drawdown = (portfolio.total_value - self.peak_value) / self.peak_value \
             if self.peak_value > 0 else 0
 
         logger.info(f"Portfolio: ${portfolio.total_value:,.0f} | DD: {drawdown:.1%} | "
-                     f"Regime: {regime_str}{prot_str} | "
+                     f"Regime: {regime_str} | "
                      f"Leverage: {current_leverage:.2f}x | "
                      f"Positions: {len(self.broker.positions)}/{max_pos}")
+
+        # ML: end-of-day snapshot
+        if self.ml:
+            try:
+                prev_pv = self.portfolio_values_history[-2] if len(self.portfolio_values_history) >= 2 else None
+                self.ml.on_end_of_day(
+                    trading_day=self.trading_day_counter,
+                    portfolio_value=portfolio.total_value,
+                    cash=self.broker.cash,
+                    peak_value=self.peak_value,
+                    n_positions=len(self.broker.positions),
+                    leverage=current_leverage,
+                    crash_cooldown=self.crash_cooldown,
+                    regime_score=self.current_regime_score,
+                    max_positions_target=max_pos,
+                    positions=list(self.broker.positions.keys()),
+                    position_meta=self.position_meta,
+                    spy_hist=self._spy_hist,
+                    prev_portfolio_value=prev_pv,
+                )
+            except Exception as e:
+                logger.warning(f"ML daily snapshot failed: {e}")
+
+        # ML: weekly learning run (every 5 trading days)
+        if self.ml and self.trading_day_counter % 5 == 0:
+            try:
+                insights = self.ml.run_learning()
+                logger.info(f"ML learning run complete (phase {insights.get('phase', '?')}). "
+                           f"Check state/ml_learning/insights.json")
+            except Exception as e:
+                logger.warning(f"ML learning run failed (non-blocking): {e}")
 
     def execute_trading_logic(self, prices: Dict[str, float]):
         """Daily open trading logic: exits only.
         Entries happen at pre-close (15:30 ET) via execute_preclose_entries().
         """
-        # 1. Check portfolio stop loss
-        if self.check_portfolio_stop(prices):
-            return  # Stop triggered, no more trading today
-
-        # 2. Check individual position exits
+        # Check individual position exits (DD scaling handles risk continuously)
         self.check_position_exits(prices)
 
         # NOTE: Entries moved to execute_preclose_entries() at 15:30 ET
@@ -1034,9 +1543,10 @@ class COMPASSLive:
                 <= self.config['MOC_DEADLINE'])
 
     def execute_preclose_entries(self, prices: Dict[str, float]):
-        """Compute momentum signal and open new positions at pre-close.
+        """Pre-close rotation: sell hold-expired positions, then open new ones.
 
         Called once per day during the 15:30-15:50 ET window.
+        Sells (hold_expired) and buys happen together at pre-close/MOC.
         Signal uses yesterday's close (from _hist_cache), execution at
         current price (close to today's final close via MOC).
 
@@ -1048,19 +1558,248 @@ class COMPASSLive:
 
         logger.info(f"[PRE-CLOSE] Computing entry signal at {self.get_et_now().strftime('%H:%M:%S')} ET")
 
-        # Check portfolio stop first (might have triggered intraday)
-        if self.check_portfolio_stop(prices):
-            self._preclose_entries_done = True
-            return
+        # Capture positions before rotation
+        positions_before = set(self.broker.positions.keys())
 
-        # Open new positions using momentum scores from historical data
+        # 1. Sell hold-expired positions first (frees cash for new entries)
+        self.check_position_exits(prices, include_hold_expired=True)
+
+        # 2. Open new positions using momentum scores from historical data
         # The _hist_cache contains data up to yesterday's close (refreshed at open)
         # This is exactly the Close[T-1] signal validated in the backtest
         self.open_new_positions(prices)
 
+        # Detect rotation: if we had sells (hold_expired) today AND new buys
+        positions_after = set(self.broker.positions.keys())
+        had_sells = any(t['action'] == 'SELL' and t.get('exit_reason') == 'hold_expired'
+                        for t in self.trades_today)
+        had_buys = any(t['action'] == 'BUY' for t in self.trades_today)
+        if had_sells and had_buys:
+            self._update_cycle_log(prices)
+
         self._preclose_entries_done = True
         self.save_state()
         logger.info(f"[PRE-CLOSE] Entry signal complete")
+
+    # ------------------------------------------------------------------
+    # Cycle log (automatic 5-day rotation tracking)
+    # ------------------------------------------------------------------
+
+    def _update_cycle_log(self, prices: Dict[str, float]):
+        """Close the active cycle and open a new one in cycle_log.json.
+
+        Called automatically after a rotation (hold_expired sells + new buys).
+        Uses SPY ETF for benchmark comparison (unified with global P&L benchmark).
+        """
+        log_file = os.path.join('state', 'cycle_log.json')
+        today = self.get_et_now().date().isoformat()
+
+        # Load existing log
+        cycles = []
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'r') as f:
+                    cycles = json.load(f)
+            except Exception:
+                cycles = []
+
+        # Get SPY price for benchmark (unified with global P&L)
+        spy_price = None
+        try:
+            spy = yf.download('SPY', period='5d', progress=False)
+            if len(spy) > 0:
+                spy_price = float(spy['Close'].iloc[-1].iloc[0])
+        except Exception as e:
+            logger.warning(f"Could not fetch SPY for cycle log: {e}")
+
+        # Portfolio value after rotation (new positions are in)
+        portfolio = self.broker.get_portfolio()
+        new_value = portfolio.total_value
+
+        # Close the active cycle
+        for cycle in cycles:
+            if cycle.get('status') == 'active':
+                cycle['end_date'] = today
+                cycle['status'] = 'closed'
+                cycle['portfolio_end'] = round(self._pre_rotation_value, 2)
+                if spy_price and cycle.get('spy_start'):
+                    cycle['spy_end'] = round(spy_price, 2)
+                    cycle['spy_return'] = round(
+                        (spy_price - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
+                cycle['compass_return'] = round(
+                    (self._pre_rotation_value - cycle['portfolio_start'])
+                    / cycle['portfolio_start'] * 100, 2)
+                if cycle.get('compass_return') is not None and cycle.get('spy_return') is not None:
+                    cycle['alpha'] = round(cycle['compass_return'] - cycle['spy_return'], 2)
+
+                status_str = 'WIN' if cycle['compass_return'] >= 0 else 'LOSS'
+                logger.info(f"CYCLE #{cycle['cycle']} CLOSED: "
+                           f"COMPASS {cycle['compass_return']:+.2f}% | "
+                           f"S&P {cycle.get('spy_return', 0):+.2f}% | "
+                           f"Alpha {cycle.get('alpha', 0):+.2f}pp | {status_str}")
+                break
+
+        # Open new cycle
+        new_positions = list(self.broker.positions.keys())
+        next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
+
+        cycles.append({
+            'cycle': next_cycle,
+            'start_date': today,
+            'end_date': None,
+            'status': 'active',
+            'portfolio_start': round(new_value, 2),
+            'portfolio_end': None,
+            'spy_start': round(spy_price, 2) if spy_price else None,
+            'spy_end': None,
+            'positions': new_positions,
+            'positions_current': list(new_positions),
+            'compass_return': None,
+            'spy_return': None,
+            'alpha': None,
+            'stop_events': [],
+        })
+
+        # Save
+        os.makedirs('state', exist_ok=True)
+        with open(log_file, 'w') as f:
+            json.dump(cycles, f, indent=2)
+
+        logger.info(f"CYCLE #{next_cycle} OPENED: {', '.join(new_positions)} | "
+                    f"${new_value:,.0f}")
+
+        # WhatsApp/Email notification on rotation
+        if self.notifier and hasattr(self.notifier, 'send_rotation_alert'):
+            try:
+                closed_cycle_data = next((c for c in cycles if c.get('cycle') == next_cycle - 1), {})
+                self.notifier.send_rotation_alert(
+                    cycle_num=next_cycle - 1,
+                    closed_positions=self._pre_rotation_positions,
+                    new_positions=new_positions,
+                    compass_return=closed_cycle_data.get('compass_return', 0.0),
+                    spy_return=closed_cycle_data.get('spy_return', 0.0),
+                    alpha=closed_cycle_data.get('alpha', 0.0),
+                )
+            except Exception as e:
+                logger.warning(f"Rotation notification failed: {e}")
+
+        # Auto git sync: commit + push cycle log to Render
+        if _git_sync_available:
+            closed_cycle = next_cycle - 1
+            closed_return = 0.0
+            closed_status = 'WIN'
+            for c in cycles:
+                if c.get('cycle') == closed_cycle:
+                    closed_return = c.get('compass_return', 0.0)
+                    closed_status = 'WIN' if closed_return >= 0 else 'LOSS'
+                    break
+            try:
+                git_sync_rotation(closed_cycle, closed_return, closed_status)
+            except Exception as e:
+                logger.warning(f"git sync rotation failed: {e}")
+
+    def _ensure_active_cycle(self):
+        """On startup, ensure cycle_log.json has an active cycle if we hold positions."""
+        if not self.broker.positions:
+            return
+
+        log_file = os.path.join('state', 'cycle_log.json')
+        cycles = []
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'r') as f:
+                    cycles = json.load(f)
+            except Exception:
+                cycles = []
+
+        has_active = any(c.get('status') == 'active' for c in cycles)
+        if has_active:
+            return
+
+        # No active cycle but we have positions — create one
+        portfolio = self.broker.get_portfolio()
+        spy_price = None
+        try:
+            spy = yf.download('SPY', period='5d', progress=False)
+            if len(spy) > 0:
+                spy_price = float(spy['Close'].iloc[-1].iloc[0])
+        except Exception:
+            pass
+
+        next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
+        today = self.last_trading_date.isoformat() if self.last_trading_date else date.today().isoformat()
+
+        current_positions = list(self.broker.positions.keys())
+        cycles.append({
+            'cycle': next_cycle,
+            'start_date': today,
+            'end_date': None,
+            'status': 'active',
+            'portfolio_start': round(portfolio.total_value, 2),
+            'portfolio_end': None,
+            'spy_start': round(spy_price, 2) if spy_price else None,
+            'spy_end': None,
+            'positions': current_positions,
+            'positions_current': list(current_positions),
+            'compass_return': None,
+            'spy_return': None,
+            'alpha': None,
+            'stop_events': [],
+        })
+
+        os.makedirs('state', exist_ok=True)
+        with open(log_file, 'w') as f:
+            json.dump(cycles, f, indent=2)
+
+        logger.info(f"CYCLE #{next_cycle} initialized on startup: "
+                    f"{list(self.broker.positions.keys())}")
+
+    def _update_cycle_log_stop(self, stopped_symbol: str, replacement_symbol: str,
+                                exit_reason: str, stop_return: float):
+        """Update the active cycle when a mid-cycle stop fires and a replacement enters.
+
+        Records the stop event and updates positions_current so the dashboard
+        shows the actual current holdings, not just the cycle-start snapshot.
+        """
+        log_file = os.path.join('state', 'cycle_log.json')
+        if not os.path.exists(log_file):
+            return
+        try:
+            with open(log_file, 'r') as f:
+                cycles = json.load(f)
+        except Exception:
+            return
+
+        for c in cycles:
+            if c.get('status') != 'active':
+                continue
+            if 'stop_events' not in c:
+                c['stop_events'] = []
+            if 'positions_current' not in c:
+                c['positions_current'] = list(c.get('positions', []))
+
+            today = self.get_et_now().date().isoformat()
+            c['stop_events'].append({
+                'date': today,
+                'stopped': stopped_symbol,
+                'replacement': replacement_symbol,
+                'reason': exit_reason,
+                'return': round(stop_return * 100, 1),
+            })
+
+            current = c['positions_current']
+            if stopped_symbol in current:
+                current.remove(stopped_symbol)
+            if replacement_symbol and replacement_symbol not in current:
+                current.append(replacement_symbol)
+            c['positions_current'] = current
+            break
+
+        try:
+            with open(log_file, 'w') as f:
+                json.dump(cycles, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to update cycle log stop: {e}")
 
     # ------------------------------------------------------------------
     # State persistence
@@ -1070,7 +1809,7 @@ class COMPASSLive:
         """Save full system state to JSON"""
         portfolio = self.broker.get_portfolio()
         state = {
-            'version': '8.2',
+            'version': '8.4',
             'timestamp': datetime.now().isoformat(),
 
             # Portfolio
@@ -1078,16 +1817,12 @@ class COMPASSLive:
             'peak_value': self.peak_value,
             'portfolio_value': portfolio.total_value,
 
-            # Protection / Recovery
-            'in_protection': self.in_protection,
-            'protection_stage': self.protection_stage,
-            'stop_loss_day_index': self.stop_loss_day_index,
-            'post_stop_base': self.post_stop_base,
+            # Drawdown / Crash state
+            'crash_cooldown': self.crash_cooldown,
+            'portfolio_values_history': self.portfolio_values_history[-30:],  # Keep last 30 days
 
             # Regime
-            'current_regime': self.current_regime,
-            'regime_consecutive': self.regime_consecutive,
-            'regime_last_raw': self.regime_last_raw,
+            'current_regime_score': self.current_regime_score,
 
             # Counters
             'trading_day_counter': self.trading_day_counter,
@@ -1112,6 +1847,19 @@ class COMPASSLive:
             # Events
             'stop_events': self.stop_events,
 
+            # Intraday flags (prevents duplicate trades after mid-day restart)
+            '_daily_open_done': getattr(self, '_daily_open_done', False),
+            '_preclose_entries_done': getattr(self, '_preclose_entries_done', False),
+
+            # Overlay diagnostics
+            'overlay': {
+                'available': self._overlay_available,
+                'capital_scalar': self._overlay_result.get('capital_scalar', 1.0) if self._overlay_result else 1.0,
+                'per_overlay': self._overlay_result.get('per_overlay_scalars', {}) if self._overlay_result else {},
+                'position_floor': self._overlay_result.get('position_floor') if self._overlay_result else None,
+                'diagnostics': self._overlay_result.get('diagnostics', {}) if self._overlay_result else {},
+            },
+
             # Stats
             'stats': {
                 'cycles_completed': self._cycles_completed,
@@ -1121,22 +1869,24 @@ class COMPASSLive:
 
         os.makedirs('state', exist_ok=True)
         filename = f'state/compass_state_{datetime.now().strftime("%Y%m%d")}.json'
-
-        # Also save as 'latest'
         latest = 'state/compass_state_latest.json'
 
-        for f in [filename, latest]:
-            with open(f, 'w') as fp:
-                json.dump(state, fp, indent=2, default=str)
+        # Atomic write: temp file + rename (prevents corruption on crash)
+        import tempfile
+        for target in [filename, latest]:
+            try:
+                fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+                with os.fdopen(fd, 'w') as fp:
+                    json.dump(state, fp, indent=2, default=str)
+                os.replace(tmp_path, target)
+            except Exception as write_err:
+                logger.error(f"Atomic write failed for {target}: {write_err}")
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
         logger.info(f"State saved: {filename}")
-
-        # Save broker audit log (IBKR mode)
-        if hasattr(self.broker, 'save_audit_log'):
-            try:
-                self.broker.save_audit_log()
-            except Exception as e:
-                logger.debug(f"Audit log save failed: {e}")
 
         # Auto git sync (non-blocking, never crashes engine)
         if _git_sync_available:
@@ -1145,89 +1895,110 @@ class COMPASSLive:
             except Exception as e:
                 logger.debug(f"git sync queue failed: {e}")
 
-    def load_state(self):
-        """Load previous state"""
-        latest = 'state/compass_state_latest.json'
-        if not os.path.exists(latest):
-            # Try dated files
-            import glob
-            files = glob.glob('state/compass_state_*.json')
-            files = [f for f in files if 'latest' not in f]
-            if not files:
-                logger.info("No previous state found, starting fresh")
-                return
-            latest = max(files, key=os.path.getctime)
-
+    def _try_load_json(self, filepath: str) -> dict:
+        """Attempt to load and validate a state JSON file. Returns dict or None."""
         try:
-            with open(latest, 'r') as f:
+            with open(filepath, 'r') as f:
                 state = json.load(f)
+            # Sanity check: must have critical fields
+            if 'cash' not in state or 'positions' not in state:
+                logger.warning(f"State file {filepath} missing critical fields")
+                return None
+            return state
+        except (json.JSONDecodeError, IOError, OSError) as e:
+            logger.warning(f"Failed to load {filepath}: {e}")
+            return None
 
-            # Restore portfolio state
-            self.broker.cash = state.get('cash', self.config['PAPER_INITIAL_CASH'])
-            self.peak_value = state.get('peak_value', self.config['PAPER_INITIAL_CASH'])
+    def load_state(self):
+        """Load previous state with fallback chain: latest -> dated -> HALT."""
+        import glob
 
-            # Restore protection/recovery
-            self.in_protection = state.get('in_protection', False)
-            self.protection_stage = state.get('protection_stage', 0)
-            self.stop_loss_day_index = state.get('stop_loss_day_index')
-            self.post_stop_base = state.get('post_stop_base')
+        # Build candidate list: latest first, then dated files newest-first
+        candidates = []
+        latest = 'state/compass_state_latest.json'
+        if os.path.exists(latest):
+            candidates.append(latest)
+        dated_files = sorted(
+            [f for f in glob.glob('state/compass_state_2*.json') if 'latest' not in f],
+            key=os.path.getctime, reverse=True
+        )
+        candidates.extend(dated_files)
 
-            # Restore regime
-            self.current_regime = state.get('current_regime', True)
-            self.regime_consecutive = state.get('regime_consecutive', 0)
-            self.regime_last_raw = state.get('regime_last_raw', True)
+        if not candidates:
+            logger.info("No previous state found, starting fresh")
+            return
 
-            # Restore counters
-            self.trading_day_counter = state.get('trading_day_counter', 0)
-            ltd = state.get('last_trading_date')
-            self.last_trading_date = date.fromisoformat(ltd) if ltd else None
+        # Try each candidate until one loads successfully
+        state = None
+        loaded_from = None
+        for candidate in candidates:
+            state = self._try_load_json(candidate)
+            if state is not None:
+                loaded_from = candidate
+                break
 
-            # Restore positions
-            for symbol, data in state.get('positions', {}).items():
-                self.broker.positions[symbol] = Position(
-                    symbol=symbol,
-                    shares=data['shares'],
-                    avg_cost=data['avg_cost']
-                )
+        if state is None:
+            logger.error("ALL state files corrupted or invalid — HALTING to prevent wrong trades")
+            raise RuntimeError("Cannot load any valid state file. Manual intervention required.")
 
-            # Position reconciliation (IBKR mode)
-            if hasattr(self.broker, 'reconcile_positions'):
-                saved_positions = state.get('positions', {})
-                reconciliation = self.broker.reconcile_positions(saved_positions)
-                mismatches = [s for s, r in reconciliation.items()
-                              if r['status'] != 'match']
-                if mismatches:
-                    logger.warning(f"Position reconciliation: "
-                                   f"{len(mismatches)} discrepancies")
-                    logger.warning("MANUAL REVIEW REQUIRED before trading")
-                    os.makedirs('logs', exist_ok=True)
-                    report_file = (f"logs/reconciliation_"
-                                   f"{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                                   f".json")
-                    with open(report_file, 'w') as rf:
-                        json.dump(reconciliation, rf, indent=2)
-                    logger.warning(f"Reconciliation report: {report_file}")
+        # Restore portfolio state
+        self.broker.cash = state.get('cash', self.config['PAPER_INITIAL_CASH'])
+        self.peak_value = state.get('peak_value', self.config['PAPER_INITIAL_CASH'])
 
-            # Restore position metadata
-            self.position_meta = state.get('position_meta', {})
+        # Restore drawdown / crash state
+        self.crash_cooldown = state.get('crash_cooldown', 0)
+        self.portfolio_values_history = state.get('portfolio_values_history', [])
 
-            # Restore universe
-            self.current_universe = state.get('current_universe', [])
-            self.universe_year = state.get('universe_year')
+        # Restore regime
+        self.current_regime_score = state.get('current_regime_score', 0.5)
 
-            # Restore events
-            self.stop_events = state.get('stop_events', [])
+        # Restore counters
+        self.trading_day_counter = state.get('trading_day_counter', 0)
+        ltd = state.get('last_trading_date')
+        self.last_trading_date = date.fromisoformat(ltd) if ltd else None
 
-            regime_str = "RISK_ON" if self.current_regime else "RISK_OFF"
-            prot_str = f" [PROTECTION S{self.protection_stage}]" if self.in_protection else ""
+        # Restore positions
+        for symbol, data in state.get('positions', {}).items():
+            self.broker.positions[symbol] = Position(
+                symbol=symbol,
+                shares=data['shares'],
+                avg_cost=data['avg_cost']
+            )
 
-            logger.info(f"State loaded from {latest}")
-            logger.info(f"  Cash: ${self.broker.cash:,.0f} | Peak: ${self.peak_value:,.0f}")
-            logger.info(f"  Positions: {len(self.broker.positions)} | Day: {self.trading_day_counter}")
-            logger.info(f"  Regime: {regime_str}{prot_str}")
+        # Restore position metadata
+        self.position_meta = state.get('position_meta', {})
 
-        except Exception as e:
-            logger.error(f"Error loading state: {e}")
+        # Restore universe
+        self.current_universe = state.get('current_universe', [])
+        self.universe_year = state.get('universe_year')
+
+        # Restore events
+        self.stop_events = state.get('stop_events', [])
+
+        # Restore intraday flags (prevents duplicate trades after mid-day restart)
+        self._daily_open_done = state.get('_daily_open_done', False)
+        self._preclose_entries_done = state.get('_preclose_entries_done', False)
+
+        regime_str = f"score={self.current_regime_score:.2f}"
+
+        logger.info(f"State loaded from {loaded_from}")
+        logger.info(f"  Cash: ${self.broker.cash:,.0f} | Peak: ${self.peak_value:,.0f}")
+        logger.info(f"  Positions: {len(self.broker.positions)} | Day: {self.trading_day_counter}")
+        logger.info(f"  Regime: {regime_str} | Crash cooldown: {self.crash_cooldown}")
+        if loaded_from != latest:
+            logger.warning(f"  Loaded from FALLBACK file (not latest): {loaded_from}")
+
+        # Position reconciliation (logs discrepancies vs broker)
+        if hasattr(self.broker, 'reconcile_positions'):
+            try:
+                recon = self.broker.reconcile_positions(state.get('positions', {}))
+                if recon.get('json_only') or recon.get('broker_only'):
+                    logger.warning(f"POSITION RECONCILIATION MISMATCH: {recon}")
+            except Exception as e:
+                logger.warning(f"Position reconciliation failed: {e}")
+
+        # Ensure cycle log has an active cycle if we have positions
+        self._ensure_active_cycle()
 
     # ------------------------------------------------------------------
     # Status logging
@@ -1239,18 +2010,23 @@ class COMPASSLive:
         drawdown = (portfolio.total_value - self.peak_value) / self.peak_value \
             if self.peak_value > 0 else 0
         leverage = self.get_current_leverage()
-        regime_str = "RISK_ON" if self.current_regime else "RISK_OFF"
-        prot_str = f" [S{self.protection_stage}]" if self.in_protection else ""
+        regime_str = f"score={self.current_regime_score:.2f}"
 
         positions = self.broker.get_positions()
+        pos_parts = []
+        for s, m in self.position_meta.items():
+            if s not in positions:
+                continue
+            ret = (prices.get(s, m.get('entry_price', 0)) - m.get('entry_price', 0)) / m.get('entry_price', 1)
+            edv = m.get('entry_daily_vol')
+            stop = compute_adaptive_stop(edv, self.config) if edv else self.config['POSITION_STOP_LOSS']
+            pos_parts.append(f"{s}({ret:.1%}|stop={stop:.0%})")
         pos_str = ", ".join([
-            f"{s}({(prices.get(s, m.get('entry_price', 0)) - m.get('entry_price', 0)) / m.get('entry_price', 1):.1%})"
-            for s, m in self.position_meta.items()
-            if s in positions
+            p for p in pos_parts
         ])
 
         logger.info(f"STATUS: ${portfolio.total_value:,.0f} | DD:{drawdown:.1%} | "
-                     f"{regime_str}{prot_str} | Lev:{leverage:.2f}x | "
+                     f"{regime_str} | Lev:{leverage:.2f}x | "
                      f"Pos:{len(positions)}/{self.get_max_positions()} | "
                      f"[{pos_str}]")
 
@@ -1312,7 +2088,6 @@ class COMPASSLive:
             if self._daily_open_done:
                 now = datetime.now()
                 if (now - self._last_stop_check).total_seconds() >= self.config['STOP_CHECK_INTERVAL']:
-                    self.check_portfolio_stop(prices)
                     self.check_position_exits(prices)
                     self._last_stop_check = now
 
@@ -1347,7 +2122,7 @@ class COMPASSLive:
 
     def run(self, interval: int = 60):
         """Main trading loop"""
-        logger.info("Starting COMPASS v8.2 live trading loop...")
+        logger.info("Starting COMPASS v8.3 live trading loop...")
 
         # Kill switch check
         kill_file = 'STOP_TRADING'
@@ -1389,7 +2164,7 @@ class COMPASSLive:
                 if self.peak_value > 0 else 0
             self.notifier.send_daily_summary(
                 portfolio.total_value, len(self.broker.positions),
-                drawdown, self.trades_today, self.current_regime,
+                drawdown, self.trades_today, self.current_regime_score >= 0.50,
                 self.get_current_leverage()
             )
 
@@ -1406,20 +2181,12 @@ def main():
     """Main entry point"""
     # Load external config if available
     config = CONFIG.copy()
-    config_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'omnicapital_config.json')
+    config_file = 'omnicapital_config.json'
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r') as f:
                 ext_config = json.load(f)
-            # Merge broker settings (don't override algorithm params)
-            if 'broker' in ext_config:
-                broker_cfg = ext_config['broker']
-                config['BROKER_TYPE'] = broker_cfg.get('type', 'PAPER')
-                config['IBKR_HOST'] = broker_cfg.get('ibkr_host', '127.0.0.1')
-                config['IBKR_PORT'] = broker_cfg.get('ibkr_port', 7497)
-                config['IBKR_CLIENT_ID'] = broker_cfg.get('ibkr_client_id', 1)
-                config['IBKR_MOCK'] = broker_cfg.get('ibkr_mock', True)
-                config['MAX_ORDER_VALUE'] = broker_cfg.get('max_order_value', 50_000)
+            # Merge email, broker, paths (don't override algorithm params)
             logger.info(f"External config loaded: {config_file}")
         except Exception as e:
             logger.warning(f"Failed to load external config: {e}")
@@ -1432,7 +2199,7 @@ def main():
 
     # Try to load notifications
     try:
-        from compass.notifications import EmailNotifier
+        from omnicapital_notifications import EmailNotifier
         if os.path.exists(config_file):
             with open(config_file, 'r') as f:
                 ext = json.load(f)

@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-03T15:22:51.363012",
-  "cash": 40967.87109999977,
+  "timestamp": "2026-03-03T15:59:03.475451",
+  "cash": 29918.408603508316,
   "peak_value": 102460.29390536588,
-  "portfolio_value": 100827.49576895521,
+  "portfolio_value": 100502.40424712404,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     102441.23423810309,
@@ -13,46 +13,49 @@
   "trading_day_counter": 9,
   "last_trading_date": "2026-03-03",
   "positions": {
+    "MRK": {
+      "shares": 239,
+      "avg_cost": 120.59132210367461
+    },
     "JNJ": {
-      "shares": 142.8053272656006,
-      "avg_cost": 245.1999969482422
+      "shares": 116,
+      "avg_cost": 247.5177424560364
     },
-    "CVX": {
-      "shares": 82.61250956283592,
-      "avg_cost": 184.24000549316406
-    },
-    "LLY": {
-      "shares": 8.873790911802876,
-      "avg_cost": 1029.1300048828125
+    "AMAT": {
+      "shares": 38,
+      "avg_cost": 352.0956602252497
     }
   },
   "position_meta": {
+    "MRK": {
+      "entry_price": 120.59132210367461,
+      "entry_date": "2026-03-03",
+      "entry_day_index": 9,
+      "original_entry_day_index": 9,
+      "high_price": 120.59132210367461,
+      "entry_vol": 0.28639434996138086,
+      "entry_daily_vol": 0.01804114825932892,
+      "sector": "Healthcare"
+    },
     "JNJ": {
-      "entry_price": 245.1999969482422,
-      "entry_date": "2026-02-25",
-      "entry_day_index": 5,
-      "high_price": 250.58999633789062,
-      "entry_vol": 0.142,
-      "entry_daily_vol": 0.0089,
+      "entry_price": 247.5177424560364,
+      "entry_date": "2026-03-03",
+      "entry_day_index": 9,
+      "original_entry_day_index": 9,
+      "high_price": 247.80499267578125,
+      "entry_vol": 0.15534686069028528,
+      "entry_daily_vol": 0.009785932389073585,
       "sector": "Healthcare"
     },
-    "CVX": {
-      "entry_price": 184.24000549316406,
-      "entry_date": "2026-02-25",
-      "entry_day_index": 5,
-      "high_price": 191.2949981689453,
-      "entry_vol": 0.2131,
-      "entry_daily_vol": 0.0134,
-      "sector": "Energy"
-    },
-    "LLY": {
-      "entry_price": 1029.1300048828125,
-      "entry_date": "2026-02-25",
-      "entry_day_index": 5,
-      "high_price": 1055.5350341796875,
-      "entry_vol": 0.5684,
-      "entry_daily_vol": 0.0358,
-      "sector": "Healthcare"
+    "AMAT": {
+      "entry_price": 352.0956602252497,
+      "entry_date": "2026-03-03",
+      "entry_day_index": 9,
+      "original_entry_day_index": 9,
+      "high_price": 353.19000244140625,
+      "entry_vol": 0.6021039667520196,
+      "entry_daily_vol": 0.03792898474836539,
+      "sector": "Technology"
     }
   },
   "current_universe": [
@@ -114,9 +117,9 @@
     }
   ],
   "_daily_open_done": true,
-  "_preclose_entries_done": false,
+  "_preclose_entries_done": true,
   "stats": {
-    "cycles_completed": 736,
-    "uptime_minutes": 1758.0309019499998
+    "cycles_completed": 771,
+    "uptime_minutes": 1794.2327760833332
   }
 }
