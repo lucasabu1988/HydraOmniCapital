@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-02T15:57:11.713228",
+  "timestamp": "2026-03-02T20:00:26.894740",
   "cash": 28563.021789640035,
   "peak_value": 102460.29390536588,
-  "portfolio_value": 101547.81249735822,
+  "portfolio_value": 101571.92385086147,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     102441.23423810309
@@ -127,8 +127,37 @@
   ],
   "_daily_open_done": true,
   "_preclose_entries_done": true,
+  "overlay": {
+    "available": true,
+    "capital_scalar": 1.0,
+    "per_overlay": {
+      "bso": 1.0,
+      "m2": 1.0,
+      "fomc": 1.0
+    },
+    "position_floor": null,
+    "diagnostics": {
+      "bso": {
+        "nfci": -0.56294,
+        "stlfsi": -0.5981,
+        "hy_pct": 3.12,
+        "scalar": 1.0
+      },
+      "m2": {
+        "scalar": 1.0
+      },
+      "fomc": {
+        "scalar": 1.0,
+        "surprise_active": false
+      },
+      "fed_emergency": {
+        "emergency_active": false,
+        "position_floor": null
+      }
+    }
+  },
   "stats": {
-    "cycles_completed": 264,
-    "uptime_minutes": 352.37007181666667
+    "cycles_completed": 0,
+    "uptime_minutes": 0.031076916666666666
   }
 }
