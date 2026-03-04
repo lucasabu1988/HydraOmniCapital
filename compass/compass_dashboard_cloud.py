@@ -253,6 +253,15 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
         shares = pos_data.get('shares', 0)
         current_price = prices.get(symbol, entry_price)
 
+        # If position was opened today, use entry_price to avoid phantom PnL
+        # from after-hours last_price vs MOC fill price mismatch
+        if entry_date:
+            try:
+                if date.fromisoformat(entry_date) == date.today():
+                    current_price = entry_price
+            except Exception:
+                pass
+
         if current_price and entry_price and entry_price > 0:
             pnl_pct = (current_price - entry_price) / entry_price
             pnl_dollar = (current_price - entry_price) * shares
