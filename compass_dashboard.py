@@ -2155,6 +2155,178 @@ def api_overlay_status():
     })
 
 
+def _maybe_regenerate_interpretation(ml_dir, entries, insights):
+    interp_path = os.path.join(ml_dir, 'interpretation.md')
+    # Check staleness: regenerate if file missing or 5+ days old
+    try:
+        mtime = os.path.getmtime(interp_path)
+        age_days = (time_module.time() - mtime) / 86400
+        if age_days < 5:
+            return
+    except OSError:
+        pass  # file missing → regenerate
+
+    # Count entries by type
+    n_entries = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'entry')
+    n_exits = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'exit')
+    n_skips = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'skip')
+    n_snapshots = sum(1 for r in entries if r.get('_type') == 'snapshot')
+    n_outcomes = sum(1 for r in entries if r.get('_type') == 'outcome')
+    n_decisions = n_entries + n_exits + n_skips
+
+    # Phase info
+    phase = insights.get('learning_phase', 1)
+    trading_days = insights.get('trading_days', 0)
+    days_to_phase2 = max(0, 63 - trading_days)
+
+    # Portfolio analytics
+    pa = insights.get('portfolio_analytics', {})
+    current_value = pa.get('current_value', 0)
+    total_return = pa.get('total_return', 0)
+    max_dd = pa.get('max_drawdown', 0)
+    daily_sharpe = pa.get('daily_sharpe_annualized')
+
+    # Trade analytics
+    ta = insights.get('trade_analytics', {})
+    overall = ta.get('overall', {})
+    n_trades = overall.get('n', 0)
+    win_rate = overall.get('win_rate')
+    mean_return = overall.get('mean_return')
+    stop_rate = overall.get('stop_rate')
+    avg_days = overall.get('avg_days_held')
+    best_trade = overall.get('best')
+    worst_trade = overall.get('worst')
+
+    # Regime distribution from snapshots
+    regime_counts = {}
+    snapshots = [r for r in entries if r.get('_type') == 'snapshot']
+    for s in snapshots:
+        bucket = s.get('regime_bucket', 'unknown')
+        regime_counts[bucket] = regime_counts.get(bucket, 0) + 1
+
+    # Exit reason breakdown
+    by_exit = ta.get('by_exit_reason', {})
+
+    # Recent activity (last 5 decisions)
+    decisions = [r for r in entries if r.get('_type') == 'decision']
+    recent = decisions[-5:] if len(decisions) > 5 else decisions
+
+    # Outcome summaries
+    outcomes = [r for r in entries if r.get('_type') == 'outcome']
+
+    # Build markdown
+    lines = []
+    lines.append(f'### System Status\n')
+    lines.append(f'COMPASS ML Learning is in **Phase {phase}** (data collection). {trading_days} trading days logged.')
+    if phase < 2:
+        lines.append(f' ML models activate at Phase 2 (~{days_to_phase2} trading days remaining).\n')
+    else:
+        lines.append('\n')
+
+    lines.append(f'### Data Summary\n')
+    lines.append(f'- **{n_decisions} decisions** logged: {n_entries} entries, {n_exits} exits, {n_skips} skips')
+    lines.append(f'- **{n_snapshots} daily snapshots** tracking portfolio evolution')
+    lines.append(f'- **{n_outcomes} completed trades** with full outcome data\n')
+
+    lines.append(f'### Portfolio Performance\n')
+    if current_value:
+        lines.append(f'- Current value: **${current_value:,.0f}**')
+        lines.append(f'- Total return: **{total_return * 100:+.2f}%**')
+        lines.append(f'- Max drawdown: **{max_dd * 100:.2f}%**')
+        if daily_sharpe is not None:
+            lines.append(f'- Daily Sharpe (annualized): **{daily_sharpe:.2f}**')
+    else:
+        lines.append(f'- Insufficient data')
+    lines.append('')
+
+    lines.append(f'### Trade Analysis\n')
+    if n_trades > 0:
+        lines.append(f'- Completed trades: **{n_trades}**')
+        if win_rate is not None:
+            lines.append(f'- Win rate: **{win_rate * 100:.0f}%**')
+        if mean_return is not None:
+            lines.append(f'- Average return: **{mean_return * 100:+.1f}%**')
+        if stop_rate is not None:
+            lines.append(f'- Stop rate: **{stop_rate * 100:.0f}%**')
+        if avg_days is not None:
+            lines.append(f'- Average holding period: **{avg_days:.1f} days**')
+        if best_trade is not None and worst_trade is not None:
+            lines.append(f'- Best trade: **{best_trade * 100:+.1f}%** / Worst: **{worst_trade * 100:+.1f}%**')
+
+        # Individual outcome details
+        if outcomes:
+            lines.append('')
+            wins = [o for o in outcomes if (o.get('gross_return') or 0) > 0]
+            losses = [o for o in outcomes if (o.get('gross_return') or 0) <= 0]
+            if wins:
+                win_str = ', '.join(f"{o['symbol']} {o['gross_return']*100:+.1f}%" for o in wins)
+                lines.append(f'- Winners: {win_str}')
+            if losses:
+                loss_str = ', '.join(f"{o['symbol']} {o['gross_return']*100:+.1f}%" for o in losses)
+                lines.append(f'- Losers: {loss_str}')
+    else:
+        lines.append(f'- No completed trades yet')
+    lines.append('')
+
+    lines.append(f'### Regime Observations\n')
+    if regime_counts:
+        total_snaps = sum(regime_counts.values())
+        for bucket, count in sorted(regime_counts.items(), key=lambda x: -x[1]):
+            pct = count / total_snaps * 100
+            lines.append(f'- **{bucket}**: {count} days ({pct:.0f}%)')
+    else:
+        lines.append(f'- No regime data yet')
+    lines.append('')
+
+    if by_exit:
+        lines.append(f'### Exit Reason Breakdown\n')
+        for reason, stats in by_exit.items():
+            n = stats.get('n', 0)
+            mr = stats.get('mean_return')
+            wr = stats.get('win_rate')
+            reason_label = reason.replace('_', ' ').replace('position stop adaptive', 'adaptive stop').title()
+            mr_str = f'{mr * 100:+.1f}%' if mr is not None else '--'
+            wr_str = f'{wr * 100:.0f}%' if wr is not None else '--'
+            lines.append(f'- **{reason_label}** ({n} trades): avg return {mr_str}, win rate {wr_str}')
+        lines.append('')
+
+    lines.append(f'### Recent Activity\n')
+    if recent:
+        for r in recent:
+            ts = (r.get('timestamp') or r.get('date', ''))[:16]
+            dtype = r.get('decision_type', '?').upper()
+            sym = r.get('symbol', '??')
+            if dtype == 'EXIT':
+                ret = r.get('current_return')
+                ret_str = f' return={ret * 100:+.1f}%' if ret is not None else ''
+                lines.append(f'- `{ts}` **{dtype}** {sym} — {r.get("exit_reason", "")}{ret_str}')
+            elif dtype == 'ENTRY':
+                regime = r.get('regime_bucket', '')
+                lines.append(f'- `{ts}` **{dtype}** {sym} — regime={regime}')
+            else:
+                lines.append(f'- `{ts}` **{dtype}** {sym}')
+    else:
+        lines.append(f'- No recent decisions')
+    lines.append('')
+
+    lines.append(f'### Next Milestone\n')
+    if phase < 2:
+        lines.append(f'Phase 2 ML begins in ~{days_to_phase2} trading days. Continue collecting entry/exit decisions and completed trade outcomes.')
+    else:
+        lines.append(f'Phase {phase} active. ML models are being trained on accumulated data.')
+    lines.append('')
+
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+    lines.append(f'---\n*Auto-generated on {now_str}. Refreshes every 5 days.*')
+
+    md = '\n'.join(lines)
+    try:
+        with open(interp_path, 'w', encoding='utf-8') as f:
+            f.write(md)
+    except Exception:
+        pass
+
+
 @app.route('/api/ml-learning')
 def api_ml_learning():
     """Return ML learning log entries, insights, and interpretation."""
@@ -2190,6 +2362,9 @@ def api_ml_learning():
                 insights = json.load(f)
         except Exception:
             pass
+
+    # Auto-regenerate interpretation if stale (5+ days)
+    _maybe_regenerate_interpretation(ml_dir, entries, insights)
 
     # Read interpretation
     interpretation = ''
