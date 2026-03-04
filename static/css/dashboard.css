@@ -2040,7 +2040,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .landing-hero {
     background: linear-gradient(135deg, #0f0c29 0%, #1a1650 30%, #302b63 60%, #24243e 100%);
     border-radius: 20px;
-    padding: 8px 40px 36px;
+    padding: 3px 40px 14px;
     margin-bottom: 24px;
     text-align: center;
     position: relative;
@@ -2099,7 +2099,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .lh-accent-line {
     height: 2px;
     background: linear-gradient(90deg, transparent, rgba(99,102,241,0.8), rgba(139,92,246,0.8), transparent);
-    margin-bottom: 16px;
+    margin-bottom: 6px;
     border-radius: 2px;
     animation: shimmerLine 4s ease-in-out infinite;
 }
@@ -2110,8 +2110,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .landing-hero > * { position: relative; z-index: 1; }
 /* Chalkboard formulas */
 .lh-chalkboard {
-    margin-bottom: 20px;
-    padding: 12px 20px 16px;
+    margin-bottom: 8px;
+    padding: 4px 20px 8px;
     position: relative;
     z-index: 1;
 }
@@ -2251,12 +2251,12 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .lh-tagline {
     font-size: 13px; color: rgba(255,255,255,0.5);
     letter-spacing: 3px; text-transform: uppercase; font-weight: 500;
-    margin-bottom: 36px;
+    margin-bottom: 14px;
 }
 /* Stat cards */
 .lh-stats {
     display: flex; justify-content: center; align-items: stretch;
-    gap: 0; margin-bottom: 32px; flex-wrap: wrap;
+    gap: 0; margin-bottom: 12px; flex-wrap: wrap;
     background: rgba(255,255,255,0.03);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.08);
@@ -2304,7 +2304,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 /* Feature pills */
 .lh-features {
     display: flex; justify-content: center; flex-wrap: wrap;
-    gap: 12px; margin-bottom: 20px;
+    gap: 12px; margin-bottom: 8px;
 }
 .lh-feature {
     display: inline-flex; align-items: center; gap: 6px;
@@ -2333,7 +2333,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     line-height: 1.5; font-style: italic;
 }
 @media (max-width: 600px) {
-    .landing-hero { padding: 6px 16px 24px; border-radius: 16px; }
+    .landing-hero { padding: 3px 16px 10px; border-radius: 16px; }
     .lh-title { font-size: 24px; }
     .lh-stats { flex-direction: column; padding: 8px; }
     .lh-stat { min-width: unset; padding: 14px 20px; }
@@ -2764,7 +2764,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .algo-hero {
     background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4f46e5 100%);
     border-radius: var(--radius-xl);
-    padding: 14px 32px 36px;
+    padding: 6px 32px 14px;
     text-align: center;
     position: relative;
     overflow: hidden;
