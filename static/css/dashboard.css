@@ -49,6 +49,14 @@
     --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
     --shadow-lg: 0 8px 30px rgba(0,0,0,0.10);
     --shadow-glow: 0 0 40px var(--accent-glow);
+
+    /* Glass tiers */
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-border-hover: rgba(0, 0, 0, 0.15);
+    --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    --glass-blur: blur(8px) saturate(140%);
+    --glow-accent: 0 0 24px rgba(79, 70, 229, 0.08);
 }
 
 /* ============ DARK MODE ============ */
@@ -81,15 +89,22 @@ body.dark {
     --cyan-dim: rgba(34, 211, 238, 0.12);
     --accent-light: #818cf8;
 
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-    --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 0 8px rgba(99, 102, 241, 0.02);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 0 16px rgba(99, 102, 241, 0.03);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.5), 0 0 24px rgba(99, 102, 241, 0.04);
     --shadow-glow: 0 0 40px rgba(79, 70, 229, 0.15);
+
+    --glass-bg: rgba(22, 22, 50, 0.60);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-hover: rgba(255, 255, 255, 0.14);
+    --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --glass-blur: blur(8px) saturate(130%);
+    --glow-accent: 0 0 24px rgba(99, 102, 241, 0.12);
 }
 body.dark::before {
     background:
         radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 80%, rgba(6, 182, 212, 0.03) 0%, transparent 50%);
 }
 body.dark .header-bar {
@@ -107,7 +122,8 @@ body.dark .upd-wrapper:hover {
     border-color: rgba(255, 255, 255, 0.14);
 }
 body.dark .page-tabs {
-    background: rgba(17, 17, 39, 0.95);
+    background: rgba(17, 17, 39, 0.85);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 body.dark .landing-hero {
     background: linear-gradient(135deg, #080618 0%, #0f0c29 30%, #1a1245 60%, #0d0b1e 100%);
@@ -148,8 +164,9 @@ body.dark .card-secondary {
     box-shadow: var(--shadow-md);
 }
 body.dark .perf-banner, body.dark .positions-hero {
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    border-color: rgba(255,255,255,0.08);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3), var(--glass-inset), var(--glow-accent);
+    border-color: var(--glass-border);
+    background: var(--glass-bg);
 }
 
 /* Brand icon heartbeat */
@@ -568,21 +585,25 @@ body::before {
 
 /* ============ CARD SYSTEM ============ */
 .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.25s, box-shadow 0.25s;
+    box-shadow: var(--glass-inset);
 }
 .card:hover {
-    border-color: var(--border-active);
-    box-shadow: var(--shadow-md);
+    border-color: var(--glass-border-hover);
+    box-shadow: var(--shadow-md), var(--glow-accent);
 }
 .card-header {
     padding: 16px 20px 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.02) 0%, transparent 100%);
 }
 .card-title {
     font-size: 13px;
@@ -614,29 +635,31 @@ body::before {
     margin-bottom: 16px;
 }
 .metric-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
     padding: 16px 18px;
-    transition: all 0.2s;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
 }
 .metric-card:hover {
-    border-color: var(--border-active);
+    border-color: var(--glass-border-hover);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-md), var(--glow-accent);
 }
 .metric-card::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, var(--accent), transparent);
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.3s;
 }
-.metric-card:hover::before { opacity: 1; }
+.metric-card:hover::before { opacity: 0.7; }
 .metric-label {
     font-size: 11px;
     color: var(--text-tertiary);
@@ -662,15 +685,18 @@ body::before {
 
 /* ============ REGIME SCORE BAND ============ */
 .regime-band {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
     padding: 24px 20px 14px;
     margin-bottom: 16px;
     display: flex;
     align-items: center;
     gap: 24px;
     position: relative;
+    box-shadow: var(--glass-inset);
 }
 .regime-band::before {
     content: '';
@@ -802,7 +828,9 @@ body.dark .regime-band-needle { background: #fff; box-shadow: 0 0 6px rgba(255,2
 .sf-page-icon {
     width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
     border-radius: 10px; background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15));
+    backdrop-filter: blur(8px); border: 1px solid rgba(99, 102, 241, 0.2);
     font-size: 18px; flex-shrink: 0;
+    box-shadow: var(--glass-inset);
 }
 .sf-page-title { font-size: 18px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; margin: 0; }
 .sf-page-subtitle { font-size: 12px; color: var(--text-tertiary); margin: 2px 0 0; }
@@ -814,7 +842,9 @@ body.dark .regime-band-needle { background: #fff; box-shadow: 0 0 6px rgba(255,2
 /* --- Summary Stats Bar --- */
 .sf-stats-bar {
     display: flex; gap: 16px; padding: 12px 16px;
-    background: var(--bg-elevated); border-radius: var(--radius-md); margin-bottom: 16px; flex-wrap: wrap;
+    background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-lg); margin-bottom: 16px; flex-wrap: wrap;
+    box-shadow: var(--glass-inset);
 }
 .sf-stat { display: flex; flex-direction: column; gap: 2px; }
 .sf-stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
@@ -859,11 +889,12 @@ body.dark .regime-band-needle { background: #fff; box-shadow: 0 0 6px rgba(255,2
 
 /* --- Tier 1: Highlighted (SEC, SeekingAlpha) --- */
 .sf-msg-tier1 {
-    padding: 14px 16px; border: 1px solid var(--border); border-left: 3px solid var(--accent-light);
-    border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--bg-elevated);
+    padding: 14px 16px; border: 1px solid var(--glass-border); border-left: 3px solid var(--accent-light);
+    border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
     display: flex; gap: 12px; align-items: flex-start; transition: border-color 0.2s, box-shadow 0.2s;
 }
-.sf-msg-tier1:hover { border-color: var(--border-active); box-shadow: var(--shadow-sm); }
+.sf-msg-tier1:hover { border-color: var(--glass-border-hover); box-shadow: var(--shadow-sm), var(--glow-accent); }
 
 /* --- Tier 2: Normal (Yahoo, Google, MarketWatch) --- */
 .sf-msg-tier2 {
@@ -968,12 +999,15 @@ body.dark .regime-band-needle { background: #fff; box-shadow: 0 0 6px rgba(255,2
 
 /* ============ PERFORMANCE vs SPY — HERO BANNER ============ */
 .perf-banner {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     margin-bottom: 16px;
     position: relative;
     overflow: hidden;
+    box-shadow: var(--shadow-md), var(--glass-inset);
 }
 .perf-banner::before {
     content: '';
@@ -1173,10 +1207,13 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
 /* ============ CYCLE LOG ============ */
 .cycle-log {
     margin: 0 0 12px;
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-inset);
 }
 .cycle-log-title {
     font-size: 11px;
@@ -1217,12 +1254,15 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
 
 /* ============ POSITIONS — HERO SECTION ============ */
 .positions-hero {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     overflow: hidden;
     margin-bottom: 16px;
     position: relative;
+    box-shadow: var(--shadow-md), var(--glass-inset);
 }
 /* Accent glow on top edge */
 .positions-hero::before {
@@ -1624,8 +1664,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* ============ UNIVERSE BAR ============ */
 .universe-bar {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     padding: 10px 20px;
     margin-bottom: 16px;
@@ -1791,9 +1833,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     align-items: center;
     gap: 16px;
     padding: 10px 20px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
     margin-bottom: 12px;
 }
 .preclose-phase {
@@ -1957,9 +2001,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* ============ PAGE TABS ============ */
 .page-tabs {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.80);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-bottom: 1px solid var(--glass-border);
     padding: 0 24px;
     display: flex;
     align-items: stretch;
@@ -1981,10 +2026,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     align-items: center;
     gap: 8px;
 }
-.page-tab:hover { color: var(--text-secondary); }
+.page-tab:hover { color: var(--text-secondary); background: rgba(99, 102, 241, 0.04); }
 .page-tab.active {
     color: var(--accent-light);
     border-bottom-color: var(--accent);
+    background: linear-gradient(180deg, transparent 0%, var(--accent-glow) 100%);
 }
 .page-tab-icon { width: 14px; height: 14px; vertical-align: -2px; flex-shrink: 0; }
 .page-content { display: none; }
@@ -2355,17 +2401,20 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 
 .roadmap-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     padding: 24px;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
     position: relative;
     overflow: hidden;
 }
 .roadmap-card:hover {
-    border-color: var(--border-active);
-    box-shadow: var(--shadow-md);
+    border-color: var(--glass-border-hover);
+    box-shadow: var(--shadow-md), var(--glow-accent);
+    transform: translateY(-2px);
 }
 .roadmap-card.rm-done {
     border-color: rgba(34, 197, 94, 0.2);
@@ -2476,10 +2525,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     padding: 0 20px;
 }
 .roadmap-summary-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     padding: 24px;
+    box-shadow: var(--glass-inset);
 }
 .rm-summary-title {
     font-size: 13px;
@@ -2628,9 +2680,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     grid-template-columns: repeat(4, 1fr);
     gap: 1px;
     margin-top: 16px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     overflow: hidden;
-    border: 1px solid var(--border);
+    border: 1px solid var(--glass-border);
 }
 .ar-stat {
     display: flex;
@@ -2638,7 +2690,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     align-items: center;
     gap: 4px;
     padding: 12px 8px;
-    background: var(--bg-elevated);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     transition: background 0.15s;
 }
 .ar-stat:hover {
@@ -2709,18 +2763,24 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 /* ============ ALGORITHM PAGE ============ */
 .algo-hero {
     background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4f46e5 100%);
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     padding: 48px 32px 36px;
     text-align: center;
     position: relative;
     overflow: hidden;
     margin-bottom: 8px;
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    box-shadow: 0 8px 32px rgba(79, 70, 229, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .algo-hero::before {
     content: '';
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 70%, rgba(99,102,241,0.15) 0%, transparent 50%);
+    background:
+        radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 70%, rgba(99,102,241,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 100%, rgba(59,130,246,0.06) 0%, transparent 50%);
+    background-size: 200% 200%;
+    animation: heroMesh 12s ease-in-out infinite;
     pointer-events: none;
 }
 .algo-hero > * { position: relative; z-index: 1; }
@@ -2752,17 +2812,20 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     flex-wrap: wrap;
 }
 .algo-pipe-step {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: 10px;
     padding: 14px 18px;
     text-align: center;
     min-width: 120px;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 .algo-pipe-step:hover {
     border-color: var(--accent);
-    box-shadow: 0 2px 12px var(--accent-glow);
+    box-shadow: 0 2px 12px var(--accent-glow), var(--glass-inset);
+    transform: translateY(-2px);
 }
 .algo-pipe-icon { font-size: 22px; margin-bottom: 4px; }
 .algo-pipe-label { font-size: 13px; font-weight: 700; color: var(--text-primary); }
@@ -2773,20 +2836,28 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* Cards */
 .algo-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg, 12px);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
     margin-bottom: 16px;
     overflow: hidden;
     max-width: 100%;
+    box-shadow: var(--glass-inset);
+    transition: border-color 0.25s, box-shadow 0.25s;
+}
+.algo-card:hover {
+    border-color: var(--glass-border-hover);
+    box-shadow: var(--shadow-sm), var(--glow-accent);
 }
 .algo-card-header {
     display: flex;
     align-items: center;
     gap: 14px;
     padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--glass-border);
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.03) 0%, transparent 100%);
 }
 .algo-card-num {
     font-size: 12px; font-weight: 800;
