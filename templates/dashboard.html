@@ -18,7 +18,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260303h">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260303i">
 </head>
 <body>
 
@@ -101,6 +101,9 @@
     </div>
     <div class="page-tab" data-page="algoritmo" onclick="switchPage('algoritmo')">
         <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Algoritmo
+    </div>
+    <div class="page-tab" data-page="ml" onclick="switchPage('ml')">
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg> ML
     </div>
 </div>
 
@@ -1574,6 +1577,38 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 </div><!-- /page-algoritmo -->
 
+<!-- ==================== PAGE: MACHINE LEARNING ==================== -->
+<div id="page-ml" class="page-content">
+<div class="ml-layout">
+    <!-- LEFT: Terminal Log -->
+    <div class="ml-terminal">
+        <div class="ml-terminal-header">
+            <div class="ml-terminal-dots">
+                <span class="ml-dot ml-dot-red"></span>
+                <span class="ml-dot ml-dot-yellow"></span>
+                <span class="ml-dot ml-dot-green"></span>
+            </div>
+            <span class="ml-terminal-title">ML Decision Log</span>
+            <span class="ml-terminal-status" id="ml-status">--</span>
+        </div>
+        <div class="ml-terminal-body" id="ml-log">
+            <div class="ml-terminal-loading">Loading ML data...</div>
+        </div>
+    </div>
+    <!-- RIGHT: Interpretation -->
+    <div class="ml-interpret">
+        <div class="ml-interpret-header">
+            <span class="ml-interpret-icon">&#9733;</span>
+            <span class="ml-interpret-title">AI Interpretation</span>
+            <span class="ml-interpret-updated" id="ml-interpret-time"></span>
+        </div>
+        <div class="ml-interpret-body" id="ml-interpret">
+            <p class="ml-interpret-loading">Waiting for analysis...</p>
+        </div>
+    </div>
+</div>
+</div><!-- /page-ml -->
+
 <!-- FOOTER -->
 <footer class="footer-institutional">
     <div class="footer-top">
@@ -1603,7 +1638,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260303h"></script>
+<script src="/static/js/dashboard.js?v=20260303i"></script>
 
 </body>
 </html>

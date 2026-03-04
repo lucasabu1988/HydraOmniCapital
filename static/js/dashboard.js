@@ -1969,3 +1969,147 @@ function fetchExpAnalysis() {
 }
 
 /* Terminal removed — replaced with WhatsApp contact FAB */
+
+/* ============ ML LEARNING TAB ============ */
+var _mlLastCount = 0;
+
+async function fetchMLLearning() {
+    try {
+        var res = await fetch('/api/ml-learning');
+        var data = await res.json();
+        renderMLTerminal(data.log_entries || [], data.insights || {});
+        renderMLInterpretation(data.interpretation || '');
+    } catch (e) {
+        // silent
+    }
+}
+
+function renderMLTerminal(entries, insights) {
+    var logEl = document.getElementById('ml-log');
+    var statusEl = document.getElementById('ml-status');
+    if (!logEl) return;
+
+    /* Stats row */
+    var nDecisions = 0, nSnapshots = 0, nOutcomes = 0;
+    entries.forEach(function(r) {
+        if (r._type === 'decision') nDecisions++;
+        else if (r._type === 'snapshot') nSnapshots++;
+        else if (r._type === 'outcome') nOutcomes++;
+    });
+
+    var phase = (insights.learning_phase || 1);
+    if (statusEl) statusEl.textContent = 'Phase ' + phase;
+
+    var html = '<div class="ml-stats-row">';
+    html += '<div class="ml-stat"><span class="ml-stat-label">Decisions</span><span class="ml-stat-value">' + nDecisions + '</span></div>';
+    html += '<div class="ml-stat"><span class="ml-stat-label">Snapshots</span><span class="ml-stat-value">' + nSnapshots + '</span></div>';
+    html += '<div class="ml-stat"><span class="ml-stat-label">Outcomes</span><span class="ml-stat-value">' + nOutcomes + '</span></div>';
+    html += '<div class="ml-stat"><span class="ml-stat-label">Trading Days</span><span class="ml-stat-value">' + (insights.trading_days || '--') + '</span></div>';
+    html += '<div class="ml-stat"><span class="ml-stat-label">Phase</span><span class="ml-stat-value">' + phase + '/3</span></div>';
+    html += '</div>';
+
+    /* Terminal lines */
+    entries.forEach(function(r) {
+        var ts = (r.timestamp || r.date || '').replace('T', ' ').substring(0, 19);
+        var type = '';
+        var badge = '';
+        var detail = '';
+
+        if (r._type === 'decision') {
+            type = r.decision_type || 'unknown';
+            if (type === 'entry') {
+                badge = '<span class="ml-line-badge ml-badge-entry">ENTRY</span>';
+                var mom = r.momentum_score != null ? r.momentum_score.toFixed(2) : '--';
+                var rank = r.momentum_rank != null ? (r.momentum_rank * 100).toFixed(0) + '%' : '--';
+                var vol = r.entry_vol_ann != null ? (r.entry_vol_ann * 100).toFixed(0) + '%' : '--';
+                var stop = r.adaptive_stop_pct != null ? (r.adaptive_stop_pct * 100).toFixed(1) + '%' : '--';
+                detail = '<span class="ml-sym">' + (r.symbol || '??') + '</span> '
+                    + '<span class="ml-dim">mom=</span>' + mom
+                    + ' <span class="ml-dim">rank=</span>' + rank
+                    + ' <span class="ml-dim">vol=</span>' + vol
+                    + ' <span class="ml-dim">stop=</span>' + stop
+                    + ' <span class="ml-dim">regime=</span>' + (r.regime_bucket || '--');
+            } else if (type === 'exit') {
+                badge = '<span class="ml-line-badge ml-badge-exit">EXIT</span>';
+                var ret = r.current_return != null ? (r.current_return * 100).toFixed(1) + '%' : '--';
+                var retCls = (r.current_return || 0) >= 0 ? 'ml-val-pos' : 'ml-val-neg';
+                detail = '<span class="ml-sym">' + (r.symbol || '??') + '</span> '
+                    + '<span class="ml-dim">reason=</span>' + (r.exit_reason || '--')
+                    + ' <span class="ml-dim">return=</span><span class="' + retCls + '">' + ret + '</span>'
+                    + ' <span class="ml-dim">days=</span>' + (r.days_held || '--')
+                    + ' <span class="ml-dim">regime=</span>' + (r.regime_bucket || '--');
+            } else if (type === 'skip') {
+                badge = '<span class="ml-line-badge ml-badge-skip">SKIP</span>';
+                detail = '<span class="ml-sym">' + (r.symbol || '??') + '</span> '
+                    + '<span class="ml-dim">reason=</span>' + (r.skip_reason || '--');
+            } else {
+                badge = '<span class="ml-line-badge ml-badge-entry">' + type.toUpperCase() + '</span>';
+                detail = '<span class="ml-sym">' + (r.symbol || '??') + '</span>';
+            }
+        } else if (r._type === 'snapshot') {
+            badge = '<span class="ml-line-badge ml-badge-snapshot">SNAP</span>';
+            var pv = r.portfolio_value != null ? '$' + r.portfolio_value.toLocaleString('en-US', {maximumFractionDigits: 0}) : '--';
+            var dd = r.drawdown != null ? (r.drawdown * 100).toFixed(2) + '%' : '--';
+            var ddCls = (r.drawdown || 0) < -0.01 ? 'ml-val-neg' : 'ml-dim';
+            var posStr = (r.positions || []).join(', ') || '--';
+            detail = '<span class="ml-dim">portfolio=</span>' + pv
+                + ' <span class="ml-dim">dd=</span><span class="' + ddCls + '">' + dd + '</span>'
+                + ' <span class="ml-dim">pos=</span>' + (r.n_positions || 0)
+                + ' <span class="ml-dim">regime=</span>' + (r.regime_bucket || '--')
+                + ' <span class="ml-dim">[' + posStr + ']</span>';
+        } else if (r._type === 'outcome') {
+            badge = '<span class="ml-line-badge ml-badge-outcome">TRADE</span>';
+            var gr = r.gross_return != null ? (r.gross_return * 100).toFixed(1) + '%' : '--';
+            var grCls = (r.gross_return || 0) >= 0 ? 'ml-val-pos' : 'ml-val-neg';
+            var pnl = r.pnl_usd != null ? '$' + r.pnl_usd.toFixed(0) : '--';
+            detail = '<span class="ml-sym">' + (r.symbol || '??') + '</span> '
+                + '<span class="ml-dim">result=</span><span class="' + grCls + '">' + gr + '</span>'
+                + ' <span class="ml-dim">pnl=</span>' + pnl
+                + ' <span class="ml-dim">exit=</span>' + (r.exit_reason || '--')
+                + ' <span class="ml-dim">days=</span>' + (r.trading_days_held || '--')
+                + ' <span class="ml-dim">label=</span>' + (r.outcome_label || '--');
+        }
+
+        html += '<div class="ml-line"><span class="ml-line-ts">' + ts + '</span>' + badge + '<span class="ml-line-detail">' + detail + '</span></div>';
+    });
+
+    logEl.innerHTML = html;
+
+    /* Auto-scroll on new entries */
+    if (entries.length > _mlLastCount) {
+        logEl.scrollTop = logEl.scrollHeight;
+        _mlLastCount = entries.length;
+    }
+}
+
+function renderMLInterpretation(text) {
+    var el = document.getElementById('ml-interpret');
+    var timeEl = document.getElementById('ml-interpret-time');
+    if (!el) return;
+    if (!text) {
+        el.innerHTML = '<p class="ml-interpret-loading">Waiting for analysis...</p>';
+        return;
+    }
+    /* Simple markdown-to-HTML */
+    var html = text
+        .replace(/### (.+)/g, '<h3>$1</h3>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    if (!html.startsWith('<')) html = '<p>' + html + '</p>';
+    el.innerHTML = html;
+    if (timeEl) {
+        var now = new Date();
+        timeEl.textContent = 'Updated ' + now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+    }
+}
+
+/* Poll ML data every 60s */
+setInterval(fetchMLLearning, 60000);
+/* Initial load on page ready */
+document.addEventListener('DOMContentLoaded', function() {
+    fetchMLLearning();
+});

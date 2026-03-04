@@ -2155,6 +2155,59 @@ def api_overlay_status():
     })
 
 
+@app.route('/api/ml-learning')
+def api_ml_learning():
+    """Return ML learning log entries, insights, and interpretation."""
+    ml_dir = os.path.join('state', 'ml_learning')
+    entries = []
+
+    # Read JSONL files
+    for fname, etype in [('decisions.jsonl', 'decision'), ('daily_snapshots.jsonl', 'snapshot'), ('outcomes.jsonl', 'outcome')]:
+        fpath = os.path.join(ml_dir, fname)
+        if os.path.exists(fpath):
+            try:
+                with open(fpath, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            rec = json.loads(line)
+                            rec['_type'] = etype
+                            entries.append(rec)
+            except Exception:
+                pass
+
+    # Sort by timestamp/date
+    def sort_key(r):
+        return r.get('timestamp', r.get('date', ''))
+    entries.sort(key=sort_key)
+
+    # Read insights
+    insights = {}
+    insights_path = os.path.join(ml_dir, 'insights.json')
+    if os.path.exists(insights_path):
+        try:
+            with open(insights_path, 'r') as f:
+                insights = json.load(f)
+        except Exception:
+            pass
+
+    # Read interpretation
+    interpretation = ''
+    interp_path = os.path.join(ml_dir, 'interpretation.md')
+    if os.path.exists(interp_path):
+        try:
+            with open(interp_path, 'r') as f:
+                interpretation = f.read()
+        except Exception:
+            pass
+
+    return jsonify({
+        'log_entries': entries,
+        'insights': insights,
+        'interpretation': interpretation,
+    })
+
+
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
