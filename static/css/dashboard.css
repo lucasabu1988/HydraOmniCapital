@@ -2107,7 +2107,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     0%, 100% { opacity: 0.4; transform: scaleX(0.6); }
     50% { opacity: 1; transform: scaleX(1); }
 }
-.landing-hero > * { position: relative; z-index: 1; }
+.landing-hero > *:not(.lh-glow) { position: relative; z-index: 1; }
 /* Chalkboard formulas */
 .lh-chalkboard {
     margin-bottom: 8px;
@@ -2783,7 +2783,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     animation: heroMesh 12s ease-in-out infinite;
     pointer-events: none;
 }
-.algo-hero > * { position: relative; z-index: 1; }
+.algo-hero > *:not(.lh-glow) { position: relative; z-index: 1; }
 .algo-hero-title {
     font-size: 32px; font-weight: 800; color: #fff;
     letter-spacing: -0.5px; margin-bottom: 4px;
