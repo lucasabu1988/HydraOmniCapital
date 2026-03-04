@@ -576,7 +576,8 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
         # from after-hours last_price vs MOC fill price mismatch
         if entry_date:
             try:
-                if date.fromisoformat(entry_date) == date.today():
+                today_et = datetime.now(ZoneInfo('America/New_York')).date()
+                if date.fromisoformat(entry_date) == today_et:
                     current_price = entry_price
             except Exception:
                 pass
@@ -718,7 +719,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     invested = 0
     positions = state.get('positions', {})
     position_meta = state.get('position_meta', {})
-    today = date.today()
+    today_et = datetime.now(ZoneInfo('America/New_York')).date()
     for sym, pos in positions.items():
         meta = position_meta.get(sym, {})
         entry_date = meta.get('entry_date', '')
@@ -726,7 +727,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         # Use entry_price on entry day to avoid phantom PnL from after-hours prices
         if entry_date:
             try:
-                if date.fromisoformat(entry_date) == today:
+                if date.fromisoformat(entry_date) == today_et:
                     price = entry_price
                 else:
                     price = prices.get(sym, entry_price)
