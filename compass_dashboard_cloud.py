@@ -402,8 +402,23 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     # Recompute invested value with live prices if available
     invested = 0
     positions = state.get('positions', {})
+    position_meta = state.get('position_meta', {})
+    today = date.today()
     for sym, pos in positions.items():
-        price = prices.get(sym, pos.get('avg_cost', 0))
+        meta = position_meta.get(sym, {})
+        entry_date = meta.get('entry_date', '')
+        entry_price = meta.get('entry_price', pos.get('avg_cost', 0))
+        # Use entry_price on entry day to avoid phantom PnL from after-hours prices
+        if entry_date:
+            try:
+                if date.fromisoformat(entry_date) == today:
+                    price = entry_price
+                else:
+                    price = prices.get(sym, entry_price)
+            except Exception:
+                price = prices.get(sym, entry_price)
+        else:
+            price = prices.get(sym, pos.get('avg_cost', 0))
         invested += pos.get('shares', 0) * price
 
     # If we have live prices, update portfolio_value
