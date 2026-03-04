@@ -2040,7 +2040,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .landing-hero {
     background: linear-gradient(135deg, #0f0c29 0%, #1a1650 30%, #302b63 60%, #24243e 100%);
     border-radius: 20px;
-    padding: 24px 40px 36px;
+    padding: 8px 40px 36px;
     margin-bottom: 24px;
     text-align: center;
     position: relative;
@@ -2333,7 +2333,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     line-height: 1.5; font-style: italic;
 }
 @media (max-width: 600px) {
-    .landing-hero { padding: 16px 16px 24px; border-radius: 16px; }
+    .landing-hero { padding: 6px 16px 24px; border-radius: 16px; }
     .lh-title { font-size: 24px; }
     .lh-stats { flex-direction: column; padding: 8px; }
     .lh-stat { min-width: unset; padding: 14px 20px; }
@@ -2764,7 +2764,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .algo-hero {
     background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4f46e5 100%);
     border-radius: var(--radius-xl);
-    padding: 48px 32px 36px;
+    padding: 14px 32px 36px;
     text-align: center;
     position: relative;
     overflow: hidden;
