@@ -556,8 +556,10 @@ def read_recent_logs(max_lines: int = 50) -> List[dict]:
 # DERIVED CALCULATIONS
 # ============================================================================
 
-def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict]:
+def compute_position_details(state: dict, prices: Dict[str, float], prev_closes: Dict[str, float] = None) -> List[dict]:
     """Compute enriched position data for display."""
+    if prev_closes is None:
+        prev_closes = {}
     positions = state.get('positions', {})
     position_meta = state.get('position_meta', {})
     trading_day = state.get('trading_day_counter', 0)
@@ -626,6 +628,15 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             adaptive_stop = COMPASS_CONFIG['POSITION_STOP_LOSS']  # fallback
         position_stop_level = entry_price * (1 + adaptive_stop)
 
+        # Today's change: current price vs previous regular close (not post-market)
+        prev_close = prev_closes.get(symbol)
+        if prev_close and prev_close > 0 and current_price:
+            today_change_pct = (current_price - prev_close) / prev_close * 100
+            today_change_dollar = (current_price - prev_close) * shares
+        else:
+            today_change_pct = 0.0
+            today_change_dollar = 0.0
+
         # Sector from meta
         sector = meta.get('sector', 'Unknown')
 
@@ -654,6 +665,9 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             'entry_date': entry_date,
             'near_stop': near_stop,
             'sector': sector,
+            'today_change_pct': round(today_change_pct, 2),
+            'today_change_dollar': round(today_change_dollar, 0),
+            'prev_close': round(prev_close, 2) if prev_close else None,
         })
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)
@@ -856,7 +870,7 @@ def api_state():
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
-    position_details = compute_position_details(state, prices)
+    position_details = compute_position_details(state, prices, _prev_close_cache)
     portfolio = compute_portfolio_metrics(state, prices)
 
     # Chassis status from COMPASS live engine
@@ -989,7 +1003,12 @@ def api_cycle_log():
     except Exception:
         return jsonify([])
 
-    # Enrich active cycles with live metrics
+    # Enrich active cycles with live metrics (today-only return)
+    now_et = datetime.now(ET)
+    current_time = now_et.time()
+    is_weekday = now_et.weekday() < 5
+    market_is_open = is_weekday and MARKET_OPEN <= current_time <= MARKET_CLOSE
+
     for c in cycles:
         if c.get('status') != 'active':
             continue
@@ -1005,7 +1024,6 @@ def api_cycle_log():
             is_first_day = (cycle_start == last_trading) if cycle_start and last_trading else False
 
             if is_first_day:
-                # Don't show PnL on the opening day — no movement has occurred
                 c['compass_return'] = 0.0
                 c['spy_return'] = 0.0
                 c['alpha'] = 0.0
@@ -1014,28 +1032,30 @@ def api_cycle_log():
                 continue
 
             positions = state.get('positions', {})
-            position_meta = state.get('position_meta', {})
-            # Fetch SPY ETF — unified benchmark with global P&L
             symbols = list(positions.keys()) + ['SPY']
             prices = fetch_live_prices(symbols)
 
-            # Portfolio value = sum(shares * current_price) + cash
+            # Portfolio value: use live prices during market, prev_close outside
             portfolio_now = state.get('cash', 0)
             for sym, pos in positions.items():
-                price = prices.get(sym)
-                if price:
-                    portfolio_now += pos.get('shares', 0) * price
+                shares = pos.get('shares', 0)
+                if market_is_open:
+                    price = prices.get(sym)
                 else:
-                    meta = position_meta.get(sym, {})
-                    portfolio_now += pos.get('shares', 0) * meta.get('entry_price', pos.get('avg_cost', 0))
+                    price = _prev_close_cache.get(sym) or prices.get(sym)
+                if price:
+                    portfolio_now += shares * price
+                else:
+                    portfolio_now += shares * pos.get('avg_cost', 0)
 
+            # COMPASS cumulative return (from cycle start)
             port_start = c.get('portfolio_start')
             if port_start and port_start > 0:
                 c['portfolio_end'] = round(portfolio_now, 2)
                 c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
-            # SPY return (unified benchmark with global P&L)
-            spy_price = prices.get('SPY')
+            # SPY cumulative return (from cycle start)
+            spy_price = prices.get('SPY') if market_is_open else (_prev_close_cache.get('SPY') or prices.get('SPY'))
             spy_start = c.get('spy_start')
             if spy_price and spy_start and spy_start > 0:
                 c['spy_end'] = round(spy_price, 2)

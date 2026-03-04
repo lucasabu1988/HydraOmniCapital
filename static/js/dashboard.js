@@ -374,7 +374,10 @@ function updatePositions(details) {
 
         const isProfit = p.pnl_pct >= 0;
         const cardCls = p.near_stop ? 'pos-near-stop' : (isProfit ? 'pos-profit' : 'pos-loss');
-        const pnlBadgeCls = isProfit ? 'pnl-up' : 'pnl-dn';
+
+        /* Today's change badge (intraday vs prev regular close) */
+        const todayUp = (p.today_change_pct || 0) >= 0;
+        const pnlBadgeCls = todayUp ? 'pnl-up' : 'pnl-dn';
 
         /* Hold progress */
         const holdPct = Math.min(100, (p.days_held / holdDays) * 100);
@@ -390,7 +393,8 @@ function updatePositions(details) {
                 '<span class="pos-stop-val">$' + p.trailing_stop_level.toFixed(2) + '</span></div>';
         }
 
-        const priceChange = p.current_price - p.entry_price;
+        /* Today's price change (vs previous regular close, not post-market) */
+        const priceChange = p.prev_close ? (p.current_price - p.prev_close) : 0;
         const priceChangeSign = priceChange >= 0 ? '+' : '-';
 
         html += '<div class="pos-card ' + cardCls + '">' +
@@ -409,7 +413,7 @@ function updatePositions(details) {
                         '</div></span>';
                 })() +
                 '<span style="font-size:15px; font-weight:700; color:var(--text-primary); font-family:var(--font-mono,monospace); margin-left:auto; margin-right:6px;">$' + p.current_price.toFixed(2) + '</span>' +
-                '<span class="pos-pnl-badge ' + pnlBadgeCls + '">' + fmtPct(p.pnl_pct) + '</span>' +
+                '<span class="pos-pnl-badge ' + pnlBadgeCls + '">' + fmtPct(p.today_change_pct || 0) + '</span>' +
             '</div>' +
             /* Row 1: Value, P&L$, Shares */
             '<div class="pos-data-row">' +
@@ -420,7 +424,7 @@ function updatePositions(details) {
             /* Row 2: Entry, Chg$, High */
             '<div class="pos-data-row">' +
                 '<div class="pos-datum"><span class="pos-datum-label">Entry</span><span class="pos-datum-value">$' + p.entry_price.toFixed(2) + '</span></div>' +
-                '<div class="pos-datum"><span class="pos-datum-label">Chg</span><span class="pos-datum-value ' + colorCls(priceChange) + '">' + priceChangeSign + '$' + Math.abs(priceChange).toFixed(2) + '</span></div>' +
+                '<div class="pos-datum"><span class="pos-datum-label">Hoy</span><span class="pos-datum-value ' + colorCls(priceChange) + '">' + priceChangeSign + '$' + Math.abs(priceChange).toFixed(2) + '</span></div>' +
                 '<div class="pos-datum"><span class="pos-datum-label">High</span><span class="pos-datum-value">$' + p.high_price.toFixed(2) + '</span></div>' +
             '</div>' +
             /* Hold progress bar */
