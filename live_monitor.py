@@ -178,6 +178,9 @@ class LiveMonitor:
                 'score': opp['signal'].confidence,
                 'price': opp['current_price']
             })
+            # Limit history to prevent unbounded memory growth
+            if len(watch['signals_history']) > 500:
+                watch['signals_history'] = watch['signals_history'][-500:]
             watch['highest_score'] = max(watch['highest_score'], opp['signal'].confidence)
             watch['lowest_score'] = min(watch['lowest_score'], opp['signal'].confidence)
             
@@ -218,7 +221,10 @@ class LiveMonitor:
                         })
                         
         self.alerts.extend(alerts_triggered)
-        
+        # Prune old alerts to prevent unbounded memory growth
+        if len(self.alerts) > 500:
+            self.alerts = self.alerts[-500:]
+
         # Mostrar alertas nuevas
         for alert in alerts_triggered:
             print(f"\n  [ALERTA] {alert['message']}")
