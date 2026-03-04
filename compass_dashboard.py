@@ -2373,13 +2373,14 @@ def api_ml_learning():
         return r.get('timestamp', r.get('date', ''))
     entries.sort(key=sort_key)
 
-    # Read insights
+    # Read insights (sanitize NaN which breaks JSON standard / jsonify)
     insights = {}
     insights_path = os.path.join(ml_dir, 'insights.json')
     if os.path.exists(insights_path):
         try:
             with open(insights_path, 'r') as f:
-                insights = json.load(f)
+                raw = f.read().replace('NaN', 'null').replace('Infinity', 'null').replace('-Infinity', 'null')
+                insights = json.loads(raw)
         except Exception:
             pass
 
