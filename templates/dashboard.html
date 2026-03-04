@@ -18,7 +18,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260303c">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260303d">
 </head>
 <body>
 
@@ -115,6 +115,41 @@
     <div class="lh-glow lh-glow-2"></div>
     <div class="lh-glow lh-glow-3"></div>
     <div class="lh-accent-line"></div>
+    <!-- Chalkboard formulas — the algorithm in plain sight -->
+    <div class="lh-chalkboard">
+        <div class="lh-chalk-row lh-chalk-main">
+            <span class="lh-chalk-fn">Score</span><sub class="lh-chalk-sub">i</sub>
+            <span class="lh-chalk-eq">=</span>
+            <span class="lh-chalk-frac">
+                <span class="lh-chalk-num">r<sub>i,t&minus;5</sub><sup class="lh-chalk-comma">&thinsp;</sup>&minus;&thinsp;r<sub>i,t&minus;90</sub></span>
+                <span class="lh-chalk-den">&sigma;<sub>i,90</sub></span>
+            </span>
+            <span class="lh-chalk-op">&times;</span>
+            <span class="lh-chalk-fn">Regime</span>(<span class="lh-chalk-var">S</span>)
+        </div>
+        <div class="lh-chalk-row lh-chalk-secondary">
+            <span class="lh-chalk-piece">
+                <span class="lh-chalk-var">Stop</span><sub class="lh-chalk-sub">i</sub>
+                <span class="lh-chalk-eq">=</span>
+                &minus;6%&thinsp;&times;&thinsp;<span class="lh-chalk-frac-inline">
+                    <sup>&sigma;<sub>i</sub></sup>&frasl;<sub>&sigma;&#x0304;</sub>
+                </span>
+            </span>
+            <span class="lh-chalk-divider">|</span>
+            <span class="lh-chalk-piece">
+                <span class="lh-chalk-var">n</span>
+                <span class="lh-chalk-eq">=</span>
+                5&thinsp;&times;&thinsp;<span class="lh-chalk-fn">Sigmoid</span>(<span class="lh-chalk-var">S</span>)
+            </span>
+            <span class="lh-chalk-divider">|</span>
+            <span class="lh-chalk-piece">
+                Hold <span class="lh-chalk-eq">=</span> 5d
+            </span>
+        </div>
+        <div class="lh-chalk-row lh-chalk-tertiary">
+            Top 5 of 40 &middot; Rebalance at close &middot; Sector cap 3
+        </div>
+    </div>
     <div class="lh-brand">
         <div class="lh-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -1566,7 +1601,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260303c"></script>
+<script src="/static/js/dashboard.js?v=20260303d"></script>
 
 </body>
 </html>
