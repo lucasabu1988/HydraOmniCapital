@@ -1994,7 +1994,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .landing-hero {
     background: linear-gradient(135deg, #0f0c29 0%, #1a1650 30%, #302b63 60%, #24243e 100%);
     border-radius: 20px;
-    padding: 48px 40px 36px;
+    padding: 24px 40px 36px;
     margin-bottom: 24px;
     text-align: center;
     position: relative;
@@ -2053,7 +2053,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .lh-accent-line {
     height: 2px;
     background: linear-gradient(90deg, transparent, rgba(99,102,241,0.8), rgba(139,92,246,0.8), transparent);
-    margin-bottom: 32px;
+    margin-bottom: 16px;
     border-radius: 2px;
     animation: shimmerLine 4s ease-in-out infinite;
 }
@@ -2064,8 +2064,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .landing-hero > * { position: relative; z-index: 1; }
 /* Chalkboard formulas */
 .lh-chalkboard {
-    margin-bottom: 36px;
-    padding: 28px 20px 22px;
+    margin-bottom: 20px;
+    padding: 12px 20px 16px;
     position: relative;
     z-index: 1;
 }
@@ -2287,7 +2287,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     line-height: 1.5; font-style: italic;
 }
 @media (max-width: 600px) {
-    .landing-hero { padding: 32px 16px 24px; border-radius: 16px; }
+    .landing-hero { padding: 16px 16px 24px; border-radius: 16px; }
     .lh-title { font-size: 24px; }
     .lh-stats { flex-direction: column; padding: 8px; }
     .lh-stat { min-width: unset; padding: 14px 20px; }
