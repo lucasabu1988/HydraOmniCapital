@@ -375,9 +375,9 @@ function updatePositions(details) {
         const isProfit = p.pnl_pct >= 0;
         const cardCls = p.near_stop ? 'pos-near-stop' : (isProfit ? 'pos-profit' : 'pos-loss');
 
-        /* Today's change badge (intraday vs prev regular close) */
-        const todayUp = (p.today_change_pct || 0) >= 0;
-        const pnlBadgeCls = todayUp ? 'pnl-up' : 'pnl-dn';
+        /* Return badge (total return since entry) */
+        const retUp = (p.pnl_pct || 0) >= 0;
+        const pnlBadgeCls = retUp ? 'pnl-up' : 'pnl-dn';
 
         /* Hold progress */
         const holdPct = Math.min(100, (p.days_held / holdDays) * 100);
@@ -413,7 +413,7 @@ function updatePositions(details) {
                         '</div></span>';
                 })() +
                 '<span style="font-size:15px; font-weight:700; color:var(--text-primary); font-family:var(--font-mono,monospace); margin-left:auto; margin-right:6px;">$' + p.current_price.toFixed(2) + '</span>' +
-                '<span class="pos-pnl-badge ' + pnlBadgeCls + '">' + fmtPct(p.today_change_pct || 0) + '</span>' +
+                '<span class="pos-pnl-badge ' + pnlBadgeCls + '">' + fmtPct(p.pnl_pct || 0) + '</span>' +
             '</div>' +
             /* Row 1: Value, P&L$, Shares */
             '<div class="pos-data-row">' +
