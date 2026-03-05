@@ -1,9 +1,10 @@
 """
-COMPASS v8.4 — Cloud Dashboard (Showcase)
-==========================================
-Full-featured Flask dashboard for Render.com deployment.
+HYDRA — Cloud Dashboard (Showcase)
+====================================
+Multi-strategy dashboard: COMPASS (momentum) + Rattlesnake (mean-reversion)
+with cash recycling. Full-featured Flask dashboard for Render.com deployment.
 Shows live prices, backtest equity curves, trade analytics,
-execution microstructure, social feed, and research paper.
+Rattlesnake positions, capital allocation, and research paper.
 NO live trading engine — showcase/portfolio mode.
 
 Deploy: git push to GitHub → auto-deploy on Render.
@@ -342,6 +343,56 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)
     return results
+
+
+def compute_hydra_data(state: dict, prices: Dict[str, float] = None) -> Optional[dict]:
+    """Compute HYDRA multi-strategy data for dashboard display."""
+    hydra_state = state.get('hydra', {})
+    if not hydra_state or not hydra_state.get('available'):
+        return None
+
+    prices = prices or {}
+    rattle_positions = hydra_state.get('rattle_positions', [])
+
+    # Enrich Rattlesnake positions with current price and P&L
+    enriched = []
+    for rp in rattle_positions:
+        symbol = rp.get('symbol', '')
+        entry_price = rp.get('entry_price', 0)
+        current_price = prices.get(symbol, entry_price)
+        pnl_pct = ((current_price / entry_price) - 1.0) * 100 if entry_price > 0 else 0
+        enriched.append({
+            'symbol': symbol,
+            'entry_price': round(entry_price, 2),
+            'current_price': round(current_price, 2),
+            'shares': rp.get('shares', 0),
+            'days_held': rp.get('days_held', 0),
+            'entry_date': rp.get('entry_date', ''),
+            'pnl_pct': round(pnl_pct, 2),
+        })
+
+    # Capital allocation
+    cap_state = hydra_state.get('capital_manager')
+    capital = None
+    if cap_state:
+        total = (cap_state.get('compass_account', 0) + cap_state.get('rattle_account', 0))
+        if total > 0:
+            capital = {
+                'compass_account': round(cap_state.get('compass_account', 0), 0),
+                'rattle_account': round(cap_state.get('rattle_account', 0), 0),
+                'compass_pct': cap_state.get('compass_account', 0) / total,
+                'rattle_pct': cap_state.get('rattle_account', 0) / total,
+                'total': round(total, 0),
+                'recycled_pct': 0,
+            }
+
+    return {
+        'available': True,
+        'rattle_positions': enriched,
+        'rattle_regime': hydra_state.get('rattle_regime', 'RISK_ON'),
+        'vix_current': hydra_state.get('vix_current'),
+        'capital': capital,
+    }
 
 
 def get_spy_start_price() -> Optional[float]:
@@ -859,6 +910,7 @@ def api_state():
         return jsonify({
             'status': 'offline',
             'error': 'No state file found',
+            'hydra': None,
             'server_time': datetime.now().isoformat(),
             'engine': {
                 'running': False,
@@ -868,8 +920,12 @@ def api_state():
             },
         })
 
-    # Fetch live prices for positions + SPY + ES Futures
+    # Fetch live prices for positions + SPY + ES Futures + Rattlesnake
     symbols = ['SPY', '^GSPC', 'ES=F'] + list(state.get('positions', {}).keys())
+    hydra_state = state.get('hydra', {})
+    if hydra_state:
+        rattle_syms = [p.get('symbol', '') for p in hydra_state.get('rattle_positions', []) if p.get('symbol')]
+        symbols += rattle_syms
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
@@ -898,10 +954,14 @@ def api_state():
         'entries_done': preclose_phase == 'entries_done',
     }
 
+    # HYDRA data
+    hydra_data = compute_hydra_data(state, prices)
+
     return jsonify({
         'status': 'online',
         'portfolio': portfolio,
         'position_details': position_details,
+        'hydra': hydra_data,
         'prices': prices,
         'prev_closes': _prev_close_cache,
         'universe': state.get('current_universe', []),

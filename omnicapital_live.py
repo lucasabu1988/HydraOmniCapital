@@ -1,19 +1,16 @@
 """
-OmniCapital v8.4 COMPASS - Live Trading System
-================================================
-Sistema de trading en vivo basado en COMPASS v8.4.
-Porta fielmente la logica del backtest a ejecucion en tiempo real.
+OmniCapital HYDRA - Live Trading System (COMPASS + Rattlesnake)
+================================================================
+Multi-strategy system combining COMPASS v8.4 (momentum) with
+Rattlesnake v1.0 (mean-reversion) and cash recycling.
 
-Signal: Risk-adjusted cross-sectional momentum (90d return / 63d vol) + short-term reversal (5d skip)
-Regime: Sigmoid composite score (SMA200 + SMA50/200 cross + 20d momentum + vol rank)
-Sizing: Inverse volatility weighting
-Leverage: Smooth drawdown scaling + volatility targeting + crash velocity brake
-Exits: Hold time (5d) + adaptive stop (vol-scaled -6% to -15%) + vol-scaled trailing stop + exit renewal for winners
-Quality: Filter extreme-vol / corrupt-data stocks from universe
+COMPASS: Risk-adjusted cross-sectional momentum (90d return / 63d vol)
+Rattlesnake: RSI<25 dip-buying on S&P 100 (uptrend filter)
+HYDRA: Cash recycling — idle Rattlesnake cash flows to COMPASS (cap 75%)
 
-v8.4 improvements over v8.3:
-  - Adaptive stops: position stop = -2.5 * daily_vol (clamped -6% to -15%)
-  - Vol-scaled trailing: trailing_pct scaled by entry_vol / baseline_vol
+Results (backtest 2000-2026):
+  CAGR 13.28% | MaxDD -23.49% | Sharpe 1.04
+  vs COMPASS solo: +1.01% CAGR, +8.61% MaxDD, +0.19 Sharpe
 """
 
 import pandas as pd
@@ -52,6 +49,18 @@ try:
     _ml_available = True
 except ImportError:
     _ml_available = False
+
+# HYDRA: Rattlesnake + Cash Recycling (non-blocking, optional)
+try:
+    from rattlesnake_signals import (
+        R_UNIVERSE, R_MAX_POSITIONS, R_POSITION_SIZE, R_MAX_POS_RISK_OFF,
+        find_rattlesnake_candidates, check_rattlesnake_exit,
+        check_rattlesnake_regime, compute_rattlesnake_exposure,
+    )
+    from hydra_capital import HydraCapitalManager
+    _hydra_available = True
+except ImportError:
+    _hydra_available = False
 
 # Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
 try:
@@ -755,6 +764,20 @@ class COMPASSLive:
         # Notifications (set externally)
         self.notifier = None
 
+        # HYDRA: Rattlesnake + Cash Recycling
+        self._hydra_available = _hydra_available
+        self.rattle_positions: List[dict] = []  # {symbol, entry_price, entry_date, shares, days_held}
+        self.rattle_regime = 'RISK_ON'
+        self._vix_current: Optional[float] = None
+        self.hydra_capital = None
+        if _hydra_available:
+            try:
+                self.hydra_capital = HydraCapitalManager(config['PAPER_INITIAL_CASH'])
+                logger.info("HYDRA multi-strategy: ACTIVE (COMPASS + Rattlesnake + Cash Recycling)")
+            except Exception as e:
+                logger.warning(f"HYDRA init failed (running COMPASS-only): {e}")
+                self._hydra_available = False
+
         # ML Learning System
         self.ml = None
         if _ml_available:
@@ -789,7 +812,10 @@ class COMPASSLive:
                 logger.warning(f"Overlay system failed to init (degrading to scalar=1.0): {e}")
 
         logger.info("=" * 70)
-        logger.info("OMNICAPITAL v8.4 COMPASS - LIVE TRADING")
+        if self._hydra_available:
+            logger.info("OMNICAPITAL HYDRA - LIVE TRADING (COMPASS + Rattlesnake)")
+        else:
+            logger.info("OMNICAPITAL v8.4 COMPASS - LIVE TRADING")
         logger.info("=" * 70)
         logger.info(f"Signal: Risk-adj momentum {config['MOMENTUM_LOOKBACK']}d (skip {config['MOMENTUM_SKIP']}d)")
         logger.info(f"Regime: Sigmoid composite score | Vol target: {config['TARGET_VOL']:.0%}")
@@ -867,7 +893,39 @@ class COMPASSLive:
             except Exception as e:
                 logger.debug(f"Failed to download {symbol}: {e}")
 
-        logger.info(f"Historical data refreshed: {len(self._hist_cache)} stocks")
+        logger.info(f"Historical data refreshed: {len(self._hist_cache)} stocks (COMPASS)")
+
+        # HYDRA: Download Rattlesnake universe + VIX
+        if self._hydra_available:
+            r_symbols_needed = set(R_UNIVERSE) - set(self._hist_cache.keys())
+            # Also re-download held Rattlesnake symbols
+            r_symbols_needed |= {p['symbol'] for p in self.rattle_positions}
+            for symbol in r_symbols_needed:
+                try:
+                    df = yf.download(symbol, period='1y', progress=False)
+                    if isinstance(df.columns, pd.MultiIndex):
+                        df.columns = [c[0] for c in df.columns]
+                    if len(df) > 20:
+                        self._hist_cache[symbol] = df
+                except Exception as e:
+                    logger.debug(f"Failed to download {symbol} (Rattlesnake): {e}")
+
+            # VIX for panic filter
+            try:
+                vix = yf.download('^VIX', period='5d', progress=False)
+                if isinstance(vix.columns, pd.MultiIndex):
+                    vix.columns = [c[0] for c in vix.columns]
+                if len(vix) > 0:
+                    self._vix_current = float(vix['Close'].iloc[-1])
+                    logger.info(f"VIX: {self._vix_current:.1f}")
+                else:
+                    self._vix_current = None
+            except Exception as e:
+                logger.warning(f"Failed to download VIX: {e}")
+                self._vix_current = None
+
+            logger.info(f"Historical data refreshed: {len(self._hist_cache)} stocks (COMPASS + Rattlesnake)")
+
         self._hist_date = today
 
         # Refresh overlay FRED data (daily, uses cache if network fails)
@@ -1053,8 +1111,9 @@ class COMPASSLive:
             if symbol not in self.current_universe:
                 exit_reason = 'universe_rotation'
 
-            # 5. Regime reduce (excess positions)
-            if exit_reason is None and len(positions) > max_positions:
+            # 5. Regime reduce (excess COMPASS positions)
+            compass_count = sum(1 for s in positions if s in self.position_meta)
+            if exit_reason is None and compass_count > max_positions:
                 pos_returns = {}
                 for s, p in positions.items():
                     pr = prices.get(s)
@@ -1174,8 +1233,10 @@ class COMPASSLive:
     def open_new_positions(self, prices: Dict[str, float]):
         """Open new positions using momentum scoring + inverse-vol sizing"""
         positions = self.broker.get_positions()
+        # HYDRA: Only count COMPASS positions (those with position_meta)
+        compass_positions = {s: p for s, p in positions.items() if s in self.position_meta}
         max_positions = self.get_max_positions()
-        needed = max_positions - len(positions)
+        needed = max_positions - len(compass_positions)
 
         if needed <= 0:
             return
@@ -1296,7 +1357,19 @@ class COMPASSLive:
                 logger.warning(f"Overlay computation failed (using scalar=1.0): {e}")
                 damped_scalar = 1.0
 
-        effective_capital = portfolio.cash * current_leverage * 0.95 * damped_scalar
+        # HYDRA: Use cash recycling budget for COMPASS if available
+        compass_cash = portfolio.cash
+        if self._hydra_available and self.hydra_capital:
+            r_exposure = compute_rattlesnake_exposure(
+                self.rattle_positions, prices, self.hydra_capital.rattle_account
+            )
+            alloc = self.hydra_capital.compute_allocation(r_exposure)
+            compass_cash = min(portfolio.cash, alloc['compass_budget'])
+            logger.info(f"HYDRA budget: COMPASS=${alloc['compass_budget']:,.0f} | "
+                       f"Rattlesnake=${alloc['rattle_budget']:,.0f} | "
+                       f"recycled=${alloc['recycled_amount']:,.0f} ({alloc['recycled_pct']:.0%})")
+
+        effective_capital = compass_cash * current_leverage * 0.95 * damped_scalar
 
         for symbol in selected:
             price = prices.get(symbol)
@@ -1305,7 +1378,7 @@ class COMPASSLive:
 
             weight = weights.get(symbol, 1.0 / len(selected))
             position_value = effective_capital * weight
-            max_per_position = portfolio.cash * 0.40
+            max_per_position = compass_cash * 0.40
             position_value = min(position_value, max_per_position)
 
             shares = int(position_value / price)  # whole shares only (IBKR requirement)
@@ -1406,6 +1479,142 @@ class COMPASSLive:
                 portfolio = self.broker.get_portfolio()
 
     # ------------------------------------------------------------------
+    # HYDRA: Rattlesnake position management
+    # ------------------------------------------------------------------
+
+    def _check_rattlesnake_exits(self, prices: Dict[str, float]):
+        """Check exit conditions for Rattlesnake positions."""
+        if not self.rattle_positions:
+            return
+
+        exits = []
+        for pos in self.rattle_positions:
+            symbol = pos['symbol']
+            price = prices.get(symbol)
+            if not price:
+                continue
+
+            reason = check_rattlesnake_exit(
+                symbol, pos['entry_price'], price, pos.get('days_held', 0)
+            )
+            if reason:
+                exits.append((pos, price, reason))
+
+        for pos, price, reason in exits:
+            symbol = pos['symbol']
+            shares = pos.get('shares', 0)
+            pnl = (price - pos['entry_price']) * shares
+
+            # Execute sell through broker
+            order = Order(symbol=symbol, action='SELL',
+                          quantity=shares, order_type='MARKET',
+                          decision_price=price)
+            result = self._submit_order(order, prices)
+
+            if result.status == 'FILLED':
+                actual_pnl = (result.filled_price - pos['entry_price']) * shares - result.commission
+                ret = actual_pnl / (pos['entry_price'] * shares) if pos['entry_price'] * shares > 0 else 0
+
+                # Record P&L to Rattlesnake account
+                if self.hydra_capital:
+                    self.hydra_capital.record_rattle_trade(actual_pnl)
+
+                self.rattle_positions.remove(pos)
+                self.trades_today.append({
+                    'symbol': symbol, 'action': 'SELL',
+                    'exit_reason': f'R_{reason}', 'pnl': actual_pnl, 'return': ret,
+                    'price': result.filled_price, 'strategy': 'Rattlesnake',
+                })
+                logger.info(f"R_EXIT [{reason}] {symbol} @ ${result.filled_price:.2f} | "
+                           f"PnL: ${actual_pnl:+,.0f} ({ret:+.1%}) | "
+                           f"days={pos.get('days_held', 0)}")
+
+                if self.notifier:
+                    self.notifier.send_trade_alert('SELL', symbol, shares,
+                                                   result.filled_price, f'R_{reason}', actual_pnl)
+                self.save_state()
+
+    def _open_rattlesnake_positions(self, prices: Dict[str, float]):
+        """Find and open Rattlesnake mean-reversion entries."""
+        if not self._hydra_available or not self.hydra_capital:
+            return
+
+        # Check regime
+        regime_info = check_rattlesnake_regime(
+            self._spy_hist, self._vix_current
+        ) if self._spy_hist is not None else {'entries_allowed': True, 'max_positions': R_MAX_POSITIONS}
+
+        if not regime_info['entries_allowed']:
+            logger.info(f"Rattlesnake entries blocked: VIX panic")
+            return
+
+        max_r_pos = regime_info['max_positions']
+        r_slots = max_r_pos - len(self.rattle_positions)
+        if r_slots <= 0:
+            return
+
+        # Symbols already held by either strategy
+        held = set(self.broker.positions.keys()) | {p['symbol'] for p in self.rattle_positions}
+
+        # Find candidates
+        candidates = find_rattlesnake_candidates(
+            self._hist_cache, prices, held, max_candidates=r_slots
+        )
+
+        if not candidates:
+            return
+
+        # Compute Rattlesnake budget
+        r_exposure = compute_rattlesnake_exposure(
+            self.rattle_positions, prices, self.hydra_capital.rattle_account
+        )
+        alloc = self.hydra_capital.compute_allocation(r_exposure)
+        r_budget = alloc['rattle_budget']
+
+        for cand in candidates:
+            symbol = cand['symbol']
+            price = cand['price']
+            if price <= 0:
+                continue
+
+            # Position size: R_POSITION_SIZE of Rattlesnake budget
+            position_value = r_budget * R_POSITION_SIZE
+            shares = int(position_value / price)
+            if shares < 1:
+                continue
+            cost = shares * price
+
+            # Check broker has enough cash
+            portfolio = self.broker.get_portfolio()
+            if cost > portfolio.cash * 0.90:
+                continue
+
+            order = Order(symbol=symbol, action='BUY',
+                          quantity=shares, order_type='MARKET',
+                          decision_price=price)
+            result = self._submit_order(order, prices)
+
+            if result.status == 'FILLED':
+                self.rattle_positions.append({
+                    'symbol': symbol,
+                    'entry_price': result.filled_price,
+                    'entry_date': self.get_et_now().date().isoformat(),
+                    'shares': shares,
+                    'days_held': 0,
+                })
+                self.trades_today.append({
+                    'symbol': symbol, 'action': 'BUY',
+                    'price': result.filled_price, 'shares': shares,
+                    'value': cost, 'strategy': 'Rattlesnake',
+                })
+                logger.info(f"R_ENTRY {symbol}: {shares} shares @ ${result.filled_price:.2f} "
+                           f"(${cost:,.0f} | drop={cand['drop_pct']:.1%} | RSI={cand['rsi']:.0f})")
+
+                if self.notifier:
+                    self.notifier.send_trade_alert('BUY', symbol, shares,
+                                                   result.filled_price, 'R_ENTRY', None)
+                self.save_state()
+
     # ------------------------------------------------------------------
     # Order submission (with optional execution strategy)
     # ------------------------------------------------------------------
@@ -1497,6 +1706,25 @@ class COMPASSLive:
                      f"Leverage: {current_leverage:.2f}x | "
                      f"Positions: {len(self.broker.positions)}/{max_pos}")
 
+        # HYDRA: Update Rattlesnake regime + increment days held
+        if self._hydra_available and self._spy_hist is not None:
+            regime_info = check_rattlesnake_regime(self._spy_hist, self._vix_current)
+            self.rattle_regime = regime_info['regime']
+            # Increment days_held for all Rattlesnake positions
+            for pos in self.rattle_positions:
+                pos['days_held'] = pos.get('days_held', 0) + 1
+            # Log HYDRA status
+            hydra_str = f"HYDRA: R_regime={self.rattle_regime} | R_pos={len(self.rattle_positions)}"
+            if self.hydra_capital:
+                status = self.hydra_capital.get_status()
+                hydra_str += (f" | C_acct=${status['compass_account']:,.0f} "
+                             f"({status['compass_pct']:.0%}) | "
+                             f"R_acct=${status['rattle_account']:,.0f} "
+                             f"({status['rattle_pct']:.0%})")
+                if status['current_recycled'] > 0:
+                    hydra_str += f" | recycled=${status['current_recycled']:,.0f} ({status['recycled_pct']:.0%})"
+            logger.info(hydra_str)
+
         # ML: end-of-day snapshot
         if self.ml:
             try:
@@ -1534,6 +1762,10 @@ class COMPASSLive:
         """
         # Check individual position exits (DD scaling handles risk continuously)
         self.check_position_exits(prices)
+
+        # HYDRA: Check Rattlesnake exits (profit target, stop loss, time)
+        if self._hydra_available and self.rattle_positions:
+            self._check_rattlesnake_exits(prices)
 
         # NOTE: Entries moved to execute_preclose_entries() at 15:30 ET
         # This recovers ~0.79% CAGR by using same-day MOC execution
@@ -1574,6 +1806,10 @@ class COMPASSLive:
         # The _hist_cache contains data up to yesterday's close (refreshed at open)
         # This is exactly the Close[T-1] signal validated in the backtest
         self.open_new_positions(prices)
+
+        # HYDRA: Rattlesnake entries (after COMPASS, uses separate budget)
+        if self._hydra_available:
+            self._open_rattlesnake_positions(prices)
 
         # Detect rotation: if we had sells (hold_expired) today AND new buys
         positions_after = set(self.broker.positions.keys())
@@ -1911,6 +2147,15 @@ class COMPASSLive:
                 'diagnostics': self._overlay_result.get('diagnostics', {}) if self._overlay_result else {},
             },
 
+            # HYDRA state
+            'hydra': {
+                'available': self._hydra_available,
+                'rattle_positions': self.rattle_positions,
+                'rattle_regime': self.rattle_regime,
+                'vix_current': self._vix_current,
+                'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
+            },
+
             # Stats
             'stats': {
                 'cycles_completed': self._cycles_completed,
@@ -2030,11 +2275,24 @@ class COMPASSLive:
         self._daily_open_done = state.get('_daily_open_done', False)
         self._preclose_entries_done = state.get('_preclose_entries_done', False)
 
+        # Restore HYDRA state
+        hydra_state = state.get('hydra', {})
+        if hydra_state and self._hydra_available:
+            self.rattle_positions = hydra_state.get('rattle_positions', [])
+            self.rattle_regime = hydra_state.get('rattle_regime', 'RISK_ON')
+            self._vix_current = hydra_state.get('vix_current')
+            cap_state = hydra_state.get('capital_manager')
+            if cap_state:
+                self.hydra_capital = HydraCapitalManager.from_dict(cap_state)
+                logger.info(f"  HYDRA restored: R_pos={len(self.rattle_positions)} | "
+                           f"C_acct=${self.hydra_capital.compass_account:,.0f} | "
+                           f"R_acct=${self.hydra_capital.rattle_account:,.0f}")
+
         regime_str = f"score={self.current_regime_score:.2f}"
 
         logger.info(f"State loaded from {loaded_from}")
         logger.info(f"  Cash: ${self.broker.cash:,.0f} | Peak: ${self.peak_value:,.0f}")
-        logger.info(f"  Positions: {len(self.broker.positions)} | Day: {self.trading_day_counter}")
+        logger.info(f"  Positions: {len(self.broker.positions)} (COMPASS) + {len(self.rattle_positions)} (Rattlesnake) | Day: {self.trading_day_counter}")
         logger.info(f"  Regime: {regime_str} | Crash cooldown: {self.crash_cooldown}")
         if loaded_from != latest:
             logger.warning(f"  Loaded from FALLBACK file (not latest): {loaded_from}")
@@ -2076,9 +2334,18 @@ class COMPASSLive:
             p for p in pos_parts
         ])
 
+        hydra_str = ""
+        if self._hydra_available:
+            r_pos_parts = []
+            for rp in self.rattle_positions:
+                s = rp['symbol']
+                rp_ret = (prices.get(s, rp['entry_price']) - rp['entry_price']) / rp['entry_price']
+                r_pos_parts.append(f"{s}({rp_ret:.1%}|d{rp.get('days_held', 0)})")
+            hydra_str = f" | R:{len(self.rattle_positions)} [{','.join(r_pos_parts)}]"
+
         logger.info(f"STATUS: ${portfolio.total_value:,.0f} | DD:{drawdown:.1%} | "
                      f"{regime_str} | Lev:{leverage:.2f}x | "
-                     f"Pos:{len(positions)}/{self.get_max_positions()} | "
+                     f"C:{len(positions)}/{self.get_max_positions()}{hydra_str} | "
                      f"[{pos_str}]")
 
     # ------------------------------------------------------------------
@@ -2098,8 +2365,12 @@ class COMPASSLive:
                 self.daily_open()
 
             # Get current prices (async fetch + batch validation)
-            symbols_needed = list(set(self.current_universe) |
-                                  set(self.position_meta.keys()))
+            symbols_needed = set(self.current_universe) | set(self.position_meta.keys())
+            # HYDRA: include Rattlesnake held symbols + universe for candidate scanning
+            if self._hydra_available:
+                symbols_needed |= {p['symbol'] for p in self.rattle_positions}
+                symbols_needed |= set(R_UNIVERSE)
+            symbols_needed = list(symbols_needed)
             raw_prices = self.data_feed.get_prices(symbols_needed)
             prices = self.validator.validate_batch(raw_prices)
 
@@ -2140,6 +2411,9 @@ class COMPASSLive:
                 now = datetime.now()
                 if (now - self._last_stop_check).total_seconds() >= self.config['STOP_CHECK_INTERVAL']:
                     self.check_position_exits(prices)
+                    # HYDRA: also check Rattlesnake exits intraday
+                    if self._hydra_available and self.rattle_positions:
+                        self._check_rattlesnake_exits(prices)
                     self._last_stop_check = now
 
             # Check for stale orders (order timeout)

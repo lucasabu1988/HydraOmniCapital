@@ -536,6 +536,178 @@ function updatePositions(details) {
 }
 
 
+/* ============ HYDRA (Rattlesnake + Cash Recycling) ============ */
+function updateHydra(hydra) {
+    if (!hydra || !hydra.available) {
+        var rHero = document.getElementById('rattle-positions-hero');
+        if (rHero) rHero.style.display = 'none';
+        var allocBand = document.getElementById('hydra-alloc-band');
+        if (allocBand) allocBand.style.display = 'none';
+        return;
+    }
+
+    /* Rattlesnake positions */
+    var rHero = document.getElementById('rattle-positions-hero');
+    var rGrid = document.getElementById('rattle-grid');
+    if (rHero) rHero.style.display = 'block';
+
+    var rPositions = hydra.rattle_positions || [];
+    document.getElementById('rh-count').textContent = rPositions.length;
+
+    var regimeEl = document.getElementById('rh-regime');
+    regimeEl.textContent = hydra.rattle_regime || '--';
+    regimeEl.style.color = hydra.rattle_regime === 'RISK_ON' ? 'var(--green)' : 'var(--red)';
+
+    var vixEl = document.getElementById('rh-vix');
+    if (hydra.vix_current != null) {
+        vixEl.textContent = hydra.vix_current.toFixed(1);
+        vixEl.style.color = hydra.vix_current > 35 ? 'var(--red)' : hydra.vix_current > 25 ? 'var(--yellow)' : 'var(--green)';
+    } else {
+        vixEl.textContent = '--';
+    }
+
+    if (rGrid) {
+        if (rPositions.length === 0) {
+            rGrid.textContent = '';
+            var emptyDiv = document.createElement('div');
+            emptyDiv.className = 'positions-empty';
+            emptyDiv.style.gridColumn = '1 / -1';
+            var iconDiv = document.createElement('div');
+            iconDiv.className = 'positions-empty-icon';
+            iconDiv.style.color = 'var(--yellow)';
+            iconDiv.textContent = '\u25C6';
+            emptyDiv.appendChild(iconDiv);
+            var textNode = document.createTextNode('SIN POSICIONES RATTLESNAKE');
+            emptyDiv.appendChild(textNode);
+            var subDiv = document.createElement('div');
+            subDiv.style.cssText = 'font-size:11px;color:var(--text-tertiary);margin-top:4px;';
+            subDiv.textContent = 'Esperando ca\u00edda \u22658% + RSI<25 en S&P 100';
+            emptyDiv.appendChild(subDiv);
+            rGrid.appendChild(emptyDiv);
+        } else {
+            rGrid.textContent = '';
+            for (var i = 0; i < rPositions.length; i++) {
+                var rp = rPositions[i];
+                var pnlPct = rp.pnl_pct || 0;
+                var isUp = pnlPct >= 0;
+
+                var card = document.createElement('div');
+                card.className = 'pos-card ' + (isUp ? 'pos-profit' : 'pos-loss');
+                card.style.borderTop = '2px solid var(--yellow)';
+
+                /* Top row */
+                var top = document.createElement('div');
+                top.className = 'pos-top';
+                var symSpan = document.createElement('span');
+                symSpan.className = 'pos-symbol';
+                symSpan.textContent = rp.symbol;
+                top.appendChild(symSpan);
+                var rTag = document.createElement('span');
+                rTag.style.cssText = 'font-size:11px;color:var(--yellow);font-weight:600;margin-left:4px;';
+                rTag.textContent = 'R';
+                top.appendChild(rTag);
+                var priceSpan = document.createElement('span');
+                priceSpan.style.cssText = 'font-size:15px;font-weight:700;color:var(--text-primary);font-family:var(--font-mono,monospace);margin-left:auto;margin-right:6px;';
+                priceSpan.textContent = '$' + (rp.current_price || 0).toFixed(2);
+                top.appendChild(priceSpan);
+                var badge = document.createElement('span');
+                badge.className = 'pos-pnl-badge ' + (isUp ? 'pnl-up' : 'pnl-dn');
+                badge.textContent = fmtPct(pnlPct);
+                top.appendChild(badge);
+                card.appendChild(top);
+
+                /* Data row */
+                var dataRow = document.createElement('div');
+                dataRow.className = 'pos-data-row';
+                var items = [
+                    ['Entry', '$' + (rp.entry_price || 0).toFixed(2)],
+                    ['Shares', String(rp.shares || 0)],
+                    ['Days', (rp.days_held || 0) + '/8']
+                ];
+                for (var j = 0; j < items.length; j++) {
+                    var datum = document.createElement('div');
+                    datum.className = 'pos-datum';
+                    var lbl = document.createElement('span');
+                    lbl.className = 'pos-datum-label';
+                    lbl.textContent = items[j][0];
+                    datum.appendChild(lbl);
+                    var val = document.createElement('span');
+                    val.className = 'pos-datum-value';
+                    val.textContent = items[j][1];
+                    datum.appendChild(val);
+                    dataRow.appendChild(datum);
+                }
+                card.appendChild(dataRow);
+
+                /* Stops row */
+                var stops = document.createElement('div');
+                stops.className = 'pos-stops';
+                var targetItem = document.createElement('div');
+                targetItem.className = 'pos-stop-item';
+                var tDot = document.createElement('span');
+                tDot.className = 'pos-stop-dot';
+                tDot.style.background = 'var(--green)';
+                targetItem.appendChild(tDot);
+                var tLbl = document.createElement('span');
+                tLbl.className = 'pos-stop-label';
+                tLbl.textContent = 'Target';
+                targetItem.appendChild(tLbl);
+                var tVal = document.createElement('span');
+                tVal.className = 'pos-stop-val';
+                tVal.textContent = '$' + ((rp.entry_price || 0) * 1.04).toFixed(2);
+                targetItem.appendChild(tVal);
+                stops.appendChild(targetItem);
+
+                var stopItem = document.createElement('div');
+                stopItem.className = 'pos-stop-item';
+                var sDot = document.createElement('span');
+                sDot.className = 'pos-stop-dot';
+                sDot.style.background = 'var(--red)';
+                stopItem.appendChild(sDot);
+                var sLbl = document.createElement('span');
+                sLbl.className = 'pos-stop-label';
+                sLbl.textContent = 'Stop';
+                stopItem.appendChild(sLbl);
+                var sVal = document.createElement('span');
+                sVal.className = 'pos-stop-val';
+                sVal.textContent = '$' + ((rp.entry_price || 0) * 0.95).toFixed(2);
+                stopItem.appendChild(sVal);
+                stops.appendChild(stopItem);
+                card.appendChild(stops);
+
+                rGrid.appendChild(card);
+            }
+            rGrid.style.setProperty('--pos-cols', Math.min(rPositions.length, 5));
+        }
+    }
+
+    /* Capital allocation bar */
+    var cap = hydra.capital;
+    var allocBand = document.getElementById('hydra-alloc-band');
+    if (cap && allocBand) {
+        allocBand.style.display = 'flex';
+        var cPct = (cap.compass_pct || 0.5) * 100;
+        var rPct = (cap.rattle_pct || 0.5) * 100;
+        document.getElementById('hydra-bar-compass').style.width = cPct + '%';
+        document.getElementById('hydra-bar-rattle').style.width = rPct + '%';
+        document.getElementById('hydra-c-pct').textContent = cPct.toFixed(0) + '%';
+        document.getElementById('hydra-r-pct').textContent = rPct.toFixed(0) + '%';
+        document.getElementById('hydra-c-val').textContent = fmt$(cap.compass_account || 0);
+        document.getElementById('hydra-r-val').textContent = fmt$(cap.rattle_account || 0);
+        var recycled = cap.recycled_pct || 0;
+        document.getElementById('hydra-recycled').textContent = (recycled * 100).toFixed(0) + '% recycled';
+        var tag = document.getElementById('hydra-tag');
+        if (recycled > 0) {
+            tag.textContent = 'Recycling Active';
+            tag.style.cssText = 'color:var(--cyan); background:var(--cyan-dim);';
+        } else {
+            tag.textContent = 'No Recycling';
+            tag.style.cssText = 'color:var(--text-muted); background:var(--bg-tertiary);';
+        }
+    }
+}
+
+
 /* ============ UNIVERSE ============ */
 function toggleUniverse() {
     const grid = document.getElementById('universe-grid');
@@ -1063,6 +1235,7 @@ async function fetchAll() {
             updatePerfBanner(p);
             updatePreclose(stateData.preclose);
             updatePositions(stateData.position_details);
+            if (stateData.hydra) updateHydra(stateData.hydra);
             if (stateData.prices) updateSpyTracker(stateData.prices, stateData.prev_closes);
             const posDict = {};
             if (stateData.position_details) {
@@ -1623,7 +1796,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             labels: years,
             datasets: [
                 {
-                    label: 'COMPASS',
+                    label: 'HYDRA',
                     data: compassRets,
                     backgroundColor: compassColors,
                     borderColor: 'transparent',
@@ -1683,7 +1856,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                         afterBody: function(items) {
                             var compass = null, spy = null;
                             items.forEach(function(it) {
-                                if (it.dataset.label === 'COMPASS') compass = it.parsed.x;
+                                if (it.dataset.label === 'HYDRA') compass = it.parsed.x;
                                 if (it.dataset.label === 'S&P 500') spy = it.parsed.x;
                             });
                             if (compass != null && spy != null) {
@@ -1902,7 +2075,7 @@ function fetchExpAnalysis() {
 
     const totalExp = 37;
     const failed = 33;
-    const approved = 2;  /* v8 COMPASS + Exp #34 IG Cash Yield */
+    const approved = 3;  /* v8 COMPASS + Exp #34 IG Cash Yield + EXP59 HYDRA */
     const partial = 2;   /* RATTLESNAKE standalone + QUANTUM */
     const failRate = ((failed / totalExp) * 100).toFixed(1);
 
@@ -1957,7 +2130,7 @@ function fetchExpAnalysis() {
     html += '<div class="exp-proposals"><div class="exp-proposals-title">CONCLUSION</div>';
     html += '<div class="exp-proposal-card">';
     html += '<div class="exp-proposal-name">Algorithm Motor: LOCKED <span class="exp-proposal-priority exp-priority-high">FINAL</span></div>';
-    html += '<div class="exp-proposal-desc">56 experiments confirm COMPASS v8.4 has reached optimal risk/return balance. 3 algorithmic improvements over v8.3: bull market override, adaptive stops, sector concentration limits.</div>';
+    html += '<div class="exp-proposal-desc">59 experiments confirm HYDRA (COMPASS + Rattlesnake + Cash Recycling) as the optimal configuration. EXP59 validated segregated accounts with cash recycling: 13.28% CAGR, 1.04 Sharpe, -23.5% MaxDD.</div>';
     html += '<div class="exp-proposal-rationale">Focus on chassis (execution quality, broker integration, data sources) and operations (paper trading, tax optimization, scaling).</div>';
     html += '</div>';
 

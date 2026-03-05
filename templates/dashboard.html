@@ -3,32 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OmniCapital | COMPASS v8.4</title>
+<title>OmniCapital | HYDRA Multi-Strategy</title>
 <link rel="icon" type="image/png" href="/static/img/omnicapital_logo.png">
-<meta property="og:title" content="OmniCapital | Quantitative Momentum Strategy">
-<meta property="og:description" content="Cross-sectional momentum on S&P 500. 12.20% CAGR | 0.88 Sharpe | -32.56% MaxDD | No Leverage. 26 years backtested, 56 experiments validated.">
+<meta property="og:title" content="OmniCapital | HYDRA Multi-Strategy">
+<meta property="og:description" content="Multi-strategy quantitative system: COMPASS (momentum) + Rattlesnake (mean-reversion) with cash recycling. 13.28% CAGR | 1.04 Sharpe | -23.5% MaxDD | No Leverage. 26 years backtested, 59 experiments.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="OmniCapital | COMPASS v8.4">
-<meta name="twitter:description" content="Quantitative Momentum Strategy. 12.20% CAGR, 0.88 Sharpe, -32.56% MaxDD, No Leverage. S&P 500 universe.">
+<meta name="twitter:title" content="OmniCapital | HYDRA Multi-Strategy">
+<meta name="twitter:description" content="HYDRA: Momentum + Mean-Reversion with Cash Recycling. 13.28% CAGR, 1.04 Sharpe, -23.5% MaxDD, No Leverage.">
 <meta property="og:image" content="https://omnicapital.onrender.com/static/img/omnicapital_logo.png">
 <meta property="og:url" content="https://omnicapital.onrender.com">
 <meta property="og:site_name" content="OmniCapital">
 <meta name="twitter:image" content="https://omnicapital.onrender.com/static/img/omnicapital_logo.png">
-<meta name="description" content="COMPASS v8.4 — Quantitative cross-sectional momentum strategy on S&P 500. 12.20% CAGR, 0.88 Sharpe, -32.56% MaxDD, no leverage. Live dashboard.">
+<meta name="description" content="HYDRA — Multi-strategy quantitative system: COMPASS momentum + Rattlesnake mean-reversion with cash recycling. 13.28% CAGR, 1.04 Sharpe, -23.5% MaxDD, no leverage. Live dashboard.">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260304a">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260305a">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "COMPASS v8.4",
-  "description": "Quantitative cross-sectional momentum strategy on S&P 500 large-caps. 12.20% CAGR, 0.88 Sharpe, -32.56% MaxDD. No leverage. 26 years backtested.",
+  "name": "HYDRA Multi-Strategy",
+  "description": "Multi-strategy quantitative system: COMPASS momentum + Rattlesnake mean-reversion with cash recycling. 13.28% CAGR, 1.04 Sharpe, -23.5% MaxDD. No leverage. 26 years backtested.",
   "applicationCategory": "FinanceApplication",
   "operatingSystem": "Web",
   "author": {
@@ -141,39 +141,37 @@
     <div class="lh-glow lh-glow-2"></div>
     <div class="lh-glow lh-glow-3"></div>
     <div class="lh-accent-line"></div>
-    <!-- Chalkboard formulas — the algorithm in plain sight -->
+    <!-- Chalkboard formulas — the two strategies -->
     <div class="lh-chalkboard">
         <div class="lh-chalk-row lh-chalk-main">
-            <span class="lh-chalk-fn">Score</span><sub class="lh-chalk-sub">i</sub>
-            <span class="lh-chalk-eq">=</span>
+            <span class="lh-chalk-fn">COMPASS</span>:&thinsp;
             <span class="lh-chalk-frac">
                 <span class="lh-chalk-num">r<sub>i,t&minus;5</sub><sup class="lh-chalk-comma">&thinsp;</sup>&minus;&thinsp;r<sub>i,t&minus;90</sub></span>
                 <span class="lh-chalk-den">&sigma;<sub>i,90</sub></span>
             </span>
             <span class="lh-chalk-op">&times;</span>
             <span class="lh-chalk-fn">Regime</span>(<span class="lh-chalk-var">S</span>)
+            <span class="lh-chalk-divider" style="margin:0 8px;">+</span>
+            <span class="lh-chalk-fn">Rattlesnake</span>:&thinsp;
+            RSI<sub>5</sub>&lt;25 &cap; &Delta;5d&lt;&minus;8%
         </div>
         <div class="lh-chalk-row lh-chalk-secondary">
             <span class="lh-chalk-piece">
-                <span class="lh-chalk-var">Stop</span><sub class="lh-chalk-sub">i</sub>
+                <span class="lh-chalk-var">Recycle</span>
                 <span class="lh-chalk-eq">=</span>
-                &minus;6%&thinsp;&times;&thinsp;<span class="lh-chalk-frac-inline">
-                    <sup>&sigma;<sub>i</sub></sup>&frasl;<sub>&sigma;&#x0304;</sub>
-                </span>
+                min(R<sub>idle</sub>,&thinsp;75%&minus;C<sub>acct</sub>)
             </span>
             <span class="lh-chalk-divider">|</span>
             <span class="lh-chalk-piece">
-                <span class="lh-chalk-var">n</span>
-                <span class="lh-chalk-eq">=</span>
-                5&thinsp;&times;&thinsp;<span class="lh-chalk-fn">Sigmoid</span>(<span class="lh-chalk-var">S</span>)
+                C: Momentum 5d hold
             </span>
             <span class="lh-chalk-divider">|</span>
             <span class="lh-chalk-piece">
-                Hold <span class="lh-chalk-eq">=</span> 5d
+                R: +4%/&minus;5%/8d
             </span>
         </div>
         <div class="lh-chalk-row lh-chalk-tertiary">
-            Top 5 of 40 &middot; Rebalance at close &middot; Sector cap 3
+            COMPASS: Top 5 of 40 &middot; Rattlesnake: S&amp;P 100 dip-buys &middot; Cash recycling: idle R &rarr; C (cap 75%)
         </div>
     </div>
     <div class="lh-brand">
@@ -183,34 +181,34 @@
             </svg>
         </div>
         <div class="lh-title-group">
-            <span class="lh-title">COMPASS</span>
-            <span class="lh-version">v8.4</span>
+            <span class="lh-title">HYDRA</span>
+            <span class="lh-version">COMPASS + Rattlesnake</span>
         </div>
     </div>
-    <div class="lh-tagline">Quantitative Momentum &middot; S&amp;P 500 &middot; Long-Only</div>
+    <div class="lh-tagline">Momentum + Mean-Reversion &middot; Cash Recycling &middot; S&amp;P 500 &middot; Long-Only</div>
     <div class="lh-stats">
         <div class="lh-stat">
             <span class="lh-stat-label">CAGR</span>
-            <span class="lh-stat-value green">12.20%</span>
+            <span class="lh-stat-value green">13.28%</span>
             <span class="lh-stat-context">26-year backtest</span>
         </div>
         <div class="lh-stat-divider"></div>
         <div class="lh-stat">
             <span class="lh-stat-label">Sharpe Ratio</span>
-            <span class="lh-stat-value">0.88</span>
+            <span class="lh-stat-value green">1.04</span>
             <span class="lh-stat-context">Risk-adjusted</span>
         </div>
         <div class="lh-stat-divider"></div>
         <div class="lh-stat">
             <span class="lh-stat-label">Max Drawdown</span>
-            <span class="lh-stat-value amber">&minus;32.6%</span>
-            <span class="lh-stat-context">GFC 2008&ndash;2009</span>
+            <span class="lh-stat-value amber">&minus;23.5%</span>
+            <span class="lh-stat-context">vs &minus;32.6% COMPASS solo</span>
         </div>
     </div>
     <div class="lh-features">
-        <span class="lh-feature"><span class="lh-feature-dot"></span>56 Experiments</span>
+        <span class="lh-feature"><span class="lh-feature-dot"></span>59 Experiments</span>
         <span class="lh-feature"><span class="lh-feature-dot"></span>No Leverage</span>
-        <span class="lh-feature"><span class="lh-feature-dot"></span>Fully Deterministic</span>
+        <span class="lh-feature"><span class="lh-feature-dot"></span>Cash Recycling</span>
         <span class="lh-feature"><span class="lh-feature-dot"></span>No Black Box</span>
     </div>
     <div class="lh-disclaimer">
@@ -252,9 +250,9 @@
 <!-- PERFORMANCE vs SPY — HERO BANNER -->
 <div class="perf-banner anim-enter anim-d1" id="perf-banner">
     <div class="perf-banner-inner">
-        <!-- COMPASS side -->
+        <!-- HYDRA side -->
         <div class="perf-side">
-            <span class="perf-side-label">COMPASS v8.4</span>
+            <span class="perf-side-label">HYDRA</span>
             <span class="perf-side-value" id="perf-compass-val">--</span>
             <span class="perf-side-sub" id="perf-compass-sub">$-- &rarr; $--</span>
         </div>
@@ -278,18 +276,18 @@
         <div class="perf-bt-label">Backtest (2000&ndash;2026)</div>
         <div class="perf-bt-bars">
             <div class="perf-bt-item">
-                <span class="perf-bt-name">COMPASS</span>
+                <span class="perf-bt-name">HYDRA</span>
                 <div class="perf-bt-bar-track">
                     <div class="perf-bt-bar-fill perf-bt-bar-compass" style="width:100%"></div>
                 </div>
-                <span class="perf-bt-val c-green">$100K &rarr; $2.0M</span>
+                <span class="perf-bt-val c-green">$100K &rarr; $2.6M</span>
             </div>
             <div class="perf-bt-stats" style="margin:2px 0 8px;">
-                <span class="perf-bt-stat" style="color:var(--green);">12.20% CAGR</span>
+                <span class="perf-bt-stat" style="color:var(--green);">13.28% CAGR</span>
                 <span class="perf-bt-sep">&middot;</span>
-                <span class="perf-bt-stat">0.88 Sharpe</span>
+                <span class="perf-bt-stat">1.04 Sharpe</span>
                 <span class="perf-bt-sep">&middot;</span>
-                <span class="perf-bt-stat">&minus;32.6% MaxDD</span>
+                <span class="perf-bt-stat">&minus;23.5% MaxDD</span>
                 <span class="perf-bt-sep">&middot;</span>
                 <span class="perf-bt-stat">24/27 positive years</span>
             </div>
@@ -315,14 +313,14 @@
 
 <!-- CYCLE LOG -->
 <div class="cycle-log anim-enter anim-d3" id="cycle-log-section">
-    <span class="cycle-log-title">Ciclos de 5 D&iacute;as &mdash; COMPASS vs S&amp;P 500</span>
+    <span class="cycle-log-title">Ciclos de 5 D&iacute;as &mdash; HYDRA vs S&amp;P 500</span>
     <table class="cycle-log-table">
         <thead>
             <tr>
                 <th>Cycle</th>
                 <th>Period</th>
                 <th>Tickers</th>
-                <th class="cl-num">COMPASS</th>
+                <th class="cl-num">HYDRA</th>
                 <th class="cl-num">S&amp;P 500</th>
                 <th class="cl-num">Alpha</th>
                 <th>Status</th>
@@ -343,8 +341,8 @@
     </div>
     <div class="metric-card">
         <div class="metric-label">CAGR Esperado</div>
-        <div class="metric-value c-accent" id="card-cagr">12.20%</div>
-        <div class="metric-sub" id="card-cagr-sub">Bias-corrected (v8.4) | No leverage</div>
+        <div class="metric-value c-accent" id="card-cagr">13.28%</div>
+        <div class="metric-sub" id="card-cagr-sub">HYDRA (COMPASS + Rattlesnake) | No leverage</div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Efectivo</div>
@@ -460,7 +458,7 @@
     <div class="positions-hero-header">
         <div class="positions-hero-title">
             <div class="ph-icon">&#9670;</div>
-            Posiciones
+            COMPASS <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Momentum</span>
         </div>
         <div class="positions-hero-summary" id="positions-summary">
             <div class="ph-stat">
@@ -506,6 +504,54 @@
     </div>
 </div>
 
+<!-- RATTLESNAKE POSITIONS -->
+<div class="positions-hero anim-enter anim-d5" id="rattle-positions-hero" style="display:none;">
+    <div class="positions-hero-header">
+        <div class="positions-hero-title">
+            <div class="ph-icon" style="color:var(--yellow);">&#9670;</div>
+            Rattlesnake <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Mean-Reversion</span>
+        </div>
+        <div class="positions-hero-summary" id="rattle-summary">
+            <div class="ph-stat">
+                <span class="ph-stat-label">Posiciones</span>
+                <span class="ph-stat-value c-white" id="rh-count">0</span>
+            </div>
+            <div class="ph-stat-divider"></div>
+            <div class="ph-stat">
+                <span class="ph-stat-label">Regime</span>
+                <span class="ph-stat-value" id="rh-regime">--</span>
+            </div>
+            <div class="ph-stat-divider"></div>
+            <div class="ph-stat">
+                <span class="ph-stat-label">VIX</span>
+                <span class="ph-stat-value" id="rh-vix">--</span>
+            </div>
+        </div>
+    </div>
+    <div class="positions-grid" id="rattle-grid"></div>
+</div>
+
+<!-- HYDRA CAPITAL ALLOCATION -->
+<div class="regime-band anim-enter anim-d6" id="hydra-alloc-band" style="display:none;">
+    <div class="regime-band-left">
+        <span class="regime-band-label">HYDRA Capital</span>
+        <span class="regime-band-score" id="hydra-recycled">--</span>
+    </div>
+    <div class="regime-band-bar-wrap" style="flex:1;">
+        <div style="display:flex; gap:2px; height:8px; border-radius:4px; overflow:hidden; background:var(--bg-tertiary);">
+            <div id="hydra-bar-compass" style="background:var(--accent); transition:width 0.3s;" title="COMPASS"></div>
+            <div id="hydra-bar-rattle" style="background:var(--yellow); transition:width 0.3s;" title="Rattlesnake"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--text-muted);">
+            <span>COMPASS: <span id="hydra-c-pct">50%</span> (<span id="hydra-c-val">$--</span>)</span>
+            <span>Rattlesnake: <span id="hydra-r-pct">50%</span> (<span id="hydra-r-val">$--</span>)</span>
+        </div>
+    </div>
+    <div class="regime-band-right">
+        <span class="regime-band-tag" id="hydra-tag" style="color:var(--cyan); background:var(--cyan-dim);">Cash Recycling</span>
+    </div>
+</div>
+
 <!-- Hidden legacy table for data compatibility -->
 <table id="positions-table" style="display:none;"><tbody id="positions-body"></tbody></table>
 
@@ -514,7 +560,7 @@
 <!-- ANNUAL RETURNS BAR CHART -->
 <div class="card full-width" id="annual-returns-card">
     <div class="card-header">
-        <span class="card-title">Retornos Anuales &mdash; COMPASS vs S&amp;P 500</span>
+        <span class="card-title">Retornos Anuales &mdash; HYDRA vs S&amp;P 500</span>
         <span class="card-badge" style="color:var(--green); background:var(--green-dim);" id="ar-badge">Cargando...</span>
     </div>
     <div class="card-body">
@@ -664,7 +710,7 @@
 
 <div class="roadmap-header">
     <h2>Camino hacia Lanzamiento</h2>
-    <p>COMPASS v8.4 &mdash; Checklist de producci&oacute;n. Cada fase debe completarse antes de operar con capital real.</p>
+    <p>HYDRA (COMPASS + Rattlesnake) &mdash; Checklist de producci&oacute;n. Cada fase debe completarse antes de operar con capital real.</p>
 </div>
 
 <!-- PROGRESS BAR -->
@@ -712,7 +758,7 @@
             <span class="rm-phase">Fase 1 &mdash; Algoritmo</span>
             <span class="rm-status rm-status-done">Completado</span>
         </div>
-        <div class="rm-title">Motor COMPASS v8.4</div>
+        <div class="rm-title">Motor HYDRA</div>
         <div class="rm-desc">
             Algoritmo de momentum cross-sectional con filtro sigmoid de r&eacute;gimen, bull market override, adaptive stops, sector concentration, DD scaling suave, exit renewal, y quality filter. 56 experimentos.
         </div>
@@ -891,8 +937,8 @@
             <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
                 <span style="color:var(--green); font-size:16px;">&#10003;</span>
                 <div>
-                    <div style="font-size:13px; font-weight:600;">Single Engine</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">COMPASS+RATTLESNAKE 50/50 revertido. COMPASS v8.4 solo es la mejor opci&oacute;n hasta $500K+.</div>
+                    <div style="font-size:13px; font-weight:600;">HYDRA Multi-Strategy</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">COMPASS + Rattlesnake con cash recycling. 13.28% CAGR, 1.04 Sharpe, &minus;23.5% MaxDD. Domina a COMPASS solo en las 3 dimensiones.</div>
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
@@ -929,9 +975,9 @@
 <div class="algo-hero">
     <div class="lh-glow lh-glow-1" style="opacity:0.2;"></div>
     <div class="lh-glow lh-glow-2" style="opacity:0.15;"></div>
-    <div class="algo-hero-title">COMPASS v8.4</div>
+    <div class="algo-hero-title">HYDRA Multi-Strategy</div>
     <div class="algo-hero-sub">C&oacute;mo Funciona</div>
-    <div class="algo-hero-tagline">Compra las acciones con mejor rendimiento reciente &middot; S&amp;P 500 &middot; Sin deuda &middot; Completamente autom&aacute;tico</div>
+    <div class="algo-hero-tagline">COMPASS (momentum) + Rattlesnake (mean-reversion) con cash recycling &middot; S&amp;P 500 &middot; Sin deuda &middot; Completamente autom&aacute;tico</div>
 </div>
 
 <!-- PIPELINE FLOW -->
@@ -1255,11 +1301,67 @@
     </div>
 </div>
 
-<!-- SECTION 6: MACRO OVERLAY SYSTEM (NEW) -->
+<!-- SECTION 6: RATTLESNAKE + CASH RECYCLING (HYDRA) -->
 <div class="algo-section">
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">06</span>
+            <span class="algo-card-title">Rattlesnake: Mean-Reversion + Cash Recycling</span>
+        </div>
+        <div class="algo-card-body">
+            <p>Mientras COMPASS busca acciones que <strong>suben fuerte</strong>, Rattlesnake busca acciones que <strong>cayeron demasiado r&aacute;pido</strong> y probablemente se van a recuperar. Las dos estrategias se complementan: cuando una tiene el dinero parado, se lo presta a la otra.</p>
+
+            <div class="algo-highlight" style="margin-top: 16px;">
+                <div class="algo-highlight-badge" style="background:var(--yellow); color:#000;">HYDRA</div>
+                <div class="algo-highlight-content">
+                    <strong>Cash Recycling:</strong> Rattlesnake solo tiene posiciones el 49% del tiempo. Cuando su dinero est&aacute; parado, fluye autom&aacute;ticamente a COMPASS (m&aacute;ximo 75% del total). Esto subi&oacute; el CAGR de 12.27% a <strong>13.28%</strong> y redujo el MaxDD de &minus;32.1% a <strong>&minus;23.5%</strong>.
+                </div>
+            </div>
+
+            <div class="algo-grid-2" style="margin-top:16px;">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Rattlesnake &mdash; Se&ntilde;al de entrada</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Ca&iacute;da requerida</td><td>&ge; &minus;8% en 5 d&iacute;as</td></tr>
+                        <tr><td>RSI(5)</td><td>&lt; 25 (sobreventa extrema)</td></tr>
+                        <tr><td>Tendencia</td><td>Precio &gt; SMA 200 d&iacute;as</td></tr>
+                        <tr><td>Universo</td><td>S&amp;P 100 (las m&aacute;s l&iacute;quidas)</td></tr>
+                        <tr><td>Volumen</td><td>&gt; 500K promedio 20d</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Rattlesnake &mdash; Salida</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Target de ganancia</td><td>+4% (take profit)</td></tr>
+                        <tr><td>Stop loss</td><td>&minus;5%</td></tr>
+                        <tr><td>M&aacute;ximo de tenencia</td><td>8 d&iacute;as</td></tr>
+                        <tr><td>Posiciones m&aacute;x</td><td>5 (risk-on) / 2 (risk-off)</td></tr>
+                        <tr><td>Filtro VIX</td><td>Sin entradas si VIX &gt; 35</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="algo-mini-card" style="margin-top:16px;">
+                <div class="algo-mini-title">HYDRA &mdash; Resultado combinado (backtest 2000&ndash;2026)</div>
+                <table class="algo-params-sm">
+                    <tr><td>HYDRA CAGR</td><td style="color:var(--green); font-weight:700;">13.28%</td></tr>
+                    <tr><td>COMPASS solo CAGR</td><td>12.27%</td></tr>
+                    <tr><td>HYDRA Max Drawdown</td><td style="color:var(--green); font-weight:700;">&minus;23.5%</td></tr>
+                    <tr><td>COMPASS solo MaxDD</td><td>&minus;32.1%</td></tr>
+                    <tr><td>HYDRA Sharpe</td><td style="color:var(--green); font-weight:700;">1.04</td></tr>
+                    <tr><td>Correlaci&oacute;n entre estrategias</td><td>0.38</td></tr>
+                    <tr><td>$100K final (26 a&ntilde;os)</td><td style="color:var(--green); font-weight:700;">$2.59M</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 7: MACRO OVERLAY SYSTEM -->
+<div class="algo-section">
+    <div class="algo-card">
+        <div class="algo-card-header">
+            <span class="algo-card-num">07</span>
             <span class="algo-card-title">&iquest;C&oacute;mo anticipa las crisis antes de que lleguen?</span>
         </div>
         <div class="algo-card-body">
@@ -1393,7 +1495,7 @@
 <div class="algo-section">
     <div class="algo-card">
         <div class="algo-card-header">
-            <span class="algo-card-num">07</span>
+            <span class="algo-card-num">08</span>
             <span class="algo-card-title">&iquest;C&oacute;mo aprende de sus propios resultados?</span>
         </div>
         <div class="algo-card-body">
@@ -1540,11 +1642,11 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
     </div>
 </div>
 
-<!-- SECTION 8: KEY PARAMETERS TABLE (COLLAPSIBLE) -->
+<!-- SECTION 9: KEY PARAMETERS TABLE (COLLAPSIBLE) -->
 <div class="algo-section">
     <div class="algo-card">
         <div class="algo-card-header" style="cursor:pointer;" onclick="var b=document.getElementById('algo-params-body');var a=document.getElementById('algo-toggle-arrow');if(b.style.display==='none'){b.style.display='block';a.textContent='▼';}else{b.style.display='none';a.textContent='▶';}">
-            <span class="algo-card-num">08</span>
+            <span class="algo-card-num">09</span>
             <span class="algo-card-title">Par&aacute;metros T&eacute;cnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);">(para expertos)</span></span>
             <span id="algo-toggle-arrow" style="margin-left:auto;font-size:14px;color:var(--text-tertiary);">&#9654;</span>
         </div>
@@ -1638,7 +1740,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
         <div class="footer-brand">
             <div class="footer-brand-icon"><img src="/static/img/omnicapital_logo.png" alt="OmniCapital"></div>
             <span class="footer-brand-name">OmniCapital</span>
-            <span class="footer-version">COMPASS v8.4</span>
+            <span class="footer-version">HYDRA (COMPASS + Rattlesnake)</span>
             <span class="footer-status">Paper Trading</span>
         </div>
         <div class="footer-meta">
@@ -1661,7 +1763,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260303i"></script>
+<script src="/static/js/dashboard.js?v=20260305a"></script>
 
 </body>
 </html>
