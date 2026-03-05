@@ -104,6 +104,12 @@ STATE_FILE = 'state/compass_state_latest.json'
 STATE_DIR = 'state'
 SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
 
+# Rattlesnake parameters (mirrored from rattlesnake_signals.py for dashboard)
+R_VIX_PANIC = 35
+R_BASE_COMPASS_ALLOC = 0.50
+R_BASE_RATTLE_ALLOC = 0.50
+R_MAX_COMPASS_ALLOC = 0.75
+
 PRICE_CACHE_SECONDS = 30
 SOCIAL_CACHE_SECONDS = 300  # 5 minutes
 
@@ -497,6 +503,111 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
 
 
 # ============================================================================
+# HYDRA: Rattlesnake regime + capital allocation (live computation)
+# ============================================================================
+
+def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
+    """Compute HYDRA multi-strategy data for the dashboard.
+
+    Fetches VIX live, determines Rattlesnake regime (SPY vs SMA200),
+    reads any Rattlesnake positions from state, and computes capital
+    allocation with cash recycling.
+    """
+    if not _HAS_YFINANCE:
+        return {'available': False}
+
+    # --- VIX (reuse from price cache if available) ---
+    vix_current = prices.get('^VIX')
+    if not vix_current:
+        try:
+            vix_hist = yf.Ticker('^VIX').history(period='5d')
+            if len(vix_hist) > 0:
+                vix_current = float(vix_hist['Close'].iloc[-1])
+        except Exception:
+            pass
+
+    # --- Rattlesnake regime: SPY vs SMA(200) ---
+    rattle_regime = 'RISK_ON'
+    try:
+        spy_hist = yf.Ticker('SPY').history(period='1y')
+        if len(spy_hist) >= 200:
+            spy_close = float(spy_hist['Close'].iloc[-1])
+            spy_sma200 = float(spy_hist['Close'].iloc[-200:].mean())
+            if spy_close < spy_sma200:
+                rattle_regime = 'RISK_OFF'
+    except Exception:
+        pass
+
+    vix_panic = vix_current > R_VIX_PANIC if vix_current else False
+
+    # --- Rattlesnake positions from state (if live engine writes them) ---
+    hydra_state = state.get('hydra', {})
+    rattle_positions_raw = hydra_state.get('rattle_positions', [])
+
+    # Enrich with live prices + P&L
+    rattle_positions = []
+    for rp in rattle_positions_raw:
+        symbol = rp.get('symbol', '')
+        entry_price = rp.get('entry_price', 0)
+        current_price = prices.get(symbol, entry_price)
+        pnl_pct = (current_price / entry_price - 1.0) if entry_price > 0 else 0
+        rattle_positions.append({
+            'symbol': symbol,
+            'entry_price': round(entry_price, 2),
+            'current_price': round(current_price, 2),
+            'pnl_pct': round(pnl_pct, 4),
+            'shares': rp.get('shares', 0),
+            'days_held': rp.get('days_held', 0),
+        })
+
+    # --- Capital allocation (cash recycling) ---
+    portfolio_value = state.get('portfolio_value', COMPASS_CONFIG['INITIAL_CAPITAL'])
+    # If hydra capital manager state exists, use it
+    cap_state = hydra_state.get('capital_manager')
+    if cap_state:
+        compass_account = cap_state.get('compass_account', portfolio_value * R_BASE_COMPASS_ALLOC)
+        rattle_account = cap_state.get('rattle_account', portfolio_value * R_BASE_RATTLE_ALLOC)
+    else:
+        # No persisted HYDRA state — compute from current portfolio
+        # Rattlesnake has 0 exposure when no positions → all idle cash recycles to COMPASS
+        compass_account = portfolio_value * R_BASE_COMPASS_ALLOC
+        rattle_account = portfolio_value * R_BASE_RATTLE_ALLOC
+
+    total = compass_account + rattle_account
+    if total <= 0:
+        total = portfolio_value or COMPASS_CONFIG['INITIAL_CAPITAL']
+        compass_account = total * R_BASE_COMPASS_ALLOC
+        rattle_account = total * R_BASE_RATTLE_ALLOC
+
+    # Cash recycling: idle Rattlesnake cash flows to COMPASS (capped at 75%)
+    rattle_invested = sum(
+        rp.get('shares', 0) * prices.get(rp.get('symbol', ''), rp.get('entry_price', 0))
+        for rp in rattle_positions_raw
+    )
+    rattle_exposure = rattle_invested / rattle_account if rattle_account > 0 else 0
+    r_idle = rattle_account * (1.0 - rattle_exposure)
+    max_recycle = max(0, total * R_MAX_COMPASS_ALLOC - compass_account)
+    recycled = min(r_idle, max_recycle)
+    c_effective = compass_account + recycled
+    r_effective = rattle_account - recycled
+
+    return {
+        'available': True,
+        'rattle_positions': rattle_positions,
+        'rattle_regime': rattle_regime,
+        'vix_current': round(vix_current, 2) if vix_current else None,
+        'vix_panic': vix_panic,
+        'capital': {
+            'compass_account': round(c_effective, 2),
+            'rattle_account': round(r_effective, 2),
+            'compass_pct': round(c_effective / total, 4) if total > 0 else 0.5,
+            'rattle_pct': round(r_effective / total, 4) if total > 0 else 0.5,
+            'recycled_pct': round(recycled / total, 4) if total > 0 else 0,
+        },
+    }
+
+
+# ============================================================================
 # SOCIAL FEED (6 sources: yfinance, Reddit, Seeking Alpha, SEC, Google, MW)
 # ============================================================================
 
@@ -868,13 +979,17 @@ def api_state():
             },
         })
 
-    # Fetch live prices for positions + SPY + ES Futures
-    symbols = ['SPY', '^GSPC', 'ES=F'] + list(state.get('positions', {}).keys())
+    # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake held
+    rattle_syms = [p.get('symbol') for p in state.get('hydra', {}).get('rattle_positions', []) if p.get('symbol')]
+    symbols = ['SPY', '^GSPC', 'ES=F', '^VIX'] + list(state.get('positions', {}).keys()) + rattle_syms
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
     position_details = compute_position_details(state, prices)
     portfolio = compute_portfolio_metrics(state, prices)
+
+    # HYDRA: Rattlesnake + Cash Recycling data
+    hydra_data = compute_hydra_data(state, prices)
 
     # Pre-close status (computed from real ET time)
     ET = ZoneInfo('America/New_York')
@@ -909,6 +1024,7 @@ def api_state():
         'config': COMPASS_CONFIG,
         'chassis': {},
         'preclose': preclose_status,
+        'hydra': hydra_data,
         'implementation_shortfall': {'available': False},
         'server_time': datetime.now().isoformat(),
         'engine': {
