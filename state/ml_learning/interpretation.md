@@ -20,13 +20,13 @@ COMPASS ML Learning is in **Phase 1** (data collection). 11 trading days logged.
 
 - Completed trades: **6**
 - Win rate: **33%**
-- Average return: **-2.1%**
+- Average return: **-3.1%**
 - Stop rate: **17%**
-- Average holding period: **4.0 days**
-- Best trade: **+2.2%** / Worst: **-6.7%**
+- Average holding period: **3.3 days**
+- Best trade: **+2.5%** / Worst: **-7.9%**
 
-- Winners: JNJ +0.9%, CVX +2.2%
-- Losers: GS -6.7%, MU -2.3%, TXN -5.1%, LLY -1.9%
+- Winners: JNJ +0.6%, CVX +2.5%
+- Losers: GS -6.7%, MU -7.9%, TXN -5.3%, LLY -2.1%
 
 ### Regime Observations
 
@@ -37,7 +37,7 @@ COMPASS ML Learning is in **Phase 1** (data collection). 11 trading days logged.
 ### Exit Reason Breakdown
 
 - **Adaptive Stop** (1 trades): avg return -6.7%, win rate 0%
-- **Regime Reduce** (2 trades): avg return -3.7%, win rate 0%
+- **Regime Reduce** (2 trades): avg return -6.6%, win rate 0%
 - **Hold Expired** (3 trades): avg return +0.4%, win rate 67%
 
 ### Recent Activity
@@ -61,4 +61,4 @@ COMPASS ML Learning is in **Phase 1** (data collection). 11 trading days logged.
 Phase 2 ML begins in ~52 trading days. Continue collecting entry/exit decisions and completed trade outcomes.
 
 ---
-*Auto-generated on 2026-03-05 18:42. Refreshes every 5 days.*
+*Auto-generated on 2026-03-05 18:56. Refreshes every 5 days.*

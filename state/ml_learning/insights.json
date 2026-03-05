@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-05T18:42:38.636642",
+  "generated_at": "2026-03-05T18:56:15.102240",
   "trading_days": 11,
   "learning_phase": 1,
   "phase_description": "Phase 1 -- Statistical summaries only. Need 63+ trading days for ML.",
@@ -17,246 +17,246 @@
     "n_completed_trades": 6,
     "overall": {
       "n": 6,
-      "mean_return": -0.0213,
+      "mean_return": -0.0314,
       "mean_return_ci_95": [
-        -0.0485,
-        0.006
+        -0.0648,
+        0.002
       ],
-      "median_return": -0.0209,
-      "std_return": 0.0341,
+      "median_return": -0.0365,
+      "std_return": 0.0417,
       "win_rate": 0.333,
       "stop_rate": 0.167,
-      "avg_days_held": 4.0,
-      "best": 0.0224,
-      "worst": -0.067,
-      "sharpe_approx": -0.624
+      "avg_days_held": 3.3,
+      "best": 0.0247,
+      "worst": -0.0793,
+      "sharpe_approx": -0.752
     },
     "by_regime": {
       "bull": {
         "n": 1,
-        "mean_return": -0.067,
+        "mean_return": -0.0671,
         "mean_return_ci_95": [
-          -0.067,
-          -0.067
+          -0.0671,
+          -0.0671
         ],
-        "median_return": -0.067,
+        "median_return": -0.0671,
         "std_return": null,
         "win_rate": 0.0,
         "stop_rate": 1.0,
         "avg_days_held": 2.0,
-        "best": -0.067,
-        "worst": -0.067,
+        "best": -0.0671,
+        "worst": -0.0671,
         "sharpe_approx": null
       },
       "mild_bull": {
         "n": 1,
-        "mean_return": -0.0226,
+        "mean_return": -0.0793,
         "mean_return_ci_95": [
-          -0.0226,
-          -0.0226
+          -0.0793,
+          -0.0793
         ],
-        "median_return": -0.0226,
+        "median_return": -0.0793,
         "std_return": null,
         "win_rate": 0.0,
         "stop_rate": 0.0,
         "avg_days_held": 2.0,
-        "best": -0.0226,
-        "worst": -0.0226,
+        "best": -0.0793,
+        "worst": -0.0793,
         "sharpe_approx": null
       },
       "mild_bear": {
         "n": 4,
-        "mean_return": -0.0095,
+        "mean_return": -0.0105,
         "mean_return_ci_95": [
-          -0.0413,
-          0.0223
+          -0.0434,
+          0.0225
         ],
-        "median_return": -0.0049,
-        "std_return": 0.0324,
+        "median_return": -0.007,
+        "std_return": 0.0336,
         "win_rate": 0.5,
         "stop_rate": 0.0,
-        "avg_days_held": 5.0,
-        "best": 0.0224,
-        "worst": -0.0506,
-        "sharpe_approx": -0.293
+        "avg_days_held": 4.0,
+        "best": 0.0247,
+        "worst": -0.0525,
+        "sharpe_approx": -0.311
       }
     },
     "by_sector": {
       "Financials": {
         "n": 1,
-        "mean_return": -0.067,
+        "mean_return": -0.0671,
         "mean_return_ci_95": [
-          -0.067,
-          -0.067
+          -0.0671,
+          -0.0671
         ],
-        "median_return": -0.067,
+        "median_return": -0.0671,
         "std_return": null,
         "win_rate": 0.0,
         "stop_rate": 1.0,
         "avg_days_held": 2.0,
-        "best": -0.067,
-        "worst": -0.067,
+        "best": -0.0671,
+        "worst": -0.0671,
         "sharpe_approx": null
       },
       "Technology": {
         "n": 2,
-        "mean_return": -0.0366,
+        "mean_return": -0.0659,
         "mean_return_ci_95": [
-          -0.064,
-          -0.0092
+          -0.0921,
+          -0.0397
         ],
-        "median_return": -0.0366,
-        "std_return": 0.0198,
+        "median_return": -0.0659,
+        "std_return": 0.0189,
         "win_rate": 0.0,
         "stop_rate": 0.0,
-        "avg_days_held": 3.5,
-        "best": -0.0226,
-        "worst": -0.0506,
-        "sharpe_approx": -1.849
+        "avg_days_held": 3.0,
+        "best": -0.0525,
+        "worst": -0.0793,
+        "sharpe_approx": -3.48
       },
       "Healthcare": {
         "n": 2,
-        "mean_return": -0.0049,
+        "mean_return": -0.007,
         "mean_return_ci_95": [
-          -0.0329,
-          0.0231
+          -0.0334,
+          0.0194
         ],
-        "median_return": -0.0049,
-        "std_return": 0.0202,
+        "median_return": -0.007,
+        "std_return": 0.0191,
         "win_rate": 0.5,
         "stop_rate": 0.0,
-        "avg_days_held": 5.0,
-        "best": 0.0094,
-        "worst": -0.0192,
-        "sharpe_approx": -0.241
+        "avg_days_held": 4.0,
+        "best": 0.0064,
+        "worst": -0.0205,
+        "sharpe_approx": -0.369
       },
       "Energy": {
         "n": 1,
-        "mean_return": 0.0224,
+        "mean_return": 0.0247,
         "mean_return_ci_95": [
-          0.0224,
-          0.0224
+          0.0247,
+          0.0247
         ],
-        "median_return": 0.0224,
+        "median_return": 0.0247,
         "std_return": null,
         "win_rate": 1.0,
         "stop_rate": 0.0,
-        "avg_days_held": 5.0,
-        "best": 0.0224,
-        "worst": 0.0224,
+        "avg_days_held": 4.0,
+        "best": 0.0247,
+        "worst": 0.0247,
         "sharpe_approx": null
       }
     },
     "by_exit_reason": {
       "position_stop_adaptive": {
         "n": 1,
-        "mean_return": -0.067,
+        "mean_return": -0.0671,
         "mean_return_ci_95": [
-          -0.067,
-          -0.067
+          -0.0671,
+          -0.0671
         ],
-        "median_return": -0.067,
+        "median_return": -0.0671,
         "std_return": null,
         "win_rate": 0.0,
         "stop_rate": 1.0,
         "avg_days_held": 2.0,
-        "best": -0.067,
-        "worst": -0.067,
+        "best": -0.0671,
+        "worst": -0.0671,
         "sharpe_approx": null
       },
       "regime_reduce": {
         "n": 2,
-        "mean_return": -0.0366,
+        "mean_return": -0.0659,
         "mean_return_ci_95": [
-          -0.064,
-          -0.0092
+          -0.0921,
+          -0.0397
         ],
-        "median_return": -0.0366,
-        "std_return": 0.0198,
+        "median_return": -0.0659,
+        "std_return": 0.0189,
         "win_rate": 0.0,
         "stop_rate": 0.0,
-        "avg_days_held": 3.5,
-        "best": -0.0226,
-        "worst": -0.0506,
-        "sharpe_approx": -1.849
+        "avg_days_held": 3.0,
+        "best": -0.0525,
+        "worst": -0.0793,
+        "sharpe_approx": -3.48
       },
       "hold_expired": {
         "n": 3,
-        "mean_return": 0.0042,
+        "mean_return": 0.0035,
         "mean_return_ci_95": [
-          -0.0198,
-          0.0283
+          -0.0222,
+          0.0293
         ],
-        "median_return": 0.0094,
-        "std_return": 0.0212,
+        "median_return": 0.0064,
+        "std_return": 0.0227,
         "win_rate": 0.667,
         "stop_rate": 0.0,
-        "avg_days_held": 5.0,
-        "best": 0.0224,
-        "worst": -0.0192,
-        "sharpe_approx": 0.198
+        "avg_days_held": 4.0,
+        "best": 0.0247,
+        "worst": -0.0205,
+        "sharpe_approx": 0.156
       }
     },
     "by_vol_bucket": {
       "med_vol": {
         "n": 2,
-        "mean_return": -0.0223,
+        "mean_return": -0.0212,
         "mean_return_ci_95": [
-          -0.1099,
-          0.0653
+          -0.1111,
+          0.0688
         ],
-        "median_return": -0.0223,
-        "std_return": 0.0632,
+        "median_return": -0.0212,
+        "std_return": 0.0649,
         "win_rate": 0.5,
         "stop_rate": 0.5,
-        "avg_days_held": 3.5,
-        "best": 0.0224,
-        "worst": -0.067,
-        "sharpe_approx": -0.353
+        "avg_days_held": 3.0,
+        "best": 0.0247,
+        "worst": -0.0671,
+        "sharpe_approx": -0.327
       },
       "high_vol": {
         "n": 3,
-        "mean_return": -0.0308,
+        "mean_return": -0.0508,
         "mean_return_ci_95": [
-          -0.0503,
-          -0.0113
+          -0.0841,
+          -0.0175
         ],
-        "median_return": -0.0226,
-        "std_return": 0.0172,
+        "median_return": -0.0525,
+        "std_return": 0.0294,
         "win_rate": 0.0,
         "stop_rate": 0.0,
-        "avg_days_held": 4.0,
-        "best": -0.0192,
-        "worst": -0.0506,
-        "sharpe_approx": -1.785
+        "avg_days_held": 3.3,
+        "best": -0.0205,
+        "worst": -0.0793,
+        "sharpe_approx": -1.725
       },
       "low_vol": {
         "n": 1,
-        "mean_return": 0.0094,
+        "mean_return": 0.0064,
         "mean_return_ci_95": [
-          0.0094,
-          0.0094
+          0.0064,
+          0.0064
         ],
-        "median_return": 0.0094,
+        "median_return": 0.0064,
         "std_return": null,
         "win_rate": 1.0,
         "stop_rate": 0.0,
-        "avg_days_held": 5.0,
-        "best": 0.0094,
-        "worst": 0.0094,
+        "avg_days_held": 4.0,
+        "best": 0.0064,
+        "worst": 0.0064,
         "sharpe_approx": null
       }
     },
     "stop_analysis": {
       "total_stops": 1,
       "overall_stop_rate": 0.167,
-      "avg_return_when_stopped": -0.067,
-      "avg_return_when_not_stopped": -0.0121,
+      "avg_return_when_stopped": -0.0671,
+      "avg_return_when_not_stopped": -0.0242,
       "stop_by_vol_bucket": {
         "med_vol": {
           "n": 2,
           "stop_rate": 0.5,
-          "avg_return_when_stopped": -0.067
+          "avg_return_when_stopped": -0.0671
         },
         "high_vol": {
           "n": 3,

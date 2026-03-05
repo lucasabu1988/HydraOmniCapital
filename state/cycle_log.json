@@ -18,7 +18,14 @@
     "compass_return": 2.46,
     "spy_return": 1.23,
     "alpha": 1.23,
-    "stop_events": []
+    "stop_events": [],
+    "positions_start": [
+      "AMAT",
+      "MU",
+      "MRK",
+      "LRCX",
+      "XOM"
+    ]
   },
   {
     "cycle": 2,
@@ -60,6 +67,13 @@
         "reason": "regime_reduce",
         "return": -2.26
       }
+    ],
+    "positions_start": [
+      "JNJ",
+      "TXN",
+      "CVX",
+      "GS",
+      "LLY"
     ]
   },
   {
@@ -79,11 +93,18 @@
     "positions_current": [
       "MRK",
       "JNJ",
-      "AMAT"
+      "AMAT",
+      "LRCX",
+      "GOOGL"
     ],
     "compass_return": null,
     "spy_return": null,
     "alpha": null,
-    "stop_events": []
+    "stop_events": [],
+    "positions_start": [
+      "MRK",
+      "JNJ",
+      "AMAT"
+    ]
   }
 ]
