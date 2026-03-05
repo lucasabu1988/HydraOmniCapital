@@ -1084,6 +1084,9 @@ def api_cycle_log():
             symbols = list(positions.keys()) + ['SPY']
             prices = fetch_live_prices(symbols)
 
+            # Sync positions_current with actual state holdings
+            c['positions_current'] = sorted(positions.keys())
+
             # Portfolio value = sum(shares * current_price) + cash
             portfolio_now = state.get('cash', 0)
             for sym, pos in positions.items():
