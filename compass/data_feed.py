@@ -141,7 +141,7 @@ class IBKRDataFeed(DataFeed):
     def _connect(self):
         """Conecta con IBKR"""
         try:
-            from ib_insync import IB, Stock
+            from ib_async import IB, Stock
             self.ib = IB()
             self.ib.connect(self.host, self.port, clientId=self.client_id)
             logger.info("Conectado a IBKR")

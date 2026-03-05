@@ -204,7 +204,18 @@ def run_backtest(data):
             t = pos['ticker']
             if t in prices.columns and not pd.isna(prices[t].iloc[i]):
                 port_val += pos['shares'] * float(prices[t].iloc[i])
-        portfolio_values.append({'date': date, 'value': float(port_val)})
+        # Compute equity exposure (invested vs cash)
+        invested_val = sum(
+            pos['shares'] * float(prices[pos['ticker']].iloc[i])
+            for pos in positions
+            if pos['ticker'] in prices.columns and not pd.isna(prices[pos['ticker']].iloc[i])
+        )
+        exposure = invested_val / port_val if port_val > 0 else 0.0
+        portfolio_values.append({
+            'date': date, 'value': float(port_val),
+            'positions': len(positions), 'exposure': exposure,
+            'cash': float(cash)
+        })
 
         if i < min_history:
             continue
@@ -511,6 +522,11 @@ if __name__ == '__main__':
 
     print("\nStep 2: Backtest...")
     port_df, trade_df, stats = run_backtest(data)
+
+    # Save daily data with exposure info
+    daily_out = port_df.set_index('date')
+    daily_out.to_csv('backtests/rattlesnake_daily.csv')
+    print(f"\n  Saved backtests/rattlesnake_daily.csv ({len(daily_out)} rows)")
 
     print("\nStep 3: Results...")
     metrics = analyze(port_df, trade_df, stats)

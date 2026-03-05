@@ -80,13 +80,14 @@ V_RECOVERY_BOOST_MODERATE = 0.10
 
 
 def compute_v_recovery_boost(spy_ret_10d: float, spy_ret_20d: float,
-                              in_protection: bool) -> float:
+                              is_defensive: bool) -> float:
     """Compute regime score boost based on SPY short-term momentum.
 
-    Only active during protection mode (drawdown > -10%).
+    Active when system is in a defensive state: either protection mode
+    (drawdown > -10%) or risk_off (regime_score < 0.50).
     Returns a value to ADD to regime_score (0.0 to 0.20).
     """
-    if not in_protection:
+    if not is_defensive:
         return 0.0
 
     if spy_ret_10d >= V_RECOVERY_10D_STRONG:
@@ -208,14 +209,17 @@ def run_backtest_overlay(price_data: Dict[str, pd.DataFrame],
         current_leverage = max(min(dd_leverage_val, vol_leverage), LEV_FLOOR)
 
         # V-Recovery Momentum Boost: accelerate re-entry when SPY shows strong momentum
+        # Active in any defensive state: protection mode OR risk_off regime
         in_protection = dd_leverage_val < LEV_FULL
+        is_risk_off_raw = regime_score_raw < 0.50
+        is_defensive = in_protection or is_risk_off_raw
         v_recovery_boost = 0.0
-        if in_protection and date in spy_data.index and i >= 20:
+        if is_defensive and date in spy_data.index and i >= 20:
             spy_closes = spy_data.loc[:date, 'Close']
             if len(spy_closes) >= 21:
                 spy_ret_10d = (spy_closes.iloc[-1] / spy_closes.iloc[-11]) - 1.0
                 spy_ret_20d = (spy_closes.iloc[-1] / spy_closes.iloc[-21]) - 1.0
-                v_recovery_boost = compute_v_recovery_boost(spy_ret_10d, spy_ret_20d, in_protection)
+                v_recovery_boost = compute_v_recovery_boost(spy_ret_10d, spy_ret_20d, is_defensive)
 
         regime_score = min(1.0, regime_score_raw + v_recovery_boost)
         is_risk_on = regime_score >= 0.50

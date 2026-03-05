@@ -431,7 +431,7 @@ class ConnectionManager:
     """Manages IBKR connection lifecycle: heartbeat, reconnection, state tracking.
 
     In mock mode, simulates connection behavior.
-    In live mode, wraps ib_insync connection with monitoring.
+    In live mode, wraps ib_async connection with monitoring.
     """
 
     def __init__(self, host: str, port: int, client_id: int,
@@ -446,7 +446,7 @@ class ConnectionManager:
         self.max_reconnect_attempts = max_reconnect_attempts
 
         self.state = ConnectionState.DISCONNECTED
-        self.ib = None  # ib_insync.IB instance (None in mock)
+        self.ib = None  # ib_async.IB instance (None in mock)
         self._reconnect_count = 0
         self._reconnect_thread = None
         self._stop_reconnect = threading.Event()
@@ -461,7 +461,7 @@ class ConnectionManager:
             return True
 
         try:
-            from ib_insync import IB
+            from ib_async import IB
             self.ib = IB()
             self.ib.connect(self.host, self.port, clientId=self.client_id,
                             timeout=15)
@@ -511,7 +511,7 @@ class ConnectionManager:
         return True
 
     def _on_disconnect(self):
-        """Callback when ib_insync loses connection. Starts reconnect loop."""
+        """Callback when ib_async loses connection. Starts reconnect loop."""
         if self.state == ConnectionState.DISCONNECTED:
             return  # Clean disconnect, don't reconnect
         logger.warning("IBKR connection lost — starting reconnect loop")
@@ -530,7 +530,7 @@ class ConnectionManager:
             logger.info(f"IBKR reconnect attempt {self._reconnect_count}"
                         f"/{self.max_reconnect_attempts}...")
             try:
-                from ib_insync import IB
+                from ib_async import IB
                 self.ib = IB()
                 self.ib.connect(self.host, self.port,
                                 clientId=self.client_id, timeout=15)
@@ -783,7 +783,7 @@ class IBKRBroker(Broker):
         - Position reconciliation
 
     Live mode (mock=False):
-        Requires TWS/Gateway running. Uses ib_insync.
+        Requires TWS/Gateway running. Uses ib_async.
         Same interface, same safety guards.
 
     Safety guards (both modes):
@@ -1045,13 +1045,13 @@ class IBKRBroker(Broker):
         return order
 
     def _submit_live(self, order: Order) -> Order:
-        """Submit to real IBKR via ib_insync.
+        """Submit to real IBKR via ib_async.
 
         Supports MARKET, LIMIT, and MOC order types.
         Non-blocking: uses ib.sleep() instead of time.sleep().
         """
-        from ib_insync import Stock, MarketOrder, LimitOrder
-        from ib_insync import Order as IBOrder
+        from ib_async import Stock, MarketOrder, LimitOrder
+        from ib_async import Order as IBOrder
 
         ib = self.connection.ib
         contract = Stock(order.symbol, 'SMART', 'USD')
