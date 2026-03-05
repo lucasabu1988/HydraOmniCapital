@@ -351,7 +351,7 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
 
 
 def get_spy_start_price() -> Optional[float]:
-    """Get SPY close price on live test start date (cached after first fetch)."""
+    """Get S&P 500 index close price on live test start date (cached)."""
     global _spy_start_price
     if _spy_start_price is not None:
         return _spy_start_price
@@ -370,8 +370,8 @@ def get_spy_start_price() -> Optional[float]:
         if not start_date:
             return None
 
-        spy = yf.Ticker('SPY')
-        hist = spy.history(start=start_date, end=(date.fromisoformat(start_date) + timedelta(days=5)).isoformat())
+        idx = yf.Ticker('^GSPC')
+        hist = idx.history(start=start_date, end=(date.fromisoformat(start_date) + timedelta(days=5)).isoformat())
         if not hist.empty:
             _spy_start_price = float(hist['Close'].iloc[0])
             return _spy_start_price
@@ -467,9 +467,9 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     else:
         max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
 
-    # SPY benchmark return over same live test period
+    # S&P 500 index benchmark return over same live test period
     spy_start = get_spy_start_price()
-    spy_current = prices.get('SPY') if prices else None
+    spy_current = prices.get('^GSPC') if prices else None
     if spy_start and spy_current and spy_start > 0:
         spy_return = round((spy_current - spy_start) / spy_start * 100, 2)
     else:
@@ -1080,8 +1080,8 @@ def api_cycle_log():
             # Current portfolio value from state (updated by live engine)
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
-            # Fetch SPY ETF — unified benchmark with global P&L
-            symbols = list(positions.keys()) + ['SPY']
+            # Fetch S&P 500 index — benchmark with global P&L
+            symbols = list(positions.keys()) + ['^GSPC']
             prices = fetch_live_prices(symbols)
 
             # Sync positions_current with actual state holdings
@@ -1103,8 +1103,8 @@ def api_cycle_log():
                 c['portfolio_end'] = round(portfolio_now, 2)
                 c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
-            # SPY return (unified benchmark with global P&L)
-            spy_price = prices.get('SPY')
+            # S&P 500 index return (benchmark)
+            spy_price = prices.get('^GSPC')
             spy_start = c.get('spy_start')
             if spy_price and spy_start and spy_start > 0:
                 c['spy_end'] = round(spy_price, 2)
@@ -1179,12 +1179,12 @@ def api_live_chart():
     dates = sorted(compass_data.keys())
     start_date = dates[0]
 
-    # 2. Fetch SPY ETF data for the same period (matches banner which uses SPY)
+    # 2. Fetch S&P 500 index data for the same period
     spy_data = {}
     if _HAS_YFINANCE:
         try:
             end_dt = date.today() + timedelta(days=1)
-            hist = yf.download('SPY', start=start_date,
+            hist = yf.download('^GSPC', start=start_date,
                              end=end_dt.isoformat(),
                              progress=False, auto_adjust=True)
             if len(hist) > 0:
@@ -1197,13 +1197,13 @@ def api_live_chart():
         except Exception:
             pass
 
-    # Use live SPY price for today (matches banner real-time value)
+    # Use live S&P 500 index price for today
     today_str = date.today().strftime('%Y-%m-%d')
     if _HAS_YFINANCE and today_str in [d for d in dates]:
         try:
-            live_spy = fetch_live_prices(['SPY'])
-            if 'SPY' in live_spy:
-                spy_data[today_str] = live_spy['SPY']
+            live_spy = fetch_live_prices(['^GSPC'])
+            if '^GSPC' in live_spy:
+                spy_data[today_str] = live_spy['^GSPC']
         except Exception:
             pass
 

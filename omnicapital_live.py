@@ -1941,13 +1941,13 @@ class COMPASSLive:
             return None
 
     def _get_spy_close(self):
-        """Get SPY close price for today (or latest available)."""
+        """Get S&P 500 index close price for today (or latest available)."""
         try:
-            spy = yf.download('SPY', period='2d', progress=False)
-            if len(spy) > 0:
-                return float(spy['Close'].iloc[-1].iloc[0])
+            gspc = yf.download('^GSPC', period='2d', progress=False)
+            if len(gspc) > 0:
+                return float(gspc['Close'].iloc[-1].iloc[0])
         except Exception as e:
-            logger.warning(f"Could not fetch SPY close: {e}")
+            logger.warning(f"Could not fetch S&P 500 close: {e}")
         return None
 
     def _update_cycle_log(self, prices: Dict[str, float]):

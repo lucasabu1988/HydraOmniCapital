@@ -319,18 +319,18 @@ function updatePerfBanner(p) {
         if (diff >= 0) {
             alphaEl.textContent = '+' + absDiff + ' pp';
             alphaEl.className = 'perf-vs-alpha c-green';
-            alphaLabel.textContent = 'Superando SPY';
+            alphaLabel.textContent = 'Superando S&P 500';
             alphaLabel.style.color = 'var(--green)';
         } else {
             alphaEl.textContent = '-' + absDiff + ' pp';
             alphaEl.className = 'perf-vs-alpha c-red';
-            alphaLabel.textContent = 'Detr\u00e1s de SPY';
+            alphaLabel.textContent = 'Detr\u00e1s de S&P 500';
             alphaLabel.style.color = 'var(--red)';
         }
     } else {
         alphaEl.textContent = '--';
         alphaEl.className = 'perf-vs-alpha';
-        alphaLabel.textContent = 'vs SPY';
+        alphaLabel.textContent = 'vs S&P 500';
         alphaLabel.style.color = '';
     }
 
