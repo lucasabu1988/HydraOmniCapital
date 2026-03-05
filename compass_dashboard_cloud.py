@@ -1461,6 +1461,26 @@ def api_preflight():
     })
 
 
+@app.route('/api/data-quality')
+def api_data_quality():
+    """Data quality scorecard — stub for showcase mode."""
+    return jsonify({
+        'mode': 'showcase',
+        'message': 'Data quality monitoring available in live deployment only.',
+        'checks': {},
+    })
+
+
+@app.route('/api/execution-microstructure')
+def api_execution_microstructure():
+    """Execution microstructure analysis — stub for showcase mode."""
+    return jsonify({
+        'mode': 'showcase',
+        'message': 'Execution microstructure analysis available in live deployment only.',
+        'results': {},
+    })
+
+
 @app.route('/api/overlay-status')
 def api_overlay_status():
     """Return current overlay signals and diagnostics."""
@@ -1705,6 +1725,23 @@ def api_ml_learning():
         'insights': insights,
         'interpretation': interpretation,
     })
+
+
+@app.route('/robots.txt')
+def robots_txt():
+    return app.response_class(
+        "User-agent: *\nAllow: /\nSitemap: https://omnicapital.onrender.com/sitemap.xml\n",
+        mimetype='text/plain'
+    )
+
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://omnicapital.onrender.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+</urlset>"""
+    return app.response_class(xml, mimetype='application/xml')
 
 
 # ============================================================================

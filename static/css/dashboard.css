@@ -977,6 +977,9 @@ body.dark .regime-band-needle { background: #fff; box-shadow: 0 0 6px rgba(255,2
     padding: 4px 20px 16px;
     height: 480px;
     position: relative;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 .chart-controls {
     display: flex; gap: 8px; align-items: center;
@@ -2596,24 +2599,55 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .perf-vs-divider { display: none; }
     .perf-side-value { font-size: 24px; }
     .perf-vs-alpha { font-size: 20px; }
-    .page-tabs { gap: 0; top: 48px; }
-    .page-tab { padding: 10px 12px; font-size: 12px; }
+    .page-tabs { gap: 0; top: 48px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .page-tab { padding: 10px 12px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
     .regime-band { flex-wrap: wrap; gap: 10px; padding: 12px 14px; }
     .regime-band-left { min-width: auto; }
     .regime-band-track-wrap { width: 100%; order: 3; }
     .regime-band-right { min-width: auto; margin-left: auto; }
     .regime-band-value { font-size: 20px; }
     .regime-band-cons { font-size: 16px; }
+    /* Grid layouts collapse on tablet */
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .grid-6 { grid-template-columns: repeat(3, 1fr); }
+    /* Positions grid stacks on mobile */
+    .positions-grid { grid-template-columns: 1fr !important; }
+    /* Positions hero header wraps */
+    .positions-hero-header { flex-wrap: wrap; gap: 10px; padding: 14px 16px; }
+    .positions-hero-summary { flex-wrap: wrap; gap: 10px; }
+    .ph-stat-value { font-size: 16px; }
+    .ph-stat-divider { display: none; }
+    /* Positions total bar wraps */
+    .positions-total-bar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+    .pt-stats { gap: 12px; flex-wrap: wrap; }
+    /* Chart containers responsive */
+    .chart-container { height: 320px; padding: 4px 10px 12px; }
+    /* Cycle log table horizontal scroll */
+    .cycle-log { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .cycle-log-table { min-width: 600px; }
+    /* Perf banner period padding */
+    .perf-banner-period { padding: 0 16px 12px; }
 }
 @media (max-width: 480px) {
     body { font-size: 13px; }
     .metric-value { font-size: 18px; }
+    .metrics-grid { grid-template-columns: 1fr; }
     .hdr-brand-text { font-size: 15px; }
     .hdr-brand-icon { width: 30px; height: 30px; }
     .hdr-brand-sub { display: none; }
     #hdr-spy-wrap { min-width: 0 !important; }
     .perf-side-value { font-size: 20px; }
+    .perf-vs-alpha { font-size: 16px; }
     .ph-stat-value { font-size: 14px; }
+    /* Grid-6 goes to 2 columns on small phones */
+    .grid-6 { grid-template-columns: repeat(2, 1fr); }
+    /* Chart even shorter on small screens */
+    .chart-container { height: 260px; }
+    /* Pos card tighter padding */
+    .pos-card { padding: 14px 14px; }
+    /* Tab bar even more compact */
+    .page-tab { padding: 8px 10px; font-size: 11px; }
 }
 
 /* ============ WHATSAPP CONTACT FAB ============ */

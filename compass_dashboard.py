@@ -2404,6 +2404,23 @@ def api_ml_learning():
     })
 
 
+@app.route('/robots.txt')
+def robots_txt():
+    return app.response_class(
+        "User-agent: *\nAllow: /\nSitemap: http://localhost:5000/sitemap.xml\n",
+        mimetype='text/plain'
+    )
+
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>http://localhost:5000/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+</urlset>"""
+    return app.response_class(xml, mimetype='application/xml')
+
+
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
