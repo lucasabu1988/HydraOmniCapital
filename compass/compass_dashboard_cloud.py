@@ -123,8 +123,8 @@ _spy_df = None
 def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
-    # COMPASS v8.4 bias-corrected data with overlay (12.02% CAGR, -32.56% MaxDD)
-    csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
+    # HYDRA multi-strategy data (13.28% CAGR, -23.49% MaxDD)
+    csv_path = os.path.join('backtests', 'hydra_v2_daily.csv')
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
@@ -1178,10 +1178,10 @@ def api_live_chart():
 
 @app.route('/api/equity')
 def api_equity():
-    """Return COMPASS equity curve data (full period from 2000)."""
+    """Return HYDRA equity curve data (full period from 2000)."""
     df = _equity_df
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_v2_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
         try:
@@ -1271,12 +1271,12 @@ def api_equity():
 
 @app.route('/api/equity-comparison')
 def api_equity_comparison():
-    """Return COMPASS vs S&P 500 vs Net comparison data (full period from 2000)."""
+    """Return HYDRA vs S&P 500 vs Net comparison data (full period from 2000)."""
     df = _equity_df
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_v2_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -1364,12 +1364,12 @@ def api_equity_comparison():
 
 @app.route('/api/annual-returns')
 def api_annual_returns():
-    """Return COMPASS vs S&P 500 annual returns for bar chart."""
+    """Return HYDRA vs S&P 500 annual returns for bar chart."""
     df = _equity_df
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_v2_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -1381,7 +1381,7 @@ def api_annual_returns():
     df_copy = df[['date', val_col]].copy()
     df_copy['year'] = df_copy['date'].dt.year
 
-    # COMPASS annual returns: last value of year / first value of year - 1
+    # HYDRA annual returns: last value of year / first value of year - 1
     compass_annual = []
     for year, grp in df_copy.groupby('year'):
         start_val = float(grp[val_col].iloc[0])
