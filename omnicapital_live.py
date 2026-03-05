@@ -1686,6 +1686,11 @@ class COMPASSLive:
         # 2. Refresh historical data
         self.refresh_daily_data()
 
+        # 2b. Reconcile entry prices to actual close prices
+        # Pre-close entries fill at ~15:30-15:50 ET intraday prices.
+        # This adjusts them to the real close, preventing cumulative drift.
+        self._reconcile_entry_prices()
+
         # 3. Update regime
         self.update_regime()
 
@@ -1822,6 +1827,85 @@ class COMPASSLive:
         self._preclose_entries_done = True
         self.save_state()
         logger.info(f"[PRE-CLOSE] Entry signal complete")
+
+    # ------------------------------------------------------------------
+    # Entry price reconciliation (close-price alignment)
+    # ------------------------------------------------------------------
+
+    def _reconcile_entry_prices(self):
+        """Reconcile entry prices with actual close prices from historical data.
+
+        Pre-close entries (15:30-15:50 ET) fill at intraday prices that differ
+        from the official close. This creates cumulative drift vs benchmarks
+        that use close prices. We fix this at next-day open by updating
+        entry_price and avg_cost to the real close of the entry date.
+        """
+        if not self._hist_cache:
+            return
+
+        reconciled = []
+        for symbol, meta in self.position_meta.items():
+            entry_date = meta.get('entry_date')
+            if not entry_date:
+                continue
+
+            # Only reconcile entries from the previous trading day
+            # (entries from today haven't closed yet)
+            today = self.get_et_now().date()
+            try:
+                entry_dt = date.fromisoformat(entry_date)
+            except (ValueError, TypeError):
+                continue
+            if entry_dt >= today:
+                continue
+
+            # Already reconciled?
+            if meta.get('_entry_reconciled'):
+                continue
+
+            # Get close price on entry date from historical data
+            hist = self._hist_cache.get(symbol)
+            if hist is None or len(hist) == 0:
+                continue
+
+            try:
+                entry_close = None
+                for idx_date, row in hist.iterrows():
+                    row_date = idx_date.date() if hasattr(idx_date, 'date') else idx_date
+                    if str(row_date) == entry_date:
+                        entry_close = float(row['Close'])
+                        break
+
+                if entry_close is None or entry_close <= 0:
+                    continue
+
+                old_price = meta['entry_price']
+                diff = abs(old_price - entry_close)
+                if diff < 0.005:
+                    # Already matches (within half a cent)
+                    meta['_entry_reconciled'] = True
+                    continue
+
+                # Update entry price
+                meta['entry_price'] = entry_close
+                meta['high_price'] = max(meta.get('high_price', entry_close), entry_close)
+                meta['_entry_reconciled'] = True
+
+                # Update broker's avg_cost too
+                if symbol in self.broker.positions:
+                    self.broker.positions[symbol].avg_cost = entry_close
+
+                diff_pct = (entry_close / old_price - 1) * 100
+                reconciled.append(f"{symbol}: ${old_price:.2f} -> ${entry_close:.2f} ({diff_pct:+.2f}%)")
+
+            except Exception as e:
+                logger.debug(f"Entry reconciliation failed for {symbol}: {e}")
+
+        if reconciled:
+            logger.info(f"Entry price reconciliation: {len(reconciled)} positions adjusted to close prices")
+            for r in reconciled:
+                logger.info(f"  {r}")
+            self.save_state()
 
     # ------------------------------------------------------------------
     # Cycle log (automatic 5-day rotation tracking)

@@ -6,9 +6,14 @@ Incluye order timeout, fill circuit breaker y retry logic.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, time
+from enum import Enum
 from typing import Dict, List, Optional
+from zoneinfo import ZoneInfo
+import json
 import logging
+import os
+import threading
 
 # Fill price circuit breaker: max deviation from reference price
 MAX_FILL_DEVIATION = 0.02  # 2%
@@ -22,10 +27,10 @@ class Order:
     symbol: str
     action: str  # 'BUY' o 'SELL'
     quantity: float
-    order_type: str = 'MARKET'  # 'MARKET', 'LIMIT'
+    order_type: str = 'MARKET'  # 'MARKET', 'LIMIT', 'MOC'
     limit_price: Optional[float] = None
     order_id: Optional[str] = None
-    status: str = 'PENDING'  # 'PENDING', 'SUBMITTED', 'FILLED', 'CANCELLED', 'ERROR'
+    status: str = 'PENDING'  # 'PENDING', 'SUBMITTED', 'PARTIAL_FILL', 'FILLED', 'CANCELLED', 'ERROR'
     filled_quantity: float = 0
     filled_price: Optional[float] = None
     commission: float = 0
@@ -387,6 +392,163 @@ class SmartOrderRouter:
             return VWAPStrategy()
 
 
+# ======================================================================
+# IBKR Commission Model & Connection Management
+# ======================================================================
+
+class IBKRCommissionModel:
+    """IBKR US Tiered commission model for equities.
+
+    Tiered pricing (default for accounts under $100K):
+    - $0.0035/share, min $0.35/order, max 1% of trade value
+    - Plus exchange/regulatory fees (~$0.0003/share)
+    """
+
+    COST_PER_SHARE = 0.0035
+    EXCHANGE_FEES_PER_SHARE = 0.0003
+    MIN_PER_ORDER = 0.35
+    MAX_PCT_OF_TRADE = 0.01  # 1% of trade value
+
+    @classmethod
+    def calculate(cls, shares: float, price: float) -> float:
+        base = shares * cls.COST_PER_SHARE
+        exchange = shares * cls.EXCHANGE_FEES_PER_SHARE
+        total = base + exchange
+        total = max(total, cls.MIN_PER_ORDER)
+        total = min(total, shares * price * cls.MAX_PCT_OF_TRADE)
+        return round(total, 4)
+
+
+class ConnectionState(Enum):
+    DISCONNECTED = 'DISCONNECTED'
+    CONNECTING = 'CONNECTING'
+    CONNECTED = 'CONNECTED'
+    RECONNECTING = 'RECONNECTING'
+    FAILED = 'FAILED'
+
+
+class ConnectionManager:
+    """Manages IBKR connection lifecycle: heartbeat, reconnection, state tracking.
+
+    In mock mode, simulates connection behavior.
+    In live mode, wraps ib_async connection with monitoring.
+    """
+
+    def __init__(self, host: str, port: int, client_id: int,
+                 mock: bool = True,
+                 reconnect_interval: float = 30.0,
+                 max_reconnect_attempts: int = 10):
+        self.host = host
+        self.port = port
+        self.client_id = client_id
+        self.mock = mock
+        self.reconnect_interval = reconnect_interval
+        self.max_reconnect_attempts = max_reconnect_attempts
+
+        self.state = ConnectionState.DISCONNECTED
+        self.ib = None  # ib_async.IB instance (None in mock)
+        self._reconnect_count = 0
+        self._reconnect_thread = None
+        self._stop_reconnect = threading.Event()
+
+    def connect(self) -> bool:
+        """Connect to TWS/Gateway. In mock mode, always succeeds."""
+        self.state = ConnectionState.CONNECTING
+
+        if self.mock:
+            self.state = ConnectionState.CONNECTED
+            logger.info("IBKR ConnectionManager: MOCK mode connected")
+            return True
+
+        try:
+            from ib_async import IB
+            self.ib = IB()
+            self.ib.connect(self.host, self.port, clientId=self.client_id,
+                            timeout=15)
+            self.state = ConnectionState.CONNECTED
+            self._reconnect_count = 0
+            logger.info(f"IBKR ConnectionManager: connected to {self.host}:{self.port}")
+
+            # Set disconnect callback for auto-reconnect
+            self.ib.disconnectedEvent += self._on_disconnect
+            return True
+        except Exception as e:
+            self.state = ConnectionState.FAILED
+            logger.error(f"IBKR ConnectionManager: connection failed: {e}")
+            return False
+
+    def disconnect(self):
+        """Clean disconnect."""
+        self._stop_reconnect.set()
+        if self._reconnect_thread and self._reconnect_thread.is_alive():
+            self._reconnect_thread.join(timeout=5)
+
+        if self.ib and not self.mock:
+            try:
+                self.ib.disconnect()
+            except Exception:
+                pass
+        self.ib = None
+        self.state = ConnectionState.DISCONNECTED
+        logger.info("IBKR ConnectionManager: disconnected")
+
+    def is_connected(self) -> bool:
+        """Check connection status."""
+        if self.mock:
+            return self.state == ConnectionState.CONNECTED
+        if self.ib is None:
+            return False
+        return self.ib.isConnected()
+
+    def verify_paper_trading(self) -> bool:
+        """Safety guard: verify we're connected to paper trading.
+        Port 7497 = paper trading, port 7496 = live trading.
+        In mock mode, rejects port 7496."""
+        if self.port == 7496:
+            logger.error("SAFETY: Port 7496 is LIVE trading. "
+                         "Use port 7497 for paper trading.")
+            return False
+        return True
+
+    def _on_disconnect(self):
+        """Callback when ib_async loses connection. Starts reconnect loop."""
+        if self.state == ConnectionState.DISCONNECTED:
+            return  # Clean disconnect, don't reconnect
+        logger.warning("IBKR connection lost — starting reconnect loop")
+        self.state = ConnectionState.RECONNECTING
+        self._stop_reconnect.clear()
+        self._reconnect_thread = threading.Thread(
+            target=self._reconnect_loop, daemon=True)
+        self._reconnect_thread.start()
+
+    def _reconnect_loop(self):
+        """Background thread: attempt reconnection periodically."""
+        import time as _time
+        while (self._reconnect_count < self.max_reconnect_attempts
+               and not self._stop_reconnect.is_set()):
+            self._reconnect_count += 1
+            logger.info(f"IBKR reconnect attempt {self._reconnect_count}"
+                        f"/{self.max_reconnect_attempts}...")
+            try:
+                from ib_async import IB
+                self.ib = IB()
+                self.ib.connect(self.host, self.port,
+                                clientId=self.client_id, timeout=15)
+                self.state = ConnectionState.CONNECTED
+                self._reconnect_count = 0
+                self.ib.disconnectedEvent += self._on_disconnect
+                logger.info("IBKR reconnected successfully")
+                return
+            except Exception as e:
+                logger.warning(f"Reconnect failed: {e}")
+                self._stop_reconnect.wait(timeout=self.reconnect_interval)
+
+        if self._reconnect_count >= self.max_reconnect_attempts:
+            self.state = ConnectionState.FAILED
+            logger.error(f"IBKR reconnect FAILED after "
+                         f"{self.max_reconnect_attempts} attempts")
+
+
 class PaperBroker(Broker):
     """Broker de papel para testing sin riesgo real"""
 
@@ -428,14 +590,16 @@ class PaperBroker(Broker):
         self.price_feed = feed
     
     def _get_fill_price(self, symbol: str, action: str) -> Optional[float]:
-        """Obtiene precio de ejecucion"""
+        """Get fill price using the current market price (no random slippage).
+
+        Pre-close entries (15:30-15:50 ET) conceptually execute at close.
+        Using the feed price directly (without random noise) ensures the
+        portfolio tracks real closes and avoids cumulative drift vs benchmarks.
+        """
         if self.price_feed:
             price = self.price_feed.get_price(symbol)
             if price:
-                # Simular slippage
-                import random
-                slippage = random.uniform(-0.001, 0.001)
-                return price * (1 + slippage)
+                return price
         return None
 
     def validate_fill_price(self, symbol: str, fill_price: float,
@@ -610,168 +774,599 @@ class PaperBroker(Broker):
 
 
 class IBKRBroker(Broker):
-    """Broker para Interactive Brokers"""
-    
-    def __init__(self, host: str = '127.0.0.1', port: int = 7497, 
-                 client_id: int = 1, paper_trading: bool = True):
+    """Interactive Brokers integration with mock mode.
+
+    Mock mode (mock=True):
+        Simulates realistic IBKR behavior without TWS.
+        - IBKR tiered commissions
+        - MOC order support with deadline enforcement
+        - Realistic slippage (~0.5bps for S&P 500 large-caps)
+        - Connection state management
+        - Position reconciliation
+
+    Live mode (mock=False):
+        Requires TWS/Gateway running. Uses ib_async.
+        Same interface, same safety guards.
+
+    Safety guards (both modes):
+        - Paper trading account verification (port 7497 only)
+        - MOC deadline enforcement (reject after 15:50 ET)
+        - Maximum order size limits
+        - Kill switch integration (STOP_TRADING file)
+        - NO fallback to PaperBroker on disconnect
+    """
+
+    def __init__(self, host: str = '127.0.0.1', port: int = 7497,
+                 client_id: int = 1, mock: bool = True,
+                 max_order_value: float = 50_000,
+                 price_feed=None):
         self.host = host
         self.port = port
         self.client_id = client_id
-        self.paper_trading = paper_trading
-        self.ib = None
-        
-    def connect(self) -> bool:
-        """Conecta con IBKR"""
-        try:
-            from ib_insync import IB, Stock, MarketOrder
-            self.ib = IB()
-            self.ib.connect(self.host, self.port, clientId=self.client_id)
-            logger.info(f"Conectado a IBKR ({'PAPER' if self.paper_trading else 'LIVE'})")
-            return True
-        except Exception as e:
-            logger.error(f"Error conectando a IBKR: {e}")
-            return False
-    
-    def disconnect(self):
-        if self.ib:
-            self.ib.disconnect()
-            logger.info("Desconectado de IBKR")
-    
-    def is_connected(self) -> bool:
-        return self.ib is not None and self.ib.isConnected()
-    
-    def submit_order(self, order: Order, max_retries: int = 2,
-                     retry_wait: float = 5.0) -> Order:
-        """Envia orden a IBKR con retry logic y fill validation"""
-        from ib_insync import Stock, MarketOrder, LimitOrder
+        self.mock = mock
+        self.max_order_value = max_order_value
+        self.price_feed = price_feed
 
+        # Connection management
+        self.connection = ConnectionManager(
+            host=host, port=port, client_id=client_id, mock=mock
+        )
+
+        # Order tracking
+        self.orders: Dict[str, Order] = {}
+        self.order_history: List[Order] = []
+        self._order_counter = 0
+        self._pending_orders: Dict[str, Order] = {}
+
+        # Position tracking (mock mode)
+        self._mock_positions: Dict[str, Position] = {}
+        self._mock_cash: float = 0
+
+        # Commission model
+        self.commission_model = IBKRCommissionModel
+
+        # Timezone for MOC deadline
+        self._et_tz = ZoneInfo('America/New_York')
+
+        # Audit log
+        self._audit_log: List[dict] = []
+
+    # ---- COMPASSLive compatibility properties ----
+    # COMPASSLive accesses self.broker.cash and self.broker.positions directly
+
+    @property
+    def cash(self):
+        if self.mock:
+            return self._mock_cash
+        portfolio = self.get_portfolio()
+        return portfolio.cash
+
+    @cash.setter
+    def cash(self, value):
+        if self.mock:
+            self._mock_cash = value
+
+    @property
+    def positions(self):
+        if self.mock:
+            return self._mock_positions
+        return self.get_positions()
+
+    @positions.setter
+    def positions(self, value):
+        if self.mock:
+            self._mock_positions = value
+
+    # ---- Connection Methods ----
+
+    def connect(self) -> bool:
+        """Connect to IBKR. Verifies paper trading account."""
+        if not self.connection.verify_paper_trading():
+            logger.error("IBKR connect aborted: paper trading verification failed")
+            return False
+
+        result = self.connection.connect()
+        if result:
+            mode = 'MOCK' if self.mock else 'LIVE (PAPER TRADING)'
+            logger.info(f"IBKR broker connected: {mode} | "
+                        f"Port {self.port} | Max order ${self.max_order_value:,.0f}")
+        return result
+
+    def disconnect(self):
+        """Disconnect from IBKR."""
+        self.connection.disconnect()
+
+    def is_connected(self) -> bool:
+        return self.connection.is_connected()
+
+    def set_price_feed(self, feed):
+        """Set price feed for fill simulation (mock) and validation (live)."""
+        self.price_feed = feed
+
+    # ---- Safety Guards ----
+
+    def _check_kill_switch(self) -> bool:
+        """Returns True if STOP_TRADING file exists."""
+        return os.path.exists('STOP_TRADING')
+
+    def _check_moc_deadline(self) -> bool:
+        """Returns True if PAST the MOC deadline (15:50 ET)."""
+        now_et = datetime.now(self._et_tz)
+        if now_et.weekday() >= 5:
+            return True  # Weekend
+        return now_et.time() > time(15, 50)
+
+    def _validate_order_size(self, order: Order, price: float) -> bool:
+        """Validate order value doesn't exceed max_order_value."""
+        order_value = order.quantity * price
+        if order_value > self.max_order_value:
+            logger.error(f"Order size guard: {order.symbol} "
+                         f"${order_value:,.0f} > ${self.max_order_value:,.0f} limit")
+            return False
+        return True
+
+    def _get_reference_price(self, symbol: str) -> Optional[float]:
+        """Get reference price from price feed."""
+        if self.price_feed:
+            return self.price_feed.get_price(symbol)
+        return None
+
+    # ---- Order Submission ----
+
+    def submit_order(self, order: Order) -> Order:
+        """Submit order to IBKR (mock or live).
+
+        Flow:
+        1. Safety checks (connection, kill switch, MOC deadline, order size)
+        2. Assign order ID, set status to SUBMITTED
+        3. Route to _submit_mock() or _submit_live()
+        4. Log to audit trail
+        """
+        # Pre-submission guards
+        if not self.is_connected():
+            order.status = 'ERROR'
+            self._audit('submit_rejected', order, reason='not_connected')
+            raise ConnectionError("IBKR not connected")
+
+        if self._check_kill_switch():
+            order.status = 'ERROR'
+            self._audit('submit_rejected', order, reason='kill_switch')
+            raise RuntimeError("Kill switch active (STOP_TRADING file detected)")
+
+        if order.order_type == 'MOC' and self._check_moc_deadline():
+            order.status = 'ERROR'
+            self._audit('submit_rejected', order, reason='moc_deadline_passed')
+            logger.error(f"MOC deadline passed for {order.symbol}")
+            return order
+
+        # Get reference price for validation
+        ref_price = self._get_reference_price(order.symbol)
+        if ref_price and not self._validate_order_size(order, ref_price):
+            order.status = 'ERROR'
+            self._audit('submit_rejected', order, reason='order_size_exceeded')
+            return order
+
+        # Assign order ID
+        self._order_counter += 1
+        tag = 'MOCK' if self.mock else 'LIVE'
+        order.order_id = f"IBKR_{tag}_{self._order_counter}"
+        order.status = 'SUBMITTED'
+        order.submitted_at = datetime.now()
+
+        # Route to implementation
+        if self.mock:
+            result = self._submit_mock(order)
+        else:
+            result = self._submit_live(order)
+
+        # Store and audit
+        self.orders[result.order_id] = result
+        self.order_history.append(result)
+        self._audit('order_completed', result)
+
+        return result
+
+    def _submit_mock(self, order: Order) -> Order:
+        """Mock IBKR execution with realistic behavior.
+
+        - IBKR tiered commission model
+        - ~0.5bps slippage for MOC orders (S&P 500 large-caps)
+        - Fill price circuit breaker validation
+        """
+        fill_price = self._get_mock_fill_price(order)
+        if fill_price is None:
+            order.status = 'ERROR'
+            logger.error(f"IBKR Mock: no price available for {order.symbol}")
+            return order
+
+        # Circuit breaker: validate fill price vs reference
+        ref_price = self._get_reference_price(order.symbol)
+        if ref_price and ref_price > 0:
+            deviation = abs(fill_price - ref_price) / ref_price
+            if deviation > MAX_FILL_DEVIATION:
+                order.status = 'ERROR'
+                logger.error(f"Fill circuit breaker: {order.symbol} "
+                             f"fill=${fill_price:.2f} vs ref=${ref_price:.2f} "
+                             f"({deviation:.2%} deviation)")
+                return order
+
+        # Calculate commission (IBKR tiered model)
+        commission = self.commission_model.calculate(order.quantity, fill_price)
+
+        # Execute against mock positions
+        if order.action == 'BUY':
+            total_cost = order.quantity * fill_price + commission
+            if total_cost > self._mock_cash:
+                order.status = 'ERROR'
+                logger.error(f"Insufficient funds: ${self._mock_cash:,.2f} < "
+                             f"${total_cost:,.2f}")
+                return order
+
+            if order.symbol in self._mock_positions:
+                pos = self._mock_positions[order.symbol]
+                total_shares = pos.shares + order.quantity
+                total_cost_basis = (pos.shares * pos.avg_cost +
+                                    order.quantity * fill_price)
+                pos.shares = total_shares
+                pos.avg_cost = total_cost_basis / total_shares
+            else:
+                self._mock_positions[order.symbol] = Position(
+                    symbol=order.symbol,
+                    shares=order.quantity,
+                    avg_cost=fill_price
+                )
+            self._mock_cash -= total_cost
+
+        elif order.action == 'SELL':
+            if order.symbol not in self._mock_positions:
+                order.status = 'ERROR'
+                logger.error(f"No position in {order.symbol} to sell")
+                return order
+            pos = self._mock_positions[order.symbol]
+            if order.quantity > pos.shares:
+                order.status = 'ERROR'
+                logger.error(f"Insufficient shares: {pos.shares:.2f} < "
+                             f"{order.quantity:.2f}")
+                return order
+            realized_pnl = (fill_price - pos.avg_cost) * order.quantity
+            pos.realized_pnl += realized_pnl
+            pos.shares -= order.quantity
+            if pos.shares <= 0:
+                del self._mock_positions[order.symbol]
+            self._mock_cash += order.quantity * fill_price - commission
+
+        # Fill the order
+        order.status = 'FILLED'
+        order.filled_quantity = order.quantity
+        order.filled_price = fill_price
+        order.commission = commission
+
+        logger.info(f"IBKR Mock fill: {order.action} {order.quantity:.1f} "
+                    f"{order.symbol} @ ${fill_price:.2f} | "
+                    f"Commission: ${commission:.4f}")
+        return order
+
+    def _submit_live(self, order: Order) -> Order:
+        """Submit to real IBKR via ib_async.
+
+        Supports MARKET, LIMIT, and MOC order types.
+        Non-blocking: uses ib.sleep() instead of time.sleep().
+        """
+        from ib_async import Stock, MarketOrder, LimitOrder
+        from ib_async import Order as IBOrder
+
+        ib = self.connection.ib
         contract = Stock(order.symbol, 'SMART', 'USD')
 
         if order.order_type == 'MARKET':
             ib_order = MarketOrder(order.action, order.quantity)
         elif order.order_type == 'LIMIT':
-            ib_order = LimitOrder(order.action, order.quantity, order.limit_price)
+            ib_order = LimitOrder(order.action, order.quantity,
+                                  order.limit_price)
+        elif order.order_type == 'MOC':
+            ib_order = IBOrder()
+            ib_order.action = order.action
+            ib_order.totalQuantity = order.quantity
+            ib_order.orderType = 'MOC'
         else:
-            raise ValueError(f"Tipo de orden no soportado: {order.order_type}")
+            raise ValueError(f"Unsupported order type: {order.order_type}")
 
-        trade = self.ib.placeOrder(contract, ib_order)
+        trade = ib.placeOrder(contract, ib_order)
 
-        order.order_id = str(trade.order.orderId)
-        order.status = 'SUBMITTED'
-        order.submitted_at = datetime.now()
+        # Wait for fill — MOC orders won't fill until close
+        max_wait = 5 if order.order_type == 'MOC' else 30
+        elapsed = 0
 
-        # Retry loop: wait for fill with retries
-        for attempt in range(max_retries + 1):
-            self.ib.sleep(retry_wait)
+        while elapsed < max_wait:
+            ib.sleep(1.0)
+            elapsed += 1
 
-            if trade.orderStatus.status == 'Filled':
+            status = trade.orderStatus.status
+            if status == 'Filled':
                 order.status = 'FILLED'
                 order.filled_quantity = trade.orderStatus.filled
                 order.filled_price = trade.orderStatus.avgFillPrice
-                order.commission = sum(c.commission for c in trade.commissions)
-
-                # Circuit breaker: validate fill price
-                ticker = self.ib.reqMktData(contract)
-                self.ib.sleep(1)
-                ref_price = ticker.last or ticker.close
-                if ref_price and ref_price > 0:
-                    deviation = abs(order.filled_price - ref_price) / ref_price
-                    if deviation > MAX_FILL_DEVIATION:
-                        logger.error(f"IBKR fill price circuit breaker: {order.symbol} "
-                                    f"fill=${order.filled_price:.2f} vs ref=${ref_price:.2f} "
-                                    f"({deviation:.2%} deviation)")
-                        # Order already filled -- log warning but don't reject
-                        # In production this would trigger immediate exit
-
-                logger.info(f"IBKR order filled (attempt {attempt+1}): "
-                           f"{order.action} {order.quantity} {order.symbol} "
-                           f"@ ${order.filled_price:.2f}")
+                commissions = trade.commissions or []
+                order.commission = sum(
+                    c.commission for c in commissions
+                    if c.commission is not None
+                )
+                logger.info(f"IBKR LIVE fill: {order.action} "
+                            f"{order.filled_quantity} {order.symbol} "
+                            f"@ ${order.filled_price:.2f}")
                 break
-            elif attempt < max_retries:
-                logger.info(f"IBKR order not filled yet, retry {attempt+1}/{max_retries}...")
-        else:
-            # Not filled after all retries
-            if trade.orderStatus.status != 'Filled':
-                logger.warning(f"IBKR order not filled after {max_retries+1} attempts, "
-                             f"cancelling: {order.symbol}")
-                self.ib.cancelOrder(trade.order)
+            elif status in ('Cancelled', 'ApiCancelled'):
                 order.status = 'CANCELLED'
+                logger.warning(f"IBKR order cancelled: {order.symbol}")
+                break
+            elif status == 'Inactive':
+                order.status = 'ERROR'
+                logger.error(f"IBKR order inactive: {order.symbol}")
+                break
+
+        # MOC submitted but not yet filled (expected: fills at close)
+        if order.order_type == 'MOC' and order.status == 'SUBMITTED':
+            logger.info(f"MOC order submitted for {order.symbol}, "
+                        f"will fill at close")
+            self._pending_orders[order.order_id] = order
+
+        # Non-MOC still not filled: cancel
+        if order.status == 'SUBMITTED' and order.order_type != 'MOC':
+            logger.warning(f"Order not filled after {max_wait}s, "
+                           f"cancelling: {order.symbol}")
+            ib.cancelOrder(trade.order)
+            order.status = 'CANCELLED'
 
         return order
-    
+
+    def _get_mock_fill_price(self, order: Order) -> Optional[float]:
+        """Generate realistic mock fill price.
+
+        For S&P 500 large-caps with MOC orders:
+        - MOC: ~0.5bps slippage (fills at close)
+        - MARKET: ~1bps adverse slippage
+        - LIMIT: fills at limit if marketable
+        """
+        import random
+
+        ref_price = self._get_reference_price(order.symbol)
+        if ref_price is None:
+            return None
+
+        if order.order_type == 'MOC':
+            slippage_bps = random.gauss(0, 0.5) / 10000
+            return ref_price * (1 + slippage_bps)
+
+        elif order.order_type == 'MARKET':
+            if order.action == 'BUY':
+                slippage_bps = abs(random.gauss(1.0, 0.5)) / 10000
+            else:
+                slippage_bps = -abs(random.gauss(1.0, 0.5)) / 10000
+            return ref_price * (1 + slippage_bps)
+
+        elif order.order_type == 'LIMIT':
+            if order.limit_price:
+                if order.action == 'BUY' and order.limit_price >= ref_price:
+                    return order.limit_price
+                elif order.action == 'SELL' and order.limit_price <= ref_price:
+                    return order.limit_price
+            return None  # Limit not hit
+
+        return ref_price
+
+    # ---- Order Management ----
+
     def cancel_order(self, order_id: str) -> bool:
-        """Cancela orden"""
-        for trade in self.ib.trades():
-            if str(trade.order.orderId) == order_id:
-                self.ib.cancelOrder(trade.order)
+        """Cancel a pending order."""
+        if self.mock:
+            if order_id in self._pending_orders:
+                self._pending_orders[order_id].status = 'CANCELLED'
+                del self._pending_orders[order_id]
+                self._audit('order_cancelled', self.orders.get(order_id))
                 return True
-        return False
-    
+            return False
+        else:
+            ib = self.connection.ib
+            for trade in ib.trades():
+                if str(trade.order.orderId) == order_id:
+                    ib.cancelOrder(trade.order)
+                    self._audit('order_cancelled',
+                                self.orders.get(order_id))
+                    return True
+            return False
+
     def get_order_status(self, order_id: str) -> Optional[Order]:
-        """Obtiene estado de orden"""
-        for trade in self.ib.trades():
-            if str(trade.order.orderId) == order_id:
-                return Order(
-                    symbol=trade.contract.symbol,
-                    action=trade.order.action,
-                    quantity=trade.order.totalQuantity,
-                    order_id=order_id,
-                    status=trade.orderStatus.status,
-                    filled_quantity=trade.orderStatus.filled,
-                    filled_price=trade.orderStatus.avgFillPrice
-                )
-        return None
-    
+        """Get order status."""
+        return self.orders.get(order_id)
+
+    def check_stale_orders(self, max_age: int = 300) -> List[Order]:
+        """Cancel orders exceeding max age."""
+        stale = []
+        for oid, order in list(self._pending_orders.items()):
+            if order.is_stale(max_age):
+                order.status = 'CANCELLED'
+                stale.append(order)
+                del self._pending_orders[oid]
+                self._audit('stale_order_cancelled', order)
+                logger.warning(f"Stale order cancelled: {oid} "
+                               f"({order.symbol})")
+        return stale
+
+    # ---- Position & Portfolio ----
+
     def get_positions(self) -> Dict[str, Position]:
-        """Obtiene posiciones"""
-        positions = {}
-        for pos in self.ib.positions():
-            positions[pos.contract.symbol] = Position(
-                symbol=pos.contract.symbol,
-                shares=pos.position,
-                avg_cost=pos.avgCost
-            )
-        return positions
-    
+        """Get current positions."""
+        if self.mock:
+            if self.price_feed:
+                for symbol, pos in self._mock_positions.items():
+                    price = self.price_feed.get_price(symbol)
+                    if price:
+                        pos.update_market_data(price)
+            return self._mock_positions.copy()
+        else:
+            ib = self.connection.ib
+            positions = {}
+            for pos in ib.positions():
+                positions[pos.contract.symbol] = Position(
+                    symbol=pos.contract.symbol,
+                    shares=pos.position,
+                    avg_cost=pos.avgCost
+                )
+            return positions
+
     def get_portfolio(self) -> Portfolio:
-        """Obtiene portfolio"""
-        account = self.ib.accountSummary()
-        
-        cash = 0
-        buying_power = 0
-        for item in account:
-            if item.tag == 'AvailableFunds':
-                cash = float(item.value)
-            elif item.tag == 'BuyingPower':
-                buying_power = float(item.value)
-        
-        positions = self.get_positions()
-        
-        # Calcular total value
-        total = cash
-        for pos in positions.values():
-            ticker = self.ib.reqMktData(Stock(pos.symbol, 'SMART', 'USD'))
-            self.ib.sleep(0.5)
-            price = ticker.last or ticker.close
-            if price:
-                total += pos.shares * price
-        
-        return Portfolio(
-            cash=cash,
-            positions=positions,
-            total_value=total,
-            buying_power=buying_power
-        )
-    
+        """Get portfolio state."""
+        if self.mock:
+            positions = self.get_positions()
+            positions_value = sum(
+                p.market_value or 0 for p in positions.values())
+            total_value = self._mock_cash + positions_value
+            return Portfolio(
+                cash=self._mock_cash,
+                positions=positions,
+                total_value=total_value,
+                buying_power=self._mock_cash  # No margin (LEVERAGE_MAX=1.0)
+            )
+        else:
+            ib = self.connection.ib
+            account = ib.accountSummary()
+            cash = 0
+            buying_power = 0
+            for item in account:
+                if item.tag == 'AvailableFunds':
+                    cash = float(item.value)
+                elif item.tag == 'BuyingPower':
+                    buying_power = float(item.value)
+
+            positions = self.get_positions()
+            total = cash + sum(
+                p.shares * (p.market_price or p.avg_cost)
+                for p in positions.values()
+            )
+            return Portfolio(
+                cash=cash, positions=positions,
+                total_value=total, buying_power=buying_power
+            )
+
     def get_account_info(self) -> Dict:
-        """Obtiene info de cuenta"""
+        """Get account information."""
         portfolio = self.get_portfolio()
         return {
             'cash': portfolio.cash,
             'total_value': portfolio.total_value,
             'buying_power': portfolio.buying_power,
-            'num_positions': len(portfolio.positions)
+            'num_positions': len(portfolio.positions),
+            'broker_type': 'IBKR',
+            'mock_mode': self.mock,
+            'connection_state': self.connection.state.value,
         }
+
+    # ---- Position Reconciliation ----
+
+    def reconcile_positions(self, json_state: Dict[str, dict]) -> Dict:
+        """Compare JSON state positions vs broker positions.
+
+        Returns a reconciliation report. Does NOT auto-correct.
+        Called at startup by COMPASSLive.load_state().
+
+        Args:
+            json_state: {symbol: {shares, avg_cost}} from saved state
+
+        Returns:
+            {symbol: {json_shares, broker_shares, status, discrepancy}}
+            status: 'match', 'json_only', 'broker_only', 'quantity_mismatch'
+        """
+        broker_positions = self.get_positions()
+        report = {}
+
+        all_symbols = set(json_state.keys()) | set(broker_positions.keys())
+
+        for symbol in sorted(all_symbols):
+            json_data = json_state.get(symbol)
+            broker_pos = broker_positions.get(symbol)
+
+            entry = {
+                'json_shares': json_data['shares'] if json_data else 0,
+                'json_avg_cost': json_data.get('avg_cost', 0) if json_data else 0,
+                'broker_shares': broker_pos.shares if broker_pos else 0,
+                'broker_avg_cost': broker_pos.avg_cost if broker_pos else 0,
+            }
+
+            if json_data and not broker_pos:
+                entry['status'] = 'json_only'
+                entry['discrepancy'] = "Position in state but not broker"
+                logger.warning(f"RECONCILE: {symbol} in JSON state "
+                               f"but NOT in broker")
+            elif broker_pos and not json_data:
+                entry['status'] = 'broker_only'
+                entry['discrepancy'] = "Position in broker but not state"
+                logger.warning(f"RECONCILE: {symbol} in broker "
+                               f"but NOT in JSON state")
+            elif abs(json_data['shares'] - broker_pos.shares) > 0.01:
+                entry['status'] = 'quantity_mismatch'
+                entry['discrepancy'] = (
+                    f"JSON={json_data['shares']:.2f} vs "
+                    f"Broker={broker_pos.shares:.2f}")
+                logger.warning(f"RECONCILE: {symbol} quantity mismatch: "
+                               f"{entry['discrepancy']}")
+            else:
+                entry['status'] = 'match'
+                entry['discrepancy'] = None
+
+            report[symbol] = entry
+
+        mismatches = [s for s, r in report.items()
+                      if r['status'] != 'match']
+        if mismatches:
+            logger.warning(f"RECONCILIATION: {len(mismatches)} discrepancies: "
+                           f"{mismatches}")
+            logger.warning("Manual review required. "
+                           "Positions NOT auto-corrected.")
+        else:
+            logger.info("RECONCILIATION: All positions match.")
+
+        return report
+
+    # ---- Audit Trail ----
+
+    def _audit(self, event_type: str, order: Order = None, **kwargs):
+        """Record event to audit log."""
+        entry = {
+            'timestamp': datetime.now().isoformat(),
+            'event': event_type,
+            'mock': self.mock,
+        }
+        if order:
+            entry.update({
+                'order_id': order.order_id,
+                'symbol': order.symbol,
+                'action': order.action,
+                'quantity': order.quantity,
+                'order_type': order.order_type,
+                'status': order.status,
+                'filled_price': order.filled_price,
+                'filled_quantity': order.filled_quantity,
+                'commission': order.commission,
+            })
+        entry.update(kwargs)
+        self._audit_log.append(entry)
+
+    def get_audit_log(self) -> List[dict]:
+        """Return full audit trail."""
+        return self._audit_log.copy()
+
+    def save_audit_log(self, filepath: str = None):
+        """Save audit log to JSON file."""
+        if not self._audit_log:
+            return
+        if filepath is None:
+            os.makedirs('logs', exist_ok=True)
+            filepath = (f"logs/ibkr_audit_"
+                        f"{datetime.now().strftime('%Y%m%d')}.json")
+        with open(filepath, 'w') as f:
+            json.dump(self._audit_log, f, indent=2, default=str)
+        logger.info(f"Audit log saved: {filepath} "
+                    f"({len(self._audit_log)} entries)")
 
 
 if __name__ == "__main__":

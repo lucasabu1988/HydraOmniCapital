@@ -17,28 +17,28 @@
   "positions": {
     "MRK": {
       "shares": 239,
-      "avg_cost": 120.59132210367461
+      "avg_cost": 119.83
     },
     "JNJ": {
       "shares": 116,
-      "avg_cost": 247.5177424560364
+      "avg_cost": 246.75
     },
     "AMAT": {
       "shares": 38,
-      "avg_cost": 352.0956602252497
+      "avg_cost": 351.32
     },
     "LRCX": {
       "shares": 43,
-      "avg_cost": 213.28292852125628
+      "avg_cost": 214.68
     },
     "GOOGL": {
       "shares": 27,
-      "avg_cost": 300.2980434354364
+      "avg_cost": 300.88
     }
   },
   "position_meta": {
     "MRK": {
-      "entry_price": 120.59132210367461,
+      "entry_price": 119.83,
       "entry_date": "2026-03-03",
       "entry_day_index": 9,
       "original_entry_day_index": 9,
@@ -48,7 +48,7 @@
       "sector": "Healthcare"
     },
     "JNJ": {
-      "entry_price": 247.5177424560364,
+      "entry_price": 246.75,
       "entry_date": "2026-03-03",
       "entry_day_index": 9,
       "original_entry_day_index": 9,
@@ -58,7 +58,7 @@
       "sector": "Healthcare"
     },
     "AMAT": {
-      "entry_price": 352.0956602252497,
+      "entry_price": 351.32,
       "entry_date": "2026-03-03",
       "entry_day_index": 9,
       "original_entry_day_index": 9,
@@ -68,17 +68,17 @@
       "sector": "Technology"
     },
     "LRCX": {
-      "entry_price": 213.28292852125628,
+      "entry_price": 214.68,
       "entry_date": "2026-03-05",
       "entry_day_index": 11,
       "original_entry_day_index": 11,
-      "high_price": 214.52999877929688,
+      "high_price": 214.68,
       "entry_vol": 0.4928758313018344,
       "entry_daily_vol": 0.031048258972830433,
       "sector": "Technology"
     },
     "GOOGL": {
-      "entry_price": 300.2980434354364,
+      "entry_price": 300.88,
       "entry_date": "2026-03-05",
       "entry_day_index": 11,
       "original_entry_day_index": 11,
