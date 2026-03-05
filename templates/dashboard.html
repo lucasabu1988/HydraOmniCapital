@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260305a">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260305b">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -453,11 +453,75 @@
     </div>
 </div>
 
-<!-- POSITIONS — HERO SECTION -->
+<!-- ═══════════ HYDRA MULTI-STRATEGY POSITIONS ═══════════ -->
+<div class="anim-enter anim-d5" id="hydra-master-header" style="
+    margin: 0 auto 0; max-width: var(--max-w, 1320px); padding: 0 var(--gutter, 24px);
+">
+    <div style="
+        display: flex; align-items: center; gap: 14px;
+        padding: 18px 24px; margin-bottom: 2px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(234,179,8,0.06) 100%);
+        border: 1px solid rgba(99,102,241,0.15);
+        border-radius: 14px;
+    ">
+        <div style="
+            width: 42px; height: 42px; border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--yellow) 100%);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 900; color: #000; letter-spacing: -1px;
+        ">H</div>
+        <div>
+            <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-primary);">
+                HYDRA <span style="font-weight: 400; font-size: 13px; color: var(--text-muted); margin-left: 4px;">Multi-Strategy System</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">
+                2 estrategias &middot; Cash Recycling activo &middot; Capital segregado
+            </div>
+        </div>
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+            <span style="
+                font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+                color: var(--accent); background: rgba(99,102,241,0.12);
+            ">COMPASS</span>
+            <span style="
+                font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+                color: var(--yellow); background: rgba(234,179,8,0.12);
+            ">RATTLESNAKE</span>
+        </div>
+    </div>
+</div>
+
+<!-- HYDRA CAPITAL ALLOCATION (moved here, above positions) -->
+<div class="regime-band anim-enter anim-d5" id="hydra-alloc-band" style="display:none;">
+    <div class="regime-band-left">
+        <span class="regime-band-label">HYDRA Capital</span>
+        <span class="regime-band-score" id="hydra-recycled">--</span>
+    </div>
+    <div class="regime-band-bar-wrap" style="flex:1;">
+        <div style="display:flex; gap:2px; height:8px; border-radius:4px; overflow:hidden; background:var(--bg-tertiary);">
+            <div id="hydra-bar-compass" style="background:var(--accent); transition:width 0.3s;" title="COMPASS"></div>
+            <div id="hydra-bar-rattle" style="background:var(--yellow); transition:width 0.3s;" title="Rattlesnake"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--text-muted);">
+            <span>COMPASS: <span id="hydra-c-pct">50%</span> (<span id="hydra-c-val">$--</span>)</span>
+            <span>Rattlesnake: <span id="hydra-r-pct">50%</span> (<span id="hydra-r-val">$--</span>)</span>
+        </div>
+    </div>
+    <div class="regime-band-right">
+        <span class="regime-band-tag" id="hydra-tag" style="color:var(--cyan); background:var(--cyan-dim);">Cash Recycling</span>
+    </div>
+</div>
+
+<!-- STRATEGY 1: COMPASS MOMENTUM -->
 <div class="positions-hero anim-enter anim-d5" id="positions-hero">
     <div class="positions-hero-header">
         <div class="positions-hero-title">
-            <div class="ph-icon">&#9670;</div>
+            <div class="ph-icon" style="color:var(--accent);">&#9670;</div>
+            <span style="
+                font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+                color: var(--accent); background: rgba(99,102,241,0.12);
+                letter-spacing: 0.5px; margin-right: 6px; vertical-align: middle;
+            ">ESTRATEGIA 1</span>
             COMPASS <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Momentum</span>
         </div>
         <div class="positions-hero-summary" id="positions-summary">
@@ -504,11 +568,16 @@
     </div>
 </div>
 
-<!-- RATTLESNAKE POSITIONS -->
+<!-- STRATEGY 2: RATTLESNAKE MEAN-REVERSION -->
 <div class="positions-hero anim-enter anim-d5" id="rattle-positions-hero" style="display:none;">
     <div class="positions-hero-header">
         <div class="positions-hero-title">
             <div class="ph-icon" style="color:var(--yellow);">&#9670;</div>
+            <span style="
+                font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+                color: var(--yellow); background: rgba(234,179,8,0.12);
+                letter-spacing: 0.5px; margin-right: 6px; vertical-align: middle;
+            ">ESTRATEGIA 2</span>
             Rattlesnake <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Mean-Reversion</span>
         </div>
         <div class="positions-hero-summary" id="rattle-summary">
@@ -529,27 +598,6 @@
         </div>
     </div>
     <div class="positions-grid" id="rattle-grid"></div>
-</div>
-
-<!-- HYDRA CAPITAL ALLOCATION -->
-<div class="regime-band anim-enter anim-d6" id="hydra-alloc-band" style="display:none;">
-    <div class="regime-band-left">
-        <span class="regime-band-label">HYDRA Capital</span>
-        <span class="regime-band-score" id="hydra-recycled">--</span>
-    </div>
-    <div class="regime-band-bar-wrap" style="flex:1;">
-        <div style="display:flex; gap:2px; height:8px; border-radius:4px; overflow:hidden; background:var(--bg-tertiary);">
-            <div id="hydra-bar-compass" style="background:var(--accent); transition:width 0.3s;" title="COMPASS"></div>
-            <div id="hydra-bar-rattle" style="background:var(--yellow); transition:width 0.3s;" title="Rattlesnake"></div>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--text-muted);">
-            <span>COMPASS: <span id="hydra-c-pct">50%</span> (<span id="hydra-c-val">$--</span>)</span>
-            <span>Rattlesnake: <span id="hydra-r-pct">50%</span> (<span id="hydra-r-val">$--</span>)</span>
-        </div>
-    </div>
-    <div class="regime-band-right">
-        <span class="regime-band-tag" id="hydra-tag" style="color:var(--cyan); background:var(--cyan-dim);">Cash Recycling</span>
-    </div>
 </div>
 
 <!-- Hidden legacy table for data compatibility -->
@@ -1763,7 +1811,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260305a"></script>
+<script src="/static/js/dashboard.js?v=20260305b"></script>
 
 </body>
 </html>
