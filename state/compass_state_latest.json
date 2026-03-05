@@ -1,15 +1,15 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-05T15:57:10.680629",
+  "timestamp": "2026-03-05T18:40:27.125524",
   "cash": 12639.125504337513,
   "peak_value": 102460.29390536588,
-  "portfolio_value": 98614.54009326574,
+  "portfolio_value": 98700.08,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     102441.23423810309,
     100602.04075718147,
     100748.75727446779,
-    99507.61359008058
+    98700.08
   ],
   "current_regime_score": 0.5997815488370163,
   "trading_day_counter": 11,

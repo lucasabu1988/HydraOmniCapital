@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-05T18:24:21.843296",
+  "generated_at": "2026-03-05T18:42:38.636642",
   "trading_days": 11,
   "learning_phase": 1,
   "phase_description": "Phase 1 -- Statistical summaries only. Need 63+ trading days for ML.",
@@ -281,15 +281,15 @@
   "portfolio_analytics": {
     "n_days": 11,
     "start_value": 99872.84,
-    "current_value": 99507.61,
-    "total_return": -0.0037,
-    "annualized_return_approx": -0.0838,
-    "daily_sharpe_annualized": -0.566,
-    "max_drawdown": -0.0288,
-    "daily_returns_mean": -0.0003,
-    "daily_returns_std": 0.0092
+    "current_value": 98700.08,
+    "total_return": -0.0117,
+    "annualized_return_approx": -0.269,
+    "daily_sharpe_annualized": -1.691,
+    "max_drawdown": -0.0367,
+    "daily_returns_mean": -0.0011,
+    "daily_returns_std": 0.0106
   },
   "parameter_suggestions": [],
   "warnings": [],
-  "next_milestone": "Phase 2 ML begins in ~52 trading days (~10 weeks). Collect more entry/exit decisions and completed trade outcomes."
+  "next_milestone": "Phase 2 ML begins in ~52 trading days (~10 weeks)."
 }

@@ -11,10 +11,10 @@ COMPASS ML Learning is in **Phase 1** (data collection). 11 trading days logged.
 
 ### Portfolio Performance
 
-- Current value: **$99,508**
-- Total return: **-0.37%**
-- Max drawdown: **-2.88%**
-- Daily Sharpe (annualized): **-0.57**
+- Current value: **$98,700**
+- Total return: **-1.17%**
+- Max drawdown: **-3.67%**
+- Daily Sharpe (annualized): **-1.69**
 
 ### Trade Analysis
 
@@ -61,4 +61,4 @@ COMPASS ML Learning is in **Phase 1** (data collection). 11 trading days logged.
 Phase 2 ML begins in ~52 trading days. Continue collecting entry/exit decisions and completed trade outcomes.
 
 ---
-*Auto-generated on 2026-03-05 18:24. Refreshes every 5 days.*
+*Auto-generated on 2026-03-05 18:42. Refreshes every 5 days.*
