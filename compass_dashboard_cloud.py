@@ -128,8 +128,8 @@ _spy_df = None
 def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
-    # COMPASS v8.4 bias-corrected data with overlay (12.02% CAGR, -32.56% MaxDD)
-    csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
+    # HYDRA multi-strategy data (COMPASS + Rattlesnake with cash recycling)
+    csv_path = os.path.join('backtests', 'hydra_v2_daily.csv')
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
