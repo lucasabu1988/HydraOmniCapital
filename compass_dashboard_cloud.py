@@ -370,8 +370,8 @@ def get_spy_start_price() -> Optional[float]:
         if not start_date:
             return None
 
-        idx = yf.Ticker('^GSPC')
-        hist = idx.history(start=start_date, end=(date.fromisoformat(start_date) + timedelta(days=5)).isoformat())
+        spy = yf.Ticker('SPY')
+        hist = spy.history(start=start_date, end=(date.fromisoformat(start_date) + timedelta(days=5)).isoformat())
         if not hist.empty:
             _spy_start_price = float(hist['Close'].iloc[0])
             return _spy_start_price
@@ -469,7 +469,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
 
     # S&P 500 index benchmark return over same live test period
     spy_start = get_spy_start_price()
-    spy_current = prices.get('^GSPC') if prices else None
+    spy_current = prices.get('SPY') if prices else None
     if spy_start and spy_current and spy_start > 0:
         spy_return = round((spy_current - spy_start) / spy_start * 100, 2)
     else:
@@ -981,7 +981,7 @@ def api_state():
 
     # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake held
     rattle_syms = [p.get('symbol') for p in state.get('hydra', {}).get('rattle_positions', []) if p.get('symbol')]
-    symbols = ['SPY', '^GSPC', 'ES=F', '^VIX'] + list(state.get('positions', {}).keys()) + rattle_syms
+    symbols = ['SPY', 'ES=F', '^VIX'] + list(state.get('positions', {}).keys()) + rattle_syms
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
@@ -1081,7 +1081,7 @@ def api_cycle_log():
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
             # Fetch S&P 500 index — benchmark with global P&L
-            symbols = list(positions.keys()) + ['^GSPC']
+            symbols = list(positions.keys()) + ['SPY']
             prices = fetch_live_prices(symbols)
 
             # Sync positions_current with actual state holdings
@@ -1104,7 +1104,7 @@ def api_cycle_log():
                 c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
             # S&P 500 index return (benchmark)
-            spy_price = prices.get('^GSPC')
+            spy_price = prices.get('SPY')
             spy_start = c.get('spy_start')
             if spy_price and spy_start and spy_start > 0:
                 c['spy_end'] = round(spy_price, 2)
@@ -1124,7 +1124,7 @@ def api_live_chart():
     """Return daily COMPASS vs S&P 500 indexed performance since live test start.
 
     Reads historical state files for COMPASS portfolio values and
-    fetches SPY/^GSPC data from yfinance. Both series are indexed
+    fetches SPY data from yfinance. Both series are indexed
     to 100 on the start date for easy visual comparison.
     """
     # 1. Read all dated state files for COMPASS daily values
@@ -1184,7 +1184,7 @@ def api_live_chart():
     if _HAS_YFINANCE:
         try:
             end_dt = date.today() + timedelta(days=1)
-            hist = yf.download('^GSPC', start=start_date,
+            hist = yf.download('SPY', start=start_date,
                              end=end_dt.isoformat(),
                              progress=False, auto_adjust=True)
             if len(hist) > 0:
@@ -1201,9 +1201,9 @@ def api_live_chart():
     today_str = date.today().strftime('%Y-%m-%d')
     if _HAS_YFINANCE and today_str in [d for d in dates]:
         try:
-            live_spy = fetch_live_prices(['^GSPC'])
-            if '^GSPC' in live_spy:
-                spy_data[today_str] = live_spy['^GSPC']
+            live_spy = fetch_live_prices(['SPY'])
+            if 'SPY' in live_spy:
+                spy_data[today_str] = live_spy['SPY']
         except Exception:
             pass
 
