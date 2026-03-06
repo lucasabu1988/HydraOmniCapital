@@ -123,7 +123,7 @@ _spy_df = None
 def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
-    # HYDRA multi-strategy data (13.28% CAGR, -23.49% MaxDD)
+    # HYDRA multi-strategy data (14.93% CAGR, -22.25% MaxDD)
     csv_path = os.path.join('backtests', 'hydra_v2_daily.csv')
     if os.path.exists(csv_path):
         try:
