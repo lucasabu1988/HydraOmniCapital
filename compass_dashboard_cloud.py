@@ -193,7 +193,7 @@ def _tv_scan(endpoint: str, tickers: List[str], tv_to_local: Dict[str, str]) -> 
     try:
         payload = {
             'symbols': {'tickers': tickers},
-            'columns': ['close', 'close|1', 'change'],
+            'columns': ['close', 'change'],
         }
         r = http_requests.post(
             f'https://scanner.tradingview.com/{endpoint}/scan',
@@ -209,9 +209,12 @@ def _tv_scan(endpoint: str, tickers: List[str], tv_to_local: Dict[str, str]) -> 
                     continue
                 vals = item.get('d', [])
                 if len(vals) >= 2 and vals[0] and vals[0] > 0:
-                    result = {'price': float(vals[0])}
-                    if vals[1] and vals[1] > 0:
-                        result['prev_close'] = float(vals[1])
+                    close = float(vals[0])
+                    chg_pct = vals[1]  # daily % change
+                    result = {'price': close}
+                    # Derive real previous daily close from change %
+                    if chg_pct is not None and chg_pct != 0:
+                        result['prev_close'] = round(close / (1 + chg_pct / 100), 4)
                     results[local_sym] = result
         else:
             logger.warning(f'TradingView {endpoint} returned {r.status_code}: {r.text[:200]}')
