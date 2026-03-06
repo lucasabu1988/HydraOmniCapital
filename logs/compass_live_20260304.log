@@ -2042,3 +2042,16 @@ hint: Use -f if you really wan
 2026-03-06 13:35:34,272 - INFO - 127.0.0.1 - - [06/Mar/2026 13:35:34] "GET /api/state HTTP/1.1" 200 -
 2026-03-06 13:36:37,284 - INFO - 127.0.0.1 - - [06/Mar/2026 13:36:37] "GET /api/state HTTP/1.1" 200 -
 2026-03-06 13:37:12,981 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 13:37:13,093 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 13:37:13,094 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 13:37:40,579 - INFO - 127.0.0.1 - - [06/Mar/2026 13:37:40] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:38:43,615 - INFO - 127.0.0.1 - - [06/Mar/2026 13:38:43] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:39:46,650 - INFO - 127.0.0.1 - - [06/Mar/2026 13:39:46] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:40:49,561 - INFO - 127.0.0.1 - - [06/Mar/2026 13:40:49] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:41:52,596 - INFO - 127.0.0.1 - - [06/Mar/2026 13:41:52] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:42:19,803 - INFO - State saved: state/compass_state_20260306.json

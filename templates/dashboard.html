@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306d">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306e">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -1018,8 +1018,8 @@
         <div class="lh-chalk-row lh-chalk-main">
             <span class="lh-chalk-fn">Momentum</span>:&thinsp;
             <span class="lh-chalk-frac">
-                <span class="lh-chalk-num">r<sub>i,t&minus;5</sub><sup class="lh-chalk-comma">&thinsp;</sup>&minus;&thinsp;r<sub>i,t&minus;90</sub></span>
-                <span class="lh-chalk-den">&sigma;<sub>i,90</sub></span>
+                <span class="lh-chalk-num">r<sub>i,90d</sub>&thinsp;&minus;&thinsp;r<sub>i,5d</sub></span>
+                <span class="lh-chalk-den">&sigma;<sub>i,63d</sub></span>
             </span>
             <span class="lh-chalk-op">&times;</span>
             <span class="lh-chalk-fn">Regime</span>(<span class="lh-chalk-var">S</span>)
@@ -1139,7 +1139,7 @@
                     <table class="algo-params-sm">
                         <tr><td>Ventana</td><td>Miramos los &uacute;ltimos 90 d&iacute;as</td></tr>
                         <tr><td>Exclusi&oacute;n</td><td>Ignoramos los &uacute;ltimos 5 d&iacute;as (evita rebotes)</td></tr>
-                        <tr><td>Volatilidad</td><td>Medida sobre 20 d&iacute;as</td></tr>
+                        <tr><td>Volatilidad</td><td>Medida sobre 63 d&iacute;as (ajuste por riesgo)</td></tr>
                         <tr><td>M&iacute;nimo</td><td>Al menos 20 acciones v&aacute;lidas para comparar</td></tr>
                     </table>
                 </div>
@@ -1691,15 +1691,15 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                     <div class="algo-mini-title">Progreso</div>
                     <table class="algo-params-sm">
                         <tr><td>Fase actual</td><td><strong>Fase 1</strong> &mdash; Recopilando datos</td></tr>
-                        <tr><td>D&iacute;as de trading</td><td>9 de 63 necesarios para Fase 2</td></tr>
-                        <tr><td>Trades completados</td><td>2 (GS stop loss, MU regime reduce)</td></tr>
-                        <tr><td>Pr&oacute;ximo hito</td><td>Fase 2 en ~54 d&iacute;as (~2 meses)</td></tr>
+                        <tr><td>D&iacute;as de trading</td><td>12 de 63 necesarios para Fase 2</td></tr>
+                        <tr><td>Trades completados</td><td>6 (incluye boot implementation data)</td></tr>
+                        <tr><td>Pr&oacute;ximo hito</td><td>Fase 2 en ~51 d&iacute;as (~2.5 meses)</td></tr>
                     </table>
                 </div>
                 <div class="algo-mini-card">
                     <div class="algo-mini-title">Datos recopilados</div>
                     <table class="algo-params-sm">
-                        <tr><td>Decisiones</td><td>8+ registros (entries, exits, skips)</td></tr>
+                        <tr><td>Decisiones</td><td>52+ registros (entries, exits, skips)</td></tr>
                         <tr><td>Snapshots diarios</td><td>9+ capturas del estado del portfolio</td></tr>
                         <tr><td>Features por trade</td><td>30+ variables por cada decisi&oacute;n</td></tr>
                         <tr><td>Ejecuci&oacute;n</td><td>Aprendizaje autom&aacute;tico cada 5 d&iacute;as</td></tr>
@@ -1974,7 +1974,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260306d"></script>
+<script src="/static/js/dashboard.js?v=20260306e"></script>
 
 </body>
 </html>
