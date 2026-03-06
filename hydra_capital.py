@@ -1,9 +1,10 @@
 """
 HYDRA Capital Manager — Cash Recycling Between Strategies
 ==========================================================
-Manages segregated accounts for COMPASS and Rattlesnake with
-dynamic cash recycling. When one strategy has idle cash, it
-flows to the other (capped at 75% max to COMPASS).
+Manages segregated accounts for COMPASS, Rattlesnake, and EFA (third pillar)
+with dynamic cash recycling. When one strategy has idle cash, it
+flows to the other (capped at 75% max to COMPASS). Remaining idle cash
+after recycling can be parked in EFA for passive international-equity exposure.
 
 Used by omnicapital_live.py for live capital allocation decisions.
 """
@@ -19,15 +20,17 @@ logger = logging.getLogger(__name__)
 BASE_COMPASS_ALLOC = 0.50
 BASE_RATTLE_ALLOC = 0.50
 MAX_COMPASS_ALLOC = 0.75  # Cap: max COMPASS can receive with recycling
+EFA_MIN_BUY = 1000        # Minimum idle cash to trigger EFA buy
 
 
 class HydraCapitalManager:
     """
-    Manages capital allocation between COMPASS and Rattlesnake.
+    Manages capital allocation between COMPASS, Rattlesnake, and EFA.
 
     Architecture:
     - Each strategy has a logical account (not a separate brokerage account)
     - Cash recycling transfers idle R cash to C's budget
+    - Remaining idle cash after recycling can be allocated to EFA (third pillar)
     - Position sizing for each strategy uses its allocated budget
     """
 
@@ -43,6 +46,9 @@ class HydraCapitalManager:
         self.compass_account = total_capital * compass_alloc
         self.rattle_account = total_capital * rattle_alloc
 
+        # EFA (third pillar)
+        self.efa_value = 0.0
+
         # Tracking
         self.current_recycled = 0.0
         self.total_recycled_days = 0
@@ -50,7 +56,7 @@ class HydraCapitalManager:
 
     @property
     def total_capital(self) -> float:
-        return self.compass_account + self.rattle_account
+        return self.compass_account + self.rattle_account + self.efa_value
 
     def compute_allocation(self, rattle_exposure: float) -> Dict[str, float]:
         """
@@ -81,6 +87,10 @@ class HydraCapitalManager:
         if recycle_amount > 0:
             self.total_recycled_days += 1
 
+        # Remaining idle cash after recycling (available for EFA)
+        r_still_idle = r_effective * (1.0 - rattle_exposure)
+        efa_idle = r_still_idle + self.efa_value  # include current EFA value as available
+
         return {
             'compass_budget': c_effective,
             'rattle_budget': r_effective,
@@ -88,6 +98,7 @@ class HydraCapitalManager:
             'recycled_pct': recycle_amount / total if total > 0 else 0,
             'compass_alloc': c_effective / total if total > 0 else 0.5,
             'rattle_alloc': r_effective / total if total > 0 else 0.5,
+            'efa_idle': efa_idle,
         }
 
     def update_accounts_after_day(self, compass_return: float, rattle_return: float,
@@ -116,6 +127,27 @@ class HydraCapitalManager:
         self.compass_account = c_new - recycled_after
         self.rattle_account = r_new + recycled_after
 
+    def buy_efa(self, amount: float):
+        """Move idle cash into EFA allocation."""
+        self.rattle_account -= amount
+        self.efa_value += amount
+        logger.info(f"EFA: bought ${amount:,.0f} (total EFA: ${self.efa_value:,.0f})")
+
+    def sell_efa(self, amount: float = None) -> float:
+        """Liquidate EFA (partially or fully) to free capital. Returns amount freed."""
+        if self.efa_value <= 0:
+            return 0.0
+        sell = min(amount, self.efa_value) if amount else self.efa_value
+        self.efa_value -= sell
+        self.rattle_account += sell
+        logger.info(f"EFA: sold ${sell:,.0f} (remaining EFA: ${self.efa_value:,.0f})")
+        return sell
+
+    def update_efa_value(self, efa_return: float):
+        """Apply EFA daily return to the EFA allocation."""
+        if self.efa_value > 0 and efa_return != 0:
+            self.efa_value *= (1 + efa_return)
+
     def record_compass_trade(self, pnl: float):
         """Record a COMPASS trade P&L to its account."""
         self.compass_account += pnl
@@ -136,6 +168,8 @@ class HydraCapitalManager:
             'current_recycled': self.current_recycled,
             'recycled_pct': self.current_recycled / total if total > 0 else 0,
             'recycling_frequency': self.total_recycled_days / max(self.total_days, 1),
+            'efa_value': self.efa_value,
+            'efa_pct': self.efa_value / total if total > 0 else 0,
         }
 
     def to_dict(self) -> Dict:
@@ -148,6 +182,7 @@ class HydraCapitalManager:
             'max_compass_alloc': self.max_compass_alloc,
             'total_recycled_days': self.total_recycled_days,
             'total_days': self.total_days,
+            'efa_value': self.efa_value,
         }
 
     @classmethod
@@ -160,4 +195,5 @@ class HydraCapitalManager:
         mgr.rattle_account = d['rattle_account']
         mgr.total_recycled_days = d.get('total_recycled_days', 0)
         mgr.total_days = d.get('total_days', 0)
+        mgr.efa_value = d.get('efa_value', 0.0)
         return mgr

@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306f">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306g">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -488,9 +488,11 @@
         <div style="display:flex; gap:2px; height:8px; border-radius:4px; overflow:hidden; background:var(--bg-tertiary);">
             <div id="hydra-bar-momentum" style="background:var(--accent); transition:width 0.3s;" title="Momentum"></div>
             <div id="hydra-bar-rattle" style="background:var(--yellow); transition:width 0.3s;" title="Rattlesnake"></div>
+            <div id="hydra-bar-efa" style="background:var(--cyan); transition:width 0.3s;" title="EFA"></div>
         </div>
         <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--text-muted);">
             <span>Momentum: <span id="hydra-m-pct">50%</span> (<span id="hydra-m-val">$--</span>)</span>
+            <span>EFA: <span id="hydra-e-pct">0%</span> (<span id="hydra-e-val">$--</span>)</span>
             <span>Rattlesnake: <span id="hydra-r-pct">50%</span> (<span id="hydra-r-val">$--</span>)</span>
         </div>
     </div>
@@ -1974,7 +1976,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260306f"></script>
+<script src="/static/js/dashboard.js?v=20260306g"></script>
 
 </body>
 </html>

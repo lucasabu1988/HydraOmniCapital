@@ -587,7 +587,15 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
         hydra_account = portfolio_value * R_BASE_HYDRA_ALLOC
         rattle_account = portfolio_value * R_BASE_RATTLE_ALLOC
 
-    total = hydra_account + rattle_account
+    # EFA third pillar
+    efa_value = 0.0
+    efa_position = hydra_state.get('efa_position')
+    if efa_position and efa_position.get('shares', 0) > 0:
+        efa_value = efa_position.get('current_value', 0)
+    if cap_state:
+        efa_value = max(efa_value, cap_state.get('efa_value', 0))
+
+    total = hydra_account + rattle_account + efa_value
     if total <= 0:
         total = portfolio_value or HYDRA_CONFIG['INITIAL_CAPITAL']
         hydra_account = total * R_BASE_HYDRA_ALLOC
@@ -611,11 +619,18 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
         'rattle_regime': rattle_regime,
         'vix_current': round(vix_current, 2) if vix_current else None,
         'vix_panic': vix_panic,
+        'efa_position': {
+            'shares': efa_position.get('shares', 0) if efa_position else 0,
+            'value': round(efa_value, 2),
+            'avg_cost': round(efa_position.get('avg_cost', 0), 2) if efa_position else 0,
+        } if efa_position and efa_position.get('shares', 0) > 0 else None,
         'capital': {
             'hydra_account': round(c_effective, 2),
             'rattle_account': round(r_effective, 2),
+            'efa_value': round(efa_value, 2),
             'hydra_pct': round(c_effective / total, 4) if total > 0 else 0.5,
             'rattle_pct': round(r_effective / total, 4) if total > 0 else 0.5,
+            'efa_pct': round(efa_value / total, 4) if total > 0 else 0,
             'recycled_pct': round(recycled / total, 4) if total > 0 else 0,
         },
     }

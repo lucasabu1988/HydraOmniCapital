@@ -719,12 +719,16 @@ function updateHydra(hydra) {
         allocBand.style.display = 'flex';
         var cPct = (cap.hydra_pct || 0.5) * 100;
         var rPct = (cap.rattle_pct || 0.5) * 100;
+        var ePct = (cap.efa_pct || 0) * 100;
         document.getElementById('hydra-bar-momentum').style.width = cPct + '%';
         document.getElementById('hydra-bar-rattle').style.width = rPct + '%';
+        document.getElementById('hydra-bar-efa').style.width = ePct + '%';
         document.getElementById('hydra-m-pct').textContent = cPct.toFixed(0) + '%';
         document.getElementById('hydra-r-pct').textContent = rPct.toFixed(0) + '%';
+        document.getElementById('hydra-e-pct').textContent = ePct.toFixed(0) + '%';
         document.getElementById('hydra-m-val').textContent = fmt$(cap.hydra_account || 0);
         document.getElementById('hydra-r-val').textContent = fmt$(cap.rattle_account || 0);
+        document.getElementById('hydra-e-val').textContent = fmt$(cap.efa_value || 0);
         var recycled = cap.recycled_pct || 0;
         document.getElementById('hydra-recycled').textContent = (recycled * 100).toFixed(0) + '% recycled';
         var tag = document.getElementById('hydra-tag');
