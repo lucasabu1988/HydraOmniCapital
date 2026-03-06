@@ -1,0 +1,184 @@
+{
+  "version": "8.4",
+  "timestamp": "2026-03-05T15:57:10.680629",
+  "cash": 12639.125504337513,
+  "peak_value": 102460.29390536588,
+  "portfolio_value": 98614.54009326574,
+  "crash_cooldown": 0,
+  "portfolio_values_history": [
+    102441.23423810309,
+    100602.04075718147,
+    100748.75727446779,
+    99507.61359008058
+  ],
+  "current_regime_score": 0.5997815488370163,
+  "trading_day_counter": 11,
+  "last_trading_date": "2026-03-05",
+  "positions": {
+    "MRK": {
+      "shares": 239,
+      "avg_cost": 119.83
+    },
+    "JNJ": {
+      "shares": 116,
+      "avg_cost": 246.75
+    },
+    "AMAT": {
+      "shares": 38,
+      "avg_cost": 351.32
+    },
+    "LRCX": {
+      "shares": 43,
+      "avg_cost": 214.68
+    },
+    "GOOGL": {
+      "shares": 27,
+      "avg_cost": 300.88
+    }
+  },
+  "position_meta": {
+    "MRK": {
+      "entry_price": 119.83,
+      "entry_date": "2026-03-03",
+      "entry_day_index": 9,
+      "original_entry_day_index": 9,
+      "high_price": 120.8499984741211,
+      "entry_vol": 0.28639434996138086,
+      "entry_daily_vol": 0.01804114825932892,
+      "sector": "Healthcare"
+    },
+    "JNJ": {
+      "entry_price": 246.75,
+      "entry_date": "2026-03-03",
+      "entry_day_index": 9,
+      "original_entry_day_index": 9,
+      "high_price": 247.80499267578125,
+      "entry_vol": 0.15534686069028528,
+      "entry_daily_vol": 0.009785932389073585,
+      "sector": "Healthcare"
+    },
+    "AMAT": {
+      "entry_price": 351.32,
+      "entry_date": "2026-03-03",
+      "entry_day_index": 9,
+      "original_entry_day_index": 9,
+      "high_price": 361.4549865722656,
+      "entry_vol": 0.6021039667520196,
+      "entry_daily_vol": 0.03792898474836539,
+      "sector": "Technology"
+    },
+    "LRCX": {
+      "entry_price": 214.68,
+      "entry_date": "2026-03-05",
+      "entry_day_index": 11,
+      "original_entry_day_index": 11,
+      "high_price": 214.68,
+      "entry_vol": 0.4928758313018344,
+      "entry_daily_vol": 0.031048258972830433,
+      "sector": "Technology"
+    },
+    "GOOGL": {
+      "entry_price": 300.88,
+      "entry_date": "2026-03-05",
+      "entry_day_index": 11,
+      "original_entry_day_index": 11,
+      "high_price": 301.1199951171875,
+      "entry_vol": 0.23484680821013687,
+      "entry_daily_vol": 0.014793958350507239,
+      "sector": "Technology"
+    }
+  },
+  "current_universe": [
+    "TSLA",
+    "MSFT",
+    "META",
+    "AMZN",
+    "GOOGL",
+    "AVGO",
+    "UNH",
+    "ORCL",
+    "MU",
+    "LLY",
+    "INTC",
+    "JPM",
+    "BRK-B",
+    "COST",
+    "V",
+    "CRM",
+    "WMT",
+    "BAC",
+    "XOM",
+    "BA",
+    "GS",
+    "MA",
+    "NOW",
+    "MRVL",
+    "ADBE",
+    "JNJ",
+    "AMAT",
+    "QCOM",
+    "HD",
+    "TXN",
+    "CVX",
+    "GE",
+    "PG",
+    "MRK",
+    "C",
+    "IBM",
+    "WFC",
+    "ABBV",
+    "PFE",
+    "LRCX"
+  ],
+  "universe_year": 2026,
+  "stop_events": [
+    {
+      "symbol": "GS",
+      "date": "2026-02-27",
+      "exit_reason": "position_stop_adaptive",
+      "entry_price": 921.27,
+      "exit_price": 859.57,
+      "shares": 17.722654,
+      "pnl": -1093.58,
+      "return": -0.067,
+      "replacement": "MU",
+      "replacement_price": 412.37,
+      "note": "v8.4 adaptive stop (-6%) triggered at close. Manual state correction applied."
+    }
+  ],
+  "_daily_open_done": true,
+  "_preclose_entries_done": true,
+  "overlay": {
+    "available": true,
+    "capital_scalar": 1.0,
+    "per_overlay": {
+      "bso": 1.0,
+      "m2": 1.0,
+      "fomc": 1.0
+    },
+    "position_floor": null,
+    "diagnostics": {
+      "bso": {
+        "nfci": -0.52365,
+        "stlfsi": -0.4436,
+        "hy_pct": null,
+        "scalar": 1.0
+      },
+      "m2": {
+        "scalar": 1.0
+      },
+      "fomc": {
+        "scalar": 1.0,
+        "surprise_active": false
+      },
+      "fed_emergency": {
+        "emergency_active": false,
+        "position_floor": null
+      }
+    }
+  },
+  "stats": {
+    "cycles_completed": 692,
+    "uptime_minutes": 1660.5989989666666
+  }
+}

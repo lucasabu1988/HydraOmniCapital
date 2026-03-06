@@ -1,0 +1,118 @@
+{
+  "version": "8.2",
+  "timestamp": "2026-02-27T15:55:17.408638",
+  "cash": 13698.417852798215,
+  "peak_value": 102460.29390536588,
+  "portfolio_value": 102037.10552409687,
+  "in_protection": false,
+  "protection_stage": 0,
+  "stop_loss_day_index": null,
+  "post_stop_base": null,
+  "current_regime": true,
+  "regime_consecutive": 8,
+  "regime_last_raw": true,
+  "trading_day_counter": 7,
+  "last_trading_date": "2026-02-27",
+  "positions": {
+    "TXN": {
+      "shares": 61.0839044203775,
+      "avg_cost": 213.89999389648438
+    },
+    "JNJ": {
+      "shares": 142.8053272656006,
+      "avg_cost": 245.1999969482422
+    },
+    "GS": {
+      "shares": 17.722653960248554,
+      "avg_cost": 921.27001953125
+    },
+    "CVX": {
+      "shares": 82.61250956283592,
+      "avg_cost": 184.24000549316406
+    },
+    "LLY": {
+      "shares": 8.873790911802876,
+      "avg_cost": 1029.1300048828125
+    }
+  },
+  "position_meta": {
+    "TXN": {
+      "entry_price": 213.89999389648438,
+      "entry_date": "2026-02-25",
+      "entry_day_index": 5,
+      "high_price": 213.89999389648438
+    },
+    "JNJ": {
+      "entry_price": 245.1999969482422,
+      "entry_date": "2026-02-25",
+      "entry_day_index": 5,
+      "high_price": 248.80999755859375
+    },
+    "GS": {
+      "entry_price": 921.27001953125,
+      "entry_date": "2026-02-25",
+      "entry_day_index": 5,
+      "high_price": 937.47998046875
+    },
+    "CVX": {
+      "entry_price": 184.24000549316406,
+      "entry_date": "2026-02-25",
+      "entry_day_index": 5,
+      "high_price": 187.47500610351562
+    },
+    "LLY": {
+      "entry_price": 1029.1300048828125,
+      "entry_date": "2026-02-25",
+      "entry_day_index": 5,
+      "high_price": 1050.3699951171875
+    }
+  },
+  "current_universe": [
+    "TSLA",
+    "MSFT",
+    "META",
+    "AMZN",
+    "GOOGL",
+    "AVGO",
+    "UNH",
+    "ORCL",
+    "MU",
+    "LLY",
+    "INTC",
+    "JPM",
+    "BRK-B",
+    "COST",
+    "V",
+    "CRM",
+    "WMT",
+    "BAC",
+    "XOM",
+    "BA",
+    "GS",
+    "MA",
+    "NOW",
+    "MRVL",
+    "ADBE",
+    "JNJ",
+    "AMAT",
+    "QCOM",
+    "HD",
+    "TXN",
+    "CVX",
+    "GE",
+    "PG",
+    "MRK",
+    "C",
+    "IBM",
+    "WFC",
+    "ABBV",
+    "PFE",
+    "LRCX"
+  ],
+  "universe_year": 2026,
+  "stop_events": [],
+  "stats": {
+    "cycles_completed": 857,
+    "uptime_minutes": 2498.5243181166666
+  }
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "cycle": 1,
+    "start_date": "2026-02-19",
+    "end_date": "2026-02-25",
+    "status": "closed",
+    "portfolio_start": 100000.0,
+    "portfolio_end": 102460.01,
+    "spy_start": 6861.89,
+    "spy_end": 6946.13,
+    "positions": [
+      "LRCX",
+      "MU",
+      "MRK",
+      "XOM",
+      "AMAT"
+    ],
+    "compass_return": 2.46,
+    "spy_return": 1.23,
+    "alpha": 1.23,
+    "stop_events": [],
+    "positions_start": [
+      "AMAT",
+      "MU",
+      "MRK",
+      "LRCX",
+      "XOM"
+    ]
+  },
+  {
+    "cycle": 2,
+    "start_date": "2026-02-25",
+    "end_date": "2026-03-03",
+    "status": "closed",
+    "portfolio_start": 102460.01,
+    "portfolio_end": 100717.26,
+    "spy_start": 6946.13,
+    "spy_end": 6816.63,
+    "positions": [
+      "TXN",
+      "JNJ",
+      "GS",
+      "CVX",
+      "LLY"
+    ],
+    "positions_current": [
+      "TXN",
+      "JNJ",
+      "CVX",
+      "LLY"
+    ],
+    "compass_return": -1.7,
+    "spy_return": -1.86,
+    "alpha": 0.16,
+    "stop_events": [
+      {
+        "date": "2026-02-27",
+        "stopped": "GS",
+        "replacement": "MU",
+        "reason": "position_stop_adaptive",
+        "return": -6.7
+      },
+      {
+        "date": "2026-03-02",
+        "stopped": "MU",
+        "replacement": null,
+        "reason": "regime_reduce",
+        "return": -2.26
+      }
+    ],
+    "positions_start": [
+      "JNJ",
+      "TXN",
+      "CVX",
+      "GS",
+      "LLY"
+    ]
+  },
+  {
+    "cycle": 3,
+    "start_date": "2026-03-03",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 100717.26,
+    "portfolio_end": null,
+    "spy_start": 6816.63,
+    "spy_end": null,
+    "positions": [
+      "MRK",
+      "JNJ",
+      "AMAT"
+    ],
+    "positions_current": [
+      "MRK",
+      "JNJ",
+      "AMAT",
+      "LRCX",
+      "GOOGL"
+    ],
+    "compass_return": null,
+    "spy_return": null,
+    "alpha": null,
+    "stop_events": [],
+    "positions_start": [
+      "MRK",
+      "JNJ",
+      "AMAT"
+    ]
+  }
+]
