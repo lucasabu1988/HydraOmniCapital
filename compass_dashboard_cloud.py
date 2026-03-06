@@ -477,8 +477,10 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     # HYDRA daily return (current portfolio vs yesterday's close value)
     # On day 1 (started today), daily == cumulative since there's no prior day
     pv_hist = state.get('portfolio_values_history', [])
-    trading_days_elapsed = _compute_real_trading_day(state)
-    if trading_days_elapsed <= 1:
+    live_start = date.fromisoformat(LIVE_TEST_START_DATE)
+    live_days = sum(1 for d in range((date.today() - live_start).days + 1)
+                    if (live_start + timedelta(days=d)).weekday() < 5)
+    if live_days <= 1:
         # Day 1: daily return equals cumulative (both from initial capital)
         daily_return = cumulative_return
     elif len(pv_hist) >= 2 and portfolio_value > 0:
@@ -506,7 +508,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'regime_score': round(regime_score, 3),
         'leverage': leverage,
         'recovery': recovery,
-        'trading_day': trading_days_elapsed,
+        'trading_day': live_days,
         'last_trading_date': state.get('last_trading_date'),
         'stop_events': state.get('stop_events', []),
         'timestamp': state.get('timestamp', ''),
