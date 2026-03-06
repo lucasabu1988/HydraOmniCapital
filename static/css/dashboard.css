@@ -816,6 +816,11 @@ body::before {
 }
 body.dark .regime-band-needle { background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.4); }
 
+/* ── Collapsible details for Regime / Overlay explanations ── */
+details.regime-band summary::-webkit-details-marker { display: none; }
+details.regime-band summary { user-select: none; }
+details.regime-band[open] .collapse-arrow { transform: rotate(90deg); }
+details.regime-band .collapse-arrow { font-size: 0.55rem; color: var(--text-muted); }
 
 /* ============ SOCIAL FEED — Redesigned ============ */
 .collapsed { display: none; }

@@ -361,18 +361,24 @@
         <span class="regime-band-cons" id="rb-consecutive">--</span>
     </div>
 </div>
-<!-- REGIME EXPLANATION -->
-<div class="regime-band anim-enter anim-d5" style="margin-top:0; border-top:1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding:0.75rem 1.2rem; flex-direction:column; gap:0.5rem;">
-    <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
-        <strong style="color:var(--text-primary);">Regime Score</strong> &mdash; Term&oacute;metro del mercado de 0 a 1. Combina <strong>tendencia</strong> (60%) &mdash; &iquest;el S&amp;P 500 viene subiendo? &mdash; con <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia? Determina cu&aacute;ntas posiciones mantener: 5 en mercado fuerte (&ge;0.65), 4 en moderado (&ge;0.50), 3 en precauci&oacute;n (&ge;0.35), 2 en mercado d&eacute;bil (&lt;0.35).
-    </p>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.4rem 1.2rem; font-size:0.72rem; color:var(--text-tertiary); line-height:1.45;">
-        <div><strong style="color:var(--accent);">Tendencia (60%)</strong> &mdash; Eval&uacute;a 3 se&ntilde;ales: precio vs media de 200d, media 50d vs 200d, y momentum de 20d. Usa una <a href="https://es.wikipedia.org/wiki/Funci%C3%B3n_sigmoide" target="_blank" rel="noopener" style="color:var(--text-secondary);">funci&oacute;n sigmoid</a> para producir un valor suave entre 0 y 1.</div>
-        <div><strong style="color:var(--accent);">Volatilidad (40%)</strong> &mdash; Mide la turbulencia de los &uacute;ltimos 10 d&iacute;as comparada con el &uacute;ltimo a&ntilde;o. M&aacute;s calma = mejor score. Un mercado vol&aacute;til reduce el n&uacute;mero de posiciones autom&aacute;ticamente.</div>
-        <div><strong style="color:var(--accent);">Bull Override</strong> &mdash; Si el S&amp;P 500 est&aacute; &gt;3% sobre su SMA200 y el momentum confirma (&gt;40%), se a&ntilde;ade +1 posici&oacute;n. Corrige 864 d&iacute;as donde la volatilidad daba una se&ntilde;al falsa de precauci&oacute;n.</div>
-        <div><strong style="color:var(--accent);">Consecutivos</strong> &mdash; N&uacute;mero de d&iacute;as seguidos en el mismo r&eacute;gimen. Un r&eacute;gimen estable por muchos d&iacute;as indica una tendencia consolidada; cambios frecuentes indican incertidumbre.</div>
+<!-- REGIME EXPLANATION (collapsible) -->
+<details class="regime-band anim-enter anim-d5" style="margin-top:0; border-top:1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding:0;">
+    <summary style="padding:0.6rem 1.2rem; font-size:0.78rem; color:var(--text-secondary); cursor:pointer; list-style:none; display:flex; align-items:center; gap:0.5rem;">
+        <span style="transition:transform 0.2s; display:inline-block;" class="collapse-arrow">&#9654;</span>
+        <strong style="color:var(--text-primary);">Regime Score</strong> &mdash; Term&oacute;metro del mercado de 0 a 1.
+    </summary>
+    <div style="padding:0 1.2rem 0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
+        <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
+            Combina <strong>tendencia</strong> (60%) &mdash; &iquest;el S&amp;P 500 viene subiendo? &mdash; con <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia? Determina cu&aacute;ntas posiciones mantener: 5 en mercado fuerte (&ge;0.65), 4 en moderado (&ge;0.50), 3 en precauci&oacute;n (&ge;0.35), 2 en mercado d&eacute;bil (&lt;0.35).
+        </p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.4rem 1.2rem; font-size:0.72rem; color:var(--text-tertiary); line-height:1.45;">
+            <div><strong style="color:var(--accent);">Tendencia (60%)</strong> &mdash; Eval&uacute;a 3 se&ntilde;ales: precio vs media de 200d, media 50d vs 200d, y momentum de 20d. Usa una <a href="https://es.wikipedia.org/wiki/Funci%C3%B3n_sigmoide" target="_blank" rel="noopener" style="color:var(--text-secondary);">funci&oacute;n sigmoid</a> para producir un valor suave entre 0 y 1.</div>
+            <div><strong style="color:var(--accent);">Volatilidad (40%)</strong> &mdash; Mide la turbulencia de los &uacute;ltimos 10 d&iacute;as comparada con el &uacute;ltimo a&ntilde;o. M&aacute;s calma = mejor score. Un mercado vol&aacute;til reduce el n&uacute;mero de posiciones autom&aacute;ticamente.</div>
+            <div><strong style="color:var(--accent);">Bull Override</strong> &mdash; Si el S&amp;P 500 est&aacute; &gt;3% sobre su SMA200 y el momentum confirma (&gt;40%), se a&ntilde;ade +1 posici&oacute;n. Corrige 864 d&iacute;as donde la volatilidad daba una se&ntilde;al falsa de precauci&oacute;n.</div>
+            <div><strong style="color:var(--accent);">Consecutivos</strong> &mdash; N&uacute;mero de d&iacute;as seguidos en el mismo r&eacute;gimen. Un r&eacute;gimen estable por muchos d&iacute;as indica una tendencia consolidada; cambios frecuentes indican incertidumbre.</div>
+        </div>
     </div>
-</div>
+</details>
 
 <!-- OVERLAY STATUS -->
 <div class="regime-band anim-enter anim-d5" id="overlay-band" style="margin-top:0.5rem;">
@@ -406,19 +412,25 @@
         </div>
     </div>
 </div>
-<!-- OVERLAY EXPLANATION -->
-<div class="regime-band anim-enter anim-d5" style="margin-top:0; border-top:1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding:0.75rem 1.2rem; flex-direction:column; gap:0.5rem;">
-    <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
-        <strong style="color:var(--text-primary);">Macro Overlay</strong> &mdash; Sistema de alerta temprana que monitorea datos macroecon&oacute;micos de la <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">Reserva Federal</a> para reducir autom&aacute;ticamente la exposici&oacute;n del portafolio antes de que una crisis impacte. No modifica el algoritmo: solo ajusta el capital asignado a nuevas posiciones. En mercados normales el multiplicador es 1.00 (sin efecto); en crisis puede bajar hasta 0.25.
-    </p>
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.4rem 1.2rem; font-size:0.72rem; color:var(--text-tertiary); line-height:1.45;">
-        <div><strong style="color:var(--accent);">BSO</strong> &mdash; Estr&eacute;s bancario. Promedio ponderado de <a href="https://fred.stlouisfed.org/series/NFCI" target="_blank" rel="noopener" style="color:var(--text-secondary);">NFCI</a> (40%), <a href="https://fred.stlouisfed.org/series/STLFSI4" target="_blank" rel="noopener" style="color:var(--text-secondary);">STLFSI</a> (25%) y <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener" style="color:var(--text-secondary);">HY spread</a> (35%). Reduce capital cuando el sistema financiero est&aacute; bajo presi&oacute;n.</div>
-        <div><strong style="color:var(--accent);">M2</strong> &mdash; Momentum monetario. Mide la aceleraci&oacute;n de la <a href="https://fred.stlouisfed.org/series/M2SL" target="_blank" rel="noopener" style="color:var(--text-secondary);">oferta monetaria M2</a>. Si el dinero en circulaci&oacute;n se desacelera, reduce capital.</div>
-        <div><strong style="color:var(--accent);">FOMC</strong> &mdash; Sorpresas de la Fed. Detecta cambios abruptos en la <a href="https://fred.stlouisfed.org/series/DFF" target="_blank" rel="noopener" style="color:var(--text-secondary);">tasa de fondos federales</a> (&gt;25bps en 3 d&iacute;as). Se disipa en 14 d&iacute;as.</div>
-        <div><strong style="color:var(--accent);">Fed Emerg.</strong> &mdash; Intervenci&oacute;n de emergencia. Detecta expansi&oacute;n masiva del <a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--text-secondary);">balance de la Fed</a> (&gt;5% en 30d). Impone m&iacute;nimo de 2 posiciones por 90 d&iacute;as.</div>
-        <div><strong style="color:var(--accent);">Credit</strong> &mdash; Filtro sectorial. Excluye Financieras (HY &gt;1000bps) y Energ&iacute;a (HY &gt;1500bps) del universo en crisis extremas de cr&eacute;dito.</div>
+<!-- OVERLAY EXPLANATION (collapsible) -->
+<details class="regime-band anim-enter anim-d5" style="margin-top:0; border-top:1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding:0;">
+    <summary style="padding:0.6rem 1.2rem; font-size:0.78rem; color:var(--text-secondary); cursor:pointer; list-style:none; display:flex; align-items:center; gap:0.5rem;">
+        <span style="transition:transform 0.2s; display:inline-block;" class="collapse-arrow">&#9654;</span>
+        <strong style="color:var(--text-primary);">Macro Overlay</strong> &mdash; Sistema de alerta temprana macroecon&oacute;mica.
+    </summary>
+    <div style="padding:0 1.2rem 0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
+        <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
+            Monitorea datos de la <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">Reserva Federal</a> para reducir autom&aacute;ticamente la exposici&oacute;n del portafolio antes de que una crisis impacte. No modifica el algoritmo: solo ajusta el capital asignado a nuevas posiciones. En mercados normales el multiplicador es 1.00 (sin efecto); en crisis puede bajar hasta 0.25.
+        </p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.4rem 1.2rem; font-size:0.72rem; color:var(--text-tertiary); line-height:1.45;">
+            <div><strong style="color:var(--accent);">BSO</strong> &mdash; Estr&eacute;s bancario. Promedio ponderado de <a href="https://fred.stlouisfed.org/series/NFCI" target="_blank" rel="noopener" style="color:var(--text-secondary);">NFCI</a> (40%), <a href="https://fred.stlouisfed.org/series/STLFSI4" target="_blank" rel="noopener" style="color:var(--text-secondary);">STLFSI</a> (25%) y <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener" style="color:var(--text-secondary);">HY spread</a> (35%). Reduce capital cuando el sistema financiero est&aacute; bajo presi&oacute;n.</div>
+            <div><strong style="color:var(--accent);">M2</strong> &mdash; Momentum monetario. Mide la aceleraci&oacute;n de la <a href="https://fred.stlouisfed.org/series/M2SL" target="_blank" rel="noopener" style="color:var(--text-secondary);">oferta monetaria M2</a>. Si el dinero en circulaci&oacute;n se desacelera, reduce capital.</div>
+            <div><strong style="color:var(--accent);">FOMC</strong> &mdash; Sorpresas de la Fed. Detecta cambios abruptos en la <a href="https://fred.stlouisfed.org/series/DFF" target="_blank" rel="noopener" style="color:var(--text-secondary);">tasa de fondos federales</a> (&gt;25bps en 3 d&iacute;as). Se disipa en 14 d&iacute;as.</div>
+            <div><strong style="color:var(--accent);">Fed Emerg.</strong> &mdash; Intervenci&oacute;n de emergencia. Detecta expansi&oacute;n masiva del <a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--text-secondary);">balance de la Fed</a> (&gt;5% en 30d). Impone m&iacute;nimo de 2 posiciones por 90 d&iacute;as.</div>
+            <div><strong style="color:var(--accent);">Credit</strong> &mdash; Filtro sectorial. Excluye Financieras (HY &gt;1000bps) y Energ&iacute;a (HY &gt;1500bps) del universo en crisis extremas de cr&eacute;dito.</div>
+        </div>
     </div>
-</div>
+</details>
 
 <!-- ═══════════ HYDRA MULTI-STRATEGY POSITIONS ═══════════ -->
 <div class="anim-enter anim-d5" id="hydra-master-header" style="
