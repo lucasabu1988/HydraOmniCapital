@@ -88,7 +88,19 @@ def _git_worker():
                 continue
 
             # git add (only specific files, never git add -A)
-            ok, output = _run_git('add', '--', *files_to_add)
+            # Filter out gitignored files to prevent git add from failing entirely
+            addable = []
+            for f in files_to_add:
+                ok_check, _ = _run_git('check-ignore', '-q', f, warn_on_fail=False)
+                if not ok_check:  # rc=1 means NOT ignored → addable
+                    addable.append(f)
+                else:
+                    logger.debug(f"git sync: skipping ignored file {f}")
+            if not addable:
+                logger.debug("git sync: all files ignored, skipping")
+                _git_queue.task_done()
+                continue
+            ok, output = _run_git('add', '--', *addable)
             if not ok:
                 logger.warning(f"git add failed, skipping: {output[:100]}")
                 _git_queue.task_done()

@@ -88,7 +88,19 @@ def _git_worker():
                 continue
 
             # git add (only specific files, never git add -A)
-            ok, output = _run_git('add', '--', *files_to_add)
+            # Filter out gitignored files to prevent git add from failing entirely
+            addable = []
+            for f in files_to_add:
+                ok_check, _ = _run_git('check-ignore', '-q', f, warn_on_fail=False)
+                if not ok_check:  # rc=1 means NOT ignored → addable
+                    addable.append(f)
+                else:
+                    logger.debug(f"git sync: skipping ignored file {f}")
+            if not addable:
+                logger.debug("git sync: all files ignored, skipping")
+                _git_queue.task_done()
+                continue
+            ok, output = _run_git('add', '--', *addable)
             if not ok:
                 logger.warning(f"git add failed, skipping: {output[:100]}")
                 _git_queue.task_done()
@@ -176,3 +188,34 @@ def git_sync_async(state_file: str, latest_file: str, log_pattern: str = 'logs/c
         _git_queue.put_nowait({'files': files, 'message': message})
     except Exception:
         logger.debug("git sync: queue full, skipping this cycle")
+
+
+def git_sync_rotation(cycle_num: int, compass_return: float, status: str):
+    """Queue a git sync after a 5-day rotation. Includes cycle_log + state files."""
+    _ensure_worker()
+
+    files = [
+        'state/cycle_log.json',
+        'state/compass_state_latest.json',
+    ]
+
+    # Add today's dated state file
+    today = datetime.now().strftime('%Y%m%d')
+    dated_state = f'state/compass_state_{today}.json'
+    if os.path.exists(os.path.join(_repo_dir, dated_state)):
+        files.append(dated_state)
+
+    # Add log files
+    log_files = glob_mod.glob(os.path.join(_repo_dir, 'logs', 'compass_live_*.log'))
+    files.extend([os.path.relpath(f, _repo_dir).replace('\\', '/') for f in log_files])
+
+    files = list(set(f.replace('\\', '/') for f in files))
+
+    sign = '+' if compass_return >= 0 else ''
+    message = f"auto: cycle #{cycle_num} closed ({sign}{compass_return:.2f}% {status}) — rotation complete"
+
+    try:
+        _git_queue.put_nowait({'files': files, 'message': message})
+        logger.info(f"git sync: rotation commit queued (cycle #{cycle_num})")
+    except Exception:
+        logger.warning("git sync: queue full, rotation commit not queued")
