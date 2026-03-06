@@ -129,7 +129,7 @@ def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
     # HYDRA multi-strategy data (COMPASS + Rattlesnake with cash recycling)
-    csv_path = os.path.join('backtests', 'hydra_v2_daily.csv')
+    csv_path = os.path.join('backtests', 'exp60_hydra_efa_filtered.csv')
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
