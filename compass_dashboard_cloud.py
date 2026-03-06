@@ -464,9 +464,10 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         spy_return = None
 
     # HYDRA daily return (current portfolio vs yesterday's close value)
+    # history[-1] is today's open snapshot, [-2] is yesterday's close
     pv_hist = state.get('portfolio_values_history', [])
-    if pv_hist and portfolio_value > 0:
-        yesterday_value = pv_hist[-1]
+    if len(pv_hist) >= 2 and portfolio_value > 0:
+        yesterday_value = pv_hist[-2]
         daily_return = round((portfolio_value - yesterday_value) / yesterday_value * 100, 2)
     else:
         daily_return = None
