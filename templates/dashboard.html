@@ -224,25 +224,46 @@
 
 <!-- PERFORMANCE vs S&P 500 — HERO BANNER -->
 <div class="perf-banner anim-enter anim-d1" id="perf-banner">
+    <!-- ROW 1: DAILY comparison -->
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-tertiary);text-align:center;margin-bottom:4px;">Hoy</div>
     <div class="perf-banner-inner">
-        <!-- HYDRA side -->
         <div class="perf-side">
             <span class="perf-side-label">HYDRA</span>
             <span class="perf-side-value" id="perf-compass-val">--</span>
-            <span class="perf-side-sub" id="perf-compass-sub">$-- &rarr; $--</span>
+            <span class="perf-side-sub" id="perf-compass-sub">--</span>
         </div>
-        <!-- VS center -->
         <div class="perf-vs">
             <div class="perf-vs-divider perf-vs-divider-left"></div>
             <span class="perf-vs-alpha" id="perf-alpha">--</span>
             <span class="perf-vs-label" id="perf-alpha-label">vs S&amp;P 500</span>
             <div class="perf-vs-divider perf-vs-divider-right"></div>
         </div>
-        <!-- S&P 500 side -->
         <div class="perf-side">
             <span class="perf-side-label">S&amp;P 500</span>
             <span class="perf-side-value" id="perf-spy-val">--</span>
-            <span class="perf-side-sub" id="perf-spy-sub">$-- &rarr; $--</span>
+            <span class="perf-side-sub" id="perf-spy-sub">--</span>
+        </div>
+    </div>
+    <!-- ROW 2: CUMULATIVE comparison (since inception) -->
+    <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:10px;padding-top:10px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-tertiary);text-align:center;margin-bottom:4px;">General</div>
+        <div class="perf-banner-inner">
+            <div class="perf-side">
+                <span class="perf-side-label">HYDRA</span>
+                <span class="perf-side-value" id="perf-compass-cum">--</span>
+                <span class="perf-side-sub" id="perf-compass-cum-sub">$100,000 &rarr; --</span>
+            </div>
+            <div class="perf-vs">
+                <div class="perf-vs-divider perf-vs-divider-left"></div>
+                <span class="perf-vs-alpha" id="perf-alpha-cum">--</span>
+                <span class="perf-vs-label" id="perf-alpha-cum-label">vs S&amp;P 500</span>
+                <div class="perf-vs-divider perf-vs-divider-right"></div>
+            </div>
+            <div class="perf-side">
+                <span class="perf-side-label">S&amp;P 500</span>
+                <span class="perf-side-value" id="perf-spy-cum">--</span>
+                <span class="perf-side-sub" id="perf-spy-cum-sub">$100,000 &rarr; --</span>
+            </div>
         </div>
     </div>
     <div class="perf-banner-period" id="perf-period">Test en vivo desde --</div>
@@ -1953,7 +1974,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260306b"></script>
+<script src="/static/js/dashboard.js?v=20260306c"></script>
 
 </body>
 </html>

@@ -112,9 +112,10 @@ R_MAX_COMPASS_ALLOC = 0.75
 PRICE_CACHE_SECONDS = 30
 SOCIAL_CACHE_SECONDS = 300  # 5 minutes
 
-# Live test started Feb 19, 2026 — ^GSPC close on that date
-LIVE_TEST_START_DATE = '2026-02-19'
-LIVE_TEST_SPY_START = 6861.89  # ^GSPC close on 2026-02-19
+# Live test started Mar 6, 2026 — ^GSPC prev close on that date
+LIVE_TEST_START_DATE = '2026-03-06'
+LIVE_TEST_SPY_START = 6830.71  # ^GSPC prev close on 2026-03-06
+LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
 SHOWCASE_MODE = os.environ.get('COMPASS_MODE', 'showcase') == 'showcase'
@@ -459,9 +460,16 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     spy_current = prices.get('^GSPC') if prices else None
     spy_prev = _prev_close_cache.get('^GSPC')
     if spy_current and spy_prev and spy_prev > 0:
-        spy_return = round((spy_current - spy_prev) / spy_prev * 100, 2)
+        spy_daily = round((spy_current - spy_prev) / spy_prev * 100, 2)
     else:
-        spy_return = None
+        spy_daily = None
+
+    # S&P 500 cumulative return (since live test start)
+    spy_start = get_spy_start_price()
+    if spy_current and spy_start and spy_start > 0:
+        spy_cumulative = round((spy_current - spy_start) / spy_start * 100, 2)
+    else:
+        spy_cumulative = None
 
     # HYDRA daily return (current portfolio vs yesterday's close value)
     # history[-1] is today's open snapshot, [-2] is yesterday's close
@@ -472,6 +480,9 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     else:
         daily_return = None
 
+    # HYDRA cumulative return (since live test start)
+    cumulative_return = round(total_return * 100, 2)
+
     trading_days_elapsed = _compute_real_trading_day(state)
 
     return {
@@ -480,8 +491,9 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'invested': round(invested, 2),
         'peak_value': round(peak_value, 2),
         'drawdown': round(drawdown * 100, 2),
-        'total_return': round(total_return * 100, 2),
-        'spy_return': spy_return,
+        'total_return': cumulative_return,
+        'spy_return': spy_daily,
+        'spy_cumulative': spy_cumulative,
         'daily_return': daily_return,
         'initial_capital': initial_capital,
         'num_positions': len(positions),

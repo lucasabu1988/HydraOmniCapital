@@ -287,32 +287,10 @@ function updateRegimeBand(p) {
 }
 
 
-function updatePerfBanner(p) {
-    /* HYDRA daily return (today's change) */
-    const dailyReturn = p.daily_return != null ? p.daily_return : 0;
-    const compassVal = document.getElementById('perf-compass-val');
-    compassVal.textContent = fmtPct(dailyReturn);
-    compassVal.className = 'perf-side-value ' + colorCls(dailyReturn);
-    document.getElementById('perf-compass-sub').textContent =
-        'Hoy \u00B7 ' + fmt$(p.portfolio_value);
-
-    /* SPY side — today's daily return */
-    const spyVal = document.getElementById('perf-spy-val');
-    if (p.spy_return != null) {
-        spyVal.textContent = fmtPct(p.spy_return);
-        spyVal.className = 'perf-side-value ' + colorCls(p.spy_return);
-        document.getElementById('perf-spy-sub').textContent = 'Hoy';
-    } else {
-        spyVal.textContent = '--';
-        spyVal.className = 'perf-side-value';
-    }
-
-    /* VS center — difference expressed as outperformance (daily) */
-    const alphaEl = document.getElementById('perf-alpha');
-    const alphaLabel = document.getElementById('perf-alpha-label');
-    if (p.spy_return != null && p.daily_return != null) {
-        const diff = dailyReturn - p.spy_return;
-        const absDiff = Math.abs(diff).toFixed(2);
+function _fillAlpha(alphaEl, alphaLabel, hydraRet, spyRet) {
+    if (spyRet != null && hydraRet != null) {
+        var diff = hydraRet - spyRet;
+        var absDiff = Math.abs(diff).toFixed(2);
         if (diff >= 0) {
             alphaEl.textContent = '+' + absDiff + ' pp';
             alphaEl.className = 'perf-vs-alpha c-green';
@@ -330,12 +308,68 @@ function updatePerfBanner(p) {
         alphaLabel.textContent = 'vs S&P 500';
         alphaLabel.style.color = '';
     }
+}
+
+function updatePerfBanner(p) {
+    /* === ROW 1: DAILY === */
+    var dailyReturn = p.daily_return != null ? p.daily_return : 0;
+    var compassVal = document.getElementById('perf-compass-val');
+    compassVal.textContent = fmtPct(dailyReturn);
+    compassVal.className = 'perf-side-value ' + colorCls(dailyReturn);
+    document.getElementById('perf-compass-sub').textContent = fmt$(p.portfolio_value);
+
+    var spyVal = document.getElementById('perf-spy-val');
+    if (p.spy_return != null) {
+        spyVal.textContent = fmtPct(p.spy_return);
+        spyVal.className = 'perf-side-value ' + colorCls(p.spy_return);
+        document.getElementById('perf-spy-sub').textContent = fmtPct(p.spy_return);
+    } else {
+        spyVal.textContent = '--';
+        spyVal.className = 'perf-side-value';
+    }
+
+    _fillAlpha(
+        document.getElementById('perf-alpha'),
+        document.getElementById('perf-alpha-label'),
+        dailyReturn, p.spy_return
+    );
+
+    /* === ROW 2: CUMULATIVE (General) === */
+    var cumReturn = p.total_return != null ? p.total_return : 0;
+    var spyCum = p.spy_cumulative;
+    var cumVal = document.getElementById('perf-compass-cum');
+    if (cumVal) {
+        cumVal.textContent = fmtPct(cumReturn);
+        cumVal.className = 'perf-side-value ' + colorCls(cumReturn);
+        var cumPortfolio = p.initial_capital * (1 + cumReturn / 100);
+        document.getElementById('perf-compass-cum-sub').textContent =
+            '$' + p.initial_capital.toLocaleString() + ' \u2192 ' + fmt$(cumPortfolio);
+    }
+
+    var spyCumVal = document.getElementById('perf-spy-cum');
+    if (spyCumVal) {
+        if (spyCum != null) {
+            spyCumVal.textContent = fmtPct(spyCum);
+            spyCumVal.className = 'perf-side-value ' + colorCls(spyCum);
+            var spyCumPortfolio = p.initial_capital * (1 + spyCum / 100);
+            document.getElementById('perf-spy-cum-sub').textContent =
+                '$' + p.initial_capital.toLocaleString() + ' \u2192 ' + fmt$(spyCumPortfolio);
+        } else {
+            spyCumVal.textContent = '--';
+            spyCumVal.className = 'perf-side-value';
+        }
+    }
+
+    var alphaCumEl = document.getElementById('perf-alpha-cum');
+    if (alphaCumEl) {
+        _fillAlpha(alphaCumEl, document.getElementById('perf-alpha-cum-label'), cumReturn, spyCum);
+    }
 
     /* Period label */
     if (p.last_trading_date) {
-        const days = p.trading_day || '?';
+        var days = p.trading_day || '?';
         document.getElementById('perf-period').textContent =
-            'Test en vivo \u00B7 D\u00eda ' + days + ' \u00B7 Inicio Feb 19, 2026';
+            'Test en vivo \u00B7 D\u00eda ' + days + ' \u00B7 Inicio Mar 6, 2026';
     }
 }
 
