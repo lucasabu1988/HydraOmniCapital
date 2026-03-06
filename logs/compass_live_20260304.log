@@ -1,0 +1,1763 @@
+2026-03-04 09:52:44,503 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.81:5000
+2026-03-04 09:52:44,503 - INFO - [33mPress CTRL+C to quit[0m
+2026-03-04 09:52:44,504 - INFO - DecisionLogger initialized -> state\ml_learning
+2026-03-04 09:52:44,504 - INFO - COMPASSMLOrchestrator initialized.
+2026-03-04 09:52:44,504 - INFO - ML Learning System: ACTIVE
+2026-03-04 09:52:44,739 - INFO - Overlay System (v3): ACTIVE — BSO + M2 + FOMC + FedEmergency + CreditFilter
+2026-03-04 09:52:44,739 - INFO - ======================================================================
+2026-03-04 09:52:44,739 - INFO - OMNICAPITAL v8.4 COMPASS - LIVE TRADING
+2026-03-04 09:52:44,739 - INFO - ======================================================================
+2026-03-04 09:52:44,739 - INFO - Signal: Risk-adj momentum 90d (skip 5d)
+2026-03-04 09:52:44,739 - INFO - Regime: Sigmoid composite score | Vol target: 15%
+2026-03-04 09:52:44,739 - INFO - Hold: 5d | Adaptive stop: -6% to -15% (vol-scaled)
+2026-03-04 09:52:44,739 - INFO - Trailing: +5% / -3% (vol-scaled)
+2026-03-04 09:52:44,739 - INFO - Bull override: SPY > SMA200*103% & score>40% -> +1 pos
+2026-03-04 09:52:44,739 - INFO - Sector limit: max 3 positions per sector
+2026-03-04 09:52:44,739 - INFO - DD tiers: T1=-10% T2=-20% T3=-35%
+2026-03-04 09:52:44,739 - INFO - Crash brake: 5d=-6% 10d=-10% -> 15% lev
+2026-03-04 09:52:44,739 - INFO - Exit renewal: max 10d | min profit 4% | mom pctl 85%
+2026-03-04 09:52:44,740 - INFO - Quality filter: vol_max=60% | max_single_day=50%
+2026-03-04 09:52:44,740 - INFO - Leverage: max 1.0x (no leverage -- broker margin destroys value)
+2026-03-04 09:52:44,740 - INFO - Universe: 113 broad pool -> top 40
+2026-03-04 09:52:44,740 - INFO - Execution: Pre-close signal @ 15:30 ET -> same-day MOC (deadline 15:50 ET)
+2026-03-04 09:52:44,740 - INFO - Chassis: async fetch | order timeout 300s | fill breaker 2% | data validation
+2026-03-04 09:52:44,740 - INFO - Overlays: BSO + M2 + FOMC + FedEmergency + CreditFilter (damping=0.25)
+2026-03-04 09:52:44,741 - INFO - State loaded from state/compass_state_latest.json
+2026-03-04 09:52:44,741 - INFO -   Cash: $29,918 | Peak: $102,460
+2026-03-04 09:52:44,741 - INFO -   Positions: 3 | Day: 10
+2026-03-04 09:52:44,741 - INFO -   Regime: score=0.63 | Crash cooldown: 0
+2026-03-04 09:52:44,741 - INFO - Paper broker conectado. Cash inicial: $29,918.41
+2026-03-04 09:52:46,130 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 09:52:46,130 - INFO - git sync: background worker started
+2026-03-04 09:52:46,211 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 09:52:46,211 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 09:52:56,467 - INFO - 127.0.0.1 - - [04/Mar/2026 09:52:56] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 09:53:03,896 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:03] "GET / HTTP/1.1" 200 -
+2026-03-04 09:53:03,936 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:03] "[36mGET /static/css/dashboard.css?v=20260303j HTTP/1.1[0m" 304 -
+2026-03-04 09:53:04,138 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:04] "[36mGET /static/img/omnicapital_logo.png HTTP/1.1[0m" 304 -
+2026-03-04 09:53:04,219 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:04] "[36mGET /static/js/dashboard.js?v=20260303i HTTP/1.1[0m" 304 -
+2026-03-04 09:53:04,562 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:04] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 09:53:04,640 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:04] "GET /api/equity HTTP/1.1" 200 -
+2026-03-04 09:53:04,661 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:04] "GET /api/annual-returns HTTP/1.1" 200 -
+2026-03-04 09:53:04,684 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:04] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-03-04 09:53:04,904 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:04] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 09:53:06,046 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:06] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 09:53:06,359 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:06] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 09:53:15,452 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:15] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 09:53:34,551 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:34] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 09:53:34,552 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:34] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 09:53:34,802 - INFO - 127.0.0.1 - - [04/Mar/2026 09:53:34] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 09:54:04,549 - INFO - 127.0.0.1 - - [04/Mar/2026 09:54:04] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 09:54:06,246 - INFO - 127.0.0.1 - - [04/Mar/2026 09:54:06] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 09:54:06,431 - INFO - 127.0.0.1 - - [04/Mar/2026 09:54:06] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 09:54:06,437 - INFO - 127.0.0.1 - - [04/Mar/2026 09:54:06] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 09:54:35,876 - INFO - 127.0.0.1 - - [04/Mar/2026 09:54:35] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 09:54:35,997 - INFO - 127.0.0.1 - - [04/Mar/2026 09:54:35] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 09:54:36,003 - INFO - 127.0.0.1 - - [04/Mar/2026 09:54:36] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 09:55:04,572 - INFO - 127.0.0.1 - - [04/Mar/2026 09:55:04] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 09:55:06,477 - INFO - 127.0.0.1 - - [04/Mar/2026 09:55:06] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 09:55:06,485 - INFO - 127.0.0.1 - - [04/Mar/2026 09:55:06] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 09:55:06,489 - INFO - 127.0.0.1 - - [04/Mar/2026 09:55:06] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 09:55:34,565 - INFO - 127.0.0.1 - - [04/Mar/2026 09:55:34] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 09:55:34,831 - INFO - 127.0.0.1 - - [04/Mar/2026 09:55:34] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 09:55:36,320 - INFO - 127.0.0.1 - - [04/Mar/2026 09:55:36] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 09:56:04,248 - INFO - 127.0.0.1 - - [04/Mar/2026 09:56:04] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 09:56:04,566 - INFO - 127.0.0.1 - - [04/Mar/2026 09:56:04] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 09:56:05,980 - INFO - 127.0.0.1 - - [04/Mar/2026 09:56:05] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 10:08:12,482 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:08:12,585 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:08:12,585 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:27:37,657 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:27:37,777 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:27:37,778 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:30:44,992 - INFO - DecisionLogger initialized -> state\ml_learning
+2026-03-04 10:30:44,992 - INFO - COMPASSMLOrchestrator initialized.
+2026-03-04 10:30:44,992 - INFO - ML Learning System: ACTIVE
+2026-03-04 10:30:44,994 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.81:5000
+2026-03-04 10:30:44,994 - INFO - [33mPress CTRL+C to quit[0m
+2026-03-04 10:30:45,051 - INFO - Overlay System (v3): ACTIVE — BSO + M2 + FOMC + FedEmergency + CreditFilter
+2026-03-04 10:30:45,051 - INFO - ======================================================================
+2026-03-04 10:30:45,051 - INFO - OMNICAPITAL v8.4 COMPASS - LIVE TRADING
+2026-03-04 10:30:45,051 - INFO - ======================================================================
+2026-03-04 10:30:45,051 - INFO - Signal: Risk-adj momentum 90d (skip 5d)
+2026-03-04 10:30:45,051 - INFO - Regime: Sigmoid composite score | Vol target: 15%
+2026-03-04 10:30:45,051 - INFO - Hold: 5d | Adaptive stop: -6% to -15% (vol-scaled)
+2026-03-04 10:30:45,051 - INFO - Trailing: +5% / -3% (vol-scaled)
+2026-03-04 10:30:45,051 - INFO - Bull override: SPY > SMA200*103% & score>40% -> +1 pos
+2026-03-04 10:30:45,051 - INFO - Sector limit: max 3 positions per sector
+2026-03-04 10:30:45,051 - INFO - DD tiers: T1=-10% T2=-20% T3=-35%
+2026-03-04 10:30:45,051 - INFO - Crash brake: 5d=-6% 10d=-10% -> 15% lev
+2026-03-04 10:30:45,051 - INFO - Exit renewal: max 10d | min profit 4% | mom pctl 85%
+2026-03-04 10:30:45,051 - INFO - Quality filter: vol_max=60% | max_single_day=50%
+2026-03-04 10:30:45,051 - INFO - Leverage: max 1.0x (no leverage -- broker margin destroys value)
+2026-03-04 10:30:45,051 - INFO - Universe: 113 broad pool -> top 40
+2026-03-04 10:30:45,051 - INFO - Execution: Pre-close signal @ 15:30 ET -> same-day MOC (deadline 15:50 ET)
+2026-03-04 10:30:45,051 - INFO - Chassis: async fetch | order timeout 300s | fill breaker 2% | data validation
+2026-03-04 10:30:45,051 - INFO - Overlays: BSO + M2 + FOMC + FedEmergency + CreditFilter (damping=0.25)
+2026-03-04 10:30:45,069 - INFO - State loaded from state/compass_state_latest.json
+2026-03-04 10:30:45,069 - INFO -   Cash: $29,918 | Peak: $102,460
+2026-03-04 10:30:45,069 - INFO -   Positions: 3 | Day: 10
+2026-03-04 10:30:45,069 - INFO -   Regime: score=0.63 | Crash cooldown: 0
+2026-03-04 10:30:45,070 - INFO - Paper broker conectado. Cash inicial: $29,918.41
+2026-03-04 10:30:46,560 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:30:46,560 - INFO - git sync: background worker started
+2026-03-04 10:30:46,641 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:30:46,641 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:31:00,691 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:00] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 10:31:12,316 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:12] "GET / HTTP/1.1" 200 -
+2026-03-04 10:31:12,346 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:12] "[36mGET /static/css/dashboard.css?v=20260303j HTTP/1.1[0m" 304 -
+2026-03-04 10:31:12,562 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:12] "[36mGET /static/img/omnicapital_logo.png HTTP/1.1[0m" 304 -
+2026-03-04 10:31:12,650 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:12] "[36mGET /static/js/dashboard.js?v=20260303i HTTP/1.1[0m" 304 -
+2026-03-04 10:31:12,977 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:12] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-03-04 10:31:12,978 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:12] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 10:31:13,104 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:13] "GET /api/equity HTTP/1.1" 200 -
+2026-03-04 10:31:13,130 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:13] "GET /api/annual-returns HTTP/1.1" 200 -
+2026-03-04 10:31:13,308 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:13] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 10:31:14,261 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:14] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 10:31:14,584 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:14] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 10:31:26,820 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:26] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 10:31:38,101 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "GET / HTTP/1.1" 200 -
+2026-03-04 10:31:38,110 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "[36mGET /static/css/dashboard.css?v=20260303j HTTP/1.1[0m" 304 -
+2026-03-04 10:31:38,367 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "[36mGET /static/img/omnicapital_logo.png HTTP/1.1[0m" 304 -
+2026-03-04 10:31:38,428 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "[36mGET /static/js/dashboard.js?v=20260303i HTTP/1.1[0m" 304 -
+2026-03-04 10:31:38,819 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 10:31:38,821 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-03-04 10:31:38,822 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 10:31:38,823 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 10:31:38,916 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "GET /api/equity HTTP/1.1" 200 -
+2026-03-04 10:31:38,946 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:38] "GET /api/annual-returns HTTP/1.1" 200 -
+2026-03-04 10:31:39,130 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:39] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 10:31:39,132 - INFO - 127.0.0.1 - - [04/Mar/2026 10:31:39] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 10:32:10,157 - INFO - 127.0.0.1 - - [04/Mar/2026 10:32:10] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 10:32:10,275 - INFO - 127.0.0.1 - - [04/Mar/2026 10:32:10] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 10:32:10,283 - INFO - 127.0.0.1 - - [04/Mar/2026 10:32:10] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 10:32:38,784 - INFO - 127.0.0.1 - - [04/Mar/2026 10:32:38] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 10:32:38,827 - INFO - 127.0.0.1 - - [04/Mar/2026 10:32:38] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 10:32:38,829 - INFO - 127.0.0.1 - - [04/Mar/2026 10:32:38] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 10:32:39,027 - INFO - 127.0.0.1 - - [04/Mar/2026 10:32:39] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 10:32:46,574 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:32:46,676 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:32:46,677 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:33:10,060 - INFO - 127.0.0.1 - - [04/Mar/2026 10:33:10] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 10:33:10,064 - INFO - 127.0.0.1 - - [04/Mar/2026 10:33:10] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 10:33:10,376 - INFO - 127.0.0.1 - - [04/Mar/2026 10:33:10] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 10:36:04,863 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:36:04,980 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:36:04,980 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:37:59,426 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:37:59,534 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:37:59,534 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:41:16,037 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:41:16,141 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:41:16,142 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:43:10,939 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:43:11,040 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:43:11,040 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:46:26,842 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:46:26,946 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:46:26,947 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:48:30,953 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:48:31,066 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:48:31,067 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:51:38,283 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:51:38,387 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:51:38,388 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:53:40,701 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:53:40,808 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:53:40,808 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:56:50,261 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:56:50,383 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:56:50,384 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 10:58:51,735 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 10:58:51,843 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 10:58:51,843 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:01:59,628 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:01:59,730 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:01:59,730 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:04:09,758 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:04:09,868 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:04:09,868 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:07:10,616 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:07:10,730 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:07:10,730 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:09:18,904 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:09:19,013 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:09:19,013 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:12:19,452 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:12:19,565 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:12:19,566 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:14:29,816 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:14:29,937 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:14:29,937 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:17:29,192 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:17:29,300 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:17:29,300 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:19:38,426 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:19:38,538 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:19:38,538 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:22:40,174 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:22:40,275 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:22:40,276 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:24:53,943 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:24:54,053 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:24:54,053 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:27:55,705 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:27:55,816 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:27:55,816 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:30:00,218 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:30:00,331 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:30:00,331 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:33:12,690 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:33:12,802 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:33:12,802 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:35:16,080 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:35:16,190 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:35:16,190 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:38:28,513 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:38:28,626 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:38:28,626 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:40:31,669 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:40:31,775 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:40:31,775 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:43:44,667 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:43:44,777 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:43:44,778 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:45:47,318 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:45:47,429 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:45:47,429 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:48:53,770 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:48:53,878 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:48:53,879 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:51:00,032 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:51:00,131 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:51:00,132 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:54:14,232 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:54:14,346 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:54:14,346 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:56:20,297 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:56:20,405 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:56:20,406 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 11:59:27,131 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 11:59:27,247 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 11:59:27,248 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:01:27,262 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:01:27,385 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:01:27,386 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:04:33,777 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:04:33,891 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:04:33,891 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:06:35,229 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:06:35,340 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:06:35,340 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:09:43,410 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:09:43,521 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:09:43,522 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:12:21,288 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:12:21,390 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:12:21,391 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:12:52,301 - INFO - 127.0.0.1 - - [04/Mar/2026 12:12:52] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:13:31,175 - INFO - 127.0.0.1 - - [04/Mar/2026 12:13:31] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:13:37,830 - INFO - 127.0.0.1 - - [04/Mar/2026 12:13:37] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:13:46,473 - INFO - 127.0.0.1 - - [04/Mar/2026 12:13:46] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:15:28,580 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:15:28,686 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:15:28,686 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:16:34,741 - INFO - DecisionLogger initialized -> state\ml_learning
+2026-03-04 12:16:34,741 - INFO - COMPASSMLOrchestrator initialized.
+2026-03-04 12:16:34,741 - INFO - ML Learning System: ACTIVE
+2026-03-04 12:16:34,755 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.81:5000
+2026-03-04 12:16:34,755 - INFO - [33mPress CTRL+C to quit[0m
+2026-03-04 12:16:34,884 - INFO - Overlay System (v3): ACTIVE — BSO + M2 + FOMC + FedEmergency + CreditFilter
+2026-03-04 12:16:34,884 - INFO - ======================================================================
+2026-03-04 12:16:34,884 - INFO - OMNICAPITAL v8.4 COMPASS - LIVE TRADING
+2026-03-04 12:16:34,884 - INFO - ======================================================================
+2026-03-04 12:16:34,884 - INFO - Signal: Risk-adj momentum 90d (skip 5d)
+2026-03-04 12:16:34,884 - INFO - Regime: Sigmoid composite score | Vol target: 15%
+2026-03-04 12:16:34,885 - INFO - Hold: 5d | Adaptive stop: -6% to -15% (vol-scaled)
+2026-03-04 12:16:34,885 - INFO - Trailing: +5% / -3% (vol-scaled)
+2026-03-04 12:16:34,885 - INFO - Bull override: SPY > SMA200*103% & score>40% -> +1 pos
+2026-03-04 12:16:34,885 - INFO - Sector limit: max 3 positions per sector
+2026-03-04 12:16:34,885 - INFO - DD tiers: T1=-10% T2=-20% T3=-35%
+2026-03-04 12:16:34,885 - INFO - Crash brake: 5d=-6% 10d=-10% -> 15% lev
+2026-03-04 12:16:34,885 - INFO - Exit renewal: max 10d | min profit 4% | mom pctl 85%
+2026-03-04 12:16:34,885 - INFO - Quality filter: vol_max=60% | max_single_day=50%
+2026-03-04 12:16:34,885 - INFO - Leverage: max 1.0x (no leverage -- broker margin destroys value)
+2026-03-04 12:16:34,885 - INFO - Universe: 113 broad pool -> top 40
+2026-03-04 12:16:34,885 - INFO - Execution: Pre-close signal @ 15:30 ET -> same-day MOC (deadline 15:50 ET)
+2026-03-04 12:16:34,885 - INFO - Chassis: async fetch | order timeout 300s | fill breaker 2% | data validation
+2026-03-04 12:16:34,885 - INFO - Overlays: BSO + M2 + FOMC + FedEmergency + CreditFilter (damping=0.25)
+2026-03-04 12:16:34,906 - INFO - State loaded from state/compass_state_latest.json
+2026-03-04 12:16:34,906 - INFO -   Cash: $29,918 | Peak: $102,460
+2026-03-04 12:16:34,906 - INFO -   Positions: 3 | Day: 10
+2026-03-04 12:16:34,906 - INFO -   Regime: score=0.63 | Crash cooldown: 0
+2026-03-04 12:16:34,907 - INFO - Paper broker conectado. Cash inicial: $29,918.41
+2026-03-04 12:16:39,998 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:16:39,998 - INFO - git sync: background worker started
+2026-03-04 12:16:40,076 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:16:40,076 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:16:46,272 - INFO - 127.0.0.1 - - [04/Mar/2026 12:16:46] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:21:48,784 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:21:48,903 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:21:48,903 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:25:06,106 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:06] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:25:13,168 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:13] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:25:17,999 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:17] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:25:44,122 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:44] "GET / HTTP/1.1" 200 -
+2026-03-04 12:25:44,164 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:44] "[36mGET /static/css/dashboard.css?v=20260303j HTTP/1.1[0m" 304 -
+2026-03-04 12:25:44,309 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:44] "[36mGET /static/img/omnicapital_logo.png HTTP/1.1[0m" 304 -
+2026-03-04 12:25:44,443 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:44] "GET /static/js/dashboard.js?v=20260303i HTTP/1.1" 200 -
+2026-03-04 12:25:45,087 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:45] "GET /api/equity HTTP/1.1" 200 -
+2026-03-04 12:25:45,201 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:45] "GET /api/annual-returns HTTP/1.1" 200 -
+2026-03-04 12:25:45,289 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:45] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-03-04 12:25:45,495 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:45] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:25:45,917 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:45] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:25:46,057 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:46] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:25:46,383 - INFO - 127.0.0.1 - - [04/Mar/2026 12:25:46] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:26:08,325 - INFO - 127.0.0.1 - - [04/Mar/2026 12:26:08] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 12:26:14,782 - INFO - 127.0.0.1 - - [04/Mar/2026 12:26:14] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:26:15,039 - INFO - 127.0.0.1 - - [04/Mar/2026 12:26:15] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:26:15,814 - INFO - 127.0.0.1 - - [04/Mar/2026 12:26:15] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:26:44,473 - INFO - 127.0.0.1 - - [04/Mar/2026 12:26:44] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:26:45,870 - INFO - 127.0.0.1 - - [04/Mar/2026 12:26:45] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:26:46,134 - INFO - 127.0.0.1 - - [04/Mar/2026 12:26:46] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:26:46,448 - INFO - 127.0.0.1 - - [04/Mar/2026 12:26:46] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:26:56,631 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:26:56,790 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:26:56,790 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:27:14,491 - INFO - 127.0.0.1 - - [04/Mar/2026 12:27:14] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:27:14,784 - INFO - 127.0.0.1 - - [04/Mar/2026 12:27:14] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:27:14,803 - INFO - 127.0.0.1 - - [04/Mar/2026 12:27:14] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:27:44,810 - INFO - 127.0.0.1 - - [04/Mar/2026 12:27:44] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:27:45,939 - INFO - 127.0.0.1 - - [04/Mar/2026 12:27:45] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:27:45,960 - INFO - 127.0.0.1 - - [04/Mar/2026 12:27:45] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:27:45,972 - INFO - 127.0.0.1 - - [04/Mar/2026 12:27:45] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:28:15,900 - INFO - 127.0.0.1 - - [04/Mar/2026 12:28:15] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:28:15,909 - INFO - 127.0.0.1 - - [04/Mar/2026 12:28:15] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:28:16,015 - INFO - 127.0.0.1 - - [04/Mar/2026 12:28:16] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:28:44,799 - INFO - 127.0.0.1 - - [04/Mar/2026 12:28:44] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:28:44,817 - INFO - 127.0.0.1 - - [04/Mar/2026 12:28:44] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:28:45,044 - INFO - 127.0.0.1 - - [04/Mar/2026 12:28:45] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:28:45,927 - INFO - 127.0.0.1 - - [04/Mar/2026 12:28:45] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:29:14,796 - INFO - 127.0.0.1 - - [04/Mar/2026 12:29:14] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:29:16,470 - INFO - 127.0.0.1 - - [04/Mar/2026 12:29:16] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:29:16,793 - INFO - 127.0.0.1 - - [04/Mar/2026 12:29:16] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:29:44,472 - INFO - 127.0.0.1 - - [04/Mar/2026 12:29:44] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:29:46,301 - INFO - 127.0.0.1 - - [04/Mar/2026 12:29:46] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:29:46,371 - INFO - 127.0.0.1 - - [04/Mar/2026 12:29:46] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:29:46,627 - INFO - 127.0.0.1 - - [04/Mar/2026 12:29:46] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:30:10,128 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:10] "GET / HTTP/1.1" 200 -
+2026-03-04 12:30:10,145 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:10] "[36mGET /static/css/dashboard.css?v=20260303j HTTP/1.1[0m" 304 -
+2026-03-04 12:30:10,393 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:10] "[36mGET /static/img/omnicapital_logo.png HTTP/1.1[0m" 304 -
+2026-03-04 12:30:10,456 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:10] "[36mGET /static/js/dashboard.js?v=20260303i HTTP/1.1[0m" 304 -
+2026-03-04 12:30:10,781 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:10] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:30:10,785 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:10] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-03-04 12:30:10,792 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:10] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 12:30:10,796 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:10] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:30:11,123 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:11] "GET /api/equity HTTP/1.1" 200 -
+2026-03-04 12:30:11,143 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:11] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:30:11,146 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:11] "[36mGET /static/img/omnicapital_logo.png HTTP/1.1[0m" 304 -
+2026-03-04 12:30:11,155 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:11] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:30:11,185 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:11] "GET /api/annual-returns HTTP/1.1" 200 -
+2026-03-04 12:30:41,907 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:41] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:30:41,913 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:41] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:30:42,069 - INFO - 127.0.0.1 - - [04/Mar/2026 12:30:42] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:31:10,792 - INFO - 127.0.0.1 - - [04/Mar/2026 12:31:10] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:31:10,804 - INFO - 127.0.0.1 - - [04/Mar/2026 12:31:10] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:31:11,037 - INFO - 127.0.0.1 - - [04/Mar/2026 12:31:11] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:31:11,860 - INFO - 127.0.0.1 - - [04/Mar/2026 12:31:11] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:31:40,792 - INFO - 127.0.0.1 - - [04/Mar/2026 12:31:40] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:31:41,645 - INFO - 127.0.0.1 - - [04/Mar/2026 12:31:41] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:31:41,960 - INFO - 127.0.0.1 - - [04/Mar/2026 12:31:41] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:32:04,619 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:32:04,738 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:32:04,739 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:32:10,470 - INFO - 127.0.0.1 - - [04/Mar/2026 12:32:10] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:32:11,851 - INFO - 127.0.0.1 - - [04/Mar/2026 12:32:11] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:32:11,878 - INFO - 127.0.0.1 - - [04/Mar/2026 12:32:11] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:32:11,885 - INFO - 127.0.0.1 - - [04/Mar/2026 12:32:11] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:32:40,798 - INFO - 127.0.0.1 - - [04/Mar/2026 12:32:40] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:32:40,801 - INFO - 127.0.0.1 - - [04/Mar/2026 12:32:40] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:32:41,057 - INFO - 127.0.0.1 - - [04/Mar/2026 12:32:41] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:33:10,481 - INFO - 127.0.0.1 - - [04/Mar/2026 12:33:10] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:33:12,102 - INFO - 127.0.0.1 - - [04/Mar/2026 12:33:12] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:33:12,133 - INFO - 127.0.0.1 - - [04/Mar/2026 12:33:12] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:33:12,420 - INFO - 127.0.0.1 - - [04/Mar/2026 12:33:12] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:33:40,795 - INFO - 127.0.0.1 - - [04/Mar/2026 12:33:40] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:33:40,801 - INFO - 127.0.0.1 - - [04/Mar/2026 12:33:40] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:33:41,061 - INFO - 127.0.0.1 - - [04/Mar/2026 12:33:41] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:34:10,478 - INFO - 127.0.0.1 - - [04/Mar/2026 12:34:10] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:34:12,019 - INFO - 127.0.0.1 - - [04/Mar/2026 12:34:12] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:34:12,022 - INFO - 127.0.0.1 - - [04/Mar/2026 12:34:12] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:34:12,342 - INFO - 127.0.0.1 - - [04/Mar/2026 12:34:12] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:34:40,475 - INFO - 127.0.0.1 - - [04/Mar/2026 12:34:40] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:34:40,794 - INFO - 127.0.0.1 - - [04/Mar/2026 12:34:40] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:34:42,258 - INFO - 127.0.0.1 - - [04/Mar/2026 12:34:42] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:35:01,778 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:01] "GET / HTTP/1.1" 200 -
+2026-03-04 12:35:01,790 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:01] "[36mGET /static/css/dashboard.css?v=20260303j HTTP/1.1[0m" 304 -
+2026-03-04 12:35:02,044 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:02] "[36mGET /static/img/omnicapital_logo.png HTTP/1.1[0m" 304 -
+2026-03-04 12:35:02,162 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:02] "GET /static/js/dashboard.js?v=20260303i HTTP/1.1" 200 -
+2026-03-04 12:35:02,499 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:02] "GET /api/trade-analytics HTTP/1.1" 200 -
+2026-03-04 12:35:02,506 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:02] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:35:02,748 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:02] "GET /api/equity HTTP/1.1" 200 -
+2026-03-04 12:35:02,787 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:02] "GET /api/annual-returns HTTP/1.1" 200 -
+2026-03-04 12:35:02,824 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:35:03,887 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:35:04,215 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:35:27,598 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:27] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 12:35:33,359 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:33] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:35:33,370 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:33] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:35:33,749 - INFO - 127.0.0.1 - - [04/Mar/2026 12:35:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:36:02,511 - INFO - 127.0.0.1 - - [04/Mar/2026 12:36:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:36:03,699 - INFO - 127.0.0.1 - - [04/Mar/2026 12:36:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:36:03,708 - INFO - 127.0.0.1 - - [04/Mar/2026 12:36:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:36:03,784 - INFO - 127.0.0.1 - - [04/Mar/2026 12:36:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:36:32,497 - INFO - 127.0.0.1 - - [04/Mar/2026 12:36:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:36:32,499 - INFO - 127.0.0.1 - - [04/Mar/2026 12:36:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:36:32,757 - INFO - 127.0.0.1 - - [04/Mar/2026 12:36:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:37:02,181 - INFO - 127.0.0.1 - - [04/Mar/2026 12:37:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:37:03,548 - INFO - 127.0.0.1 - - [04/Mar/2026 12:37:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:37:03,625 - INFO - 127.0.0.1 - - [04/Mar/2026 12:37:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:37:03,861 - INFO - 127.0.0.1 - - [04/Mar/2026 12:37:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:37:29,927 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:37:30,085 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:37:30,085 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:37:33,446 - INFO - 127.0.0.1 - - [04/Mar/2026 12:37:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:37:35,122 - INFO - 127.0.0.1 - - [04/Mar/2026 12:37:35] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:37:35,130 - INFO - 127.0.0.1 - - [04/Mar/2026 12:37:35] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:38:02,502 - INFO - 127.0.0.1 - - [04/Mar/2026 12:38:02] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:38:02,507 - INFO - 127.0.0.1 - - [04/Mar/2026 12:38:02] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:38:02,513 - INFO - 127.0.0.1 - - [04/Mar/2026 12:38:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:38:02,745 - INFO - 127.0.0.1 - - [04/Mar/2026 12:38:02] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:38:33,242 - INFO - 127.0.0.1 - - [04/Mar/2026 12:38:33] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:38:33,531 - INFO - 127.0.0.1 - - [04/Mar/2026 12:38:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:38:33,558 - INFO - 127.0.0.1 - - [04/Mar/2026 12:38:33] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:39:02,529 - INFO - 127.0.0.1 - - [04/Mar/2026 12:39:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:39:03,454 - INFO - 127.0.0.1 - - [04/Mar/2026 12:39:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:39:03,510 - INFO - 127.0.0.1 - - [04/Mar/2026 12:39:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:39:03,519 - INFO - 127.0.0.1 - - [04/Mar/2026 12:39:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:39:33,647 - INFO - 127.0.0.1 - - [04/Mar/2026 12:39:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:39:33,737 - INFO - 127.0.0.1 - - [04/Mar/2026 12:39:33] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:39:33,745 - INFO - 127.0.0.1 - - [04/Mar/2026 12:39:33] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:40:02,496 - INFO - 127.0.0.1 - - [04/Mar/2026 12:40:02] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 12:40:02,542 - INFO - 127.0.0.1 - - [04/Mar/2026 12:40:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:40:03,482 - INFO - 127.0.0.1 - - [04/Mar/2026 12:40:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:40:03,521 - INFO - 127.0.0.1 - - [04/Mar/2026 12:40:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:40:03,533 - INFO - 127.0.0.1 - - [04/Mar/2026 12:40:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:40:32,488 - INFO - 127.0.0.1 - - [04/Mar/2026 12:40:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:40:32,735 - INFO - 127.0.0.1 - - [04/Mar/2026 12:40:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:40:33,483 - INFO - 127.0.0.1 - - [04/Mar/2026 12:40:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:41:02,214 - INFO - 127.0.0.1 - - [04/Mar/2026 12:41:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:41:02,506 - INFO - 127.0.0.1 - - [04/Mar/2026 12:41:02] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:41:03,570 - INFO - 127.0.0.1 - - [04/Mar/2026 12:41:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:41:03,891 - INFO - 127.0.0.1 - - [04/Mar/2026 12:41:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:41:32,191 - INFO - 127.0.0.1 - - [04/Mar/2026 12:41:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:41:32,507 - INFO - 127.0.0.1 - - [04/Mar/2026 12:41:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:41:33,428 - INFO - 127.0.0.1 - - [04/Mar/2026 12:41:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:42:02,547 - INFO - 127.0.0.1 - - [04/Mar/2026 12:42:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:42:03,347 - INFO - 127.0.0.1 - - [04/Mar/2026 12:42:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:42:03,353 - INFO - 127.0.0.1 - - [04/Mar/2026 12:42:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:42:04,750 - INFO - 127.0.0.1 - - [04/Mar/2026 12:42:04] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:42:32,501 - INFO - 127.0.0.1 - - [04/Mar/2026 12:42:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:42:32,505 - INFO - 127.0.0.1 - - [04/Mar/2026 12:42:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:42:32,767 - INFO - 127.0.0.1 - - [04/Mar/2026 12:42:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:42:45,606 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:42:45,740 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:42:45,740 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:43:02,191 - INFO - 127.0.0.1 - - [04/Mar/2026 12:43:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:43:03,760 - INFO - 127.0.0.1 - - [04/Mar/2026 12:43:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:43:04,085 - INFO - 127.0.0.1 - - [04/Mar/2026 12:43:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:43:08,274 - INFO - 127.0.0.1 - - [04/Mar/2026 12:43:08] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:43:32,488 - INFO - 127.0.0.1 - - [04/Mar/2026 12:43:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:43:32,491 - INFO - 127.0.0.1 - - [04/Mar/2026 12:43:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:43:32,749 - INFO - 127.0.0.1 - - [04/Mar/2026 12:43:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:44:02,185 - INFO - 127.0.0.1 - - [04/Mar/2026 12:44:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:44:03,445 - INFO - 127.0.0.1 - - [04/Mar/2026 12:44:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:44:03,861 - INFO - 127.0.0.1 - - [04/Mar/2026 12:44:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:44:04,182 - INFO - 127.0.0.1 - - [04/Mar/2026 12:44:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:44:32,181 - INFO - 127.0.0.1 - - [04/Mar/2026 12:44:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:44:32,500 - INFO - 127.0.0.1 - - [04/Mar/2026 12:44:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:44:38,327 - INFO - 127.0.0.1 - - [04/Mar/2026 12:44:38] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:45:02,525 - INFO - 127.0.0.1 - - [04/Mar/2026 12:45:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:45:04,124 - INFO - 127.0.0.1 - - [04/Mar/2026 12:45:04] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:45:04,134 - INFO - 127.0.0.1 - - [04/Mar/2026 12:45:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:45:04,699 - INFO - 127.0.0.1 - - [04/Mar/2026 12:45:04] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:45:27,438 - INFO - 127.0.0.1 - - [04/Mar/2026 12:45:27] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 12:45:32,498 - INFO - 127.0.0.1 - - [04/Mar/2026 12:45:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:45:32,502 - INFO - 127.0.0.1 - - [04/Mar/2026 12:45:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:45:32,746 - INFO - 127.0.0.1 - - [04/Mar/2026 12:45:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:46:02,179 - INFO - 127.0.0.1 - - [04/Mar/2026 12:46:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:46:03,875 - INFO - 127.0.0.1 - - [04/Mar/2026 12:46:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:46:03,931 - INFO - 127.0.0.1 - - [04/Mar/2026 12:46:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:46:04,190 - INFO - 127.0.0.1 - - [04/Mar/2026 12:46:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:46:32,493 - INFO - 127.0.0.1 - - [04/Mar/2026 12:46:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:46:32,496 - INFO - 127.0.0.1 - - [04/Mar/2026 12:46:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:46:32,741 - INFO - 127.0.0.1 - - [04/Mar/2026 12:46:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:47:02,179 - INFO - 127.0.0.1 - - [04/Mar/2026 12:47:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:47:03,593 - INFO - 127.0.0.1 - - [04/Mar/2026 12:47:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:47:03,596 - INFO - 127.0.0.1 - - [04/Mar/2026 12:47:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:47:03,601 - INFO - 127.0.0.1 - - [04/Mar/2026 12:47:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:47:33,605 - INFO - 127.0.0.1 - - [04/Mar/2026 12:47:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:47:33,632 - INFO - 127.0.0.1 - - [04/Mar/2026 12:47:33] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:47:33,639 - INFO - 127.0.0.1 - - [04/Mar/2026 12:47:33] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:47:53,886 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:47:54,024 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:47:54,025 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:48:02,497 - INFO - 127.0.0.1 - - [04/Mar/2026 12:48:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:48:03,600 - INFO - 127.0.0.1 - - [04/Mar/2026 12:48:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:48:03,619 - INFO - 127.0.0.1 - - [04/Mar/2026 12:48:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:48:03,785 - INFO - 127.0.0.1 - - [04/Mar/2026 12:48:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:48:32,500 - INFO - 127.0.0.1 - - [04/Mar/2026 12:48:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:48:32,505 - INFO - 127.0.0.1 - - [04/Mar/2026 12:48:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:48:32,752 - INFO - 127.0.0.1 - - [04/Mar/2026 12:48:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:49:02,195 - INFO - 127.0.0.1 - - [04/Mar/2026 12:49:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:49:03,521 - INFO - 127.0.0.1 - - [04/Mar/2026 12:49:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:49:03,750 - INFO - 127.0.0.1 - - [04/Mar/2026 12:49:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:49:04,067 - INFO - 127.0.0.1 - - [04/Mar/2026 12:49:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:49:32,186 - INFO - 127.0.0.1 - - [04/Mar/2026 12:49:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:49:32,499 - INFO - 127.0.0.1 - - [04/Mar/2026 12:49:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:49:32,504 - INFO - 127.0.0.1 - - [04/Mar/2026 12:49:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:50:02,534 - INFO - 127.0.0.1 - - [04/Mar/2026 12:50:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:50:03,635 - INFO - 127.0.0.1 - - [04/Mar/2026 12:50:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:50:03,638 - INFO - 127.0.0.1 - - [04/Mar/2026 12:50:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:50:03,650 - INFO - 127.0.0.1 - - [04/Mar/2026 12:50:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:50:24,295 - INFO - 127.0.0.1 - - [04/Mar/2026 12:50:24] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 12:50:32,495 - INFO - 127.0.0.1 - - [04/Mar/2026 12:50:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:50:32,501 - INFO - 127.0.0.1 - - [04/Mar/2026 12:50:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:50:32,747 - INFO - 127.0.0.1 - - [04/Mar/2026 12:50:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:51:02,187 - INFO - 127.0.0.1 - - [04/Mar/2026 12:51:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:51:03,552 - INFO - 127.0.0.1 - - [04/Mar/2026 12:51:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:51:03,828 - INFO - 127.0.0.1 - - [04/Mar/2026 12:51:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:51:04,149 - INFO - 127.0.0.1 - - [04/Mar/2026 12:51:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:51:32,176 - INFO - 127.0.0.1 - - [04/Mar/2026 12:51:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:51:32,488 - INFO - 127.0.0.1 - - [04/Mar/2026 12:51:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:51:32,489 - INFO - 127.0.0.1 - - [04/Mar/2026 12:51:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:52:02,546 - INFO - 127.0.0.1 - - [04/Mar/2026 12:52:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:52:03,625 - INFO - 127.0.0.1 - - [04/Mar/2026 12:52:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:52:03,751 - INFO - 127.0.0.1 - - [04/Mar/2026 12:52:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:52:03,763 - INFO - 127.0.0.1 - - [04/Mar/2026 12:52:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:52:32,492 - INFO - 127.0.0.1 - - [04/Mar/2026 12:52:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:52:32,753 - INFO - 127.0.0.1 - - [04/Mar/2026 12:52:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:52:33,538 - INFO - 127.0.0.1 - - [04/Mar/2026 12:52:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:53:02,189 - INFO - 127.0.0.1 - - [04/Mar/2026 12:53:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:53:02,421 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:53:02,564 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:53:02,564 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:53:03,558 - INFO - 127.0.0.1 - - [04/Mar/2026 12:53:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:53:03,745 - INFO - 127.0.0.1 - - [04/Mar/2026 12:53:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:53:04,072 - INFO - 127.0.0.1 - - [04/Mar/2026 12:53:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:53:32,188 - INFO - 127.0.0.1 - - [04/Mar/2026 12:53:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:53:32,504 - INFO - 127.0.0.1 - - [04/Mar/2026 12:53:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:53:32,508 - INFO - 127.0.0.1 - - [04/Mar/2026 12:53:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:54:02,545 - INFO - 127.0.0.1 - - [04/Mar/2026 12:54:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:54:04,747 - INFO - 127.0.0.1 - - [04/Mar/2026 12:54:04] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:54:04,837 - INFO - 127.0.0.1 - - [04/Mar/2026 12:54:04] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:54:04,845 - INFO - 127.0.0.1 - - [04/Mar/2026 12:54:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:54:32,487 - INFO - 127.0.0.1 - - [04/Mar/2026 12:54:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:54:32,488 - INFO - 127.0.0.1 - - [04/Mar/2026 12:54:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:54:32,754 - INFO - 127.0.0.1 - - [04/Mar/2026 12:54:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:55:02,181 - INFO - 127.0.0.1 - - [04/Mar/2026 12:55:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:55:02,491 - INFO - 127.0.0.1 - - [04/Mar/2026 12:55:02] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 12:55:03,684 - INFO - 127.0.0.1 - - [04/Mar/2026 12:55:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:55:03,690 - INFO - 127.0.0.1 - - [04/Mar/2026 12:55:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:55:04,019 - INFO - 127.0.0.1 - - [04/Mar/2026 12:55:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:55:32,184 - INFO - 127.0.0.1 - - [04/Mar/2026 12:55:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:55:32,497 - INFO - 127.0.0.1 - - [04/Mar/2026 12:55:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:55:50,538 - INFO - 127.0.0.1 - - [04/Mar/2026 12:55:50] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:56:02,563 - INFO - 127.0.0.1 - - [04/Mar/2026 12:56:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:56:05,361 - INFO - 127.0.0.1 - - [04/Mar/2026 12:56:05] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:56:05,626 - INFO - 127.0.0.1 - - [04/Mar/2026 12:56:05] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:56:05,638 - INFO - 127.0.0.1 - - [04/Mar/2026 12:56:05] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:56:32,492 - INFO - 127.0.0.1 - - [04/Mar/2026 12:56:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:56:32,500 - INFO - 127.0.0.1 - - [04/Mar/2026 12:56:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:56:32,753 - INFO - 127.0.0.1 - - [04/Mar/2026 12:56:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:57:02,180 - INFO - 127.0.0.1 - - [04/Mar/2026 12:57:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:57:03,655 - INFO - 127.0.0.1 - - [04/Mar/2026 12:57:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:57:03,657 - INFO - 127.0.0.1 - - [04/Mar/2026 12:57:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:57:03,985 - INFO - 127.0.0.1 - - [04/Mar/2026 12:57:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:57:32,178 - INFO - 127.0.0.1 - - [04/Mar/2026 12:57:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:57:32,496 - INFO - 127.0.0.1 - - [04/Mar/2026 12:57:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:57:33,437 - INFO - 127.0.0.1 - - [04/Mar/2026 12:57:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:58:02,529 - INFO - 127.0.0.1 - - [04/Mar/2026 12:58:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:58:03,550 - INFO - 127.0.0.1 - - [04/Mar/2026 12:58:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:58:03,672 - INFO - 127.0.0.1 - - [04/Mar/2026 12:58:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:58:03,685 - INFO - 127.0.0.1 - - [04/Mar/2026 12:58:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:58:11,388 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 12:58:11,525 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 12:58:11,526 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 12:58:33,665 - INFO - 127.0.0.1 - - [04/Mar/2026 12:58:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:58:33,670 - INFO - 127.0.0.1 - - [04/Mar/2026 12:58:33] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:58:33,678 - INFO - 127.0.0.1 - - [04/Mar/2026 12:58:33] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:59:02,490 - INFO - 127.0.0.1 - - [04/Mar/2026 12:59:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 12:59:02,498 - INFO - 127.0.0.1 - - [04/Mar/2026 12:59:02] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:59:02,502 - INFO - 127.0.0.1 - - [04/Mar/2026 12:59:02] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:59:02,740 - INFO - 127.0.0.1 - - [04/Mar/2026 12:59:02] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 12:59:35,415 - INFO - 127.0.0.1 - - [04/Mar/2026 12:59:35] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 12:59:36,631 - INFO - 127.0.0.1 - - [04/Mar/2026 12:59:36] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 12:59:36,960 - INFO - 127.0.0.1 - - [04/Mar/2026 12:59:36] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:00:02,184 - INFO - 127.0.0.1 - - [04/Mar/2026 13:00:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:00:22,610 - INFO - 127.0.0.1 - - [04/Mar/2026 13:00:22] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:00:28,046 - INFO - 127.0.0.1 - - [04/Mar/2026 13:00:28] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:00:28,365 - INFO - 127.0.0.1 - - [04/Mar/2026 13:00:28] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:00:52,605 - INFO - 127.0.0.1 - - [04/Mar/2026 13:00:52] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:00:52,610 - INFO - 127.0.0.1 - - [04/Mar/2026 13:00:52] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:00:52,936 - INFO - 127.0.0.1 - - [04/Mar/2026 13:00:52] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:01:02,604 - INFO - 127.0.0.1 - - [04/Mar/2026 13:01:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:01:22,594 - INFO - 127.0.0.1 - - [04/Mar/2026 13:01:22] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:01:22,608 - INFO - 127.0.0.1 - - [04/Mar/2026 13:01:22] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:01:22,924 - INFO - 127.0.0.1 - - [04/Mar/2026 13:01:22] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:01:33,776 - INFO - 127.0.0.1 - - [04/Mar/2026 13:01:33] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:01:33,814 - INFO - 127.0.0.1 - - [04/Mar/2026 13:01:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:01:34,103 - INFO - 127.0.0.1 - - [04/Mar/2026 13:01:34] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:01:43,521 - INFO - 127.0.0.1 - - [04/Mar/2026 13:01:43] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 13:02:02,522 - INFO - 127.0.0.1 - - [04/Mar/2026 13:02:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:02:03,581 - INFO - 127.0.0.1 - - [04/Mar/2026 13:02:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:02:04,820 - INFO - 127.0.0.1 - - [04/Mar/2026 13:02:04] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:02:04,828 - INFO - 127.0.0.1 - - [04/Mar/2026 13:02:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:02:32,487 - INFO - 127.0.0.1 - - [04/Mar/2026 13:02:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:02:32,491 - INFO - 127.0.0.1 - - [04/Mar/2026 13:02:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:02:32,749 - INFO - 127.0.0.1 - - [04/Mar/2026 13:02:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:03:02,182 - INFO - 127.0.0.1 - - [04/Mar/2026 13:03:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:03:03,455 - INFO - 127.0.0.1 - - [04/Mar/2026 13:03:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:03:03,470 - INFO - 127.0.0.1 - - [04/Mar/2026 13:03:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:03:03,796 - INFO - 127.0.0.1 - - [04/Mar/2026 13:03:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:03:32,181 - INFO - 127.0.0.1 - - [04/Mar/2026 13:03:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:03:32,514 - INFO - 127.0.0.1 - - [04/Mar/2026 13:03:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:03:33,301 - INFO - 127.0.0.1 - - [04/Mar/2026 13:03:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:03:59,929 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 13:04:00,067 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 13:04:00,067 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 13:04:02,489 - INFO - 127.0.0.1 - - [04/Mar/2026 13:04:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:04:03,615 - INFO - 127.0.0.1 - - [04/Mar/2026 13:04:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:04:07,134 - INFO - 127.0.0.1 - - [04/Mar/2026 13:04:07] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:04:07,144 - INFO - 127.0.0.1 - - [04/Mar/2026 13:04:07] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:04:32,501 - INFO - 127.0.0.1 - - [04/Mar/2026 13:04:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:04:32,506 - INFO - 127.0.0.1 - - [04/Mar/2026 13:04:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:04:32,737 - INFO - 127.0.0.1 - - [04/Mar/2026 13:04:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:05:02,187 - INFO - 127.0.0.1 - - [04/Mar/2026 13:05:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:05:03,722 - INFO - 127.0.0.1 - - [04/Mar/2026 13:05:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:05:03,778 - INFO - 127.0.0.1 - - [04/Mar/2026 13:05:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:05:04,094 - INFO - 127.0.0.1 - - [04/Mar/2026 13:05:04] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:05:26,307 - INFO - 127.0.0.1 - - [04/Mar/2026 13:05:26] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 13:05:32,482 - INFO - 127.0.0.1 - - [04/Mar/2026 13:05:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:05:32,485 - INFO - 127.0.0.1 - - [04/Mar/2026 13:05:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:05:32,736 - INFO - 127.0.0.1 - - [04/Mar/2026 13:05:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:06:02,183 - INFO - 127.0.0.1 - - [04/Mar/2026 13:06:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:06:03,645 - INFO - 127.0.0.1 - - [04/Mar/2026 13:06:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:06:05,248 - INFO - 127.0.0.1 - - [04/Mar/2026 13:06:05] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:06:05,573 - INFO - 127.0.0.1 - - [04/Mar/2026 13:06:05] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:06:32,184 - INFO - 127.0.0.1 - - [04/Mar/2026 13:06:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:06:32,512 - INFO - 127.0.0.1 - - [04/Mar/2026 13:06:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:06:33,515 - INFO - 127.0.0.1 - - [04/Mar/2026 13:06:33] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:07:02,537 - INFO - 127.0.0.1 - - [04/Mar/2026 13:07:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:07:05,187 - INFO - 127.0.0.1 - - [04/Mar/2026 13:07:05] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:07:05,200 - INFO - 127.0.0.1 - - [04/Mar/2026 13:07:05] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:07:05,264 - INFO - 127.0.0.1 - - [04/Mar/2026 13:07:05] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:07:32,487 - INFO - 127.0.0.1 - - [04/Mar/2026 13:07:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:07:32,490 - INFO - 127.0.0.1 - - [04/Mar/2026 13:07:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:07:32,752 - INFO - 127.0.0.1 - - [04/Mar/2026 13:07:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:08:02,183 - INFO - 127.0.0.1 - - [04/Mar/2026 13:08:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:08:04,503 - INFO - 127.0.0.1 - - [04/Mar/2026 13:08:04] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:08:05,169 - INFO - 127.0.0.1 - - [04/Mar/2026 13:08:05] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:08:05,488 - INFO - 127.0.0.1 - - [04/Mar/2026 13:08:05] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:08:32,175 - INFO - 127.0.0.1 - - [04/Mar/2026 13:08:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:08:32,487 - INFO - 127.0.0.1 - - [04/Mar/2026 13:08:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:08:32,492 - INFO - 127.0.0.1 - - [04/Mar/2026 13:08:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:09:02,549 - INFO - 127.0.0.1 - - [04/Mar/2026 13:09:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:09:11,190 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 13:09:11,315 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 13:09:11,315 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 13:09:24,447 - INFO - 127.0.0.1 - - [04/Mar/2026 13:09:24] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:09:24,474 - INFO - 127.0.0.1 - - [04/Mar/2026 13:09:24] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:09:24,769 - INFO - 127.0.0.1 - - [04/Mar/2026 13:09:24] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:09:35,199 - INFO - 127.0.0.1 - - [04/Mar/2026 13:09:35] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:09:37,081 - INFO - 127.0.0.1 - - [04/Mar/2026 13:09:37] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:09:37,093 - INFO - 127.0.0.1 - - [04/Mar/2026 13:09:37] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:10:02,505 - INFO - 127.0.0.1 - - [04/Mar/2026 13:10:02] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:10:02,515 - INFO - 127.0.0.1 - - [04/Mar/2026 13:10:02] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:10:02,526 - INFO - 127.0.0.1 - - [04/Mar/2026 13:10:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:10:02,743 - INFO - 127.0.0.1 - - [04/Mar/2026 13:10:02] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:10:51,909 - INFO - 127.0.0.1 - - [04/Mar/2026 13:10:51] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:10:52,230 - INFO - 127.0.0.1 - - [04/Mar/2026 13:10:52] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:10:52,553 - INFO - 127.0.0.1 - - [04/Mar/2026 13:10:52] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:11:02,530 - INFO - 127.0.0.1 - - [04/Mar/2026 13:11:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:11:22,617 - INFO - 127.0.0.1 - - [04/Mar/2026 13:11:22] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:11:22,619 - INFO - 127.0.0.1 - - [04/Mar/2026 13:11:22] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:11:22,942 - INFO - 127.0.0.1 - - [04/Mar/2026 13:11:22] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:11:52,591 - INFO - 127.0.0.1 - - [04/Mar/2026 13:11:52] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:11:52,604 - INFO - 127.0.0.1 - - [04/Mar/2026 13:11:52] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:11:52,936 - INFO - 127.0.0.1 - - [04/Mar/2026 13:11:52] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:11:53,100 - INFO - 127.0.0.1 - - [04/Mar/2026 13:11:53] "GET /api/social-feed HTTP/1.1" 200 -
+2026-03-04 13:12:02,522 - INFO - 127.0.0.1 - - [04/Mar/2026 13:12:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:12:03,281 - INFO - 127.0.0.1 - - [04/Mar/2026 13:12:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:12:03,291 - INFO - 127.0.0.1 - - [04/Mar/2026 13:12:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:12:03,345 - INFO - 127.0.0.1 - - [04/Mar/2026 13:12:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:12:32,491 - INFO - 127.0.0.1 - - [04/Mar/2026 13:12:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:12:32,496 - INFO - 127.0.0.1 - - [04/Mar/2026 13:12:32] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:12:32,744 - INFO - 127.0.0.1 - - [04/Mar/2026 13:12:32] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:13:02,178 - INFO - 127.0.0.1 - - [04/Mar/2026 13:13:02] "GET /api/ml-learning HTTP/1.1" 200 -
+2026-03-04 13:13:03,288 - INFO - 127.0.0.1 - - [04/Mar/2026 13:13:03] "GET /api/cycle-log HTTP/1.1" 200 -
+2026-03-04 13:13:03,361 - INFO - 127.0.0.1 - - [04/Mar/2026 13:13:03] "GET /api/state HTTP/1.1" 200 -
+2026-03-04 13:13:03,689 - INFO - 127.0.0.1 - - [04/Mar/2026 13:13:03] "GET /api/overlay-status HTTP/1.1" 200 -
+2026-03-04 13:14:56,857 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 13:14:56,960 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 13:14:56,960 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 13:20:40,142 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 13:20:40,260 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 13:20:40,260 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:08:27,994 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:08:28,114 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:08:28,114 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:13:44,175 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:13:44,293 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:13:44,293 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:19:27,644 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:19:27,750 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:19:27,750 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:25:04,021 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:25:04,127 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:25:04,128 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:30:11,243 - INFO - [PRE-CLOSE] Computing entry signal at 15:30:11 ET
+2026-03-04 15:30:11,278 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:30:11,280 - INFO - [PRE-CLOSE] Entry signal complete
+2026-03-04 15:30:11,287 - INFO - STATUS: $100,895 | DD:-1.5% | score=0.63 | Lev:1.00x | Pos:3/4 | [MRK(0.1%|stop=-6%), JNJ(-0.7%|stop=-6%), AMAT(1.7%|stop=-9%)]
+2026-03-04 15:30:11,301 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:30:11,390 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:30:11,390 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:30:11,485 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:30:11,485 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:35:18,290 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:35:18,388 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:35:18,388 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:41:13,270 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:41:13,377 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:41:13,377 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:46:29,633 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:46:29,743 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:46:29,743 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:51:37,510 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:51:37,628 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:51:37,629 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-04 15:57:11,078 - INFO - State saved: state/compass_state_20260304.json
+2026-03-04 15:57:11,183 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-04 15:57:11,183 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 09:30:54,199 - INFO - 
+============================================================
+2026-03-05 09:30:54,201 - INFO - TRADING DAY 11 | 2026-03-05
+2026-03-05 09:30:54,201 - INFO - ============================================================
+2026-03-05 09:30:54,202 - INFO - Refreshing daily historical data...
+2026-03-05 09:30:55,011 - INFO - SPY data: 502 days
+2026-03-05 09:31:18,278 - INFO - Historical data refreshed: 40 stocks
+2026-03-05 09:32:45,820 - WARNING - FRED download failed for BAMLH0A0HYM2: HTTP Error 504: Gateway Time-out
+2026-03-05 09:33:14,531 - INFO - FRED overlay data refreshed
+2026-03-05 09:33:15,720 - INFO - Portfolio: $99,508 | DD: -2.9% | Regime: score=0.60 | Leverage: 1.00x | Positions: 3/5
+2026-03-05 09:33:17,263 - INFO - STATUS: $99,508 | DD:-2.9% | score=0.60 | Lev:1.00x | Pos:3/5 | [MRK(-2.1%|stop=-6%), JNJ(-2.4%|stop=-6%), AMAT(-0.4%|stop=-9%)]
+2026-03-05 09:33:17,279 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 09:33:17,427 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 09:33:17,428 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 09:38:23,490 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 09:38:23,620 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 09:38:23,620 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 09:43:31,160 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 09:43:31,262 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 09:43:31,262 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 09:48:38,398 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 09:48:38,505 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 09:48:38,506 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 09:53:45,499 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 09:53:45,589 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 09:53:45,589 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 09:59:34,034 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 09:59:34,145 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 09:59:34,146 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:04:40,957 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:04:41,076 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:04:41,076 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:09:47,906 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:09:48,000 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:09:48,001 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:15:35,747 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:15:35,841 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:15:35,842 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:20:42,986 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:20:43,105 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:20:43,105 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:25:50,857 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:25:50,967 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:25:50,967 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:30:57,298 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:30:57,410 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:30:57,410 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:36:04,239 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:36:04,348 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:36:04,348 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:41:59,035 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:41:59,140 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:41:59,140 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:47:05,569 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:47:05,677 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:47:05,677 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:52:12,688 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:52:12,791 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:52:12,791 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 10:57:59,856 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 10:57:59,953 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 10:57:59,954 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:03:06,586 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:03:06,679 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:03:06,679 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:08:15,406 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:08:15,504 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:08:15,504 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:13:33,329 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:13:33,434 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:13:33,434 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:19:20,900 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:19:21,010 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:19:21,010 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:24:28,577 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:24:28,690 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:24:28,691 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:29:43,844 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:29:43,959 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:29:43,959 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:34:50,669 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:34:50,778 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:34:50,779 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:39:57,354 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:39:57,464 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:39:57,464 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:45:23,766 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:45:23,875 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:45:23,875 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:50:30,616 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:50:30,722 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:50:30,723 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 11:55:37,343 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 11:55:37,483 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 11:55:37,483 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:00:44,365 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:00:44,469 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:00:44,469 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:05:51,254 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:05:51,358 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:05:51,358 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:10:57,769 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:10:57,874 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:10:57,874 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:16:04,375 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:16:04,492 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:16:04,492 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:21:10,790 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:21:10,901 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:21:10,901 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:26:17,549 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:26:17,660 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:26:17,661 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:31:23,951 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:31:24,054 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:31:24,055 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:36:29,782 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:36:29,895 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:36:29,895 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:41:36,746 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:41:36,857 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:41:36,857 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:46:43,652 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:46:43,762 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:46:43,763 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:52:17,539 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:52:17,653 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:52:17,653 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 12:57:33,315 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 12:57:33,429 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 12:57:33,430 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:02:48,776 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:02:48,890 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:02:48,891 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:07:55,983 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:07:56,087 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:07:56,088 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:13:02,561 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:13:02,669 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:13:02,669 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:18:10,444 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:18:10,551 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:18:10,551 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:23:17,504 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:23:17,616 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:23:17,617 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:28:24,417 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:28:24,515 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:28:24,515 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:33:30,950 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:33:31,063 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:33:31,063 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:38:37,988 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:38:38,096 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:38:38,096 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:43:44,527 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:43:44,638 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:43:44,639 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:48:51,362 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:48:51,471 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:48:51,472 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:53:58,378 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:53:58,488 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:53:58,489 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 13:59:05,205 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 13:59:05,309 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 13:59:05,309 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:04:12,088 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:04:12,205 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:04:12,206 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:09:19,122 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:09:19,230 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:09:19,230 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:14:25,793 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:14:25,893 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:14:25,894 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:19:32,160 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:19:32,278 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:19:32,278 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:24:39,060 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:24:39,168 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:24:39,168 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:29:46,770 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:29:46,881 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:29:46,881 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:34:53,874 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:34:53,976 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:34:53,977 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:40:01,225 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:40:01,328 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:40:01,328 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:45:10,932 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:45:11,043 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:45:11,044 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:50:18,325 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:50:18,473 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:50:18,473 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 14:55:25,256 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 14:55:25,371 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 14:55:25,372 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:00:32,653 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:00:32,775 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:00:32,775 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:05:40,744 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:05:40,866 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:05:40,866 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:10:48,225 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:10:48,328 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:10:48,329 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:15:59,150 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:15:59,254 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:15:59,255 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:21:09,152 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:21:09,256 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:21:09,256 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:26:16,033 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:26:16,135 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:26:16,136 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:30:23,022 - INFO - [PRE-CLOSE] Computing entry signal at 15:30:23 ET
+2026-03-05 15:30:24,356 - INFO - 
+2026-03-05 15:30:24,363 - INFO - ENTRY LRCX: 43.0 shares @ $213.28 ($9,170 | wt=32.3% | lev=1.00x | stop=-7.8%)
+2026-03-05 15:30:24,390 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:30:24,516 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:30:24,517 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:30:25,394 - INFO - 
+2026-03-05 15:30:25,399 - INFO - ENTRY GOOGL: 27.0 shares @ $300.30 ($8,101 | wt=67.7% | lev=1.00x | stop=-6.0%)
+2026-03-05 15:30:25,428 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:30:25,447 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:30:25,449 - INFO - [PRE-CLOSE] Entry signal complete
+2026-03-05 15:30:25,453 - INFO - STATUS: $98,380 | DD:-4.0% | score=0.60 | Lev:1.00x | Pos:5/5 | [MRK(-3.8%|stop=-6%), JNJ(-3.5%|stop=-6%), AMAT(-2.6%|stop=-9%), LRCX(-0.0%|stop=-8%), GOOGL(-0.1%|stop=-6%)]
+2026-03-05 15:30:25,550 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:30:25,550 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:30:25,672 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:30:25,672 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:31:27,043 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:31:27,143 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:31:27,143 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:36:35,373 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:36:35,480 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:36:35,481 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:41:43,849 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:41:43,949 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:41:43,949 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:46:54,696 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:46:54,820 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:46:54,820 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:52:03,497 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:52:03,597 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:52:03,597 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 15:57:10,689 - INFO - State saved: state/compass_state_20260305.json
+2026-03-05 15:57:10,811 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-05 15:57:10,812 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-05 19:18:22,852 - INFO - 127.0.0.1 - - [05/Mar/2026 19:18:22] "GET /api/state HTTP/1.1" 200 -
+2026-03-05 19:18:51,106 - INFO - 127.0.0.1 - - [05/Mar/2026 19:18:51] "GET / HTTP/1.1" 200 -
+2026-03-06 09:33:04,645 - INFO - 
+============================================================
+2026-03-06 09:33:04,651 - INFO - TRADING DAY 12 | 2026-03-06
+2026-03-06 09:33:04,651 - INFO - ============================================================
+2026-03-06 09:33:04,652 - INFO - Refreshing daily historical data...
+2026-03-06 09:33:05,648 - INFO - SPY data: 502 days
+2026-03-06 09:33:28,120 - INFO - Historical data refreshed: 40 stocks
+2026-03-06 09:33:39,916 - INFO - FRED overlay data refreshed
+2026-03-06 09:33:39,932 - INFO - Portfolio: $97,090 | DD: -5.2% | Regime: score=0.58 | Leverage: 1.00x | Positions: 5/4
+2026-03-06 09:33:42,326 - INFO - Orden ejecutada: SELL 38 AMAT @ $332.87 | P&L: $-730.64
+2026-03-06 09:33:42,353 - INFO - EXIT [regime_reduce] AMAT @ $332.87 | PnL: $-0 (+0.0%)
+2026-03-06 09:33:42,379 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 09:33:42,412 - INFO - STATUS: $97,085 | DD:-5.2% | score=0.58 | Lev:1.00x | Pos:4/4 | [MRK(-5.2%|stop=-6%), JNJ(-4.2%|stop=-6%), LRCX(-2.6%|stop=-8%), GOOGL(-0.9%|stop=-6%)]
+2026-03-06 09:33:42,437 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 09:33:42,552 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 09:33:42,553 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 09:33:42,651 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 09:33:42,651 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan

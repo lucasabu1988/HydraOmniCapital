@@ -1,0 +1,38 @@
+2026-03-03 16:06:37 [INFO] ============================================================
+2026-03-03 16:06:37 [INFO] COMPASS Watchdog starting
+2026-03-03 16:06:37 [INFO] Project: C:\Users\caslu\Desktop\NuevoProyecto
+2026-03-03 16:06:37 [INFO] Python:  C:\Users\caslu\AppData\Local\Python\pythoncore-3.14-64\python.exe
+2026-03-03 16:06:37 [INFO] PID:     24100
+2026-03-03 16:06:37 [INFO] ============================================================
+2026-03-03 16:06:37 [INFO] No dashboard process — starting
+2026-03-03 16:06:37 [INFO] Starting compass_dashboard.py from C:\Users\caslu\Desktop\NuevoProyecto
+2026-03-03 16:06:37 [INFO] Dashboard started (PID 33132)
+2026-03-03 16:06:37 [INFO] Waiting for engine to initialize...
+2026-03-03 16:07:09 [INFO] Engine is healthy after restart
+2026-03-03 16:07:42 [INFO] ============================================================
+2026-03-03 16:07:42 [INFO] COMPASS Watchdog starting
+2026-03-03 16:07:42 [INFO] Project: C:\Users\caslu\Desktop\NuevoProyecto
+2026-03-03 16:07:42 [INFO] Python:  C:\Users\caslu\AppData\Local\Python\pythoncore-3.14-64\python.exe
+2026-03-03 16:07:42 [INFO] PID:     30580
+2026-03-03 16:07:42 [INFO] ============================================================
+2026-03-03 16:07:42 [INFO] Dashboard already running (PID 12304), adopting it
+2026-03-03 16:07:45 [INFO] Engine is healthy — monitoring existing process
+2026-03-03 16:20:24 [WARNING] Engine not responding (PID 33132). Killing and restarting.
+2026-03-03 16:20:41 [INFO] ============================================================
+2026-03-03 16:20:41 [INFO] COMPASS Watchdog starting
+2026-03-03 16:20:41 [INFO] Project: C:\Users\caslu\Desktop\NuevoProyecto
+2026-03-03 16:20:41 [INFO] Python:  C:\Users\caslu\AppData\Local\Python\pythoncore-3.14-64\python.exe
+2026-03-03 16:20:41 [INFO] PID:     28092
+2026-03-03 16:20:41 [INFO] ============================================================
+2026-03-03 16:20:41 [INFO] No dashboard process — starting
+2026-03-03 16:20:41 [INFO] Starting compass_dashboard.py from C:\Users\caslu\Desktop\NuevoProyecto
+2026-03-03 16:20:41 [INFO] Dashboard started (PID 8280)
+2026-03-03 16:20:41 [INFO] Waiting for engine to initialize...
+2026-03-03 16:21:13 [INFO] Engine is healthy after restart
+2026-03-03 16:50:22 [WARNING] Dashboard process died (exit code 1)
+2026-03-03 16:50:24 [INFO] Found healthy existing dashboard (PID 28028), adopting
+2026-03-03 19:04:04 [WARNING] Engine not responding (PID 6216). Killing and restarting.
+2026-03-03 19:04:13 [INFO] Starting compass_dashboard.py from C:\Users\caslu\Desktop\NuevoProyecto
+2026-03-03 19:04:13 [INFO] Dashboard started (PID 16768)
+2026-03-03 19:04:13 [INFO] Waiting for engine to initialize...
+2026-03-03 19:04:45 [INFO] Engine is healthy after restart
