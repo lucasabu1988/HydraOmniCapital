@@ -146,7 +146,7 @@ def _preload_data():
 _preload_data()
 
 # ============================================================================
-# PRICE CACHE (live prices via yfinance)
+# PRICE CACHE (TradingView primary, yfinance fallback)
 # ============================================================================
 
 _price_cache: Dict[str, float] = {}
@@ -154,9 +154,77 @@ _prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
 _price_cache_lock = threading.Lock()
 
+# TradingView symbol mapping: yfinance symbol -> TradingView ticker
+_TV_SYMBOL_MAP = {
+    'SPY': 'AMEX:SPY',
+    'ES=F': 'CME_MINI:ES1!',
+    '^VIX': 'CBOE:VIX',
+    '^TNX': 'TVC:US10Y',
+    'NQ=F': 'CME_MINI:NQ1!',
+    'DX=F': 'TVC:DXY',
+}
+
+
+def _fetch_tradingview_prices(symbols: List[str]) -> Dict[str, dict]:
+    """Fetch live prices from TradingView scanner API.
+    Returns {symbol: {'price': float, 'prev_close': float}} or empty dict."""
+    if not _HAS_REQUESTS:
+        return {}
+    results = {}
+    # Build TradingView tickers list
+    tv_tickers = []
+    tv_to_local = {}
+    for sym in symbols:
+        tv = _TV_SYMBOL_MAP.get(sym)
+        if not tv:
+            # For stocks, use NASDAQ: or NYSE: prefix
+            tv = f'NASDAQ:{sym}'
+            tv_to_local[tv] = sym
+            # Also try NYSE
+            tv_alt = f'NYSE:{sym}'
+            tv_to_local[tv_alt] = sym
+            tv_tickers.extend([tv, tv_alt])
+        else:
+            tv_to_local[tv] = sym
+            tv_tickers.append(tv)
+    if not tv_tickers:
+        return results
+    try:
+        payload = {
+            'symbols': {'tickers': tv_tickers},
+            'columns': ['close', 'open', 'prev_close_price', 'change'],
+        }
+        r = http_requests.post(
+            'https://scanner.tradingview.com/america/scan',
+            json=payload,
+            headers={'User-Agent': 'COMPASS-Dashboard/1.0'},
+            timeout=10,
+        )
+        if r.status_code == 200:
+            data = r.json()
+            seen = set()
+            for item in data.get('data', []):
+                tv_sym = item.get('s', '')
+                local_sym = tv_to_local.get(tv_sym)
+                if not local_sym or local_sym in seen:
+                    continue
+                vals = item.get('d', [])
+                if len(vals) >= 3:
+                    close_price = vals[0]
+                    prev_close = vals[2]
+                    if close_price and close_price > 0:
+                        result = {'price': float(close_price)}
+                        if prev_close and prev_close > 0:
+                            result['prev_close'] = float(prev_close)
+                        results[local_sym] = result
+                        seen.add(local_sym)
+    except Exception:
+        pass
+    return results
+
 
 def _fetch_single_price(symbol: str) -> tuple:
-    """Fetch a single price + previous close (for use in ThreadPoolExecutor).
+    """Fetch a single price + previous close via yfinance (fallback).
     Returns (symbol, {'price': float, 'prev_close': float}) or (symbol, None)."""
     if not _HAS_YFINANCE:
         return (symbol, None)
@@ -187,12 +255,12 @@ def _fetch_single_price(symbol: str) -> tuple:
 
 
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
-    """Fetch current prices via yfinance with 30-second cache.
+    """Fetch current prices: TradingView first, yfinance fallback.
     Returns {symbol: price_float} for backward compatibility.
     Previous close data stored in _prev_close_cache."""
     global _price_cache, _prev_close_cache, _price_cache_time
 
-    if not _HAS_YFINANCE or not symbols:
+    if not symbols:
         return {}
 
     with _price_cache_lock:
@@ -207,17 +275,27 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
             _prev_close_cache = {}
 
     if missing:
-        with ThreadPoolExecutor(max_workers=min(10, len(missing))) as executor:
-            futures = {executor.submit(_fetch_single_price, sym): sym for sym in missing}
-            for future in as_completed(futures):
-                try:
-                    sym, result = future.result(timeout=30)
-                    if result is not None:
-                        _price_cache[sym] = result['price']
-                        if 'prev_close' in result:
-                            _prev_close_cache[sym] = result['prev_close']
-                except Exception:
-                    pass
+        # 1. Try TradingView first (batch request, fast)
+        tv_results = _fetch_tradingview_prices(missing)
+        for sym, result in tv_results.items():
+            _price_cache[sym] = result['price']
+            if 'prev_close' in result:
+                _prev_close_cache[sym] = result['prev_close']
+
+        # 2. Fallback to yfinance for any symbols TradingView missed
+        still_missing = [s for s in missing if s not in _price_cache]
+        if still_missing and _HAS_YFINANCE:
+            with ThreadPoolExecutor(max_workers=min(10, len(still_missing))) as executor:
+                futures = {executor.submit(_fetch_single_price, sym): sym for sym in still_missing}
+                for future in as_completed(futures):
+                    try:
+                        sym, result = future.result(timeout=30)
+                        if result is not None:
+                            _price_cache[sym] = result['price']
+                            if 'prev_close' in result:
+                                _prev_close_cache[sym] = result['prev_close']
+                    except Exception:
+                        pass
 
     with _price_cache_lock:
         _price_cache_time = now
