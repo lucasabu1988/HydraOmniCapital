@@ -145,7 +145,7 @@ def _preload_data():
 _preload_data()
 
 # ============================================================================
-# PRICE CACHE (all live prices from TradingView)
+# PRICE CACHE (all live prices from Yahoo Finance v8 API)
 # ============================================================================
 
 _price_cache: Dict[str, float] = {}
@@ -153,109 +153,53 @@ _prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
 _price_cache_lock = threading.Lock()
 
-# TradingView symbol mapping: local symbol -> (endpoint, tv_ticker)
-# Endpoints: 'america' for stocks/ETFs, 'global' for indices, 'futures' for futures
-_TV_SYMBOL_MAP = {
-    'SPY': ('america', 'AMEX:SPY'),
-    'ES=F': ('futures', 'CME_MINI:ES1!'),
-    '^VIX': ('global', 'CBOE:VIX'),
-    '^TNX': ('global', 'TVC:US10Y'),
-    'NQ=F': ('futures', 'CME_MINI:NQ1!'),
-    'DX=F': ('global', 'TVC:DXY'),
-    '^GSPC': ('global', 'SP:SPX'),
-    'GLD': ('america', 'AMEX:GLD'),
-    'TLT': ('america', 'NASDAQ:TLT'),
-    'QQQ': ('america', 'NASDAQ:QQQ'),
-    'IWM': ('america', 'AMEX:IWM'),
-    'EFA': ('america', 'AMEX:EFA'),
-    'EEM': ('america', 'AMEX:EEM'),
-    'XLF': ('america', 'AMEX:XLF'),
-    'XLE': ('america', 'AMEX:XLE'),
-    'XLK': ('america', 'AMEX:XLK'),
-    'XLV': ('america', 'AMEX:XLV'),
-    'XLI': ('america', 'AMEX:XLI'),
-    'XLP': ('america', 'AMEX:XLP'),
-    'XLU': ('america', 'AMEX:XLU'),
-    'XLY': ('america', 'AMEX:XLY'),
-    'XLB': ('america', 'AMEX:XLB'),
-    'XLRE': ('america', 'AMEX:XLRE'),
-    'XLC': ('america', 'AMEX:XLC'),
-    'HYG': ('america', 'AMEX:HYG'),
-    'LQD': ('america', 'AMEX:LQD'),
+_YF_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 }
 
 
-def _tv_scan(endpoint: str, tickers: List[str], tv_to_local: Dict[str, str]) -> Dict[str, dict]:
-    """Execute a single TradingView scanner request."""
-    if not tickers:
-        return {}
-    results = {}
+def _yf_fetch_quote(symbol: str) -> Optional[dict]:
+    """Fetch a single symbol from Yahoo Finance v8 chart API.
+    Returns {'price': float, 'prev_close': float} or None."""
     try:
-        payload = {
-            'symbols': {'tickers': tickers},
-            'columns': ['close', 'change'],
-        }
-        r = http_requests.post(
-            f'https://scanner.tradingview.com/{endpoint}/scan',
-            json=payload,
-            headers={'User-Agent': 'COMPASS-Dashboard/1.0'},
-            timeout=10,
-        )
-        if r.status_code == 200:
-            for item in r.json().get('data', []):
-                tv_sym = item.get('s', '')
-                local_sym = tv_to_local.get(tv_sym)
-                if not local_sym or local_sym in results:
-                    continue
-                vals = item.get('d', [])
-                if len(vals) >= 2 and vals[0] and vals[0] > 0:
-                    close = float(vals[0])
-                    chg_pct = vals[1]  # daily % change
-                    result = {'price': close}
-                    # Derive real previous daily close from change %
-                    if chg_pct is not None and chg_pct != 0:
-                        result['prev_close'] = round(close / (1 + chg_pct / 100), 4)
-                    results[local_sym] = result
-        else:
-            logger.warning(f'TradingView {endpoint} returned {r.status_code}: {r.text[:200]}')
+        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
+        params = {'range': '1d', 'interval': '1d'}
+        r = http_requests.get(url, params=params, headers=_YF_HEADERS, timeout=10)
+        if r.status_code != 200:
+            logger.warning(f'Yahoo Finance {symbol} returned {r.status_code}')
+            return None
+        data = r.json()
+        result_data = data.get('chart', {}).get('result', [])
+        if not result_data:
+            return None
+        meta = result_data[0].get('meta', {})
+        price = meta.get('regularMarketPrice')
+        prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
+        if price and price > 0:
+            out = {'price': float(price)}
+            if prev_close and prev_close > 0:
+                out['prev_close'] = float(prev_close)
+            return out
     except Exception as e:
-        logger.warning(f'TradingView {endpoint} fetch failed: {e}')
-    return results
+        logger.warning(f'Yahoo Finance {symbol} fetch failed: {e}')
+    return None
 
 
-def _fetch_tradingview_prices(symbols: List[str]) -> Dict[str, dict]:
-    """Fetch live prices from TradingView (batched by endpoint).
+def _fetch_yahoo_prices(symbols: List[str]) -> Dict[str, dict]:
+    """Fetch live prices from Yahoo Finance v8 API.
     Returns {symbol: {'price': float, 'prev_close': float}}."""
     if not _HAS_REQUESTS:
         return {}
-
-    # Group symbols by TradingView endpoint
-    endpoint_groups: Dict[str, List[str]] = {}  # endpoint -> [tv_tickers]
-    tv_to_local: Dict[str, str] = {}  # tv_ticker -> local_symbol
-
-    for sym in symbols:
-        mapped = _TV_SYMBOL_MAP.get(sym)
-        if mapped:
-            endpoint, tv_ticker = mapped
-            tv_to_local[tv_ticker] = sym
-            endpoint_groups.setdefault(endpoint, []).append(tv_ticker)
-        else:
-            # S&P 500 stocks: try NYSE, NASDAQ, AMEX on 'america' endpoint
-            for exchange in ('NYSE', 'NASDAQ', 'AMEX'):
-                key = f'{exchange}:{sym}'
-                tv_to_local[key] = sym
-                endpoint_groups.setdefault('america', []).append(key)
-
-    # Fetch from each endpoint
     results = {}
-    for endpoint, tickers in endpoint_groups.items():
-        batch = _tv_scan(endpoint, tickers, tv_to_local)
-        results.update(batch)
+    for sym in symbols:
+        quote = _yf_fetch_quote(sym)
+        if quote:
+            results[sym] = quote
     return results
 
 
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
-    """Fetch all live prices from TradingView.
+    """Fetch all live prices from Yahoo Finance.
     Returns {symbol: price_float}. Previous closes in _prev_close_cache."""
     global _price_cache, _prev_close_cache, _price_cache_time
 
@@ -274,8 +218,8 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
             _prev_close_cache = {}
 
     if missing:
-        tv_results = _fetch_tradingview_prices(missing)
-        for sym, result in tv_results.items():
+        yf_results = _fetch_yahoo_prices(missing)
+        for sym, result in yf_results.items():
             _price_cache[sym] = result['price']
             if 'prev_close' in result:
                 _prev_close_cache[sym] = result['prev_close']
