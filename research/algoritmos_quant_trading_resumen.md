@@ -349,7 +349,7 @@ def enhanced_value_score(data):
 ### 3.1 Random Forest para Clasificación de Señales
 
 **Descripción:**
-Ensemble de árboles de decisión que clasifica la dirección del precio o genera señales de trading basadas en features técnicos/fundamentales.
+Ensemble de árboles de decisión que clasifica la dirección del precio o genera señales de trading basadas en features técnicos y fundamentales.
 
 **Features Típicos:**
 ```python
@@ -443,7 +443,7 @@ def walk_forward_rf(prices, features, train_size=252, step=21):
 ### 3.2 XGBoost / LightGBM
 
 **Descripción:**
-Gradient boosting optimizado para velocidad y performance. Excelente para capturar relaciones no lineales en datos financieros.
+Gradient boosting optimizado para velocidad y rendimiento. Excelente para capturar relaciones no lineales en datos financieros.
 
 **Ventajas sobre Random Forest:**
 - Mayor velocidad de entrenamiento
@@ -545,7 +545,7 @@ def train_lgb_classifier(X_train, y_train, X_val, y_val):
 ### 3.3 Redes LSTM para Series Temporales
 
 **Descripción:**
-Long Short-Term Memory networks capturan dependencias temporales largas en series de precios. Útiles para predicción de retornos o volatilidad.
+Long Short-Term Memory networks capturan dependencias temporales largas en series de precios. Útiles para la predicción de retornos o volatilidad.
 
 **Arquitectura Típica:**
 ```
@@ -665,7 +665,7 @@ def train_lstm_trading_model(prices, features, sequence_length=60):
 ### 3.4 Reinforcement Learning (Q-Learning, PPO)
 
 **Descripción:**
-El agente aprende una política óptima de trading interactuando con el mercado, maximizando recompensas acumuladas.
+El agente aprende una política óptima de trading interactuando con el mercado, maximizando las recompensas acumuladas.
 
 **Componentes del Environment:**
 ```python
