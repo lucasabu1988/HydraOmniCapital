@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306i">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306j">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -592,7 +592,37 @@
 <!-- Hidden legacy table for data compatibility -->
 <table id="positions-table" style="display:none;"><tbody id="positions-body"></tbody></table>
 
-
+<!-- P2P SCATTERPLOT — Position Comparison -->
+<div class="card full-width anim-enter anim-d5" id="p2p-scatter-card" style="display:none;">
+    <div class="card-header">
+        <span class="card-title">Peer-to-Peer &mdash; Comparaci&oacute;n de Posiciones</span>
+        <span class="card-badge" id="p2p-badge" style="color:var(--accent); background:var(--accent-glow);">0 posiciones</span>
+    </div>
+    <div class="card-body">
+        <div class="p2p-legend" id="p2p-legend"></div>
+        <div class="p2p-chart-wrap">
+            <canvas id="p2pScatterChart"></canvas>
+        </div>
+        <div class="p2p-stat-bar" id="p2p-stat-bar">
+            <div class="p2p-stat">
+                <span class="p2p-stat-label">Mejor Posici&oacute;n</span>
+                <span class="p2p-stat-value" id="p2p-best">--</span>
+            </div>
+            <div class="p2p-stat">
+                <span class="p2p-stat-label">Peor Posici&oacute;n</span>
+                <span class="p2p-stat-value" id="p2p-worst">--</span>
+            </div>
+            <div class="p2p-stat">
+                <span class="p2p-stat-label">Retorno Promedio</span>
+                <span class="p2p-stat-value" id="p2p-avg">--</span>
+            </div>
+            <div class="p2p-stat">
+                <span class="p2p-stat-label">Valor Total</span>
+                <span class="p2p-stat-value" id="p2p-total">--</span>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- ANNUAL RETURNS BAR CHART -->
 <div class="card full-width" id="annual-returns-card">
@@ -2013,7 +2043,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260306i"></script>
+<script src="/static/js/dashboard.js?v=20260306j"></script>
 
 </body>
 </html>

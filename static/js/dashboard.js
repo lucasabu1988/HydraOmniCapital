@@ -1284,6 +1284,7 @@ async function fetchAll() {
             updatePerfBanner(p);
             updatePreclose(stateData.preclose);
             updatePositions(stateData.position_details);
+            renderP2PScatter(stateData.position_details);
             if (stateData.hydra) updateHydra(stateData.hydra);
             if (stateData.prices) updateSpyTracker(stateData.prices, stateData.prev_closes);
             const posDict = {};
@@ -1737,6 +1738,269 @@ function renderEquityAndDrawdown(equity, milestones) {
 /* ============ ANNUAL RETURNS BAR CHART ============ */
 let _annualChart = null;
 let _annualData = null;
+
+/* ============ P2P SCATTERPLOT ============ */
+let _p2pChart = null;
+
+const P2P_SECTOR_COLORS = {
+    'Technology':         { bg: 'rgba(99,102,241,0.85)',  border: '#6366f1', glow: 'rgba(99,102,241,0.4)' },
+    'Healthcare':         { bg: 'rgba(16,185,129,0.85)',  border: '#10b981', glow: 'rgba(16,185,129,0.4)' },
+    'Semiconductors':     { bg: 'rgba(139,92,246,0.85)',  border: '#8b5cf6', glow: 'rgba(139,92,246,0.4)' },
+    'Financial Services': { bg: 'rgba(59,130,246,0.85)',  border: '#3b82f6', glow: 'rgba(59,130,246,0.4)' },
+    'Banking':            { bg: 'rgba(14,165,233,0.85)',  border: '#0ea5e9', glow: 'rgba(14,165,233,0.4)' },
+    'Energy':             { bg: 'rgba(234,88,12,0.85)',   border: '#ea580c', glow: 'rgba(234,88,12,0.4)' },
+    'Retail':             { bg: 'rgba(236,72,153,0.85)',  border: '#ec4899', glow: 'rgba(236,72,153,0.4)' },
+    'Software':           { bg: 'rgba(168,85,247,0.85)',  border: '#a855f7', glow: 'rgba(168,85,247,0.4)' },
+    'default':            { bg: 'rgba(148,163,184,0.85)', border: '#94a3b8', glow: 'rgba(148,163,184,0.4)' }
+};
+
+function getSectorColor(sector) {
+    if (!sector) return P2P_SECTOR_COLORS['default'];
+    for (var key in P2P_SECTOR_COLORS) {
+        if (sector.toLowerCase().indexOf(key.toLowerCase()) !== -1) return P2P_SECTOR_COLORS[key];
+    }
+    return P2P_SECTOR_COLORS['default'];
+}
+
+function renderP2PScatter(positions) {
+    var card = document.getElementById('p2p-scatter-card');
+    if (!positions || positions.length === 0) {
+        card.style.display = 'none';
+        return;
+    }
+    card.style.display = '';
+
+    var isDark = document.body.classList.contains('dark');
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    var zeroLineColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+    var labelColor = isDark ? '#a0a0b8' : '#555570';
+    var tooltipBg = isDark ? 'rgba(22,22,50,0.95)' : 'rgba(255,255,255,0.97)';
+    var tooltipText = isDark ? '#e4e4f0' : '#1a1a2e';
+    var tooltipBorder = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
+
+    // Build legend
+    var legendEl = document.getElementById('p2p-legend');
+    var sectorsSeen = {};
+    var legendHtml = '';
+    positions.forEach(function(p) {
+        var sec = p.sector || 'Other';
+        if (!sectorsSeen[sec]) {
+            sectorsSeen[sec] = true;
+            var c = getSectorColor(sec);
+            legendHtml += '<div class="p2p-legend-item">'
+                + '<div class="p2p-legend-dot" style="background:' + c.border + '; color:' + c.border + ';"></div>'
+                + sec + '</div>';
+        }
+    });
+    legendEl.innerHTML = legendHtml;
+
+    // Chart data — X: Return %, Y: Days Held, Size: Market Value
+    var maxMv = Math.max.apply(null, positions.map(function(p) { return p.market_value || 1; }));
+    var dataPoints = positions.map(function(p) {
+        var sc = getSectorColor(p.sector);
+        var radius = Math.max(10, Math.min(32, 10 + ((p.market_value || 0) / maxMv) * 22));
+        return {
+            x: p.pnl_pct || 0,
+            y: p.days_held || 0,
+            r: radius,
+            symbol: p.symbol,
+            sector: p.sector || 'Other',
+            marketValue: p.market_value || 0,
+            pnlDollar: p.pnl_dollar || 0,
+            pnlPct: p.pnl_pct || 0,
+            entryPrice: p.entry_price || 0,
+            currentPrice: p.current_price || 0,
+            shares: p.shares || 0,
+            adaptiveStop: p.adaptive_stop_pct,
+            daysRemaining: p.days_remaining || 0,
+            _bgColor: sc.bg,
+            _borderColor: sc.border,
+            _glowColor: sc.glow
+        };
+    });
+
+    // Stats
+    var best = positions[0], worst = positions[0], totalVal = 0, sumRet = 0;
+    positions.forEach(function(p) {
+        if ((p.pnl_pct || 0) > (best.pnl_pct || 0)) best = p;
+        if ((p.pnl_pct || 0) < (worst.pnl_pct || 0)) worst = p;
+        totalVal += p.market_value || 0;
+        sumRet += p.pnl_pct || 0;
+    });
+    var avgRet = sumRet / positions.length;
+    var bestEl = document.getElementById('p2p-best');
+    var worstEl = document.getElementById('p2p-worst');
+    var avgEl = document.getElementById('p2p-avg');
+    bestEl.textContent = best.symbol + ' ' + (best.pnl_pct >= 0 ? '+' : '') + best.pnl_pct.toFixed(2) + '%';
+    bestEl.style.color = best.pnl_pct >= 0 ? 'var(--green)' : 'var(--red)';
+    worstEl.textContent = worst.symbol + ' ' + (worst.pnl_pct >= 0 ? '+' : '') + worst.pnl_pct.toFixed(2) + '%';
+    worstEl.style.color = worst.pnl_pct >= 0 ? 'var(--green)' : 'var(--red)';
+    avgEl.textContent = (avgRet >= 0 ? '+' : '') + avgRet.toFixed(2) + '%';
+    avgEl.style.color = avgRet >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('p2p-total').textContent = '$' + totalVal.toLocaleString('en-US', {maximumFractionDigits:0});
+    document.getElementById('p2p-badge').textContent = positions.length + ' posiciones';
+
+    // Destroy previous chart
+    if (_p2pChart) _p2pChart.destroy();
+
+    var ctx = document.getElementById('p2pScatterChart').getContext('2d');
+
+    _p2pChart = new Chart(ctx, {
+        type: 'bubble',
+        data: {
+            datasets: [{
+                data: dataPoints,
+                backgroundColor: dataPoints.map(function(d) { return d._bgColor; }),
+                borderColor: dataPoints.map(function(d) { return d._borderColor; }),
+                borderWidth: 2,
+                hoverBorderWidth: 3,
+                hoverBorderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 800,
+                easing: 'easeOutQuart'
+            },
+            layout: { padding: { top: 20, right: 20, bottom: 4, left: 8 } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: tooltipBg,
+                    titleColor: tooltipText,
+                    bodyColor: tooltipText,
+                    borderColor: tooltipBorder,
+                    borderWidth: 1,
+                    cornerRadius: 10,
+                    padding: 14,
+                    titleFont: { family: "'JetBrains Mono', monospace", size: 14, weight: '800' },
+                    bodyFont: { family: "'Inter', sans-serif", size: 12 },
+                    displayColors: false,
+                    callbacks: {
+                        title: function(items) {
+                            var d = items[0].raw;
+                            return d.symbol + '  ' + (d.pnlPct >= 0 ? '+' : '') + d.pnlPct.toFixed(2) + '%';
+                        },
+                        label: function(item) {
+                            var d = item.raw;
+                            return [
+                                'Sector: ' + d.sector,
+                                'Valor: $' + d.marketValue.toLocaleString('en-US', {maximumFractionDigits:0}),
+                                'P&L: ' + (d.pnlDollar >= 0 ? '+$' : '-$') + Math.abs(d.pnlDollar).toLocaleString('en-US', {maximumFractionDigits:0}),
+                                'Precio: $' + d.entryPrice.toFixed(2) + ' → $' + d.currentPrice.toFixed(2),
+                                'Acciones: ' + d.shares,
+                                'Días: ' + d.y + '/5  (quedan ' + d.daysRemaining + ')',
+                                d.adaptiveStop != null ? 'Stop: ' + d.adaptiveStop.toFixed(0) + '%' : ''
+                            ].filter(Boolean);
+                        }
+                    }
+                },
+                annotation: {
+                    annotations: {
+                        zeroLine: {
+                            type: 'line',
+                            xMin: 0, xMax: 0,
+                            borderColor: zeroLineColor,
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            label: {
+                                display: true,
+                                content: 'Breakeven',
+                                position: 'start',
+                                color: labelColor,
+                                font: { size: 10, family: "'Inter', sans-serif", weight: '600' },
+                                backgroundColor: 'transparent',
+                                padding: 2
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'RETORNO %',
+                        color: labelColor,
+                        font: { size: 11, weight: '700', family: "'Inter', sans-serif" },
+                        padding: { top: 6 }
+                    },
+                    grid: {
+                        color: gridColor,
+                        drawTicks: false
+                    },
+                    ticks: {
+                        color: labelColor,
+                        font: { size: 11, family: "'JetBrains Mono', monospace" },
+                        callback: function(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
+                    },
+                    border: { color: gridColor }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'DÍAS EN POSICIÓN',
+                        color: labelColor,
+                        font: { size: 11, weight: '700', family: "'Inter', sans-serif" },
+                        padding: { bottom: 6 }
+                    },
+                    grid: {
+                        color: gridColor,
+                        drawTicks: false
+                    },
+                    ticks: {
+                        color: labelColor,
+                        font: { size: 11, family: "'JetBrains Mono', monospace" },
+                        stepSize: 1,
+                        callback: function(v) { return v + 'd'; }
+                    },
+                    border: { color: gridColor },
+                    suggestedMin: 0,
+                    suggestedMax: 5
+                }
+            }
+        },
+        plugins: [{
+            id: 'p2pLabels',
+            afterDatasetsDraw: function(chart) {
+                var ctx2 = chart.ctx;
+                var meta = chart.getDatasetMeta(0);
+                ctx2.save();
+                meta.data.forEach(function(el, i) {
+                    var d = chart.data.datasets[0].data[i];
+                    ctx2.font = '700 12px "JetBrains Mono", monospace';
+                    ctx2.fillStyle = isDark ? '#fff' : '#1a1a2e';
+                    ctx2.textAlign = 'center';
+                    ctx2.textBaseline = 'middle';
+                    // Draw symbol label above the bubble
+                    ctx2.shadowColor = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)';
+                    ctx2.shadowBlur = 4;
+                    ctx2.fillText(d.symbol, el.x, el.y - el.options.radius - 8);
+                    ctx2.shadowBlur = 0;
+                });
+                ctx2.restore();
+            }
+        }, {
+            id: 'p2pGlow',
+            beforeDatasetsDraw: function(chart) {
+                var ctx2 = chart.ctx;
+                var meta = chart.getDatasetMeta(0);
+                ctx2.save();
+                meta.data.forEach(function(el, i) {
+                    var d = chart.data.datasets[0].data[i];
+                    ctx2.beginPath();
+                    ctx2.arc(el.x, el.y, el.options.radius + 4, 0, Math.PI * 2);
+                    ctx2.fillStyle = d._glowColor;
+                    ctx2.fill();
+                });
+                ctx2.restore();
+            }
+        }]
+    });
+}
 
 async function fetchAnnualReturns() {
     try {

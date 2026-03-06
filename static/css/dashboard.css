@@ -2687,6 +2687,74 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 .wa-fab svg { width: 26px; height: 26px; fill: #fff; }
 
+/* ============ P2P SCATTERPLOT ============ */
+.p2p-chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 340px;
+}
+.p2p-legend {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.p2p-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.p2p-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
+}
+.p2p-stat-bar {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    margin-top: 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+.p2p-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.p2p-stat-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+}
+.p2p-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+@media (max-width: 768px) {
+    .p2p-chart-wrap { height: 280px; }
+    .p2p-stat-bar { flex-wrap: wrap; gap: 8px; }
+    .p2p-stat-value { font-size: 12px; }
+}
+@media (max-width: 480px) {
+    .p2p-chart-wrap { height: 240px; }
+}
+
 /* ============ UNDERWATER DRAWDOWN CHART ============ */
 .uw-divider {
     height: 1px;
