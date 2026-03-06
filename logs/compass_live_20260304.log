@@ -2055,3 +2055,34 @@ hint: Use -f if you really wan
 2026-03-06 13:40:49,561 - INFO - 127.0.0.1 - - [06/Mar/2026 13:40:49] "GET /api/state HTTP/1.1" 200 -
 2026-03-06 13:41:52,596 - INFO - 127.0.0.1 - - [06/Mar/2026 13:41:52] "GET /api/state HTTP/1.1" 200 -
 2026-03-06 13:42:19,803 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 13:42:19,904 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 13:42:19,905 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 13:42:56,438 - INFO - 127.0.0.1 - - [06/Mar/2026 13:42:56] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:43:59,499 - INFO - 127.0.0.1 - - [06/Mar/2026 13:43:59] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:45:02,584 - INFO - 127.0.0.1 - - [06/Mar/2026 13:45:02] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:46:05,677 - INFO - 127.0.0.1 - - [06/Mar/2026 13:46:05] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:47:08,825 - INFO - 127.0.0.1 - - [06/Mar/2026 13:47:08] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:47:27,091 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 13:47:27,195 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 13:47:27,195 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 13:48:13,977 - INFO - 127.0.0.1 - - [06/Mar/2026 13:48:13] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 13:49:17,360 - INFO - 127.0.0.1 - - [06/Mar/2026 13:49:17] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 14:10:11,727 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 14:10:13,295 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 14:10:13,295 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 14:47:21,752 - INFO - State saved: state/compass_state_20260306.json

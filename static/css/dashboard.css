@@ -1170,8 +1170,9 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
     height: 100%;
     border-radius: 4px;
 }
-.perf-bt-bar-compass {
-    background: linear-gradient(90deg, var(--green), var(--accent-light));
+.perf-bt-bar-hydra {
+    background: linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
 }
 .perf-bt-bar-spy {
     background: var(--text-muted);
@@ -2784,8 +2785,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border-radius: 2px;
     flex-shrink: 0;
 }
-.ar-legend-swatch.compass-pos { background: #22c55e; }
-.ar-legend-swatch.compass-neg { background: #ef4444; }
+.ar-legend-swatch.hydra-pos { background: #22c55e; }
+.ar-legend-swatch.hydra-neg { background: #ef4444; }
 .ar-legend-swatch.spy         { background: rgba(99,102,241,0.7); }
 
 /* Responsive: stack stat bar to 2×2 on narrow screens */
