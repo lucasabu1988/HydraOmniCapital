@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260305b">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260305c">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -1752,6 +1752,128 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- ==================== PAGE: MACHINE LEARNING ==================== -->
 <div id="page-ml" class="page-content">
+
+<!-- ML OVERVIEW -->
+<div class="ml-overview">
+    <div class="ml-overview-header">
+        <div class="ml-overview-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px;"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg>
+            Motor de Aprendizaje
+        </div>
+        <p class="ml-overview-desc">
+            El sistema ML opera como un <strong>observador inteligente</strong> del algoritmo COMPASS. No toma decisiones de trading &mdash;
+            registra cada acci&oacute;n del motor (compras, ventas, descartes, cambios de r&eacute;gimen), vincula las condiciones de entrada
+            con los resultados reales, y escala progresivamente desde estad&iacute;sticas descriptivas hasta modelos predictivos a medida
+            que acumula evidencia. <strong>Nunca modifica el algoritmo autom&aacute;ticamente</strong> &mdash; solo genera insights para revisi&oacute;n humana.
+        </p>
+    </div>
+
+    <!-- Pipeline visual -->
+    <div class="ml-pipeline">
+        <div class="ml-pipe-step">
+            <div class="ml-pipe-icon">&#9881;</div>
+            <div class="ml-pipe-label">Motor COMPASS</div>
+            <div class="ml-pipe-sub">Ejecuta trades</div>
+        </div>
+        <div class="ml-pipe-arrow">&rarr;</div>
+        <div class="ml-pipe-step">
+            <div class="ml-pipe-icon">&#128203;</div>
+            <div class="ml-pipe-label">DecisionLogger</div>
+            <div class="ml-pipe-sub">Captura 30+ features por decisi&oacute;n</div>
+        </div>
+        <div class="ml-pipe-arrow">&rarr;</div>
+        <div class="ml-pipe-step">
+            <div class="ml-pipe-icon">&#128200;</div>
+            <div class="ml-pipe-label">OutcomeTracker</div>
+            <div class="ml-pipe-sub">Vincula resultados reales</div>
+        </div>
+        <div class="ml-pipe-arrow">&rarr;</div>
+        <div class="ml-pipe-step">
+            <div class="ml-pipe-icon">&#129504;</div>
+            <div class="ml-pipe-label">LearningEngine</div>
+            <div class="ml-pipe-sub">Entrena modelos seg&uacute;n fase</div>
+        </div>
+        <div class="ml-pipe-arrow">&rarr;</div>
+        <div class="ml-pipe-step">
+            <div class="ml-pipe-icon">&#128161;</div>
+            <div class="ml-pipe-label">InsightReporter</div>
+            <div class="ml-pipe-sub">Sugiere ajustes (&gt;90% confianza)</div>
+        </div>
+    </div>
+
+    <!-- 3 Fases -->
+    <div class="ml-phases">
+        <div class="ml-phase ml-phase-active">
+            <div class="ml-phase-header">
+                <span class="ml-phase-badge ml-phase-1">Fase 1</span>
+                <span class="ml-phase-days">0 &ndash; 63 d&iacute;as</span>
+            </div>
+            <div class="ml-phase-title">Observar y Registrar</div>
+            <p class="ml-phase-desc">
+                El sistema solo observa. Registra cada decisi&oacute;n del algoritmo en formato append-only (JSONL)
+                y calcula estad&iacute;sticas descriptivas: retorno medio, tasa de acierto, frecuencia de stops,
+                y desglose por r&eacute;gimen/sector/volatilidad. Usa <strong>bootstrap</strong> (2,000 remuestreos)
+                para cuantificar la incertidumbre con intervalos de confianza al 95%.
+            </p>
+            <div class="ml-phase-detail">
+                <span class="ml-phase-tag">Modelos: ninguno</span>
+                <span class="ml-phase-tag">Datos insuficientes para ML</span>
+            </div>
+        </div>
+
+        <div class="ml-phase">
+            <div class="ml-phase-header">
+                <span class="ml-phase-badge ml-phase-2">Fase 2</span>
+                <span class="ml-phase-days">63 &ndash; 252 d&iacute;as</span>
+            </div>
+            <div class="ml-phase-title">Primeras Se&ntilde;ales</div>
+            <p class="ml-phase-desc">
+                Con ~3 meses de datos, el sistema entrena modelos <strong>fuertemente regularizados</strong>
+                para evitar overfitting en muestras peque&ntilde;as. Regresi&oacute;n Ridge (&alpha;=10.0) predice
+                el retorno esperado; Regresi&oacute;n Log&iacute;stica (C=0.1) predice la probabilidad de trade
+                ganador. Validaci&oacute;n cruzada 3-fold mide R&sup2; y AUC. Con N&lt;100, los coeficientes se
+                sesgan a cero intencionalmente para maximizar cautela.
+            </p>
+            <div class="ml-phase-detail">
+                <span class="ml-phase-tag">Ridge + Log&iacute;stica</span>
+                <span class="ml-phase-tag">3-fold CV</span>
+                <span class="ml-phase-tag">Regularizaci&oacute;n fuerte</span>
+            </div>
+        </div>
+
+        <div class="ml-phase">
+            <div class="ml-phase-header">
+                <span class="ml-phase-badge ml-phase-3">Fase 3</span>
+                <span class="ml-phase-days">252+ d&iacute;as</span>
+            </div>
+            <div class="ml-phase-title">ML Supervisado Completo</div>
+            <p class="ml-phase-desc">
+                Con un a&ntilde;o de datos, se activa <strong>LightGBM</strong> (200 &aacute;rboles, profundidad 3,
+                regularizaci&oacute;n L1+L2) como modelo primario, con Random Forest como alternativa.
+                Validaci&oacute;n cruzada 5-fold. El sistema monitorea la importancia de features &mdash; si
+                las se&ntilde;ales de momentum pierden poder predictivo, lo reporta. Tambi&eacute;n optimiza
+                stops por bucket de volatilidad y detecta patrones de salida prematura.
+            </p>
+            <div class="ml-phase-detail">
+                <span class="ml-phase-tag">LightGBM / Random Forest</span>
+                <span class="ml-phase-tag">5-fold CV</span>
+                <span class="ml-phase-tag">Feature importance</span>
+                <span class="ml-phase-tag">Stop optimizer</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Principio clave -->
+    <div class="ml-principle">
+        <div class="ml-principle-icon">&#128274;</div>
+        <div class="ml-principle-text">
+            <strong>Zero look-ahead bias:</strong> cada registro captura &uacute;nicamente datos disponibles en el momento exacto de la decisi&oacute;n.
+            El precio de entrada se registra antes del fill, y el resultado se registra despu&eacute;s del cierre. Todo an&aacute;lisis es condicional
+            por r&eacute;gimen + volatilidad para evitar mezclar periodos bull con bear.
+        </div>
+    </div>
+</div>
+
 <div class="ml-layout">
     <!-- LEFT: Terminal Log -->
     <div class="ml-terminal">
@@ -1811,7 +1933,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260305b"></script>
+<script src="/static/js/dashboard.js?v=20260305c"></script>
 
 </body>
 </html>
