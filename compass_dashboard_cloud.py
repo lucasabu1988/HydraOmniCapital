@@ -112,6 +112,9 @@ R_MAX_COMPASS_ALLOC = 0.75
 PRICE_CACHE_SECONDS = 30
 SOCIAL_CACHE_SECONDS = 300  # 5 minutes
 
+# Live test started Feb 19, 2026 — ^GSPC close on that date
+LIVE_TEST_START_DATE = '2026-02-19'
+LIVE_TEST_SPY_START = 6861.89  # ^GSPC close on 2026-02-19
 _spy_start_price = None
 
 SHOWCASE_MODE = os.environ.get('COMPASS_MODE', 'showcase') == 'showcase'
@@ -361,36 +364,9 @@ def get_spy_start_price() -> Optional[float]:
     if _spy_start_price is not None:
         return _spy_start_price
 
-    if not _HAS_YFINANCE:
-        return None
-
-    state_files = sorted(glob.glob(os.path.join(STATE_DIR, 'compass_state_2*.json')))
-    if not state_files:
-        return None
-
-    try:
-        with open(state_files[0], 'r') as f:
-            first_state = json.load(f)
-        start_date = first_state.get('last_trading_date')
-        if not start_date:
-            return None
-
-        # Try S&P 500 index first, fall back to SPY ETF
-        end_str = (date.fromisoformat(start_date) + timedelta(days=5)).isoformat()
-        for ticker_sym in ['^GSPC', 'SPY']:
-            try:
-                hist = yf.Ticker(ticker_sym).history(start=start_date, end=end_str)
-                if not hist.empty:
-                    _spy_start_price = float(hist['Close'].iloc[0])
-                    break
-            except Exception:
-                continue
-        if _spy_start_price is not None:
-            return _spy_start_price
-    except Exception:
-        pass
-
-    return None
+    # Use hardcoded value (verified ^GSPC close on live test start date)
+    _spy_start_price = LIVE_TEST_SPY_START
+    return _spy_start_price
 
 
 def _compute_real_trading_day(state: dict) -> int:
