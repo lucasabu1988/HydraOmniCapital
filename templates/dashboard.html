@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306g">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306h">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -1037,7 +1037,9 @@
             </span>
             <span class="lh-chalk-divider">|</span>
             <span class="lh-chalk-piece">
-                M: Momentum 5d hold
+                <span class="lh-chalk-var">EFA</span>
+                <span class="lh-chalk-eq">=</span>
+                idle &gt; $1K &cap; EFA &gt; SMA<sub>200</sub>
             </span>
             <span class="lh-chalk-divider">|</span>
             <span class="lh-chalk-piece">
@@ -1045,7 +1047,7 @@
             </span>
         </div>
         <div class="lh-chalk-row lh-chalk-tertiary">
-            Momentum: Top 5 of 40 &middot; Rattlesnake: S&amp;P 100 dip-buys &middot; Cash recycling: idle R &rarr; M (cap 75%)
+            Momentum: Top 5 of 40 &middot; Rattlesnake: S&amp;P 100 dip-buys &middot; EFA: idle cash &rarr; MSCI EAFE &middot; Cash recycling: R &rarr; M (cap 75%)
         </div>
     </div>
 </div>
@@ -1366,6 +1368,7 @@
                     <tr><td>Ejecuci&oacute;n</td><td>Al cierre del mercado (4:00 PM ET)</td></tr>
                     <tr><td>Comisi&oacute;n</td><td>$0.001 por acci&oacute;n (m&iacute;nima)</td></tr>
                 </table>
+                <p class="algo-note" style="margin-top:8px;">Orden de ejecuci&oacute;n: 1) Ventas (stops, expirados) &rarr; 2) Liquidar EFA si se necesita capital &rarr; 3) Compras Momentum &rarr; 4) Compras Rattlesnake &rarr; 5) Comprar EFA con efectivo restante</p>
             </div>
         </div>
     </div>
@@ -1376,7 +1379,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">06</span>
-            <span class="algo-card-title">Rattlesnake: Mean-Reversion + Cash Recycling</span>
+            <span class="algo-card-title">Rattlesnake + EFA + Cash Recycling</span>
         </div>
         <div class="algo-card-body">
             <p>Mientras Momentum busca acciones que <strong>suben fuerte</strong>, Rattlesnake busca acciones que <strong>cayeron demasiado r&aacute;pido</strong> y probablemente se van a recuperar. Las tres estrategias se complementan: cuando una tiene el dinero parado, se lo presta a las otras o se invierte en EFA (mercados internacionales).</p>
@@ -1408,6 +1411,40 @@
                         <tr><td>Posiciones m&aacute;x</td><td>5 (risk-on) / 2 (risk-off)</td></tr>
                         <tr><td>Filtro VIX</td><td>Sin entradas si VIX &gt; 35</td></tr>
                     </table>
+                </div>
+            </div>
+
+            <!-- EFA THIRD PILLAR -->
+            <h3 class="algo-sub-title" style="margin-top:20px;">EFA &mdash; Tercer Pilar (Mercados Internacionales)</h3>
+            <p>Despu&eacute;s de que Momentum y Rattlesnake toman el capital que necesitan, el <strong>efectivo restante</strong> se invierte en <a href="https://www.ishares.com/us/products/239623/ishares-msci-eafe-etf" target="_blank" rel="noopener" style="color:var(--accent);">EFA</a> (iShares MSCI EAFE), un ETF que replica el &iacute;ndice MSCI EAFE: las principales empresas de <strong>Europa, Australasia y Asia</strong> (excluyendo EE.UU.). Esto diversifica geogr&aacute;ficamente el portafolio y pone a trabajar el efectivo que de otra forma estar&iacute;a parado.</p>
+
+            <div class="algo-highlight" style="margin-top: 12px;">
+                <div class="algo-highlight-badge" style="background:var(--cyan); color:#000;">EFA</div>
+                <div class="algo-highlight-content">
+                    EFA es el <strong>&uacute;ltimo en recibir capital y el primero en ser vendido</strong>. Si Momentum o Rattlesnake necesitan efectivo para nuevas entradas, EFA se liquida autom&aacute;ticamente. Es una asignaci&oacute;n pasiva, no una estrategia activa.
+                </div>
+            </div>
+
+            <div class="algo-grid-2" style="margin-top:16px;">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">EFA &mdash; Reglas de compra</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Instrumento</td><td>EFA (iShares MSCI EAFE ETF)</td></tr>
+                        <tr><td>Condici&oacute;n</td><td>EFA &gt; SMA de 200 d&iacute;as</td></tr>
+                        <tr><td>M&iacute;nimo</td><td>$1,000 de efectivo disponible</td></tr>
+                        <tr><td>Reserva</td><td>10% del efectivo siempre libre</td></tr>
+                        <tr><td>Momento</td><td>Al cierre, despu&eacute;s de todas las estrategias activas</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">EFA &mdash; Reglas de venta</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Filtro de r&eacute;gimen</td><td>Si EFA cae debajo de SMA200 &rarr; vender todo</td></tr>
+                        <tr><td>Capital necesario</td><td>Si Momentum/Rattlesnake necesitan efectivo &rarr; liquidar</td></tr>
+                        <tr><td>Stop loss</td><td>Ninguno (es asignaci&oacute;n pasiva)</td></tr>
+                        <tr><td>Prioridad</td><td>Siempre el primero en venderse</td></tr>
+                    </table>
+                    <p class="algo-note">El filtro SMA200 evita mantener EFA durante mercados bajistas internacionales (2008, 2022). Validado en EXP60 Variante B.</p>
                 </div>
             </div>
 
@@ -1976,7 +2013,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260306g"></script>
+<script src="/static/js/dashboard.js?v=20260306h"></script>
 
 </body>
 </html>
