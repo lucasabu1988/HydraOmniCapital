@@ -6,7 +6,7 @@
 <title>OmniCapital | HYDRA Multi-Strategy</title>
 <link rel="icon" type="image/png" href="/static/img/omnicapital_logo.png">
 <meta property="og:title" content="OmniCapital | HYDRA Multi-Strategy">
-<meta property="og:description" content="Multi-strategy quantitative system: COMPASS (momentum) + Rattlesnake (mean-reversion) + EFA (international). 14.93% CAGR | 1.12 Sharpe | -22.3% MaxDD | No Leverage. 26 years backtested, 60 experiments.">
+<meta property="og:description" content="Multi-strategy quantitative system: Momentum + Rattlesnake (mean-reversion) + EFA (international). 14.93% CAGR | 1.12 Sharpe | -22.3% MaxDD | No Leverage. 26 years backtested, 60 experiments.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="OmniCapital | HYDRA Multi-Strategy">
@@ -15,20 +15,20 @@
 <meta property="og:url" content="https://omnicapital.onrender.com">
 <meta property="og:site_name" content="OmniCapital">
 <meta name="twitter:image" content="https://omnicapital.onrender.com/static/img/omnicapital_logo.png">
-<meta name="description" content="HYDRA — Multi-strategy quantitative system: COMPASS momentum + Rattlesnake mean-reversion + EFA international. 14.93% CAGR, 1.12 Sharpe, -22.3% MaxDD, no leverage. Live dashboard.">
+<meta name="description" content="HYDRA — Multi-strategy quantitative system: Momentum + Rattlesnake mean-reversion + EFA international. 14.93% CAGR, 1.12 Sharpe, -22.3% MaxDD, no leverage. Live dashboard.">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260305c">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260306d">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "HYDRA Multi-Strategy",
-  "description": "Multi-strategy quantitative system: COMPASS momentum + Rattlesnake mean-reversion + EFA international. 14.93% CAGR, 1.12 Sharpe, -22.3% MaxDD. No leverage. 26 years backtested.",
+  "description": "Multi-strategy quantitative system: Momentum + Rattlesnake mean-reversion + EFA international. 14.93% CAGR, 1.12 Sharpe, -22.3% MaxDD. No leverage. 26 years backtested.",
   "applicationCategory": "FinanceApplication",
   "operatingSystem": "Web",
   "author": {
@@ -157,7 +157,7 @@
         </div>
         <div class="lh-title-group">
             <span class="lh-title">HYDRA</span>
-            <span class="lh-version">COMPASS + Rattlesnake + EFA</span>
+            <span class="lh-version">Momentum + Rattlesnake + EFA</span>
         </div>
     </div>
     <div class="lh-tagline">Momentum + Mean-Reversion + International &middot; Cash Recycling &middot; S&amp;P 500 + EAFE &middot; Long-Only</div>
@@ -177,7 +177,7 @@
         <div class="lh-stat">
             <span class="lh-stat-label">Max Drawdown</span>
             <span class="lh-stat-value amber">&minus;22.3%</span>
-            <span class="lh-stat-context">vs &minus;32.6% COMPASS solo</span>
+            <span class="lh-stat-context">vs &minus;32.6% Momentum solo</span>
         </div>
     </div>
     <div class="lh-features">
@@ -229,8 +229,8 @@
     <div class="perf-banner-inner">
         <div class="perf-side">
             <span class="perf-side-label">HYDRA</span>
-            <span class="perf-side-value" id="perf-compass-val">--</span>
-            <span class="perf-side-sub" id="perf-compass-sub">--</span>
+            <span class="perf-side-value" id="perf-hydra-val">--</span>
+            <span class="perf-side-sub" id="perf-hydra-sub">--</span>
         </div>
         <div class="perf-vs">
             <div class="perf-vs-divider perf-vs-divider-left"></div>
@@ -250,8 +250,8 @@
         <div class="perf-banner-inner">
             <div class="perf-side">
                 <span class="perf-side-label">HYDRA</span>
-                <span class="perf-side-value" id="perf-compass-cum">--</span>
-                <span class="perf-side-sub" id="perf-compass-cum-sub">$100,000 &rarr; --</span>
+                <span class="perf-side-value" id="perf-hydra-cum">--</span>
+                <span class="perf-side-sub" id="perf-hydra-cum-sub">$100,000 &rarr; --</span>
             </div>
             <div class="perf-vs">
                 <div class="perf-vs-divider perf-vs-divider-left"></div>
@@ -274,7 +274,7 @@
             <div class="perf-bt-item">
                 <span class="perf-bt-name">HYDRA</span>
                 <div class="perf-bt-bar-track">
-                    <div class="perf-bt-bar-fill perf-bt-bar-compass" style="width:100%"></div>
+                    <div class="perf-bt-bar-fill perf-bt-bar-hydra" style="width:100%"></div>
                 </div>
                 <span class="perf-bt-val c-green">$100K &rarr; $3.8M</span>
             </div>
@@ -317,7 +317,7 @@
     <div class="metric-card">
         <div class="metric-label">CAGR Esperado</div>
         <div class="metric-value c-accent" id="card-cagr">14.93%</div>
-        <div class="metric-sub" id="card-cagr-sub">HYDRA (COMPASS + Rattlesnake + EFA) | No leverage</div>
+        <div class="metric-sub" id="card-cagr-sub">HYDRA (Momentum + Rattlesnake + EFA) | No leverage</div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Efectivo</div>
@@ -469,7 +469,7 @@
             <span style="
                 font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
                 color: var(--accent); background: rgba(99,102,241,0.12);
-            ">COMPASS</span>
+            ">MOMENTUM</span>
             <span style="
                 font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
                 color: var(--yellow); background: rgba(234,179,8,0.12);
@@ -486,11 +486,11 @@
     </div>
     <div class="regime-band-bar-wrap" style="flex:1;">
         <div style="display:flex; gap:2px; height:8px; border-radius:4px; overflow:hidden; background:var(--bg-tertiary);">
-            <div id="hydra-bar-compass" style="background:var(--accent); transition:width 0.3s;" title="COMPASS"></div>
+            <div id="hydra-bar-momentum" style="background:var(--accent); transition:width 0.3s;" title="Momentum"></div>
             <div id="hydra-bar-rattle" style="background:var(--yellow); transition:width 0.3s;" title="Rattlesnake"></div>
         </div>
         <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--text-muted);">
-            <span>COMPASS: <span id="hydra-c-pct">50%</span> (<span id="hydra-c-val">$--</span>)</span>
+            <span>Momentum: <span id="hydra-m-pct">50%</span> (<span id="hydra-m-val">$--</span>)</span>
             <span>Rattlesnake: <span id="hydra-r-pct">50%</span> (<span id="hydra-r-val">$--</span>)</span>
         </div>
     </div>
@@ -499,7 +499,7 @@
     </div>
 </div>
 
-<!-- STRATEGY 1: COMPASS MOMENTUM -->
+<!-- STRATEGY 1: MOMENTUM -->
 <div class="positions-hero anim-enter anim-d5" id="positions-hero">
     <div class="positions-hero-header">
         <div class="positions-hero-title">
@@ -509,7 +509,7 @@
                 color: var(--accent); background: rgba(99,102,241,0.12);
                 letter-spacing: 0.5px; margin-right: 6px; vertical-align: middle;
             ">ESTRATEGIA 1</span>
-            COMPASS <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Momentum</span>
+            Momentum <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Momentum</span>
         </div>
         <div class="positions-hero-summary" id="positions-summary">
             <div class="ph-stat">
@@ -601,8 +601,8 @@
     <div class="card-body">
         <!-- Legend sits above the chart, right-aligned -->
         <div class="ar-legend">
-            <div class="ar-legend-item"><div class="ar-legend-swatch compass-pos"></div> COMPASS positivo</div>
-            <div class="ar-legend-item"><div class="ar-legend-swatch compass-neg"></div> COMPASS negativo</div>
+            <div class="ar-legend-item"><div class="ar-legend-swatch hydra-pos"></div> HYDRA positivo</div>
+            <div class="ar-legend-item"><div class="ar-legend-swatch hydra-neg"></div> HYDRA negativo</div>
             <div class="ar-legend-item"><div class="ar-legend-swatch spy"></div> S&amp;P 500</div>
         </div>
         <!-- Chart canvas — height driven by JS -->
@@ -745,7 +745,7 @@
 
 <div class="roadmap-header">
     <h2>Camino hacia Lanzamiento</h2>
-    <p>HYDRA (COMPASS + Rattlesnake + EFA) &mdash; Checklist de producci&oacute;n. Cada fase debe completarse antes de operar con capital real.</p>
+    <p>HYDRA (Momentum + Rattlesnake + EFA) &mdash; Checklist de producci&oacute;n. Cada fase debe completarse antes de operar con capital real.</p>
 </div>
 
 <!-- PROGRESS BAR -->
@@ -878,7 +878,7 @@
         </div>
         <ul class="rm-checklist">
             <li><span class="rm-check checked"></span> Dashboard live operativo (local + cloud Render.com)</li>
-            <li><span class="rm-check checked"></span> COMPASSLive engine corriendo 24/7</li>
+            <li><span class="rm-check checked"></span> HYDRA engine corriendo 24/7</li>
             <li><span class="rm-check checked"></span> ML learning system integrado (Phase 1: logging)</li>
             <li><span class="rm-check checked"></span> Ciclo 1 completado: +2.46% vs S&amp;P 500 +1.23%</li>
             <li><span class="rm-check checked"></span> Adaptive stop ejecutado correctamente (GS -6.7%)</li>
@@ -973,7 +973,7 @@
                 <span style="color:var(--green); font-size:16px;">&#10003;</span>
                 <div>
                     <div style="font-size:13px; font-weight:600;">HYDRA Multi-Strategy</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">COMPASS + Rattlesnake + EFA con cash recycling. 14.93% CAGR, 1.12 Sharpe, &minus;22.3% MaxDD. Domina a COMPASS solo en las 3 dimensiones.</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Momentum + Rattlesnake + EFA con cash recycling. 14.93% CAGR, 1.12 Sharpe, &minus;22.3% MaxDD. Domina a Momentum solo en las 3 dimensiones.</div>
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
@@ -1012,11 +1012,11 @@
     <div class="lh-glow lh-glow-2" style="opacity:0.15;"></div>
     <div class="algo-hero-title">HYDRA Multi-Strategy</div>
     <div class="algo-hero-sub">C&oacute;mo Funciona</div>
-    <div class="algo-hero-tagline">COMPASS (momentum) + Rattlesnake (mean-reversion) + EFA (international) con cash recycling &middot; S&amp;P 500 + EAFE &middot; Sin deuda &middot; Completamente autom&aacute;tico</div>
+    <div class="algo-hero-tagline">Momentum + Rattlesnake (mean-reversion) + EFA (international) con cash recycling &middot; S&amp;P 500 + EAFE &middot; Sin deuda &middot; Completamente autom&aacute;tico</div>
     <!-- Chalkboard formulas — the three strategies -->
     <div class="lh-chalkboard">
         <div class="lh-chalk-row lh-chalk-main">
-            <span class="lh-chalk-fn">COMPASS</span>:&thinsp;
+            <span class="lh-chalk-fn">Momentum</span>:&thinsp;
             <span class="lh-chalk-frac">
                 <span class="lh-chalk-num">r<sub>i,t&minus;5</sub><sup class="lh-chalk-comma">&thinsp;</sup>&minus;&thinsp;r<sub>i,t&minus;90</sub></span>
                 <span class="lh-chalk-den">&sigma;<sub>i,90</sub></span>
@@ -1031,11 +1031,11 @@
             <span class="lh-chalk-piece">
                 <span class="lh-chalk-var">Recycle</span>
                 <span class="lh-chalk-eq">=</span>
-                min(R<sub>idle</sub>,&thinsp;75%&minus;C<sub>acct</sub>)
+                min(R<sub>idle</sub>,&thinsp;75%&minus;M<sub>acct</sub>)
             </span>
             <span class="lh-chalk-divider">|</span>
             <span class="lh-chalk-piece">
-                C: Momentum 5d hold
+                M: Momentum 5d hold
             </span>
             <span class="lh-chalk-divider">|</span>
             <span class="lh-chalk-piece">
@@ -1043,7 +1043,7 @@
             </span>
         </div>
         <div class="lh-chalk-row lh-chalk-tertiary">
-            COMPASS: Top 5 of 40 &middot; Rattlesnake: S&amp;P 100 dip-buys &middot; Cash recycling: idle R &rarr; C (cap 75%)
+            Momentum: Top 5 of 40 &middot; Rattlesnake: S&amp;P 100 dip-buys &middot; Cash recycling: idle R &rarr; M (cap 75%)
         </div>
     </div>
 </div>
@@ -1091,7 +1091,7 @@
             <span class="algo-card-title">&iquest;En qu&eacute; acciones invertimos?</span>
         </div>
         <div class="algo-card-body">
-            <p>De las ~500 empresas m&aacute;s grandes de Estados Unidos (el <strong>S&amp;P 500</strong>), COMPASS selecciona cada a&ntilde;o las <strong>40 que m&aacute;s se compran y venden</strong> en bolsa. Esto garantiza que siempre podamos entrar y salir r&aacute;pido, sin mover el precio. Las 113 acciones iniciales est&aacute;n distribuidas en 7 sectores de la econom&iacute;a:</p>
+            <p>De las ~500 empresas m&aacute;s grandes de Estados Unidos (el <strong>S&amp;P 500</strong>), HYDRA selecciona cada a&ntilde;o las <strong>40 que m&aacute;s se compran y venden</strong> en bolsa. Esto garantiza que siempre podamos entrar y salir r&aacute;pido, sin mover el precio. Las 113 acciones iniciales est&aacute;n distribuidas en 7 sectores de la econom&iacute;a:</p>
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
                     <div class="algo-mini-title">Sectores</div>
@@ -1127,7 +1127,7 @@
             <span class="algo-card-title">&iquest;C&oacute;mo elegimos qu&eacute; comprar?</span>
         </div>
         <div class="algo-card-body">
-            <p>Cada 5 d&iacute;as, COMPASS eval&uacute;a las 40 acciones y les asigna un <strong>puntaje de momentum</strong>: b&aacute;sicamente mide cu&aacute;les han subido m&aacute;s en los &uacute;ltimos 3 meses, descontando los &uacute;ltimos 5 d&iacute;as (porque las que suben mucho en pocos d&iacute;as suelen rebotar hacia abajo). Luego ajusta por volatilidad: una acci&oacute;n que sube 10% pero salta como monta&ntilde;a rusa vale menos que una que sube 10% de forma estable.</p>
+            <p>Cada 5 d&iacute;as, HYDRA eval&uacute;a las 40 acciones y les asigna un <strong>puntaje de momentum</strong>: b&aacute;sicamente mide cu&aacute;les han subido m&aacute;s en los &uacute;ltimos 3 meses, descontando los &uacute;ltimos 5 d&iacute;as (porque las que suben mucho en pocos d&iacute;as suelen rebotar hacia abajo). Luego ajusta por volatilidad: una acci&oacute;n que sube 10% pero salta como monta&ntilde;a rusa vale menos que una que sube 10% de forma estable.</p>
             <div class="algo-formula-box">
                 <div class="algo-formula-label">F&oacute;rmula del Puntaje</div>
                 <code class="algo-formula">score = (return_90d &minus; return_5d) / realized_vol_63d</code>
@@ -1165,7 +1165,7 @@
             <span class="algo-card-title">&iquest;C&oacute;mo sabe si el mercado est&aacute; bien o mal?</span>
         </div>
         <div class="algo-card-body">
-            <p>Antes de comprar, COMPASS eval&uacute;a el estado general del mercado con un <strong>term&oacute;metro de 0 a 1</strong>. Si el mercado est&aacute; fuerte (&gt;0.65), compramos 5 acciones. Si est&aacute; d&eacute;bil (&lt;0.35), solo 2. Funciona como un <strong>sem&aacute;foro</strong>: verde = acelerar, amarillo = precauci&oacute;n, rojo = frenar. El term&oacute;metro combina dos factores: <strong>tendencia</strong> (60%) &mdash; &iquest;el mercado viene subiendo? &mdash; y <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia?</p>
+            <p>Antes de comprar, HYDRA eval&uacute;a el estado general del mercado con un <strong>term&oacute;metro de 0 a 1</strong>. Si el mercado est&aacute; fuerte (&gt;0.65), compramos 5 acciones. Si est&aacute; d&eacute;bil (&lt;0.35), solo 2. Funciona como un <strong>sem&aacute;foro</strong>: verde = acelerar, amarillo = precauci&oacute;n, rojo = frenar. El term&oacute;metro combina dos factores: <strong>tendencia</strong> (60%) &mdash; &iquest;el mercado viene subiendo? &mdash; y <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia?</p>
 
             <div class="algo-formula-box">
                 <div class="algo-formula-label">F&oacute;rmula matem&aacute;tica (funci&oacute;n sigmoid)</div>
@@ -1210,7 +1210,7 @@
             <div class="algo-highlight">
                 <div class="algo-highlight-badge">v8.4</div>
                 <div class="algo-highlight-content">
-                    <strong>Correcci&oacute;n de mercado alcista:</strong> A veces el mercado est&aacute; subiendo claramente (S&amp;P 500 un 3% por encima de su promedio) pero la turbulencia reciente arrastra el puntaje hacia abajo. En esos casos, COMPASS <strong>a&ntilde;ade +1 posici&oacute;n</strong> para no perderse ganancias por una se&ntilde;al falsa de precauci&oacute;n. Esto corrigi&oacute; 864 d&iacute;as donde el sistema hubiera invertido de menos sin motivo real.
+                    <strong>Correcci&oacute;n de mercado alcista:</strong> A veces el mercado est&aacute; subiendo claramente (S&amp;P 500 un 3% por encima de su promedio) pero la turbulencia reciente arrastra el puntaje hacia abajo. En esos casos, HYDRA <strong>a&ntilde;ade +1 posici&oacute;n</strong> para no perderse ganancias por una se&ntilde;al falsa de precauci&oacute;n. Esto corrigi&oacute; 864 d&iacute;as donde el sistema hubiera invertido de menos sin motivo real.
                 </div>
             </div>
         </div>
@@ -1225,7 +1225,7 @@
             <span class="algo-card-title">&iquest;C&oacute;mo nos protegemos de p&eacute;rdidas?</span>
         </div>
         <div class="algo-card-body">
-            <p>El riesgo es lo m&aacute;s importante. COMPASS tiene <strong>4 capas de protecci&oacute;n</strong> que funcionan como airbags en un auto: se activan autom&aacute;ticamente cuando algo sale mal, sin necesidad de intervenci&oacute;n humana.</p>
+            <p>El riesgo es lo m&aacute;s importante. HYDRA tiene <strong>4 capas de protecci&oacute;n</strong> que funcionan como airbags en un auto: se activan autom&aacute;ticamente cuando algo sale mal, sin necesidad de intervenci&oacute;n humana.</p>
 
             <!-- ADAPTIVE STOPS -->
             <h3 class="algo-sub-title">L&iacute;mites de p&eacute;rdida personalizados</h3>
@@ -1274,7 +1274,7 @@
 
             <!-- DD SCALING -->
             <h3 class="algo-sub-title">Reducci&oacute;n gradual de exposici&oacute;n</h3>
-            <p>Si el portafolio total est&aacute; perdiendo dinero, COMPASS reduce <strong>gradualmente</strong> cu&aacute;nto tiene invertido. Es como <strong>soltar el acelerador al acercarse a una curva</strong>: no frenamos de golpe, sino que reducimos velocidad proporcionalmente al peligro.</p>
+            <p>Si el portafolio total est&aacute; perdiendo dinero, HYDRA reduce <strong>gradualmente</strong> cu&aacute;nto tiene invertido. Es como <strong>soltar el acelerador al acercarse a una curva</strong>: no frenamos de golpe, sino que reducimos velocidad proporcionalmente al peligro.</p>
             <div class="algo-dd-tiers">
                 <div class="algo-dd-tier">
                     <div class="algo-dd-bar" style="width:30%; background:var(--green);"></div>
@@ -1308,7 +1308,7 @@
 
             <!-- CRASH BREAKER -->
             <h3 class="algo-sub-title">Freno de emergencia</h3>
-            <p>Si el S&amp;P 500 cae <strong>&minus;6% en una semana</strong> o <strong>&minus;10% en dos semanas</strong>, COMPASS activa un freno de emergencia: reduce la inversi&oacute;n al 15% y espera 10 d&iacute;as de &ldquo;enfriamiento&rdquo;. Esto protege contra crashes como el de marzo 2020 o la crisis de 2008.</p>
+            <p>Si el S&amp;P 500 cae <strong>&minus;6% en una semana</strong> o <strong>&minus;10% en dos semanas</strong>, HYDRA activa un freno de emergencia: reduce la inversi&oacute;n al 15% y espera 10 d&iacute;as de &ldquo;enfriamiento&rdquo;. Esto protege contra crashes como el de marzo 2020 o la crisis de 2008.</p>
             <table class="algo-params-sm">
                 <tr><td>Ca&iacute;da r&aacute;pida</td><td>&minus;6% en 5 d&iacute;as &rarr; activar freno</td></tr>
                 <tr><td>Ca&iacute;da prolongada</td><td>&minus;10% en 10 d&iacute;as &rarr; activar freno</td></tr>
@@ -1327,7 +1327,7 @@
             <span class="algo-card-title">&iquest;Cu&aacute;nto invertimos y cu&aacute;ndo?</span>
         </div>
         <div class="algo-card-body">
-            <p>COMPASS divide el capital entre las acciones seleccionadas de forma inteligente: las <strong>acciones m&aacute;s estables reciben m&aacute;s dinero</strong>, las m&aacute;s vol&aacute;tiles menos. Esto equilibra el riesgo. Cada posici&oacute;n se mantiene <strong>5 d&iacute;as</strong> (una semana burs&aacute;til), y puede extenderse hasta 10 d&iacute;as si sigue ganando.</p>
+            <p>HYDRA divide el capital entre las acciones seleccionadas de forma inteligente: las <strong>acciones m&aacute;s estables reciben m&aacute;s dinero</strong>, las m&aacute;s vol&aacute;tiles menos. Esto equilibra el riesgo. Cada posici&oacute;n se mantiene <strong>5 d&iacute;as</strong> (una semana burs&aacute;til), y puede extenderse hasta 10 d&iacute;as si sigue ganando.</p>
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
                     <div class="algo-mini-title">Tama&ntilde;o de posici&oacute;n</div>
@@ -1377,12 +1377,12 @@
             <span class="algo-card-title">Rattlesnake: Mean-Reversion + Cash Recycling</span>
         </div>
         <div class="algo-card-body">
-            <p>Mientras COMPASS busca acciones que <strong>suben fuerte</strong>, Rattlesnake busca acciones que <strong>cayeron demasiado r&aacute;pido</strong> y probablemente se van a recuperar. Las tres estrategias se complementan: cuando una tiene el dinero parado, se lo presta a las otras o se invierte en EFA (mercados internacionales).</p>
+            <p>Mientras Momentum busca acciones que <strong>suben fuerte</strong>, Rattlesnake busca acciones que <strong>cayeron demasiado r&aacute;pido</strong> y probablemente se van a recuperar. Las tres estrategias se complementan: cuando una tiene el dinero parado, se lo presta a las otras o se invierte en EFA (mercados internacionales).</p>
 
             <div class="algo-highlight" style="margin-top: 16px;">
                 <div class="algo-highlight-badge" style="background:var(--yellow); color:#000;">HYDRA</div>
                 <div class="algo-highlight-content">
-                    <strong>Cash Recycling:</strong> Rattlesnake solo tiene posiciones el 49% del tiempo. Cuando su dinero est&aacute; parado, fluye a COMPASS (m&aacute;x 75%) y el resto a EFA (MSCI EAFE, filtrado por SMA200). Esto subi&oacute; el CAGR de 12.27% a <strong>14.93%</strong> y redujo el MaxDD de &minus;32.1% a <strong>&minus;22.3%</strong>.
+                    <strong>Cash Recycling:</strong> Rattlesnake solo tiene posiciones el 49% del tiempo. Cuando su dinero est&aacute; parado, fluye a Momentum (m&aacute;x 75%) y el resto a EFA (MSCI EAFE, filtrado por SMA200). Esto subi&oacute; el CAGR de 12.27% a <strong>14.93%</strong> y redujo el MaxDD de &minus;32.1% a <strong>&minus;22.3%</strong>.
                 </div>
             </div>
 
@@ -1413,9 +1413,9 @@
                 <div class="algo-mini-title">HYDRA &mdash; Resultado combinado (backtest 2000&ndash;2026)</div>
                 <table class="algo-params-sm">
                     <tr><td>HYDRA CAGR</td><td style="color:var(--green); font-weight:700;">14.93%</td></tr>
-                    <tr><td>COMPASS solo CAGR</td><td>12.27%</td></tr>
+                    <tr><td>Momentum solo CAGR</td><td>12.27%</td></tr>
                     <tr><td>HYDRA Max Drawdown</td><td style="color:var(--green); font-weight:700;">&minus;22.3%</td></tr>
-                    <tr><td>COMPASS solo MaxDD</td><td>&minus;32.1%</td></tr>
+                    <tr><td>Momentum solo MaxDD</td><td>&minus;32.1%</td></tr>
                     <tr><td>HYDRA Sharpe</td><td style="color:var(--green); font-weight:700;">1.12</td></tr>
                     <tr><td>Correlaci&oacute;n entre estrategias</td><td>0.38</td></tr>
                     <tr><td>$100K final (26 a&ntilde;os)</td><td style="color:var(--green); font-weight:700;">$3.8M</td></tr>
@@ -1433,7 +1433,7 @@
             <span class="algo-card-title">&iquest;C&oacute;mo anticipa las crisis antes de que lleguen?</span>
         </div>
         <div class="algo-card-body">
-            <p>Adem&aacute;s de las protecciones internas (stops, drawdown scaling), COMPASS tiene un <strong>sistema de alerta temprana macroecon&oacute;mica</strong> que monitorea 8 indicadores de la Reserva Federal en tiempo real. Funciona como un <strong>radar meteorol&oacute;gico</strong>: detecta la tormenta antes de que llegue, y reduce autom&aacute;ticamente la exposici&oacute;n del portafolio.</p>
+            <p>Adem&aacute;s de las protecciones internas (stops, drawdown scaling), HYDRA tiene un <strong>sistema de alerta temprana macroecon&oacute;mica</strong> que monitorea 8 indicadores de la Reserva Federal en tiempo real. Funciona como un <strong>radar meteorol&oacute;gico</strong>: detecta la tormenta antes de que llegue, y reduce autom&aacute;ticamente la exposici&oacute;n del portafolio.</p>
 
             <div class="algo-highlight" style="margin-top: 16px;">
                 <div class="algo-highlight-badge">NUEVO</div>
@@ -1483,7 +1483,7 @@
                     <tr><td>Alerta moderada</td><td>&minus;3.0pp &lt; M2MI &lt; &minus;1.5pp &rarr; scalar 0.60 a 0.40 (reducci&oacute;n gradual)</td></tr>
                     <tr><td>Alerta m&aacute;xima</td><td>M2MI &le; &minus;3.0pp &rarr; scalar = 0.40 (desaceleraci&oacute;n severa)</td></tr>
                 </table>
-                <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Los umbrales (-1.5pp y -3.0pp) provienen de investigaci&oacute;n en econom&iacute;a monetaria (Werner, Keen), no de datos de COMPASS &mdash; esto evita el sobreajuste.</p>
+                <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Los umbrales (-1.5pp y -3.0pp) provienen de investigaci&oacute;n en econom&iacute;a monetaria (Werner, Keen), no de datos de HYDRA &mdash; esto evita el sobreajuste.</p>
             </div>
 
             <!-- FOMC -->
@@ -1503,7 +1503,7 @@
             <div class="algo-mini-card" style="margin-bottom:16px;">
                 <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; Fed Emergency &mdash; Intervenci&oacute;n de Emergencia</div>
                 <p style="margin:10px 0; font-size:13px; line-height:1.6;">Cuando hay una crisis grave, la Fed interviene expandiendo masivamente su <a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--accent);">hoja de balance (WALCL)</a> &mdash; comprando bonos del Tesoro, respaldando bancos, o creando facilidades de emergencia. Esto es lo que sucedi&oacute; en 2008&ndash;2009 (Quantitative Easing por la crisis financiera), marzo 2020 (inyecci&oacute;n masiva por COVID), y marzo 2023 (Bank Term Funding Program por la crisis de SVB/Signature Bank).</p>
-                <p style="margin:8px 0; font-size:13px; line-height:1.6;">A diferencia de los otros overlays, este <strong>no reduce el capital</strong>. En cambio, hace lo contrario: impone un <strong>piso m&iacute;nimo de 2 posiciones</strong> durante 90 d&iacute;as. &iquest;Por qu&eacute;? Porque cuando la Fed interviene con todo su poder, hist&oacute;ricamente marca el fondo del mercado o cerca de &eacute;l. Mantener al menos 2 posiciones asegura que COMPASS participe en la recuperaci&oacute;n posterior.</p>
+                <p style="margin:8px 0; font-size:13px; line-height:1.6;">A diferencia de los otros overlays, este <strong>no reduce el capital</strong>. En cambio, hace lo contrario: impone un <strong>piso m&iacute;nimo de 2 posiciones</strong> durante 90 d&iacute;as. &iquest;Por qu&eacute;? Porque cuando la Fed interviene con todo su poder, hist&oacute;ricamente marca el fondo del mercado o cerca de &eacute;l. Mantener al menos 2 posiciones asegura que HYDRA participe en la recuperaci&oacute;n posterior.</p>
                 <table class="algo-params-sm">
                     <tr><td>Indicador</td><td><a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--accent);">WALCL</a> &mdash; Total Assets of the Federal Reserve (publicado semanalmente)</td></tr>
                     <tr><td>Activaci&oacute;n</td><td>Balance de la Fed sube &gt;5% en 30 d&iacute;as (umbral basado en precedentes de 2009 y 2020)</td></tr>
@@ -1516,7 +1516,7 @@
             <div class="algo-mini-card" style="margin-bottom:16px;">
                 <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; Credit Filter &mdash; Filtro Sectorial por Crisis de Cr&eacute;dito</div>
                 <p style="margin:10px 0; font-size:13px; line-height:1.6;">En crisis de cr&eacute;dito extremas, ciertos sectores sufren desproporcionadamente. El sector financiero (bancos, aseguradoras, brokers) es el primero en caer porque su negocio depende directamente del cr&eacute;dito. El sector energ&eacute;tico tambi&eacute;n es vulnerable en crisis severas por su alta dependencia de financiamiento.</p>
-                <p style="margin:8px 0; font-size:13px; line-height:1.6;">Este componente usa el mismo <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener" style="color:var(--accent);">spread de high-yield (HY OAS)</a> que el BSO, pero con umbrales mucho m&aacute;s altos. No reduce capital &mdash; directamente <strong>excluye sectores vulnerables</strong> del universo de inversi&oacute;n, impidiendo que COMPASS compre acciones financieras o energ&eacute;ticas en plena crisis.</p>
+                <p style="margin:8px 0; font-size:13px; line-height:1.6;">Este componente usa el mismo <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener" style="color:var(--accent);">spread de high-yield (HY OAS)</a> que el BSO, pero con umbrales mucho m&aacute;s altos. No reduce capital &mdash; directamente <strong>excluye sectores vulnerables</strong> del universo de inversi&oacute;n, impidiendo que HYDRA compre acciones financieras o energ&eacute;ticas en plena crisis.</p>
                 <table class="algo-params-sm">
                     <tr><td>Nivel 1: HY &gt; 1000bps</td><td>Excluir sector <strong>Financiero</strong> del universo (percentil ~95 hist&oacute;rico &mdash; crisis confirmada)</td></tr>
                     <tr><td>Nivel 2: HY &gt; 1500bps</td><td>Excluir <strong>Financiero + Energ&iacute;a</strong> (solo alcanzado en 2008&ndash;2009, crisis sist&eacute;mica)</td></tr>
@@ -1531,7 +1531,7 @@
             <div class="algo-formula-box">
                 <div class="algo-formula-label">Combinaci&oacute;n multiplicativa</div>
                 <code class="algo-formula">capital_scalar = max(0.25, BSO &times; M2 &times; FOMC)</code>
-                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">El piso de 0.25 garantiza que COMPASS nunca se quede completamente fuera del mercado &mdash; siempre destina al menos 25% del capital disponible</p>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">El piso de 0.25 garantiza que HYDRA nunca se quede completamente fuera del mercado &mdash; siempre destina al menos 25% del capital disponible</p>
             </div>
             <p style="margin-top:12px;">Los otros 2 componentes operan de forma independiente: Fed Emergency impone un piso de posiciones, y Credit Filter excluye sectores. Ninguno de los 5 componentes modifica las se&ntilde;ales del algoritmo, los stops, ni las condiciones de salida.</p>
 
@@ -1554,7 +1554,7 @@
                 <tr><td>Mejora en Sharpe (OOS)</td><td>+0.021 (mejor retorno ajustado por riesgo)</td></tr>
                 <tr><td>Datos fuente</td><td>8 series <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">FRED</a> (p&uacute;blicas, sin API key, actualizadas diaria/semanalmente)</td></tr>
             </table>
-            <p style="margin-top:12px; font-size:12px; color:var(--text-tertiary);">Todos los datos provienen de <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--text-tertiary); text-decoration:underline;">FRED (Federal Reserve Economic Data)</a>, la base de datos econ&oacute;mica p&uacute;blica del St. Louis Fed. Los umbrales de cada indicador se basan en distribuciones hist&oacute;ricas y literatura econ&oacute;mica, no en datos de COMPASS &mdash; esto minimiza el riesgo de sobreajuste.</p>
+            <p style="margin-top:12px; font-size:12px; color:var(--text-tertiary);">Todos los datos provienen de <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--text-tertiary); text-decoration:underline;">FRED (Federal Reserve Economic Data)</a>, la base de datos econ&oacute;mica p&uacute;blica del St. Louis Fed. Los umbrales de cada indicador se basan en distribuciones hist&oacute;ricas y literatura econ&oacute;mica, no en datos de HYDRA &mdash; esto minimiza el riesgo de sobreajuste.</p>
         </div>
     </div>
 </div>
@@ -1567,7 +1567,7 @@
             <span class="algo-card-title">&iquest;C&oacute;mo aprende de sus propios resultados?</span>
         </div>
         <div class="algo-card-body">
-            <p>COMPASS incluye un <strong>sistema de aprendizaje autom&aacute;tico progresivo</strong> que registra cada decisi&oacute;n del algoritmo (compras, ventas, posiciones descartadas, cambios de r&eacute;gimen) y analiza los resultados para detectar patrones. Funciona como un <strong>diario de trading inteligente</strong>: primero observa y acumula datos, luego comienza a extraer conclusiones estad&iacute;sticas, y finalmente entrena modelos predictivos cuando tiene suficiente evidencia.</p>
+            <p>HYDRA incluye un <strong>sistema de aprendizaje autom&aacute;tico progresivo</strong> que registra cada decisi&oacute;n del algoritmo (compras, ventas, posiciones descartadas, cambios de r&eacute;gimen) y analiza los resultados para detectar patrones. Funciona como un <strong>diario de trading inteligente</strong>: primero observa y acumula datos, luego comienza a extraer conclusiones estad&iacute;sticas, y finalmente entrena modelos predictivos cuando tiene suficiente evidencia.</p>
 
             <div class="algo-highlight">
                 <div class="algo-highlight-badge">NUEVO</div>
@@ -1578,7 +1578,7 @@
 
             <!-- PRINCIPIO FUNDAMENTAL -->
             <h3 class="algo-sub-title">Principio fundamental: cero sesgo de anticipaci&oacute;n</h3>
-            <p>El error m&aacute;s com&uacute;n en machine learning financiero es el <a href="https://en.wikipedia.org/wiki/Look-ahead_bias" target="_blank" rel="noopener" style="color:var(--accent);">look-ahead bias</a> (sesgo de anticipaci&oacute;n): usar informaci&oacute;n futura para tomar decisiones pasadas. COMPASS elimina esto <strong>por construcci&oacute;n</strong>: cada registro captura &uacute;nicamente datos disponibles en el momento exacto de la decisi&oacute;n. El precio de entrada se registra antes del fill, y el resultado se registra despu&eacute;s del cierre de la posici&oacute;n.</p>
+            <p>El error m&aacute;s com&uacute;n en machine learning financiero es el <a href="https://en.wikipedia.org/wiki/Look-ahead_bias" target="_blank" rel="noopener" style="color:var(--accent);">look-ahead bias</a> (sesgo de anticipaci&oacute;n): usar informaci&oacute;n futura para tomar decisiones pasadas. HYDRA elimina esto <strong>por construcci&oacute;n</strong>: cada registro captura &uacute;nicamente datos disponibles en el momento exacto de la decisi&oacute;n. El precio de entrada se registra antes del fill, y el resultado se registra despu&eacute;s del cierre de la posici&oacute;n.</p>
 
             <!-- 3 FASES -->
             <h3 class="algo-sub-title">3 fases de aprendizaje</h3>
@@ -1623,7 +1623,7 @@
 
             <!-- QUE REGISTRA -->
             <h3 class="algo-sub-title">&iquest;Qu&eacute; registra en cada operaci&oacute;n?</h3>
-            <p>Cada vez que COMPASS toma una decisi&oacute;n, el sistema ML captura un <strong>snapshot completo</strong> del contexto: el estado del mercado, el puntaje de momentum, la volatilidad, el r&eacute;gimen, el drawdown del portafolio, y m&aacute;s. Esto crea un dataset que vincula <em>condiciones de entrada</em> con <em>resultados reales</em>.</p>
+            <p>Cada vez que HYDRA toma una decisi&oacute;n, el sistema ML captura un <strong>snapshot completo</strong> del contexto: el estado del mercado, el puntaje de momentum, la volatilidad, el r&eacute;gimen, el drawdown del portafolio, y m&aacute;s. Esto crea un dataset que vincula <em>condiciones de entrada</em> con <em>resultados reales</em>.</p>
 
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
@@ -1802,7 +1802,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
             Motor de Aprendizaje
         </div>
         <p class="ml-overview-desc">
-            El sistema ML opera como un <strong>observador inteligente</strong> del algoritmo COMPASS. No toma decisiones de trading &mdash;
+            El sistema ML opera como un <strong>observador inteligente</strong> del algoritmo HYDRA. No toma decisiones de trading &mdash;
             registra cada acci&oacute;n del motor (compras, ventas, descartes, cambios de r&eacute;gimen), vincula las condiciones de entrada
             con los resultados reales, y escala progresivamente desde estad&iacute;sticas descriptivas hasta modelos predictivos a medida
             que acumula evidencia. <strong>Nunca modifica el algoritmo autom&aacute;ticamente</strong> &mdash; solo genera insights para revisi&oacute;n humana.
@@ -1813,7 +1813,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
     <div class="ml-pipeline">
         <div class="ml-pipe-step">
             <div class="ml-pipe-icon">&#9881;</div>
-            <div class="ml-pipe-label">Motor COMPASS</div>
+            <div class="ml-pipe-label">Motor HYDRA</div>
             <div class="ml-pipe-sub">Ejecuta trades</div>
         </div>
         <div class="ml-pipe-arrow">&rarr;</div>
@@ -1951,7 +1951,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
         <div class="footer-brand">
             <div class="footer-brand-icon"><img src="/static/img/omnicapital_logo.png" alt="OmniCapital"></div>
             <span class="footer-brand-name">OmniCapital</span>
-            <span class="footer-version">HYDRA (COMPASS + Rattlesnake + EFA)</span>
+            <span class="footer-version">HYDRA (Momentum + Rattlesnake + EFA)</span>
             <span class="footer-status">Paper Trading</span>
         </div>
         <div class="footer-meta">
@@ -1965,7 +1965,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
     <div class="footer-disclaimer">
         This dashboard is for informational and educational purposes only. Not investment advice.
         Past performance does not guarantee future results. All trading involves risk of loss.
-        COMPASS is a quantitative research project in paper trading phase.
+        HYDRA is a quantitative research project in paper trading phase.
     </div>
     <div class="footer-copyright">&copy; 2026 OmniCapital &middot; Lima, Per&uacute;</div>
 </footer>
@@ -1974,7 +1974,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260306c"></script>
+<script src="/static/js/dashboard.js?v=20260306d"></script>
 
 </body>
 </html>

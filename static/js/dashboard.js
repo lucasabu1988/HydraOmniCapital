@@ -1,14 +1,14 @@
 /* ============ DARK MODE ============ */
 function initDarkMode() {
-    // v2 key — forces dark default for users who had old 'compass-dark-mode' saved
-    var saved = localStorage.getItem('compass-theme-v2');
+    // v2 key — forces dark default for users who had old 'hydra-dark-mode' saved
+    var saved = localStorage.getItem('hydra-theme-v2');
     var isDark = saved !== null ? saved === 'dark' : true;
     if (isDark) document.body.classList.add('dark');
     updateDarkToggleIcon(isDark);
 }
 function toggleDarkMode() {
     var isDark = document.body.classList.toggle('dark');
-    localStorage.setItem('compass-theme-v2', isDark ? 'dark' : 'light');
+    localStorage.setItem('hydra-theme-v2', isDark ? 'dark' : 'light');
     updateDarkToggleIcon(isDark);
     // Update chart colors if charts exist
     if (typeof updateChartColors === 'function') updateChartColors();
@@ -313,10 +313,10 @@ function _fillAlpha(alphaEl, alphaLabel, hydraRet, spyRet) {
 function updatePerfBanner(p) {
     /* === ROW 1: DAILY === */
     var dailyReturn = p.daily_return != null ? p.daily_return : 0;
-    var compassVal = document.getElementById('perf-compass-val');
-    compassVal.textContent = fmtPct(dailyReturn);
-    compassVal.className = 'perf-side-value ' + colorCls(dailyReturn);
-    document.getElementById('perf-compass-sub').textContent = fmt$(p.portfolio_value);
+    var hydraVal = document.getElementById('perf-hydra-val');
+    hydraVal.textContent = fmtPct(dailyReturn);
+    hydraVal.className = 'perf-side-value ' + colorCls(dailyReturn);
+    document.getElementById('perf-hydra-sub').textContent = fmt$(p.portfolio_value);
 
     var spyVal = document.getElementById('perf-spy-val');
     if (p.spy_return != null) {
@@ -337,12 +337,12 @@ function updatePerfBanner(p) {
     /* === ROW 2: CUMULATIVE (General) === */
     var cumReturn = p.total_return != null ? p.total_return : 0;
     var spyCum = p.spy_cumulative;
-    var cumVal = document.getElementById('perf-compass-cum');
+    var cumVal = document.getElementById('perf-hydra-cum');
     if (cumVal) {
         cumVal.textContent = fmtPct(cumReturn);
         cumVal.className = 'perf-side-value ' + colorCls(cumReturn);
         var cumPortfolio = p.initial_capital * (1 + cumReturn / 100);
-        document.getElementById('perf-compass-cum-sub').textContent =
+        document.getElementById('perf-hydra-cum-sub').textContent =
             '$' + p.initial_capital.toLocaleString() + ' \u2192 ' + fmt$(cumPortfolio);
     }
 
@@ -394,7 +394,7 @@ function updatePositions(details) {
     let totalValue = 0;
     let totalPnl = 0;
     let totalCost = 0;
-    const holdDays = 5; /* COMPASS hold period */
+    const holdDays = 5; /* HYDRA hold period */
 
     for (const p of details) {
         currentPositions[p.symbol] = true;
@@ -717,13 +717,13 @@ function updateHydra(hydra) {
     var allocBand = document.getElementById('hydra-alloc-band');
     if (cap && allocBand) {
         allocBand.style.display = 'flex';
-        var cPct = (cap.compass_pct || 0.5) * 100;
+        var cPct = (cap.hydra_pct || 0.5) * 100;
         var rPct = (cap.rattle_pct || 0.5) * 100;
-        document.getElementById('hydra-bar-compass').style.width = cPct + '%';
+        document.getElementById('hydra-bar-momentum').style.width = cPct + '%';
         document.getElementById('hydra-bar-rattle').style.width = rPct + '%';
-        document.getElementById('hydra-c-pct').textContent = cPct.toFixed(0) + '%';
+        document.getElementById('hydra-m-pct').textContent = cPct.toFixed(0) + '%';
         document.getElementById('hydra-r-pct').textContent = rPct.toFixed(0) + '%';
-        document.getElementById('hydra-c-val').textContent = fmt$(cap.compass_account || 0);
+        document.getElementById('hydra-m-val').textContent = fmt$(cap.hydra_account || 0);
         document.getElementById('hydra-r-val').textContent = fmt$(cap.rattle_account || 0);
         var recycled = cap.recycled_pct || 0;
         document.getElementById('hydra-recycled').textContent = (recycled * 100).toFixed(0) + '% recycled';
@@ -1088,10 +1088,10 @@ async function fetchCycleLog() {
         let html = '';
         for (const c of cycles) {
             const isActive = c.status === 'active';
-            const compass = c.compass_return != null ? (c.compass_return >= 0 ? '+' : '') + c.compass_return.toFixed(2) + '%' : '--';
+            const hydra = c.hydra_return != null ? (c.hydra_return >= 0 ? '+' : '') + c.hydra_return.toFixed(2) + '%' : '--';
             const spy = c.spy_return != null ? (c.spy_return >= 0 ? '+' : '') + c.spy_return.toFixed(2) + '%' : '--';
             const alpha = c.alpha != null ? (c.alpha >= 0 ? '+' : '') + c.alpha.toFixed(2) + ' pp' : '--';
-            const compassCls = c.compass_return > 0 ? 'cl-pos' : c.compass_return < 0 ? 'cl-neg' : '';
+            const hydraCls = c.hydra_return > 0 ? 'cl-pos' : c.hydra_return < 0 ? 'cl-neg' : '';
             const spyCls = c.spy_return > 0 ? 'cl-pos' : c.spy_return < 0 ? 'cl-neg' : '';
             const alphaCls = c.alpha > 0 ? 'cl-pos' : c.alpha < 0 ? 'cl-neg' : '';
             const period = c.end_date ? c.start_date + ' → ' + c.end_date : c.start_date + ' → ...';
@@ -1130,7 +1130,7 @@ async function fetchCycleLog() {
                 '<td>#' + c.cycle + '</td>' +
                 '<td>' + period + '</td>' +
                 '<td class="cl-tickers">' + tickers + '</td>' +
-                '<td class="cl-num ' + compassCls + '">' + compass + '</td>' +
+                '<td class="cl-num ' + hydraCls + '">' + hydra + '</td>' +
                 '<td class="cl-num ' + spyCls + '">' + spy + '</td>' +
                 '<td class="cl-num ' + alphaCls + '">' + alpha + '</td>' +
                 '<td>' + status + '</td>' +
@@ -1752,7 +1752,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
 
     var isDark = document.body.classList.contains('dark');
     var years = data.map(function(d) { return d.year; });
-    var compassRets = data.map(function(d) { return d.compass; });
+    var hydraRets = data.map(function(d) { return d.hydra; });
     var spyRets = data.map(function(d) { return d.spy; });
 
     /* ── Badge ─────────────────────────────────────────────────────────── */
@@ -1761,21 +1761,21 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
 
     /* ── Per-year derived flags ─────────────────────────────────────────── */
     var underperforms = data.map(function(d) {
-        return d.spy != null && d.compass < d.spy;
+        return d.spy != null && d.hydra < d.spy;
     });
 
     /* ── Stat block ─────────────────────────────────────────────────────── */
-    var compassWins = 0;
+    var hydraWins = 0;
     var totalAlpha  = 0;
     var validPairs  = 0;
     data.forEach(function(d) {
         if (d.spy != null) {
-            if (d.compass > d.spy) compassWins++;
-            totalAlpha += (d.compass - d.spy);
+            if (d.hydra > d.spy) hydraWins++;
+            totalAlpha += (d.hydra - d.spy);
             validPairs++;
         }
     });
-    var compassLosses = validPairs - compassWins;
+    var hydraLosses = validPairs - hydraWins;
     var avgAlpha      = validPairs > 0 ? totalAlpha / validPairs : 0;
     var alphaSign     = avgAlpha >= 0 ? '+' : '';
 
@@ -1787,11 +1787,11 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
     var elAlpha    = document.getElementById('ar-stat-alpha');
     if (elPositive) elPositive.textContent = positiveYears;
     if (elTotal)    elTotal.textContent    = totalYears;
-    if (elBeats)    elBeats.textContent    = compassWins + '/' + validPairs;
+    if (elBeats)    elBeats.textContent    = hydraWins + '/' + validPairs;
     if (elLoses) {
-        elLoses.textContent = compassLosses + '/' + validPairs;
+        elLoses.textContent = hydraLosses + '/' + validPairs;
         /* Colour the "loses" count red only when meaningful */
-        elLoses.className = 'ar-stat-value' + (compassLosses > 0 ? ' negative' : ' positive');
+        elLoses.className = 'ar-stat-value' + (hydraLosses > 0 ? ' negative' : ' positive');
     }
     if (elAlpha) {
         elAlpha.textContent = alphaSign + avgAlpha.toFixed(1) + ' pp';
@@ -1800,13 +1800,13 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
 
     /* ── Design tokens ──────────────────────────────────────────────────── */
     /*
-     * COMPASS bars:  solid green (positive) / solid red (negative).
+     * HYDRA bars:  solid green (positive) / solid red (negative).
      *                No opacity tricks — colour alone carries the sign.
      * SPY bars:      low-opacity indigo ghost — pure reference, not competitor.
      * Underperform:  communicated through a small yellow diamond drawn on the
      *                Y-axis tick by the custom plugin, not through bar colour.
      */
-    var compassColors = compassRets.map(function(v) {
+    var hydraColors = hydraRets.map(function(v) {
         if (v >= 0) return isDark ? '#22c55e' : '#16a34a';
         return isDark ? '#ef4444' : '#dc2626';
     });
@@ -1842,8 +1842,8 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             datasets: [
                 {
                     label: 'HYDRA',
-                    data: compassRets,
-                    backgroundColor: compassColors,
+                    data: hydraRets,
+                    backgroundColor: hydraColors,
                     borderColor: 'transparent',
                     borderWidth: 0,
                     borderRadius: { topRight: 2, bottomRight: 2, topLeft: 0, bottomLeft: 0 },
@@ -1871,7 +1871,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false, axis: 'y' },
-            /* Right padding: enough room for the COMPASS value labels */
+            /* Right padding: enough room for the HYDRA value labels */
             layout: { padding: { top: 4, bottom: 4, left: 0, right: 72 } },
             plugins: {
                 legend: { display: false },
@@ -1899,13 +1899,13 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                             return '  ' + item.dataset.label + ':  ' + sign + val.toFixed(2) + '%';
                         },
                         afterBody: function(items) {
-                            var compass = null, spy = null;
+                            var hydraVal = null, spy = null;
                             items.forEach(function(it) {
-                                if (it.dataset.label === 'HYDRA') compass = it.parsed.x;
+                                if (it.dataset.label === 'HYDRA') hydraVal = it.parsed.x;
                                 if (it.dataset.label === 'S&P 500') spy = it.parsed.x;
                             });
-                            if (compass != null && spy != null) {
-                                var diff = compass - spy;
+                            if (hydraVal != null && spy != null) {
+                                var diff = hydraVal - spy;
                                 var sign = diff >= 0 ? '+' : '';
                                 var line = '  Alpha:  ' + sign + diff.toFixed(2) + ' pp';
                                 return ['', line];
@@ -1964,8 +1964,8 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
         },
         plugins: [
             /*
-             * Plugin 1 — COMPASS value labels
-             * Drawn only for dataset 0 (COMPASS).
+             * Plugin 1 — HYDRA value labels
+             * Drawn only for dataset 0 (HYDRA).
              * Positive bars: label to the RIGHT of bar end.
              * Negative bars: label to the LEFT of bar end.
              * Font: 10px JetBrains Mono / colour tracks sign.
@@ -1973,7 +1973,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             {
                 id: 'arValueLabels',
                 afterDatasetsDraw: function(chart, args, opts) {
-                    if (args.index !== 0) return;   /* COMPASS only */
+                    if (args.index !== 0) return;   /* HYDRA only */
                     var c      = chart.ctx;
                     var dkNow  = document.body.classList.contains('dark');
                     var meta   = chart.getDatasetMeta(0);
@@ -2006,7 +2006,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
             },
             /*
              * Plugin 2 — Underperformance marker
-             * For years where COMPASS < SPY, paint a 3px wide yellow left-edge
+             * For years where HYDRA < SPY, paint a 3px wide yellow left-edge
              * accent on the Y axis tick area. This signals underperformance without
              * mutating bar colour, keeping the colour system clean.
              */
@@ -2120,7 +2120,7 @@ function fetchExpAnalysis() {
 
     const totalExp = 37;
     const failed = 33;
-    const approved = 3;  /* v8 COMPASS + Exp #34 IG Cash Yield + EXP59 HYDRA */
+    const approved = 3;  /* v8 HYDRA + Exp #34 IG Cash Yield + EXP59 HYDRA */
     const partial = 2;   /* RATTLESNAKE standalone + QUANTUM */
     const failRate = ((failed / totalExp) * 100).toFixed(1);
 
@@ -2128,7 +2128,7 @@ function fetchExpAnalysis() {
     const categories = [
         { name: 'Motor (signal/params)', tried: 18, failed: 16, examples: 'v8.1 shorts, rank-hysteresis, VORTEX, behavioral, ensemble, preemptive stop, profit target, MWF, Genius Layer' },
         { name: 'Alternative engines', tried: 7, failed: 5, examples: 'VIPER ETF, ECLIPSE pairs, QUANTUM RSI, RATTLESNAKE mean-rev' },
-        { name: 'Geographic expansion', tried: 2, failed: 2, examples: 'COMPASS EU (STOXX), COMPASS Asia (N225)' },
+        { name: 'Geographic expansion', tried: 2, failed: 2, examples: 'HYDRA EU (STOXX), HYDRA Asia (N225)' },
         { name: 'Protection/hedging', tried: 5, failed: 5, examples: 'Inverse ETFs, momentum shorts, OTM puts, gold futures, TLT/IEF' },
         { name: 'Chassis improvements', tried: 5, failed: 2, examples: 'MOC execution, no leverage, IG cash yield, box spread, pre-close signal' },
     ];
@@ -2150,7 +2150,7 @@ function fetchExpAnalysis() {
     html += '<div class="exp-stat-box"><div class="exp-stat-label">EXPERIMENTS RUN</div><div class="exp-stat-val" style="color:var(--cyan);">' + totalExp + '</div><div class="exp-stat-note">' + failed + ' failed, ' + approved + ' approved, ' + partial + ' partial</div></div>';
     html += '<div class="exp-stat-box"><div class="exp-stat-label">FAILURE RATE</div><div class="exp-stat-val" style="color:var(--red);">' + failRate + '%</div><div class="exp-stat-note">Algorithm inelasticity confirmed</div></div>';
     html += '<div class="exp-stat-box"><div class="exp-stat-label">CAGR BASELINE</div><div class="exp-stat-val" style="color:var(--green);">18.56%</div><div class="exp-stat-note">Signal gross | 15.16% net (after 2.5% costs)</div></div>';
-    html += '<div class="exp-stat-box"><div class="exp-stat-label">WORST EXPERIMENT</div><div class="exp-stat-val" style="color:var(--red);">-20.87%</div><div class="exp-stat-note">COMPASS EU v1 ($100K &rarr; $507)</div></div>';
+    html += '<div class="exp-stat-box"><div class="exp-stat-label">WORST EXPERIMENT</div><div class="exp-stat-val" style="color:var(--red);">-20.87%</div><div class="exp-stat-note">HYDRA EU v1 ($100K &rarr; $507)</div></div>';
     html += '</div>';
 
     /* Category breakdown */
@@ -2175,7 +2175,7 @@ function fetchExpAnalysis() {
     html += '<div class="exp-proposals"><div class="exp-proposals-title">CONCLUSION</div>';
     html += '<div class="exp-proposal-card">';
     html += '<div class="exp-proposal-name">Algorithm Motor: LOCKED <span class="exp-proposal-priority exp-priority-high">FINAL</span></div>';
-    html += '<div class="exp-proposal-desc">59 experiments confirm HYDRA (COMPASS + Rattlesnake + Cash Recycling) as the optimal configuration. EXP59 validated segregated accounts with cash recycling: 13.28% CAGR, 1.04 Sharpe, -23.5% MaxDD.</div>';
+    html += '<div class="exp-proposal-desc">59 experiments confirm HYDRA (Momentum + Rattlesnake + Cash Recycling) as the optimal configuration. EXP59 validated segregated accounts with cash recycling: 13.28% CAGR, 1.04 Sharpe, -23.5% MaxDD.</div>';
     html += '<div class="exp-proposal-rationale">Focus on chassis (execution quality, broker integration, data sources) and operations (paper trading, tax optimization, scaling).</div>';
     html += '</div>';
 

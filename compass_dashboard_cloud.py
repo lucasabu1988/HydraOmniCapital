@@ -1,5 +1,5 @@
 """
-COMPASS v8.4 — Cloud Dashboard (Showcase)
+HYDRA v8.4 — Cloud Dashboard (Showcase)
 ==========================================
 Full-featured Flask dashboard for Render.com deployment.
 Shows live prices, backtest equity curves, trade analytics,
@@ -52,10 +52,10 @@ def set_security_headers(response):
     return response
 
 # ============================================================================
-# COMPASS v8.4 PARAMETERS (read-only reference — ALGORITHM LOCKED)
+# HYDRA v8.4 PARAMETERS (read-only reference — ALGORITHM LOCKED)
 # ============================================================================
 
-COMPASS_CONFIG = {
+HYDRA_CONFIG = {
     'HOLD_DAYS': 5,
     'NUM_POSITIONS': 5,
     'NUM_POSITIONS_RISK_OFF': 2,
@@ -105,9 +105,9 @@ SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
 
 # Rattlesnake parameters (mirrored from rattlesnake_signals.py for dashboard)
 R_VIX_PANIC = 35
-R_BASE_COMPASS_ALLOC = 0.50
+R_BASE_HYDRA_ALLOC = 0.50
 R_BASE_RATTLE_ALLOC = 0.50
-R_MAX_COMPASS_ALLOC = 0.75
+R_MAX_HYDRA_ALLOC = 0.75
 
 PRICE_CACHE_SECONDS = 30
 SOCIAL_CACHE_SECONDS = 300  # 5 minutes
@@ -118,7 +118,7 @@ LIVE_TEST_SPY_START = 6830.71  # ^GSPC prev close on 2026-03-06
 LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
-SHOWCASE_MODE = os.environ.get('COMPASS_MODE', 'showcase') == 'showcase'
+SHOWCASE_MODE = os.environ.get('HYDRA_MODE', 'showcase') == 'showcase'
 
 # ============================================================================
 # DATA PRELOAD (at import time — shared across gunicorn workers via --preload)
@@ -131,7 +131,7 @@ _spy_df = None
 def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
-    # HYDRA multi-strategy data (COMPASS + Rattlesnake with cash recycling)
+    # HYDRA multi-strategy data (HYDRA + Rattlesnake with cash recycling)
     csv_path = os.path.join('backtests', 'exp60_hydra_efa_filtered.csv')
     if os.path.exists(csv_path):
         try:
@@ -305,14 +305,14 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
                 days_held = trading_day - entry_day_index
         else:
             days_held = trading_day - entry_day_index
-        days_remaining = max(0, COMPASS_CONFIG['HOLD_DAYS'] - days_held)
+        days_remaining = max(0, HYDRA_CONFIG['HOLD_DAYS'] - days_held)
 
         # v8.4: Adaptive trailing stop (vol-scaled)
-        trailing_active = high_price > entry_price * (1 + COMPASS_CONFIG['TRAILING_ACTIVATION'])
+        trailing_active = high_price > entry_price * (1 + HYDRA_CONFIG['TRAILING_ACTIVATION'])
         if trailing_active:
-            entry_vol = meta.get('entry_vol', COMPASS_CONFIG.get('TRAILING_VOL_BASELINE', 0.25))
-            vol_ratio = entry_vol / COMPASS_CONFIG.get('TRAILING_VOL_BASELINE', 0.25)
-            scaled_trailing = COMPASS_CONFIG['TRAILING_STOP_PCT'] * vol_ratio
+            entry_vol = meta.get('entry_vol', HYDRA_CONFIG.get('TRAILING_VOL_BASELINE', 0.25))
+            vol_ratio = entry_vol / HYDRA_CONFIG.get('TRAILING_VOL_BASELINE', 0.25)
+            scaled_trailing = HYDRA_CONFIG['TRAILING_STOP_PCT'] * vol_ratio
             trailing_stop_level = high_price * (1 - scaled_trailing)
         else:
             trailing_stop_level = None
@@ -320,10 +320,10 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
         # v8.4: Adaptive position stop (vol-scaled)
         entry_daily_vol = meta.get('entry_daily_vol')
         if entry_daily_vol is not None:
-            raw_stop = -COMPASS_CONFIG['STOP_DAILY_VOL_MULT'] * entry_daily_vol
-            adaptive_stop = max(COMPASS_CONFIG['STOP_CEILING'], min(COMPASS_CONFIG['STOP_FLOOR'], raw_stop))
+            raw_stop = -HYDRA_CONFIG['STOP_DAILY_VOL_MULT'] * entry_daily_vol
+            adaptive_stop = max(HYDRA_CONFIG['STOP_CEILING'], min(HYDRA_CONFIG['STOP_FLOOR'], raw_stop))
         else:
-            adaptive_stop = COMPASS_CONFIG['STOP_FLOOR']  # fallback to floor
+            adaptive_stop = HYDRA_CONFIG['STOP_FLOOR']  # fallback to floor
         position_stop_level = entry_price * (1 + adaptive_stop)
 
         sector = meta.get('sector', 'Unknown')
@@ -393,7 +393,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     portfolio_value = state.get('portfolio_value', 0)
     peak_value = state.get('peak_value', 0)
     cash = state.get('cash', 0)
-    initial_capital = COMPASS_CONFIG['INITIAL_CAPITAL']
+    initial_capital = HYDRA_CONFIG['INITIAL_CAPITAL']
     prices = prices or {}
 
     # Recompute invested value with live prices if available
@@ -431,7 +431,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     recovery = None
     dd_leverage = state.get('dd_leverage', 1.0)
     crash_cooldown = state.get('crash_cooldown', 0)
-    if dd_leverage < COMPASS_CONFIG['LEV_FULL'] or crash_cooldown > 0:
+    if dd_leverage < HYDRA_CONFIG['LEV_FULL'] or crash_cooldown > 0:
         recovery = {
             'dd_leverage': round(dd_leverage, 3),
             'crash_cooldown': crash_cooldown,
@@ -444,17 +444,17 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
 
     # v8.4: DD leverage (smooth scaling)
     dd_leverage = state.get('dd_leverage', 1.0)
-    leverage = dd_leverage if dd_leverage < COMPASS_CONFIG['LEV_FULL'] else None
+    leverage = dd_leverage if dd_leverage < HYDRA_CONFIG['LEV_FULL'] else None
 
     # v8.4: Positions from regime score (thresholds match local dashboard)
     if regime_score >= 0.65:
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS']
+        max_pos = HYDRA_CONFIG['NUM_POSITIONS']
     elif regime_score >= 0.50:
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS'] - 1
+        max_pos = HYDRA_CONFIG['NUM_POSITIONS'] - 1
     elif regime_score >= 0.35:
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS'] - 2
+        max_pos = HYDRA_CONFIG['NUM_POSITIONS'] - 2
     else:
-        max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
+        max_pos = HYDRA_CONFIG['NUM_POSITIONS_RISK_OFF']
 
     # S&P 500 daily return (today's change from previous close)
     spy_current = prices.get('^GSPC') if prices else None
@@ -500,7 +500,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'max_positions': max_pos,
         'regime': regime_str,
         'regime_consecutive': state.get('regime_consecutive', 0),
-        'in_protection': dd_leverage < COMPASS_CONFIG['LEV_FULL'],
+        'in_protection': dd_leverage < HYDRA_CONFIG['LEV_FULL'],
         'regime_score': round(regime_score, 3),
         'leverage': leverage,
         'recovery': recovery,
@@ -571,34 +571,34 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
         })
 
     # --- Capital allocation (cash recycling) ---
-    portfolio_value = state.get('portfolio_value', COMPASS_CONFIG['INITIAL_CAPITAL'])
+    portfolio_value = state.get('portfolio_value', HYDRA_CONFIG['INITIAL_CAPITAL'])
     # If hydra capital manager state exists, use it
     cap_state = hydra_state.get('capital_manager')
     if cap_state:
-        compass_account = cap_state.get('compass_account', portfolio_value * R_BASE_COMPASS_ALLOC)
+        hydra_account = cap_state.get('hydra_account', portfolio_value * R_BASE_HYDRA_ALLOC)
         rattle_account = cap_state.get('rattle_account', portfolio_value * R_BASE_RATTLE_ALLOC)
     else:
         # No persisted HYDRA state — compute from current portfolio
-        # Rattlesnake has 0 exposure when no positions → all idle cash recycles to COMPASS
-        compass_account = portfolio_value * R_BASE_COMPASS_ALLOC
+        # Rattlesnake has 0 exposure when no positions → all idle cash recycles to HYDRA
+        hydra_account = portfolio_value * R_BASE_HYDRA_ALLOC
         rattle_account = portfolio_value * R_BASE_RATTLE_ALLOC
 
-    total = compass_account + rattle_account
+    total = hydra_account + rattle_account
     if total <= 0:
-        total = portfolio_value or COMPASS_CONFIG['INITIAL_CAPITAL']
-        compass_account = total * R_BASE_COMPASS_ALLOC
+        total = portfolio_value or HYDRA_CONFIG['INITIAL_CAPITAL']
+        hydra_account = total * R_BASE_HYDRA_ALLOC
         rattle_account = total * R_BASE_RATTLE_ALLOC
 
-    # Cash recycling: idle Rattlesnake cash flows to COMPASS (capped at 75%)
+    # Cash recycling: idle Rattlesnake cash flows to HYDRA (capped at 75%)
     rattle_invested = sum(
         rp.get('shares', 0) * prices.get(rp.get('symbol', ''), rp.get('entry_price', 0))
         for rp in rattle_positions_raw
     )
     rattle_exposure = rattle_invested / rattle_account if rattle_account > 0 else 0
     r_idle = rattle_account * (1.0 - rattle_exposure)
-    max_recycle = max(0, total * R_MAX_COMPASS_ALLOC - compass_account)
+    max_recycle = max(0, total * R_MAX_HYDRA_ALLOC - hydra_account)
     recycled = min(r_idle, max_recycle)
-    c_effective = compass_account + recycled
+    c_effective = hydra_account + recycled
     r_effective = rattle_account - recycled
 
     return {
@@ -608,9 +608,9 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
         'vix_current': round(vix_current, 2) if vix_current else None,
         'vix_panic': vix_panic,
         'capital': {
-            'compass_account': round(c_effective, 2),
+            'hydra_account': round(c_effective, 2),
             'rattle_account': round(r_effective, 2),
-            'compass_pct': round(c_effective / total, 4) if total > 0 else 0.5,
+            'hydra_pct': round(c_effective / total, 4) if total > 0 else 0.5,
             'rattle_pct': round(r_effective / total, 4) if total > 0 else 0.5,
             'recycled_pct': round(recycled / total, 4) if total > 0 else 0,
         },
@@ -671,7 +671,7 @@ def _fetch_reddit_posts(symbols: List[str], max_per: int = 2) -> List[dict]:
     if not _HAS_REQUESTS:
         return []
     items = []
-    headers = {'User-Agent': 'COMPASS-Dashboard/1.0'}
+    headers = {'User-Agent': 'HYDRA-Dashboard/1.0'}
     for symbol in symbols:
         try:
             r = http_requests.get(
@@ -717,7 +717,7 @@ def _fetch_seekingalpha_news(symbols: List[str], max_per: int = 2) -> List[dict]
     if not _HAS_REQUESTS:
         return []
     items = []
-    headers = {'User-Agent': 'COMPASS-Dashboard/1.0'}
+    headers = {'User-Agent': 'HYDRA-Dashboard/1.0'}
     for symbol in symbols:
         try:
             rss_url = f'https://seekingalpha.com/api/sa/combined/{symbol}.xml'
@@ -770,7 +770,7 @@ def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
     if not _HAS_REQUESTS:
         return []
     items = []
-    headers = {'User-Agent': os.environ.get('SEC_USER_AGENT', 'COMPASS-Dashboard contact@omnicapital.com')}
+    headers = {'User-Agent': os.environ.get('SEC_USER_AGENT', 'HYDRA-Dashboard contact@omnicapital.com')}
     start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
     for symbol in symbols:
@@ -833,7 +833,7 @@ def _fetch_google_news(symbols: List[str], max_per: int = 2) -> List[dict]:
     if not _HAS_REQUESTS:
         return []
     items = []
-    headers = {'User-Agent': 'COMPASS-Dashboard/1.0'}
+    headers = {'User-Agent': 'HYDRA-Dashboard/1.0'}
     for symbol in symbols:
         try:
             query = f'{symbol}+stock+market'
@@ -885,7 +885,7 @@ def _fetch_marketwatch_news(max_items: int = 5) -> List[dict]:
     if not _HAS_REQUESTS:
         return []
     items = []
-    headers = {'User-Agent': 'COMPASS-Dashboard/1.0'}
+    headers = {'User-Agent': 'HYDRA-Dashboard/1.0'}
     try:
         rss_url = 'https://feeds.marketwatch.com/marketwatch/topstories/'
         r = http_requests.get(rss_url, headers=headers, timeout=8)
@@ -1031,7 +1031,7 @@ def api_state():
         'prev_closes': _prev_close_cache,
         'universe': state.get('current_universe', []),
         'universe_year': state.get('universe_year'),
-        'config': COMPASS_CONFIG,
+        'config': HYDRA_CONFIG,
         'chassis': {},
         'preclose': preclose_status,
         'hydra': hydra_data,
@@ -1050,10 +1050,10 @@ def api_state():
 
 @app.route('/api/cycle-log')
 def api_cycle_log():
-    """Return the 5-day cycle performance log (COMPASS vs SPY).
+    """Return the 5-day cycle performance log (HYDRA vs SPY).
 
     Active cycles are enriched with live prices so the dashboard
-    shows real-time COMPASS return, SPY return, and alpha.
+    shows real-time HYDRA return, SPY return, and alpha.
     """
     log_file = os.path.join(STATE_DIR, 'cycle_log.json')
     if not os.path.exists(log_file):
@@ -1080,7 +1080,7 @@ def api_cycle_log():
             is_first_day = (cycle_start == last_trading) if cycle_start and last_trading else False
 
             if is_first_day:
-                c['compass_return'] = 0.0
+                c['hydra_return'] = 0.0
                 c['spy_return'] = 0.0
                 c['alpha'] = 0.0
                 c['portfolio_end'] = c.get('portfolio_start')
@@ -1111,7 +1111,7 @@ def api_cycle_log():
             port_start = c.get('portfolio_start')
             if port_start and port_start > 0:
                 c['portfolio_end'] = round(portfolio_now, 2)
-                c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
+                c['hydra_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
             # S&P 500 index return (benchmark)
             spy_price = prices.get('^GSPC')
@@ -1121,8 +1121,8 @@ def api_cycle_log():
                 c['spy_return'] = round((spy_price / spy_start - 1) * 100, 2)
 
             # Alpha
-            if c.get('compass_return') is not None and c.get('spy_return') is not None:
-                c['alpha'] = round(c['compass_return'] - c['spy_return'], 2)
+            if c.get('hydra_return') is not None and c.get('spy_return') is not None:
+                c['alpha'] = round(c['hydra_return'] - c['spy_return'], 2)
         except Exception:
             pass
 
@@ -1131,21 +1131,21 @@ def api_cycle_log():
 
 @app.route('/api/live-chart')
 def api_live_chart():
-    """Return daily COMPASS vs S&P 500 indexed performance since live test start.
+    """Return daily HYDRA vs S&P 500 indexed performance since live test start.
 
-    Reads historical state files for COMPASS portfolio values and
+    Reads historical state files for HYDRA portfolio values and
     fetches SPY data from yfinance. Both series are indexed
     to 100 on the start date for easy visual comparison.
     """
-    # 1. Read all dated state files for COMPASS daily values
+    # 1. Read all dated state files for HYDRA daily values
     pattern = os.path.join(STATE_DIR, 'compass_state_2*.json')
     state_files = sorted(f for f in glob.glob(pattern)
                          if 'pre_rotation' not in f and 'latest' not in f)
 
     if not state_files:
-        return jsonify({'dates': [], 'compass': [], 'spy': []})
+        return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
-    compass_data = {}  # date_str -> portfolio_value
+    hydra_data = {}  # date_str -> portfolio_value
     first_value = None
     for sf in state_files:
         try:
@@ -1154,14 +1154,14 @@ def api_live_chart():
             dt = s.get('last_trading_date')
             val = s.get('portfolio_value')
             if dt and val:
-                compass_data[dt] = val
+                hydra_data[dt] = val
                 if first_value is None:
                     first_value = val
         except Exception:
             continue
 
-    if not compass_data or first_value is None:
-        return jsonify({'dates': [], 'compass': [], 'spy': []})
+    if not hydra_data or first_value is None:
+        return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
     # Add today's live value from latest state, recalculated with live prices
     try:
@@ -1182,11 +1182,11 @@ def api_live_chart():
                 else:
                     today_val = state.get('portfolio_value')
                 if today_val:
-                    compass_data[today_str] = today_val
+                    hydra_data[today_str] = today_val
     except Exception:
         pass
 
-    dates = sorted(compass_data.keys())
+    dates = sorted(hydra_data.keys())
     start_date = dates[0]
 
     # 2. Fetch S&P 500 index data for the same period (try ^GSPC, fallback SPY)
@@ -1227,15 +1227,15 @@ def api_live_chart():
     # 3. Build aligned series indexed to 100
     spy_first = spy_data.get(start_date)
     result_dates = []
-    result_compass = []
+    result_hydra = []
     result_spy = []
 
     for dt in dates:
-        compass_val = compass_data[dt]
-        compass_indexed = (compass_val / first_value) * 100
+        hydra_val = hydra_data[dt]
+        hydra_indexed = (hydra_val / first_value) * 100
 
         result_dates.append(dt)
-        result_compass.append(round(compass_indexed, 2))
+        result_hydra.append(round(hydra_indexed, 2))
 
         spy_val = spy_data.get(dt)
         if spy_val and spy_first:
@@ -1246,7 +1246,7 @@ def api_live_chart():
 
     return jsonify({
         'dates': result_dates,
-        'compass': result_compass,
+        'hydra': result_hydra,
         'spy': result_spy,
         'start_date': start_date,
     })
@@ -1254,7 +1254,7 @@ def api_live_chart():
 
 @app.route('/api/equity')
 def api_equity():
-    """Return COMPASS equity curve data (full period from 2000)."""
+    """Return HYDRA equity curve data (full period from 2000)."""
     df = _equity_df
     if df is None:
         csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
@@ -1347,7 +1347,7 @@ def api_equity():
 
 @app.route('/api/equity-comparison')
 def api_equity_comparison():
-    """Return COMPASS vs S&P 500 vs Net comparison data (full period from 2000)."""
+    """Return HYDRA vs S&P 500 vs Net comparison data (full period from 2000)."""
     df = _equity_df
     spy_df = _spy_df
 
@@ -1383,24 +1383,24 @@ def api_equity_comparison():
 
     # Full period from 2000 — NO filter to 2016
 
-    compass_start = float(merged[val_col].iloc[0])
+    hydra_start = float(merged[val_col].iloc[0])
     spy_start = float(merged['close'].iloc[0])
 
-    merged['compass_val'] = merged[val_col]
-    merged['spy_val'] = merged['close'] / spy_start * compass_start
+    merged['hydra_val'] = merged[val_col]
+    merged['spy_val'] = merged['close'] / spy_start * hydra_start
 
-    compass_final = float(merged['compass_val'].iloc[-1])
+    hydra_final = float(merged['hydra_val'].iloc[-1])
     spy_final = float(merged['spy_val'].iloc[-1])
     first_date = merged['date_key'].iloc[0]
     last_date = merged['date_key'].iloc[-1]
     years = (last_date - first_date).days / 365.25
 
-    compass_cagr = (pow(compass_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
-    spy_cagr = (pow(spy_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
+    hydra_cagr = (pow(hydra_final / hydra_start, 1 / years) - 1) * 100 if years > 0 else 0
+    spy_cagr = (pow(spy_final / hydra_start, 1 / years) - 1) * 100 if years > 0 else 0
 
     # Net equity curve (Signal - 2.0% fixed annual execution costs)
     EXECUTION_COST = 0.02
-    daily_growth_signal = compass_cagr / 100.0
+    daily_growth_signal = hydra_cagr / 100.0
     net_cagr_decimal = daily_growth_signal - EXECUTION_COST
     days_elapsed = (merged['date_key'] - first_date).dt.days.values
     years_elapsed = days_elapsed / 365.25
@@ -1408,10 +1408,10 @@ def api_equity_comparison():
         adjustment = ((1 + net_cagr_decimal) / (1 + daily_growth_signal)) ** years_elapsed
     else:
         adjustment = np.ones(len(merged))
-    merged['net_val'] = merged['compass_val'].values * adjustment
+    merged['net_val'] = merged['hydra_val'].values * adjustment
 
     net_final = float(merged['net_val'].iloc[-1])
-    net_cagr = (pow(net_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
+    net_cagr = (pow(net_final / hydra_start, 1 / years) - 1) * 100 if years > 0 else 0
 
     # Downsample every 10 rows, always include last row
     sampled = merged.iloc[::10]
@@ -1421,17 +1421,17 @@ def api_equity_comparison():
     for _, row in sampled.iterrows():
         result.append({
             'date': row['date_key'].strftime('%Y-%m-%d'),
-            'compass': round(float(row['compass_val']), 0),
+            'hydra': round(float(row['hydra_val']), 0),
             'spy': round(float(row['spy_val']), 0),
             'net': round(float(row['net_val']), 0),
         })
 
     return jsonify({
         'data': result,
-        'compass_cagr': round(compass_cagr, 2),
+        'hydra_cagr': round(hydra_cagr, 2),
         'spy_cagr': round(spy_cagr, 2),
         'net_cagr': round(net_cagr, 2),
-        'compass_final': round(compass_final, 0),
+        'hydra_final': round(hydra_final, 0),
         'spy_final': round(spy_final, 0),
         'net_final': round(net_final, 0),
         'years': round(years, 1),
@@ -1440,7 +1440,7 @@ def api_equity_comparison():
 
 @app.route('/api/annual-returns')
 def api_annual_returns():
-    """Return COMPASS vs S&P 500 annual returns for bar chart."""
+    """Return HYDRA vs S&P 500 annual returns for bar chart."""
     df = _equity_df
     spy_df = _spy_df
 
@@ -1457,13 +1457,13 @@ def api_annual_returns():
     df_copy = df[['date', val_col]].copy()
     df_copy['year'] = df_copy['date'].dt.year
 
-    # COMPASS annual returns: last value of year / first value of year - 1
-    compass_annual = []
+    # HYDRA annual returns: last value of year / first value of year - 1
+    hydra_annual = []
     for year, grp in df_copy.groupby('year'):
         start_val = float(grp[val_col].iloc[0])
         end_val = float(grp[val_col].iloc[-1])
         ret = ((end_val / start_val) - 1) * 100 if start_val > 0 else 0
-        compass_annual.append({'year': int(year), 'return': round(ret, 2)})
+        hydra_annual.append({'year': int(year), 'return': round(ret, 2)})
 
     # SPY annual returns
     spy_annual = {}
@@ -1478,21 +1478,21 @@ def api_annual_returns():
 
     result = []
     positive_years = 0
-    for item in compass_annual:
+    for item in hydra_annual:
         yr = item['year']
         spy_ret = spy_annual.get(yr)
         if item['return'] > 0:
             positive_years += 1
         result.append({
             'year': yr,
-            'compass': item['return'],
+            'hydra': item['return'],
             'spy': spy_ret,
         })
 
     return jsonify({
         'data': result,
         'positive_years': positive_years,
-        'total_years': len(compass_annual),
+        'total_years': len(hydra_annual),
     })
 
 
@@ -1713,7 +1713,7 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights):
 
     lines = []
     lines.append(f'### System Status\n')
-    lines.append(f'COMPASS ML Learning is in **Phase {phase}** (data collection). {trading_days} trading days logged.')
+    lines.append(f'HYDRA ML Learning is in **Phase {phase}** (data collection). {trading_days} trading days logged.')
     if phase < 2:
         lines.append(f' ML models activate at Phase 2 (~{days_to_phase2} trading days remaining).\n')
     else:
@@ -1887,7 +1887,7 @@ def sitemap_xml():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("COMPASS v8.4 \u2014 Cloud Dashboard (Showcase)")
+    print("HYDRA v8.4 \u2014 Cloud Dashboard (Showcase)")
     print("=" * 60)
     print(f"Port: {port}")
     print(f"Mode: {'SHOWCASE' if SHOWCASE_MODE else 'local'}")
