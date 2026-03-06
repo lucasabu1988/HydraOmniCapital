@@ -1143,7 +1143,21 @@ function updateSpyTracker(prices, prevCloses) {
     var chgEl = document.getElementById('hdr-spy-chg');
     var idxPrice = prices['^GSPC'] || prices['GSPC'];
     if (priceEl && chgEl && idxPrice) {
-        _applyPriceChg(priceEl, chgEl, idxPrice, pc['^GSPC'] || pc['GSPC']);
+        priceEl.textContent = idxPrice.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        var idxPrev = pc['^GSPC'] || pc['GSPC'];
+        if (idxPrev && idxPrev > 0) {
+            var chg = ((idxPrice - idxPrev) / idxPrev) * 100;
+            if (chg > 0) {
+                chgEl.textContent = '+' + chg.toFixed(2) + '%';
+                chgEl.style.color = 'var(--green)';
+            } else if (chg < -0.001) {
+                chgEl.textContent = chg.toFixed(2) + '%';
+                chgEl.style.color = 'var(--red)';
+            } else {
+                chgEl.textContent = '0.00%';
+                chgEl.style.color = 'var(--text-secondary)';
+            }
+        }
     }
     /* --- ES Futures --- */
     var fPriceEl = document.getElementById('hdr-futures-price');

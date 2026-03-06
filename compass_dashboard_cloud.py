@@ -1039,7 +1039,7 @@ def api_state():
 
     # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake held
     rattle_syms = [p.get('symbol') for p in state.get('hydra', {}).get('rattle_positions', []) if p.get('symbol')]
-    symbols = ['SPY', 'ES=F', '^VIX'] + list(state.get('positions', {}).keys()) + rattle_syms
+    symbols = ['SPY', '^GSPC', 'ES=F', '^VIX'] + list(state.get('positions', {}).keys()) + rattle_syms
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
