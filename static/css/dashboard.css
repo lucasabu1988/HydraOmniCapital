@@ -171,8 +171,8 @@ body.dark .perf-banner, body.dark .positions-hero {
 
 /* Brand icon heartbeat */
 @keyframes brand-heartbeat {
-    0%, 100% { box-shadow: 0 0 10px var(--accent-glow); }
-    50% { box-shadow: 0 0 24px var(--accent-strong-glow), 0 0 48px rgba(79, 70, 229, 0.08); }
+    0%, 100% { filter: drop-shadow(0 0 10px var(--accent-glow)); }
+    50% { filter: drop-shadow(0 0 24px var(--accent-strong-glow)) drop-shadow(0 0 48px rgba(79, 70, 229, 0.08)); }
 }
 .hdr-brand-icon {
     animation: brand-heartbeat 3s ease-in-out infinite;
@@ -326,7 +326,6 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
-    filter: drop-shadow(0 0 10px var(--accent-glow));
     flex-shrink: 0;
 }
 .hdr-brand-icon img {
