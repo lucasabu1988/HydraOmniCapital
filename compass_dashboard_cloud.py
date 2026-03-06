@@ -471,19 +471,21 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     else:
         spy_cumulative = None
 
+    # HYDRA cumulative return (since live test start)
+    cumulative_return = round(total_return * 100, 2)
+
     # HYDRA daily return (current portfolio vs yesterday's close value)
-    # history[-1] is today's open snapshot, [-2] is yesterday's close
+    # On day 1 (started today), daily == cumulative since there's no prior day
     pv_hist = state.get('portfolio_values_history', [])
-    if len(pv_hist) >= 2 and portfolio_value > 0:
+    trading_days_elapsed = _compute_real_trading_day(state)
+    if trading_days_elapsed <= 1:
+        # Day 1: daily return equals cumulative (both from initial capital)
+        daily_return = cumulative_return
+    elif len(pv_hist) >= 2 and portfolio_value > 0:
         yesterday_value = pv_hist[-2]
         daily_return = round((portfolio_value - yesterday_value) / yesterday_value * 100, 2)
     else:
         daily_return = None
-
-    # HYDRA cumulative return (since live test start)
-    cumulative_return = round(total_return * 100, 2)
-
-    trading_days_elapsed = _compute_real_trading_day(state)
 
     return {
         'portfolio_value': round(portfolio_value, 2),
