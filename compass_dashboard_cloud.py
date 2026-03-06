@@ -153,92 +153,101 @@ _prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
 _price_cache_lock = threading.Lock()
 
-# TradingView symbol mapping for non-stock tickers
-_TV_SPECIAL_MAP = {
-    'SPY': 'AMEX:SPY',
-    'ES=F': 'CME_MINI:ES1!',
-    '^VIX': 'CBOE:VIX',
-    '^TNX': 'TVC:US10Y',
-    'NQ=F': 'CME_MINI:NQ1!',
-    'DX=F': 'TVC:DXY',
-    '^GSPC': 'SP:SPX',
-    'GLD': 'AMEX:GLD',
-    'TLT': 'NASDAQ:TLT',
-    'QQQ': 'NASDAQ:QQQ',
-    'IWM': 'AMEX:IWM',
-    'EFA': 'AMEX:EFA',
-    'EEM': 'AMEX:EEM',
-    'XLF': 'AMEX:XLF',
-    'XLE': 'AMEX:XLE',
-    'XLK': 'AMEX:XLK',
-    'XLV': 'AMEX:XLV',
-    'XLI': 'AMEX:XLI',
-    'XLP': 'AMEX:XLP',
-    'XLU': 'AMEX:XLU',
-    'XLY': 'AMEX:XLY',
-    'XLB': 'AMEX:XLB',
-    'XLRE': 'AMEX:XLRE',
-    'XLC': 'AMEX:XLC',
-    'HYG': 'AMEX:HYG',
-    'LQD': 'AMEX:LQD',
+# TradingView symbol mapping: local symbol -> (endpoint, tv_ticker)
+# Endpoints: 'america' for stocks/ETFs, 'global' for indices, 'futures' for futures
+_TV_SYMBOL_MAP = {
+    'SPY': ('america', 'AMEX:SPY'),
+    'ES=F': ('futures', 'CME_MINI:ES1!'),
+    '^VIX': ('global', 'CBOE:VIX'),
+    '^TNX': ('global', 'TVC:US10Y'),
+    'NQ=F': ('futures', 'CME_MINI:NQ1!'),
+    'DX=F': ('global', 'TVC:DXY'),
+    '^GSPC': ('global', 'SP:SPX'),
+    'GLD': ('america', 'AMEX:GLD'),
+    'TLT': ('america', 'NASDAQ:TLT'),
+    'QQQ': ('america', 'NASDAQ:QQQ'),
+    'IWM': ('america', 'AMEX:IWM'),
+    'EFA': ('america', 'AMEX:EFA'),
+    'EEM': ('america', 'AMEX:EEM'),
+    'XLF': ('america', 'AMEX:XLF'),
+    'XLE': ('america', 'AMEX:XLE'),
+    'XLK': ('america', 'AMEX:XLK'),
+    'XLV': ('america', 'AMEX:XLV'),
+    'XLI': ('america', 'AMEX:XLI'),
+    'XLP': ('america', 'AMEX:XLP'),
+    'XLU': ('america', 'AMEX:XLU'),
+    'XLY': ('america', 'AMEX:XLY'),
+    'XLB': ('america', 'AMEX:XLB'),
+    'XLRE': ('america', 'AMEX:XLRE'),
+    'XLC': ('america', 'AMEX:XLC'),
+    'HYG': ('america', 'AMEX:HYG'),
+    'LQD': ('america', 'AMEX:LQD'),
 }
 
 
-def _fetch_tradingview_prices(symbols: List[str]) -> Dict[str, dict]:
-    """Fetch live prices from TradingView scanner API (single batch request).
-    Returns {symbol: {'price': float, 'prev_close': float}}."""
-    if not _HAS_REQUESTS:
+def _tv_scan(endpoint: str, tickers: List[str], tv_to_local: Dict[str, str]) -> Dict[str, dict]:
+    """Execute a single TradingView scanner request."""
+    if not tickers:
         return {}
     results = {}
-    tv_tickers = []
-    tv_to_local = {}  # TradingView ticker -> local symbol
-
-    for sym in symbols:
-        tv = _TV_SPECIAL_MAP.get(sym)
-        if tv:
-            tv_to_local[tv] = sym
-            tv_tickers.append(tv)
-        else:
-            # S&P 500 stocks: try NYSE, NASDAQ, and AMEX
-            for exchange in ('NYSE', 'NASDAQ', 'AMEX'):
-                key = f'{exchange}:{sym}'
-                tv_to_local[key] = sym
-                tv_tickers.append(key)
-
-    if not tv_tickers:
-        return results
-
     try:
         payload = {
-            'symbols': {'tickers': tv_tickers},
-            'columns': ['close', 'open', 'prev_close_price', 'change'],
+            'symbols': {'tickers': tickers},
+            'columns': ['close', 'close|1', 'change'],
         }
         r = http_requests.post(
-            'https://scanner.tradingview.com/america/scan',
+            f'https://scanner.tradingview.com/{endpoint}/scan',
             json=payload,
             headers={'User-Agent': 'COMPASS-Dashboard/1.0'},
             timeout=10,
         )
         if r.status_code == 200:
-            data = r.json()
-            seen = set()
-            for item in data.get('data', []):
+            for item in r.json().get('data', []):
                 tv_sym = item.get('s', '')
                 local_sym = tv_to_local.get(tv_sym)
-                if not local_sym or local_sym in seen:
+                if not local_sym or local_sym in results:
                     continue
                 vals = item.get('d', [])
-                if len(vals) >= 3:
-                    close_price = vals[0]
-                    prev_close = vals[2]
-                    if close_price and close_price > 0:
-                        result = {'price': float(close_price)}
-                        if prev_close and prev_close > 0:
-                            result['prev_close'] = float(prev_close)
-                        results[local_sym] = result
-                        seen.add(local_sym)
+                if len(vals) >= 2 and vals[0] and vals[0] > 0:
+                    result = {'price': float(vals[0])}
+                    if vals[1] and vals[1] > 0:
+                        result['prev_close'] = float(vals[1])
+                    results[local_sym] = result
+        else:
+            logger.warning(f'TradingView {endpoint} returned {r.status_code}: {r.text[:200]}')
     except Exception as e:
-        logger.warning(f'TradingView fetch failed: {e}')
+        logger.warning(f'TradingView {endpoint} fetch failed: {e}')
+    return results
+
+
+def _fetch_tradingview_prices(symbols: List[str]) -> Dict[str, dict]:
+    """Fetch live prices from TradingView (batched by endpoint).
+    Returns {symbol: {'price': float, 'prev_close': float}}."""
+    if not _HAS_REQUESTS:
+        return {}
+
+    # Group symbols by TradingView endpoint
+    endpoint_groups: Dict[str, List[str]] = {}  # endpoint -> [tv_tickers]
+    tv_to_local: Dict[str, str] = {}  # tv_ticker -> local_symbol
+
+    for sym in symbols:
+        mapped = _TV_SYMBOL_MAP.get(sym)
+        if mapped:
+            endpoint, tv_ticker = mapped
+            tv_to_local[tv_ticker] = sym
+            endpoint_groups.setdefault(endpoint, []).append(tv_ticker)
+        else:
+            # S&P 500 stocks: try NYSE, NASDAQ, AMEX on 'america' endpoint
+            for exchange in ('NYSE', 'NASDAQ', 'AMEX'):
+                key = f'{exchange}:{sym}'
+                tv_to_local[key] = sym
+                endpoint_groups.setdefault('america', []).append(key)
+
+    # Fetch from each endpoint
+    results = {}
+    for endpoint, tickers in endpoint_groups.items():
+        batch = _tv_scan(endpoint, tickers, tv_to_local)
+        results.update(batch)
     return results
 
 
