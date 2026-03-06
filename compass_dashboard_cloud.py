@@ -20,7 +20,6 @@ import time as time_module
 from datetime import datetime, date, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
 # Optional imports (graceful if missing)
@@ -146,7 +145,7 @@ def _preload_data():
 _preload_data()
 
 # ============================================================================
-# PRICE CACHE (TradingView primary, yfinance fallback)
+# PRICE CACHE (all live prices from TradingView)
 # ============================================================================
 
 _price_cache: Dict[str, float] = {}
@@ -154,41 +153,61 @@ _prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
 _price_cache_lock = threading.Lock()
 
-# TradingView symbol mapping: yfinance symbol -> TradingView ticker
-_TV_SYMBOL_MAP = {
+# TradingView symbol mapping for non-stock tickers
+_TV_SPECIAL_MAP = {
     'SPY': 'AMEX:SPY',
     'ES=F': 'CME_MINI:ES1!',
     '^VIX': 'CBOE:VIX',
     '^TNX': 'TVC:US10Y',
     'NQ=F': 'CME_MINI:NQ1!',
     'DX=F': 'TVC:DXY',
+    '^GSPC': 'SP:SPX',
+    'GLD': 'AMEX:GLD',
+    'TLT': 'NASDAQ:TLT',
+    'QQQ': 'NASDAQ:QQQ',
+    'IWM': 'AMEX:IWM',
+    'EFA': 'AMEX:EFA',
+    'EEM': 'AMEX:EEM',
+    'XLF': 'AMEX:XLF',
+    'XLE': 'AMEX:XLE',
+    'XLK': 'AMEX:XLK',
+    'XLV': 'AMEX:XLV',
+    'XLI': 'AMEX:XLI',
+    'XLP': 'AMEX:XLP',
+    'XLU': 'AMEX:XLU',
+    'XLY': 'AMEX:XLY',
+    'XLB': 'AMEX:XLB',
+    'XLRE': 'AMEX:XLRE',
+    'XLC': 'AMEX:XLC',
+    'HYG': 'AMEX:HYG',
+    'LQD': 'AMEX:LQD',
 }
 
 
 def _fetch_tradingview_prices(symbols: List[str]) -> Dict[str, dict]:
-    """Fetch live prices from TradingView scanner API.
-    Returns {symbol: {'price': float, 'prev_close': float}} or empty dict."""
+    """Fetch live prices from TradingView scanner API (single batch request).
+    Returns {symbol: {'price': float, 'prev_close': float}}."""
     if not _HAS_REQUESTS:
         return {}
     results = {}
-    # Build TradingView tickers list
     tv_tickers = []
-    tv_to_local = {}
+    tv_to_local = {}  # TradingView ticker -> local symbol
+
     for sym in symbols:
-        tv = _TV_SYMBOL_MAP.get(sym)
-        if not tv:
-            # For stocks, use NASDAQ: or NYSE: prefix
-            tv = f'NASDAQ:{sym}'
-            tv_to_local[tv] = sym
-            # Also try NYSE
-            tv_alt = f'NYSE:{sym}'
-            tv_to_local[tv_alt] = sym
-            tv_tickers.extend([tv, tv_alt])
-        else:
+        tv = _TV_SPECIAL_MAP.get(sym)
+        if tv:
             tv_to_local[tv] = sym
             tv_tickers.append(tv)
+        else:
+            # S&P 500 stocks: try NYSE, NASDAQ, and AMEX
+            for exchange in ('NYSE', 'NASDAQ', 'AMEX'):
+                key = f'{exchange}:{sym}'
+                tv_to_local[key] = sym
+                tv_tickers.append(key)
+
     if not tv_tickers:
         return results
+
     try:
         payload = {
             'symbols': {'tickers': tv_tickers},
@@ -218,46 +237,14 @@ def _fetch_tradingview_prices(symbols: List[str]) -> Dict[str, dict]:
                             result['prev_close'] = float(prev_close)
                         results[local_sym] = result
                         seen.add(local_sym)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f'TradingView fetch failed: {e}')
     return results
 
 
-def _fetch_single_price(symbol: str) -> tuple:
-    """Fetch a single price + previous close via yfinance (fallback).
-    Returns (symbol, {'price': float, 'prev_close': float}) or (symbol, None)."""
-    if not _HAS_YFINANCE:
-        return (symbol, None)
-    try:
-        ticker = yf.Ticker(symbol)
-        price = None
-        prev_close = None
-        try:
-            fi = ticker.fast_info
-            price = fi.last_price
-            prev_close = fi.previous_close
-        except Exception:
-            pass
-        if not price or price <= 0:
-            hist = ticker.history(period='5d')
-            if len(hist) > 0:
-                price = float(hist['Close'].iloc[-1])
-                if len(hist) > 1:
-                    prev_close = float(hist['Close'].iloc[-2])
-        if price and price > 0:
-            result = {'price': float(price)}
-            if prev_close and prev_close > 0:
-                result['prev_close'] = float(prev_close)
-            return (symbol, result)
-    except Exception:
-        pass
-    return (symbol, None)
-
-
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
-    """Fetch current prices: TradingView first, yfinance fallback.
-    Returns {symbol: price_float} for backward compatibility.
-    Previous close data stored in _prev_close_cache."""
+    """Fetch all live prices from TradingView.
+    Returns {symbol: price_float}. Previous closes in _prev_close_cache."""
     global _price_cache, _prev_close_cache, _price_cache_time
 
     if not symbols:
@@ -275,27 +262,11 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
             _prev_close_cache = {}
 
     if missing:
-        # 1. Try TradingView first (batch request, fast)
         tv_results = _fetch_tradingview_prices(missing)
         for sym, result in tv_results.items():
             _price_cache[sym] = result['price']
             if 'prev_close' in result:
                 _prev_close_cache[sym] = result['prev_close']
-
-        # 2. Fallback to yfinance for any symbols TradingView missed
-        still_missing = [s for s in missing if s not in _price_cache]
-        if still_missing and _HAS_YFINANCE:
-            with ThreadPoolExecutor(max_workers=min(10, len(still_missing))) as executor:
-                futures = {executor.submit(_fetch_single_price, sym): sym for sym in still_missing}
-                for future in as_completed(futures):
-                    try:
-                        sym, result = future.result(timeout=30)
-                        if result is not None:
-                            _price_cache[sym] = result['price']
-                            if 'prev_close' in result:
-                                _prev_close_cache[sym] = result['prev_close']
-                    except Exception:
-                        pass
 
     with _price_cache_lock:
         _price_cache_time = now
@@ -1275,9 +1246,9 @@ def api_live_chart():
         except Exception:
             pass
 
-    # Use live S&P 500 index price for today
+    # Use live S&P 500 price for today (from TradingView)
     today_str = date.today().strftime('%Y-%m-%d')
-    if _HAS_YFINANCE and today_str in [d for d in dates]:
+    if today_str in [d for d in dates]:
         try:
             live_spy = fetch_live_prices(['SPY'])
             if 'SPY' in live_spy:
