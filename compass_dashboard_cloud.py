@@ -428,10 +428,17 @@ def get_spy_start_price() -> Optional[float]:
         if not start_date:
             return None
 
-        spy = yf.Ticker('SPY')
-        hist = spy.history(start=start_date, end=(date.fromisoformat(start_date) + timedelta(days=5)).isoformat())
-        if not hist.empty:
-            _spy_start_price = float(hist['Close'].iloc[0])
+        # Try S&P 500 index first, fall back to SPY ETF
+        end_str = (date.fromisoformat(start_date) + timedelta(days=5)).isoformat()
+        for ticker_sym in ['^GSPC', 'SPY']:
+            try:
+                hist = yf.Ticker(ticker_sym).history(start=start_date, end=end_str)
+                if not hist.empty:
+                    _spy_start_price = float(hist['Close'].iloc[0])
+                    break
+            except Exception:
+                continue
+        if _spy_start_price is not None:
             return _spy_start_price
     except Exception:
         pass
@@ -527,7 +534,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
 
     # S&P 500 index benchmark return over same live test period
     spy_start = get_spy_start_price()
-    spy_current = prices.get('SPY') if prices else None
+    spy_current = prices.get('^GSPC') if prices else None
     if spy_start and spy_current and spy_start > 0:
         spy_return = round((spy_current - spy_start) / spy_start * 100, 2)
     else:
@@ -1139,7 +1146,7 @@ def api_cycle_log():
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
             # Fetch S&P 500 index — benchmark with global P&L
-            symbols = list(positions.keys()) + ['SPY']
+            symbols = list(positions.keys()) + ['^GSPC']
             prices = fetch_live_prices(symbols)
 
             # Sync positions_current with actual state holdings
@@ -1162,7 +1169,7 @@ def api_cycle_log():
                 c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
             # S&P 500 index return (benchmark)
-            spy_price = prices.get('SPY')
+            spy_price = prices.get('^GSPC')
             spy_start = c.get('spy_start')
             if spy_price and spy_start and spy_start > 0:
                 c['spy_end'] = round(spy_price, 2)
@@ -1237,15 +1244,22 @@ def api_live_chart():
     dates = sorted(compass_data.keys())
     start_date = dates[0]
 
-    # 2. Fetch S&P 500 index data for the same period
+    # 2. Fetch S&P 500 index data for the same period (try ^GSPC, fallback SPY)
     spy_data = {}
     if _HAS_YFINANCE:
         try:
             end_dt = date.today() + timedelta(days=1)
-            hist = yf.download('SPY', start=start_date,
-                             end=end_dt.isoformat(),
-                             progress=False, auto_adjust=True)
-            if len(hist) > 0:
+            hist = None
+            for dl_sym in ['^GSPC', 'SPY']:
+                try:
+                    hist = yf.download(dl_sym, start=start_date,
+                                     end=end_dt.isoformat(),
+                                     progress=False, auto_adjust=True)
+                    if len(hist) > 0:
+                        break
+                except Exception:
+                    continue
+            if hist is not None and len(hist) > 0:
                 # Flatten multi-level columns (yfinance returns MultiIndex)
                 if isinstance(hist.columns, pd.MultiIndex):
                     hist.columns = hist.columns.droplevel('Ticker')
@@ -1255,13 +1269,13 @@ def api_live_chart():
         except Exception:
             pass
 
-    # Use live S&P 500 price for today (from TradingView)
+    # Use live S&P 500 index price for today (from TradingView)
     today_str = date.today().strftime('%Y-%m-%d')
     if today_str in [d for d in dates]:
         try:
-            live_spy = fetch_live_prices(['SPY'])
-            if 'SPY' in live_spy:
-                spy_data[today_str] = live_spy['SPY']
+            live_spy = fetch_live_prices(['^GSPC'])
+            if '^GSPC' in live_spy:
+                spy_data[today_str] = live_spy['^GSPC']
         except Exception:
             pass
 
