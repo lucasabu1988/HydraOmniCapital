@@ -288,33 +288,30 @@ function updateRegimeBand(p) {
 
 
 function updatePerfBanner(p) {
-    const adjPortfolio = p.portfolio_value;
-    const adjReturn = ((adjPortfolio - p.initial_capital) / p.initial_capital * 100);
+    /* HYDRA daily return (today's change) */
+    const dailyReturn = p.daily_return != null ? p.daily_return : 0;
     const compassVal = document.getElementById('perf-compass-val');
-    compassVal.textContent = fmtPct(adjReturn);
-    compassVal.className = 'perf-side-value ' + colorCls(adjReturn);
-    document.getElementById('perf-compass-sub').innerHTML =
-        '$' + p.initial_capital.toLocaleString() + ' &rarr; ' + fmt$(adjPortfolio);
+    compassVal.textContent = fmtPct(dailyReturn);
+    compassVal.className = 'perf-side-value ' + colorCls(dailyReturn);
+    document.getElementById('perf-compass-sub').textContent =
+        'Hoy \u00B7 ' + fmt$(p.portfolio_value);
 
-    /* SPY side */
+    /* SPY side — today's daily return */
     const spyVal = document.getElementById('perf-spy-val');
     if (p.spy_return != null) {
         spyVal.textContent = fmtPct(p.spy_return);
         spyVal.className = 'perf-side-value ' + colorCls(p.spy_return);
-        const spyStart = p.initial_capital;
-        const spyNow = spyStart * (1 + p.spy_return / 100);
-        document.getElementById('perf-spy-sub').innerHTML =
-            '$' + spyStart.toLocaleString() + ' &rarr; ' + fmt$(spyNow);
+        document.getElementById('perf-spy-sub').textContent = 'Hoy';
     } else {
         spyVal.textContent = '--';
         spyVal.className = 'perf-side-value';
     }
 
-    /* VS center — difference expressed as outperformance */
+    /* VS center — difference expressed as outperformance (daily) */
     const alphaEl = document.getElementById('perf-alpha');
     const alphaLabel = document.getElementById('perf-alpha-label');
-    if (p.spy_return != null) {
-        const diff = adjReturn - p.spy_return;
+    if (p.spy_return != null && p.daily_return != null) {
+        const diff = dailyReturn - p.spy_return;
         const absDiff = Math.abs(diff).toFixed(2);
         if (diff >= 0) {
             alphaEl.textContent = '+' + absDiff + ' pp';

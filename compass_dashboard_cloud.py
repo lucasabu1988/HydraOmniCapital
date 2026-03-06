@@ -455,13 +455,21 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     else:
         max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
 
-    # S&P 500 index benchmark return over same live test period
-    spy_start = get_spy_start_price()
+    # S&P 500 daily return (today's change from previous close)
     spy_current = prices.get('^GSPC') if prices else None
-    if spy_start and spy_current and spy_start > 0:
-        spy_return = round((spy_current - spy_start) / spy_start * 100, 2)
+    spy_prev = _prev_close_cache.get('^GSPC')
+    if spy_current and spy_prev and spy_prev > 0:
+        spy_return = round((spy_current - spy_prev) / spy_prev * 100, 2)
     else:
         spy_return = None
+
+    # HYDRA daily return (current portfolio vs yesterday's close value)
+    pv_hist = state.get('portfolio_values_history', [])
+    if pv_hist and portfolio_value > 0:
+        yesterday_value = pv_hist[-1]
+        daily_return = round((portfolio_value - yesterday_value) / yesterday_value * 100, 2)
+    else:
+        daily_return = None
 
     trading_days_elapsed = _compute_real_trading_day(state)
 
@@ -473,6 +481,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'drawdown': round(drawdown * 100, 2),
         'total_return': round(total_return * 100, 2),
         'spy_return': spy_return,
+        'daily_return': daily_return,
         'initial_capital': initial_capital,
         'num_positions': len(positions),
         'max_positions': max_pos,
