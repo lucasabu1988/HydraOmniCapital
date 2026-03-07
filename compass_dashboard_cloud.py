@@ -37,7 +37,11 @@ try:
 except ImportError:
     _HAS_REQUESTS = False
 
-# anthropic SDK removed — terminal replaced with WhatsApp contact
+try:
+    import anthropic
+    _HAS_ANTHROPIC = bool(os.environ.get('ANTHROPIC_API_KEY'))
+except ImportError:
+    _HAS_ANTHROPIC = False
 
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
@@ -1681,188 +1685,159 @@ def api_overlay_status():
 
 # Terminal removed — replaced with WhatsApp contact FAB
 
+# ============================================================================
+# AI INTERPRETATION (Claude-powered, once per cycle)
+# ============================================================================
+
+_interp_lock = threading.Lock()
+_interp_last_cycle = None  # track last interpreted cycle number
+
+
+def _get_last_closed_cycle_num():
+    """Return the highest closed cycle number from cycle_log.json, or None."""
+    log_file = os.path.join('state', 'cycle_log.json')
+    if not os.path.exists(log_file):
+        return None
+    try:
+        with open(log_file, 'r') as f:
+            cycles = json.load(f)
+        closed = [c['cycle'] for c in cycles if c.get('status') == 'closed']
+        return max(closed) if closed else None
+    except Exception:
+        return None
+
+
+def _should_regenerate_interpretation():
+    """Check if interpretation needs regeneration: startup or new closed cycle."""
+    global _interp_last_cycle
+    interp_path = os.path.join('state', 'ml_learning', 'interpretation.md')
+
+    # First call (startup): regenerate if file missing or we haven't tracked yet
+    if _interp_last_cycle is None:
+        if not os.path.exists(interp_path):
+            return True
+        # On startup, check if the file is stale (>24h) to avoid regenerating
+        # on every Render restart within the same cycle
+        try:
+            age_hours = (time_module.time() - os.path.getmtime(interp_path)) / 3600
+            if age_hours > 24:
+                return True
+        except OSError:
+            return True
+        # File is fresh — load last cycle from it and skip
+        return False
+
+    # Subsequent calls: regenerate only when a new cycle has closed
+    last_closed = _get_last_closed_cycle_num()
+    if last_closed is not None and last_closed > _interp_last_cycle:
+        return True
+    return False
+
+
+def _generate_claude_interpretation(entries, bt_stats=None):
+    """Call Claude API to generate an analytical interpretation of the ML data."""
+    if not _HAS_ANTHROPIC:
+        logger.warning("Anthropic SDK not available, skipping AI interpretation")
+        return None
+
+    # Prepare ML learning entries summary (last 50 to stay within token limits)
+    recent_entries = entries[-50:] if len(entries) > 50 else entries
+    entries_summary = []
+    for r in recent_entries:
+        # Strip large nested objects, keep essential fields
+        clean = {k: v for k, v in r.items() if k not in ('_type',) and v is not None}
+        clean['type'] = r.get('_type', 'unknown')
+        entries_summary.append(clean)
+
+    # Load cycle log for context
+    cycle_data = []
+    log_file = os.path.join('state', 'cycle_log.json')
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r') as f:
+                cycle_data = json.load(f)
+        except Exception:
+            pass
+
+    # Build the data payload for Claude
+    data_payload = {
+        'ml_learning_entries': entries_summary,
+        'total_entries_count': len(entries),
+        'cycle_log': cycle_data,
+    }
+    if bt_stats:
+        data_payload['backtest_reference'] = bt_stats
+
+    data_json = json.dumps(data_payload, indent=2, default=str)
+
+    system_prompt = """You are the AI analyst for HYDRA, an automated momentum-based stock rotation system
+trading 40 US large-cap stocks in 5-day cycles. Your role is to interpret the ML learning data and
+provide actionable insights for the portfolio manager.
+
+Write your analysis in markdown. Use ### headers. Be concise but insightful. Write in Spanish.
+
+Structure your analysis as:
+### Estado del Sistema — current phase, data collection progress
+### Analisis de Datos — patterns you see in the ML entries (decisions, snapshots, outcomes)
+### Rendimiento vs Backtest — compare live results against backtest reference if available
+### Observaciones Clave — important patterns, anomalies, or risks you detect
+### Proximo Ciclo — what to watch for in the next cycle
+
+Focus on genuine analytical insights, not just restating numbers. Identify patterns,
+flag anomalies, and provide context. If data is limited (early days), acknowledge this
+and focus on what CAN be observed.
+
+Keep your response under 500 words."""
+
+    try:
+        client = anthropic.Anthropic()
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{
+                "role": "user",
+                "content": f"Analyze the following HYDRA ML learning data and generate your interpretation:\n\n{data_json}"
+            }]
+        )
+        return message.content[0].text
+    except Exception as e:
+        logger.error(f"Claude API interpretation failed: {e}")
+        return None
+
 
 def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
+    global _interp_last_cycle
     interp_path = os.path.join(ml_dir, 'interpretation.md')
+
+    if not _should_regenerate_interpretation():
+        # Update tracking on first call even if we skip regeneration
+        if _interp_last_cycle is None:
+            _interp_last_cycle = _get_last_closed_cycle_num() or 0
+        return
+
+    if not _interp_lock.acquire(blocking=False):
+        return  # another thread is already generating
+
     try:
-        mtime = os.path.getmtime(interp_path)
-        age_days = (time_module.time() - mtime) / 86400
-        if age_days < 5:
-            return
-    except OSError:
-        pass
-
-    n_entries = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'entry')
-    n_exits = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'exit')
-    n_skips = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'skip')
-    n_snapshots = sum(1 for r in entries if r.get('_type') == 'snapshot')
-    n_outcomes = sum(1 for r in entries if r.get('_type') == 'outcome')
-    n_decisions = n_entries + n_exits + n_skips
-
-    phase = insights.get('learning_phase', 1)
-    trading_days = insights.get('trading_days', 0)
-    days_to_phase2 = max(0, 63 - trading_days)
-
-    pa = insights.get('portfolio_analytics', {})
-    current_value = pa.get('current_value', 0)
-    total_return = pa.get('total_return', 0)
-    max_dd = pa.get('max_drawdown', 0)
-    daily_sharpe = pa.get('daily_sharpe_annualized')
-
-    ta = insights.get('trade_analytics', {})
-    overall = ta.get('overall', {})
-    n_trades = overall.get('n', 0)
-    win_rate = overall.get('win_rate')
-    mean_return = overall.get('mean_return')
-    stop_rate = overall.get('stop_rate')
-    avg_days = overall.get('avg_days_held')
-    best_trade = overall.get('best')
-    worst_trade = overall.get('worst')
-
-    regime_counts = {}
-    snapshots = [r for r in entries if r.get('_type') == 'snapshot']
-    for s in snapshots:
-        bucket = s.get('regime_bucket', 'unknown')
-        regime_counts[bucket] = regime_counts.get(bucket, 0) + 1
-
-    by_exit = ta.get('by_exit_reason', {})
-    decisions = [r for r in entries if r.get('_type') == 'decision']
-    recent = decisions[-5:] if len(decisions) > 5 else decisions
-    outcomes = [r for r in entries if r.get('_type') == 'outcome']
-
-    lines = []
-    lines.append(f'### System Status\n')
-    lines.append(f'HYDRA ML Learning is in **Phase {phase}** (data collection). {trading_days} trading days logged.')
-    if phase < 2:
-        lines.append(f' ML models activate at Phase 2 (~{days_to_phase2} trading days remaining).\n')
-    else:
-        lines.append('\n')
-
-    lines.append(f'### Data Summary\n')
-    lines.append(f'- **{n_decisions} decisions** logged: {n_entries} entries, {n_exits} exits, {n_skips} skips')
-    lines.append(f'- **{n_snapshots} daily snapshots** tracking portfolio evolution')
-    lines.append(f'- **{n_outcomes} completed trades** with full outcome data\n')
-
-    lines.append(f'### Portfolio Performance\n')
-    if current_value:
-        lines.append(f'- Current value: **${current_value:,.0f}**')
-        lines.append(f'- Total return: **{total_return * 100:+.2f}%**')
-        lines.append(f'- Max drawdown: **{max_dd * 100:.2f}%**')
-        if daily_sharpe is not None:
-            lines.append(f'- Daily Sharpe (annualized): **{daily_sharpe:.2f}**')
-    else:
-        lines.append(f'- Insufficient data')
-    lines.append('')
-
-    lines.append(f'### Trade Analysis\n')
-    if n_trades > 0:
-        lines.append(f'- Completed trades: **{n_trades}**')
-        if win_rate is not None:
-            lines.append(f'- Win rate: **{win_rate * 100:.0f}%**')
-        if mean_return is not None:
-            lines.append(f'- Average return: **{mean_return * 100:+.1f}%**')
-        if stop_rate is not None:
-            lines.append(f'- Stop rate: **{stop_rate * 100:.0f}%**')
-        if avg_days is not None:
-            lines.append(f'- Average holding period: **{avg_days:.1f} days**')
-        if best_trade is not None and worst_trade is not None:
-            lines.append(f'- Best trade: **{best_trade * 100:+.1f}%** / Worst: **{worst_trade * 100:+.1f}%**')
-        if outcomes:
-            lines.append('')
-            wins = [o for o in outcomes if (o.get('gross_return') or 0) > 0]
-            losses = [o for o in outcomes if (o.get('gross_return') or 0) <= 0]
-            if wins:
-                win_str = ', '.join(f"{o['symbol']} {o['gross_return']*100:+.1f}%" for o in wins)
-                lines.append(f'- Winners: {win_str}')
-            if losses:
-                loss_str = ', '.join(f"{o['symbol']} {o['gross_return']*100:+.1f}%" for o in losses)
-                lines.append(f'- Losers: {loss_str}')
-    else:
-        lines.append(f'- No completed trades yet')
-    lines.append('')
-
-    lines.append(f'### Regime Observations\n')
-    if regime_counts:
-        total_snaps = sum(regime_counts.values())
-        for bucket, count in sorted(regime_counts.items(), key=lambda x: -x[1]):
-            pct = count / total_snaps * 100
-            lines.append(f'- **{bucket}**: {count} days ({pct:.0f}%)')
-    else:
-        lines.append(f'- No regime data yet')
-    lines.append('')
-
-    if by_exit:
-        lines.append(f'### Exit Reason Breakdown\n')
-        for reason, stats in by_exit.items():
-            n = stats.get('n', 0)
-            mr = stats.get('mean_return')
-            wr = stats.get('win_rate')
-            reason_label = reason.replace('_', ' ').replace('position stop adaptive', 'adaptive stop').title()
-            mr_str = f'{mr * 100:+.1f}%' if mr is not None else '--'
-            wr_str = f'{wr * 100:.0f}%' if wr is not None else '--'
-            lines.append(f'- **{reason_label}** ({n} trades): avg return {mr_str}, win rate {wr_str}')
-        lines.append('')
-
-    lines.append(f'### Recent Activity\n')
-    if recent:
-        for r in recent:
-            ts = (r.get('timestamp') or r.get('date', ''))[:16]
-            dtype = r.get('decision_type', '?').upper()
-            sym = r.get('symbol', '??')
-            if dtype == 'EXIT':
-                ret = r.get('current_return')
-                ret_str = f' return={ret * 100:+.1f}%' if ret is not None else ''
-                lines.append(f'- `{ts}` **{dtype}** {sym} — {r.get("exit_reason", "")}{ret_str}')
-            elif dtype == 'ENTRY':
-                regime = r.get('regime_bucket', '')
-                lines.append(f'- `{ts}` **{dtype}** {sym} — regime={regime}')
-            else:
-                lines.append(f'- `{ts}` **{dtype}** {sym}')
-    else:
-        lines.append(f'- No recent decisions')
-    lines.append('')
-
-    lines.append(f'### Next Milestone\n')
-    if phase < 2:
-        lines.append(f'Phase 2 ML begins in ~{days_to_phase2} trading days. Continue collecting entry/exit decisions and completed trade outcomes.')
-    else:
-        lines.append(f'Phase {phase} active. ML models are being trained on accumulated data.')
-    lines.append('')
-
-    # Backtest context
-    if bt_stats:
-        lines.append(f'### Backtest Reference (HYDRA + EFA/MSCI World)\n')
-        lines.append(f'- Period: **{bt_stats.get("start_date", "?")}** to **{bt_stats.get("end_date", "?")}** ({bt_stats.get("years", "?")} years)')
-        bt_cagr = bt_stats.get('cagr', 0)
-        lines.append(f'- CAGR: **{bt_cagr * 100:.1f}%**')
-        lines.append(f'- Sharpe: **{bt_stats.get("sharpe", 0):.3f}**')
-        bt_dd = bt_stats.get('max_drawdown', 0)
-        lines.append(f'- Max Drawdown: **{bt_dd * 100:.1f}%**')
-        bt_ret = bt_stats.get('total_return', 0)
-        lines.append(f'- Total Return: **{bt_ret * 100:.1f}%** (${bt_stats.get("start_value", 0):,.0f} → ${bt_stats.get("end_value", 0):,.0f})')
-        lines.append(f'- Trading Days: **{bt_stats.get("trading_days", 0):,}**')
-        lines.append('')
-        if trading_days > 0 and total_return:
-            lines.append(f'### Live vs Backtest\n')
-            live_ann = ((1 + total_return) ** (252 / max(1, trading_days))) - 1 if trading_days > 0 else 0
-            lines.append(f'- Live annualized return: **{live_ann * 100:+.1f}%** vs backtest CAGR **{bt_cagr * 100:.1f}%**')
-            if live_ann < bt_cagr * 0.5:
-                lines.append(f'- **Warning**: Live performance significantly below backtest expectations. Normal for early days with small sample size.')
-            elif live_ann > bt_cagr * 1.5:
-                lines.append(f'- Live performance above backtest — may indicate favorable market conditions.')
-            else:
-                lines.append(f'- Live performance tracking within expected range of backtest.')
-            lines.append('')
-
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
-    lines.append(f'---\n*Auto-generated on {now_str}. Refreshes every 5 days.*')
-
-    md = '\n'.join(lines)
-    try:
-        with open(interp_path, 'w', encoding='utf-8') as f:
-            f.write(md)
-    except Exception:
-        pass
+        logger.info("Generating Claude AI interpretation...")
+        md = _generate_claude_interpretation(entries, bt_stats)
+        if md:
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+            md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza al inicio y al cierre de cada ciclo.*'
+            os.makedirs(ml_dir, exist_ok=True)
+            with open(interp_path, 'w', encoding='utf-8') as f:
+                f.write(md)
+            _interp_last_cycle = _get_last_closed_cycle_num() or 0
+            logger.info("Claude AI interpretation saved successfully")
+        else:
+            # If Claude fails, update tracker so we don't retry every poll
+            _interp_last_cycle = _get_last_closed_cycle_num() or 0
+    except Exception as e:
+        logger.error(f"Interpretation generation error: {e}")
+        _interp_last_cycle = _get_last_closed_cycle_num() or 0
+    finally:
+        _interp_lock.release()
 
 
 @app.route('/api/ml-learning')
@@ -1945,7 +1920,17 @@ def api_ml_learning():
     all_entries = backtest_entries + entries
     all_entries.sort(key=lambda r: r.get('timestamp', r.get('date', '')))
 
-    _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats)
+    # Trigger interpretation in background (non-blocking for API response)
+    global _interp_last_cycle
+    if _should_regenerate_interpretation():
+        threading.Thread(
+            target=_maybe_regenerate_interpretation,
+            args=(ml_dir, list(entries), dict(insights), dict(bt_stats) if bt_stats else None),
+            daemon=True,
+        ).start()
+    elif _interp_last_cycle is None:
+        _interp_last_cycle = _get_last_closed_cycle_num() or 0
+
     interpretation = ''
     interp_path = os.path.join(ml_dir, 'interpretation.md')
     if os.path.exists(interp_path):
