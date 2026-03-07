@@ -1992,10 +1992,19 @@ def api_ml_learning():
         pnls = [o.get('pnl_usd', 0) for o in outcomes]
         kpis['total_pnl'] = round(sum(pnls), 2)
 
+    # Double-check: re-read interpretation right before returning
+    # (bypasses any earlier read issues)
+    final_interp = ''
+    try:
+        with open(os.path.join(ml_dir, 'interpretation.md'), 'r', encoding='utf-8') as f:
+            final_interp = f.read()
+    except Exception:
+        final_interp = interpretation  # fallback to earlier read
+
     return jsonify({
         'log_entries': all_entries,
         'insights': insights,
-        'interpretation': interpretation,
+        'interpretation': final_interp,
         'kpis': kpis,
     })
 
