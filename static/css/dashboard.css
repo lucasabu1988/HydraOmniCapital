@@ -3452,8 +3452,74 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     color: var(--text-secondary);
 }
 
+/* ML KPI Cards */
+.ml-kpis {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    padding: 0 16px 20px;
+}
+.ml-kpi-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 16px 14px;
+    text-align: center;
+    transition: all 0.2s;
+}
+.ml-kpi-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+.ml-kpi-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+}
+.ml-kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.2;
+}
+.ml-kpi-sub {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.ml-kpi-value.c-green { color: var(--green); }
+.ml-kpi-value.c-red { color: var(--red); }
+
+/* Phase progress bar */
+.ml-kpi-progress-wrap { margin-top: 6px; }
+.ml-kpi-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-card-hover);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.ml-kpi-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #818cf8, #6366f1);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+
 /* Responsive */
+@media (max-width: 1200px) {
+    .ml-kpis { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 768px) {
+    .ml-kpis { grid-template-columns: repeat(2, 1fr); }
     .ml-phases { grid-template-columns: 1fr; }
     .ml-pipeline { flex-wrap: wrap; gap: 6px; }
     .ml-pipe-arrow { display: none; }
@@ -3555,6 +3621,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .ml-badge-skip { background: rgba(139,148,158,0.15); color: #8b949e; }
 .ml-badge-snapshot { background: rgba(88,166,255,0.15); color: #58a6ff; }
 .ml-badge-outcome { background: rgba(210,153,34,0.15); color: #d29922; }
+.ml-badge-backtest { background: rgba(139,92,246,0.15); color: #a78bfa; }
 .ml-line-detail {
     color: #c9d1d9;
     overflow: hidden;

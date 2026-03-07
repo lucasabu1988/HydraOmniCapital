@@ -1619,14 +1619,22 @@ def backfill_from_state_files(state_dir: str = "state") -> dict:
 
     state_files = sorted(
         glob_module.glob(os.path.join(state_dir, "compass_state_2*.json"))
+        + glob_module.glob(os.path.join(state_dir, "**/compass_state_2*.json"), recursive=True)
     )
-    # Exclude backups, pre-rotation, and latest symlink
-    state_files = [
-        f for f in state_files
+    # Deduplicate and exclude backups, pre-rotation, and latest symlink
+    seen = set()
+    unique_files = []
+    for f in state_files:
+        norm = os.path.normpath(f)
+        if norm not in seen:
+            seen.add(norm)
+            unique_files.append(norm)
+    state_files = sorted([
+        f for f in unique_files
         if "backup" not in f
         and "pre_rotation" not in f
         and "latest" not in f
-    ]
+    ])
 
     logger.info(f"Backfilling from {len(state_files)} state files...")
     ml = COMPASSMLOrchestrator()

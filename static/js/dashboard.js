@@ -2469,8 +2469,62 @@ async function fetchMLLearning() {
         var data = await res.json();
         renderMLTerminal(data.log_entries || [], data.insights || {});
         renderMLInterpretation(data.interpretation || '');
+        renderMLKpis(data.kpis || {});
     } catch (e) {
         // silent
+    }
+}
+
+function renderMLKpis(k) {
+    function setText(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = val;
+    }
+    function fmtPct(v) {
+        if (v == null) return '--';
+        return (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+    }
+    function fmtDollar(v) {
+        if (v == null) return '--';
+        var sign = v >= 0 ? '+' : '';
+        return sign + '$' + Math.abs(v).toLocaleString('en-US', {maximumFractionDigits: 0});
+    }
+
+    setText('ml-kpi-outcomes', k.total_outcomes != null ? k.total_outcomes : '--');
+    setText('ml-kpi-entries-exits', (k.total_entries || 0) + ' entries / ' + (k.total_exits || 0) + ' exits');
+
+    var wrEl = document.getElementById('ml-kpi-winrate');
+    if (wrEl) {
+        var wr = k.win_rate != null ? (k.win_rate * 100).toFixed(0) + '%' : '--';
+        wrEl.textContent = wr;
+        wrEl.className = 'ml-kpi-value' + (k.win_rate != null ? (k.win_rate >= 0.5 ? ' c-green' : ' c-red') : '');
+    }
+    setText('ml-kpi-stoprate', 'Stop rate: ' + (k.stop_rate != null ? (k.stop_rate * 100).toFixed(0) + '%' : '--'));
+
+    var arEl = document.getElementById('ml-kpi-avgreturn');
+    if (arEl) {
+        arEl.textContent = k.avg_return != null ? fmtPct(k.avg_return) : '--';
+        arEl.className = 'ml-kpi-value' + (k.avg_return != null ? (k.avg_return >= 0 ? ' c-green' : ' c-red') : '');
+    }
+    setText('ml-kpi-bestworst', 'Best: ' + fmtPct(k.best_trade) + ' / Worst: ' + fmtPct(k.worst_trade));
+
+    var pnlEl = document.getElementById('ml-kpi-pnl');
+    if (pnlEl) {
+        pnlEl.textContent = k.total_pnl != null ? fmtDollar(k.total_pnl) : '--';
+        pnlEl.className = 'ml-kpi-value' + (k.total_pnl != null ? (k.total_pnl >= 0 ? ' c-green' : ' c-red') : '');
+    }
+    setText('ml-kpi-alpha', 'Alpha vs S&P: ' + (k.avg_alpha != null ? fmtPct(k.avg_alpha) : '--'));
+
+    setText('ml-kpi-days', k.trading_days != null ? k.trading_days : '--');
+    setText('ml-kpi-decisions', (k.total_decisions || 0) + ' decisiones');
+
+    setText('ml-kpi-phase', k.phase != null ? k.phase + '/3' : '--');
+    var progressEl = document.getElementById('ml-kpi-progress');
+    if (progressEl) progressEl.style.width = (k.phase2_progress_pct || 0) + '%';
+    if (k.phase < 2) {
+        setText('ml-kpi-phase-sub', (k.days_to_phase2 || '--') + ' d\u00edas para Phase 2');
+    } else {
+        setText('ml-kpi-phase-sub', 'Phase ' + k.phase + ' activa');
     }
 }
 
@@ -2480,21 +2534,22 @@ function renderMLTerminal(entries, insights) {
     if (!logEl) return;
 
     /* Stats row */
-    var nDecisions = 0, nSnapshots = 0, nOutcomes = 0;
+    var nDecisions = 0, nSnapshots = 0, nOutcomes = 0, nBacktest = 0;
     entries.forEach(function(r) {
         if (r._type === 'decision') nDecisions++;
         else if (r._type === 'snapshot') nSnapshots++;
         else if (r._type === 'outcome') nOutcomes++;
+        else if (r._type === 'backtest') nBacktest++;
     });
 
     var phase = (insights.learning_phase || 1);
     if (statusEl) statusEl.textContent = 'Phase ' + phase;
 
     var html = '<div class="ml-stats-row">';
+    html += '<div class="ml-stat"><span class="ml-stat-label">Backtest Days</span><span class="ml-stat-value">' + nBacktest + '</span></div>';
     html += '<div class="ml-stat"><span class="ml-stat-label">Decisions</span><span class="ml-stat-value">' + nDecisions + '</span></div>';
     html += '<div class="ml-stat"><span class="ml-stat-label">Snapshots</span><span class="ml-stat-value">' + nSnapshots + '</span></div>';
     html += '<div class="ml-stat"><span class="ml-stat-label">Outcomes</span><span class="ml-stat-value">' + nOutcomes + '</span></div>';
-    html += '<div class="ml-stat"><span class="ml-stat-label">Trading Days</span><span class="ml-stat-value">' + (insights.trading_days || '--') + '</span></div>';
     html += '<div class="ml-stat"><span class="ml-stat-label">Phase</span><span class="ml-stat-value">' + phase + '/3</span></div>';
     html += '</div>';
 
@@ -2558,6 +2613,14 @@ function renderMLTerminal(entries, insights) {
                 + ' <span class="ml-dim">exit=</span>' + (r.exit_reason || '--')
                 + ' <span class="ml-dim">days=</span>' + (r.trading_days_held || '--')
                 + ' <span class="ml-dim">label=</span>' + (r.outcome_label || '--');
+        } else if (r._type === 'backtest') {
+            badge = '<span class="ml-line-badge ml-badge-backtest">BT</span>';
+            var btPv = r.portfolio_value != null ? '$' + r.portfolio_value.toLocaleString('en-US', {maximumFractionDigits: 0}) : '--';
+            var btReg = r.regime_mult != null ? r.regime_mult.toFixed(2) : '--';
+            detail = '<span class="ml-dim">portfolio=</span>' + btPv
+                + ' <span class="ml-dim">pos=</span>' + (r.positions_count || 0)
+                + ' <span class="ml-dim">regime=</span>' + btReg
+                + ' <span class="ml-dim">cash=</span>$' + (r.cash || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
         }
 
         html += '<div class="ml-line"><span class="ml-line-ts">' + ts + '</span>' + badge + '<span class="ml-line-detail">' + detail + '</span></div>';
