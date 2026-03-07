@@ -2003,6 +2003,98 @@ def sitemap_xml():
 
 
 # ============================================================================
+# CLOUD DAILY SNAPSHOT (keeps chart current when local is offline)
+# ============================================================================
+
+_cloud_snapshot_done_today = None  # date string of last snapshot
+
+
+def _cloud_daily_snapshot():
+    """Compute today's portfolio value from positions + Yahoo prices.
+    Saves a dated state file so the live chart stays current even if local is offline.
+    Only runs after market close (4:30 PM ET) and only if local hasn't pushed today's file."""
+    global _cloud_snapshot_done_today
+
+    while True:
+        try:
+            now_et = datetime.now(ZoneInfo('America/New_York'))
+            today_str = now_et.strftime('%Y%m%d')
+
+            # Only run on weekdays, after 4:30 PM ET (market close + 30min buffer)
+            is_weekday = now_et.weekday() < 5
+            past_close = (now_et.hour == 16 and now_et.minute >= 30) or now_et.hour >= 17
+            if is_weekday and past_close:
+                if _cloud_snapshot_done_today != today_str:
+                    today_file = os.path.join(STATE_DIR, f'compass_state_{today_str}.json')
+
+                    # Skip if local engine already pushed today's file
+                    if not os.path.exists(today_file):
+                        state = read_state()
+                        if state and state.get('positions'):
+                            pos_symbols = list(state['positions'].keys())
+                            live_prices = fetch_live_prices(pos_symbols)
+
+                            if live_prices:
+                                cash = state.get('cash', 0)
+                                invested = sum(
+                                    state['positions'][s].get('shares', 0) * live_prices.get(s, state['positions'][s].get('avg_cost', 0))
+                                    for s in state['positions']
+                                )
+                                portfolio_value = cash + invested
+
+                                # Create a minimal state snapshot for the chart
+                                snapshot = dict(state)
+                                snapshot['portfolio_value'] = round(portfolio_value, 2)
+                                snapshot['last_trading_date'] = now_et.strftime('%Y-%m-%d')
+                                snapshot['timestamp'] = now_et.isoformat()
+                                snapshot['_cloud_generated'] = True
+
+                                # Update portfolio_values_history
+                                pv_hist = list(state.get('portfolio_values_history', []))
+                                pv_hist.append(round(portfolio_value, 2))
+                                snapshot['portfolio_values_history'] = pv_hist[-30:]
+
+                                # Update peak_value
+                                peak = max(state.get('peak_value', 0), portfolio_value)
+                                snapshot['peak_value'] = round(peak, 2)
+
+                                os.makedirs(STATE_DIR, exist_ok=True)
+                                with open(today_file, 'w') as f:
+                                    json.dump(snapshot, f, indent=2, default=str)
+
+                                # Also update latest
+                                with open(STATE_FILE, 'w') as f:
+                                    json.dump(snapshot, f, indent=2, default=str)
+
+                                logger.info(f"Cloud snapshot saved: ${portfolio_value:,.2f} for {today_str}")
+
+                    _cloud_snapshot_done_today = today_str
+
+        except Exception as e:
+            logger.error(f"Cloud daily snapshot error: {e}")
+
+        # Check every 30 minutes
+        time_module.sleep(1800)
+
+
+_cloud_snapshot_started = False
+
+
+def _ensure_cloud_snapshot_thread():
+    """Start the cloud snapshot thread once (safe for gunicorn post-fork workers)."""
+    global _cloud_snapshot_started
+    if not _cloud_snapshot_started:
+        _cloud_snapshot_started = True
+        t = threading.Thread(target=_cloud_daily_snapshot, daemon=True)
+        t.start()
+
+
+@app.before_request
+def _start_background_tasks():
+    _ensure_cloud_snapshot_thread()
+
+
+# ============================================================================
 # ENTRY POINT
 # ============================================================================
 
