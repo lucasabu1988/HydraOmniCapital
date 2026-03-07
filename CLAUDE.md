@@ -1,8 +1,8 @@
-# OmniCapital COMPASS — Project Guidelines
+# OmniCapital HYDRA — Project Guidelines
 
 ## Project Overview
-Quantitative momentum trading system for S&P 500 large-caps. Live paper trading since Feb 19, 2026.
-- **Algorithm**: COMPASS v8.4 (adaptive stops, bull override, sector limits)
+Quantitative momentum trading system for S&P 500 large-caps. Live paper trading since Mar 6, 2026.
+- **Algorithm**: HYDRA v8.4 (adaptive stops, bull override, sector limits, Rattlesnake + EFA + cash recycling)
 - **Dashboard**: Flask @ localhost:5000 (`compass_dashboard.py`)
 - **Live engine**: `omnicapital_live.py` (COMPASSLive class)
 - **ML system**: `compass_ml_learning.py` (decision logging + progressive learning)
@@ -82,6 +82,9 @@ python scripts/simulate_live_trading.py   # Offline simulation
 - Remote: `origin` → GitHub (lucasabu1988/NuevoProyecto)
 - Commit messages: conventional commits, Co-Authored-By for AI
 - Push after each logical change set
+
+## Skills
+- **hydra-ops**: Operations skill for HYDRA system — deploy, debug, troubleshoot. Located at `~/.claude/skills/hydra-ops/SKILL.md`
 
 ## Planning & Documentation
 - Design docs: `docs/plans/YYYY-MM-DD-<topic>-design.md`
