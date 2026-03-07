@@ -43,6 +43,13 @@ try:
 except ImportError:
     _HAS_ANTHROPIC = False
 
+# HYDRA engine (cloud paper trading — runs when local is offline)
+try:
+    from omnicapital_live import COMPASSLive, CONFIG as ENGINE_CONFIG
+    _HAS_ENGINE = True
+except ImportError:
+    _HAS_ENGINE = False
+
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
 
@@ -2003,95 +2010,84 @@ def sitemap_xml():
 
 
 # ============================================================================
-# CLOUD DAILY SNAPSHOT (keeps chart current when local is offline)
+# CLOUD HYDRA ENGINE (paper trading — keeps system running when local is offline)
 # ============================================================================
 
-_cloud_snapshot_done_today = None  # date string of last snapshot
+_cloud_engine: Optional['COMPASSLive'] = None
+_cloud_engine_started = False
+
+# Clean up stale lock file from previous deploy
+_engine_lock = os.path.join(STATE_DIR, '.cloud_engine.lock')
+if os.path.exists(_engine_lock):
+    try:
+        os.unlink(_engine_lock)
+    except OSError:
+        pass
 
 
-def _cloud_daily_snapshot():
-    """Compute today's portfolio value from positions + Yahoo prices.
-    Saves a dated state file so the live chart stays current even if local is offline.
-    Only runs after market close (4:30 PM ET) and only if local hasn't pushed today's file."""
-    global _cloud_snapshot_done_today
+def _run_cloud_engine():
+    """Run the full HYDRA engine with PaperBroker in the cloud.
+    Uses Yahoo Finance for all data — no IB dependency.
+    The engine saves state files that the dashboard reads directly."""
+    global _cloud_engine
 
-    while True:
-        try:
-            now_et = datetime.now(ZoneInfo('America/New_York'))
-            today_str = now_et.strftime('%Y%m%d')
+    if not _HAS_ENGINE:
+        logger.warning("HYDRA engine not available — cloud trading disabled")
+        return
 
-            # Only run on weekdays, after 4:30 PM ET (market close + 30min buffer)
-            is_weekday = now_et.weekday() < 5
-            past_close = (now_et.hour == 16 and now_et.minute >= 30) or now_et.hour >= 17
-            if is_weekday and past_close:
-                if _cloud_snapshot_done_today != today_str:
-                    today_file = os.path.join(STATE_DIR, f'compass_state_{today_str}.json')
+    try:
+        # Disable git sync on cloud (prevent Render from pushing back to GitHub)
+        import omnicapital_live as _engine_mod
+        _engine_mod._git_sync_available = False
 
-                    # Skip if local engine already pushed today's file
-                    if not os.path.exists(today_file):
-                        state = read_state()
-                        if state and state.get('positions'):
-                            pos_symbols = list(state['positions'].keys())
-                            live_prices = fetch_live_prices(pos_symbols)
+        cloud_config = dict(ENGINE_CONFIG)
+        cloud_config['PAPER_INITIAL_CASH'] = HYDRA_CONFIG['INITIAL_CAPITAL']
 
-                            if live_prices:
-                                cash = state.get('cash', 0)
-                                invested = sum(
-                                    state['positions'][s].get('shares', 0) * live_prices.get(s, state['positions'][s].get('avg_cost', 0))
-                                    for s in state['positions']
-                                )
-                                portfolio_value = cash + invested
+        _cloud_engine = COMPASSLive(cloud_config)
+        _cloud_engine.load_state()
 
-                                # Create a minimal state snapshot for the chart
-                                snapshot = dict(state)
-                                snapshot['portfolio_value'] = round(portfolio_value, 2)
-                                snapshot['last_trading_date'] = now_et.strftime('%Y-%m-%d')
-                                snapshot['timestamp'] = now_et.isoformat()
-                                snapshot['_cloud_generated'] = True
+        logger.info("Cloud HYDRA engine started (PaperBroker + Yahoo Finance)")
+        logger.info(f"  Positions: {list(_cloud_engine.broker.positions.keys())}")
+        logger.info(f"  Cash: ${_cloud_engine.broker.cash:,.2f}")
 
-                                # Update portfolio_values_history
-                                pv_hist = list(state.get('portfolio_values_history', []))
-                                pv_hist.append(round(portfolio_value, 2))
-                                snapshot['portfolio_values_history'] = pv_hist[-30:]
+        # run() is a blocking loop: 60s interval, sleeps when market closed
+        _cloud_engine.run(interval=60)
 
-                                # Update peak_value
-                                peak = max(state.get('peak_value', 0), portfolio_value)
-                                snapshot['peak_value'] = round(peak, 2)
-
-                                os.makedirs(STATE_DIR, exist_ok=True)
-                                with open(today_file, 'w') as f:
-                                    json.dump(snapshot, f, indent=2, default=str)
-
-                                # Also update latest
-                                with open(STATE_FILE, 'w') as f:
-                                    json.dump(snapshot, f, indent=2, default=str)
-
-                                logger.info(f"Cloud snapshot saved: ${portfolio_value:,.2f} for {today_str}")
-
-                    _cloud_snapshot_done_today = today_str
-
-        except Exception as e:
-            logger.error(f"Cloud daily snapshot error: {e}")
-
-        # Check every 30 minutes
-        time_module.sleep(1800)
+    except Exception as e:
+        logger.error(f"Cloud engine crashed: {e}", exc_info=True)
+        # Sleep and retry after 5 minutes
+        time_module.sleep(300)
+        _run_cloud_engine()
 
 
-_cloud_snapshot_started = False
+def _ensure_cloud_engine():
+    """Start the cloud engine thread once. Uses a file lock so only one
+    gunicorn worker runs the engine (avoids duplicate trades)."""
+    global _cloud_engine_started
+    if _cloud_engine_started:
+        return
+    _cloud_engine_started = True
 
+    # File-based lock: first worker to create the file wins
+    lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
+    try:
+        os.makedirs(STATE_DIR, exist_ok=True)
+        fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+    except FileExistsError:
+        # Another worker already claimed the engine
+        logger.info("Cloud engine already running in another worker, skipping")
+        return
 
-def _ensure_cloud_snapshot_thread():
-    """Start the cloud snapshot thread once (safe for gunicorn post-fork workers)."""
-    global _cloud_snapshot_started
-    if not _cloud_snapshot_started:
-        _cloud_snapshot_started = True
-        t = threading.Thread(target=_cloud_daily_snapshot, daemon=True)
-        t.start()
+    t = threading.Thread(target=_run_cloud_engine, daemon=True)
+    t.start()
+    logger.info("Cloud HYDRA engine thread launched")
 
 
 @app.before_request
 def _start_background_tasks():
-    _ensure_cloud_snapshot_thread()
+    _ensure_cloud_engine()
 
 
 # ============================================================================
