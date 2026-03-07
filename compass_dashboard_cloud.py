@@ -2000,6 +2000,24 @@ def robots_txt():
     )
 
 
+@app.route('/api/debug-cloud')
+def api_debug_cloud():
+    """Temporary debug endpoint for cloud engine + interpretation status."""
+    interp_path = os.path.join('state', 'ml_learning', 'interpretation.md')
+    lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
+    return jsonify({
+        'engine_available': _HAS_ENGINE,
+        'engine_started': _cloud_engine_started,
+        'engine_running': _cloud_engine is not None,
+        'engine_lock_exists': os.path.exists(lock_file),
+        'anthropic_available': _HAS_ANTHROPIC,
+        'interpretation_exists': os.path.exists(interp_path),
+        'interp_last_cycle': _interp_last_cycle,
+        'state_file_exists': os.path.exists(STATE_FILE),
+        'ml_decisions_exist': os.path.exists(os.path.join('state', 'ml_learning', 'decisions.jsonl')),
+    })
+
+
 @app.route('/sitemap.xml')
 def sitemap_xml():
     xml = """<?xml version="1.0" encoding="UTF-8"?>
