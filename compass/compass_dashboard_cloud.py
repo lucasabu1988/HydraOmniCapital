@@ -1912,9 +1912,9 @@ def api_ml_learning():
                         'r_alloc': round(float(row.get('r_alloc', 0)), 4),
                         'efa_alloc': round(float(row.get('efa_alloc', 0)), 4),
                     })
-                # Compute backtest summary stats
+                # Compute backtest summary stats (from initial capital $100k)
                 values = [float(r['value']) for r in bt_rows]
-                start_val = values[0]
+                start_val = 100000.0
                 end_val = values[-1]
                 n_days = len(values)
                 years = n_days / 252.0

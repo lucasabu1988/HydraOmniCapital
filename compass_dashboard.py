@@ -2431,7 +2431,7 @@ def api_ml_learning():
                         'efa_alloc': round(float(row.get('efa_alloc', 0)), 4),
                     })
                 values = [float(r['value']) for r in bt_rows]
-                start_val = values[0]
+                start_val = 100000.0
                 end_val = values[-1]
                 n_bt_days = len(values)
                 years = n_bt_days / 252.0
