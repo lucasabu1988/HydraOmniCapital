@@ -2151,3 +2151,54 @@ hint: Use -f if you really wan
 2026-03-06 15:11:43,372 - INFO - 127.0.0.1 - - [06/Mar/2026 15:11:43] "GET /api/state HTTP/1.1" 200 -
 2026-03-06 15:12:46,230 - INFO - 127.0.0.1 - - [06/Mar/2026 15:12:46] "GET /api/state HTTP/1.1" 200 -
 2026-03-06 15:12:55,938 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 15:12:56,097 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 15:12:56,097 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 15:13:49,063 - INFO - 127.0.0.1 - - [06/Mar/2026 15:13:49] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:14:55,956 - INFO - 127.0.0.1 - - [06/Mar/2026 15:14:55] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:15:58,994 - INFO - 127.0.0.1 - - [06/Mar/2026 15:15:58] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:17:02,116 - INFO - 127.0.0.1 - - [06/Mar/2026 15:17:02] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:18:02,909 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 15:18:03,025 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 15:18:03,026 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 15:18:05,296 - INFO - 127.0.0.1 - - [06/Mar/2026 15:18:05] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:19:08,245 - INFO - 127.0.0.1 - - [06/Mar/2026 15:19:08] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:20:11,309 - INFO - 127.0.0.1 - - [06/Mar/2026 15:20:11] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:21:14,470 - INFO - 127.0.0.1 - - [06/Mar/2026 15:21:14] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:22:17,548 - INFO - 127.0.0.1 - - [06/Mar/2026 15:22:17] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:23:09,833 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 15:23:09,982 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 15:23:09,982 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 15:23:20,735 - INFO - 127.0.0.1 - - [06/Mar/2026 15:23:20] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:24:23,881 - INFO - 127.0.0.1 - - [06/Mar/2026 15:24:23] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:25:26,974 - INFO - 127.0.0.1 - - [06/Mar/2026 15:25:26] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:26:30,005 - INFO - 127.0.0.1 - - [06/Mar/2026 15:26:30] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:27:32,885 - INFO - 127.0.0.1 - - [06/Mar/2026 15:27:32] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:28:16,832 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 15:28:16,972 - WARNING - git add failed (rc=1): The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+2026-03-06 15:28:16,973 - WARNING - git add failed, skipping: The following paths are ignored by one of your .gitignore files:
+logs
+hint: Use -f if you really wan
+2026-03-06 15:28:35,871 - INFO - 127.0.0.1 - - [06/Mar/2026 15:28:35] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:29:38,840 - INFO - 127.0.0.1 - - [06/Mar/2026 15:29:38] "GET /api/state HTTP/1.1" 200 -
+2026-03-06 15:30:22,235 - INFO - [PRE-CLOSE] Computing entry signal at 15:30:22 ET
+2026-03-06 15:30:22,266 - INFO - State saved: state/compass_state_20260306.json
+2026-03-06 15:30:22,268 - INFO - [PRE-CLOSE] Entry signal complete
+2026-03-06 15:30:22,287 - INFO - STATUS: $97,555 | DD:-4.8% | score=0.58 | Lev:1.00x | Pos:4/4 | [MRK(-3.8%|stop=-6%), JNJ(-3.0%|stop=-6%), LRCX(-6.0%|stop=-8%), GOOGL(-0.7%|stop=-6%)]

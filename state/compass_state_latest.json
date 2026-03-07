@@ -1,139 +1,86 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-06T15:12:55.932903",
-  "cash": 25288.085392344066,
-  "peak_value": 102460.29390536588,
-  "portfolio_value": 97504.11167560823,
+  "timestamp": "2026-03-06T09:30:00.000000",
+  "cash": 27107.19,
+  "peak_value": 100000.0,
+  "portfolio_value": 100000.0,
   "crash_cooldown": 0,
   "portfolio_values_history": [
-    102441.23423810309,
-    100602.04075718147,
-    100748.75727446779,
-    99507.61359008058,
-    97090.37658008214
+    100000.0
   ],
-  "current_regime_score": 0.5762660339384776,
-  "trading_day_counter": 12,
+  "current_regime_score": 0.5,
+  "trading_day_counter": 1,
   "last_trading_date": "2026-03-06",
   "positions": {
     "MRK": {
       "shares": 239,
-      "avg_cost": 120.59132210367461
+      "avg_cost": 116.07
     },
     "JNJ": {
       "shares": 116,
-      "avg_cost": 247.5177424560364
+      "avg_cost": 239.63
     },
     "LRCX": {
       "shares": 43,
-      "avg_cost": 213.28292852125628
+      "avg_cost": 214.68
     },
     "GOOGL": {
       "shares": 27,
-      "avg_cost": 300.2980434354364
+      "avg_cost": 300.88
     }
   },
   "position_meta": {
     "MRK": {
-      "entry_price": 120.59132210367461,
-      "entry_date": "2026-03-03",
-      "entry_day_index": 9,
-      "original_entry_day_index": 9,
-      "high_price": 120.8499984741211,
+      "entry_price": 116.07,
+      "entry_date": "2026-03-06",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 116.07,
       "entry_vol": 0.28639434996138086,
       "entry_daily_vol": 0.01804114825932892,
       "sector": "Healthcare"
     },
     "JNJ": {
-      "entry_price": 247.5177424560364,
-      "entry_date": "2026-03-03",
-      "entry_day_index": 9,
-      "original_entry_day_index": 9,
-      "high_price": 247.80499267578125,
+      "entry_price": 239.63,
+      "entry_date": "2026-03-06",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 239.63,
       "entry_vol": 0.15534686069028528,
       "entry_daily_vol": 0.009785932389073585,
       "sector": "Healthcare"
     },
     "LRCX": {
-      "entry_price": 213.28292852125628,
-      "entry_date": "2026-03-05",
-      "entry_day_index": 11,
-      "original_entry_day_index": 11,
-      "high_price": 214.52999877929688,
+      "entry_price": 214.68,
+      "entry_date": "2026-03-06",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 214.68,
       "entry_vol": 0.4928758313018344,
       "entry_daily_vol": 0.031048258972830433,
       "sector": "Technology"
     },
     "GOOGL": {
-      "entry_price": 300.2980434354364,
-      "entry_date": "2026-03-05",
-      "entry_day_index": 11,
-      "original_entry_day_index": 11,
-      "high_price": 301.1199951171875,
+      "entry_price": 300.88,
+      "entry_date": "2026-03-06",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 300.88,
       "entry_vol": 0.23484680821013687,
       "entry_daily_vol": 0.014793958350507239,
       "sector": "Technology"
     }
   },
   "current_universe": [
-    "TSLA",
-    "MSFT",
-    "META",
-    "AMZN",
-    "GOOGL",
-    "AVGO",
-    "UNH",
-    "ORCL",
-    "MU",
-    "LLY",
-    "INTC",
-    "JPM",
-    "BRK-B",
-    "COST",
-    "V",
-    "CRM",
-    "WMT",
-    "BAC",
-    "XOM",
-    "BA",
-    "GS",
-    "MA",
-    "NOW",
-    "MRVL",
-    "ADBE",
-    "JNJ",
-    "AMAT",
-    "QCOM",
-    "HD",
-    "TXN",
-    "CVX",
-    "GE",
-    "PG",
-    "MRK",
-    "C",
-    "IBM",
-    "WFC",
-    "ABBV",
-    "PFE",
-    "LRCX"
+    "TSLA", "MSFT", "META", "AMZN", "GOOGL", "AVGO", "UNH", "ORCL",
+    "MU", "LLY", "INTC", "JPM", "BRK-B", "COST", "V", "CRM",
+    "WMT", "BAC", "XOM", "BA", "GS", "MA", "NOW", "MRVL",
+    "ADBE", "JNJ", "AMAT", "QCOM", "HD", "TXN", "CVX", "GE",
+    "PG", "MRK", "C", "IBM", "WFC", "ABBV", "PFE", "LRCX"
   ],
   "universe_year": 2026,
-  "stop_events": [
-    {
-      "symbol": "GS",
-      "date": "2026-02-27",
-      "exit_reason": "position_stop_adaptive",
-      "entry_price": 921.27,
-      "exit_price": 859.57,
-      "shares": 17.722654,
-      "pnl": -1093.58,
-      "return": -0.067,
-      "replacement": "MU",
-      "replacement_price": 412.37,
-      "note": "v8.4 adaptive stop (-6%) triggered at close. Manual state correction applied."
-    }
-  ],
-  "_daily_open_done": true,
+  "stop_events": [],
+  "_daily_open_done": false,
   "_preclose_entries_done": false,
   "overlay": {
     "available": true,
@@ -165,7 +112,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 972,
-    "uptime_minutes": 3056.353203316667
+    "cycles_completed": 0,
+    "uptime_minutes": 0.0
   }
 }
