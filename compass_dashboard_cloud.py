@@ -1931,15 +1931,18 @@ def api_ml_learning():
     all_entries.sort(key=lambda r: r.get('timestamp', r.get('date', '')))
 
     # Read interpretation FIRST, then trigger regeneration if needed
-    interpretation = ''
     interp_path = os.path.join(ml_dir, 'interpretation.md')
-    try:
-        with open(interp_path, 'r', encoding='utf-8') as f:
-            interpretation = f.read()
-    except FileNotFoundError:
-        pass
-    except Exception as e:
-        logger.error(f"Failed to read interpretation: {e}")
+    interp_exists = os.path.exists(interp_path)
+    interpretation = ''
+    if interp_exists:
+        try:
+            with open(interp_path, 'r', encoding='utf-8') as f:
+                interpretation = f.read()
+            logger.info(f"ML API: interpretation read OK, {len(interpretation)} chars from {interp_path}")
+        except Exception as e:
+            logger.error(f"ML API: Failed to read interpretation: {e}")
+    else:
+        logger.info(f"ML API: interpretation file not found at {interp_path} (cwd={os.getcwd()})")
 
     # Trigger regeneration in background (non-blocking, won't affect this response)
     global _interp_last_cycle
