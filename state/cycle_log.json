@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "cycle": 1,
+    "start_date": "2026-03-06",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 99298.63,
+    "portfolio_end": null,
+    "spy_start": 672.38,
+    "spy_end": null,
+    "positions": [
+      "MRK",
+      "JNJ",
+      "LRCX",
+      "GOOGL"
+    ],
+    "positions_current": [
+      "MRK",
+      "JNJ",
+      "LRCX",
+      "GOOGL"
+    ],
+    "compass_return": null,
+    "spy_return": null,
+    "alpha": null,
+    "stop_events": []
+  }
+]
