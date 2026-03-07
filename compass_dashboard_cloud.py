@@ -2005,6 +2005,13 @@ def api_debug_cloud():
     """Temporary debug endpoint for cloud engine + interpretation status."""
     interp_path = os.path.join('state', 'ml_learning', 'interpretation.md')
     lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
+    interp_size = 0
+    if os.path.exists(interp_path):
+        try:
+            interp_size = os.path.getsize(interp_path)
+        except OSError:
+            pass
+    state = read_state() or {}
     return jsonify({
         'engine_available': _HAS_ENGINE,
         'engine_started': _cloud_engine_started,
@@ -2012,8 +2019,11 @@ def api_debug_cloud():
         'engine_lock_exists': os.path.exists(lock_file),
         'anthropic_available': _HAS_ANTHROPIC,
         'interpretation_exists': os.path.exists(interp_path),
+        'interpretation_size': interp_size,
         'interp_last_cycle': _interp_last_cycle,
         'state_file_exists': os.path.exists(STATE_FILE),
+        'state_positions': list(state.get('positions', {}).keys()),
+        'state_value': state.get('portfolio_value'),
         'ml_decisions_exist': os.path.exists(os.path.join('state', 'ml_learning', 'decisions.jsonl')),
     })
 
