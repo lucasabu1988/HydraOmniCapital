@@ -1831,7 +1831,7 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
 
     # Backtest context
     if bt_stats:
-        lines.append(f'### Backtest Reference (v8 Core)\n')
+        lines.append(f'### Backtest Reference (HYDRA + EFA/MSCI World)\n')
         lines.append(f'- Period: **{bt_stats.get("start_date", "?")}** to **{bt_stats.get("end_date", "?")}** ({bt_stats.get("years", "?")} years)')
         bt_cagr = bt_stats.get('cagr', 0)
         lines.append(f'- CAGR: **{bt_cagr * 100:.1f}%**')
@@ -1891,10 +1891,10 @@ def api_ml_learning():
                 insights = json.load(f)
         except Exception:
             pass
-    # Load backtest daily data
+    # Load backtest daily data (HYDRA + EFA/MSCI World)
     backtest_entries = []
     bt_stats = {}
-    bt_csv = os.path.join('backtests', 'backtest_v8_core_results.csv')
+    bt_csv = os.path.join('backtests', 'exp60_hydra_efa_filtered.csv')
     if os.path.exists(bt_csv):
         try:
             import csv
@@ -1903,17 +1903,17 @@ def api_ml_learning():
                 bt_rows = list(reader)
             if bt_rows:
                 for row in bt_rows:
-                    pv = float(row.get('portfolio_value', 0))
+                    pv = float(row.get('value', 0))
                     backtest_entries.append({
                         '_type': 'backtest',
                         'date': row.get('date', ''),
                         'portfolio_value': round(pv, 2),
-                        'cash': round(float(row.get('cash', 0)), 2),
-                        'positions_count': int(row.get('positions_count', 0)),
-                        'regime_mult': float(row.get('regime_mult', 1.0)),
+                        'c_alloc': round(float(row.get('c_alloc', 0)), 4),
+                        'r_alloc': round(float(row.get('r_alloc', 0)), 4),
+                        'efa_alloc': round(float(row.get('efa_alloc', 0)), 4),
                     })
                 # Compute backtest summary stats
-                values = [float(r['portfolio_value']) for r in bt_rows]
+                values = [float(r['value']) for r in bt_rows]
                 start_val = values[0]
                 end_val = values[-1]
                 n_days = len(values)

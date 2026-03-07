@@ -2616,11 +2616,13 @@ function renderMLTerminal(entries, insights) {
         } else if (r._type === 'backtest') {
             badge = '<span class="ml-line-badge ml-badge-backtest">BT</span>';
             var btPv = r.portfolio_value != null ? '$' + r.portfolio_value.toLocaleString('en-US', {maximumFractionDigits: 0}) : '--';
-            var btReg = r.regime_mult != null ? r.regime_mult.toFixed(2) : '--';
+            var cA = r.c_alloc != null ? (r.c_alloc * 100).toFixed(0) + '%' : '--';
+            var rA = r.r_alloc != null ? (r.r_alloc * 100).toFixed(0) + '%' : '--';
+            var eA = r.efa_alloc != null ? (r.efa_alloc * 100).toFixed(0) + '%' : '--';
             detail = '<span class="ml-dim">portfolio=</span>' + btPv
-                + ' <span class="ml-dim">pos=</span>' + (r.positions_count || 0)
-                + ' <span class="ml-dim">regime=</span>' + btReg
-                + ' <span class="ml-dim">cash=</span>$' + (r.cash || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+                + ' <span class="ml-dim">COMPASS=</span>' + cA
+                + ' <span class="ml-dim">RATTLE=</span>' + rA
+                + ' <span class="ml-dim">EFA=</span>' + eA;
         }
 
         html += '<div class="ml-line"><span class="ml-line-ts">' + ts + '</span>' + badge + '<span class="ml-line-detail">' + detail + '</span></div>';
