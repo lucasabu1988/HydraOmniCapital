@@ -1933,12 +1933,13 @@ def api_ml_learning():
     # Read interpretation FIRST, then trigger regeneration if needed
     interpretation = ''
     interp_path = os.path.join(ml_dir, 'interpretation.md')
-    if os.path.exists(interp_path):
-        try:
-            with open(interp_path, 'r', encoding='utf-8') as f:
-                interpretation = f.read()
-        except Exception:
-            pass
+    try:
+        with open(interp_path, 'r', encoding='utf-8') as f:
+            interpretation = f.read()
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        logger.error(f"Failed to read interpretation: {e}")
 
     # Trigger regeneration in background (non-blocking, won't affect this response)
     global _interp_last_cycle
