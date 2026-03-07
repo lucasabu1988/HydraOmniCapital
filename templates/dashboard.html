@@ -1748,7 +1748,7 @@
             <h3 class="algo-sub-title">Flujo de datos</h3>
             <div class="algo-formula-box">
                 <div class="algo-formula-label">Arquitectura del sistema ML</div>
-                <code class="algo-formula" style="font-size:11px; white-space:pre; line-height:1.6;">Motor de Trading &rarr; on_entry() / on_exit() / on_skip() &rarr; decisions.jsonl + outcomes.jsonl
+                <code class="algo-formula" style="font-size:11px; white-space:pre-wrap; line-height:1.6;">Motor de Trading &rarr; on_entry() / on_exit() / on_skip() &rarr; decisions.jsonl + outcomes.jsonl
 Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &rarr; insights.json</code>
                 <p class="algo-note" style="margin-top:8px; margin-bottom:0;">Todos los datos se almacenan en formato JSONL (append-only). Los modelos solo guardan metadatos en JSON &mdash; sin archivos binarios.</p>
             </div>

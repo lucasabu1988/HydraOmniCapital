@@ -2902,6 +2902,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .algo-hero-tagline {
     font-size: 13px; color: rgba(255,255,255,0.5);
     letter-spacing: 2px; text-transform: uppercase; font-weight: 500;
+    word-wrap: break-word; overflow-wrap: break-word;
+    max-width: 100%;
 }
 
 /* Pipeline flow */
@@ -2909,6 +2911,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     max-width: 100%;
     margin: 0;
     padding: 0 20px;
+    overflow: hidden;
 }
 .algo-pipeline {
     display: flex;
@@ -2981,6 +2984,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 .algo-card-body {
     padding: 24px;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
 }
 .algo-card-body p {
     font-size: 14px; line-height: 1.7;
@@ -3005,7 +3011,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border-radius: 8px;
     padding: 16px;
     min-width: 0;
-    overflow: visible;
+    overflow: hidden;
 }
 .algo-mini-title {
     font-size: 12px; font-weight: 700;
@@ -3068,6 +3074,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border-radius: 0 8px 8px 0;
     padding: 14px 18px;
     margin-bottom: 16px;
+    overflow-x: auto;
+    max-width: 100%;
 }
 .algo-formula-label {
     font-size: 11px; font-weight: 700;
@@ -3083,12 +3091,17 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     color: var(--text-primary);
     background: transparent;
     padding: 0;
+    display: block;
+    overflow-x: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
 }
 
 /* Regime thresholds */
 .algo-thresholds {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 8px;
     margin: 16px 0;
 }
@@ -3134,6 +3147,15 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border-radius: 8px;
     padding: 16px;
     margin-top: 16px;
+    overflow: hidden;
+    max-width: 100%;
+}
+.algo-highlight-content {
+    font-size: 13px; line-height: 1.6;
+    color: var(--text-secondary);
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
 }
 .algo-highlight-badge {
     background: var(--accent);
@@ -3144,10 +3166,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     padding: 3px 8px;
     white-space: nowrap;
     flex-shrink: 0;
-}
-.algo-highlight-content {
-    font-size: 13px; line-height: 1.6;
-    color: var(--text-secondary);
 }
 .algo-highlight-content strong {
     color: var(--text-primary);
@@ -3287,6 +3305,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .algo-hero { padding: 32px 16px 24px; }
     .algo-hero-title { font-size: 24px; }
     .algo-hero-sub { font-size: 15px; }
+    .algo-hero-tagline { font-size: 11px; letter-spacing: 1px; }
     .algo-pipeline { gap: 4px; }
     .algo-pipe-step { min-width: 80px; padding: 10px 8px; }
     .algo-pipe-arrow { font-size: 14px; }
@@ -3295,6 +3314,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .algo-stops-grid { grid-template-columns: repeat(2, 1fr); }
     .algo-card-body { padding: 16px; }
     .algo-card-header { padding: 14px 16px; }
+    .algo-section { padding: 0 10px; }
+    .algo-params-sm td:first-child { white-space: normal; }
+    .algo-params-table td:first-child,
+    .algo-params-table td:nth-child(2) { white-space: normal; }
+    .algo-formula { font-size: 12px; }
+    .algo-highlight { flex-direction: column; gap: 8px; }
+    .algo-dd-range { min-width: auto; }
 }
 
 /* ============ ML TAB ============ */
