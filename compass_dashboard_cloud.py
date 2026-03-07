@@ -1833,8 +1833,11 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
             now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
             md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza al inicio y al cierre de cada ciclo.*'
             os.makedirs(ml_dir, exist_ok=True)
-            with open(interp_path, 'w', encoding='utf-8') as f:
+            # Atomic write: temp file + rename (prevents readers seeing truncated file)
+            tmp_path = interp_path + '.tmp'
+            with open(tmp_path, 'w', encoding='utf-8') as f:
                 f.write(md)
+            os.replace(tmp_path, interp_path)
             _interp_last_cycle = _get_last_closed_cycle_num() or 0
             logger.info("Claude AI interpretation saved successfully")
         else:
@@ -1927,7 +1930,17 @@ def api_ml_learning():
     all_entries = backtest_entries + entries
     all_entries.sort(key=lambda r: r.get('timestamp', r.get('date', '')))
 
-    # Trigger interpretation in background (non-blocking for API response)
+    # Read interpretation FIRST, then trigger regeneration if needed
+    interpretation = ''
+    interp_path = os.path.join(ml_dir, 'interpretation.md')
+    if os.path.exists(interp_path):
+        try:
+            with open(interp_path, 'r', encoding='utf-8') as f:
+                interpretation = f.read()
+        except Exception:
+            pass
+
+    # Trigger regeneration in background (non-blocking, won't affect this response)
     global _interp_last_cycle
     if _should_regenerate_interpretation():
         threading.Thread(
@@ -1937,15 +1950,6 @@ def api_ml_learning():
         ).start()
     elif _interp_last_cycle is None:
         _interp_last_cycle = _get_last_closed_cycle_num() or 0
-
-    interpretation = ''
-    interp_path = os.path.join(ml_dir, 'interpretation.md')
-    if os.path.exists(interp_path):
-        try:
-            with open(interp_path, 'r') as f:
-                interpretation = f.read()
-        except Exception:
-            pass
 
     # Compute KPIs from loaded data
     outcomes = [r for r in entries if r.get('_type') == 'outcome']
