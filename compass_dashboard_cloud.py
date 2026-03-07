@@ -2006,11 +2006,14 @@ def api_debug_cloud():
     interp_path = os.path.join('state', 'ml_learning', 'interpretation.md')
     lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
     interp_size = 0
+    interp_preview = ''
     if os.path.exists(interp_path):
         try:
             interp_size = os.path.getsize(interp_path)
-        except OSError:
-            pass
+            with open(interp_path, 'r', encoding='utf-8') as f:
+                interp_preview = f.read()[:200]
+        except Exception as e:
+            interp_preview = f'READ ERROR: {e}'
     state = read_state() or {}
     return jsonify({
         'engine_available': _HAS_ENGINE,
@@ -2020,6 +2023,7 @@ def api_debug_cloud():
         'anthropic_available': _HAS_ANTHROPIC,
         'interpretation_exists': os.path.exists(interp_path),
         'interpretation_size': interp_size,
+        'interpretation_preview': interp_preview,
         'interp_last_cycle': _interp_last_cycle,
         'state_file_exists': os.path.exists(STATE_FILE),
         'state_positions': list(state.get('positions', {}).keys()),
