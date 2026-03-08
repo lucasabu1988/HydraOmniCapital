@@ -161,23 +161,71 @@
         </div>
     </div>
     <div class="lh-tagline">Momentum + Mean-Reversion + International &middot; Cash Recycling &middot; S&amp;P 500 + EAFE &middot; Long-Only</div>
-    <div class="lh-stats">
-        <div class="lh-stat">
-            <span class="lh-stat-label">CAGR</span>
-            <span class="lh-stat-value green">14.93%</span>
-            <span class="lh-stat-context">26-year backtest</span>
+    <div class="lh-stats-carousel" id="heroCarousel">
+        <div class="lh-stats lh-stats-slide active" data-slide="0">
+            <div class="lh-stat">
+                <span class="lh-stat-label">CAGR</span>
+                <span class="lh-stat-value green">14.93%</span>
+                <span class="lh-stat-context">26-year backtest</span>
+            </div>
+            <div class="lh-stat-divider"></div>
+            <div class="lh-stat">
+                <span class="lh-stat-label">Sharpe Ratio</span>
+                <span class="lh-stat-value green">1.12</span>
+                <span class="lh-stat-context">Risk-adjusted</span>
+            </div>
+            <div class="lh-stat-divider"></div>
+            <div class="lh-stat">
+                <span class="lh-stat-label">Max Drawdown</span>
+                <span class="lh-stat-value amber">&minus;22.3%</span>
+                <span class="lh-stat-context">vs &minus;32.6% Momentum solo</span>
+            </div>
         </div>
-        <div class="lh-stat-divider"></div>
-        <div class="lh-stat">
-            <span class="lh-stat-label">Sharpe Ratio</span>
-            <span class="lh-stat-value green">1.12</span>
-            <span class="lh-stat-context">Risk-adjusted</span>
+        <div class="lh-stats lh-stats-slide" data-slide="1">
+            <div class="lh-stat">
+                <span class="lh-stat-label">Positive Years</span>
+                <span class="lh-stat-value green">23/27</span>
+                <span class="lh-stat-context">85% win rate by year</span>
+            </div>
+            <div class="lh-stat-divider"></div>
+            <div class="lh-stat">
+                <span class="lh-stat-label">Beats S&amp;P</span>
+                <span class="lh-stat-value green">19/27</span>
+                <span class="lh-stat-context">years with alpha &gt; 0</span>
+            </div>
+            <div class="lh-stat-divider"></div>
+            <div class="lh-stat">
+                <span class="lh-stat-label">Avg Alpha</span>
+                <span class="lh-stat-value green">+8.3 pp</span>
+                <span class="lh-stat-context">per year vs S&amp;P 500</span>
+            </div>
         </div>
-        <div class="lh-stat-divider"></div>
-        <div class="lh-stat">
-            <span class="lh-stat-label">Max Drawdown</span>
-            <span class="lh-stat-value amber">&minus;22.3%</span>
-            <span class="lh-stat-context">vs &minus;32.6% Momentum solo</span>
+        <div class="lh-stats lh-stats-slide" data-slide="2">
+            <div class="lh-stat">
+                <span class="lh-stat-label">Strategies</span>
+                <span class="lh-stat-value c-accent">3</span>
+                <span class="lh-stat-context">Momentum + Rattle + EFA</span>
+            </div>
+            <div class="lh-stat-divider"></div>
+            <div class="lh-stat">
+                <span class="lh-stat-label">Hold Period</span>
+                <span class="lh-stat-value c-accent">5 days</span>
+                <span class="lh-stat-context">Weekly rotation cycle</span>
+            </div>
+            <div class="lh-stat-divider"></div>
+            <div class="lh-stat">
+                <span class="lh-stat-label">Growth</span>
+                <span class="lh-stat-value green">$100K &rarr; $3.8M</span>
+                <span class="lh-stat-context">2000&ndash;2026 backtest</span>
+            </div>
+        </div>
+        <div class="lh-carousel-controls">
+            <div class="lh-carousel-dots">
+                <button class="lh-dot active" data-slide="0" aria-label="Slide 1"></button>
+                <button class="lh-dot" data-slide="1" aria-label="Slide 2"></button>
+                <button class="lh-dot" data-slide="2" aria-label="Slide 3"></button>
+            </div>
+            <button class="lh-carousel-pause" id="heroCarouselPause" aria-label="Pause rotation">&#10074;&#10074;</button>
         </div>
     </div>
     <div class="lh-features">
@@ -2082,7 +2130,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260306j"></script>
+<script src="/static/js/dashboard.js?v=20260308b"></script>
 
 </body>
 </html>

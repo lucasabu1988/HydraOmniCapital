@@ -1383,10 +1383,23 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
     display: flex;
     flex-direction: column;
     gap: 10px;
-    transition: background 0.15s;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
     position: relative;
+    overflow: hidden;
 }
-.pos-card:hover { background: var(--bg-card-hover); }
+.pos-card:hover { background: var(--bg-card-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+/* Top gradient bar — instant visual P&L status (Bridgewater-inspired) */
+.pos-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    transition: height 0.2s, opacity 0.2s;
+}
+.pos-card:hover::after { height: 4px; }
+.pos-card.pos-profit::after { background: linear-gradient(90deg, var(--green), rgba(34, 197, 94, 0.3)); }
+.pos-card.pos-loss::after { background: linear-gradient(90deg, var(--red), rgba(239, 68, 68, 0.3)); }
+.pos-card.pos-near-stop::after { background: linear-gradient(90deg, var(--yellow), rgba(234, 179, 8, 0.3)); animation: blink 1s infinite; }
 /* Left accent bar color based on P&L */
 .pos-card::before {
     content: '';
@@ -2076,18 +2089,31 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     color: var(--text-tertiary);
     cursor: pointer;
     border-bottom: 2px solid transparent;
-    transition: color 0.2s, border-color 0.2s;
+    transition: color 0.25s;
     display: flex;
     align-items: center;
     gap: 8px;
+    position: relative;
 }
-.page-tab:hover { color: var(--text-secondary); background: rgba(99, 102, 241, 0.06); }
+/* Squarepoint-style expanding underline on hover */
+.page-tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 50%; right: 50%;
+    height: 2px;
+    background: var(--accent-light);
+    transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1), right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border-radius: 2px 2px 0 0;
+}
+.page-tab:hover::after { left: 20%; right: 20%; }
+.page-tab:hover { color: var(--text-secondary); }
 .page-tab.active {
     color: var(--accent-light);
-    border-bottom: 2px solid var(--accent);
-    background: linear-gradient(180deg, transparent 0%, rgba(99, 102, 241, 0.08) 100%);
+    border-bottom: none;
+    background: linear-gradient(180deg, transparent 0%, rgba(99, 102, 241, 0.06) 100%);
     text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
 }
+.page-tab.active::after { left: 10%; right: 10%; background: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
 .page-tab-icon { width: 14px; height: 14px; vertical-align: -2px; flex-shrink: 0; }
 .page-content { display: none; }
 .page-content.active { display: block; }
@@ -2310,9 +2336,44 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     margin-bottom: 8px;
 }
 /* Stat cards */
+/* Two Sigma-style rotating stats carousel */
+.lh-stats-carousel {
+    position: relative;
+    max-width: 640px;
+    margin: 0 auto 12px;
+}
+.lh-stats-slide {
+    display: none;
+    animation: statsFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lh-stats-slide.active { display: flex; }
+@keyframes statsFadeIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); filter: blur(4px); }
+    to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.lh-carousel-controls {
+    display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 10px;
+}
+.lh-carousel-dots { display: flex; gap: 6px; }
+.lh-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.25); background: transparent;
+    cursor: pointer; transition: all 0.3s; padding: 0;
+}
+.lh-dot.active { background: var(--accent-light); border-color: var(--accent-light); box-shadow: 0 0 8px rgba(99, 102, 241, 0.4); }
+.lh-dot:hover { border-color: rgba(255,255,255,0.5); }
+.lh-carousel-pause {
+    font-size: 10px; color: rgba(255,255,255,0.3); background: transparent;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
+    padding: 2px 6px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
+    line-height: 1;
+}
+.lh-carousel-pause:hover { color: rgba(255,255,255,0.6); border-color: rgba(255,255,255,0.25); }
+.lh-carousel-pause.paused { color: var(--accent-light); border-color: var(--accent-light); }
+
 .lh-stats {
     display: flex; justify-content: center; align-items: stretch;
-    gap: 0; margin-bottom: 12px; flex-wrap: wrap;
+    gap: 0; flex-wrap: wrap;
     background: rgba(255,255,255,0.03);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.08);
@@ -2353,6 +2414,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 .lh-stat-value.green { color: #4ade80; text-shadow: 0 0 20px rgba(74,222,128,0.3); }
 .lh-stat-value.amber { color: #fbbf24; text-shadow: 0 0 20px rgba(251,191,36,0.2); }
+.lh-stat-value.c-accent { color: var(--accent-light); text-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
 .lh-stat-context {
     font-size: 11px; color: rgba(255,255,255,0.35);
     font-weight: 500; display: block;
