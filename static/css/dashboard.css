@@ -3795,6 +3795,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .ml-line-detail .ml-val-neg { color: #f85149; }
 .ml-line-detail .ml-dim { color: #6e7681; }
 
+/* --- Interpretation stack (dual panels) --- */
+.ml-interpret-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 /* --- Interpretation panel --- */
 .ml-interpret {
     background: var(--glass-bg);

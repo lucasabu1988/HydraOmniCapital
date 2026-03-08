@@ -2468,7 +2468,8 @@ async function fetchMLLearning() {
         var res = await fetch('/api/ml-learning');
         var data = await res.json();
         renderMLTerminal(data.log_entries || [], data.insights || {});
-        renderMLInterpretation(data.interpretation || '');
+        renderMLInterpretation(data.interpretation_backtest || '', 'ml-interpret-backtest', 'ml-interpret-bt-time');
+        renderMLInterpretation(data.interpretation_live || data.interpretation || '', 'ml-interpret-live', 'ml-interpret-live-time');
         renderMLKpis(data.kpis || {});
     } catch (e) {
         // silent
@@ -2637,12 +2638,12 @@ function renderMLTerminal(entries, insights) {
     }
 }
 
-function renderMLInterpretation(text) {
-    var el = document.getElementById('ml-interpret');
-    var timeEl = document.getElementById('ml-interpret-time');
+function renderMLInterpretation(text, elId, timeElId) {
+    var el = document.getElementById(elId);
+    var timeEl = document.getElementById(timeElId);
     if (!el) return;
     if (!text) {
-        el.innerHTML = '<p class="ml-interpret-loading">Waiting for analysis...</p>';
+        el.innerHTML = '<p class="ml-interpret-loading">Esperando analisis...</p>';
         return;
     }
     /* Simple markdown-to-HTML */

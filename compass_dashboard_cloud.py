@@ -1717,21 +1717,18 @@ def _get_last_closed_cycle_num():
 def _should_regenerate_interpretation():
     """Check if interpretation needs regeneration: startup or new closed cycle."""
     global _interp_last_cycle
-    interp_path = os.path.join('state', 'ml_learning', 'interpretation.md')
+    live_path = os.path.join('state', 'ml_learning', 'interpretation_live.md')
 
     # First call (startup): regenerate if file missing or we haven't tracked yet
     if _interp_last_cycle is None:
-        if not os.path.exists(interp_path):
+        if not os.path.exists(live_path):
             return True
-        # On startup, check if the file is stale (>24h) to avoid regenerating
-        # on every Render restart within the same cycle
         try:
-            age_hours = (time_module.time() - os.path.getmtime(interp_path)) / 3600
+            age_hours = (time_module.time() - os.path.getmtime(live_path)) / 3600
             if age_hours > 24:
                 return True
         except OSError:
             return True
-        # File is fresh — load last cycle from it and skip
         return False
 
     # Subsequent calls: regenerate only when a new cycle has closed
@@ -1741,66 +1738,84 @@ def _should_regenerate_interpretation():
     return False
 
 
-def _generate_claude_interpretation(entries, bt_stats=None):
-    """Call Claude API to generate an analytical interpretation of the ML data."""
-    if not _HAS_ANTHROPIC:
-        logger.warning("Anthropic SDK not available, skipping AI interpretation")
+_LIVE_MIN_DECISIONS = 10  # minimum live decisions before generating live analysis
+
+
+def _generate_backtest_interpretation(bt_stats):
+    """Call Claude API to generate backtest data analysis."""
+    if not _HAS_ANTHROPIC or not bt_stats:
         return None
 
-    # Prepare ML learning entries summary (last 50 to stay within token limits)
-    recent_entries = entries[-50:] if len(entries) > 50 else entries
-    entries_summary = []
-    for r in recent_entries:
-        # Strip large nested objects, keep essential fields
+    data_json = json.dumps({'backtest_stats': bt_stats}, indent=2, default=str)
+
+    system_prompt = """You are the AI analyst for HYDRA, an automated momentum-based stock rotation system
+trading 40 US large-cap stocks in 5-day cycles. Analyze the BACKTEST results only.
+
+Write in Spanish. Use ### headers. Be concise but insightful.
+
+Structure:
+### Resumen del Backtest — period, CAGR, Sharpe, max drawdown, total return
+### Fortalezas — what the backtest shows the system does well
+### Riesgos Identificados — drawdown periods, volatility concerns, regime sensitivity
+### Contexto Historico — what market conditions drove the results
+
+Focus on genuine insights about the strategy's historical behavior. Keep under 300 words."""
+
+    try:
+        client = anthropic.Anthropic()
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=768,
+            system=system_prompt,
+            messages=[{
+                "role": "user",
+                "content": f"Analyze HYDRA backtest results:\n\n{data_json}"
+            }]
+        )
+        return message.content[0].text
+    except Exception as e:
+        logger.error(f"Claude API backtest interpretation failed: {e}")
+        return None
+
+
+def _generate_live_interpretation(entries, cycle_data):
+    """Call Claude API to generate live paper trading analysis."""
+    if not _HAS_ANTHROPIC:
+        return None
+
+    live_decisions = [e for e in entries if e.get('_type') == 'decision' and e.get('source') == 'live']
+    if len(live_decisions) < _LIVE_MIN_DECISIONS:
+        return None  # not enough data yet
+
+    recent = entries[-50:] if len(entries) > 50 else entries
+    summary = []
+    for r in recent:
         clean = {k: v for k, v in r.items() if k not in ('_type',) and v is not None}
         clean['type'] = r.get('_type', 'unknown')
-        entries_summary.append(clean)
+        summary.append(clean)
 
-    # Load cycle log for context
-    cycle_data = []
-    log_file = os.path.join('state', 'cycle_log.json')
-    if os.path.exists(log_file):
-        try:
-            with open(log_file, 'r') as f:
-                cycle_data = json.load(f)
-        except Exception:
-            pass
-
-    # Build the data payload for Claude
     data_payload = {
-        'ml_learning_entries': entries_summary,
-        'total_entries_count': len(entries),
+        'live_entries': summary,
+        'total_live_decisions': len(live_decisions),
         'cycle_log': cycle_data,
     }
-    if bt_stats:
-        data_payload['backtest_reference'] = bt_stats
-
     data_json = json.dumps(data_payload, indent=2, default=str)
 
     system_prompt = """You are the AI analyst for HYDRA, an automated momentum-based stock rotation system
-trading 40 US large-cap stocks in 5-day cycles. Your role is to interpret the ML learning data and
-provide actionable insights for the portfolio manager.
+trading 40 US large-cap stocks in 5-day cycles. Analyze LIVE PAPER TRADING data only.
 
-Write your analysis in markdown. Use ### headers. Be concise but insightful. Write in Spanish.
+Write in Spanish. Use ### headers. Be concise but insightful.
 
-Structure your analysis as:
-### Estado del Sistema — current phase, data collection progress
-### Analisis de Datos — patterns you see in the ML entries (decisions, snapshots, outcomes)
-### Rendimiento vs Backtest — compare live results against backtest reference if available
-### Observaciones Clave — important patterns, anomalies, or risks you detect
-### Proximo Ciclo — what to watch for in the next cycle
+Structure:
+### Estado del Paper Trading — days active, cycles completed, current positions
+### Analisis de Operaciones — entry/exit patterns, sectors, momentum scores
+### Rendimiento Actual — P&L, win rate, alpha vs benchmark (if enough data)
+### Observaciones Clave — anomalies, slippage vs backtest, regime behavior
+### Proximo Ciclo — what to watch for
 
-Focus on genuine analytical insights, not just restating numbers. Identify patterns,
-flag anomalies, and provide context. If data is limited (early days), acknowledge this
-and focus on what CAN be observed.
-
-IMPORTANT: Entries with "source": "backfill" were reconstructed from historical state files
-(not captured in real-time). They have estimated momentum scores (0.0) and may share timestamps.
-Do NOT flag backfill entries as bugs or anomalies — they are expected artifacts of the data
-reconstruction process. Only analyze "source": "live" entries for system behavior patterns.
-When multiple entries share the exact same timestamp, that indicates backfill, not a bug.
-
-Keep your response under 500 words."""
+All entries are real paper trading decisions (source=live). Focus on execution quality,
+regime adherence, and how live behavior compares to backtest expectations.
+Keep under 400 words."""
 
     try:
         client = anthropic.Anthropic()
@@ -1810,45 +1825,79 @@ Keep your response under 500 words."""
             system=system_prompt,
             messages=[{
                 "role": "user",
-                "content": f"Analyze the following HYDRA ML learning data and generate your interpretation:\n\n{data_json}"
+                "content": f"Analyze HYDRA live paper trading data:\n\n{data_json}"
             }]
         )
         return message.content[0].text
     except Exception as e:
-        logger.error(f"Claude API interpretation failed: {e}")
+        logger.error(f"Claude API live interpretation failed: {e}")
         return None
 
 
 def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
     global _interp_last_cycle
-    interp_path = os.path.join(ml_dir, 'interpretation.md')
+    bt_path = os.path.join(ml_dir, 'interpretation_backtest.md')
+    live_path = os.path.join(ml_dir, 'interpretation_live.md')
 
     if not _should_regenerate_interpretation():
-        # Update tracking on first call even if we skip regeneration
         if _interp_last_cycle is None:
             _interp_last_cycle = _get_last_closed_cycle_num() or 0
         return
 
     if not _interp_lock.acquire(blocking=False):
-        return  # another thread is already generating
+        return
 
     try:
-        logger.info("Generating Claude AI interpretation...")
-        md = _generate_claude_interpretation(entries, bt_stats)
-        if md:
-            now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
-            md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza al inicio y al cierre de cada ciclo.*'
-            os.makedirs(ml_dir, exist_ok=True)
-            # Atomic write: temp file + rename (prevents readers seeing truncated file)
-            tmp_path = interp_path + '.tmp'
-            with open(tmp_path, 'w', encoding='utf-8') as f:
-                f.write(md)
-            os.replace(tmp_path, interp_path)
-            _interp_last_cycle = _get_last_closed_cycle_num() or 0
-            logger.info("Claude AI interpretation saved successfully")
+        os.makedirs(ml_dir, exist_ok=True)
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+        # Load cycle log for live analysis
+        cycle_data = []
+        log_file = os.path.join('state', 'cycle_log.json')
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'r') as f:
+                    cycle_data = json.load(f)
+            except Exception:
+                pass
+
+        # 1) Backtest analysis — regenerate weekly or if missing
+        if bt_stats and (not os.path.exists(bt_path) or
+                (time_module.time() - os.path.getmtime(bt_path)) / 3600 > 168):
+            logger.info("Generating backtest interpretation...")
+            bt_md = _generate_backtest_interpretation(bt_stats)
+            if bt_md:
+                bt_md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza semanalmente.*'
+                tmp = bt_path + '.tmp'
+                with open(tmp, 'w', encoding='utf-8') as f:
+                    f.write(bt_md)
+                os.replace(tmp, bt_path)
+                logger.info("Backtest interpretation saved")
+
+        # 2) Live paper trading analysis — regenerate per cycle
+        live_decisions = [e for e in entries if e.get('_type') == 'decision' and e.get('source') == 'live']
+        if len(live_decisions) >= _LIVE_MIN_DECISIONS:
+            logger.info("Generating live paper trading interpretation...")
+            live_md = _generate_live_interpretation(entries, cycle_data)
+            if live_md:
+                live_md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza al cierre de cada ciclo.*'
+                tmp = live_path + '.tmp'
+                with open(tmp, 'w', encoding='utf-8') as f:
+                    f.write(live_md)
+                os.replace(tmp, live_path)
+                logger.info("Live interpretation saved")
         else:
-            # If Claude fails, update tracker so we don't retry every poll
-            _interp_last_cycle = _get_last_closed_cycle_num() or 0
+            not_enough = (f"### Datos Insuficientes\n\n"
+                          f"El paper trading lleva **{len(live_decisions)}** decisiones registradas. "
+                          f"Se necesitan al menos **{_LIVE_MIN_DECISIONS}** para generar un analisis significativo.\n\n"
+                          f"El sistema continuara recopilando datos automaticamente en cada ciclo de 5 dias.\n\n"
+                          f"---\n*Actualizado el {now_str}.*")
+            tmp = live_path + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                f.write(not_enough)
+            os.replace(tmp, live_path)
+
+        _interp_last_cycle = _get_last_closed_cycle_num() or 0
     except Exception as e:
         logger.error(f"Interpretation generation error: {e}")
         _interp_last_cycle = _get_last_closed_cycle_num() or 0
@@ -1984,7 +2033,21 @@ def api_ml_learning():
         pnls = [o.get('pnl_usd', 0) for o in outcomes]
         kpis['total_pnl'] = round(sum(pnls), 2)
 
-    # Read interpretation file (generated by Claude AI, once per cycle)
+    # Read interpretation files (backtest + live, generated by Claude AI)
+    interp_backtest = ''
+    interp_live = ''
+    try:
+        with open(os.path.join(ml_dir, 'interpretation_backtest.md'), 'r', encoding='utf-8') as f:
+            interp_backtest = f.read()
+    except FileNotFoundError:
+        pass
+    try:
+        with open(os.path.join(ml_dir, 'interpretation_live.md'), 'r', encoding='utf-8') as f:
+            interp_live = f.read()
+    except FileNotFoundError:
+        pass
+
+    # Backwards compat: also read old single interpretation file
     interpretation = ''
     try:
         with open(os.path.join(ml_dir, 'interpretation.md'), 'r', encoding='utf-8') as f:
@@ -1996,6 +2059,8 @@ def api_ml_learning():
         'log_entries': all_entries,
         'insights': insights,
         'interpretation': interpretation,
+        'interpretation_backtest': interp_backtest,
+        'interpretation_live': interp_live,
         'kpis': kpis,
     })
 

@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260308c">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260308d">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -2087,15 +2087,27 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
             <div class="ml-terminal-loading">Loading ML data...</div>
         </div>
     </div>
-    <!-- RIGHT: Interpretation -->
-    <div class="ml-interpret">
-        <div class="ml-interpret-header">
-            <span class="ml-interpret-icon">&#9733;</span>
-            <span class="ml-interpret-title">AI Interpretation</span>
-            <span class="ml-interpret-updated" id="ml-interpret-time"></span>
+    <!-- RIGHT: Dual Interpretation Panels -->
+    <div class="ml-interpret-stack">
+        <div class="ml-interpret">
+            <div class="ml-interpret-header">
+                <span class="ml-interpret-icon">&#9733;</span>
+                <span class="ml-interpret-title">Analisis Backtest</span>
+                <span class="ml-interpret-updated" id="ml-interpret-bt-time"></span>
+            </div>
+            <div class="ml-interpret-body" id="ml-interpret-backtest">
+                <p class="ml-interpret-loading">Esperando analisis del backtest...</p>
+            </div>
         </div>
-        <div class="ml-interpret-body" id="ml-interpret">
-            <p class="ml-interpret-loading">Waiting for analysis...</p>
+        <div class="ml-interpret">
+            <div class="ml-interpret-header">
+                <span class="ml-interpret-icon">&#9889;</span>
+                <span class="ml-interpret-title">Analisis Paper Trading</span>
+                <span class="ml-interpret-updated" id="ml-interpret-live-time"></span>
+            </div>
+            <div class="ml-interpret-body" id="ml-interpret-live">
+                <p class="ml-interpret-loading">Esperando datos de paper trading...</p>
+            </div>
         </div>
     </div>
 </div>
@@ -2130,7 +2142,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/dashboard.js?v=20260308b"></script>
+<script src="/static/js/dashboard.js?v=20260308d"></script>
 
 </body>
 </html>
