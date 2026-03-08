@@ -2342,11 +2342,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     max-width: 640px;
     margin: 0 auto 12px;
 }
-.lh-stats-slide {
+.lh-stats.lh-stats-slide {
     display: none;
+}
+.lh-stats.lh-stats-slide.active {
+    display: flex;
     animation: statsFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.lh-stats-slide.active { display: flex; }
 @keyframes statsFadeIn {
     from { opacity: 0; transform: translateY(8px) scale(0.98); filter: blur(4px); }
     to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
