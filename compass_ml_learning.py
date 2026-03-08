@@ -131,6 +131,7 @@ class DecisionRecord:
 
     # Metadata
     version: str = "8.4"
+    source: str = "live"              # "live" | "backfill" — distinguishes real-time decisions from historical reconstruction
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -333,6 +334,7 @@ class DecisionLogger:
         crash_cooldown: int,
         trading_day: int,
         spy_hist=None,
+        source: str = "live",
     ) -> str:
         """Log a BUY decision. Returns decision_id for later linking to outcome."""
         dec_id = self._make_id()
@@ -374,6 +376,7 @@ class DecisionLogger:
             exit_reason=None,
             skip_reason=None,
             skip_universe_rank=None,
+            source=source,
         )
         self._append_jsonl(self._decisions_path, record.to_dict())
         self._open_entries[symbol] = dec_id
@@ -405,6 +408,7 @@ class DecisionLogger:
         trading_day: int,
         spy_hist=None,
         spy_return_during_hold: Optional[float] = None,
+        source: str = "live",
     ):
         """Log a SELL decision and create a linked OutcomeRecord."""
         dec_id = self._make_id()
@@ -449,6 +453,7 @@ class DecisionLogger:
             exit_reason=exit_reason,
             skip_reason=None,
             skip_universe_rank=None,
+            source=source,
         )
         self._append_jsonl(self._decisions_path, exit_record.to_dict())
 
@@ -1532,7 +1537,7 @@ class COMPASSMLOrchestrator:
                  max_positions_target: int, current_n_positions: int,
                  portfolio_value: float, portfolio_drawdown: float,
                  current_leverage: float, crash_cooldown: int, trading_day: int,
-                 spy_hist=None) -> str:
+                 spy_hist=None, source: str = "live") -> str:
         return self.logger.log_entry(
             symbol=symbol, sector=sector, momentum_score=momentum_score,
             momentum_rank=momentum_rank, entry_vol_ann=entry_vol_ann,
@@ -1542,6 +1547,7 @@ class COMPASSMLOrchestrator:
             current_n_positions=current_n_positions, portfolio_value=portfolio_value,
             portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
             crash_cooldown=crash_cooldown, trading_day=trading_day, spy_hist=spy_hist,
+            source=source,
         )
 
     def on_exit(self, symbol: str, sector: str, exit_reason: str,
@@ -1553,7 +1559,8 @@ class COMPASSMLOrchestrator:
                 current_n_positions: int, portfolio_value: float,
                 portfolio_drawdown: float, current_leverage: float,
                 crash_cooldown: int, trading_day: int, spy_hist=None,
-                spy_return_during_hold: Optional[float] = None):
+                spy_return_during_hold: Optional[float] = None,
+                source: str = "live"):
         self.logger.log_exit(
             symbol=symbol, sector=sector, exit_reason=exit_reason,
             entry_price=entry_price, exit_price=exit_price, pnl_usd=pnl_usd,
@@ -1567,6 +1574,7 @@ class COMPASSMLOrchestrator:
             portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
             crash_cooldown=crash_cooldown, trading_day=trading_day,
             spy_hist=spy_hist, spy_return_during_hold=spy_return_during_hold,
+            source=source,
         )
 
     def on_skip(self, symbol: str, sector: str, skip_reason: str,
@@ -1706,6 +1714,7 @@ def backfill_from_state_files(state_dir: str = "state") -> dict:
                     current_leverage=1.0,
                     crash_cooldown=state.get("crash_cooldown", 0),
                     trading_day=trading_day,
+                    source="backfill",
                 )
                 ingested["entry_decisions"] += 1
 
@@ -1767,6 +1776,7 @@ def backfill_from_state_files(state_dir: str = "state") -> dict:
             current_leverage=1.0,
             crash_cooldown=0,
             trading_day=7,
+            source="backfill",
         )
         ingested["exit_outcomes"] += 1
 

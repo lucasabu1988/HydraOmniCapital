@@ -1794,6 +1794,12 @@ Focus on genuine analytical insights, not just restating numbers. Identify patte
 flag anomalies, and provide context. If data is limited (early days), acknowledge this
 and focus on what CAN be observed.
 
+IMPORTANT: Entries with "source": "backfill" were reconstructed from historical state files
+(not captured in real-time). They have estimated momentum scores (0.0) and may share timestamps.
+Do NOT flag backfill entries as bugs or anomalies — they are expected artifacts of the data
+reconstruction process. Only analyze "source": "live" entries for system behavior patterns.
+When multiple entries share the exact same timestamp, that indicates backfill, not a bug.
+
 Keep your response under 500 words."""
 
     try:
