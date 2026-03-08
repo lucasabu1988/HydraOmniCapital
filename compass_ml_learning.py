@@ -131,7 +131,7 @@ class DecisionRecord:
 
     # Metadata
     version: str = "8.4"
-    source: str = "live"              # "live" | "backfill" — distinguishes real-time decisions from historical reconstruction
+    source: str = "live"              # "live" = paper trading decisions, "backtest" = historical backtest data
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -1714,7 +1714,7 @@ def backfill_from_state_files(state_dir: str = "state") -> dict:
                     current_leverage=1.0,
                     crash_cooldown=state.get("crash_cooldown", 0),
                     trading_day=trading_day,
-                    source="backfill",
+                    source="live",
                 )
                 ingested["entry_decisions"] += 1
 
@@ -1776,7 +1776,7 @@ def backfill_from_state_files(state_dir: str = "state") -> dict:
             current_leverage=1.0,
             crash_cooldown=0,
             trading_day=7,
-            source="backfill",
+            source="live",
         )
         ingested["exit_outcomes"] += 1
 
