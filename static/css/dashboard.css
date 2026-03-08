@@ -940,10 +940,11 @@ details.regime-band .collapse-arrow { font-size: 0.55rem; color: var(--text-mute
 
 /* --- Tier 2: Normal (Yahoo, Google, MarketWatch) --- */
 .sf-msg-tier2 {
-    padding: 10px 16px; border-bottom: 1px solid var(--border);
-    display: flex; gap: 12px; align-items: flex-start; transition: background 0.15s;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 12px; align-items: flex-start; transition: background 0.2s, border-color 0.2s;
+    border-radius: 4px; margin-bottom: 2px;
 }
-.sf-msg-tier2:hover { background: rgba(255,255,255,0.02); }
+.sf-msg-tier2:hover { background: var(--bg-elevated); }
 .sf-msg-tier2:last-child { border-bottom: none; }
 
 /* --- Tier 3: Compact (Reddit) --- */
@@ -979,7 +980,15 @@ details.regime-band .collapse-arrow { font-size: 0.55rem; color: var(--text-mute
 
 /* --- Grouped View (by ticker) --- */
 .sf-grouped-container { display: flex; flex-direction: column; gap: 20px; padding-top: 16px; }
-.sf-ticker-group { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.sf-ticker-group {
+    background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-md); overflow: hidden;
+    transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+}
+.sf-ticker-group:hover {
+    border-color: var(--glass-border-hover); box-shadow: var(--shadow-sm), var(--glow-accent);
+    transform: translateY(-1px);
+}
 .sf-ticker-group-header {
     padding: 12px 16px; display: flex; align-items: center; gap: 10px;
     border-bottom: 1px solid var(--border); background: var(--bg-elevated);
@@ -2484,7 +2493,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     background: linear-gradient(90deg, var(--accent), var(--cyan));
 }
 .roadmap-card.rm-pending {
-    opacity: 0.7;
+    opacity: 0.65;
+    border-style: dashed;
+}
+.roadmap-card.rm-pending:hover {
+    opacity: 0.85;
 }
 .rm-card-top {
     display: flex;
@@ -3052,6 +3065,12 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     padding: 16px;
     min-width: 0;
     overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.algo-mini-card:hover {
+    border-color: var(--glass-border-hover);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
 }
 .algo-mini-title {
     font-size: 12px; font-weight: 700;
@@ -3103,6 +3122,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border-radius: 6px;
     padding: 4px 10px;
     color: var(--text-secondary);
+    transition: border-color 0.15s, background 0.15s;
+}
+.algo-sector:hover {
+    border-color: var(--border-active);
+    background: var(--bg-card-hover);
 }
 .algo-sector strong { color: var(--text-primary); font-weight: 600; }
 
@@ -3408,8 +3432,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     transition: all 0.2s;
 }
 .ml-pipe-step:hover {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
+    border-color: var(--border-accent);
+    box-shadow: var(--shadow-sm), var(--glow-accent);
+    transform: translateY(-2px);
 }
 .ml-pipe-icon { font-size: 22px; margin-bottom: 6px; }
 .ml-pipe-label {
@@ -3439,18 +3464,20 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     margin-bottom: 18px;
 }
 .ml-phase {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: 10px;
     padding: 16px;
-    opacity: 0.65;
-    transition: all 0.2s;
+    opacity: 0.6;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.ml-phase:hover { opacity: 1; }
+.ml-phase:hover { opacity: 1; transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .ml-phase.ml-phase-active {
     opacity: 1;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
+    border-color: var(--border-accent);
+    box-shadow: var(--shadow-md), var(--glow-accent);
 }
 .ml-phase-header {
     display: flex;
@@ -3506,8 +3533,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     align-items: flex-start;
     gap: 12px;
     padding: 14px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
     border-radius: 8px;
     border-left: 3px solid var(--accent);
 }
@@ -3536,8 +3565,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     transition: all 0.2s;
 }
 .ml-kpi-card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
+    border-color: var(--glass-border-hover);
+    box-shadow: var(--shadow-sm), var(--glow-accent);
+    transform: translateY(-2px);
 }
 .ml-kpi-label {
     font-size: 10px;
