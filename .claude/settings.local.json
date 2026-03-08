@@ -1,4 +1,17 @@
 {
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/caslu/Desktop/NuevoProyecto/scripts/hydra_status_report.py\" 2>/dev/null || echo 'HYDRA status check failed'",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(python:*)",
