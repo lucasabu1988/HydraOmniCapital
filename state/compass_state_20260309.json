@@ -1,15 +1,15 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-09T10:33:02.085474",
-  "cash": 35610.82676379394,
+  "timestamp": "2026-03-09T14:36:38.378861",
+  "cash": 35585.88668505859,
   "peak_value": 100000.0,
-  "portfolio_value": 99553.98769061279,
+  "portfolio_value": 100035.5573012085,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
-    99030.28411621094
+    99064.23415130615
   ],
-  "current_regime_score": 0.5526287849524012,
+  "current_regime_score": 0.5505517423264688,
   "trading_day_counter": 2,
   "last_trading_date": "2026-03-09",
   "positions": {
@@ -32,7 +32,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 116.29000091552734,
+      "high_price": 116.95999908447266,
       "entry_vol": 0.28639434996138086,
       "entry_daily_vol": 0.01804114825932892,
       "sector": "Healthcare",
@@ -43,7 +43,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 242.10000610351562,
+      "high_price": 243.61500549316406,
       "entry_vol": 0.15534686069028528,
       "entry_daily_vol": 0.009785932389073585,
       "sector": "Healthcare",
@@ -54,7 +54,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 300.88,
+      "high_price": 305.4200134277344,
       "entry_vol": 0.23484680821013687,
       "entry_daily_vol": 0.014793958350507239,
       "sector": "Technology",
@@ -106,7 +106,7 @@
   "universe_year": 2026,
   "stop_events": [],
   "_daily_open_done": true,
-  "_preclose_entries_done": false,
+  "_preclose_entries_done": true,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
@@ -118,7 +118,7 @@
     "available": true,
     "rattle_positions": [],
     "rattle_regime": "RISK_ON",
-    "vix_current": 30.899999618530273,
+    "vix_current": 31.040000915527344,
     "efa_position": null,
     "capital_manager": {
       "compass_account": 50000.0,
@@ -132,7 +132,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 51,
-    "uptime_minutes": 54.18929321666667
+    "cycles_completed": 16,
+    "uptime_minutes": 15.799834216666666
   }
 }
