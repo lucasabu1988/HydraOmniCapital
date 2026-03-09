@@ -875,6 +875,7 @@
             <span class="rm-status rm-status-done" data-i18n="rm-status-done">Completado</span>
         </div>
         <div class="rm-title">Motor HYDRA</div>
+        <div class="lang-es">
         <div class="rm-desc">
             Algoritmo de momentum cross-sectional con filtro sigmoid de r&eacute;gimen, bull market override, adaptive stops, sector concentration, DD scaling suave, exit renewal, y quality filter. 56 experimentos.
         </div>
@@ -895,6 +896,29 @@
             <div class="rm-meta-item">Fin: <span class="rm-meta-val">Mar 2026</span></div>
             <div class="rm-meta-item">Resultado: <span class="rm-meta-val" style="color:var(--green);">$100K &rarr; ~$2.0M (honest v8.4 + overlay)</span></div>
         </div>
+        </div>
+        <div class="lang-en" style="display:none">
+        <div class="rm-desc">
+            Cross-sectional momentum algorithm with sigmoid regime filter, bull market override, adaptive stops, sector concentration, smooth DD scaling, exit renewal, and quality filter. 56 experiments.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check checked"></span> Backtest 2000-2026: <strong style="color:var(--green);">12.20% CAGR</strong>, 0.88 Sharpe (bias-corrected, with macro overlay)</li>
+            <li><span class="rm-check checked"></span> <strong>Exp40: Survivorship bias quantified (+4.56% overestimation)</strong></li>
+            <li><span class="rm-check checked"></span> 56 experiments, 1,128 historical tickers validated</li>
+            <li><span class="rm-check checked"></span> v8.4: Bull market override (+1 pos when SPY &gt; SMA200*1.03)</li>
+            <li><span class="rm-check checked"></span> v8.4: Adaptive stops by volatility (-6% to -15%)</li>
+            <li><span class="rm-check checked"></span> v8.4: Sector concentration limits (max 3 per sector)</li>
+            <li><span class="rm-check checked"></span> No leverage (1.0x) &mdash; broker margin 6% destroys value</li>
+            <li><span class="rm-check checked"></span> Pre-close signal 15:30 ET + MOC same-day</li>
+            <li><span class="rm-check checked"></span> Cloud dashboard deployed on Render.com</li>
+            <li><span class="rm-check checked"></span> Algorithm section rewritten with accessible explanations</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Start: <span class="rm-meta-val">2024</span></div>
+            <div class="rm-meta-item">End: <span class="rm-meta-val">Mar 2026</span></div>
+            <div class="rm-meta-item">Result: <span class="rm-meta-val" style="color:var(--green);">$100K &rarr; ~$2.0M (honest v8.4 + overlay)</span></div>
+        </div>
+        </div>
     </div>
 
     <!-- Phase 2: Data Integrity -->
@@ -904,6 +928,7 @@
             <span class="rm-status rm-status-done">Completado</span>
         </div>
         <div class="rm-title">Survivorship Bias Corrected</div>
+        <div class="lang-es">
         <div class="rm-desc">
             <strong>Exp40 COMPLETADO:</strong> Survivorship bias cuantificado usando 1,128 constituyentes hist&oacute;ricos del S&amp;P 500. CAGR v8.4: <strong>12.20%</strong> (0.88 Sharpe, -32.6% MaxDD, con overlay macro).
         </div>
@@ -919,6 +944,24 @@
             <div class="rm-meta-item">Fin: <span class="rm-meta-val">27 Feb 2026</span></div>
             <div class="rm-meta-item">Impacto: <span class="rm-meta-val" style="color:var(--green);">Honest baseline established</span></div>
         </div>
+        </div>
+        <div class="lang-en" style="display:none">
+        <div class="rm-desc">
+            <strong>Exp40 COMPLETED:</strong> Survivorship bias quantified using 1,128 historical S&amp;P 500 constituents. CAGR v8.4: <strong>12.20%</strong> (0.88 Sharpe, -32.6% MaxDD, with macro overlay).
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check checked"></span> Exp40: Downloaded 1,128 historical tickers (GitHub)</li>
+            <li><span class="rm-check checked"></span> Price data for 756 stocks obtained (72% coverage)</li>
+            <li><span class="rm-check checked"></span> Filtered 25 stocks with corrupt data</li>
+            <li><span class="rm-check checked"></span> Corrected backtest: 12.20% CAGR, -32.6% MaxDD (with macro overlay)</li>
+            <li><span class="rm-check checked"></span> Bias quantified: <strong>+4.56% CAGR overestimation</strong></li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Start: <span class="rm-meta-val">Feb 2026</span></div>
+            <div class="rm-meta-item">End: <span class="rm-meta-val">27 Feb 2026</span></div>
+            <div class="rm-meta-item">Impact: <span class="rm-meta-val" style="color:var(--green);">Honest baseline established</span></div>
+        </div>
+        </div>
     </div>
 
     <!-- Phase 3: Broker -->
@@ -928,6 +971,7 @@
             <span class="rm-status rm-status-done">Completado</span>
         </div>
         <div class="rm-title">IBKR TWS API + PaperBroker</div>
+        <div class="lang-es">
         <div class="rm-desc">
             Integraci&oacute;n completa con Interactive Brokers (IBKRBroker) y PaperBroker para simulaci&oacute;n. 53 unit tests. Estrategias MOC, TWAP, VWAP, PassiveLimit implementadas.
         </div>
@@ -945,6 +989,26 @@
             <div class="rm-meta-item">Fin: <span class="rm-meta-val">19 Feb 2026</span></div>
             <div class="rm-meta-item">Resultado: <span class="rm-meta-val" style="color:var(--green);">Production-ready</span></div>
         </div>
+        </div>
+        <div class="lang-en" style="display:none">
+        <div class="rm-desc">
+            Full integration with Interactive Brokers (IBKRBroker) and PaperBroker for simulation. 53 unit tests. MOC, TWAP, VWAP, PassiveLimit strategies implemented.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check checked"></span> Complete IBKRBroker class (2,116 lines)</li>
+            <li><span class="rm-check checked"></span> PaperBroker operational for paper trading</li>
+            <li><span class="rm-check checked"></span> MOC (Market-on-Close) order adapter</li>
+            <li><span class="rm-check checked"></span> Strategies: MOC, TWAP, VWAP, PassiveLimit</li>
+            <li><span class="rm-check checked"></span> ConnectionManager with auto-reconnect</li>
+            <li><span class="rm-check checked"></span> 53 unit tests (IBKRCommissionModel, Portfolio, Orders)</li>
+            <li><span class="rm-check checked"></span> Failover: PaperBroker as automatic backup</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Start: <span class="rm-meta-val">Feb 2026</span></div>
+            <div class="rm-meta-item">End: <span class="rm-meta-val">19 Feb 2026</span></div>
+            <div class="rm-meta-item">Result: <span class="rm-meta-val" style="color:var(--green);">Production-ready</span></div>
+        </div>
+        </div>
     </div>
 
     <!-- Phase 4: Paper Trading -->
@@ -954,6 +1018,7 @@
             <span class="rm-status rm-status-active" data-i18n="rm-status-active">En Progreso</span>
         </div>
         <div class="rm-title">Paper Trading Activo desde 19 Feb 2026</div>
+        <div class="lang-es">
         <div class="rm-desc">
             Simulaci&oacute;n en tiempo real con PaperBroker. Portfolio: <strong>$101,572</strong> (+1.57%). 2 ciclos completados, 1 stop ejecutado (GS &rarr; MU). Sistema ML activo recopilando datos.
         </div>
@@ -973,6 +1038,28 @@
             <div class="rm-meta-item">D&iacute;as activos: <span class="rm-meta-val">10 d&iacute;as de trading</span></div>
             <div class="rm-meta-item">Portfolio: <span class="rm-meta-val" style="color:var(--green);">$101,572 (+1.57%)</span></div>
         </div>
+        </div>
+        <div class="lang-en" style="display:none">
+        <div class="rm-desc">
+            Real-time simulation with PaperBroker. Portfolio: <strong>$101,572</strong> (+1.57%). 2 cycles completed, 1 stop executed (GS &rarr; MU). ML system actively collecting data.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check checked"></span> Live dashboard operational (local + cloud Render.com)</li>
+            <li><span class="rm-check checked"></span> HYDRA engine running 24/7</li>
+            <li><span class="rm-check checked"></span> ML learning system integrated (Phase 1: logging)</li>
+            <li><span class="rm-check checked"></span> Cycle 1 completed: +2.46% vs S&amp;P 500 +1.23%</li>
+            <li><span class="rm-check checked"></span> Adaptive stop executed correctly (GS -6.7%)</li>
+            <li><span class="rm-check"></span> 1 month paper without execution errors (10/~22 days)</li>
+            <li><span class="rm-check"></span> 3 months paper (complete earnings cycle)</li>
+            <li><span class="rm-check"></span> ML Phase 2: predictive models (7/63 days collected)</li>
+            <li><span class="rm-check"></span> 0 unresolved system incidents</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Start: <span class="rm-meta-val" style="color:var(--green);">19 Feb 2026</span></div>
+            <div class="rm-meta-item">Active days: <span class="rm-meta-val">10 trading days</span></div>
+            <div class="rm-meta-item">Portfolio: <span class="rm-meta-val" style="color:var(--green);">$101,572 (+1.57%)</span></div>
+        </div>
+        </div>
     </div>
 
     <!-- Phase 5: Tax Optimization -->
@@ -981,7 +1068,9 @@
             <span class="rm-phase" data-i18n="rm-phase5">Fase 5 &mdash; Fiscalidad</span>
             <span class="rm-status rm-status-pending" data-i18n="rm-status-pending">Pendiente</span>
         </div>
-        <div class="rm-title">Optimizaci&oacute;n Fiscal</div>
+        <div class="rm-title lang-es">Optimizaci&oacute;n Fiscal</div>
+        <div class="rm-title lang-en" style="display:none">Tax Optimization</div>
+        <div class="lang-es">
         <div class="rm-desc">
             ~209 trades/a&ntilde;o generan ganancias de corto plazo (hasta 37% + state tax). Operar en cuenta IRA/401(k) para diferir impuestos.
         </div>
@@ -996,6 +1085,23 @@
             <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fase 3</span></div>
             <div class="rm-meta-item">Impacto: <span class="rm-meta-val">+4-5% CAGR (tax savings)</span></div>
         </div>
+        </div>
+        <div class="lang-en" style="display:none">
+        <div class="rm-desc">
+            ~209 trades/year generate short-term gains (up to 37% + state tax). Operate in IRA/401(k) account to defer taxes.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check"></span> Evaluate IRA vs 401(k) vs Taxable</li>
+            <li><span class="rm-check"></span> Transfer/open IRA account at IBKR</li>
+            <li><span class="rm-check"></span> Calculate real tax drag (~10-11% after-tax in taxable)</li>
+            <li><span class="rm-check"></span> Configure tax-lot tracking module</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Priority: <span class="rm-meta-val" style="color:var(--yellow);">#4</span></div>
+            <div class="rm-meta-item">Depends on: <span class="rm-meta-val">Phase 3</span></div>
+            <div class="rm-meta-item">Impact: <span class="rm-meta-val">+4-5% CAGR (tax savings)</span></div>
+        </div>
+        </div>
     </div>
 
     <!-- Phase 6: Go Live -->
@@ -1004,7 +1110,9 @@
             <span class="rm-phase" data-i18n="rm-phase6">Fase 6 &mdash; Lanzamiento</span>
             <span class="rm-status rm-status-pending">Pendiente</span>
         </div>
-        <div class="rm-title">Capital Real $100K</div>
+        <div class="rm-title lang-es">Capital Real $100K</div>
+        <div class="rm-title lang-en" style="display:none">Real Capital $100K</div>
+        <div class="lang-es">
         <div class="rm-desc">
             Despliegue con $100K de capital real. Escalar a $500K+ en el futuro con RATTLESNAKE dual-engine y Box Spread financing via portfolio margin.
         </div>
@@ -1020,6 +1128,24 @@
             <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fases 1-5</span></div>
             <div class="rm-meta-item">Capital: <span class="rm-meta-val" style="color:var(--green);">$100,000</span></div>
         </div>
+        </div>
+        <div class="lang-en" style="display:none">
+        <div class="rm-desc">
+            Deployment with $100K real capital. Scale to $500K+ in the future with RATTLESNAKE dual-engine and Box Spread financing via portfolio margin.
+        </div>
+        <ul class="rm-checklist">
+            <li><span class="rm-check"></span> Deposit $100K in IBKR</li>
+            <li><span class="rm-check"></span> Execute first real signal</li>
+            <li><span class="rm-check"></span> 24/7 monitoring (alerts, active failover)</li>
+            <li><span class="rm-check"></span> Monthly review: real CAGR vs backtest</li>
+            <li><span class="rm-check"></span> Scale plan: $500K+ &rarr; RATTLESNAKE + portfolio margin</li>
+        </ul>
+        <div class="rm-meta">
+            <div class="rm-meta-item">Priority: <span class="rm-meta-val" style="color:var(--text-tertiary);">#6 FINAL</span></div>
+            <div class="rm-meta-item">Depends on: <span class="rm-meta-val">Phases 1-5</span></div>
+            <div class="rm-meta-item">Capital: <span class="rm-meta-val" style="color:var(--green);">$100,000</span></div>
+        </div>
+        </div>
     </div>
 
 </div><!-- /roadmap-grid -->
@@ -1028,7 +1154,7 @@
 <div class="roadmap-summary" style="margin-bottom:20px;">
     <div class="roadmap-summary-card">
         <div class="rm-summary-title" data-i18n="rm-decisions-title">Decisiones Clave Tomadas</div>
-        <div style="display:grid; gap:8px;">
+        <div class="lang-es" style="display:grid; gap:8px;">
             <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
                 <span style="color:var(--green); font-size:16px;">&#10003;</span>
                 <div>
@@ -1077,6 +1203,59 @@
                     <div style="font-size:13px; font-weight:600;">Dashboard Cloud</div>
                     <div style="font-size:12px; color:var(--text-tertiary);">Dashboard desplegado en Render.com con auto-deploy. Algoritmo explicado en espa&ntilde;ol con analog&iacute;as accesibles.</div>
                 </div>
+            </div>
+        </div>
+        <div class="lang-en" style="display:none; gap:8px;">
+            <div style="display:grid; gap:8px;">
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">No Leverage</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Broker margin 6% destroys -1.10% CAGR. Box Spread (SOFR+20bps) is the only viable path.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">Engine Locked</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">40 experiments, 36 failed. Inelastic algorithm &mdash; any change degrades performance.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">US-Only</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Geographic expansion FAILED: EU -20.87%, Asia -19.71%. Algorithm depends on US microstructure.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">HYDRA Multi-Strategy</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Momentum + Rattlesnake + EFA with cash recycling. 14.93% CAGR, 1.12 Sharpe, &minus;22.3% MaxDD. Dominates Momentum alone in all 3 dimensions.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">Pre-Close MOC</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Signal at 15:30 ET + MOC same-day recovers +0.79% CAGR and improves MaxDD by 7.8pp.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">ML Learning System</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Progressive learning system: Phase 1 logging active, Phase 2 ML at 63 trading days.</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:8px 0;">
+                <span style="color:var(--green); font-size:16px;">&#10003;</span>
+                <div>
+                    <div style="font-size:13px; font-weight:600;">Cloud Dashboard</div>
+                    <div style="font-size:12px; color:var(--text-tertiary);">Dashboard deployed on Render.com with auto-deploy. Algorithm explained with accessible analogies.</div>
+                </div>
+            </div>
             </div>
         </div>
     </div>
@@ -1174,6 +1353,7 @@
             <span class="algo-card-title" data-i18n="algo-s1-title">&iquest;En qu&eacute; acciones invertimos?</span>
         </div>
         <div class="algo-card-body">
+            <div class="lang-es">
             <p>De las ~500 empresas m&aacute;s grandes de Estados Unidos (el <strong>S&amp;P 500</strong>), HYDRA selecciona cada a&ntilde;o las <strong>40 que m&aacute;s se compran y venden</strong> en bolsa. Esto garantiza que siempre podamos entrar y salir r&aacute;pido, sin mover el precio. Las 113 acciones iniciales est&aacute;n distribuidas en 7 sectores de la econom&iacute;a:</p>
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
@@ -1198,6 +1378,33 @@
                     </table>
                 </div>
             </div>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p>From the ~500 largest US companies (the <strong>S&amp;P 500</strong>), HYDRA selects each year the <strong>40 most actively traded stocks</strong>. This ensures we can always enter and exit quickly without moving the price. The initial 113 stocks are distributed across 7 sectors of the economy:</p>
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Sectors</div>
+                    <div class="algo-sector-list">
+                        <span class="algo-sector"><strong>Technology</strong> (25)</span>
+                        <span class="algo-sector"><strong>Consumer</strong> (20)</span>
+                        <span class="algo-sector"><strong>Financials</strong> (18)</span>
+                        <span class="algo-sector"><strong>Healthcare</strong> (18)</span>
+                        <span class="algo-sector"><strong>Industrials</strong> (14)</span>
+                        <span class="algo-sector"><strong>Energy</strong> (9)</span>
+                        <span class="algo-sector"><strong>Utilities &amp; Telecom</strong> (9)</span>
+                    </div>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Selection Criteria</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Quantity</td><td>40 stocks per year</td></tr>
+                        <tr><td>Age</td><td>Minimum 63 days trading</td></tr>
+                        <tr><td>Order</td><td>By daily dollar volume traded</td></tr>
+                        <tr><td>Renewal</td><td>Every January 1st</td></tr>
+                    </table>
+                </div>
+            </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1210,6 +1417,7 @@
             <span class="algo-card-title" data-i18n="algo-s2-title">&iquest;C&oacute;mo elegimos qu&eacute; comprar?</span>
         </div>
         <div class="algo-card-body">
+            <div class="lang-es">
             <p>Cada 5 d&iacute;as, HYDRA eval&uacute;a las 40 acciones y les asigna un <strong>puntaje de momentum</strong>: b&aacute;sicamente mide cu&aacute;les han subido m&aacute;s en los &uacute;ltimos 3 meses, descontando los &uacute;ltimos 5 d&iacute;as (porque las que suben mucho en pocos d&iacute;as suelen rebotar hacia abajo). Luego ajusta por volatilidad: una acci&oacute;n que sube 10% pero salta como monta&ntilde;a rusa vale menos que una que sube 10% de forma estable.</p>
             <div class="algo-formula-box">
                 <div class="algo-formula-label">F&oacute;rmula del Puntaje</div>
@@ -1236,6 +1444,35 @@
                     <p class="algo-note">Descarta autom&aacute;ticamente acciones con movimientos err&aacute;ticos o saltos anormales. Si una acci&oacute;n se mueve demasiado, es demasiado riesgosa.</p>
                 </div>
             </div>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p>Every 5 days, HYDRA evaluates all 40 stocks and assigns a <strong>momentum score</strong>: it basically measures which ones have risen the most over the past 3 months, excluding the last 5 days (because stocks that rise sharply in a few days tend to bounce back down). Then it adjusts for volatility: a stock that rises 10% but jumps around like a roller coaster is worth less than one that rises 10% steadily.</p>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Score Formula</div>
+                <code class="algo-formula">score = (return_90d &minus; return_5d) / realized_vol_63d</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">In simple terms: 3-month gain &divide; turbulence = quality score</p>
+            </div>
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">How we calculate the score</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Window</td><td>We look at the last 90 days</td></tr>
+                        <tr><td>Exclusion</td><td>We ignore the last 5 days (avoids bounces)</td></tr>
+                        <tr><td>Volatility</td><td>Measured over 63 days (risk adjustment)</td></tr>
+                        <tr><td>Minimum</td><td>At least 20 valid stocks to compare</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Quality filter</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Max vol</td><td>60% annualized</td></tr>
+                        <tr><td>Period</td><td>Measured over 63 days</td></tr>
+                        <tr><td>Max jump</td><td>50% in a single day</td></tr>
+                    </table>
+                    <p class="algo-note">Automatically discards stocks with erratic movements or abnormal jumps. If a stock moves too much, it's too risky.</p>
+                </div>
+            </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1248,6 +1485,7 @@
             <span class="algo-card-title" data-i18n="algo-s3-title">&iquest;C&oacute;mo sabe si el mercado est&aacute; bien o mal?</span>
         </div>
         <div class="algo-card-body">
+            <div class="lang-es">
             <p>Antes de comprar, HYDRA eval&uacute;a el estado general del mercado con un <strong>term&oacute;metro de 0 a 1</strong>. Si el mercado est&aacute; fuerte (&gt;0.65), compramos 5 acciones. Si est&aacute; d&eacute;bil (&lt;0.35), solo 2. Funciona como un <strong>sem&aacute;foro</strong>: verde = acelerar, amarillo = precauci&oacute;n, rojo = frenar. El term&oacute;metro combina dos factores: <strong>tendencia</strong> (60%) &mdash; &iquest;el mercado viene subiendo? &mdash; y <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia?</p>
 
             <div class="algo-formula-box">
@@ -1296,6 +1534,57 @@
                     <strong>Correcci&oacute;n de mercado alcista:</strong> A veces el mercado est&aacute; subiendo claramente (S&amp;P 500 un 3% por encima de su promedio) pero la turbulencia reciente arrastra el puntaje hacia abajo. En esos casos, HYDRA <strong>a&ntilde;ade +1 posici&oacute;n</strong> para no perderse ganancias por una se&ntilde;al falsa de precauci&oacute;n. Esto corrigi&oacute; 864 d&iacute;as donde el sistema hubiera invertido de menos sin motivo real.
                 </div>
             </div>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p>Before buying, HYDRA evaluates the overall market condition with a <strong>thermometer from 0 to 1</strong>. If the market is strong (&gt;0.65), we buy 5 stocks. If it's weak (&lt;0.35), only 2. It works like a <strong>traffic light</strong>: green = accelerate, yellow = caution, red = brake. The thermometer combines two factors: <strong>trend</strong> (60%) &mdash; is the market going up? &mdash; and <strong>volatility</strong> (40%) &mdash; is there a lot of turbulence?</p>
+
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Mathematical formula (sigmoid function)</div>
+                <code class="algo-formula">sigmoid(x, k=15) = 1 / (1 + e<sup>&minus;kx</sup>)</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">This function converts any value into a smooth number between 0 and 1 &mdash; ideal for a market &ldquo;thermometer.&rdquo;</p>
+            </div>
+
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Trend (60% of score)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Price above average?</td><td>Price vs. 200-day moving average</td></tr>
+                        <tr><td>Medium-term trend?</td><td>50d MA vs. 200d MA</td></tr>
+                        <tr><td>Rising last month?</td><td>20-day momentum</td></tr>
+                    </table>
+                    <p class="algo-note">If all 3 answers are &ldquo;yes,&rdquo; the trend is strong.</p>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Volatility (40% of score)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>What does it measure?</td><td>Turbulence over the last 10 days</td></tr>
+                        <tr><td>Comparison</td><td>Against the last year (252 days)</td></tr>
+                        <tr><td>Logic</td><td>More calm = better score</td></tr>
+                    </table>
+                    <p class="algo-note">Volatile market = low score = fewer buys.</p>
+                </div>
+            </div>
+
+            <div class="algo-formula-box" style="margin-top:16px;">
+                <div class="algo-formula-label">Combined market score</div>
+                <code class="algo-formula">regime_score = 0.60 &times; trend + 0.40 &times; volatility &nbsp;&nbsp; &isin; [0, 1]</code>
+            </div>
+
+            <div class="algo-thresholds">
+                <div class="algo-threshold algo-th-bull"><span class="algo-th-score">&ge; 0.65</span><span class="algo-th-pos">5 positions</span><span class="algo-th-label">Strong market</span></div>
+                <div class="algo-threshold algo-th-mild-bull"><span class="algo-th-score">&ge; 0.50</span><span class="algo-th-pos">4 positions</span><span class="algo-th-label">Moderate market</span></div>
+                <div class="algo-threshold algo-th-mild-bear"><span class="algo-th-score">&ge; 0.35</span><span class="algo-th-pos">3 positions</span><span class="algo-th-label">Caution</span></div>
+                <div class="algo-threshold algo-th-bear"><span class="algo-th-score">&lt; 0.35</span><span class="algo-th-pos">2 positions</span><span class="algo-th-label">Weak market</span></div>
+            </div>
+
+            <!-- BULL OVERRIDE -->
+            <div class="algo-highlight">
+                <div class="algo-highlight-badge">v8.4</div>
+                <div class="algo-highlight-content">
+                    <strong>Bull market correction:</strong> Sometimes the market is clearly rising (S&amp;P 500 3% above its average) but recent turbulence drags the score down. In those cases, HYDRA <strong>adds +1 position</strong> to avoid missing gains due to a false caution signal. This corrected 864 days where the system would have under-invested for no real reason.
+                </div>
+            </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1308,6 +1597,7 @@
             <span class="algo-card-title" data-i18n="algo-s4-title">&iquest;C&oacute;mo nos protegemos de p&eacute;rdidas?</span>
         </div>
         <div class="algo-card-body">
+            <div class="lang-es">
             <p>El riesgo es lo m&aacute;s importante. HYDRA tiene <strong>4 capas de protecci&oacute;n</strong> que funcionan como airbags en un auto: se activan autom&aacute;ticamente cuando algo sale mal, sin necesidad de intervenci&oacute;n humana.</p>
 
             <!-- ADAPTIVE STOPS -->
@@ -1398,6 +1688,99 @@
                 <tr><td>Nivel de freno</td><td>Solo 15% del capital invertido</td></tr>
                 <tr><td>Enfriamiento</td><td>10 d&iacute;as antes de volver a la normalidad</td></tr>
             </table>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p>Risk is the most important thing. HYDRA has <strong>4 layers of protection</strong> that work like airbags in a car: they activate automatically when something goes wrong, without human intervention.</p>
+
+            <!-- ADAPTIVE STOPS -->
+            <h3 class="algo-sub-title">Personalized loss limits</h3>
+            <div class="algo-highlight">
+                <div class="algo-highlight-badge">v8.4</div>
+                <div class="algo-highlight-content">
+                    Each stock has its own loss limit adapted to its behavior. A stable stock like Johnson &amp; Johnson has a &minus;6% limit; a volatile stock like Tesla would have &minus;15%. This prevents selling prematurely due to normal market movements.
+                </div>
+            </div>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Adaptive limit formula</div>
+                <code class="algo-formula">stop = max(&minus;0.15, min(&minus;0.06, &minus;2.5 &times; daily_vol))</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">In simple terms: limit = 2.5 times daily turbulence, but never less than &minus;6% or more than &minus;15%</p>
+            </div>
+            <div class="algo-stops-grid">
+                <div class="algo-stop-example">
+                    <span class="algo-stop-vol">Vol 1.5%</span>
+                    <span class="algo-stop-val" style="color:var(--green);">&minus;6.0%</span>
+                    <span class="algo-stop-desc">Low-vol (tight)</span>
+                </div>
+                <div class="algo-stop-example">
+                    <span class="algo-stop-vol">Vol 3.0%</span>
+                    <span class="algo-stop-val" style="color:var(--accent);">&minus;7.5%</span>
+                    <span class="algo-stop-desc">Medium</span>
+                </div>
+                <div class="algo-stop-example">
+                    <span class="algo-stop-vol">Vol 4.5%</span>
+                    <span class="algo-stop-val" style="color:#f59e0b;">&minus;11.3%</span>
+                    <span class="algo-stop-desc">High</span>
+                </div>
+                <div class="algo-stop-example">
+                    <span class="algo-stop-vol">Vol 6.0%+</span>
+                    <span class="algo-stop-val" style="color:var(--red);">&minus;15.0%</span>
+                    <span class="algo-stop-desc">Extreme (ceiling)</span>
+                </div>
+            </div>
+
+            <!-- TRAILING STOP -->
+            <h3 class="algo-sub-title">Moving profit floor</h3>
+            <p>When a stock rises <strong>+5%</strong>, we activate a &ldquo;moving floor&rdquo; that follows it upward. If the stock then drops 3% from its peak, we sell automatically and <strong>lock in the gain</strong>. It's like insurance that only activates when there's something to protect.</p>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Moving floor formula</div>
+                <code class="algo-formula">trailing = 0.03 &times; (entry_vol / 0.25)</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">More volatile stocks have a wider floor to avoid exiting on noise</p>
+            </div>
+
+            <!-- DD SCALING -->
+            <h3 class="algo-sub-title">Gradual exposure reduction</h3>
+            <p>If the total portfolio is losing money, HYDRA <strong>gradually</strong> reduces how much is invested. It's like <strong>easing off the accelerator when approaching a curve</strong>: we don't slam the brakes, but reduce speed proportionally to the danger.</p>
+            <div class="algo-dd-tiers">
+                <div class="algo-dd-tier">
+                    <div class="algo-dd-bar" style="width:30%; background:var(--green);"></div>
+                    <div class="algo-dd-info">
+                        <span class="algo-dd-range">0% to &minus;10%</span>
+                        <span class="algo-dd-lev">1.0x</span>
+                    </div>
+                </div>
+                <div class="algo-dd-tier">
+                    <div class="algo-dd-bar" style="width:50%; background:#f59e0b;"></div>
+                    <div class="algo-dd-info">
+                        <span class="algo-dd-range">&minus;10% to &minus;20%</span>
+                        <span class="algo-dd-lev">1.0x &rarr; 0.60x</span>
+                    </div>
+                </div>
+                <div class="algo-dd-tier">
+                    <div class="algo-dd-bar" style="width:70%; background:#f97316;"></div>
+                    <div class="algo-dd-info">
+                        <span class="algo-dd-range">&minus;20% to &minus;35%</span>
+                        <span class="algo-dd-lev">0.60x &rarr; 0.30x</span>
+                    </div>
+                </div>
+                <div class="algo-dd-tier">
+                    <div class="algo-dd-bar" style="width:90%; background:var(--red);"></div>
+                    <div class="algo-dd-info">
+                        <span class="algo-dd-range">&lt; &minus;35%</span>
+                        <span class="algo-dd-lev">0.30x floor</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CRASH BREAKER -->
+            <h3 class="algo-sub-title">Emergency brake</h3>
+            <p>If the S&amp;P 500 drops <strong>&minus;6% in one week</strong> or <strong>&minus;10% in two weeks</strong>, HYDRA activates an emergency brake: reduces investment to 15% and waits 10 days of &ldquo;cooldown.&rdquo; This protects against crashes like March 2020 or the 2008 crisis.</p>
+            <table class="algo-params-sm">
+                <tr><td>Fast drop</td><td>&minus;6% in 5 days &rarr; activate brake</td></tr>
+                <tr><td>Prolonged drop</td><td>&minus;10% in 10 days &rarr; activate brake</td></tr>
+                <tr><td>Brake level</td><td>Only 15% of capital invested</td></tr>
+                <tr><td>Cooldown</td><td>10 days before returning to normal</td></tr>
+            </table>
+            </div>
         </div>
     </div>
 </div>
@@ -1410,6 +1793,7 @@
             <span class="algo-card-title" data-i18n="algo-s5-title">&iquest;Cu&aacute;nto invertimos y cu&aacute;ndo?</span>
         </div>
         <div class="algo-card-body">
+            <div class="lang-es">
             <p>HYDRA divide el capital entre las acciones seleccionadas de forma inteligente: las <strong>acciones m&aacute;s estables reciben m&aacute;s dinero</strong>, las m&aacute;s vol&aacute;tiles menos. Esto equilibra el riesgo. Cada posici&oacute;n se mantiene <strong>5 d&iacute;as</strong> (una semana burs&aacute;til), y puede extenderse hasta 10 d&iacute;as si sigue ganando.</p>
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
@@ -1449,6 +1833,48 @@
                 </table>
                 <p class="algo-note" style="margin-top:8px;">Orden de ejecuci&oacute;n: 1) Ventas (stops, expirados) &rarr; 2) Liquidar EFA si se necesita capital &rarr; 3) Compras Momentum &rarr; 4) Compras Rattlesnake &rarr; 5) Comprar EFA con efectivo restante</p>
             </div>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p>HYDRA divides capital among selected stocks intelligently: <strong>more stable stocks receive more money</strong>, more volatile ones less. This balances risk. Each position is held for <strong>5 days</strong> (one trading week), and can be extended to 10 days if it keeps winning.</p>
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Position sizing</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Method</td><td>More weight to stable stocks, less to volatile ones</td></tr>
+                        <tr><td>Leverage</td><td>None (1.0x &mdash; own money only)</td></tr>
+                        <tr><td>Risk target</td><td>15% annualized volatility</td></tr>
+                        <tr><td>Reserve</td><td>5% always in cash as a cushion</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Hold period</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Base</td><td>5 days (1 trading week)</td></tr>
+                        <tr><td>Maximum</td><td>10 days (conditional extension)</td></tr>
+                        <tr><td>Renew if</td><td>Gain &ge; +4%</td></tr>
+                        <tr><td>And also</td><td>Still in top 85% of momentum</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTOR CONCENTRATION -->
+            <div class="algo-highlight" style="margin-top: 16px;">
+                <div class="algo-highlight-badge">v8.4</div>
+                <div class="algo-highlight-content">
+                    <strong>Sector limit:</strong> Maximum <strong>3 stocks from the same sector</strong>. This avoids putting &ldquo;all eggs in one basket&rdquo; &mdash; for example, in 2022 the algorithm without this limit would have bought energy stocks (CVX/XOM) 48 times, concentrating too much risk in a single sector.
+                </div>
+            </div>
+
+            <div class="algo-mini-card" style="margin-top: 16px;">
+                <div class="algo-mini-title">When are orders executed?</div>
+                <table class="algo-params-sm">
+                    <tr><td>Signal</td><td>3:30 PM New York time</td></tr>
+                    <tr><td>Execution</td><td>At market close (4:00 PM ET)</td></tr>
+                    <tr><td>Commission</td><td>$0.001 per share (minimal)</td></tr>
+                </table>
+                <p class="algo-note" style="margin-top:8px;">Execution order: 1) Sells (stops, expired) &rarr; 2) Liquidate EFA if capital needed &rarr; 3) Momentum buys &rarr; 4) Rattlesnake buys &rarr; 5) Buy EFA with remaining cash</p>
+            </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1461,6 +1887,7 @@
             <span class="algo-card-title" data-i18n="algo-s6-title">Rattlesnake + EFA + Cash Recycling</span>
         </div>
         <div class="algo-card-body">
+            <div class="lang-es">
             <p>Mientras Momentum busca acciones que <strong>suben fuerte</strong>, Rattlesnake busca acciones que <strong>cayeron demasiado r&aacute;pido</strong> y probablemente se van a recuperar. Las tres estrategias se complementan: cuando una tiene el dinero parado, se lo presta a las otras o se invierte en EFA (mercados internacionales).</p>
 
             <div class="algo-highlight" style="margin-top: 16px;">
@@ -1539,6 +1966,87 @@
                     <tr><td>$100K final (26 a&ntilde;os)</td><td style="color:var(--green); font-weight:700;">$3.8M</td></tr>
                 </table>
             </div>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p>While Momentum looks for stocks that are <strong>rising strongly</strong>, Rattlesnake looks for stocks that <strong>dropped too fast</strong> and are likely to recover. The three strategies complement each other: when one has idle cash, it lends it to the others or it gets invested in EFA (international markets).</p>
+
+            <div class="algo-highlight" style="margin-top: 16px;">
+                <div class="algo-highlight-badge" style="background:var(--yellow); color:#000;">HYDRA</div>
+                <div class="algo-highlight-content">
+                    <strong>Cash Recycling:</strong> Rattlesnake only holds positions 49% of the time. When its money is idle, it flows to Momentum (max 75%) and the rest to EFA (MSCI EAFE, filtered by SMA200). This raised CAGR from 12.27% to <strong>14.93%</strong> and reduced MaxDD from &minus;32.1% to <strong>&minus;22.3%</strong>.
+                </div>
+            </div>
+
+            <div class="algo-grid-2" style="margin-top:16px;">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Rattlesnake &mdash; Entry Signal</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Required drop</td><td>&ge; &minus;8% in 5 days</td></tr>
+                        <tr><td>RSI(5)</td><td>&lt; 25 (extreme oversold)</td></tr>
+                        <tr><td>Trend</td><td>Price &gt; 200-day SMA</td></tr>
+                        <tr><td>Universe</td><td>S&amp;P 100 (most liquid)</td></tr>
+                        <tr><td>Volume</td><td>&gt; 500K avg 20d</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Rattlesnake &mdash; Exit</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Profit target</td><td>+4% (take profit)</td></tr>
+                        <tr><td>Stop loss</td><td>&minus;5%</td></tr>
+                        <tr><td>Max hold</td><td>8 days</td></tr>
+                        <tr><td>Max positions</td><td>5 (risk-on) / 2 (risk-off)</td></tr>
+                        <tr><td>VIX filter</td><td>No entries if VIX &gt; 35</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- EFA THIRD PILLAR -->
+            <h3 class="algo-sub-title" style="margin-top:20px;">EFA &mdash; Third Pillar (International Markets)</h3>
+            <p>After Momentum and Rattlesnake take the capital they need, the <strong>remaining cash</strong> is invested in <a href="https://www.ishares.com/us/products/239623/ishares-msci-eafe-etf" target="_blank" rel="noopener" style="color:var(--accent);">EFA</a> (iShares MSCI EAFE), an ETF that tracks the MSCI EAFE index: the major companies of <strong>Europe, Australasia and Asia</strong> (excluding the US). This geographically diversifies the portfolio and puts idle cash to work.</p>
+
+            <div class="algo-highlight" style="margin-top: 12px;">
+                <div class="algo-highlight-badge" style="background:var(--cyan); color:#000;">EFA</div>
+                <div class="algo-highlight-content">
+                    EFA is the <strong>last to receive capital and the first to be sold</strong>. If Momentum or Rattlesnake need cash for new entries, EFA is liquidated automatically. It's a passive allocation, not an active strategy.
+                </div>
+            </div>
+
+            <div class="algo-grid-2" style="margin-top:16px;">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">EFA &mdash; Buy Rules</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Instrument</td><td>EFA (iShares MSCI EAFE ETF)</td></tr>
+                        <tr><td>Condition</td><td>EFA &gt; 200-day SMA</td></tr>
+                        <tr><td>Minimum</td><td>$1,000 available cash</td></tr>
+                        <tr><td>Reserve</td><td>10% of cash always free</td></tr>
+                        <tr><td>Timing</td><td>At close, after all active strategies</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">EFA &mdash; Sell Rules</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Regime filter</td><td>If EFA drops below SMA200 &rarr; sell all</td></tr>
+                        <tr><td>Capital needed</td><td>If Momentum/Rattlesnake need cash &rarr; liquidate</td></tr>
+                        <tr><td>Stop loss</td><td>None (passive allocation)</td></tr>
+                        <tr><td>Priority</td><td>Always the first to be sold</td></tr>
+                    </table>
+                    <p class="algo-note">The SMA200 filter avoids holding EFA during international bear markets (2008, 2022). Validated in EXP60 Variant B.</p>
+                </div>
+            </div>
+
+            <div class="algo-mini-card" style="margin-top:16px;">
+                <div class="algo-mini-title">HYDRA &mdash; Combined Result (backtest 2000&ndash;2026)</div>
+                <table class="algo-params-sm">
+                    <tr><td>HYDRA CAGR</td><td style="color:var(--green); font-weight:700;">14.93%</td></tr>
+                    <tr><td>Momentum only CAGR</td><td>12.27%</td></tr>
+                    <tr><td>HYDRA Max Drawdown</td><td style="color:var(--green); font-weight:700;">&minus;22.3%</td></tr>
+                    <tr><td>Momentum only MaxDD</td><td>&minus;32.1%</td></tr>
+                    <tr><td>HYDRA Sharpe</td><td style="color:var(--green); font-weight:700;">1.12</td></tr>
+                    <tr><td>Correlation between strategies</td><td>0.38</td></tr>
+                    <tr><td>$100K final (26 years)</td><td style="color:var(--green); font-weight:700;">$3.8M</td></tr>
+                </table>
+            </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1551,6 +2059,7 @@
             <span class="algo-card-title" data-i18n="algo-s7-title">&iquest;C&oacute;mo anticipa las crisis antes de que lleguen?</span>
         </div>
         <div class="algo-card-body">
+            <div class="lang-es">
             <p>Adem&aacute;s de las protecciones internas (stops, drawdown scaling), HYDRA tiene un <strong>sistema de alerta temprana macroecon&oacute;mica</strong> que monitorea 8 indicadores de la Reserva Federal en tiempo real. Funciona como un <strong>radar meteorol&oacute;gico</strong>: detecta la tormenta antes de que llegue, y reduce autom&aacute;ticamente la exposici&oacute;n del portafolio.</p>
 
             <div class="algo-highlight" style="margin-top: 16px;">
@@ -1560,16 +2069,13 @@
                 </div>
             </div>
 
-            <!-- ROLE OF THE OVERLAY -->
             <h3 class="algo-sub-title">&iquest;Por qu&eacute; un overlay macroecon&oacute;mico?</h3>
             <p>Las estrategias de momentum son vulnerables a ca&iacute;das repentinas del mercado. Los stops protegen posici&oacute;n por posici&oacute;n, pero cuando <em>todo</em> el mercado cae al mismo tiempo (2008, 2020), el sistema necesita una segunda capa de defensa que act&uacute;e <strong>antes</strong> de que el da&ntilde;o llegue al portafolio.</p>
             <p>El overlay cumple esta funci&oacute;n: monitorea datos macroecon&oacute;micos p&uacute;blicos de la <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">Reserva Federal (FRED)</a> que hist&oacute;ricamente anticipan ca&iacute;das del mercado por d&iacute;as o semanas. Cuando detecta se&ntilde;ales de alerta, reduce autom&aacute;ticamente el capital destinado a nuevas posiciones. Es una capa de protecci&oacute;n <strong>proactiva</strong>, no reactiva.</p>
             <p style="margin-top:8px;">La se&ntilde;al final es un multiplicador de capital entre 0.25 (m&aacute;xima cautela) y 1.00 (sin restricci&oacute;n), calculado como el producto de los 3 overlays escalares (BSO &times; M2 &times; FOMC). Los otros 2 componentes (Fed Emergency y Credit Filter) operan de manera diferente: uno impone un piso de posiciones y el otro filtra sectores.</p>
 
-            <!-- 5 OVERLAY COMPONENTS -->
             <h3 class="algo-sub-title">5 componentes del radar macro</h3>
 
-            <!-- BSO -->
             <div class="algo-mini-card" style="margin-bottom:16px;">
                 <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; BSO &mdash; Banking Stress Overlay (Estr&eacute;s Bancario)</div>
                 <p style="margin:10px 0; font-size:13px; line-height:1.6;">El sistema bancario es el coraz&oacute;n del sistema financiero. Cuando los bancos est&aacute;n bajo presi&oacute;n &mdash; dificultad para prestarse entre s&iacute;, spreads de cr&eacute;dito ampli&aacute;ndose, condiciones financieras restringi&eacute;ndose &mdash; las acciones tienden a seguir semanas despu&eacute;s. El BSO combina tres indicadores independientes en un promedio ponderado que captura diferentes dimensiones del estr&eacute;s financiero:</p>
@@ -1590,7 +2096,6 @@
                 <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Escalado gradual: la reducci&oacute;n de capital es proporcional al nivel de estr&eacute;s, no un switch on/off. Esto evita reaccionar a picos moment&aacute;neos y asegura transiciones suaves.</p>
             </div>
 
-            <!-- M2 -->
             <div class="algo-mini-card" style="margin-bottom:16px;">
                 <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; M2 &mdash; Momentum Monetario</div>
                 <p style="margin:10px 0; font-size:13px; line-height:1.6;">La oferta monetaria (<a href="https://fred.stlouisfed.org/series/M2SL" target="_blank" rel="noopener" style="color:var(--accent);">M2</a>) es la cantidad total de dinero en circulaci&oacute;n: efectivo, dep&oacute;sitos bancarios, fondos del mercado monetario, etc. Cuando la Fed reduce la oferta monetaria (como en 2022&ndash;2023 con el <em>quantitative tightening</em>), hay menos liquidez disponible para impulsar los precios de las acciones.</p>
@@ -1604,7 +2109,6 @@
                 <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Los umbrales (-1.5pp y -3.0pp) provienen de investigaci&oacute;n en econom&iacute;a monetaria (Werner, Keen), no de datos de HYDRA &mdash; esto evita el sobreajuste.</p>
             </div>
 
-            <!-- FOMC -->
             <div class="algo-mini-card" style="margin-bottom:16px;">
                 <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; FOMC &mdash; Sorpresas de la Reserva Federal</div>
                 <p style="margin:10px 0; font-size:13px; line-height:1.6;">El <a href="https://www.federalreserve.gov/monetarypolicy/fomc.htm" target="_blank" rel="noopener" style="color:var(--accent);">Federal Open Market Committee (FOMC)</a> es el comit&eacute; de la Fed que decide la tasa de inter&eacute;s de referencia de Estados Unidos. Normalmente, los cambios de tasa se anuncian en reuniones programadas (8 veces al a&ntilde;o) y el mercado los anticipa con semanas de antelaci&oacute;n.</p>
@@ -1617,7 +2121,6 @@
                 <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">El decaimiento gradual refleja que el shock inicial pierde relevancia a medida que el mercado absorbe la informaci&oacute;n. Hist&oacute;ricamente, este overlay se activa muy pocas veces &mdash; pero cuando lo hace, es en momentos cr&iacute;ticos.</p>
             </div>
 
-            <!-- FED EMERGENCY -->
             <div class="algo-mini-card" style="margin-bottom:16px;">
                 <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; Fed Emergency &mdash; Intervenci&oacute;n de Emergencia</div>
                 <p style="margin:10px 0; font-size:13px; line-height:1.6;">Cuando hay una crisis grave, la Fed interviene expandiendo masivamente su <a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--accent);">hoja de balance (WALCL)</a> &mdash; comprando bonos del Tesoro, respaldando bancos, o creando facilidades de emergencia. Esto es lo que sucedi&oacute; en 2008&ndash;2009 (Quantitative Easing por la crisis financiera), marzo 2020 (inyecci&oacute;n masiva por COVID), y marzo 2023 (Bank Term Funding Program por la crisis de SVB/Signature Bank).</p>
@@ -1630,7 +2133,6 @@
                 </table>
             </div>
 
-            <!-- CREDIT FILTER -->
             <div class="algo-mini-card" style="margin-bottom:16px;">
                 <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; Credit Filter &mdash; Filtro Sectorial por Crisis de Cr&eacute;dito</div>
                 <p style="margin:10px 0; font-size:13px; line-height:1.6;">En crisis de cr&eacute;dito extremas, ciertos sectores sufren desproporcionadamente. El sector financiero (bancos, aseguradoras, brokers) es el primero en caer porque su negocio depende directamente del cr&eacute;dito. El sector energ&eacute;tico tambi&eacute;n es vulnerable en crisis severas por su alta dependencia de financiamiento.</p>
@@ -1643,7 +2145,6 @@
                 <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Umbrales originales de 600/800bps exclu&iacute;an financieras el 30% del tiempo &mdash; demasiado frecuente. Se elevaron a 1000/1500bps para activarse solo en crisis genuinas.</p>
             </div>
 
-            <!-- HOW THEY COMBINE -->
             <h3 class="algo-sub-title">&iquest;C&oacute;mo se combinan?</h3>
             <p>Los 3 overlays escalares (BSO, M2, FOMC) se multiplican entre s&iacute; para producir el multiplicador final de capital. La multiplicaci&oacute;n asegura que cuando m&uacute;ltiples indicadores detectan estr&eacute;s <em>al mismo tiempo</em>, la reducci&oacute;n sea m&aacute;s agresiva &mdash; exactamente lo que queremos en una crisis real donde todos los indicadores parpadean rojo.</p>
             <div class="algo-formula-box">
@@ -1653,7 +2154,6 @@
             </div>
             <p style="margin-top:12px;">Los otros 2 componentes operan de forma independiente: Fed Emergency impone un piso de posiciones, y Credit Filter excluye sectores. Ninguno de los 5 componentes modifica las se&ntilde;ales del algoritmo, los stops, ni las condiciones de salida.</p>
 
-            <!-- CONDITIONAL DAMPING -->
             <h3 class="algo-sub-title">Amortiguaci&oacute;n condicional</h3>
             <p>Un detalle cr&iacute;tico: cuando el <strong>drawdown scaling</strong> ya est&aacute; activo (el portafolio ya ha ca&iacute;do m&aacute;s de 10% desde su m&aacute;ximo), el overlay solo aplica el <strong>25% de su se&ntilde;al</strong>. &iquest;Por qu&eacute;? Porque ambos mecanismos reducen capital &mdash; si los aplicamos al 100% simult&aacute;neamente, el sistema se vuelve demasiado conservador y pierde oportunidades de recuperaci&oacute;n. En backtest, la multiplicaci&oacute;n directa sin amortiguaci&oacute;n destruy&oacute; 2.5% de CAGR.</p>
             <div class="algo-formula-box">
@@ -1663,7 +2163,6 @@
             </div>
             <p style="margin-top:10px; font-size:13px;">Ejemplo: si el overlay indica 0.60 y el drawdown scaling ya est&aacute; activo, el scalar final ser&aacute; 1.0 &minus; 0.25 &times; (1.0 &minus; 0.60) = <strong>0.90</strong> en vez de 0.60. El drawdown scaling ya est&aacute; haciendo su trabajo; el overlay solo a&ntilde;ade un empuj&oacute;n marginal.</p>
 
-            <!-- BACKTEST RESULTS -->
             <h3 class="algo-sub-title">Resultados del backtest</h3>
             <p>El overlay fue validado con walk-forward testing (2000&ndash;2019 desarrollo, 2020&ndash;2026 fuera de muestra):</p>
             <table class="algo-params-sm">
@@ -1673,6 +2172,121 @@
                 <tr><td>Datos fuente</td><td>8 series <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">FRED</a> (p&uacute;blicas, sin API key, actualizadas diaria/semanalmente)</td></tr>
             </table>
             <p style="margin-top:12px; font-size:12px; color:var(--text-tertiary);">Todos los datos provienen de <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--text-tertiary); text-decoration:underline;">FRED (Federal Reserve Economic Data)</a>, la base de datos econ&oacute;mica p&uacute;blica del St. Louis Fed. Los umbrales de cada indicador se basan en distribuciones hist&oacute;ricas y literatura econ&oacute;mica, no en datos de HYDRA &mdash; esto minimiza el riesgo de sobreajuste.</p>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p>In addition to internal protections (stops, drawdown scaling), HYDRA has an <strong>early macroeconomic warning system</strong> that monitors 8 Federal Reserve indicators in real time. It works like a <strong>weather radar</strong>: it detects the storm before it arrives and automatically reduces portfolio exposure.</p>
+
+            <div class="algo-highlight" style="margin-top: 16px;">
+                <div class="algo-highlight-badge">NEW</div>
+                <div class="algo-highlight-content">
+                    The overlay does not modify the algorithm &mdash; it only reduces capital allocated to new positions when it detects financial stress. In normal markets, the multiplier is <strong>1.00</strong> (no effect). In crises, it can drop to <strong>0.25</strong> (only 25% of normal capital). Existing positions are never modified &mdash; the overlay only affects the amount of money allocated to <em>new</em> entries.
+                </div>
+            </div>
+
+            <h3 class="algo-sub-title">Why a macroeconomic overlay?</h3>
+            <p>Momentum strategies are vulnerable to sudden market drops. Stops protect position by position, but when the <em>entire</em> market falls at the same time (2008, 2020), the system needs a second layer of defense that acts <strong>before</strong> the damage reaches the portfolio.</p>
+            <p>The overlay fulfills this role: it monitors public macroeconomic data from the <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">Federal Reserve (FRED)</a> that historically anticipate market drops by days or weeks. When it detects warning signals, it automatically reduces capital for new positions. It's a <strong>proactive</strong> protection layer, not reactive.</p>
+            <p style="margin-top:8px;">The final signal is a capital multiplier between 0.25 (maximum caution) and 1.00 (no restriction), calculated as the product of the 3 scalar overlays (BSO &times; M2 &times; FOMC). The other 2 components (Fed Emergency and Credit Filter) operate differently: one imposes a position floor and the other filters sectors.</p>
+
+            <h3 class="algo-sub-title">5 components of the macro radar</h3>
+
+            <div class="algo-mini-card" style="margin-bottom:16px;">
+                <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; BSO &mdash; Banking Stress Overlay</div>
+                <p style="margin:10px 0; font-size:13px; line-height:1.6;">The banking system is the heart of the financial system. When banks are under pressure &mdash; difficulty lending to each other, credit spreads widening, financial conditions tightening &mdash; stocks tend to follow weeks later. The BSO combines three independent indicators into a weighted average that captures different dimensions of financial stress:</p>
+                <table class="algo-params-sm">
+                    <tr>
+                        <td style="white-space:nowrap;"><a href="https://fred.stlouisfed.org/series/NFCI" target="_blank" rel="noopener" style="color:var(--accent);">NFCI</a></td>
+                        <td><strong>National Financial Conditions Index</strong> (40% weight) &mdash; Published weekly by the <a href="https://www.chicagofed.org/research/data/nfci/current-data" target="_blank" rel="noopener" style="color:var(--accent);">Chicago Fed</a>. Measures 105 risk, credit, and leverage indicators. A value of 0 is the historical average; positive values indicate tighter conditions. The overlay starts reducing capital when NFCI &gt; 0.50 (95th historical percentile &mdash; only 5% of weeks register readings this high).</td>
+                    </tr>
+                    <tr>
+                        <td style="white-space:nowrap;"><a href="https://fred.stlouisfed.org/series/STLFSI4" target="_blank" rel="noopener" style="color:var(--accent);">STLFSI</a></td>
+                        <td><strong>St. Louis Fed Financial Stress Index</strong> (25% weight) &mdash; Published weekly by the <a href="https://www.stlouisfed.org/data/financial-stress-index" target="_blank" rel="noopener" style="color:var(--accent);">St. Louis Fed</a>. Combines 18 series including interest rates, credit spreads, and volatility. Value 0 = normal conditions. The overlay acts when STLFSI &gt; 1.00 (90th percentile &mdash; significant stress level).</td>
+                    </tr>
+                    <tr>
+                        <td style="white-space:nowrap;"><a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener" style="color:var(--accent);">HY OAS</a></td>
+                        <td><strong>ICE BofA US High Yield Option-Adjusted Spread</strong> (35% weight) &mdash; Measures the yield difference between high-risk corporate bonds (high-yield or &ldquo;junk bonds&rdquo;) and US Treasury bonds. When this spread widens, it means investors demand greater compensation for credit risk &mdash; a signal of fear in the market. Historical median: ~456bps. The overlay starts acting at 700bps (85th percentile) and applies maximum reduction at 1500bps (crisis levels like 2008).</td>
+                    </tr>
+                </table>
+                <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Gradual scaling: capital reduction is proportional to the stress level, not an on/off switch. This avoids reacting to momentary spikes and ensures smooth transitions.</p>
+            </div>
+
+            <div class="algo-mini-card" style="margin-bottom:16px;">
+                <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; M2 &mdash; Monetary Momentum</div>
+                <p style="margin:10px 0; font-size:13px; line-height:1.6;">The money supply (<a href="https://fred.stlouisfed.org/series/M2SL" target="_blank" rel="noopener" style="color:var(--accent);">M2</a>) is the total amount of money in circulation: cash, bank deposits, money market funds, etc. When the Fed reduces the money supply (as in 2022&ndash;2023 with <em>quantitative tightening</em>), there is less liquidity available to push stock prices up.</p>
+                <p style="margin:8px 0; font-size:13px; line-height:1.6;">This overlay doesn't look at the M2 level, but its <strong>acceleration</strong>: it compares M2's year-over-year growth today with that of 3 months ago. If M2 is growing increasingly slower (or contracting), it's a signal that liquidity is withdrawing from the system &mdash; a significant headwind for momentum strategies.</p>
+                <table class="algo-params-sm">
+                    <tr><td>Formula</td><td>M2MI = [Current YoY M2 growth] &minus; [YoY M2 growth 3 months ago]</td></tr>
+                    <tr><td>No effect</td><td>M2MI &ge; &minus;1.5pp &rarr; scalar = 1.00 (normal or expanding conditions)</td></tr>
+                    <tr><td>Moderate alert</td><td>&minus;3.0pp &lt; M2MI &lt; &minus;1.5pp &rarr; scalar 0.60 to 0.40 (gradual reduction)</td></tr>
+                    <tr><td>Maximum alert</td><td>M2MI &le; &minus;3.0pp &rarr; scalar = 0.40 (severe deceleration)</td></tr>
+                </table>
+                <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Thresholds (-1.5pp and -3.0pp) come from monetary economics research (Werner, Keen), not from HYDRA data &mdash; this avoids overfitting.</p>
+            </div>
+
+            <div class="algo-mini-card" style="margin-bottom:16px;">
+                <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; FOMC &mdash; Federal Reserve Surprises</div>
+                <p style="margin:10px 0; font-size:13px; line-height:1.6;">The <a href="https://www.federalreserve.gov/monetarypolicy/fomc.htm" target="_blank" rel="noopener" style="color:var(--accent);">Federal Open Market Committee (FOMC)</a> is the Fed committee that sets the US benchmark interest rate. Normally, rate changes are announced at scheduled meetings (8 times per year) and the market anticipates them weeks in advance.</p>
+                <p style="margin:8px 0; font-size:13px; line-height:1.6;">When the rate changes <strong>abruptly and unexpectedly</strong> &mdash; like the emergency cuts of January 2008 (75bps) or March 2020 (150bps in 2 weeks) &mdash; it's a signal that something serious is happening. The overlay detects these movements by watching the <a href="https://fred.stlouisfed.org/series/DFF" target="_blank" rel="noopener" style="color:var(--accent);">effective federal funds rate (DFF)</a> and looking for changes greater than 25bps in 3 business-day windows.</p>
+                <table class="algo-params-sm">
+                    <tr><td>Mild surprise</td><td>Change &gt; 25bps in 3 days &rarr; scalar = 0.75 (reduce 25% of capital)</td></tr>
+                    <tr><td>Strong surprise</td><td>Change &gt; 50bps in 3 days &rarr; scalar = 0.50 (reduce 50% of capital)</td></tr>
+                    <tr><td>Decay</td><td>Signal dissipates linearly over 14 calendar days back to 1.00</td></tr>
+                </table>
+                <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Gradual decay reflects that the initial shock loses relevance as the market absorbs the information. Historically, this overlay activates very rarely &mdash; but when it does, it's at critical moments.</p>
+            </div>
+
+            <div class="algo-mini-card" style="margin-bottom:16px;">
+                <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; Fed Emergency &mdash; Emergency Intervention</div>
+                <p style="margin:10px 0; font-size:13px; line-height:1.6;">During severe crises, the Fed intervenes by massively expanding its <a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--accent);">balance sheet (WALCL)</a> &mdash; buying Treasury bonds, backstopping banks, or creating emergency facilities. This is what happened in 2008&ndash;2009 (Quantitative Easing for the financial crisis), March 2020 (massive injection for COVID), and March 2023 (Bank Term Funding Program for the SVB/Signature Bank crisis).</p>
+                <p style="margin:8px 0; font-size:13px; line-height:1.6;">Unlike the other overlays, this one <strong>does not reduce capital</strong>. Instead, it does the opposite: it imposes a <strong>minimum floor of 2 positions</strong> for 90 days. Why? Because when the Fed intervenes with full force, it historically marks the market bottom or close to it. Keeping at least 2 positions ensures HYDRA participates in the subsequent recovery.</p>
+                <table class="algo-params-sm">
+                    <tr><td>Indicator</td><td><a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--accent);">WALCL</a> &mdash; Total Assets of the Federal Reserve (published weekly)</td></tr>
+                    <tr><td>Activation</td><td>Fed balance rises &gt;5% in 30 days (threshold based on 2009 and 2020 precedents)</td></tr>
+                    <tr><td>Effect</td><td>Floor of 2 positions for 90 calendar days (doesn't reduce capital, ensures participation)</td></tr>
+                    <tr><td>Historical</td><td>Activated 3 times: QE1 (2009), COVID (2020), SVB crisis (2023)</td></tr>
+                </table>
+            </div>
+
+            <div class="algo-mini-card" style="margin-bottom:16px;">
+                <div class="algo-mini-title" style="color:var(--accent); font-size:15px;">&#9670; Credit Filter &mdash; Sector Filter for Credit Crises</div>
+                <p style="margin:10px 0; font-size:13px; line-height:1.6;">In extreme credit crises, certain sectors suffer disproportionately. The financial sector (banks, insurers, brokers) is the first to fall because its business depends directly on credit. The energy sector is also vulnerable in severe crises due to its high dependence on financing.</p>
+                <p style="margin:8px 0; font-size:13px; line-height:1.6;">This component uses the same <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener" style="color:var(--accent);">high-yield spread (HY OAS)</a> as the BSO, but with much higher thresholds. It doesn't reduce capital &mdash; it directly <strong>excludes vulnerable sectors</strong> from the investment universe, preventing HYDRA from buying financial or energy stocks in the middle of a crisis.</p>
+                <table class="algo-params-sm">
+                    <tr><td>Level 1: HY &gt; 1000bps</td><td>Exclude <strong>Financials</strong> sector from universe (~95th historical percentile &mdash; confirmed crisis)</td></tr>
+                    <tr><td>Level 2: HY &gt; 1500bps</td><td>Exclude <strong>Financials + Energy</strong> (only reached in 2008&ndash;2009, systemic crisis)</td></tr>
+                    <tr><td>Frequency</td><td>Extremely rare &mdash; thresholds are calibrated to activate only during &ldquo;black swan&rdquo; events</td></tr>
+                </table>
+                <p style="margin:10px 0 0 0; font-size:12px; color:var(--text-tertiary); font-style:italic;">Original thresholds of 600/800bps excluded financials 30% of the time &mdash; too frequent. Raised to 1000/1500bps to activate only in genuine crises.</p>
+            </div>
+
+            <h3 class="algo-sub-title">How do they combine?</h3>
+            <p>The 3 scalar overlays (BSO, M2, FOMC) are multiplied together to produce the final capital multiplier. Multiplication ensures that when multiple indicators detect stress <em>at the same time</em>, the reduction is more aggressive &mdash; exactly what we want in a real crisis where all indicators are flashing red.</p>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Multiplicative combination</div>
+                <code class="algo-formula">capital_scalar = max(0.25, BSO &times; M2 &times; FOMC)</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">The 0.25 floor guarantees HYDRA never stays completely out of the market &mdash; always allocates at least 25% of available capital</p>
+            </div>
+            <p style="margin-top:12px;">The other 2 components operate independently: Fed Emergency imposes a position floor, and Credit Filter excludes sectors. None of the 5 components modifies the algorithm's signals, stops, or exit conditions.</p>
+
+            <h3 class="algo-sub-title">Conditional damping</h3>
+            <p>A critical detail: when <strong>drawdown scaling</strong> is already active (the portfolio has already fallen more than 10% from its peak), the overlay only applies <strong>25% of its signal</strong>. Why? Because both mechanisms reduce capital &mdash; if we apply them at 100% simultaneously, the system becomes too conservative and misses recovery opportunities. In backtesting, direct multiplication without damping destroyed 2.5% of CAGR.</p>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">Damping rule</div>
+                <code class="algo-formula">If DD-scaling active: scalar_final = 1.0 &minus; 0.25 &times; (1.0 &minus; overlay_scalar)</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0; font-style:italic;">If the portfolio is NOT in drawdown, the full overlay signal is used (scalar_final = overlay_scalar)</p>
+            </div>
+            <p style="margin-top:10px; font-size:13px;">Example: if the overlay indicates 0.60 and drawdown scaling is already active, the final scalar will be 1.0 &minus; 0.25 &times; (1.0 &minus; 0.60) = <strong>0.90</strong> instead of 0.60. Drawdown scaling is already doing its job; the overlay only adds a marginal push.</p>
+
+            <h3 class="algo-sub-title">Backtest results</h3>
+            <p>The overlay was validated with walk-forward testing (2000&ndash;2019 development, 2020&ndash;2026 out-of-sample):</p>
+            <table class="algo-params-sm">
+                <tr><td>Return cost</td><td>&minus;0.20% CAGR (minimal cost for additional protection)</td></tr>
+                <tr><td>MaxDD improvement (OOS)</td><td>From &minus;25.85% to &minus;22.13% (+3.72pp less maximum drawdown)</td></tr>
+                <tr><td>Sharpe improvement (OOS)</td><td>+0.021 (better risk-adjusted return)</td></tr>
+                <tr><td>Data source</td><td>8 <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">FRED</a> series (public, no API key, updated daily/weekly)</td></tr>
+            </table>
+            <p style="margin-top:12px; font-size:12px; color:var(--text-tertiary);">All data comes from <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--text-tertiary); text-decoration:underline;">FRED (Federal Reserve Economic Data)</a>, the public economic database of the St. Louis Fed. Each indicator's thresholds are based on historical distributions and economic literature, not on HYDRA data &mdash; this minimizes overfitting risk.</p>
+            </div>
         </div>
     </div>
 </div>
@@ -1685,6 +2299,7 @@
             <span class="algo-card-title" data-i18n="algo-s8-title">&iquest;C&oacute;mo aprende de sus propios resultados?</span>
         </div>
         <div class="algo-card-body">
+            <div class="lang-es">
             <p>HYDRA incluye un <strong>sistema de aprendizaje autom&aacute;tico progresivo</strong> que registra cada decisi&oacute;n del algoritmo (compras, ventas, posiciones descartadas, cambios de r&eacute;gimen) y analiza los resultados para detectar patrones. Funciona como un <strong>diario de trading inteligente</strong>: primero observa y acumula datos, luego comienza a extraer conclusiones estad&iacute;sticas, y finalmente entrena modelos predictivos cuando tiene suficiente evidencia.</p>
 
             <div class="algo-highlight">
@@ -1694,11 +2309,9 @@
                 </div>
             </div>
 
-            <!-- PRINCIPIO FUNDAMENTAL -->
             <h3 class="algo-sub-title">Principio fundamental: cero sesgo de anticipaci&oacute;n</h3>
             <p>El error m&aacute;s com&uacute;n en machine learning financiero es el <a href="https://en.wikipedia.org/wiki/Look-ahead_bias" target="_blank" rel="noopener" style="color:var(--accent);">look-ahead bias</a> (sesgo de anticipaci&oacute;n): usar informaci&oacute;n futura para tomar decisiones pasadas. HYDRA elimina esto <strong>por construcci&oacute;n</strong>: cada registro captura &uacute;nicamente datos disponibles en el momento exacto de la decisi&oacute;n. El precio de entrada se registra antes del fill, y el resultado se registra despu&eacute;s del cierre de la posici&oacute;n.</p>
 
-            <!-- 3 FASES -->
             <h3 class="algo-sub-title">3 fases de aprendizaje</h3>
             <p>La cantidad de datos determina qu&eacute; tipo de an&aacute;lisis es seguro hacer. Entrenar un modelo con 10 trades es como sacar conclusiones de lanzar una moneda 10 veces &mdash; insuficiente. Por eso el sistema <strong>escala progresivamente</strong>:</p>
 
@@ -1739,7 +2352,6 @@
                 </table>
             </div>
 
-            <!-- QUE REGISTRA -->
             <h3 class="algo-sub-title">&iquest;Qu&eacute; registra en cada operaci&oacute;n?</h3>
             <p>Cada vez que HYDRA toma una decisi&oacute;n, el sistema ML captura un <strong>snapshot completo</strong> del contexto: el estado del mercado, el puntaje de momentum, la volatilidad, el r&eacute;gimen, el drawdown del portafolio, y m&aacute;s. Esto crea un dataset que vincula <em>condiciones de entrada</em> con <em>resultados reales</em>.</p>
 
@@ -1766,7 +2378,6 @@
                 </div>
             </div>
 
-            <!-- RESULTADO -->
             <h3 class="algo-sub-title">Clasificaci&oacute;n de resultados</h3>
             <p>Cuando una posici&oacute;n se cierra, el sistema clasifica el resultado en 5 categor&iacute;as y calcula el <strong>alfa vs S&amp;P 500</strong> durante el per&iacute;odo de tenencia:</p>
 
@@ -1778,11 +2389,9 @@
                 <div class="algo-threshold algo-th-bear" style="flex:1;"><span class="algo-th-score">Stop Loss</span><span class="algo-th-pos">&lt; &minus;6%</span><span class="algo-th-label">Stop activado</span></div>
             </div>
 
-            <!-- STOP OPTIMIZER -->
             <h3 class="algo-sub-title">Optimizador de stops</h3>
             <p>Un m&oacute;dulo especializado analiza los patrones de stop loss agrupados por <strong>bucket de volatilidad</strong> (baja &lt;1.5%, media, alta &gt;3%). Si detecta que los stops se activan con demasiada frecuencia en un bucket, sugiere aflojar el l&iacute;mite; si se activan muy poco, sugiere ajustarlo. Tambi&eacute;n detecta si los stops est&aacute;n disparando por <strong>ruido intrad&iacute;a</strong> en vez de ca&iacute;das genuinas.</p>
 
-            <!-- PRINCIPIOS TEORICOS -->
             <h3 class="algo-sub-title">Principios te&oacute;ricos</h3>
             <table class="algo-params-sm">
                 <tr><td>Zero look-ahead</td><td>Solo datos disponibles al momento de la decisi&oacute;n. Elimina el sesgo m&aacute;s destructivo en ML financiero.</td></tr>
@@ -1793,7 +2402,6 @@
                 <tr><td>Escalamiento progresivo</td><td>No entrenar modelos hasta tener datos suficientes. Previene optimizaci&oacute;n prematura sobre muestras peque&ntilde;as.</td></tr>
             </table>
 
-            <!-- FLUJO DE DATOS -->
             <h3 class="algo-sub-title">Flujo de datos</h3>
             <div class="algo-formula-box">
                 <div class="algo-formula-label">Arquitectura del sistema ML</div>
@@ -1802,7 +2410,6 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                 <p class="algo-note" style="margin-top:8px; margin-bottom:0;">Todos los datos se almacenan en formato JSONL (append-only). Los modelos solo guardan metadatos en JSON &mdash; sin archivos binarios.</p>
             </div>
 
-            <!-- ESTADO ACTUAL -->
             <h3 class="algo-sub-title">Estado actual</h3>
             <div class="algo-grid-2">
                 <div class="algo-mini-card">
@@ -1824,6 +2431,140 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                     </table>
                 </div>
             </div>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p>HYDRA includes a <strong>progressive machine learning system</strong> that records every algorithm decision (buys, sells, discarded positions, regime changes) and analyzes results to detect patterns. It works like an <strong>intelligent trading journal</strong>: first it observes and accumulates data, then it begins extracting statistical conclusions, and finally trains predictive models when it has sufficient evidence.</p>
+
+            <div class="algo-highlight">
+                <div class="algo-highlight-badge">NEW</div>
+                <div class="algo-highlight-content">
+                    The ML system <strong>never modifies the algorithm automatically</strong>. It only generates reports and insights that a human reviews. All ML operations are wrapped in <code>try/except</code> &mdash; if something fails, the trading engine continues functioning without interruption.
+                </div>
+            </div>
+
+            <h3 class="algo-sub-title">Core principle: zero look-ahead bias</h3>
+            <p>The most common error in financial machine learning is <a href="https://en.wikipedia.org/wiki/Look-ahead_bias" target="_blank" rel="noopener" style="color:var(--accent);">look-ahead bias</a>: using future information to make past decisions. HYDRA eliminates this <strong>by construction</strong>: each record captures only data available at the exact moment of the decision. The entry price is recorded before the fill, and the outcome is recorded after the position closes.</p>
+
+            <h3 class="algo-sub-title">3 learning phases</h3>
+            <p>The amount of data determines what type of analysis is safe to perform. Training a model with 10 trades is like drawing conclusions from flipping a coin 10 times &mdash; insufficient. That's why the system <strong>scales progressively</strong>:</p>
+
+            <div class="algo-thresholds" style="margin-bottom:16px;">
+                <div class="algo-threshold algo-th-mild-bear" style="flex:1;"><span class="algo-th-score">Phase 1</span><span class="algo-th-pos">0&ndash;63 days</span><span class="algo-th-label">Statistics only</span></div>
+                <div class="algo-threshold algo-th-mild-bull" style="flex:1;"><span class="algo-th-score">Phase 2</span><span class="algo-th-pos">63&ndash;252 days</span><span class="algo-th-label">Light models</span></div>
+                <div class="algo-threshold algo-th-bull" style="flex:1;"><span class="algo-th-score">Phase 3</span><span class="algo-th-pos">252+ days</span><span class="algo-th-label">Supervised ML</span></div>
+            </div>
+
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Phase 1 &mdash; Observe (0&ndash;63 days)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>What it does</td><td>Records every decision and calculates descriptive statistics</td></tr>
+                        <tr><td>Analysis</td><td>Mean return, win rate, stop rate, breakdown by regime/sector/volatility</td></tr>
+                        <tr><td>Confidence</td><td>Bootstrap intervals (2,000 resamples, 95% CI)</td></tr>
+                        <tr><td>Models</td><td>None &mdash; insufficient data for ML</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Phase 2 &mdash; First signals (63&ndash;252 days)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Regression</td><td><a href="https://en.wikipedia.org/wiki/Ridge_regression" target="_blank" rel="noopener" style="color:var(--accent);">Ridge</a> (&alpha;=10.0) &mdash; strong L2 regularization</td></tr>
+                        <tr><td>Classification</td><td><a href="https://en.wikipedia.org/wiki/Logistic_regression" target="_blank" rel="noopener" style="color:var(--accent);">Logistic</a> (C=0.1) &mdash; predicts win/lose</td></tr>
+                        <tr><td>Validation</td><td>3-fold cross-validation (R&sup2; and AUC)</td></tr>
+                        <tr><td>Caution</td><td>N&lt;100: coefficients intentionally biased to zero</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="algo-mini-card" style="margin-top:14px;">
+                <div class="algo-mini-title">Phase 3 &mdash; Full ML (252+ days)</div>
+                <table class="algo-params-sm">
+                    <tr><td>Primary model</td><td><a href="https://lightgbm.readthedocs.io/" target="_blank" rel="noopener" style="color:var(--accent);">LightGBM</a> &mdash; gradient boosting with 200 trees, depth 3, L1+L2 regularization</td></tr>
+                    <tr><td>Fallback model</td><td><a href="https://en.wikipedia.org/wiki/Random_forest" target="_blank" rel="noopener" style="color:var(--accent);">Random Forest</a> &mdash; 200 trees, depth 4 (if LightGBM unavailable)</td></tr>
+                    <tr><td>Validation</td><td>5-fold cross-validation with R&sup2;</td></tr>
+                    <tr><td>Monitoring</td><td>Top 10 features by importance &mdash; detects if momentum signals are losing power</td></tr>
+                </table>
+            </div>
+
+            <h3 class="algo-sub-title">What does it record per trade?</h3>
+            <p>Every time HYDRA makes a decision, the ML system captures a <strong>complete snapshot</strong> of the context: market state, momentum score, volatility, regime, portfolio drawdown, and more. This creates a dataset that links <em>entry conditions</em> with <em>actual outcomes</em>.</p>
+
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Decision types</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Buy</td><td>Stock selected and purchased</td></tr>
+                        <tr><td>Sell</td><td>Stop, trailing, expiration, or regime reduction</td></tr>
+                        <tr><td>Skip</td><td>Candidate not selected (sector limit, no cash, etc.)</td></tr>
+                        <tr><td>Hold</td><td>Position reviewed but not sold</td></tr>
+                        <tr><td>Regime</td><td>Regime change (bull &harr; bear)</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Captured features (30+)</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Momentum</td><td>Score, rank percentile, score&sup2;</td></tr>
+                        <tr><td>Volatility</td><td>Daily vol, annualized, bucket (low/med/high)</td></tr>
+                        <tr><td>Market</td><td>Regime score, SPY vs SMA200, SPY vol 10d</td></tr>
+                        <tr><td>Portfolio</td><td>Drawdown, leverage, crash cooldown</td></tr>
+                        <tr><td>Sector</td><td>One-hot encoding (8 sectors)</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <h3 class="algo-sub-title">Result classification</h3>
+            <p>When a position closes, the system classifies the outcome into 5 categories and calculates <strong>alpha vs S&amp;P 500</strong> during the holding period:</p>
+
+            <div class="algo-thresholds" style="margin-bottom:16px;">
+                <div class="algo-threshold algo-th-bull" style="flex:1;"><span class="algo-th-score">Strong Win</span><span class="algo-th-pos">&gt; +4%</span><span class="algo-th-label">Clear victory</span></div>
+                <div class="algo-threshold algo-th-mild-bull" style="flex:1;"><span class="algo-th-score">Weak Win</span><span class="algo-th-pos">0% to +4%</span><span class="algo-th-label">Minor gain</span></div>
+                <div class="algo-threshold" style="flex:1; border-color:var(--text-tertiary);"><span class="algo-th-score" style="color:var(--text-tertiary);">Flat</span><span class="algo-th-pos">&asymp; 0%</span><span class="algo-th-label">No change</span></div>
+                <div class="algo-threshold algo-th-mild-bear" style="flex:1;"><span class="algo-th-score">Weak Loss</span><span class="algo-th-pos">0% to &minus;6%</span><span class="algo-th-label">Minor loss</span></div>
+                <div class="algo-threshold algo-th-bear" style="flex:1;"><span class="algo-th-score">Stop Loss</span><span class="algo-th-pos">&lt; &minus;6%</span><span class="algo-th-label">Stop triggered</span></div>
+            </div>
+
+            <h3 class="algo-sub-title">Stop optimizer</h3>
+            <p>A specialized module analyzes stop loss patterns grouped by <strong>volatility bucket</strong> (low &lt;1.5%, medium, high &gt;3%). If it detects that stops are triggering too frequently in a bucket, it suggests loosening the limit; if they trigger too rarely, it suggests tightening. It also detects if stops are firing due to <strong>intraday noise</strong> rather than genuine declines.</p>
+
+            <h3 class="algo-sub-title">Theoretical principles</h3>
+            <table class="algo-params-sm">
+                <tr><td>Zero look-ahead</td><td>Only data available at decision time. Eliminates the most destructive bias in financial ML.</td></tr>
+                <tr><td>Hypotheses, not facts</td><td>Every model is provisional. Confidence intervals quantify uncertainty in each statistic.</td></tr>
+                <tr><td>Conditional analysis</td><td>Results stratified by regime + volatility. Avoids mixing winning periods (bull) with losing ones (bear).</td></tr>
+                <tr><td>Adaptive regularization</td><td>Regularization strength scales with data: Ridge &alpha;=10 with few data, LightGBM reg=0.1 with many.</td></tr>
+                <tr><td>Bootstrap CI</td><td><a href="https://en.wikipedia.org/wiki/Bootstrapping_(statistics)" target="_blank" rel="noopener" style="color:var(--accent);">Bootstrap</a> with 2,000 resamples for 95% confidence intervals on mean return.</td></tr>
+                <tr><td>Progressive scaling</td><td>Don't train models until sufficient data exists. Prevents premature optimization on small samples.</td></tr>
+            </table>
+
+            <h3 class="algo-sub-title">Data flow</h3>
+            <div class="algo-formula-box">
+                <div class="algo-formula-label">ML system architecture</div>
+                <code class="algo-formula" style="font-size:11px; white-space:pre-wrap; line-height:1.6;">Trading Engine &rarr; on_entry() / on_exit() / on_skip() &rarr; decisions.jsonl + outcomes.jsonl
+Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &rarr; insights.json</code>
+                <p class="algo-note" style="margin-top:8px; margin-bottom:0;">All data is stored in JSONL format (append-only). Models only save metadata in JSON &mdash; no binary files.</p>
+            </div>
+
+            <h3 class="algo-sub-title">Current state</h3>
+            <div class="algo-grid-2">
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Progress</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Current phase</td><td><strong>Phase 1</strong> &mdash; Collecting data</td></tr>
+                        <tr><td>Trading days</td><td>12 of 63 needed for Phase 2</td></tr>
+                        <tr><td>Completed trades</td><td>6 (includes boot implementation data)</td></tr>
+                        <tr><td>Next milestone</td><td>Phase 2 in ~51 days (~2.5 months)</td></tr>
+                    </table>
+                </div>
+                <div class="algo-mini-card">
+                    <div class="algo-mini-title">Collected data</div>
+                    <table class="algo-params-sm">
+                        <tr><td>Decisions</td><td>52+ records (entries, exits, skips)</td></tr>
+                        <tr><td>Daily snapshots</td><td>9+ portfolio state captures</td></tr>
+                        <tr><td>Features per trade</td><td>30+ variables per decision</td></tr>
+                        <tr><td>Execution</td><td>Automatic learning every 5 days</td></tr>
+                    </table>
+                </div>
+            </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1837,6 +2578,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
             <span id="algo-toggle-arrow" style="margin-left:auto;font-size:14px;color:var(--text-tertiary);">&#9654;</span>
         </div>
         <div class="algo-card-body" id="algo-params-body" style="display:none;">
+            <div class="lang-es">
             <p style="margin-bottom:16px;">Esta tabla contiene todos los par&aacute;metros exactos del algoritmo. Si no eres programador o analista cuantitativo, puedes saltar esta secci&oacute;n &mdash; todo lo importante ya se explic&oacute; arriba en lenguaje simple.</p>
             <div class="algo-params-full">
                 <table class="algo-params-table">
@@ -1875,6 +2617,47 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                     </tbody>
                 </table>
             </div>
+            </div>
+            <div class="lang-en" style="display:none">
+            <p style="margin-bottom:16px;">This table contains all the exact algorithm parameters. If you're not a programmer or quantitative analyst, you can skip this section &mdash; everything important was already explained above in plain language.</p>
+            <div class="algo-params-full">
+                <table class="algo-params-table">
+                    <thead>
+                        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="algo-params-group"><td colspan="3">Core Strategy</td></tr>
+                        <tr><td>TOP_N</td><td>40</td><td>Annual active universe size</td></tr>
+                        <tr><td>NUM_POSITIONS</td><td>5</td><td>Max positions in risk-on</td></tr>
+                        <tr><td>NUM_POSITIONS_RISK_OFF</td><td>2</td><td>Min positions in risk-off</td></tr>
+                        <tr><td>HOLD_DAYS</td><td>5</td><td>Base holding period (days)</td></tr>
+                        <tr><td>MOMENTUM_LOOKBACK</td><td>90</td><td>Primary momentum window</td></tr>
+                        <tr><td>MOMENTUM_SKIP</td><td>5</td><td>Exclude recent reversal</td></tr>
+
+                        <tr class="algo-params-group"><td colspan="3">Adaptive Stops (v8.4)</td></tr>
+                        <tr><td>STOP_DAILY_VOL_MULT</td><td>2.5</td><td>Daily vol multiplier</td></tr>
+                        <tr><td>STOP_FLOOR</td><td>&minus;6%</td><td>Tightest stop</td></tr>
+                        <tr><td>STOP_CEILING</td><td>&minus;15%</td><td>Widest stop</td></tr>
+                        <tr><td>TRAILING_ACTIVATION</td><td>+5%</td><td>Activate trailing after</td></tr>
+                        <tr><td>TRAILING_STOP_PCT</td><td>3%</td><td>Trailing base</td></tr>
+                        <tr><td>TRAILING_VOL_BASELINE</td><td>0.25</td><td>Vol baseline for scaling</td></tr>
+
+                        <tr class="algo-params-group"><td colspan="3">Regime &amp; Bull Override (v8.4)</td></tr>
+                        <tr><td>BULL_OVERRIDE_THRESHOLD</td><td>0.03</td><td>SPY &gt; SMA200 &times; 1.03</td></tr>
+                        <tr><td>BULL_OVERRIDE_MIN_SCORE</td><td>0.40</td><td>Min score for override</td></tr>
+                        <tr><td>MAX_PER_SECTOR</td><td>3</td><td>Max positions per sector</td></tr>
+
+                        <tr class="algo-params-group"><td colspan="3">Drawdown Scaling</td></tr>
+                        <tr><td>DD_SCALE_TIER1</td><td>&minus;10%</td><td>Reduction start</td></tr>
+                        <tr><td>DD_SCALE_TIER2</td><td>&minus;20%</td><td>Mid-tier</td></tr>
+                        <tr><td>DD_SCALE_TIER3</td><td>&minus;35%</td><td>Deep drawdown floor</td></tr>
+                        <tr><td>CRASH_VEL_5D</td><td>&minus;6%</td><td>Crash threshold 5 days</td></tr>
+                        <tr><td>CRASH_VEL_10D</td><td>&minus;10%</td><td>Crash threshold 10 days</td></tr>
+                        <tr><td>CRASH_LEVERAGE</td><td>0.15</td><td>Leverage in crash mode</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1882,7 +2665,8 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 <!-- DISCLAIMER -->
 <div class="algo-section">
     <div class="algo-disclaimer">
-        Per&iacute;odo de prueba: 2000&ndash;2026 &middot; Corregido por sesgo de supervivencia con 1,128 acciones hist&oacute;ricas del S&amp;P 500 &middot; 56 experimentos validados &middot; Rendimientos pasados no garantizan resultados futuros.
+        <span class="lang-es">Per&iacute;odo de prueba: 2000&ndash;2026 &middot; Corregido por sesgo de supervivencia con 1,128 acciones hist&oacute;ricas del S&amp;P 500 &middot; 56 experimentos validados &middot; Rendimientos pasados no garantizan resultados futuros.</span>
+        <span class="lang-en" style="display:none">Test period: 2000&ndash;2026 &middot; Corrected for survivorship bias with 1,128 historical S&amp;P 500 stocks &middot; 56 validated experiments &middot; Past performance does not guarantee future results.</span>
     </div>
 </div>
 
@@ -1919,11 +2703,17 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px;"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg>
             <span data-i18n="ml-engine-title">Motor de Aprendizaje</span>
         </div>
-        <p class="ml-overview-desc">
+        <p class="ml-overview-desc lang-es">
             El sistema ML opera como un <strong>observador inteligente</strong> del algoritmo HYDRA. No toma decisiones de trading &mdash;
             registra cada acci&oacute;n del motor (compras, ventas, descartes, cambios de r&eacute;gimen), vincula las condiciones de entrada
             con los resultados reales, y escala progresivamente desde estad&iacute;sticas descriptivas hasta modelos predictivos a medida
             que acumula evidencia. <strong>Nunca modifica el algoritmo autom&aacute;ticamente</strong> &mdash; solo genera insights para revisi&oacute;n humana.
+        </p>
+        <p class="ml-overview-desc lang-en" style="display:none">
+            The ML system operates as an <strong>intelligent observer</strong> of the HYDRA algorithm. It does not make trading decisions &mdash;
+            it records every engine action (buys, sells, skips, regime changes), links entry conditions
+            with actual outcomes, and progressively scales from descriptive statistics to predictive models as
+            evidence accumulates. <strong>It never modifies the algorithm automatically</strong> &mdash; it only generates insights for human review.
         </p>
     </div>
 
@@ -1968,15 +2758,25 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                 <span class="ml-phase-days">0 &ndash; 63 d&iacute;as</span>
             </div>
             <div class="ml-phase-title" data-i18n="ml-phase1-title">Observar y Registrar</div>
-            <p class="ml-phase-desc">
+            <p class="ml-phase-desc lang-es">
                 El sistema solo observa. Registra cada decisi&oacute;n del algoritmo en formato append-only (JSONL)
                 y calcula estad&iacute;sticas descriptivas: retorno medio, tasa de acierto, frecuencia de stops,
                 y desglose por r&eacute;gimen/sector/volatilidad. Usa <strong>bootstrap</strong> (2,000 remuestreos)
                 para cuantificar la incertidumbre con intervalos de confianza al 95%.
             </p>
-            <div class="ml-phase-detail">
+            <p class="ml-phase-desc lang-en" style="display:none">
+                The system only observes. It records every algorithm decision in append-only format (JSONL)
+                and calculates descriptive statistics: mean return, win rate, stop frequency,
+                and breakdown by regime/sector/volatility. Uses <strong>bootstrap</strong> (2,000 resamples)
+                to quantify uncertainty with 95% confidence intervals.
+            </p>
+            <div class="ml-phase-detail lang-es">
                 <span class="ml-phase-tag">Modelos: ninguno</span>
                 <span class="ml-phase-tag">Datos insuficientes para ML</span>
+            </div>
+            <div class="ml-phase-detail lang-en" style="display:none">
+                <span class="ml-phase-tag">Models: none</span>
+                <span class="ml-phase-tag">Insufficient data for ML</span>
             </div>
         </div>
 
@@ -1986,17 +2786,29 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                 <span class="ml-phase-days">63 &ndash; 252 d&iacute;as</span>
             </div>
             <div class="ml-phase-title" data-i18n="ml-phase2-title">Primeras Se&ntilde;ales</div>
-            <p class="ml-phase-desc">
+            <p class="ml-phase-desc lang-es">
                 Con ~3 meses de datos, el sistema entrena modelos <strong>fuertemente regularizados</strong>
                 para evitar overfitting en muestras peque&ntilde;as. Regresi&oacute;n Ridge (&alpha;=10.0) predice
                 el retorno esperado; Regresi&oacute;n Log&iacute;stica (C=0.1) predice la probabilidad de trade
                 ganador. Validaci&oacute;n cruzada 3-fold mide R&sup2; y AUC. Con N&lt;100, los coeficientes se
                 sesgan a cero intencionalmente para maximizar cautela.
             </p>
-            <div class="ml-phase-detail">
+            <p class="ml-phase-desc lang-en" style="display:none">
+                With ~3 months of data, the system trains <strong>heavily regularized</strong> models
+                to avoid overfitting on small samples. Ridge regression (&alpha;=10.0) predicts
+                expected return; Logistic regression (C=0.1) predicts the probability of a winning
+                trade. 3-fold cross-validation measures R&sup2; and AUC. With N&lt;100, coefficients are
+                intentionally biased to zero to maximize caution.
+            </p>
+            <div class="ml-phase-detail lang-es">
                 <span class="ml-phase-tag">Ridge + Log&iacute;stica</span>
                 <span class="ml-phase-tag">3-fold CV</span>
                 <span class="ml-phase-tag">Regularizaci&oacute;n fuerte</span>
+            </div>
+            <div class="ml-phase-detail lang-en" style="display:none">
+                <span class="ml-phase-tag">Ridge + Logistic</span>
+                <span class="ml-phase-tag">3-fold CV</span>
+                <span class="ml-phase-tag">Strong regularization</span>
             </div>
         </div>
 
@@ -2006,14 +2818,27 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                 <span class="ml-phase-days">252+ d&iacute;as</span>
             </div>
             <div class="ml-phase-title" data-i18n="ml-phase3-title">ML Supervisado Completo</div>
-            <p class="ml-phase-desc">
+            <p class="ml-phase-desc lang-es">
                 Con un a&ntilde;o de datos, se activa <strong>LightGBM</strong> (200 &aacute;rboles, profundidad 3,
                 regularizaci&oacute;n L1+L2) como modelo primario, con Random Forest como alternativa.
                 Validaci&oacute;n cruzada 5-fold. El sistema monitorea la importancia de features &mdash; si
                 las se&ntilde;ales de momentum pierden poder predictivo, lo reporta. Tambi&eacute;n optimiza
                 stops por bucket de volatilidad y detecta patrones de salida prematura.
             </p>
-            <div class="ml-phase-detail">
+            <p class="ml-phase-desc lang-en" style="display:none">
+                With a year of data, <strong>LightGBM</strong> (200 trees, depth 3,
+                L1+L2 regularization) is activated as the primary model, with Random Forest as fallback.
+                5-fold cross-validation. The system monitors feature importance &mdash; if
+                momentum signals lose predictive power, it reports it. It also optimizes
+                stops by volatility bucket and detects premature exit patterns.
+            </p>
+            <div class="ml-phase-detail lang-es">
+                <span class="ml-phase-tag">LightGBM / Random Forest</span>
+                <span class="ml-phase-tag">5-fold CV</span>
+                <span class="ml-phase-tag">Feature importance</span>
+                <span class="ml-phase-tag">Stop optimizer</span>
+            </div>
+            <div class="ml-phase-detail lang-en" style="display:none">
                 <span class="ml-phase-tag">LightGBM / Random Forest</span>
                 <span class="ml-phase-tag">5-fold CV</span>
                 <span class="ml-phase-tag">Feature importance</span>
@@ -2025,10 +2850,15 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
     <!-- Principio clave -->
     <div class="ml-principle">
         <div class="ml-principle-icon">&#128274;</div>
-        <div class="ml-principle-text">
+        <div class="ml-principle-text lang-es">
             <strong>Zero look-ahead bias:</strong> cada registro captura &uacute;nicamente datos disponibles en el momento exacto de la decisi&oacute;n.
             El precio de entrada se registra antes del fill, y el resultado se registra despu&eacute;s del cierre. Todo an&aacute;lisis es condicional
             por r&eacute;gimen + volatilidad para evitar mezclar periodos bull con bear.
+        </div>
+        <div class="ml-principle-text lang-en" style="display:none">
+            <strong>Zero look-ahead bias:</strong> each record captures only data available at the exact moment of the decision.
+            The entry price is recorded before the fill, and the outcome is recorded after the close. All analysis is conditional
+            on regime + volatility to avoid mixing bull periods with bear periods.
         </div>
     </div>
 </div>

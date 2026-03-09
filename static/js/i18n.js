@@ -464,6 +464,14 @@ function setLang(lang) {
     el.innerHTML = t(key);
   });
 
+  // Toggle lang-specific content blocks
+  document.querySelectorAll('.lang-es').forEach(function(el) {
+      el.style.display = lang === 'es' ? '' : 'none';
+  });
+  document.querySelectorAll('.lang-en').forEach(function(el) {
+      el.style.display = lang === 'en' ? '' : 'none';
+  });
+
   updateLangToggle();
 
   if (typeof refreshDashboard === 'function') {
