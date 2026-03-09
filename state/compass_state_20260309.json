@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-09T09:55:15.395475",
+  "timestamp": "2026-03-09T10:33:02.085474",
   "cash": 35610.82676379394,
   "peak_value": 100000.0,
-  "portfolio_value": 99271.17118518066,
+  "portfolio_value": 99553.98769061279,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
@@ -32,7 +32,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 116.07,
+      "high_price": 116.29000091552734,
       "entry_vol": 0.28639434996138086,
       "entry_daily_vol": 0.01804114825932892,
       "sector": "Healthcare",
@@ -43,7 +43,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 241.97999572753906,
+      "high_price": 242.10000610351562,
       "entry_vol": 0.15534686069028528,
       "entry_daily_vol": 0.009785932389073585,
       "sector": "Healthcare",
@@ -132,7 +132,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 16,
-    "uptime_minutes": 16.411126149999998
+    "cycles_completed": 51,
+    "uptime_minutes": 54.18929321666667
   }
 }

@@ -9,7 +9,7 @@ NO live trading engine — showcase/portfolio mode.
 Deploy: git push to GitHub → auto-deploy on Render.
 """
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 import json
 import os
 import glob
@@ -60,6 +60,11 @@ def set_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    # Prevent Cloudflare/CDN from caching API responses (stale prices)
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['CDN-Cache-Control'] = 'no-store'
+        response.headers['Cloudflare-CDN-Cache-Control'] = 'no-store'
     return response
 
 # ============================================================================
