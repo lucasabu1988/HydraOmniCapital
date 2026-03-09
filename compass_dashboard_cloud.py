@@ -468,9 +468,16 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         max_pos = HYDRA_CONFIG['NUM_POSITIONS_RISK_OFF']
 
     # S&P 500 daily return (today's change from previous close)
+    # When market hasn't opened yet (weekend or pre-market), force 0%
+    # because Yahoo returns Friday's close vs Thursday's previousClose
+    ET = ZoneInfo('America/New_York')
+    now_et = datetime.now(ET)
+    market_has_opened_today = (now_et.weekday() < 5 and now_et.time() >= dtime(9, 30))
     spy_current = prices.get('^GSPC') if prices else None
     spy_prev = _prev_close_cache.get('^GSPC')
-    if spy_current and spy_prev and spy_prev > 0:
+    if not market_has_opened_today:
+        spy_daily = 0.0
+    elif spy_current and spy_prev and spy_prev > 0:
         spy_daily = round((spy_current - spy_prev) / spy_prev * 100, 2)
     else:
         spy_daily = None
