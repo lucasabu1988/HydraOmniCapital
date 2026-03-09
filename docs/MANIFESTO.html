@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>OMNICAPITAL HYDRA v8.4 — Manifiesto del Algoritmo</title>
+<style>
+@page {
+    size: A4;
+    margin: 2cm;
+}
+body {
+    font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #1a1a1a;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px;
+}
+h1 {
+    font-size: 24pt;
+    color: #0d1b2a;
+    border-bottom: 3px solid #1b4332;
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+h2 {
+    font-size: 16pt;
+    color: #1b4332;
+    border-bottom: 1.5px solid #95d5b2;
+    padding-bottom: 6px;
+    margin-top: 35px;
+    page-break-after: avoid;
+}
+h3 {
+    font-size: 13pt;
+    color: #2d6a4f;
+    margin-top: 25px;
+    page-break-after: avoid;
+}
+h4 {
+    font-size: 11.5pt;
+    color: #40916c;
+    margin-top: 18px;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 15px 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+}
+th {
+    background-color: #1b4332;
+    color: white;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+}
+td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #ddd;
+}
+tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+code {
+    background-color: #f1f3f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 10pt;
+}
+pre {
+    background-color: #0d1b2a;
+    color: #d8f3dc;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 9.5pt;
+    line-height: 1.5;
+    page-break-inside: avoid;
+}
+pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+blockquote {
+    border-left: 4px solid #40916c;
+    margin: 15px 0;
+    padding: 10px 20px;
+    background-color: #f0fdf4;
+    font-style: italic;
+    color: #2d6a4f;
+}
+strong {
+    color: #1b4332;
+}
+em {
+    color: #555;
+}
+hr {
+    border: none;
+    border-top: 1.5px solid #95d5b2;
+    margin: 30px 0;
+}
+ul, ol {
+    padding-left: 25px;
+}
+li {
+    margin-bottom: 4px;
+}
+</style>
+</head>
+<body>
+<h1>OMNICAPITAL HYDRA v8.4</h1>
+<h2>Manifiesto del Algoritmo</h2>
+<p><strong>Multi-Strategy Adaptive Momentum with Macro Overlays</strong></p>
+<p>Fecha: 9 Marzo 2026
+Version: 8.4
+Status: Paper Trading (live desde 6 Marzo 2026)</p>
+<hr />
+<h2>1. FILOSOFIA</h2>
+<p>HYDRA nace de una evolucion disciplinada. El v6 original reportaba 16.92% CAGR, pero al eliminar el sesgo de supervivencia, la realidad era 5.40% con -59.4% de drawdown maximo. No habia signal. Era compra aleatoria con leverage. El "alpha" era una ilusion.</p>
+<p>COMPASS (v8.0) reemplazo la aleatoriedad con un edge real basado en momentum cross-seccional. HYDRA (v8.4) lleva esa base un paso mas alla: integra multiples estrategias complementarias, overlays macroeconomicos, y gestion de riesgo adaptativa continua.</p>
+<p>El nombre HYDRA refleja la arquitectura multi-cabeza del sistema:</p>
+<ol>
+<li><strong>COMPASS</strong> — Momentum cross-seccional (cabeza principal)</li>
+<li><strong>Rattlesnake</strong> — Mean-reversion en dips extremos (cabeza tactica)</li>
+<li><strong>EFA</strong> — Exposicion internacional pasiva (cabeza diversificadora)</li>
+<li><strong>Cash Recycling</strong> — Optimizacion de capital idle entre estrategias</li>
+<li><strong>Macro Overlays</strong> — Senales macroeconomicas que modulan exposicion</li>
+</ol>
+<p>Cada componente es independiente pero sinergico. Las estrategias operan en diferentes regimenes de mercado, y el capital fluye dinamicamente entre ellas.</p>
+<h3>Principios Rectores</h3>
+<ul>
+<li><strong>Simplicidad con profundidad</strong>: Cada componente usa pocos parametros, pero la combinacion genera complejidad emergente.</li>
+<li><strong>Base academica</strong>: Cada decision de diseno esta respaldada por decadas de investigacion en finanzas cuantitativas.</li>
+<li><strong>Adaptabilidad continua</strong>: No hay switches binarios. Regime score, drawdown leverage, y adaptive stops son todos funciones continuas.</li>
+<li><strong>Fail-safe by design</strong>: Overlays son multiplicativos con floor en 0.25. Ningun componente puede crashear el sistema.</li>
+</ul>
+<hr />
+<h2>2. RESULTADOS (Backtest 2000-2026)</h2>
+<h3>HYDRA Composite (COMPASS + Rattlesnake + EFA + Cash Recycling)</h3>
+<table>
+<thead>
+<tr>
+<th>Metrica</th>
+<th>v6 (aleatorio)</th>
+<th>v8.0 COMPASS</th>
+<th><strong>v8.4 HYDRA</strong></th>
+<th>S&amp;P 500</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CAGR</strong></td>
+<td>5.40%</td>
+<td>16.16%</td>
+<td><strong>14.92%</strong></td>
+<td>~10%</td>
+</tr>
+<tr>
+<td><strong>Sharpe</strong></td>
+<td>0.22</td>
+<td>0.73</td>
+<td><strong>1.12</strong></td>
+<td>~0.45</td>
+</tr>
+<tr>
+<td><strong>Sortino</strong></td>
+<td>—</td>
+<td>1.02</td>
+<td><strong>1.54</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Max Drawdown</strong></td>
+<td>-59.4%</td>
+<td>-34.8%</td>
+<td><strong>-22.25%</strong></td>
+<td>-55.2%</td>
+</tr>
+<tr>
+<td><strong>Calmar</strong></td>
+<td>—</td>
+<td>0.46</td>
+<td><strong>0.67</strong></td>
+<td>~0.18</td>
+</tr>
+<tr>
+<td><strong>Anos positivos</strong></td>
+<td>—</td>
+<td>21/26</td>
+<td><strong>23/27</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Mejor ano</strong></td>
+<td>—</td>
+<td>+128.1%</td>
+<td><strong>+47.1%</strong> (2003)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Peor ano</strong></td>
+<td>—</td>
+<td>-32.7%</td>
+<td><strong>-20.8%</strong> (2022)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>$100k se convierte en</strong></td>
+<td>~$400k</td>
+<td>$4.95M</td>
+<td><strong>$3.77M</strong></td>
+<td>~$1.1M</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Nota critica sobre v8.0 vs v8.4</strong>: El CAGR de v8.4 es menor que v8.0 porque v8.4 opera sin leverage (LEVERAGE_MAX=1.0) y con overlays que reducen exposicion en periodos de estres. A cambio, el max drawdown se reduce de -34.8% a -22.25% y el Sharpe casi se duplica (0.73 → 1.12). <strong>HYDRA maximiza retorno ajustado por riesgo, no retorno absoluto.</strong></p>
+</blockquote>
+<h3>COMPASS Standalone (sin HYDRA multi-strategy)</h3>
+<table>
+<thead>
+<tr>
+<th>Metrica</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CAGR</td>
+<td>10.41%</td>
+</tr>
+<tr>
+<td>Max Drawdown</td>
+<td>-33.04%</td>
+</tr>
+<tr>
+<td>Sharpe</td>
+<td>0.77</td>
+</tr>
+<tr>
+<td>Sortino</td>
+<td>1.07</td>
+</tr>
+<tr>
+<td>Calmar</td>
+<td>0.32</td>
+</tr>
+</tbody>
+</table>
+<h3>Retornos Anuales HYDRA Composite</h3>
+<table>
+<thead>
+<tr>
+<th>Ano</th>
+<th>Retorno</th>
+<th>Ano</th>
+<th>Retorno</th>
+<th>Ano</th>
+<th>Retorno</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2000</td>
+<td>+34.8%</td>
+<td>2009</td>
+<td>+29.6%</td>
+<td>2018</td>
+<td>+13.5%</td>
+</tr>
+<tr>
+<td>2001</td>
+<td>-6.5%</td>
+<td>2010</td>
+<td>+10.6%</td>
+<td>2019</td>
+<td>+21.6%</td>
+</tr>
+<tr>
+<td>2002</td>
+<td>-11.5%</td>
+<td>2011</td>
+<td>+4.5%</td>
+<td>2020</td>
+<td>+44.9%</td>
+</tr>
+<tr>
+<td>2003</td>
+<td>+47.1%</td>
+<td>2012</td>
+<td>+15.4%</td>
+<td>2021</td>
+<td>+37.9%</td>
+</tr>
+<tr>
+<td>2004</td>
+<td>+9.5%</td>
+<td>2013</td>
+<td>+20.8%</td>
+<td>2022</td>
+<td>-20.8%</td>
+</tr>
+<tr>
+<td>2005</td>
+<td>+20.8%</td>
+<td>2014</td>
+<td>+1.0%</td>
+<td>2023</td>
+<td>+24.2%</td>
+</tr>
+<tr>
+<td>2006</td>
+<td>+4.7%</td>
+<td>2015</td>
+<td>+11.0%</td>
+<td>2024</td>
+<td>+28.4%</td>
+</tr>
+<tr>
+<td>2007</td>
+<td>+27.5%</td>
+<td>2016</td>
+<td>+17.3%</td>
+<td>2025</td>
+<td>+10.4%</td>
+</tr>
+<tr>
+<td>2008</td>
+<td>-8.1%</td>
+<td>2017</td>
+<td>+20.8%</td>
+<td>2026*</td>
+<td>+3.0%</td>
+</tr>
+</tbody>
+</table>
+<p>*2026 parcial (hasta Feb 20)</p>
+<hr />
+<h2>3. ARQUITECTURA MULTI-ESTRATEGIA</h2>
+<h3>3.0 Vision General</h3>
+<div class="codehilite"><pre><span></span><code>                        HYDRA Capital Manager
+                    ┌───────────┴───────────┐
+                    │                       │
+              Base: 50%                Base: 50%
+                    │                       │
+            ┌───────┴───────┐         ┌─────┴─────┐
+            │   COMPASS     │         │ RATTLESNAKE│
+            │  (Momentum)   │         │(Mean-Rev)  │
+            │  5 posiciones │         │ 5 posiciones│
+            └───────┬───────┘         └─────┬─────┘
+                    │                       │
+                    │    Cash Recycling      │
+                    │◄──── idle cash ────────│
+                    │     (cap 75%)          │
+                    │                       │
+                    │              Remaining idle
+                    │                   │
+                    │              ┌────┴────┐
+                    │              │   EFA   │
+                    │              │(Intl Eq)│
+                    │              └─────────┘
+                    │
+            ┌───────┴───────────────────────┐
+            │      MACRO OVERLAYS (v3)      │
+            │  BSO · M2 · FOMC · FedEmerg   │
+            │  CreditFilter · CashOptim     │
+            │  capital_scalar ∈ [0.25, 1.0] │
+            └───────────────────────────────┘
+</code></pre></div>
+
+<h3>3.1 COMPASS — Momentum Cross-Seccional (Cabeza Principal)</h3>
+<h4>Universo de Inversion</h4>
+<p><strong>Pool amplio</strong>: ~113 acciones del S&amp;P 500 distribuidas en 9 sectores (Technology, Financials, Healthcare, Consumer, Energy, Industrials, Utilities, Real Estate, Telecom).</p>
+<p><strong>Rotacion anual</strong>: Cada 1 de enero, las acciones se rankean por volumen promedio diario en dolares (Close × Volume) del ano anterior. Solo las <strong>top 40</strong> son elegibles. Esto evita sesgo de supervivencia: no se invierte en acciones que solo sabemos que son grandes "hoy".</p>
+<p><strong>Filtro de antiguedad</strong>: Minimo 63 dias de historia (3 meses) para ser elegible. Evita IPOs recientes.</p>
+<p><strong>Quality filter</strong> (v8.4): Volatilidad anualizada &lt; 60% (63d lookback). Movimiento maximo en un dia &lt; 50%. Elimina acciones con comportamiento erratico.</p>
+<h4>El Score COMPASS</h4>
+<p>La pieza central del algoritmo. Para cada accion elegible, diariamente:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">momentum_90d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Precio</span><span class="o">[</span><span class="n">t-5</span><span class="o">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">Precio</span><span class="o">[</span><span class="n">t-90</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span>
+<span class="n">reversal_5d</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">Precio</span><span class="o">[</span><span class="n">t</span><span class="o">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">Precio</span><span class="o">[</span><span class="n">t-5</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span>
+
+<span class="n">SCORE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">momentum_90d</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">reversal_5d</span>
+</code></pre></div>
+
+<p>Se seleccionan las acciones con <strong>mayor score</strong> (top N disponibles).</p>
+<p><strong>Interpretacion de un score alto</strong>:
+- <strong>momentum_90d alto</strong>: Ganador de mediano plazo (3 meses, excluyendo la ultima semana).
+- <strong>reversal_5d bajo/negativo</strong>: Pullback reciente — la accion "respiro" dentro de la tendencia.
+- <strong>Combinacion</strong>: Ganador con pullback = oportunidad de compra en la tendencia.</p>
+<p><strong>Base academica</strong>:
+- Jegadeesh &amp; Titman (1993): Momentum cross-seccional funciona en horizontes de 3-12 meses.
+- Lo &amp; MacKinlay (1990): Retornos de corto plazo (1-5 dias) muestran reversion a la media.
+- Novy-Marx (2012): El momentum intermedio (7-12 meses) es mas robusto que el reciente.
+- El "skip" de los ultimos 5 dias elimina el efecto de micro-reversion que cancela el momentum — hallazgo robusto en la literatura (Asness, Moskowitz, Pedersen 2013).</p>
+<h4>Filtro de Regimen: Score Continuo (v8.4)</h4>
+<p>A diferencia de v8.0 (binario RISK_ON/RISK_OFF), v8.4 usa un <strong>score continuo</strong> [0.0, 1.0]:</p>
+<p><strong>Funcion</strong>: <code>compute_live_regime_score(spy_hist) → float</code></p>
+<p><strong>Componentes (ponderacion 60/40)</strong>:</p>
+<ol>
+<li><strong>Trend Score (60%)</strong> — Promedio de 3 funciones sigmoide:</li>
+<li><code>sig_200</code>: Distancia a SMA(200), sigmoid k=15.0</li>
+<li><code>sig_cross</code>: Cruce SMA(50)/SMA(200), sigmoid k=30.0</li>
+<li>
+<p><code>sig_mom</code>: Momentum 20 dias, sigmoid k=15.0</p>
+</li>
+<li>
+<p><strong>Vol Score (40%)</strong> — Percentil invertido:</p>
+</li>
+<li>Volatilidad realizada (10d) vs distribucion historica (252d rolling)</li>
+<li>Alta vol = score bajo</li>
+</ol>
+<p><strong>Mapeo a posiciones</strong> (gradual, no binario):</p>
+<table>
+<thead>
+<tr>
+<th>Regime Score</th>
+<th>Max Posiciones</th>
+<th>Interpretacion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&gt;= 0.65</td>
+<td>5</td>
+<td>Mercado fuerte</td>
+</tr>
+<tr>
+<td>&gt;= 0.50</td>
+<td>4</td>
+<td>Mercado mixto</td>
+</tr>
+<tr>
+<td>&gt;= 0.35</td>
+<td>3</td>
+<td>Mercado debil</td>
+</tr>
+<tr>
+<td>&lt; 0.35</td>
+<td>2</td>
+<td>Bear market</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Bull Override</strong> (v8.4): Cuando SPY &gt; SMA(200) × 1.03 AND regime_score &gt; 0.40 → +1 posicion adicional (cap en max). Captura mercados claramente alcistas que el score continuo puede subestimar.</p>
+<p><strong>Base academica</strong>: El uso de funciones sigmoide para regime detection sigue el enfoque de Hamilton (1989) — regime switching models — pero con la ventaja de evitar clasificacion binaria. Ang &amp; Bekaert (2002) demostraron que los modelos de regimen continuo superan a los discretos en gestion de portafolios.</p>
+<h4>Concentracion Sectorial (v8.4)</h4>
+<p><strong>MAX_PER_SECTOR = 3</strong>: Ningun sector puede tener mas de 3 posiciones simultaneas. Fuerza diversificacion incluso cuando el momentum favorece un solo sector.</p>
+<p><strong>Base academica</strong>: Moskowitz &amp; Grinblatt (1999) demostraron que parte del momentum individual es atribuible a momentum sectorial. Limitar concentracion reduce exposicion a reversiones sectoriales.</p>
+<h4>Position Sizing: Inverse Volatility</h4>
+<div class="codehilite"><pre><span></span><code>vol_20d(stock) = std(retornos_diarios, 20d) × sqrt(252)
+peso_raw(stock) = 1 / vol_20d(stock)
+peso(stock) = peso_raw / sum(todos_pesos_raw)
+tamano_posicion = peso × capital_efectivo
+</code></pre></div>
+
+<ul>
+<li>Acciones estables (JNJ, PG, KO) → mas capital</li>
+<li>Acciones volatiles (TSLA, NVDA, AMD) → menos capital</li>
+<li><strong>Limite</strong>: Ninguna posicion &gt; 40% del cash disponible</li>
+</ul>
+<p><strong>Base academica</strong>: Risk parity (Maillard, Roncalli, Teiletche 2010) demuestra que igualar contribucion de riesgo mejora Sharpe. Inverse vol es la implementacion mas simple de este principio.</p>
+<h4>Reglas de Salida</h4>
+<h5>Adaptive Stops (v8.4 — vol-scaled, no binarios)</h5>
+<div class="codehilite"><pre><span></span><code>raw_stop = -2.5 × entry_daily_vol
+adaptive_stop = clamp(raw_stop, floor=-0.06, ceiling=-0.15)
+</code></pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Volatilidad diaria</th>
+<th>Stop resultante</th>
+<th>Tipo de accion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.0%</td>
+<td>-6.0% (floor)</td>
+<td>Blue chips (JNJ, PG)</td>
+</tr>
+<tr>
+<td>2.5%</td>
+<td>-6.25%</td>
+<td>Large caps estables</td>
+</tr>
+<tr>
+<td>3.5%</td>
+<td>-8.75%</td>
+<td>Growth moderado</td>
+</tr>
+<tr>
+<td>4.5%</td>
+<td>-11.25%</td>
+<td>High beta</td>
+</tr>
+<tr>
+<td>6.0%+</td>
+<td>-15.0% (ceiling)</td>
+<td>Acciones muy volatiles</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Base academica</strong>: Los stops fijos penalizan acciones volatiles (se activan demasiado rapido) y dejan correr perdidas en acciones estables. Los stops adaptativos por volatilidad (Acar &amp; Satchell, 2002) ajustan el umbral al comportamiento natural de cada accion.</p>
+<h5>Trailing Stop (vol-scaled)</h5>
+<ul>
+<li><strong>Activacion</strong>: Ganancia &gt;= +5% desde entrada</li>
+<li><strong>Stop</strong>: high_price × (1 - 0.03 × entry_vol/0.25)</li>
+<li>Escala con la volatilidad de entrada</li>
+</ul>
+<h5>Hold Time &amp; Exit Renewal (v8.4)</h5>
+<table>
+<thead>
+<tr>
+<th>Mecanismo</th>
+<th>Condicion</th>
+<th>Proposito</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hold minimo</strong></td>
+<td>&gt;= 5 dias</td>
+<td>Capturar momentum de corto plazo</td>
+</tr>
+<tr>
+<td><strong>Hold maximo</strong></td>
+<td>10 dias (hard cap)</td>
+<td>Prevenir stale positions</td>
+</tr>
+<tr>
+<td><strong>Renewal</strong></td>
+<td>profit &gt;= +4% AND momentum pctl &gt;= 85th</td>
+<td>Extender ganadores en tendencia</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Renewal logic</strong>: Si al cumplir 5 dias la posicion tiene +4% y su momentum esta en el percentil 85+, el hold se renueva (hasta el cap de 10 dias). Esto evita cerrar ganadores prematuramente.</p>
+<hr />
+<h3>3.2 RATTLESNAKE — Mean-Reversion Tactica (Cabeza 2)</h3>
+<p>Estrategia de dip-buying en el S&amp;P 100 (OEX) que opera en el extremo opuesto a COMPASS: compra acciones en panico y vende en recuperacion.</p>
+<h4>Condiciones de Entrada (TODAS deben cumplirse)</h4>
+<ol>
+<li><strong>Caida &gt;= 8% en 5 dias</strong> — La accion sufrio un golpe significativo</li>
+<li><strong>RSI(5) &lt; 25</strong> — Tecnicamante oversold</li>
+<li><strong>Precio &gt; SMA(200)</strong> — Tendencia de largo plazo intacta (no atrapar cuchillos cayendo)</li>
+<li><strong>Volumen promedio &gt;= 500k shares</strong> — Liquidez suficiente</li>
+<li><strong>No held por COMPASS</strong> — Evitar superposicion</li>
+</ol>
+<h4>Condiciones de Salida</h4>
+<table>
+<thead>
+<tr>
+<th>Mecanismo</th>
+<th>Umbral</th>
+<th>Tiempo tipico</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Profit target</strong></td>
+<td>+4%</td>
+<td>2-3 dias</td>
+</tr>
+<tr>
+<td><strong>Stop loss</strong></td>
+<td>-5%</td>
+<td>Inmediato</td>
+</tr>
+<tr>
+<td><strong>Time exit</strong></td>
+<td>8 dias</td>
+<td>Fallback</td>
+</tr>
+</tbody>
+</table>
+<h4>Dimensionamiento</h4>
+<ul>
+<li>Tamano por posicion: 20% del account Rattlesnake</li>
+<li>Max posiciones: 5 (RISK_ON) / 2 (RISK_OFF)</li>
+<li>Filtro de regimen: SPY &gt; SMA(200) AND VIX &lt;= 35</li>
+</ul>
+<h4>Base Academica</h4>
+<ul>
+<li>De Bondt &amp; Thaler (1985): Overreaction hypothesis — acciones que caen excesivamente tienden a revertir.</li>
+<li>Jegadeesh (1990): Retornos de corto plazo muestran mean-reversion, especialmente en caidas extremas.</li>
+<li>Cooper (1999): La reversion funciona mejor en acciones con fundamentales intactos (proxy: precio &gt; SMA200).</li>
+</ul>
+<h4>Sinergia con COMPASS</h4>
+<p>COMPASS compra ganadores. Rattlesnake compra perdedores temporales. En un mercado normal, COMPASS genera retornos. En ventas de panico (VIX spikes), Rattlesnake activa mientras COMPASS reduce exposicion. El capital fluye donde la oportunidad es mayor.</p>
+<hr />
+<h3>3.3 EFA — Exposicion Internacional (Cabeza 3)</h3>
+<p><strong>Instrumento</strong>: EFA (iShares MSCI EAFE ETF) — mercados desarrollados ex-US</p>
+<p><strong>Logica</strong>:
+- Cash idle en Rattlesnake (no reciclado a COMPASS) se invierte en EFA
+- <strong>Condicion de compra</strong>: EFA &gt; SMA(200) AND idle cash &gt;= $1,000
+- Posicion pasiva — no hay trading activo</p>
+<p><strong>Proposito</strong>: Diversificacion geografica. Cuando COMPASS y Rattlesnake no usan todo el capital, EFA genera exposicion a Europa y Asia-Pacifico sin correlation 1:1 con US equities.</p>
+<hr />
+<h3>3.4 Cash Recycling — Optimizacion de Capital</h3>
+<h4>Arquitectura de Capital</h4>
+<div class="codehilite"><pre><span></span><code>Capital Total = COMPASS Account + Rattlesnake Account
+Base Allocation: 50% / 50%
+</code></pre></div>
+
+<h4>Logica de Reciclaje Diario</h4>
+<ol>
+<li>Calcular R_idle = Rattlesnake_account × (1 - exposure)</li>
+<li>max_loan = (Total × 0.75) - COMPASS_account</li>
+<li>recycle = min(R_idle, max_loan)</li>
+<li>COMPASS usa el capital reciclado para mas posiciones</li>
+<li>EFA recibe el capital sobrante</li>
+</ol>
+<p><strong>Cap</strong>: COMPASS nunca supera 75% del capital total. Esto preserva reservas para Rattlesnake cuando se active.</p>
+<hr />
+<h2>4. SISTEMA DE OVERLAYS MACROECONOMICOS (v3)</h2>
+<p>Los overlays son un sistema de modulacion de exposicion basado en datos macroeconomicos de la Federal Reserve (FRED). Operan como <strong>multiplicadores del capital disponible</strong>, nunca como decisiones binarias.</p>
+<h3>4.1 Banking Stress Overlay (BSO)</h3>
+<p><strong>Indicadores compositos</strong> (ponderacion):
+- NFCI — Chicago Fed National Financial Conditions Index (40%)
+- STLFSI — St. Louis Fed Financial Stress Index (25%)
+- BAMLH0A0HYM2 — ICE BofA US High Yield OAS en bps (35%)</p>
+<p><strong>Escalado</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Indicador</th>
+<th>Nivel Normal (1.0)</th>
+<th>Alerta (transitorio)</th>
+<th>Estres (0.25)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NFCI</td>
+<td>&lt;= 0.5</td>
+<td>1.5 (0.60)</td>
+<td>&gt;= 3.0</td>
+</tr>
+<tr>
+<td>STLFSI</td>
+<td>&lt;= 1.0</td>
+<td>—</td>
+<td>&gt;= 3.0</td>
+</tr>
+<tr>
+<td>HY OAS</td>
+<td>&lt;= 700 bps</td>
+<td>1000 bps (0.60)</td>
+<td>&gt;= 1500 bps</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Base academica</strong>: Adrian &amp; Shin (2010) — las condiciones financieras predicen volatilidad futura mejor que la volatilidad historica. El HY spread es el predictor mas robusto de recesiones (Gilchrist &amp; Zakrajsek 2012).</p>
+<h3>4.2 M2 Momentum Indicator</h3>
+<p><strong>Signal</strong>: Cambio YoY de M2 (masa monetaria) vs 3 meses atras</p>
+<p><strong>Logica</strong>:
+- Si la tasa de crecimiento de M2 esta acelerandose → positivo para equities
+- Si se desacelera &gt; 1.5pp → reduce exposicion
+- Desaceleracion &gt; 3.0pp → scalar = 0.40</p>
+<p><strong>ZIRP Guard</strong>: Desactivado cuando Fed Funds Rate &lt; 1.0% (QE distorsiona la senal)</p>
+<p><strong>Base academica</strong>: Friedman &amp; Schwartz (1963) — cambios en masa monetaria preceden actividad economica. Revisitado por Belongia &amp; Ireland (2015) para el entorno post-QE.</p>
+<h3>4.3 FOMC Surprise Signal</h3>
+<p><strong>Deteccion</strong>: Movimiento de 3 dias en DFF (Fed Funds Effective Rate)</p>
+<table>
+<thead>
+<tr>
+<th>Movimiento</th>
+<th>Scalar</th>
+<th>Interpretacion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&gt; 50 bps</td>
+<td>0.50</td>
+<td>Shock monetario significativo</td>
+</tr>
+<tr>
+<td>&gt; 25 bps</td>
+<td>0.75</td>
+<td>Cambio moderado inesperado</td>
+</tr>
+<tr>
+<td>&lt;= 25 bps</td>
+<td>1.00</td>
+<td>Normal</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Decay</strong>: Lineal sobre 10 dias de trading (14 calendario)</p>
+<p><strong>Base academica</strong>: Bernanke &amp; Kuttner (2005) — los shocks de politica monetaria no anticipados tienen efectos significativos e inmediatos en precios de acciones.</p>
+<h3>4.4 Fed Emergency Signal</h3>
+<p><strong>Deteccion</strong>: Aumento de WALCL (activos totales de la Fed) &gt; 5% en 30 dias</p>
+<p><strong>Efecto</strong>: No reduce capital — impone <strong>floor de 2 posiciones minimas</strong> por 90 dias calendario</p>
+<p><strong>Logica</strong>: Cuando la Fed expande balance agresivamente, esta inyectando liquidez. Historicamente, esto precede rallies — no es momento de estar en cash. El floor previene salida total en panico.</p>
+<p><strong>Ejemplo historico</strong>: Marzo 2020 — la Fed duplico su balance en semanas. Este overlay habria mantenido exposicion minima durante el bottom.</p>
+<h3>4.5 Credit Sector Pre-Filter</h3>
+<p><strong>Logica basada en HY spread</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>HY OAS</th>
+<th>Accion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&gt; 1500 bps</td>
+<td>Excluir Financials + Energy del universo</td>
+</tr>
+<tr>
+<td>&gt; 1000 bps</td>
+<td>Excluir Financials del universo</td>
+</tr>
+<tr>
+<td>&lt;= 1000 bps</td>
+<td>Sin exclusiones</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Base academica</strong>: Los sectores Financials y Energy tienen la mayor correlacion con credit spreads (Collin-Dufresne, Goldstein, Martin 2001). En estres crediticio, estos sectores sufren desproporcionadamente.</p>
+<h3>4.6 Cash Optimization</h3>
+<p><strong>Fuente</strong>: DTB3 (3-month T-Bill rate)
+- Aplica tasa diaria (annual/252) al cash idle
+- No es un scalar — override de la tasa de interes en cash</p>
+<h3>4.7 Agregacion de Overlays</h3>
+<div class="codehilite"><pre><span></span><code>capital_scalar = BSO_scalar × M2_scalar × FOMC_scalar
+capital_scalar = clamp(capital_scalar, 0.25, 1.0)
+
+<span class="gh">#</span> OVERLAY_FLOOR = 0.25 — nunca reduce a menos de 25%
+<span class="gh">#</span> position_floor from FedEmergency (if active)
+<span class="gh">#</span> excluded_sectors from CreditFilter
+</code></pre></div>
+
+<p><strong>Damping</strong>: <code>overlay_damping = 0.25</code> — los overlays reducen exposicion gradualmente, no de golpe.</p>
+<p><strong>Diseno fail-safe</strong>: Si FRED no responde, overlays se desactivan silenciosamente (scalar = 1.0). El sistema nunca para por falta de datos macro.</p>
+<hr />
+<h2>5. GESTION DE RIESGO ADAPTATIVA</h2>
+<h3>5.1 Smooth Drawdown Leverage (v8.4 — no binario)</h3>
+<p>A diferencia de v8.0 (portfolio stop → protection mode → recovery stages), v8.4 usa escalado lineal continuo:</p>
+<div class="codehilite"><pre><span></span><code>Si DD &gt;= -10%: leverage = 1.0 (full)
+Si -20% &lt;= DD &lt; -10%: leverage = interpolacion lineal [1.0 → 0.60]
+Si -35% &lt;= DD &lt; -20%: leverage = interpolacion lineal [0.60 → 0.30]
+Si DD &lt; -35%: leverage = 0.30 (floor)
+</code></pre></div>
+
+<p><strong>Ventaja</strong>: No hay "cliff" binario que fuerce liquidacion total en -15%. La reduccion es gradual y proporcional al dolor.</p>
+<p><strong>Base academica</strong>: Grossman &amp; Zhou (1993) demostraron que la gestion optima de drawdown es una funcion continua de la distancia al peak, no un stop binario. El escalado lineal es la aproximacion mas practica.</p>
+<h3>5.2 Crash Brake (v8.4)</h3>
+<p>Mecanismo de emergencia separado del DD scaling — detecta <strong>velocidad</strong> de caida, no solo nivel:</p>
+<table>
+<thead>
+<tr>
+<th>Condicion</th>
+<th>Accion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S&amp;P 500 cae &gt;= 6% en 5 dias</td>
+<td>Leverage → 0.15, cooldown = 10 dias</td>
+</tr>
+<tr>
+<td>S&amp;P 500 cae &gt;= 10% en 10 dias</td>
+<td>Leverage → 0.15, cooldown = 10 dias</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cooldown</strong>: Durante 10 dias post-trigger, leverage permanece en minimo 0.15x independientemente de DD scaling.</p>
+<p><strong>Base academica</strong>: Los crash events tienen dinamica no-lineal (Johansen, Ledoit, Sornette 2000). La velocidad de caida es mejor predictor de crash continuation que el nivel absoluto de drawdown.</p>
+<h3>5.3 Volatility Targeting (desactivado en produccion)</h3>
+<div class="codehilite"><pre><span></span><code>leverage = TARGET_VOL / realized_vol(SPY, 20d)
+leverage = clamp(leverage, 0.5, LEVERAGE_MAX)
+</code></pre></div>
+
+<p><strong>LEVERAGE_MAX = 1.0 en produccion</strong>: El costo de margen (6% anual) destruye valor neto despues de friccion. El vol targeting actua como modulador de exposicion, no como amplificador.</p>
+<hr />
+<h2>6. DATOS MACROECONOMICOS (FRED)</h2>
+<p>Todas las series se descargan via FRED API y se forward-fill a frecuencia diaria:</p>
+<table>
+<thead>
+<tr>
+<th>FRED ID</th>
+<th>Serie</th>
+<th>Uso</th>
+<th>Frecuencia</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NFCI</td>
+<td>Chicago Fed Financial Conditions</td>
+<td>BSO (40%)</td>
+<td>Semanal</td>
+</tr>
+<tr>
+<td>STLFSI4</td>
+<td>St. Louis Fed Financial Stress</td>
+<td>BSO (25%)</td>
+<td>Semanal</td>
+</tr>
+<tr>
+<td>BAMLH0A0HYM2</td>
+<td>ICE BofA US HY OAS</td>
+<td>BSO (35%) + CreditFilter</td>
+<td>Diaria</td>
+</tr>
+<tr>
+<td>M2SL</td>
+<td>M2 Money Stock (SA)</td>
+<td>M2 Momentum</td>
+<td>Mensual</td>
+</tr>
+<tr>
+<td>FEDFUNDS</td>
+<td>Fed Funds Rate</td>
+<td>ZIRP guard</td>
+<td>Mensual</td>
+</tr>
+<tr>
+<td>DFF</td>
+<td>Fed Funds Effective Rate</td>
+<td>FOMC Surprise</td>
+<td>Diaria</td>
+</tr>
+<tr>
+<td>WALCL</td>
+<td>Fed Total Assets</td>
+<td>Fed Emergency</td>
+<td>Semanal</td>
+</tr>
+<tr>
+<td>DTB3</td>
+<td>3-Month T-Bill Rate</td>
+<td>Cash Optimization</td>
+<td>Diaria</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>7. PARAMETROS COMPLETOS (v8.4)</h2>
+<div class="codehilite"><pre><span></span><code><span class="n">UNIVERSO</span>
+<span class="w">  </span><span class="n">broad_pool</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="o">~</span><span class="mi">113</span><span class="w"> </span><span class="n">stocks</span><span class="w"> </span><span class="p">(</span><span class="n">S</span><span class="o">&amp;</span><span class="n">P</span><span class="w"> </span><span class="mi">500</span><span class="w"> </span><span class="n">multi</span><span class="o">-</span><span class="n">sector</span><span class="p">)</span>
+<span class="w">  </span><span class="n">top_n</span><span class="w">                   </span><span class="o">=</span><span class="w"> </span><span class="mi">40</span><span class="w"> </span><span class="p">(</span><span class="n">rotacion</span><span class="w"> </span><span class="n">anual</span><span class="w"> </span><span class="n">por</span><span class="w"> </span><span class="n">dollar</span><span class="w"> </span><span class="n">volume</span><span class="p">)</span>
+<span class="w">  </span><span class="n">min_age_days</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="mi">63</span>
+<span class="w">  </span><span class="n">quality_vol_max</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="mf">0.60</span><span class="w"> </span><span class="p">(</span><span class="nb">max</span><span class="w"> </span><span class="n">vol</span><span class="w"> </span><span class="n">anualizada</span><span class="p">)</span>
+<span class="w">  </span><span class="n">quality_max_single_day</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mf">0.50</span><span class="w"> </span><span class="p">(</span><span class="nb">max</span><span class="w"> </span><span class="n">movimiento</span><span class="w"> </span><span class="n">en</span><span class="w"> </span><span class="n">un</span><span class="w"> </span><span class="n">dia</span><span class="p">)</span>
+
+<span class="n">SIGNAL</span><span class="w"> </span><span class="p">(</span><span class="n">COMPASS</span><span class="p">)</span>
+<span class="w">  </span><span class="n">momentum_lookback</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">90</span><span class="w"> </span><span class="n">dias</span>
+<span class="w">  </span><span class="n">momentum_skip</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="n">dias</span>
+<span class="w">  </span><span class="n">min_momentum_stocks</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="p">(</span><span class="n">minimo</span><span class="w"> </span><span class="n">para</span><span class="w"> </span><span class="n">rankear</span><span class="p">)</span>
+
+<span class="n">REGIMEN</span><span class="w"> </span><span class="p">(</span><span class="n">continuo</span><span class="p">)</span>
+<span class="w">  </span><span class="n">sig_200</span><span class="w"> </span><span class="n">k</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="mf">15.0</span><span class="w"> </span><span class="p">(</span><span class="n">sigmoid</span><span class="w"> </span><span class="n">SMA200</span><span class="p">)</span>
+<span class="w">  </span><span class="n">sig_cross</span><span class="w"> </span><span class="n">k</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="mf">30.0</span><span class="w"> </span><span class="p">(</span><span class="n">sigmoid</span><span class="w"> </span><span class="n">SMA50</span><span class="o">/</span><span class="mi">200</span><span class="p">)</span>
+<span class="w">  </span><span class="n">sig_mom</span><span class="w"> </span><span class="n">k</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="mf">15.0</span><span class="w"> </span><span class="p">(</span><span class="n">sigmoid</span><span class="w"> </span><span class="mi">20</span><span class="n">d</span><span class="w"> </span><span class="n">momentum</span><span class="p">)</span>
+<span class="w">  </span><span class="n">trend_weight</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="mf">0.60</span>
+<span class="w">  </span><span class="n">vol_weight</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="mf">0.40</span>
+
+<span class="n">POSICIONES</span><span class="w"> </span><span class="p">(</span><span class="n">COMPASS</span><span class="p">)</span>
+<span class="w">  </span><span class="n">num_positions</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="p">(</span><span class="n">risk</span><span class="o">-</span><span class="n">on</span><span class="p">,</span><span class="w"> </span><span class="n">score</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">0.65</span><span class="p">)</span>
+<span class="w">  </span><span class="n">num_positions_risk_off</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">(</span><span class="n">score</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">0.35</span><span class="p">)</span>
+<span class="w">  </span><span class="n">max_per_sector</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+<span class="w">  </span><span class="n">hold_days</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span>
+<span class="w">  </span><span class="n">hold_days_max</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="p">(</span><span class="n">hard</span><span class="w"> </span><span class="n">cap</span><span class="p">)</span>
+<span class="w">  </span><span class="n">bull_override_threshold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.03</span><span class="w"> </span><span class="p">(</span><span class="n">SPY</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">SMA200</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="mf">1.03</span><span class="p">)</span>
+<span class="w">  </span><span class="n">bull_override_min_score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.40</span>
+
+<span class="n">ADAPTIVE</span><span class="w"> </span><span class="n">STOPS</span>
+<span class="w">  </span><span class="n">stop_daily_vol_mult</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="mf">2.5</span>
+<span class="w">  </span><span class="n">stop_floor</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">6</span><span class="o">%</span>
+<span class="w">  </span><span class="n">stop_ceiling</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">15</span><span class="o">%</span>
+<span class="w">  </span><span class="n">position_stop_loss</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">8</span><span class="o">%</span><span class="w"> </span><span class="p">(</span><span class="n">fallback</span><span class="p">)</span>
+<span class="w">  </span><span class="n">trailing_activation</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="o">+</span><span class="mi">5</span><span class="o">%</span>
+<span class="w">  </span><span class="n">trailing_stop_pct</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="o">%</span><span class="w"> </span><span class="p">(</span><span class="n">vol</span><span class="o">-</span><span class="n">scaled</span><span class="p">)</span>
+<span class="w">  </span><span class="n">trailing_vol_baseline</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="mf">0.25</span>
+
+<span class="n">EXIT</span><span class="w"> </span><span class="n">RENEWAL</span>
+<span class="w">  </span><span class="n">renewal_profit_min</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="o">+</span><span class="mi">4</span><span class="o">%</span>
+<span class="w">  </span><span class="n">momentum_renewal_thresh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">85</span><span class="n">th</span><span class="w"> </span><span class="n">percentile</span>
+
+<span class="n">DRAWDOWN</span><span class="w"> </span><span class="n">SCALING</span><span class="w"> </span><span class="p">(</span><span class="n">smooth</span><span class="p">)</span>
+<span class="w">  </span><span class="n">dd_scale_tier1</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">10</span><span class="o">%</span><span class="w"> </span><span class="p">(</span><span class="n">start</span><span class="w"> </span><span class="n">reducing</span><span class="p">)</span>
+<span class="w">  </span><span class="n">dd_scale_tier2</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">20</span><span class="o">%</span><span class="w"> </span><span class="p">(</span><span class="n">mid</span><span class="w"> </span><span class="n">reduction</span><span class="p">)</span>
+<span class="w">  </span><span class="n">dd_scale_tier3</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">35</span><span class="o">%</span><span class="w"> </span><span class="p">(</span><span class="nb">floor</span><span class="p">)</span>
+<span class="w">  </span><span class="n">lev_full</span><span class="w">                </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span>
+<span class="w">  </span><span class="n">lev_mid</span><span class="w">                 </span><span class="o">=</span><span class="w"> </span><span class="mf">0.60</span>
+<span class="w">  </span><span class="n">lev_floor</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="mf">0.30</span>
+
+<span class="n">CRASH</span><span class="w"> </span><span class="n">BRAKE</span>
+<span class="w">  </span><span class="n">crash_vel_5d</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">6</span><span class="o">%</span>
+<span class="w">  </span><span class="n">crash_vel_10d</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">10</span><span class="o">%</span>
+<span class="w">  </span><span class="n">crash_leverage</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="mf">0.15</span>
+<span class="w">  </span><span class="n">crash_cooldown</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="n">dias</span>
+
+<span class="n">RATTLESNAKE</span>
+<span class="w">  </span><span class="n">drop_threshold_5d</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">8</span><span class="o">%</span>
+<span class="w">  </span><span class="n">rsi_period</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span>
+<span class="w">  </span><span class="n">rsi_threshold</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="mi">25</span>
+<span class="w">  </span><span class="n">sma_filter</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="mi">200</span><span class="w"> </span><span class="n">dias</span>
+<span class="w">  </span><span class="n">min_volume</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span><span class="mi">000</span><span class="w"> </span><span class="n">shares</span>
+<span class="w">  </span><span class="n">position_size</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="o">%</span><span class="w"> </span><span class="n">de</span><span class="w"> </span><span class="n">R_account</span>
+<span class="w">  </span><span class="n">max_positions</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">(</span><span class="n">risk</span><span class="o">-</span><span class="n">on</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">risk</span><span class="o">-</span><span class="n">off</span><span class="p">)</span>
+<span class="w">  </span><span class="n">profit_target</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="o">+</span><span class="mi">4</span><span class="o">%</span>
+<span class="w">  </span><span class="n">stop_loss</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="o">-</span><span class="mi">5</span><span class="o">%</span>
+<span class="w">  </span><span class="n">time_exit</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="n">dias</span>
+<span class="w">  </span><span class="n">vix_max</span><span class="w">                 </span><span class="o">=</span><span class="w"> </span><span class="mi">35</span>
+
+<span class="n">CAPITAL</span><span class="w"> </span><span class="n">MANAGEMENT</span>
+<span class="w">  </span><span class="n">base_compass_alloc</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="o">%</span>
+<span class="w">  </span><span class="n">base_rattle_alloc</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="o">%</span>
+<span class="w">  </span><span class="n">max_compass_alloc</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="mi">75</span><span class="o">%</span><span class="w"> </span><span class="p">(</span><span class="n">cap</span><span class="w"> </span><span class="n">con</span><span class="w"> </span><span class="n">recycling</span><span class="p">)</span>
+
+<span class="n">OVERLAYS</span>
+<span class="w">  </span><span class="n">overlay_damping</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="mf">0.25</span>
+<span class="w">  </span><span class="n">overlay_floor</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="mf">0.25</span>
+
+<span class="n">COSTOS</span>
+<span class="w">  </span><span class="n">initial_capital</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="mi">100</span><span class="p">,</span><span class="mi">000</span>
+<span class="w">  </span><span class="n">margin_rate</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="o">%</span><span class="w"> </span><span class="n">anual</span>
+<span class="w">  </span><span class="n">commission</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="o">$</span><span class="mf">0.001</span><span class="o">/</span><span class="n">accion</span>
+<span class="w">  </span><span class="n">leverage_max</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="p">(</span><span class="nb">sin</span><span class="w"> </span><span class="n">apalancamiento</span><span class="p">)</span>
+
+<span class="n">EJECUCION</span>
+<span class="w">  </span><span class="n">preclose_signal_time</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="p">:</span><span class="mi">30</span><span class="w"> </span><span class="n">ET</span>
+<span class="w">  </span><span class="n">moc_deadline</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="p">:</span><span class="mi">50</span><span class="w"> </span><span class="n">ET</span>
+<span class="w">  </span><span class="n">market_open</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="mi">09</span><span class="p">:</span><span class="mi">30</span><span class="w"> </span><span class="n">ET</span>
+<span class="w">  </span><span class="n">market_close</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="p">:</span><span class="mi">00</span><span class="w"> </span><span class="n">ET</span>
+</code></pre></div>
+
+<hr />
+<h2>8. FLUJO DIARIO DE OPERACION</h2>
+<div class="codehilite"><pre><span></span><code><span class="n">CADA</span><span class="w"> </span><span class="n">DIA</span><span class="w"> </span><span class="n">DE</span><span class="w"> </span><span class="n">TRADING</span><span class="w"> </span><span class="p">(</span><span class="mh">09</span><span class="o">:</span><span class="mh">30</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mh">16</span><span class="o">:</span><span class="mh">00</span><span class="w"> </span><span class="n">ET</span><span class="p">)</span><span class="o">:</span>
+
+<span class="w">  </span><span class="mf">1.</span><span class="w"> </span><span class="n">DATOS</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Fetch</span><span class="w"> </span><span class="n">precios</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">Yahoo</span><span class="w"> </span><span class="n">Finance</span><span class="w"> </span><span class="n">v8</span><span class="w"> </span><span class="n">API</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Fetch</span><span class="w"> </span><span class="n">datos</span><span class="w"> </span><span class="n">FRED</span><span class="w"> </span><span class="p">(</span><span class="n">si</span><span class="w"> </span><span class="n">stale</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mh">24</span><span class="n">h</span><span class="p">)</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Actualizar</span><span class="w"> </span><span class="n">VIX</span><span class="p">,</span><span class="w"> </span><span class="o">^</span><span class="n">GSPC</span><span class="p">,</span><span class="w"> </span><span class="n">EFA</span>
+
+<span class="w">  </span><span class="mf">2.</span><span class="w"> </span><span class="n">OVERLAYS</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Calcular</span><span class="w"> </span><span class="n">BSO</span><span class="w"> </span><span class="n">composite</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Calcular</span><span class="w"> </span><span class="n">M2</span><span class="w"> </span><span class="n">momentum</span><span class="w"> </span><span class="n">scalar</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Calcular</span><span class="w"> </span><span class="n">FOMC</span><span class="w"> </span><span class="n">surprise</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="p">(</span><span class="n">con</span><span class="w"> </span><span class="n">decay</span><span class="p">)</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Verificar</span><span class="w"> </span><span class="n">Fed</span><span class="w"> </span><span class="n">Emergency</span><span class="w"> </span><span class="p">(</span><span class="n">WALCL</span><span class="w"> </span><span class="n">jump</span><span class="p">)</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Verificar</span><span class="w"> </span><span class="n">Credit</span><span class="w"> </span><span class="n">filter</span><span class="w"> </span><span class="p">(</span><span class="n">HY</span><span class="w"> </span><span class="n">OAS</span><span class="p">)</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="nl">Agregar:</span><span class="w"> </span><span class="n">capital_scalar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BSO</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="n">M2</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="n">FOMC</span><span class="w"> </span><span class="p">(</span><span class="n">clamp</span><span class="w"> </span><span class="mf">0.25</span><span class="o">-</span><span class="mf">1.0</span><span class="p">)</span>
+
+<span class="w">  </span><span class="mf">3.</span><span class="w"> </span><span class="n">REGIMEN</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Calcular</span><span class="w"> </span><span class="n">regime_score</span><span class="w"> </span><span class="n">continuo</span><span class="w"> </span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">]</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Determinar</span><span class="w"> </span><span class="n">max_positions</span><span class="w"> </span><span class="n">segun</span><span class="w"> </span><span class="n">thresholds</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Verificar</span><span class="w"> </span><span class="n">bull</span><span class="w"> </span><span class="n">override</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="mh">1</span><span class="w"> </span><span class="n">pos</span><span class="w"> </span><span class="n">si</span><span class="w"> </span><span class="n">aplica</span><span class="p">)</span>
+
+<span class="w">  </span><span class="mf">4.</span><span class="w"> </span><span class="n">DRAWDOWN</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">CRASH</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Calcular</span><span class="w"> </span><span class="n">drawdown</span><span class="w"> </span><span class="n">actual</span><span class="w"> </span><span class="n">vs</span><span class="w"> </span><span class="n">peak</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">dd_leverage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">interpolacion</span><span class="w"> </span><span class="n">segun</span><span class="w"> </span><span class="n">DD</span><span class="w"> </span><span class="n">tiers</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Verificar</span><span class="w"> </span><span class="n">crash</span><span class="w"> </span><span class="n">velocity</span><span class="w"> </span><span class="p">(</span><span class="mh">5</span><span class="n">d</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="mh">10</span><span class="n">d</span><span class="p">)</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Si</span><span class="w"> </span><span class="n">crash</span><span class="w"> </span><span class="nl">triggered:</span><span class="w"> </span><span class="n">leverage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.15</span><span class="p">,</span><span class="w"> </span><span class="n">cooldown</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">10</span><span class="n">d</span>
+
+<span class="w">  </span><span class="mf">5.</span><span class="w"> </span><span class="n">CERRAR</span><span class="w"> </span><span class="n">POSICIONES</span><span class="w"> </span><span class="p">(</span><span class="n">COMPASS</span><span class="p">)</span>
+<span class="w">     </span><span class="n">a</span><span class="p">.</span><span class="w"> </span><span class="n">Hold</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">hold_days</span><span class="w"> </span><span class="p">(</span><span class="n">considerar</span><span class="w"> </span><span class="n">renewal</span><span class="w"> </span><span class="n">si</span><span class="w"> </span><span class="n">profit</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mh">4</span><span class="o">%</span><span class="p">)</span>
+<span class="w">     </span><span class="n">b</span><span class="p">.</span><span class="w"> </span><span class="n">Adaptive</span><span class="w"> </span><span class="n">stop</span><span class="w"> </span><span class="n">triggered</span><span class="w"> </span><span class="p">(</span><span class="n">vol</span><span class="o">-</span><span class="n">scaled</span><span class="p">)</span>
+<span class="w">     </span><span class="n">c</span><span class="p">.</span><span class="w"> </span><span class="n">Trailing</span><span class="w"> </span><span class="n">stop</span><span class="w"> </span><span class="n">triggered</span><span class="w"> </span><span class="p">(</span><span class="n">vol</span><span class="o">-</span><span class="n">scaled</span><span class="p">)</span>
+<span class="w">     </span><span class="n">d</span><span class="p">.</span><span class="w"> </span><span class="n">Fuera</span><span class="w"> </span><span class="n">del</span><span class="w"> </span><span class="n">top</span><span class="o">-</span><span class="mh">40</span><span class="w"> </span><span class="n">anual</span>
+<span class="w">     </span><span class="n">e</span><span class="p">.</span><span class="w"> </span><span class="n">Exceso</span><span class="w"> </span><span class="n">por</span><span class="w"> </span><span class="n">cambio</span><span class="w"> </span><span class="n">de</span><span class="w"> </span><span class="n">regimen</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">cerrar</span><span class="w"> </span><span class="n">peores</span>
+<span class="w">     </span><span class="n">f</span><span class="p">.</span><span class="w"> </span><span class="n">Exceso</span><span class="w"> </span><span class="n">por</span><span class="w"> </span><span class="n">sector</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">cerrar</span><span class="w"> </span><span class="n">ultimas</span><span class="w"> </span><span class="n">del</span><span class="w"> </span><span class="n">sector</span>
+
+<span class="w">  </span><span class="mf">6.</span><span class="w"> </span><span class="n">ABRIR</span><span class="w"> </span><span class="n">POSICIONES</span><span class="w"> </span><span class="p">(</span><span class="n">COMPASS</span><span class="p">)</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="mh">15</span><span class="o">:</span><span class="mh">30</span><span class="w"> </span><span class="n">ET</span>
+<span class="w">     </span><span class="n">a</span><span class="p">.</span><span class="w"> </span><span class="n">Calcular</span><span class="w"> </span><span class="n">SCORE</span><span class="w"> </span><span class="n">para</span><span class="w"> </span><span class="n">elegibles</span><span class="w"> </span><span class="p">(</span><span class="n">no</span><span class="w"> </span><span class="n">en</span><span class="w"> </span><span class="n">portfolio</span><span class="p">,</span><span class="w"> </span><span class="n">quality</span><span class="w"> </span><span class="n">filter</span><span class="w"> </span><span class="n">OK</span><span class="p">)</span>
+<span class="w">     </span><span class="n">b</span><span class="p">.</span><span class="w"> </span><span class="n">Aplicar</span><span class="w"> </span><span class="n">sector</span><span class="w"> </span><span class="n">filter</span><span class="w"> </span><span class="p">(</span><span class="n">max</span><span class="w"> </span><span class="mh">3</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">sector</span><span class="p">)</span>
+<span class="w">     </span><span class="n">c</span><span class="p">.</span><span class="w"> </span><span class="n">Aplicar</span><span class="w"> </span><span class="n">credit</span><span class="w"> </span><span class="n">filter</span><span class="w"> </span><span class="p">(</span><span class="n">excluir</span><span class="w"> </span><span class="n">sectores</span><span class="w"> </span><span class="n">si</span><span class="w"> </span><span class="n">HY</span><span class="w"> </span><span class="n">alto</span><span class="p">)</span>
+<span class="w">     </span><span class="n">d</span><span class="p">.</span><span class="w"> </span><span class="n">Rankear</span><span class="w"> </span><span class="n">por</span><span class="w"> </span><span class="n">score</span><span class="w"> </span><span class="n">descendente</span>
+<span class="w">     </span><span class="n">e</span><span class="p">.</span><span class="w"> </span><span class="n">Pesos</span><span class="w"> </span><span class="n">por</span><span class="w"> </span><span class="n">inverse</span><span class="w"> </span><span class="n">volatility</span>
+<span class="w">     </span><span class="n">f</span><span class="p">.</span><span class="w"> </span><span class="n">Capital</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">base</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="n">capital_scalar</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="n">dd_leverage</span>
+<span class="w">     </span><span class="n">g</span><span class="p">.</span><span class="w"> </span><span class="n">Ejecutar</span><span class="w"> </span><span class="n">MOC</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="n">antes</span><span class="w"> </span><span class="n">de</span><span class="w"> </span><span class="mh">15</span><span class="o">:</span><span class="mh">50</span><span class="w"> </span><span class="n">ET</span>
+
+<span class="w">  </span><span class="mf">7.</span><span class="w"> </span><span class="n">RATTLESNAKE</span>
+<span class="w">     </span><span class="n">a</span><span class="p">.</span><span class="w"> </span><span class="n">Verificar</span><span class="w"> </span><span class="n">regime</span><span class="w"> </span><span class="p">(</span><span class="n">SPY</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">SMA200</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="n">VIX</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mh">35</span><span class="p">)</span>
+<span class="w">     </span><span class="n">b</span><span class="p">.</span><span class="w"> </span><span class="n">Scan</span><span class="w"> </span><span class="n">S</span><span class="o">&amp;</span><span class="n">P</span><span class="w"> </span><span class="mh">100</span><span class="o">:</span><span class="w"> </span><span class="n">buscar</span><span class="w"> </span><span class="n">drop</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mh">8</span><span class="o">%</span><span class="p">,</span><span class="w"> </span><span class="n">RSI</span><span class="p">(</span><span class="mh">5</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mh">25</span><span class="p">,</span><span class="w"> </span><span class="n">precio</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">SMA200</span>
+<span class="w">     </span><span class="n">c</span><span class="p">.</span><span class="w"> </span><span class="n">Entrar</span><span class="w"> </span><span class="n">posiciones</span><span class="w"> </span><span class="p">(</span><span class="mh">20</span><span class="o">%</span><span class="w"> </span><span class="n">de</span><span class="w"> </span><span class="n">R_account</span><span class="w"> </span><span class="n">cada</span><span class="w"> </span><span class="n">una</span><span class="p">)</span>
+<span class="w">     </span><span class="n">d</span><span class="p">.</span><span class="w"> </span><span class="n">Verificar</span><span class="w"> </span><span class="nl">exits:</span><span class="w"> </span><span class="n">profit</span><span class="w"> </span><span class="o">+</span><span class="mh">4</span><span class="o">%</span><span class="p">,</span><span class="w"> </span><span class="n">stop</span><span class="w"> </span><span class="o">-</span><span class="mh">5</span><span class="o">%</span><span class="p">,</span><span class="w"> </span><span class="kt">time</span><span class="w"> </span><span class="mh">8</span><span class="n">d</span>
+
+<span class="w">  </span><span class="mf">8.</span><span class="w"> </span><span class="n">CASH</span><span class="w"> </span><span class="n">RECYCLING</span>
+<span class="w">     </span><span class="n">a</span><span class="p">.</span><span class="w"> </span><span class="n">Calcular</span><span class="w"> </span><span class="n">R_idle</span>
+<span class="w">     </span><span class="n">b</span><span class="p">.</span><span class="w"> </span><span class="n">Reciclar</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">COMPASS</span><span class="w"> </span><span class="p">(</span><span class="n">cap</span><span class="w"> </span><span class="mh">75</span><span class="o">%</span><span class="p">)</span>
+<span class="w">     </span><span class="n">c</span><span class="p">.</span><span class="w"> </span><span class="n">Invertir</span><span class="w"> </span><span class="n">sobrante</span><span class="w"> </span><span class="n">en</span><span class="w"> </span><span class="n">EFA</span><span class="w"> </span><span class="p">(</span><span class="n">si</span><span class="w"> </span><span class="n">EFA</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">SMA200</span><span class="p">)</span>
+
+<span class="w">  </span><span class="mf">9.</span><span class="w"> </span><span class="n">REGISTRAR</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Save</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="n">JSON</span><span class="w"> </span><span class="p">(</span><span class="n">positions</span><span class="p">,</span><span class="w"> </span><span class="n">meta</span><span class="p">,</span><span class="w"> </span><span class="n">regime</span><span class="p">,</span><span class="w"> </span><span class="n">overlays</span><span class="p">)</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Log</span><span class="w"> </span><span class="n">decisions</span><span class="w"> </span><span class="n">para</span><span class="w"> </span><span class="n">ML</span><span class="w"> </span><span class="n">learning</span>
+<span class="w">     </span><span class="o">-</span><span class="w"> </span><span class="n">Git</span><span class="w"> </span><span class="n">sync</span><span class="w"> </span><span class="p">(</span><span class="n">auto</span><span class="o">-</span><span class="n">commit</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">push</span><span class="w"> </span><span class="n">cada</span><span class="w"> </span><span class="mh">15</span><span class="w"> </span><span class="n">min</span><span class="p">)</span>
+</code></pre></div>
+
+<hr />
+<h2>9. INFRAESTRUCTURA TECNICA</h2>
+<h3>Arquitectura de Deployment</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">LOCAL</span><span class="w"> </span><span class="p">(</span><span class="n">Windows</span><span class="w"> </span><span class="mi">11</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">compass_dashboard</span><span class="o">.</span><span class="n">py</span><span class="w">    </span><span class="err">—</span><span class="w"> </span><span class="n">Flask</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">live</span><span class="w"> </span><span class="n">engine</span><span class="w"> </span><span class="p">(</span><span class="n">port</span><span class="w"> </span><span class="mi">5000</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">omnicapital_live</span><span class="o">.</span><span class="n">py</span><span class="w">     </span><span class="err">—</span><span class="w"> </span><span class="n">COMPASSLive</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">800</span><span class="o">+</span><span class="w"> </span><span class="n">lineas</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">compass_overlays</span><span class="o">.</span><span class="n">py</span><span class="w">     </span><span class="err">—</span><span class="w"> </span><span class="n">Overlay</span><span class="w"> </span><span class="n">system</span><span class="w"> </span><span class="n">v3</span><span class="w"> </span><span class="p">(</span><span class="mi">407</span><span class="w"> </span><span class="n">lineas</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">rattlesnake_signals</span><span class="o">.</span><span class="n">py</span><span class="w">  </span><span class="err">—</span><span class="w"> </span><span class="n">Mean</span><span class="o">-</span><span class="n">reversion</span><span class="w"> </span><span class="n">signals</span><span class="w"> </span><span class="p">(</span><span class="mi">200</span><span class="w"> </span><span class="n">lineas</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">hydra_capital</span><span class="o">.</span><span class="n">py</span><span class="w">        </span><span class="err">—</span><span class="w"> </span><span class="n">Capital</span><span class="w"> </span><span class="n">recycling</span><span class="w"> </span><span class="n">manager</span><span class="w"> </span><span class="p">(</span><span class="mi">199</span><span class="w"> </span><span class="n">lineas</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">compass_fred_data</span><span class="o">.</span><span class="n">py</span><span class="w">    </span><span class="err">—</span><span class="w"> </span><span class="n">FRED</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="n">downloader</span><span class="w"> </span><span class="p">(</span><span class="mi">164</span><span class="w"> </span><span class="n">lineas</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">compass_ml_learning</span><span class="o">.</span><span class="n">py</span><span class="w">  </span><span class="err">—</span><span class="w"> </span><span class="n">ML</span><span class="w"> </span><span class="n">decision</span><span class="w"> </span><span class="n">logger</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">compass_watchdog</span><span class="o">.</span><span class="n">py</span><span class="w">     </span><span class="err">—</span><span class="w"> </span><span class="n">Auto</span><span class="o">-</span><span class="n">restart</span><span class="w"> </span><span class="n">daemon</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">git_sync</span><span class="o">.</span><span class="n">py</span><span class="w">             </span><span class="err">—</span><span class="w"> </span><span class="n">Non</span><span class="o">-</span><span class="n">blocking</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="n">push</span><span class="w"> </span><span class="p">(</span><span class="mi">15</span><span class="w"> </span><span class="nb">min</span><span class="p">)</span>
+
+<span class="n">CLOUD</span><span class="w"> </span><span class="p">(</span><span class="n">Render</span><span class="o">.</span><span class="n">com</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">compass_dashboard_cloud</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">Showcase</span><span class="w"> </span><span class="n">dashboard</span><span class="w"> </span><span class="p">(</span><span class="n">gunicorn</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">render</span><span class="o">.</span><span class="n">yaml</span><span class="w">                </span><span class="err">—</span><span class="w"> </span><span class="n">Deployment</span><span class="w"> </span><span class="n">config</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">requirements</span><span class="o">-</span><span class="n">cloud</span><span class="o">.</span><span class="n">txt</span><span class="w">     </span><span class="err">—</span><span class="w"> </span><span class="n">Minimal</span><span class="w"> </span><span class="n">dependencies</span>
+
+<span class="n">SYNC</span><span class="p">:</span><span class="w"> </span><span class="n">Local</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">GitHub</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Render</span><span class="w"> </span><span class="p">(</span><span class="n">auto</span><span class="o">-</span><span class="n">deploy</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">push</span><span class="p">)</span>
+</code></pre></div>
+
+<h3>Stack Tecnologico</h3>
+<table>
+<thead>
+<tr>
+<th>Componente</th>
+<th>Tecnologia</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lenguaje</td>
+<td>Python 3.14.2</td>
+</tr>
+<tr>
+<td>Framework</td>
+<td>Flask</td>
+</tr>
+<tr>
+<td>Datos mercado</td>
+<td>Yahoo Finance v8 Chart API</td>
+</tr>
+<tr>
+<td>Datos macro</td>
+<td>FRED API (Federal Reserve)</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>Vanilla JS + Chart.js</td>
+</tr>
+<tr>
+<td>Deployment cloud</td>
+<td>Render.com (gunicorn)</td>
+</tr>
+<tr>
+<td>Version control</td>
+<td>Git → GitHub</td>
+</tr>
+<tr>
+<td>State persistence</td>
+<td>JSON files</td>
+</tr>
+<tr>
+<td>Broker (paper)</td>
+<td>PaperBroker (internal)</td>
+</tr>
+</tbody>
+</table>
+<h3>Archivos de Estado</h3>
+<table>
+<thead>
+<tr>
+<th>Archivo</th>
+<th>Contenido</th>
+<th>Update</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>state/compass_state_latest.json</code></td>
+<td>Estado actual completo</td>
+<td>Cada 60s</td>
+</tr>
+<tr>
+<td><code>state/compass_state_YYYYMMDD.json</code></td>
+<td>Snapshot diario</td>
+<td>EOD</td>
+</tr>
+<tr>
+<td><code>state/cycle_log.json</code></td>
+<td>Historial de ciclos de rotacion</td>
+<td>Por ciclo</td>
+</tr>
+<tr>
+<td><code>state/ml_learning/decisions.jsonl</code></td>
+<td>Decisiones de trading</td>
+<td>Por trade</td>
+</tr>
+<tr>
+<td><code>state/ml_learning/daily_snapshots.jsonl</code></td>
+<td>Snapshots de mercado</td>
+<td>Diario</td>
+</tr>
+<tr>
+<td><code>state/ml_learning/outcomes.jsonl</code></td>
+<td>Resultados de trades</td>
+<td>Al cerrar</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>10. EVOLUCION DEL SISTEMA</h2>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Fecha</th>
+<th>Descripcion</th>
+<th>CAGR</th>
+<th>Sharpe</th>
+<th>Max DD</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1</td>
+<td>Feb 2026</td>
+<td>MicroManagement intradayia</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>v4</td>
+<td>Feb 2026</td>
+<td>Optimized daily</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>v5</td>
+<td>Feb 2026</td>
+<td>3 Day Strategy</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>v6</td>
+<td>Feb 2026</td>
+<td>Random selection, 2x leverage</td>
+<td>5.40%*</td>
+<td>0.22</td>
+<td>-59.4%</td>
+</tr>
+<tr>
+<td>v8.0</td>
+<td>Feb 2026</td>
+<td>COMPASS (momentum + regime)</td>
+<td>16.16%</td>
+<td>0.73</td>
+<td>-34.8%</td>
+</tr>
+<tr>
+<td><strong>v8.4</strong></td>
+<td><strong>Mar 2026</strong></td>
+<td><strong>HYDRA (multi-strategy + overlays)</strong></td>
+<td><strong>14.92%</strong></td>
+<td><strong>1.12</strong></td>
+<td><strong>-22.25%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>*v6 CAGR con universo corregido (sin sesgo de supervivencia).</p>
+<blockquote>
+<p>La evolucion muestra un trade-off deliberado: v8.4 sacrifica ~1.2% de CAGR vs v8.0 pero mejora dramaticamente la calidad de retornos (Sharpe 1.12 vs 0.73) y reduce max DD de -34.8% a -22.25%. Esto refleja la prioridad del sistema: <strong>sobrevivir primero, crecer despues</strong>.</p>
+</blockquote>
+<hr />
+<h2>11. RIESGOS Y LIMITACIONES</h2>
+<h3>Riesgos Sistemicos</h3>
+<ol>
+<li>
+<p><strong>Overfitting</strong>: Aunque cada parametro tiene base academica, el ensamble de componentes fue calibrado sobre datos 2000-2026. Out-of-sample performance puede diferir.</p>
+</li>
+<li>
+<p><strong>Momentum crashes</strong>: Factor momentum puede sufrir reversiones violentas en recuperaciones de mercado (ej: Mar 2009). El regime filter y overlays mitigan parcialmente.</p>
+</li>
+<li>
+<p><strong>Correlacion en crisis</strong>: En eventos de tail risk (2008, 2020), correlaciones entre acciones convergen a 1.0. La diversificacion por sector/estrategia pierde efectividad.</p>
+</li>
+<li>
+<p><strong>Dependencia de datos</strong>: Yahoo Finance y FRED son servicios gratuitos sin SLA. Una interrupcion prolongada deja al sistema ciego.</p>
+</li>
+<li>
+<p><strong>Model risk</strong>: El regime score continuo usa sigmoides calibradas subjetivamente (k=15, k=30). Cambios estructurales en el mercado podrian invalidar estos parametros.</p>
+</li>
+</ol>
+<h3>Limitaciones Conocidas</h3>
+<ul>
+<li><strong>No opera intradayia</strong> — solo Market-on-Close</li>
+<li><strong>No hace short selling</strong> — solo long equity</li>
+<li><strong>No usa opciones ni derivados</strong> — sin hedging explicito</li>
+<li><strong>No analiza fundamentales</strong> — pure quant, solo datos de precio/volumen + macro</li>
+<li><strong>Sin leverage en produccion</strong> — LEVERAGE_MAX = 1.0</li>
+<li><strong>Slippage no modelado</strong> — mitigado por operar solo stocks liquidos (top-40 por dollar volume)</li>
+<li><strong>Sin reinversion de dividendos explicita</strong> — asumido en precios adjusted</li>
+</ul>
+<hr />
+<h2>12. REGLAS INQUEBRANTABLES</h2>
+<ol>
+<li>
+<p><strong>NO modificar parametros sin backtest completo</strong> (2000-2026). 40 experimentos fallidos lo confirman.</p>
+</li>
+<li>
+<p><strong>NO agregar complejidad sin justificacion</strong> — si no mejora Sharpe o reduce DD significativamente, no se implementa.</p>
+</li>
+<li>
+<p><strong>NO ignorar overlays</strong> — estan ahi por una razon macro. Desactivarlos es volar ciego.</p>
+</li>
+<li>
+<p><strong>NO aumentar LEVERAGE_MAX por encima de 1.0</strong> — el costo de margen (6%) destruye el alpha.</p>
+</li>
+<li>
+<p><strong>NO operar acciones fuera del top-40</strong> — liquidez es proteccion.</p>
+</li>
+<li>
+<p><strong>SIEMPRE respetar los stops</strong> — adaptativos o no, sin excepciones.</p>
+</li>
+<li>
+<p><strong>Paper trading primero</strong> — minimo 3 meses antes de capital real. (En curso desde Mar 6, 2026.)</p>
+</li>
+<li>
+<p><strong>NO modificar el engine durante market hours</strong> — cambios solo despues del cierre.</p>
+</li>
+<li>
+<p><strong>Git sync siempre activo</strong> — el state file es la fuente de verdad. Perderlo es perder contexto.</p>
+</li>
+<li>
+<p><strong>Overlays son multiplicativos, nunca aditivos</strong> — previene que un solo overlay anule a los demas.</p>
+</li>
+</ol>
+<hr />
+<h2>13. REFERENCIAS ACADEMICAS</h2>
+<ul>
+<li>Ang, A. &amp; Bekaert, G. (2002). "Regime Switches in Interest Rates." <em>Journal of Business &amp; Economic Statistics</em>.</li>
+<li>Asness, C., Moskowitz, T. &amp; Pedersen, L. (2013). "Value and Momentum Everywhere." <em>Journal of Finance</em>.</li>
+<li>Bernanke, B. &amp; Kuttner, K. (2005). "What Explains the Stock Market's Reaction to Federal Reserve Policy?" <em>Journal of Finance</em>.</li>
+<li>Collin-Dufresne, P., Goldstein, R. &amp; Martin, J.S. (2001). "The Determinants of Credit Spread Changes." <em>Journal of Finance</em>.</li>
+<li>De Bondt, W. &amp; Thaler, R. (1985). "Does the Stock Market Overreact?" <em>Journal of Finance</em>.</li>
+<li>Faber, M. (2007). "A Quantitative Approach to Tactical Asset Allocation." <em>Journal of Wealth Management</em>.</li>
+<li>Friedman, M. &amp; Schwartz, A. (1963). <em>A Monetary History of the United States, 1867-1960</em>. Princeton University Press.</li>
+<li>Gilchrist, S. &amp; Zakrajsek, E. (2012). "Credit Spreads and Business Cycle Fluctuations." <em>American Economic Review</em>.</li>
+<li>Grossman, S. &amp; Zhou, Z. (1993). "Optimal Investment Strategies for Controlling Drawdowns." <em>Mathematical Finance</em>.</li>
+<li>Hamilton, J. (1989). "A New Approach to the Economic Analysis of Nonstationary Time Series." <em>Econometrica</em>.</li>
+<li>Jegadeesh, N. (1990). "Evidence of Predictable Behavior of Security Returns." <em>Journal of Finance</em>.</li>
+<li>Jegadeesh, N. &amp; Titman, S. (1993). "Returns to Buying Winners and Selling Losers." <em>Journal of Finance</em>.</li>
+<li>Johansen, A., Ledoit, O. &amp; Sornette, D. (2000). "Crashes as Critical Points." <em>International Journal of Theoretical and Applied Finance</em>.</li>
+<li>Lo, A. &amp; MacKinlay, A.C. (1990). "When Are Contrarian Profits Due to Stock Market Overreaction?" <em>Review of Financial Studies</em>.</li>
+<li>Maillard, S., Roncalli, T. &amp; Teiletche, J. (2010). "The Properties of Equally Weighted Risk Contribution Portfolios." <em>Journal of Portfolio Management</em>.</li>
+<li>Moskowitz, T. &amp; Grinblatt, M. (1999). "Do Industries Explain Momentum?" <em>Journal of Finance</em>.</li>
+<li>Novy-Marx, R. (2012). "Is Momentum Really Momentum?" <em>Journal of Financial Economics</em>.</li>
+</ul>
+<hr />
+<p><em>"HYDRA no predice el futuro. Reacciona al presente con disciplina academica y ejecuta con precision mecanica."</em></p>
+</body>
+</html>
