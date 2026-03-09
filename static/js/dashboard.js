@@ -68,6 +68,7 @@ const REFRESH_MS = 30000;
 let countdownSec = 30;
 let currentPositions = {};
 let lastSuccessTime = null;
+var lastPortfolioData = null;
 /* Social feed state */
 let sfMessages = [];
 let sfActiveSource = 'all';
@@ -175,25 +176,25 @@ function updatePreclose(preclose) {
     switch (preclose.phase) {
         case 'waiting':
             dot.className = 'preclose-dot preclose-dot-waiting';
-            label.textContent = 'ESPERANDO SE\u00d1AL 15:30';
+            label.textContent = t('hdr-waiting-signal');
             label.style.color = 'var(--text-tertiary)';
             seg.classList.remove('active');
             break;
         case 'window_open':
             dot.className = 'preclose-dot preclose-dot-window';
-            label.textContent = 'VENTANA PRE-CIERRE ABIERTA';
+            label.textContent = t('hdr-preclose-open');
             label.style.color = 'var(--yellow)';
             seg.classList.add('active');
             break;
         case 'entries_done':
             dot.className = 'preclose-dot preclose-dot-done';
-            label.textContent = '\u00d3RDENES MOC ENVIADAS';
+            label.textContent = t('hdr-moc-sent');
             label.style.color = 'var(--green)';
             seg.classList.add('active');
             break;
         default: /* market_closed */
             dot.className = 'preclose-dot preclose-dot-closed';
-            label.textContent = 'MERCADO CERRADO';
+            label.textContent = t('hdr-market-closed');
             label.style.color = 'var(--text-muted)';
             seg.classList.remove('active');
     }
@@ -220,12 +221,12 @@ function updateCards(p) {
     }
 
     document.getElementById('card-cash').textContent = fmt$(p.cash);
-    document.getElementById('card-invested').textContent = 'Invertido: ' + fmt$(p.invested);
+    document.getElementById('card-invested').textContent = t('metric-invested') + ': ' + fmt$(p.invested);
 
     const dd = document.getElementById('card-drawdown');
     dd.textContent = fmtPct(p.drawdown);
     dd.className = 'metric-value ' + (p.drawdown > -5 ? 'c-green' : p.drawdown > -10 ? 'c-yellow' : 'c-red');
-    document.getElementById('card-peak').textContent = 'M\u00e1ximo: ' + fmt$(p.peak_value);
+    document.getElementById('card-peak').textContent = t('metric-peak') + ': ' + fmt$(p.peak_value);
 
     document.getElementById('card-positions').textContent = p.num_positions + ' / ' + p.max_positions;
     var regimeLabel = p.regime === 'RISK_ON' ? 'Risk On' : 'Risk Off';
@@ -272,16 +273,16 @@ function updateRegimeBand(p) {
 
     var tag = document.getElementById('rb-tag');
     if (score >= 0.65) {
-        tag.textContent = 'RISK ON (' + p.max_positions + ' pos)';
+        tag.textContent = t('regime-risk-on') + ' (' + p.max_positions + ' pos)';
         tag.style.cssText = 'background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,0.3)';
     } else if (score >= 0.50) {
-        tag.textContent = 'TRANSICI\u00d3N (' + p.max_positions + ' pos)';
+        tag.textContent = t('regime-transition') + ' (' + p.max_positions + ' pos)';
         tag.style.cssText = 'background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(234,179,8,0.3)';
     } else if (score >= 0.35) {
-        tag.textContent = 'CAUTELA (' + p.max_positions + ' pos)';
+        tag.textContent = t('regime-caution') + ' (' + p.max_positions + ' pos)';
         tag.style.cssText = 'background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(234,179,8,0.3)';
     } else {
-        tag.textContent = 'RISK OFF (' + p.max_positions + ' pos)';
+        tag.textContent = t('regime-risk-off') + ' (' + p.max_positions + ' pos)';
         tag.style.cssText = 'background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,0.3)';
     }
 }
@@ -294,18 +295,18 @@ function _fillAlpha(alphaEl, alphaLabel, hydraRet, spyRet) {
         if (diff >= 0) {
             alphaEl.textContent = '+' + absDiff + ' pp';
             alphaEl.className = 'perf-vs-alpha c-green';
-            alphaLabel.textContent = 'Superando S&P 500';
+            alphaLabel.textContent = t('perf-beating');
             alphaLabel.style.color = 'var(--green)';
         } else {
             alphaEl.textContent = '-' + absDiff + ' pp';
             alphaEl.className = 'perf-vs-alpha c-red';
-            alphaLabel.textContent = 'Detr\u00e1s de S&P 500';
+            alphaLabel.textContent = t('perf-behind');
             alphaLabel.style.color = 'var(--red)';
         }
     } else {
         alphaEl.textContent = '--';
         alphaEl.className = 'perf-vs-alpha';
-        alphaLabel.textContent = 'vs S&P 500';
+        alphaLabel.textContent = t('perf-vs');
         alphaLabel.style.color = '';
     }
 }
@@ -380,7 +381,7 @@ function updatePositions(details) {
     currentPositions = {};
 
     if (!details || details.length === 0) {
-        grid.innerHTML = '<div class="positions-empty"><div class="positions-empty-icon">&#9671;</div>SIN POSICIONES</div>';
+        grid.innerHTML = '<div class="positions-empty"><div class="positions-empty-icon">&#9671;</div>' + t('strat-no-positions') + '</div>';
         totalBar.style.display = 'none';
         document.getElementById('ph-invested').textContent = '$0';
         document.getElementById('ph-total-pnl').textContent = '$0';
@@ -455,7 +456,7 @@ function updatePositions(details) {
             /* Row 2: Entry, Chg$, High */
             '<div class="pos-data-row">' +
                 '<div class="pos-datum"><span class="pos-datum-label">Entry</span><span class="pos-datum-value">$' + p.entry_price.toFixed(2) + '</span></div>' +
-                '<div class="pos-datum"><span class="pos-datum-label">Hoy</span><span class="pos-datum-value ' + colorCls(priceChange) + '">' + priceChangeSign + '$' + Math.abs(priceChange).toFixed(2) + '</span></div>' +
+                '<div class="pos-datum"><span class="pos-datum-label">' + t('pos-today') + '</span><span class="pos-datum-value ' + colorCls(priceChange) + '">' + priceChangeSign + '$' + Math.abs(priceChange).toFixed(2) + '</span></div>' +
                 '<div class="pos-datum"><span class="pos-datum-label">High</span><span class="pos-datum-value">$' + p.high_price.toFixed(2) + '</span></div>' +
             '</div>' +
             /* Hold progress bar */
@@ -556,7 +557,7 @@ function updatePositions(details) {
 
     /* Bottom bar */
     totalBar.style.display = 'flex';
-    document.getElementById('pt-count').textContent = details.length + (details.length !== 1 ? ' Posiciones' : ' Posici\u00f3n');
+    document.getElementById('pt-count').textContent = details.length + (details.length !== 1 ? ' ' + t('position-plural') : ' ' + t('position-singular'));
     document.getElementById('pt-value').textContent = fmt$(totalValue);
     const ptPnl = document.getElementById('pt-pnl');
     ptPnl.textContent = fmt$(totalPnl);
@@ -612,7 +613,7 @@ function updateHydra(hydra) {
             emptyDiv.appendChild(textNode);
             var subDiv = document.createElement('div');
             subDiv.style.cssText = 'font-size:11px;color:var(--text-tertiary);margin-top:4px;';
-            subDiv.textContent = 'Esperando ca\u00edda \u22658% + RSI<25 en S&P 100';
+            subDiv.textContent = t('strat-rattle-waiting');
             emptyDiv.appendChild(subDiv);
             rGrid.appendChild(emptyDiv);
         } else {
@@ -733,10 +734,10 @@ function updateHydra(hydra) {
         document.getElementById('hydra-recycled').textContent = (recycled * 100).toFixed(0) + '% recycled';
         var tag = document.getElementById('hydra-tag');
         if (recycled > 0) {
-            tag.textContent = 'Recycling Active';
+            tag.textContent = t('recycling-active');
             tag.style.cssText = 'color:var(--cyan); background:var(--cyan-dim);';
         } else {
-            tag.textContent = 'No Recycling';
+            tag.textContent = t('no-recycling');
             tag.style.cssText = 'color:var(--text-muted); background:var(--bg-tertiary);';
         }
     }
@@ -761,7 +762,7 @@ function updateUniverse(universe, positions) {
     const count = document.getElementById('universe-count');
     if (!universe || universe.length === 0) {
         count.textContent = '0';
-        grid.innerHTML = '<span class="c-dim" style="font-size:12px;">No universe loaded</span>';
+        grid.innerHTML = '<span class="c-dim" style="font-size:12px;">' + t('no-universe') + '</span>';
         return;
     }
     count.textContent = universe.length;
@@ -935,7 +936,7 @@ function sfRenderTimeline(filtered) {
         html += '</div>';
     }
     if (tier2.length > 0) {
-        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">Noticias</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier2.length + '</span></div>';
+        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">' + t('sf-news-tier') + '</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier2.length + '</span></div>';
         for (var i = 0; i < tier2.length; i++) html += sfRenderMessage(tier2[i]);
         html += '</div>';
     }
@@ -993,7 +994,7 @@ function sfRender() {
         icon.textContent = '\uD83D\uDD0D';
         var txt = document.createElement('div');
         txt.className = 'sf-no-results-text';
-        txt.textContent = 'No hay publicaciones para estos filtros';
+        txt.textContent = t('sf-no-results');
         noRes.appendChild(icon);
         noRes.appendChild(txt);
         panel.appendChild(noRes);
@@ -1086,7 +1087,7 @@ async function fetchCycleLog() {
         const cycles = await res.json();
         const tbody = document.getElementById('cycle-log-body');
         if (!tbody || !cycles.length) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;">No hay ciclos completados a\u00fan</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;">' + t('ml-no-cycles') + '</td></tr>';
             return;
         }
         let html = '';
@@ -1277,6 +1278,7 @@ async function fetchAll() {
             _fetchRetries = 0;
             document.getElementById('offline-banner').style.display = 'none';
             lastSuccessTime = new Date().toISOString();
+            lastPortfolioData = stateData;
             const p = stateData.portfolio;
             updateStatusBar(p);
             updateCards(p);
@@ -2355,7 +2357,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const hh = Math.floor(left / 3600), mm = Math.floor((left % 3600) / 60), ss = left % 60;
             cd.textContent = 'cierra ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
         } else {
-            lbl.textContent = 'MERCADO CERRADO';
+            lbl.textContent = t('hdr-market-closed');
             lbl.style.color = 'var(--text-muted)';
             /* Calculate seconds until next market open using ET time components */
             let secsToOpen = 0;
@@ -2739,3 +2741,23 @@ document.addEventListener('DOMContentLoaded', function() {
         init();
     }
 })();
+
+function refreshDashboard() {
+    if (lastPortfolioData) {
+        var d = lastPortfolioData;
+        var p = d.portfolio;
+        updateStatusBar(p);
+        updateCards(p);
+        updateRegimeBand(p);
+        updatePerfBanner(p);
+        updatePreclose(d.preclose);
+        updatePositions(d.position_details);
+        if (d.hydra) updateHydra(d.hydra);
+        var posDict = {};
+        if (d.position_details) {
+            for (var i = 0; i < d.position_details.length; i++) posDict[d.position_details[i].symbol] = true;
+        }
+        updateUniverse(d.universe, posDict);
+        sfRender();
+    }
+}
