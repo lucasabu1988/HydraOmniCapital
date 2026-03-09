@@ -475,6 +475,12 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     market_has_opened_today = (now_et.weekday() < 5 and now_et.time() >= dtime(9, 30))
     spy_current = prices.get('^GSPC') if prices else None
     spy_prev = _prev_close_cache.get('^GSPC')
+    # Fallback: if prev_close missing, fetch ^GSPC directly
+    if not spy_prev and spy_current:
+        quote = _yf_fetch_quote('^GSPC')
+        if quote and 'prev_close' in quote:
+            spy_prev = quote['prev_close']
+            _prev_close_cache['^GSPC'] = spy_prev
     if not market_has_opened_today:
         spy_daily = 0.0
     elif spy_current and spy_prev and spy_prev > 0:

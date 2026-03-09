@@ -1,15 +1,15 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-09T08:32:26.326858",
-  "cash": 35610.82676379394,
+  "timestamp": "2026-03-09T08:44:26.144970",
+  "cash": 35585.88668505859,
   "peak_value": 100000.0,
-  "portfolio_value": 99029.7014128418,
+  "portfolio_value": 99207.52747027588,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
-    99029.7444128418
+    99064.23415130615
   ],
-  "current_regime_score": 0.5527795123358383,
+  "current_regime_score": 0.5505517423264688,
   "trading_day_counter": 2,
   "last_trading_date": "2026-03-09",
   "positions": {
@@ -43,7 +43,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 240.84710693359375,
+      "high_price": 241.6300048828125,
       "entry_vol": 0.15534686069028528,
       "entry_daily_vol": 0.009785932389073585,
       "sector": "Healthcare",
@@ -118,7 +118,7 @@
     "available": true,
     "rattle_positions": [],
     "rattle_regime": "RISK_ON",
-    "vix_current": 30.899999618530273,
+    "vix_current": 31.040000915527344,
     "efa_position": null,
     "capital_manager": {
       "compass_account": 50000.0,
@@ -132,7 +132,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 139,
-    "uptime_minutes": 1363.5790871
+    "cycles_completed": 12,
+    "uptime_minutes": 16.75759151666667
   }
 }
