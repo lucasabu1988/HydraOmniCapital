@@ -1,15 +1,15 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-09T09:26:36.384973",
+  "timestamp": "2026-03-09T09:55:15.395475",
   "cash": 35610.82676379394,
   "peak_value": 100000.0,
-  "portfolio_value": 99080.96099536133,
+  "portfolio_value": 99271.17118518066,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
-    99029.7444128418
+    99030.28411621094
   ],
-  "current_regime_score": 0.5527795123358383,
+  "current_regime_score": 0.5526287849524012,
   "trading_day_counter": 2,
   "last_trading_date": "2026-03-09",
   "positions": {
@@ -43,7 +43,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 241.77499389648438,
+      "high_price": 241.97999572753906,
       "entry_vol": 0.15534686069028528,
       "entry_daily_vol": 0.009785932389073585,
       "sector": "Healthcare",
@@ -132,7 +132,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 187,
-    "uptime_minutes": 1417.7467218
+    "cycles_completed": 16,
+    "uptime_minutes": 16.411126149999998
   }
 }

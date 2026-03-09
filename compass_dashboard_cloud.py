@@ -120,7 +120,7 @@ R_BASE_HYDRA_ALLOC = 0.50
 R_BASE_RATTLE_ALLOC = 0.50
 R_MAX_HYDRA_ALLOC = 0.75
 
-PRICE_CACHE_SECONDS = 30
+PRICE_CACHE_SECONDS = 60  # legacy ref (use PRICE_CACHE_SECONDS_NORMAL)
 SOCIAL_CACHE_SECONDS = 300  # 5 minutes
 
 # Live test started Mar 6, 2026 — ^GSPC prev close on that date
@@ -167,77 +167,150 @@ _price_cache: Dict[str, float] = {}
 _prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
 _price_cache_lock = threading.Lock()
+_yf_consecutive_failures: int = 0
+
+PRICE_CACHE_SECONDS_NORMAL = 60   # 1 min default
+PRICE_CACHE_SECONDS_BACKOFF = 300  # 5 min after repeated failures
 
 _YF_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 }
 
+# Yahoo Finance v8 crumb/cookie session (reused across requests)
+_yf_session: Optional['http_requests.Session'] = None
+_yf_crumb: Optional[str] = None
 
-def _yf_fetch_quote(symbol: str) -> Optional[dict]:
-    """Fetch a single symbol from Yahoo Finance v8 chart API.
-    Returns {'price': float, 'prev_close': float} or None."""
+
+def _yf_get_session():
+    """Get or create a Yahoo Finance session with valid crumb."""
+    global _yf_session, _yf_crumb
+    if _yf_session and _yf_crumb:
+        return _yf_session, _yf_crumb
     try:
-        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
-        params = {'range': '1d', 'interval': '1d'}
-        r = http_requests.get(url, params=params, headers=_YF_HEADERS, timeout=10)
-        if r.status_code != 200:
-            logger.warning(f'Yahoo Finance {symbol} returned {r.status_code}')
-            return None
-        data = r.json()
-        result_data = data.get('chart', {}).get('result', [])
-        if not result_data:
-            return None
-        meta = result_data[0].get('meta', {})
-        price = meta.get('regularMarketPrice')
-        prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
-        if price and price > 0:
-            out = {'price': float(price)}
-            if prev_close and prev_close > 0:
-                out['prev_close'] = float(prev_close)
-            return out
+        s = http_requests.Session()
+        s.headers.update(_YF_HEADERS)
+        # Get cookie
+        s.get('https://fc.yahoo.com', timeout=5)
+        # Get crumb
+        r = s.get('https://query2.finance.yahoo.com/v1/test/getcrumb', timeout=5)
+        if r.status_code == 200 and r.text:
+            _yf_session = s
+            _yf_crumb = r.text
+            logger.info('Yahoo Finance session established (crumb obtained)')
+            return _yf_session, _yf_crumb
     except Exception as e:
-        logger.warning(f'Yahoo Finance {symbol} fetch failed: {e}')
-    return None
+        logger.warning(f'Failed to get Yahoo Finance crumb: {e}')
+    return None, None
 
 
-def _fetch_yahoo_prices(symbols: List[str]) -> Dict[str, dict]:
-    """Fetch live prices from Yahoo Finance v8 API.
+def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
+    """Fetch multiple symbols in ONE request via Yahoo Finance v7 quote API.
     Returns {symbol: {'price': float, 'prev_close': float}}."""
-    if not _HAS_REQUESTS:
+    if not _HAS_REQUESTS or not symbols:
         return {}
+
     results = {}
+
+    # Try v7 batch quote first (single request for all symbols)
+    session, crumb = _yf_get_session()
+    if session and crumb:
+        try:
+            url = 'https://query2.finance.yahoo.com/v7/finance/quote'
+            params = {
+                'symbols': ','.join(symbols),
+                'fields': 'regularMarketPrice,regularMarketPreviousClose,symbol',
+                'crumb': crumb,
+            }
+            r = session.get(url, params=params, timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                for quote in data.get('quoteResponse', {}).get('result', []):
+                    sym = quote.get('symbol')
+                    price = quote.get('regularMarketPrice')
+                    prev = quote.get('regularMarketPreviousClose')
+                    if sym and price and price > 0:
+                        out = {'price': float(price)}
+                        if prev and prev > 0:
+                            out['prev_close'] = float(prev)
+                        results[sym] = out
+                if results:
+                    return results
+            elif r.status_code in (401, 403):
+                # Crumb expired, reset session for next call
+                global _yf_session, _yf_crumb
+                _yf_session = None
+                _yf_crumb = None
+                logger.info('Yahoo Finance crumb expired, will refresh next call')
+        except Exception as e:
+            logger.warning(f'Yahoo Finance v7 batch failed: {e}')
+
+    # Fallback: v8 chart API (one request per symbol, with spacing)
     for sym in symbols:
-        quote = _yf_fetch_quote(sym)
-        if quote:
-            results[sym] = quote
+        try:
+            url = f'https://query1.finance.yahoo.com/v8/finance/chart/{sym}'
+            params = {'range': '1d', 'interval': '1d'}
+            r = http_requests.get(url, params=params, headers=_YF_HEADERS, timeout=10)
+            if r.status_code == 429:
+                logger.warning(f'Yahoo Finance rate-limited (429), stopping batch')
+                break
+            if r.status_code != 200:
+                logger.warning(f'Yahoo Finance {sym} returned {r.status_code}')
+                continue
+            data = r.json()
+            result_data = data.get('chart', {}).get('result', [])
+            if not result_data:
+                continue
+            meta = result_data[0].get('meta', {})
+            price = meta.get('regularMarketPrice')
+            prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
+            if price and price > 0:
+                out = {'price': float(price)}
+                if prev_close and prev_close > 0:
+                    out['prev_close'] = float(prev_close)
+                results[sym] = out
+            # Small delay between individual requests to avoid rate limiting
+            time_module.sleep(0.15)
+        except Exception as e:
+            logger.warning(f'Yahoo Finance {sym} fetch failed: {e}')
+
     return results
 
 
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     """Fetch all live prices from Yahoo Finance.
-    Returns {symbol: price_float}. Previous closes in _prev_close_cache."""
-    global _price_cache, _prev_close_cache, _price_cache_time
+    Returns {symbol: price_float}. Previous closes in _prev_close_cache.
+    Keeps stale prices as fallback if fetch fails."""
+    global _price_cache, _prev_close_cache, _price_cache_time, _yf_consecutive_failures
 
     if not symbols:
         return {}
 
+    # Adaptive cache TTL: back off when Yahoo is rate-limiting
+    cache_ttl = PRICE_CACHE_SECONDS_BACKOFF if _yf_consecutive_failures >= 3 else PRICE_CACHE_SECONDS_NORMAL
+
     with _price_cache_lock:
         now = datetime.now()
-        if _price_cache_time and (now - _price_cache_time).total_seconds() < PRICE_CACHE_SECONDS:
+        if _price_cache_time and (now - _price_cache_time).total_seconds() < cache_ttl:
             missing = [s for s in symbols if s not in _price_cache]
             if not missing:
                 return {s: _price_cache[s] for s in symbols if s in _price_cache}
         else:
+            # DON'T clear cache — keep stale prices as fallback
             missing = symbols
-            _price_cache = {}
-            _prev_close_cache = {}
 
     if missing:
-        yf_results = _fetch_yahoo_prices(missing)
-        for sym, result in yf_results.items():
-            _price_cache[sym] = result['price']
-            if 'prev_close' in result:
-                _prev_close_cache[sym] = result['prev_close']
+        yf_results = _yf_fetch_batch(missing)
+        if yf_results:
+            _yf_consecutive_failures = 0
+            for sym, result in yf_results.items():
+                _price_cache[sym] = result['price']
+                if 'prev_close' in result:
+                    _prev_close_cache[sym] = result['prev_close']
+        else:
+            _yf_consecutive_failures += 1
+            if _yf_consecutive_failures >= 3:
+                logger.warning(f'Yahoo Finance: {_yf_consecutive_failures} consecutive failures, '
+                              f'backing off to {PRICE_CACHE_SECONDS_BACKOFF}s cache TTL')
 
     with _price_cache_lock:
         _price_cache_time = now
@@ -477,9 +550,10 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     spy_prev = _prev_close_cache.get('^GSPC')
     # Fallback: if prev_close missing, fetch ^GSPC directly
     if not spy_prev and spy_current:
-        quote = _yf_fetch_quote('^GSPC')
-        if quote and 'prev_close' in quote:
-            spy_prev = quote['prev_close']
+        batch = _yf_fetch_batch(['^GSPC'])
+        gspc_quote = batch.get('^GSPC')
+        if gspc_quote and 'prev_close' in gspc_quote:
+            spy_prev = gspc_quote['prev_close']
             _prev_close_cache['^GSPC'] = spy_prev
     if not market_has_opened_today:
         spy_daily = 0.0
@@ -2096,6 +2170,34 @@ def sitemap_xml():
 
 
 # ============================================================================
+# SHARED DATA FEED (engine reuses dashboard's batch fetcher — no duplicate Yahoo requests)
+# ============================================================================
+
+
+class SharedYahooDataFeed:
+    """DataFeed adapter that reuses the dashboard's _yf_fetch_batch and price cache.
+    Implements the same interface as YahooDataFeed so COMPASSLive can use it."""
+
+    def __init__(self):
+        self.data = {}
+        self.last_update = None
+
+    def get_price(self, symbol: str) -> Optional[float]:
+        prices = fetch_live_prices([symbol])
+        return prices.get(symbol)
+
+    def get_prices(self, symbols: List[str], max_workers: int = None) -> Dict[str, float]:
+        return fetch_live_prices(symbols)
+
+    def is_connected(self) -> bool:
+        try:
+            prices = fetch_live_prices(['^GSPC'])
+            return bool(prices)
+        except Exception:
+            return False
+
+
+# ============================================================================
 # CLOUD HYDRA ENGINE (paper trading — keeps system running when local is offline)
 # ============================================================================
 
@@ -2130,9 +2232,14 @@ def _run_cloud_engine():
         cloud_config['PAPER_INITIAL_CASH'] = HYDRA_CONFIG['INITIAL_CAPITAL']
 
         _cloud_engine = COMPASSLive(cloud_config)
+        # Replace engine's own YahooDataFeed with shared feed
+        # so engine + dashboard share one Yahoo session and cache
+        shared_feed = SharedYahooDataFeed()
+        _cloud_engine.data_feed = shared_feed
+        _cloud_engine.broker.set_price_feed(shared_feed)
         _cloud_engine.load_state()
 
-        logger.info("Cloud HYDRA engine started (PaperBroker + Yahoo Finance)")
+        logger.info("Cloud HYDRA engine started (SharedYahooDataFeed — no duplicate requests)")
         logger.info(f"  Positions: {list(_cloud_engine.broker.positions.keys())}")
         logger.info(f"  Cash: ${_cloud_engine.broker.cash:,.2f}")
 
