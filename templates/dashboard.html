@@ -47,7 +47,7 @@
 
 <!-- OFFLINE BANNER -->
 <div id="offline-banner">
-    CONECTANDO AL SERVIDOR...
+    <span data-i18n="offline-banner">CONECTANDO AL SERVIDOR...</span>
     <span class="last-success" id="last-success-time"></span>
 </div>
 
@@ -97,7 +97,7 @@
     <!-- MARKET TIMER -->
     <div class="hdr-divider hdr-hide-mobile"></div>
     <div class="hdr-stat hdr-hide-mobile" id="hdr-market-timer-wrap" style="text-align:right;">
-        <span class="hdr-stat-label" id="hdr-market-label">MERCADO CERRADO</span>
+        <span class="hdr-stat-label" id="hdr-market-label" data-i18n="hdr-market-closed">MERCADO CERRADO</span>
         <span class="hdr-stat-value" id="hdr-market-countdown">--</span>
     </div>
 
@@ -123,19 +123,19 @@
 <!-- PAGE TABS -->
 <div class="page-tabs">
     <div class="page-tab active" data-page="dashboard" onclick="switchPage('dashboard')">
-        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Dashboard
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> <span data-i18n="tab-dashboard">Dashboard</span>
     </div>
     <div class="page-tab" data-page="social" onclick="switchPage('social')">
-        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Noticias
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> <span data-i18n="tab-news">Noticias</span>
     </div>
     <div class="page-tab" data-page="roadmap" onclick="switchPage('roadmap')">
-        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Roadmap
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> <span data-i18n="tab-roadmap">Roadmap</span>
     </div>
     <div class="page-tab" data-page="algoritmo" onclick="switchPage('algoritmo')">
-        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Algoritmo
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> <span data-i18n="tab-algorithm">Algoritmo</span>
     </div>
     <div class="page-tab" data-page="ml" onclick="switchPage('ml')">
-        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg> ML
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg> <span data-i18n="tab-ml">ML</span>
     </div>
 </div>
 
@@ -161,63 +161,63 @@
             <span class="lh-version">Momentum + Rattlesnake + EFA</span>
         </div>
     </div>
-    <div class="lh-tagline">Momentum + Mean-Reversion + International &middot; Cash Recycling &middot; S&amp;P 500 + EAFE &middot; Long-Only</div>
+    <div class="lh-tagline" data-i18n="hero-tagline">Momentum + Mean-Reversion + International &middot; Cash Recycling &middot; S&amp;P 500 + EAFE &middot; Long-Only</div>
     <div class="lh-stats-carousel" id="heroCarousel">
         <div class="lh-stats lh-stats-slide active" data-slide="0">
             <div class="lh-stat">
                 <span class="lh-stat-label">CAGR</span>
                 <span class="lh-stat-value green">14.93%</span>
-                <span class="lh-stat-context">26-year backtest</span>
+                <span class="lh-stat-context" data-i18n="hero-cagr-context">26-year backtest</span>
             </div>
             <div class="lh-stat-divider"></div>
             <div class="lh-stat">
                 <span class="lh-stat-label">Sharpe Ratio</span>
                 <span class="lh-stat-value green">1.12</span>
-                <span class="lh-stat-context">Risk-adjusted</span>
+                <span class="lh-stat-context" data-i18n="hero-sharpe-context">Risk-adjusted</span>
             </div>
             <div class="lh-stat-divider"></div>
             <div class="lh-stat">
                 <span class="lh-stat-label">Max Drawdown</span>
                 <span class="lh-stat-value amber">&minus;22.3%</span>
-                <span class="lh-stat-context">vs &minus;32.6% Momentum solo</span>
+                <span class="lh-stat-context" data-i18n="hero-maxdd-context">vs &minus;32.6% Momentum solo</span>
             </div>
         </div>
         <div class="lh-stats lh-stats-slide" data-slide="1">
             <div class="lh-stat">
-                <span class="lh-stat-label">Positive Years</span>
+                <span class="lh-stat-label" data-i18n="hero-posyears-label">Positive Years</span>
                 <span class="lh-stat-value green">23/27</span>
-                <span class="lh-stat-context">85% win rate by year</span>
+                <span class="lh-stat-context" data-i18n="hero-posyears-context">85% win rate by year</span>
             </div>
             <div class="lh-stat-divider"></div>
             <div class="lh-stat">
-                <span class="lh-stat-label">Beats S&amp;P</span>
+                <span class="lh-stat-label" data-i18n="hero-beats-label">Beats S&amp;P</span>
                 <span class="lh-stat-value green">19/27</span>
-                <span class="lh-stat-context">years with alpha &gt; 0</span>
+                <span class="lh-stat-context" data-i18n="hero-beats-context">years with alpha &gt; 0</span>
             </div>
             <div class="lh-stat-divider"></div>
             <div class="lh-stat">
-                <span class="lh-stat-label">Avg Alpha</span>
+                <span class="lh-stat-label" data-i18n="hero-alpha-label">Avg Alpha</span>
                 <span class="lh-stat-value green">+8.3 pp</span>
-                <span class="lh-stat-context">per year vs S&amp;P 500</span>
+                <span class="lh-stat-context" data-i18n="hero-alpha-context">per year vs S&amp;P 500</span>
             </div>
         </div>
         <div class="lh-stats lh-stats-slide" data-slide="2">
             <div class="lh-stat">
-                <span class="lh-stat-label">Strategies</span>
+                <span class="lh-stat-label" data-i18n="hero-strategies-label">Strategies</span>
                 <span class="lh-stat-value c-accent">3</span>
-                <span class="lh-stat-context">Momentum + Rattle + EFA</span>
+                <span class="lh-stat-context" data-i18n="hero-strategies-context">Momentum + Rattle + EFA</span>
             </div>
             <div class="lh-stat-divider"></div>
             <div class="lh-stat">
-                <span class="lh-stat-label">Hold Period</span>
-                <span class="lh-stat-value c-accent">5 days</span>
-                <span class="lh-stat-context">Weekly rotation cycle</span>
+                <span class="lh-stat-label" data-i18n="hero-hold-label">Hold Period</span>
+                <span class="lh-stat-value c-accent" data-i18n="hero-hold-value">5 days</span>
+                <span class="lh-stat-context" data-i18n="hero-hold-context">Weekly rotation cycle</span>
             </div>
             <div class="lh-stat-divider"></div>
             <div class="lh-stat">
-                <span class="lh-stat-label">Growth</span>
+                <span class="lh-stat-label" data-i18n="hero-growth-label">Growth</span>
                 <span class="lh-stat-value green">$100K &rarr; $3.8M</span>
-                <span class="lh-stat-context">2000&ndash;2026 backtest</span>
+                <span class="lh-stat-context" data-i18n="hero-growth-context">2000&ndash;2026 backtest</span>
             </div>
         </div>
         <div class="lh-carousel-controls">
@@ -230,12 +230,12 @@
         </div>
     </div>
     <div class="lh-features">
-        <span class="lh-feature"><span class="lh-feature-dot"></span>60 Experiments</span>
-        <span class="lh-feature"><span class="lh-feature-dot"></span>No Leverage</span>
-        <span class="lh-feature"><span class="lh-feature-dot"></span>Cash Recycling</span>
-        <span class="lh-feature"><span class="lh-feature-dot"></span>No Black Box</span>
+        <span class="lh-feature"><span class="lh-feature-dot"></span><span data-i18n="hero-feat-experiments">60 Experiments</span></span>
+        <span class="lh-feature"><span class="lh-feature-dot"></span><span data-i18n="hero-feat-noleverage">No Leverage</span></span>
+        <span class="lh-feature"><span class="lh-feature-dot"></span><span data-i18n="hero-feat-cashrecycling">Cash Recycling</span></span>
+        <span class="lh-feature"><span class="lh-feature-dot"></span><span data-i18n="hero-feat-noblackbox">No Black Box</span></span>
     </div>
-    <div class="lh-disclaimer">
+    <div class="lh-disclaimer" data-i18n="hero-disclaimer">
         Past performance does not guarantee future results.
         This is a live paper trading test, not investment advice.
     </div>
@@ -245,7 +245,7 @@
 <div class="preclose-bar" id="preclose-bar">
     <div class="preclose-phase" id="preclose-phase">
         <span class="preclose-dot preclose-dot-closed" id="preclose-dot"></span>
-        <span id="preclose-label">MERCADO CERRADO</span>
+        <span id="preclose-label" data-i18n="preclose-closed">MERCADO CERRADO</span>
     </div>
     <div class="preclose-timeline">
         <div class="preclose-segment preclose-seg-pre">
@@ -274,7 +274,7 @@
 <!-- PERFORMANCE vs S&P 500 — HERO BANNER -->
 <div class="perf-banner anim-enter anim-d1" id="perf-banner">
     <!-- ROW 1: DAILY comparison -->
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-tertiary);text-align:center;margin-bottom:4px;">Hoy</div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-tertiary);text-align:center;margin-bottom:4px;" data-i18n="perf-today">Hoy</div>
     <div class="perf-banner-inner">
         <div class="perf-side">
             <span class="perf-side-label">HYDRA</span>
@@ -295,7 +295,7 @@
     </div>
     <!-- ROW 2: CUMULATIVE comparison (since inception) -->
     <div style="border-top:1px solid rgba(255,255,255,0.06);margin-top:6px;padding-top:6px;">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-tertiary);text-align:center;margin-bottom:4px;">General</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-tertiary);text-align:center;margin-bottom:4px;" data-i18n="perf-overall">General</div>
         <div class="perf-banner-inner">
             <div class="perf-side">
                 <span class="perf-side-label">HYDRA</span>
@@ -315,10 +315,10 @@
             </div>
         </div>
     </div>
-    <div class="perf-banner-period" id="perf-period">Test en vivo desde --</div>
+    <div class="perf-banner-period" id="perf-period" data-i18n="perf-period">Test en vivo desde --</div>
     <!-- BACKTEST CONTEXT ROW -->
     <div class="perf-backtest-row">
-        <div class="perf-bt-label">Backtest (2000&ndash;2026)</div>
+        <div class="perf-bt-label" data-i18n="perf-backtest-label">Backtest (2000&ndash;2026)</div>
         <div class="perf-bt-bars">
             <div class="perf-bt-item">
                 <span class="perf-bt-name">HYDRA</span>
@@ -359,27 +359,27 @@
 <!-- PORTFOLIO METRICS -->
 <div class="metrics-grid anim-enter anim-d4">
     <div class="metric-card">
-        <div class="metric-label">Valor del Portfolio</div>
+        <div class="metric-label" data-i18n="metric-portfolio">Valor del Portfolio</div>
         <div class="metric-value" id="card-total"><span class="skeleton skeleton-value">&nbsp;</span></div>
         <div class="metric-sub" id="card-return"><span class="skeleton skeleton-line" style="width:60%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">CAGR Esperado</div>
+        <div class="metric-label" data-i18n="metric-cagr">CAGR Esperado</div>
         <div class="metric-value c-accent" id="card-cagr">14.93%</div>
-        <div class="metric-sub" id="card-cagr-sub">HYDRA (Momentum + Rattlesnake + EFA) | No leverage</div>
+        <div class="metric-sub" id="card-cagr-sub" data-i18n="metric-cagr-sub">HYDRA (Momentum + Rattlesnake + EFA) | No leverage</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Efectivo</div>
+        <div class="metric-label" data-i18n="metric-cash">Efectivo</div>
         <div class="metric-value" id="card-cash"><span class="skeleton skeleton-value">&nbsp;</span></div>
         <div class="metric-sub" id="card-invested"><span class="skeleton skeleton-line" style="width:70%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Drawdown</div>
+        <div class="metric-label" data-i18n="metric-drawdown">Drawdown</div>
         <div class="metric-value" id="card-drawdown"><span class="skeleton skeleton-value" style="width:50%">&nbsp;</span></div>
         <div class="metric-sub" id="card-peak"><span class="skeleton skeleton-line" style="width:65%">&nbsp;</span></div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Posiciones</div>
+        <div class="metric-label" data-i18n="metric-positions">Posiciones</div>
         <div class="metric-value" id="card-positions"><span class="skeleton skeleton-value" style="width:40%">&nbsp;</span></div>
         <div class="metric-sub" id="card-maxpos"><span class="skeleton skeleton-line" style="width:55%">&nbsp;</span></div>
     </div>
@@ -388,7 +388,7 @@
 <!-- REGIME SCORE BAND -->
 <div class="regime-band anim-enter anim-d5" id="regime-band">
     <div class="regime-band-left">
-        <span class="regime-band-label">Regime Score</span>
+        <span class="regime-band-label" data-i18n="regime-score">Regime Score</span>
         <div class="regime-band-score-row">
             <span class="regime-band-value" id="rb-score">--</span>
             <span class="regime-band-tag" id="rb-tag">--</span>
@@ -414,7 +414,7 @@
         </div>
     </div>
     <div class="regime-band-right">
-        <span class="regime-band-label">Consecutivos</span>
+        <span class="regime-band-label" data-i18n="regime-consecutive">Consecutivos</span>
         <span class="regime-band-cons" id="rb-consecutive">--</span>
     </div>
 </div>
@@ -440,7 +440,7 @@
 <!-- OVERLAY STATUS -->
 <div class="regime-band anim-enter anim-d5" id="overlay-band" style="margin-top:0;">
     <div class="regime-band-left" style="min-width:180px;">
-        <span class="regime-band-label">Macro Overlay</span>
+        <span class="regime-band-label" data-i18n="overlay-title">Macro Overlay</span>
         <div class="regime-band-score-row">
             <span class="regime-band-value" id="ov-scalar">--</span>
             <span class="regime-band-tag" id="ov-tag">--</span>
@@ -510,7 +510,7 @@
             <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: var(--text-primary);">
                 HYDRA <span style="font-weight: 400; font-size: 13px; color: var(--text-muted); margin-left: 4px;">Multi-Strategy System</span>
             </div>
-            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">
+            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;" data-i18n="hydra-header-sub">
                 3 estrategias &middot; Cash Recycling activo &middot; Capital segregado
             </div>
         </div>
@@ -559,12 +559,12 @@
                 font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
                 color: var(--accent); background: rgba(99,102,241,0.12);
                 letter-spacing: 0.5px; margin-right: 6px; vertical-align: middle;
-            ">ESTRATEGIA 1</span>
+            " data-i18n="strategy-1">ESTRATEGIA 1</span>
             Momentum <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Momentum</span>
         </div>
         <div class="positions-hero-summary" id="positions-summary">
             <div class="ph-stat">
-                <span class="ph-stat-label">Invertido</span>
+                <span class="ph-stat-label" data-i18n="strat-invested">Invertido</span>
                 <span class="ph-stat-value c-white" id="ph-invested"><span class="skeleton" style="width:80px;height:20px">&nbsp;</span></span>
             </div>
             <div class="ph-stat-divider"></div>
@@ -574,7 +574,7 @@
             </div>
             <div class="ph-stat-divider"></div>
             <div class="ph-stat">
-                <span class="ph-stat-label">Retorno</span>
+                <span class="ph-stat-label" data-i18n="strat-return">Retorno</span>
                 <span class="ph-stat-value" id="ph-total-pct"><span class="skeleton" style="width:60px;height:20px">&nbsp;</span></span>
             </div>
         </div>
@@ -583,7 +583,7 @@
         <div class="positions-empty" style="grid-column: 1 / -1;">
             <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
                 <div class="skeleton" style="width:48px; height:48px; border-radius:12px;">&nbsp;</div>
-                <div style="color:var(--text-tertiary); font-size:13px; font-weight:500;">Cargando posiciones...</div>
+                <div style="color:var(--text-tertiary); font-size:13px; font-weight:500;" data-i18n="strat-loading">Cargando posiciones...</div>
             </div>
         </div>
     </div>
@@ -615,12 +615,12 @@
                 font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
                 color: var(--yellow); background: rgba(234,179,8,0.12);
                 letter-spacing: 0.5px; margin-right: 6px; vertical-align: middle;
-            ">ESTRATEGIA 2</span>
+            " data-i18n="strategy-2">ESTRATEGIA 2</span>
             Rattlesnake <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Mean-Reversion</span>
         </div>
         <div class="positions-hero-summary" id="rattle-summary">
             <div class="ph-stat">
-                <span class="ph-stat-label">Posiciones</span>
+                <span class="ph-stat-label" data-i18n="strat-positions">Posiciones</span>
                 <span class="ph-stat-value c-white" id="rh-count">0</span>
             </div>
             <div class="ph-stat-divider"></div>
@@ -644,7 +644,7 @@
 <!-- P2P SCATTERPLOT — Position Comparison -->
 <div class="card full-width anim-enter anim-d5" id="p2p-scatter-card" style="display:none;">
     <div class="card-header">
-        <span class="card-title">Peer-to-Peer &mdash; Comparaci&oacute;n de Posiciones</span>
+        <span class="card-title" data-i18n="p2p-title">Peer-to-Peer &mdash; Comparaci&oacute;n de Posiciones</span>
         <span class="card-badge" id="p2p-badge" style="color:var(--accent); background:var(--accent-glow);">0 posiciones</span>
     </div>
     <div class="card-body">
@@ -654,19 +654,19 @@
         </div>
         <div class="p2p-stat-bar" id="p2p-stat-bar">
             <div class="p2p-stat">
-                <span class="p2p-stat-label">Mejor Posici&oacute;n</span>
+                <span class="p2p-stat-label" data-i18n="p2p-best">Mejor Posici&oacute;n</span>
                 <span class="p2p-stat-value" id="p2p-best">--</span>
             </div>
             <div class="p2p-stat">
-                <span class="p2p-stat-label">Peor Posici&oacute;n</span>
+                <span class="p2p-stat-label" data-i18n="p2p-worst">Peor Posici&oacute;n</span>
                 <span class="p2p-stat-value" id="p2p-worst">--</span>
             </div>
             <div class="p2p-stat">
-                <span class="p2p-stat-label">Retorno Promedio</span>
+                <span class="p2p-stat-label" data-i18n="p2p-avg">Retorno Promedio</span>
                 <span class="p2p-stat-value" id="p2p-avg">--</span>
             </div>
             <div class="p2p-stat">
-                <span class="p2p-stat-label">Valor Total</span>
+                <span class="p2p-stat-label" data-i18n="p2p-total-val">Valor Total</span>
                 <span class="p2p-stat-value" id="p2p-total">--</span>
             </div>
         </div>
@@ -676,14 +676,14 @@
 <!-- ANNUAL RETURNS BAR CHART -->
 <div class="card full-width" id="annual-returns-card">
     <div class="card-header">
-        <span class="card-title">Retornos Anuales &mdash; HYDRA vs S&amp;P 500</span>
+        <span class="card-title" data-i18n="ar-title">Retornos Anuales &mdash; HYDRA vs S&amp;P 500</span>
         <span class="card-badge" style="color:var(--green); background:var(--green-dim);" id="ar-badge">Cargando...</span>
     </div>
     <div class="card-body">
         <!-- Legend sits above the chart, right-aligned -->
         <div class="ar-legend">
-            <div class="ar-legend-item"><div class="ar-legend-swatch hydra-pos"></div> HYDRA positivo</div>
-            <div class="ar-legend-item"><div class="ar-legend-swatch hydra-neg"></div> HYDRA negativo</div>
+            <div class="ar-legend-item"><div class="ar-legend-swatch hydra-pos"></div> <span data-i18n="ar-hydra-pos">HYDRA positivo</span></div>
+            <div class="ar-legend-item"><div class="ar-legend-swatch hydra-neg"></div> <span data-i18n="ar-hydra-neg">HYDRA negativo</span></div>
             <div class="ar-legend-item"><div class="ar-legend-swatch spy"></div> S&amp;P 500</div>
         </div>
         <!-- Chart canvas — height driven by JS -->
@@ -693,24 +693,24 @@
         <!-- Stat bar — populated by JS -->
         <div id="ar-stat-bar" class="ar-stat-bar">
             <div class="ar-stat">
-                <span class="ar-stat-label">A&ntilde;os positivos</span>
+                <span class="ar-stat-label" data-i18n="ar-positive-years">A&ntilde;os positivos</span>
                 <span class="ar-stat-value positive" id="ar-stat-positive">--</span>
                 <span class="ar-stat-sub">de <span id="ar-stat-total">--</span> a&ntilde;os</span>
             </div>
             <div class="ar-stat">
-                <span class="ar-stat-label">Bate al S&amp;P</span>
+                <span class="ar-stat-label" data-i18n="ar-beats-sp">Bate al S&amp;P</span>
                 <span class="ar-stat-value positive" id="ar-stat-beats">--</span>
-                <span class="ar-stat-sub">a&ntilde;os con alfa &gt; 0</span>
+                <span class="ar-stat-sub" data-i18n="ar-years-alpha">a&ntilde;os con alfa &gt; 0</span>
             </div>
             <div class="ar-stat">
-                <span class="ar-stat-label">Pierde al S&amp;P</span>
+                <span class="ar-stat-label" data-i18n="ar-loses-sp">Pierde al S&amp;P</span>
                 <span class="ar-stat-value negative" id="ar-stat-loses">--</span>
-                <span class="ar-stat-sub">a&ntilde;os con alfa &lt; 0</span>
+                <span class="ar-stat-sub" data-i18n="ar-years-alpha-neg">a&ntilde;os con alfa &lt; 0</span>
             </div>
             <div class="ar-stat">
-                <span class="ar-stat-label">Alfa promedio</span>
+                <span class="ar-stat-label" data-i18n="ar-avg-alpha">Alfa promedio</span>
                 <span class="ar-stat-value neutral" id="ar-stat-alpha">--</span>
-                <span class="ar-stat-sub">pp / a&ntilde;o vs S&amp;P</span>
+                <span class="ar-stat-sub" data-i18n="ar-pp-year">pp / a&ntilde;o vs S&amp;P</span>
             </div>
         </div>
         <!-- Hidden legacy element — kept for any JS that references it -->
@@ -721,7 +721,7 @@
 <!-- TRADE ANALYTICS -->
 <div class="card full-width anim-enter anim-d6" id="trade-analytics-card">
     <div class="card-header">
-        <span class="card-title">An&aacute;lisis de Trades &mdash; Backtest</span>
+        <span class="card-title" data-i18n="ta-title">An&aacute;lisis de Trades &mdash; Backtest</span>
         <span class="card-badge" id="ta-badge" style="color:var(--green); background:var(--green-dim);">--</span>
     </div>
     <div class="card-body">
@@ -744,8 +744,8 @@
         <div class="sf-page-title-left">
             <div class="sf-page-icon">&#9889;</div>
             <div>
-                <h2 class="sf-page-title">Noticias del Portfolio</h2>
-                <p class="sf-page-subtitle">Noticias, an&aacute;lisis y publicaciones de tus posiciones actuales</p>
+                <h2 class="sf-page-title" data-i18n="sf-title">Noticias del Portfolio</h2>
+                <p class="sf-page-subtitle" data-i18n="sf-subtitle">Noticias, an&aacute;lisis y publicaciones de tus posiciones actuales</p>
             </div>
         </div>
         <span class="sf-count" id="sf-count"></span>
@@ -754,27 +754,27 @@
     <!-- SUMMARY STATS BAR -->
     <div class="sf-stats-bar" id="sf-stats-bar">
         <div class="sf-stat">
-            <span class="sf-stat-label">Total</span>
+            <span class="sf-stat-label" data-i18n="sf-stat-total">Total</span>
             <span class="sf-stat-value" id="sf-stat-total">--</span>
         </div>
         <div class="sf-stat">
-            <span class="sf-stat-label">Alcista</span>
+            <span class="sf-stat-label" data-i18n="sf-stat-bull">Alcista</span>
             <span class="sf-stat-value" style="color:var(--green);" id="sf-stat-bull">--</span>
         </div>
         <div class="sf-stat">
-            <span class="sf-stat-label">Bajista</span>
+            <span class="sf-stat-label" data-i18n="sf-stat-bear">Bajista</span>
             <span class="sf-stat-value" style="color:var(--red);" id="sf-stat-bear">--</span>
         </div>
         <div class="sf-stat">
-            <span class="sf-stat-label">Neutral</span>
+            <span class="sf-stat-label" data-i18n="sf-stat-neutral">Neutral</span>
             <span class="sf-stat-value" id="sf-stat-neutral">--</span>
         </div>
         <div class="sf-stat">
-            <span class="sf-stat-label">M&aacute;s mencionado</span>
+            <span class="sf-stat-label" data-i18n="sf-stat-most-mentioned">M&aacute;s mencionado</span>
             <span class="sf-stat-value" style="color:var(--accent-light);" id="sf-stat-top-ticker">--</span>
         </div>
         <div class="sf-stat">
-            <span class="sf-stat-label">M&aacute;s reciente</span>
+            <span class="sf-stat-label" data-i18n="sf-stat-freshest">M&aacute;s reciente</span>
             <span class="sf-stat-value" id="sf-stat-freshness">--</span>
         </div>
     </div>
@@ -782,9 +782,9 @@
     <!-- FILTER ROW -->
     <div class="sf-filters">
         <div class="sf-filter-group">
-            <span class="sf-filter-label">Fuente:</span>
+            <span class="sf-filter-label" data-i18n="sf-source">Fuente:</span>
             <div class="sf-filter-pills" id="sf-source-filters">
-                <button class="sf-pill sf-pill-active" data-source="all">Todas</button>
+                <button class="sf-pill sf-pill-active" data-source="all" data-i18n="sf-all-sources">Todas</button>
                 <button class="sf-pill" data-source="sec"><span class="sf-pill-dot sf-dot-sec"></span>SEC</button>
                 <button class="sf-pill" data-source="seekingalpha"><span class="sf-pill-dot sf-dot-sa"></span>SeekingAlpha</button>
                 <button class="sf-pill" data-source="news"><span class="sf-pill-dot sf-dot-news"></span>Yahoo</button>
@@ -794,16 +794,16 @@
             </div>
         </div>
         <div class="sf-filter-group">
-            <span class="sf-filter-label">Ticker:</span>
+            <span class="sf-filter-label" data-i18n="sf-ticker">Ticker:</span>
             <div class="sf-filter-pills" id="sf-ticker-filters">
-                <button class="sf-pill sf-pill-active" data-ticker="all">Todos</button>
+                <button class="sf-pill sf-pill-active" data-ticker="all" data-i18n="sf-all-tickers">Todos</button>
             </div>
         </div>
         <div class="sf-filter-group">
-            <span class="sf-filter-label">Vista:</span>
+            <span class="sf-filter-label" data-i18n="sf-view">Vista:</span>
             <div class="sf-filter-pills" id="sf-view-toggle">
-                <button class="sf-pill sf-pill-active" data-view="timeline">&#128337; Cronol&oacute;gico</button>
-                <button class="sf-pill" data-view="grouped">&#128196; Por Ticker</button>
+                <button class="sf-pill sf-pill-active" data-view="timeline" data-i18n="sf-chronological">&#128337; Cronol&oacute;gico</button>
+                <button class="sf-pill" data-view="grouped" data-i18n="sf-by-ticker">&#128196; Por Ticker</button>
             </div>
         </div>
     </div>
@@ -825,8 +825,8 @@
 <div id="page-roadmap" class="page-content">
 
 <div class="roadmap-header">
-    <h2>Camino hacia Lanzamiento</h2>
-    <p>HYDRA (Momentum + Rattlesnake + EFA) &mdash; Checklist de producci&oacute;n. Cada fase debe completarse antes de operar con capital real.</p>
+    <h2 data-i18n="rm-heading">Camino hacia Lanzamiento</h2>
+    <p data-i18n="rm-heading-sub">HYDRA (Momentum + Rattlesnake + EFA) &mdash; Checklist de producci&oacute;n. Cada fase debe completarse antes de operar con capital real.</p>
 </div>
 
 <!-- PROGRESS BAR -->
@@ -843,23 +843,23 @@
 <!-- SUMMARY STATS -->
 <div class="roadmap-summary">
     <div class="roadmap-summary-card">
-        <div class="rm-summary-title">Resumen de Progreso</div>
+        <div class="rm-summary-title" data-i18n="rm-summary-title">Resumen de Progreso</div>
         <div class="rm-summary-grid">
             <div class="rm-summary-stat">
                 <div class="rm-summary-num" style="color:var(--green);">3</div>
-                <div class="rm-summary-label">Completado</div>
+                <div class="rm-summary-label" data-i18n="rm-completed">Completado</div>
             </div>
             <div class="rm-summary-stat">
                 <div class="rm-summary-num" style="color:var(--accent-light);">1</div>
-                <div class="rm-summary-label">En Progreso</div>
+                <div class="rm-summary-label" data-i18n="rm-in-progress">En Progreso</div>
             </div>
             <div class="rm-summary-stat">
                 <div class="rm-summary-num" style="color:var(--text-tertiary);">2</div>
-                <div class="rm-summary-label">Pendiente</div>
+                <div class="rm-summary-label" data-i18n="rm-pending">Pendiente</div>
             </div>
             <div class="rm-summary-stat">
                 <div class="rm-summary-num" style="color:var(--cyan);">56</div>
-                <div class="rm-summary-label">Experimentos</div>
+                <div class="rm-summary-label" data-i18n="rm-experiments">Experimentos</div>
             </div>
         </div>
     </div>
@@ -871,8 +871,8 @@
     <!-- Phase 1: Algorithm -->
     <div class="roadmap-card rm-done">
         <div class="rm-card-top">
-            <span class="rm-phase">Fase 1 &mdash; Algoritmo</span>
-            <span class="rm-status rm-status-done">Completado</span>
+            <span class="rm-phase" data-i18n="rm-phase1">Fase 1 &mdash; Algoritmo</span>
+            <span class="rm-status rm-status-done" data-i18n="rm-status-done">Completado</span>
         </div>
         <div class="rm-title">Motor HYDRA</div>
         <div class="rm-desc">
@@ -900,7 +900,7 @@
     <!-- Phase 2: Data Integrity -->
     <div class="roadmap-card rm-done">
         <div class="rm-card-top">
-            <span class="rm-phase">Fase 2 &mdash; Datos</span>
+            <span class="rm-phase" data-i18n="rm-phase2">Fase 2 &mdash; Datos</span>
             <span class="rm-status rm-status-done">Completado</span>
         </div>
         <div class="rm-title">Survivorship Bias Corrected</div>
@@ -924,7 +924,7 @@
     <!-- Phase 3: Broker -->
     <div class="roadmap-card rm-done">
         <div class="rm-card-top">
-            <span class="rm-phase">Fase 3 &mdash; Broker</span>
+            <span class="rm-phase" data-i18n="rm-phase3">Fase 3 &mdash; Broker</span>
             <span class="rm-status rm-status-done">Completado</span>
         </div>
         <div class="rm-title">IBKR TWS API + PaperBroker</div>
@@ -950,8 +950,8 @@
     <!-- Phase 4: Paper Trading -->
     <div class="roadmap-card rm-active">
         <div class="rm-card-top">
-            <span class="rm-phase">Fase 4 &mdash; Validaci&oacute;n</span>
-            <span class="rm-status rm-status-active">En Progreso</span>
+            <span class="rm-phase" data-i18n="rm-phase4">Fase 4 &mdash; Validaci&oacute;n</span>
+            <span class="rm-status rm-status-active" data-i18n="rm-status-active">En Progreso</span>
         </div>
         <div class="rm-title">Paper Trading Activo desde 19 Feb 2026</div>
         <div class="rm-desc">
@@ -978,8 +978,8 @@
     <!-- Phase 5: Tax Optimization -->
     <div class="roadmap-card rm-pending">
         <div class="rm-card-top">
-            <span class="rm-phase">Fase 5 &mdash; Fiscalidad</span>
-            <span class="rm-status rm-status-pending">Pendiente</span>
+            <span class="rm-phase" data-i18n="rm-phase5">Fase 5 &mdash; Fiscalidad</span>
+            <span class="rm-status rm-status-pending" data-i18n="rm-status-pending">Pendiente</span>
         </div>
         <div class="rm-title">Optimizaci&oacute;n Fiscal</div>
         <div class="rm-desc">
@@ -1001,7 +1001,7 @@
     <!-- Phase 6: Go Live -->
     <div class="roadmap-card rm-pending">
         <div class="rm-card-top">
-            <span class="rm-phase">Fase 6 &mdash; Lanzamiento</span>
+            <span class="rm-phase" data-i18n="rm-phase6">Fase 6 &mdash; Lanzamiento</span>
             <span class="rm-status rm-status-pending">Pendiente</span>
         </div>
         <div class="rm-title">Capital Real $100K</div>
@@ -1027,7 +1027,7 @@
 <!-- DECISION LOG -->
 <div class="roadmap-summary" style="margin-bottom:20px;">
     <div class="roadmap-summary-card">
-        <div class="rm-summary-title">Decisiones Clave Tomadas</div>
+        <div class="rm-summary-title" data-i18n="rm-decisions-title">Decisiones Clave Tomadas</div>
         <div style="display:grid; gap:8px;">
             <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
                 <span style="color:var(--green); font-size:16px;">&#10003;</span>
@@ -1092,8 +1092,8 @@
     <div class="lh-glow lh-glow-1" style="opacity:0.2;"></div>
     <div class="lh-glow lh-glow-2" style="opacity:0.15;"></div>
     <div class="algo-hero-title">HYDRA Multi-Strategy</div>
-    <div class="algo-hero-sub">C&oacute;mo Funciona</div>
-    <div class="algo-hero-tagline">Momentum + Rattlesnake (mean-reversion) + EFA (international) con cash recycling &middot; S&amp;P 500 + EAFE &middot; Sin deuda &middot; Completamente autom&aacute;tico</div>
+    <div class="algo-hero-sub" data-i18n="algo-hero-sub">C&oacute;mo Funciona</div>
+    <div class="algo-hero-tagline" data-i18n="algo-hero-tagline">Momentum + Rattlesnake (mean-reversion) + EFA (international) con cash recycling &middot; S&amp;P 500 + EAFE &middot; Sin deuda &middot; Completamente autom&aacute;tico</div>
     <!-- Chalkboard formulas — the three strategies -->
     <div class="lh-chalkboard">
         <div class="lh-chalk-row lh-chalk-main">
@@ -1136,32 +1136,32 @@
     <div class="algo-pipeline">
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#127760;</div>
-            <div class="algo-pipe-label">Universo</div>
-            <div class="algo-pipe-detail">Las 40 m&aacute;s l&iacute;quidas</div>
+            <div class="algo-pipe-label" data-i18n="algo-pipe-universe">Universo</div>
+            <div class="algo-pipe-detail" data-i18n="algo-pipe-universe-detail">Las 40 m&aacute;s l&iacute;quidas</div>
         </div>
         <div class="algo-pipe-arrow">&rarr;</div>
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#128200;</div>
-            <div class="algo-pipe-label">Se&ntilde;ales</div>
-            <div class="algo-pipe-detail">&iquest;Qui&eacute;n sube m&aacute;s fuerte?</div>
+            <div class="algo-pipe-label" data-i18n="algo-pipe-signals">Se&ntilde;ales</div>
+            <div class="algo-pipe-detail" data-i18n="algo-pipe-signals-detail">&iquest;Qui&eacute;n sube m&aacute;s fuerte?</div>
         </div>
         <div class="algo-pipe-arrow">&rarr;</div>
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#127919;</div>
-            <div class="algo-pipe-label">Contexto</div>
-            <div class="algo-pipe-detail">&iquest;El mercado est&aacute; bien?</div>
+            <div class="algo-pipe-label" data-i18n="algo-pipe-context">Contexto</div>
+            <div class="algo-pipe-detail" data-i18n="algo-pipe-context-detail">&iquest;El mercado est&aacute; bien?</div>
         </div>
         <div class="algo-pipe-arrow">&rarr;</div>
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#9878;</div>
-            <div class="algo-pipe-label">Tama&ntilde;o</div>
-            <div class="algo-pipe-detail">&iquest;Cu&aacute;nto en cada una?</div>
+            <div class="algo-pipe-label" data-i18n="algo-pipe-sizing">Tama&ntilde;o</div>
+            <div class="algo-pipe-detail" data-i18n="algo-pipe-sizing-detail">&iquest;Cu&aacute;nto en cada una?</div>
         </div>
         <div class="algo-pipe-arrow">&rarr;</div>
         <div class="algo-pipe-step">
             <div class="algo-pipe-icon">&#128737;</div>
-            <div class="algo-pipe-label">Protecci&oacute;n</div>
-            <div class="algo-pipe-detail">&iquest;Cu&aacute;ndo vender?</div>
+            <div class="algo-pipe-label" data-i18n="algo-pipe-protection">Protecci&oacute;n</div>
+            <div class="algo-pipe-detail" data-i18n="algo-pipe-protection-detail">&iquest;Cu&aacute;ndo vender?</div>
         </div>
     </div>
 </div>
@@ -1171,7 +1171,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">01</span>
-            <span class="algo-card-title">&iquest;En qu&eacute; acciones invertimos?</span>
+            <span class="algo-card-title" data-i18n="algo-s1-title">&iquest;En qu&eacute; acciones invertimos?</span>
         </div>
         <div class="algo-card-body">
             <p>De las ~500 empresas m&aacute;s grandes de Estados Unidos (el <strong>S&amp;P 500</strong>), HYDRA selecciona cada a&ntilde;o las <strong>40 que m&aacute;s se compran y venden</strong> en bolsa. Esto garantiza que siempre podamos entrar y salir r&aacute;pido, sin mover el precio. Las 113 acciones iniciales est&aacute;n distribuidas en 7 sectores de la econom&iacute;a:</p>
@@ -1207,7 +1207,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">02</span>
-            <span class="algo-card-title">&iquest;C&oacute;mo elegimos qu&eacute; comprar?</span>
+            <span class="algo-card-title" data-i18n="algo-s2-title">&iquest;C&oacute;mo elegimos qu&eacute; comprar?</span>
         </div>
         <div class="algo-card-body">
             <p>Cada 5 d&iacute;as, HYDRA eval&uacute;a las 40 acciones y les asigna un <strong>puntaje de momentum</strong>: b&aacute;sicamente mide cu&aacute;les han subido m&aacute;s en los &uacute;ltimos 3 meses, descontando los &uacute;ltimos 5 d&iacute;as (porque las que suben mucho en pocos d&iacute;as suelen rebotar hacia abajo). Luego ajusta por volatilidad: una acci&oacute;n que sube 10% pero salta como monta&ntilde;a rusa vale menos que una que sube 10% de forma estable.</p>
@@ -1245,7 +1245,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">03</span>
-            <span class="algo-card-title">&iquest;C&oacute;mo sabe si el mercado est&aacute; bien o mal?</span>
+            <span class="algo-card-title" data-i18n="algo-s3-title">&iquest;C&oacute;mo sabe si el mercado est&aacute; bien o mal?</span>
         </div>
         <div class="algo-card-body">
             <p>Antes de comprar, HYDRA eval&uacute;a el estado general del mercado con un <strong>term&oacute;metro de 0 a 1</strong>. Si el mercado est&aacute; fuerte (&gt;0.65), compramos 5 acciones. Si est&aacute; d&eacute;bil (&lt;0.35), solo 2. Funciona como un <strong>sem&aacute;foro</strong>: verde = acelerar, amarillo = precauci&oacute;n, rojo = frenar. El term&oacute;metro combina dos factores: <strong>tendencia</strong> (60%) &mdash; &iquest;el mercado viene subiendo? &mdash; y <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia?</p>
@@ -1305,7 +1305,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">04</span>
-            <span class="algo-card-title">&iquest;C&oacute;mo nos protegemos de p&eacute;rdidas?</span>
+            <span class="algo-card-title" data-i18n="algo-s4-title">&iquest;C&oacute;mo nos protegemos de p&eacute;rdidas?</span>
         </div>
         <div class="algo-card-body">
             <p>El riesgo es lo m&aacute;s importante. HYDRA tiene <strong>4 capas de protecci&oacute;n</strong> que funcionan como airbags en un auto: se activan autom&aacute;ticamente cuando algo sale mal, sin necesidad de intervenci&oacute;n humana.</p>
@@ -1407,7 +1407,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">05</span>
-            <span class="algo-card-title">&iquest;Cu&aacute;nto invertimos y cu&aacute;ndo?</span>
+            <span class="algo-card-title" data-i18n="algo-s5-title">&iquest;Cu&aacute;nto invertimos y cu&aacute;ndo?</span>
         </div>
         <div class="algo-card-body">
             <p>HYDRA divide el capital entre las acciones seleccionadas de forma inteligente: las <strong>acciones m&aacute;s estables reciben m&aacute;s dinero</strong>, las m&aacute;s vol&aacute;tiles menos. Esto equilibra el riesgo. Cada posici&oacute;n se mantiene <strong>5 d&iacute;as</strong> (una semana burs&aacute;til), y puede extenderse hasta 10 d&iacute;as si sigue ganando.</p>
@@ -1458,7 +1458,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">06</span>
-            <span class="algo-card-title">Rattlesnake + EFA + Cash Recycling</span>
+            <span class="algo-card-title" data-i18n="algo-s6-title">Rattlesnake + EFA + Cash Recycling</span>
         </div>
         <div class="algo-card-body">
             <p>Mientras Momentum busca acciones que <strong>suben fuerte</strong>, Rattlesnake busca acciones que <strong>cayeron demasiado r&aacute;pido</strong> y probablemente se van a recuperar. Las tres estrategias se complementan: cuando una tiene el dinero parado, se lo presta a las otras o se invierte en EFA (mercados internacionales).</p>
@@ -1548,7 +1548,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">07</span>
-            <span class="algo-card-title">&iquest;C&oacute;mo anticipa las crisis antes de que lleguen?</span>
+            <span class="algo-card-title" data-i18n="algo-s7-title">&iquest;C&oacute;mo anticipa las crisis antes de que lleguen?</span>
         </div>
         <div class="algo-card-body">
             <p>Adem&aacute;s de las protecciones internas (stops, drawdown scaling), HYDRA tiene un <strong>sistema de alerta temprana macroecon&oacute;mica</strong> que monitorea 8 indicadores de la Reserva Federal en tiempo real. Funciona como un <strong>radar meteorol&oacute;gico</strong>: detecta la tormenta antes de que llegue, y reduce autom&aacute;ticamente la exposici&oacute;n del portafolio.</p>
@@ -1682,7 +1682,7 @@
     <div class="algo-card">
         <div class="algo-card-header">
             <span class="algo-card-num">08</span>
-            <span class="algo-card-title">&iquest;C&oacute;mo aprende de sus propios resultados?</span>
+            <span class="algo-card-title" data-i18n="algo-s8-title">&iquest;C&oacute;mo aprende de sus propios resultados?</span>
         </div>
         <div class="algo-card-body">
             <p>HYDRA incluye un <strong>sistema de aprendizaje autom&aacute;tico progresivo</strong> que registra cada decisi&oacute;n del algoritmo (compras, ventas, posiciones descartadas, cambios de r&eacute;gimen) y analiza los resultados para detectar patrones. Funciona como un <strong>diario de trading inteligente</strong>: primero observa y acumula datos, luego comienza a extraer conclusiones estad&iacute;sticas, y finalmente entrena modelos predictivos cuando tiene suficiente evidencia.</p>
@@ -1833,7 +1833,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
     <div class="algo-card">
         <div class="algo-card-header" style="cursor:pointer;" onclick="var b=document.getElementById('algo-params-body');var a=document.getElementById('algo-toggle-arrow');if(b.style.display==='none'){b.style.display='block';a.textContent='▼';}else{b.style.display='none';a.textContent='▶';}">
             <span class="algo-card-num">09</span>
-            <span class="algo-card-title">Par&aacute;metros T&eacute;cnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);">(para expertos)</span></span>
+            <span class="algo-card-title" data-i18n="algo-s9-title">Par&aacute;metros T&eacute;cnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);" data-i18n="algo-s9-subtitle">(para expertos)</span></span>
             <span id="algo-toggle-arrow" style="margin-left:auto;font-size:14px;color:var(--text-tertiary);">&#9654;</span>
         </div>
         <div class="algo-card-body" id="algo-params-body" style="display:none;">
@@ -1893,7 +1893,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 
 <!-- CYCLE LOG (HYDRA vs S&P 500) -->
 <div class="cycle-log anim-enter anim-d3" id="cycle-log-section">
-    <span class="cycle-log-title">Ciclos de 5 D&iacute;as &mdash; HYDRA vs S&amp;P 500</span>
+    <span class="cycle-log-title" data-i18n="ml-cycle-title">Ciclos de 5 D&iacute;as &mdash; HYDRA vs S&amp;P 500</span>
     <table class="cycle-log-table">
         <thead>
             <tr>
@@ -1917,7 +1917,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
     <div class="ml-overview-header">
         <div class="ml-overview-title">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:8px;"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg>
-            Motor de Aprendizaje
+            <span data-i18n="ml-engine-title">Motor de Aprendizaje</span>
         </div>
         <p class="ml-overview-desc">
             El sistema ML opera como un <strong>observador inteligente</strong> del algoritmo HYDRA. No toma decisiones de trading &mdash;
@@ -1931,32 +1931,32 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
     <div class="ml-pipeline">
         <div class="ml-pipe-step">
             <div class="ml-pipe-icon">&#9881;</div>
-            <div class="ml-pipe-label">Motor HYDRA</div>
-            <div class="ml-pipe-sub">Ejecuta trades</div>
+            <div class="ml-pipe-label" data-i18n="ml-pipe-engine">Motor HYDRA</div>
+            <div class="ml-pipe-sub" data-i18n="ml-pipe-engine-sub">Ejecuta trades</div>
         </div>
         <div class="ml-pipe-arrow">&rarr;</div>
         <div class="ml-pipe-step">
             <div class="ml-pipe-icon">&#128203;</div>
             <div class="ml-pipe-label">DecisionLogger</div>
-            <div class="ml-pipe-sub">Captura 30+ features por decisi&oacute;n</div>
+            <div class="ml-pipe-sub" data-i18n="ml-pipe-logger-sub">Captura 30+ features por decisi&oacute;n</div>
         </div>
         <div class="ml-pipe-arrow">&rarr;</div>
         <div class="ml-pipe-step">
             <div class="ml-pipe-icon">&#128200;</div>
             <div class="ml-pipe-label">OutcomeTracker</div>
-            <div class="ml-pipe-sub">Vincula resultados reales</div>
+            <div class="ml-pipe-sub" data-i18n="ml-pipe-outcome-sub">Vincula resultados reales</div>
         </div>
         <div class="ml-pipe-arrow">&rarr;</div>
         <div class="ml-pipe-step">
             <div class="ml-pipe-icon">&#129504;</div>
             <div class="ml-pipe-label">LearningEngine</div>
-            <div class="ml-pipe-sub">Entrena modelos seg&uacute;n fase</div>
+            <div class="ml-pipe-sub" data-i18n="ml-pipe-learning-sub">Entrena modelos seg&uacute;n fase</div>
         </div>
         <div class="ml-pipe-arrow">&rarr;</div>
         <div class="ml-pipe-step">
             <div class="ml-pipe-icon">&#128161;</div>
             <div class="ml-pipe-label">InsightReporter</div>
-            <div class="ml-pipe-sub">Sugiere ajustes (&gt;90% confianza)</div>
+            <div class="ml-pipe-sub" data-i18n="ml-pipe-insight-sub">Sugiere ajustes (&gt;90% confianza)</div>
         </div>
     </div>
 
@@ -1967,7 +1967,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                 <span class="ml-phase-badge ml-phase-1">Fase 1</span>
                 <span class="ml-phase-days">0 &ndash; 63 d&iacute;as</span>
             </div>
-            <div class="ml-phase-title">Observar y Registrar</div>
+            <div class="ml-phase-title" data-i18n="ml-phase1-title">Observar y Registrar</div>
             <p class="ml-phase-desc">
                 El sistema solo observa. Registra cada decisi&oacute;n del algoritmo en formato append-only (JSONL)
                 y calcula estad&iacute;sticas descriptivas: retorno medio, tasa de acierto, frecuencia de stops,
@@ -1985,7 +1985,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                 <span class="ml-phase-badge ml-phase-2">Fase 2</span>
                 <span class="ml-phase-days">63 &ndash; 252 d&iacute;as</span>
             </div>
-            <div class="ml-phase-title">Primeras Se&ntilde;ales</div>
+            <div class="ml-phase-title" data-i18n="ml-phase2-title">Primeras Se&ntilde;ales</div>
             <p class="ml-phase-desc">
                 Con ~3 meses de datos, el sistema entrena modelos <strong>fuertemente regularizados</strong>
                 para evitar overfitting en muestras peque&ntilde;as. Regresi&oacute;n Ridge (&alpha;=10.0) predice
@@ -2005,7 +2005,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
                 <span class="ml-phase-badge ml-phase-3">Fase 3</span>
                 <span class="ml-phase-days">252+ d&iacute;as</span>
             </div>
-            <div class="ml-phase-title">ML Supervisado Completo</div>
+            <div class="ml-phase-title" data-i18n="ml-phase3-title">ML Supervisado Completo</div>
             <p class="ml-phase-desc">
                 Con un a&ntilde;o de datos, se activa <strong>LightGBM</strong> (200 &aacute;rboles, profundidad 3,
                 regularizaci&oacute;n L1+L2) como modelo primario, con Random Forest como alternativa.
@@ -2036,32 +2036,32 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
 <!-- ML KPI CARDS -->
 <div class="ml-kpis anim-enter anim-d4">
     <div class="ml-kpi-card">
-        <div class="ml-kpi-label">Trades Completados</div>
+        <div class="ml-kpi-label" data-i18n="ml-kpi-trades">Trades Completados</div>
         <div class="ml-kpi-value" id="ml-kpi-outcomes">--</div>
         <div class="ml-kpi-sub" id="ml-kpi-entries-exits">-- entries / -- exits</div>
     </div>
     <div class="ml-kpi-card">
-        <div class="ml-kpi-label">Win Rate</div>
+        <div class="ml-kpi-label" data-i18n="ml-kpi-winrate">Win Rate</div>
         <div class="ml-kpi-value" id="ml-kpi-winrate">--</div>
         <div class="ml-kpi-sub" id="ml-kpi-stoprate">Stop rate: --</div>
     </div>
     <div class="ml-kpi-card">
-        <div class="ml-kpi-label">Retorno Medio</div>
+        <div class="ml-kpi-label" data-i18n="ml-kpi-avgreturn">Retorno Medio</div>
         <div class="ml-kpi-value" id="ml-kpi-avgreturn">--</div>
         <div class="ml-kpi-sub" id="ml-kpi-bestworst">Best: -- / Worst: --</div>
     </div>
     <div class="ml-kpi-card">
-        <div class="ml-kpi-label">P&amp;L Total</div>
+        <div class="ml-kpi-label" data-i18n="ml-kpi-pnl">P&amp;L Total</div>
         <div class="ml-kpi-value" id="ml-kpi-pnl">--</div>
         <div class="ml-kpi-sub" id="ml-kpi-alpha">Alpha vs S&amp;P: --</div>
     </div>
     <div class="ml-kpi-card">
-        <div class="ml-kpi-label">D&iacute;as de Trading</div>
+        <div class="ml-kpi-label" data-i18n="ml-kpi-days">D&iacute;as de Trading</div>
         <div class="ml-kpi-value" id="ml-kpi-days">--</div>
         <div class="ml-kpi-sub" id="ml-kpi-decisions">-- decisiones</div>
     </div>
     <div class="ml-kpi-card ml-kpi-phase-card">
-        <div class="ml-kpi-label">Fase ML</div>
+        <div class="ml-kpi-label" data-i18n="ml-kpi-phase">Fase ML</div>
         <div class="ml-kpi-value" id="ml-kpi-phase">--</div>
         <div class="ml-kpi-progress-wrap">
             <div class="ml-kpi-progress-bar">
@@ -2093,21 +2093,21 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
         <div class="ml-interpret">
             <div class="ml-interpret-header">
                 <span class="ml-interpret-icon">&#9733;</span>
-                <span class="ml-interpret-title">Analisis Backtest</span>
+                <span class="ml-interpret-title" data-i18n="ml-bt-analysis">Analisis Backtest</span>
                 <span class="ml-interpret-updated" id="ml-interpret-bt-time"></span>
             </div>
             <div class="ml-interpret-body" id="ml-interpret-backtest">
-                <p class="ml-interpret-loading">Esperando analisis del backtest...</p>
+                <p class="ml-interpret-loading" data-i18n="ml-bt-waiting">Esperando analisis del backtest...</p>
             </div>
         </div>
         <div class="ml-interpret">
             <div class="ml-interpret-header">
                 <span class="ml-interpret-icon">&#9889;</span>
-                <span class="ml-interpret-title">Analisis Paper Trading</span>
+                <span class="ml-interpret-title" data-i18n="ml-live-analysis">Analisis Paper Trading</span>
                 <span class="ml-interpret-updated" id="ml-interpret-live-time"></span>
             </div>
             <div class="ml-interpret-body" id="ml-interpret-live">
-                <p class="ml-interpret-loading">Esperando datos de paper trading...</p>
+                <p class="ml-interpret-loading" data-i18n="ml-live-waiting">Esperando datos de paper trading...</p>
             </div>
         </div>
     </div>
@@ -2131,7 +2131,7 @@ Cada 5 d&iacute;as &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngi
             <span>S&amp;P 500 Universe</span>
         </div>
     </div>
-    <div class="footer-disclaimer">
+    <div class="footer-disclaimer" data-i18n="footer-disclaimer">
         This dashboard is for informational and educational purposes only. Not investment advice.
         Past performance does not guarantee future results. All trading involves risk of loss.
         HYDRA is a quantitative research project in paper trading phase.

@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-09T14:36:38.378861",
+  "timestamp": "2026-03-09T15:03:43.130032",
   "cash": 35585.88668505859,
   "peak_value": 100000.0,
-  "portfolio_value": 100035.5573012085,
+  "portfolio_value": 99982.80178515625,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
@@ -32,7 +32,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 116.95999908447266,
+      "high_price": 117.16999816894531,
       "entry_vol": 0.28639434996138086,
       "entry_daily_vol": 0.01804114825932892,
       "sector": "Healthcare",
@@ -43,7 +43,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 243.61500549316406,
+      "high_price": 244.03500366210938,
       "entry_vol": 0.15534686069028528,
       "entry_daily_vol": 0.009785932389073585,
       "sector": "Healthcare",
@@ -54,7 +54,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 305.4200134277344,
+      "high_price": 306.6000061035156,
       "entry_vol": 0.23484680821013687,
       "entry_daily_vol": 0.014793958350507239,
       "sector": "Technology",
@@ -132,7 +132,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 16,
-    "uptime_minutes": 15.799834216666666
+    "cycles_completed": 0,
+    "uptime_minutes": 0.20464918333333332
   }
 }
