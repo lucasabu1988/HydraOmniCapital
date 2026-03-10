@@ -1733,7 +1733,7 @@ def backfill_from_state_files(state_dir: str = "state") -> dict:
                     current_leverage=1.0,
                     crash_cooldown=state.get("crash_cooldown", 0),
                     trading_day=trading_day,
-                    source="live",
+                    source="backfill",
                 )
                 ingested["entry_decisions"] += 1
 
@@ -1795,7 +1795,7 @@ def backfill_from_state_files(state_dir: str = "state") -> dict:
             current_leverage=1.0,
             crash_cooldown=0,
             trading_day=7,
-            source="live",
+            source="backfill",
         )
         ingested["exit_outcomes"] += 1
 

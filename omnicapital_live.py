@@ -1211,8 +1211,8 @@ class COMPASSLive:
                                 entry_vol_ann=meta.get('entry_vol', 0.25),
                                 entry_daily_vol=meta.get('entry_daily_vol', 0.016),
                                 adaptive_stop_pct=adaptive_stop,
-                                entry_momentum_score=self._current_scores.get(symbol, 0.0),
-                                entry_momentum_rank=0.5,
+                                entry_momentum_score=meta.get('entry_momentum_score', 0.0),
+                                entry_momentum_rank=meta.get('entry_momentum_rank', 0.5),
                                 regime_score=self.current_regime_score,
                                 max_positions_target=max_positions,
                                 current_n_positions=len(positions),
@@ -1460,6 +1460,12 @@ class COMPASSLive:
                 )
                 adaptive_stop = compute_adaptive_stop(entry_daily_vol, self.config)
 
+                # Compute entry momentum rank for ML persistence
+                all_scores_sorted = sorted(scores.values(), reverse=True)
+                n_scores = len(all_scores_sorted)
+                rank_above = sum(1 for s in all_scores_sorted if s > scores.get(symbol, 0))
+                entry_momentum_rank = 1.0 - (rank_above / max(1, n_scores))
+
                 self.position_meta[symbol] = {
                     'entry_price': result.filled_price,
                     'entry_date': self.get_et_now().date().isoformat(),
@@ -1469,6 +1475,8 @@ class COMPASSLive:
                     'entry_vol': entry_vol,              # v8.4: annualized vol
                     'entry_daily_vol': entry_daily_vol,  # v8.4: daily vol for stop calc
                     'sector': SECTOR_MAP.get(symbol, 'Unknown'),  # v8.4: sector tracking
+                    'entry_momentum_score': scores.get(symbol, 0.0),
+                    'entry_momentum_rank': entry_momentum_rank,
                 }
 
                 self.trades_today.append({
