@@ -122,14 +122,6 @@ var TRANSLATIONS = {
     // Trade Analytics
     'ta-title': 'Análisis de Trades — Backtest',
 
-    // YouTube Header
-    'yt-title':          'Videos Relevantes',
-    'yt-subtitle':       'Análisis de mercado, estrategias y educación financiera',
-    'yt-v1-title':       'Momentum Investing Explicado',
-    'yt-v2-title':       'Cómo Funciona el Trading Cuantitativo',
-    'yt-v3-title':       'Gestión de Riesgo para Traders',
-    'yt-v4-title':       'Cómo Funciona la Bolsa de Valores',
-
     // Social Feed
     'sf-title':          'Noticias del Portfolio',
     'sf-subtitle':       'Noticias, análisis y publicaciones de tus posiciones actuales',
@@ -390,14 +382,6 @@ var TRANSLATIONS = {
 
     // Trade Analytics
     'ta-title': 'Trade Analysis — Backtest',
-
-    // YouTube Header
-    'yt-title':          'Relevant Videos',
-    'yt-subtitle':       'Market analysis, strategies and financial education',
-    'yt-v1-title':       'Momentum Investing Explained',
-    'yt-v2-title':       'How Quant Trading Works',
-    'yt-v3-title':       'Risk Management for Traders',
-    'yt-v4-title':       'How The Stock Market Works',
 
     // Social Feed
     'sf-title':          'Portfolio News',
