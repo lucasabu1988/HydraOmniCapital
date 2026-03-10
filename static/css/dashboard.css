@@ -258,7 +258,7 @@ body.dark .perf-banner, body.dark .positions-hero {
 
 /* ============ ENTRANCE ANIMATIONS ============ */
 @keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(20px) scale(0.98); filter: blur(4px); }
+    from { opacity: 0; transform: translateY(12px) scale(0.99); filter: blur(2px); }
     to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 .anim-enter {
@@ -273,6 +273,27 @@ body.dark .perf-banner, body.dark .positions-hero {
 .anim-d6 { animation-delay: 0.30s; }
 .anim-d7 { animation-delay: 0.35s; }
 .anim-d8 { animation-delay: 0.40s; }
+
+/* Value flash — Bloomberg-style P&L change indicator */
+@keyframes value-flash-positive {
+    0%   { background: rgba(16, 185, 129, 0.0); }
+    20%  { background: rgba(16, 185, 129, 0.25); }
+    100% { background: rgba(16, 185, 129, 0.0); }
+}
+@keyframes value-flash-negative {
+    0%   { background: rgba(244, 63, 94, 0.0); }
+    20%  { background: rgba(244, 63, 94, 0.25); }
+    100% { background: rgba(244, 63, 94, 0.0); }
+}
+.value-flash-pos { animation: value-flash-positive 0.6s ease-out; border-radius: 4px; }
+.value-flash-neg { animation: value-flash-negative 0.6s ease-out; border-radius: 4px; }
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .anim-enter { animation: none; opacity: 1; }
+    .value-flash-pos, .value-flash-neg { animation: none; }
+    .lh-stats.lh-stats-slide.active { animation: none; }
+}
 
 body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;

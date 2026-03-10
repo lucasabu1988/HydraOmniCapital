@@ -1,6 +1,16 @@
 /* ============ DARK MODE (permanent) ============ */
 document.body.classList.add('dark');
 
+/* ============ VALUE FLASH (Bloomberg-style) ============ */
+function flashValue(elementId, newValue, oldValue) {
+    if (oldValue === null || oldValue === undefined) return;
+    var el = document.getElementById(elementId);
+    if (!el || newValue === oldValue) return;
+    el.classList.remove('value-flash-pos', 'value-flash-neg');
+    void el.offsetWidth;
+    el.classList.add(newValue > oldValue ? 'value-flash-pos' : 'value-flash-neg');
+}
+
 /* ============ COMPANY INFO MAP (for ticker tooltips) ============ */
 const COMPANY_INFO = {
     'TSLA': {name:'Tesla',sector:'Electric Vehicles',cap:'$1.1T',desc:'Electric vehicles, energy storage, and solar products manufacturer'},
