@@ -121,9 +121,9 @@ Current kill switch stops new trades but doesn't close positions.
 
 | # | Issue | Severity | Phase | Status |
 |---|-------|----------|-------|--------|
-| 1.1 | Broker factory missing | CRITICAL | 1 | Open |
-| 1.2 | Direct broker state manipulation | CRITICAL | 1 | Open |
-| 1.3 | EFA bypasses order pipeline | CRITICAL | 1 | Open |
+| 1.1 | Broker factory missing | CRITICAL | 1 | **Done** |
+| 1.2 | Direct broker state manipulation | CRITICAL | 1 | **Done** |
+| 1.3 | EFA bypasses order pipeline | CRITICAL | 1 | **Done** |
 | 2.1 | State reconciliation (broker = truth) | HIGH | 2 | Open |
 | 2.2 | Partial fill handling | HIGH | 2 | Open |
 | 2.3 | ib_async error handling | HIGH | 2 | Open |
