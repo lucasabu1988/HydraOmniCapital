@@ -1164,7 +1164,7 @@ class LearningEngine:
         try:
             from sklearn.linear_model import Ridge, LogisticRegression
             from sklearn.preprocessing import StandardScaler
-            from sklearn.model_selection import cross_val_score
+            from sklearn.model_selection import cross_val_score, TimeSeriesSplit
         except ImportError:
             return {"status": "sklearn_not_available"}
 
@@ -1181,10 +1181,12 @@ class LearningEngine:
         X_scaled = scaler.fit_transform(X)
 
         # Ridge regression — heavy regularization for small samples
+        # Use TimeSeriesSplit to prevent temporal data leakage
         ridge = Ridge(alpha=10.0)
         n_cv = min(3, len(fm) // 5)
         if n_cv >= 2:
-            ridge_scores = cross_val_score(ridge, X_scaled, y_ret, cv=n_cv, scoring="r2")
+            tscv = TimeSeriesSplit(n_splits=n_cv)
+            ridge_scores = cross_val_score(ridge, X_scaled, y_ret, cv=tscv, scoring="r2")
             ridge_r2 = round(float(ridge_scores.mean()), 4)
         else:
             ridge_r2 = None
@@ -1192,7 +1194,8 @@ class LearningEngine:
         # Logistic regression for win/loss
         lr = LogisticRegression(C=0.1, max_iter=1000)
         if n_cv >= 2 and len(np.unique(y_win)) > 1:
-            lr_scores = cross_val_score(lr, X_scaled, y_win, cv=n_cv, scoring="roc_auc")
+            tscv = TimeSeriesSplit(n_splits=n_cv)
+            lr_scores = cross_val_score(lr, X_scaled, y_win, cv=tscv, scoring="roc_auc")
             lr_auc = round(float(lr_scores.mean()), 4)
         else:
             lr_auc = None
@@ -1242,7 +1245,7 @@ class LearningEngine:
 
         try:
             import lightgbm as lgb
-            from sklearn.model_selection import cross_val_score
+            from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 
             model = lgb.LGBMRegressor(
                 n_estimators=200,
@@ -1257,7 +1260,8 @@ class LearningEngine:
                 random_state=666,
                 verbose=-1,
             )
-            cv_scores = cross_val_score(model, X, y, cv=5, scoring="r2")
+            tscv = TimeSeriesSplit(n_splits=5)
+            cv_scores = cross_val_score(model, X, y, cv=tscv, scoring="r2")
             model.fit(X, y)
             importance = pd.DataFrame({
                 "feature": feat_cols,
@@ -1270,12 +1274,13 @@ class LearningEngine:
 
         except ImportError:
             from sklearn.ensemble import RandomForestRegressor
-            from sklearn.model_selection import cross_val_score
+            from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 
             rf = RandomForestRegressor(
                 n_estimators=200, max_depth=4, min_samples_leaf=5, random_state=666
             )
-            cv_scores = cross_val_score(rf, X, y, cv=5, scoring="r2")
+            tscv = TimeSeriesSplit(n_splits=5)
+            cv_scores = cross_val_score(rf, X, y, cv=tscv, scoring="r2")
             rf.fit(X, y)
             importance = pd.DataFrame({
                 "feature": feat_cols,

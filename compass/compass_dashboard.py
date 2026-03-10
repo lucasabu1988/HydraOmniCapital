@@ -1498,12 +1498,13 @@ def api_annual_returns():
 @app.route('/api/backtest/status')
 def api_backtest_status():
     """Return backtest data freshness and scheduler status."""
+    bt = dict(_backtest_status)  # Snapshot to avoid partial reads from scheduler thread
     result = {
-        'running': _backtest_status['running'],
-        'last_result': _backtest_status['last_result'],
-        'last_run_date': _backtest_status['last_run_date'],
-        'started_at': _backtest_status['started_at'],
-        'completed_at': _backtest_status['completed_at'],
+        'running': bt['running'],
+        'last_result': bt['last_result'],
+        'last_run_date': bt['last_run_date'],
+        'started_at': bt['started_at'],
+        'completed_at': bt['completed_at'],
         'csv_last_modified': None,
         'csv_age_hours': None,
         'next_scheduled_run': None,

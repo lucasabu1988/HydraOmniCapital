@@ -1428,12 +1428,21 @@ class COMPASSLive:
                        f"Rattlesnake=${alloc['rattle_budget']:,.0f} | "
                        f"recycled=${alloc['recycled_amount']:,.0f} ({alloc['recycled_pct']:.0%})")
 
-        effective_capital = compass_cash * current_leverage * 0.95 * damped_scalar
-
         for symbol in selected:
             price = prices.get(symbol)
             if not price or price <= 0:
                 continue
+
+            # Recalculate available capital each iteration (prior fills reduce cash)
+            portfolio = self.broker.get_portfolio()
+            compass_cash = portfolio.cash
+            if self._hydra_available and self.hydra_capital:
+                r_exposure = compute_rattlesnake_exposure(
+                    self.rattle_positions, prices, self.hydra_capital.rattle_account
+                )
+                alloc = self.hydra_capital.compute_allocation(r_exposure)
+                compass_cash = min(portfolio.cash, alloc['compass_budget'])
+            effective_capital = compass_cash * current_leverage * 0.95 * damped_scalar
 
             weight = weights.get(symbol, 1.0 / len(selected))
             position_value = effective_capital * weight

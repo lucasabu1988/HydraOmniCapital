@@ -1322,6 +1322,7 @@ async function fetchAll() {
                     else tag.style.cssText = 'color:var(--red); background:var(--red-dim);';
 
                     const colorVal = v => v >= 0.90 ? 'var(--green)' : v >= 0.60 ? 'var(--yellow)' : 'var(--red)';
+                    if (!d.per_overlay || !d.credit_filter) return;
                     const bso = d.per_overlay.bso;
                     const m2 = d.per_overlay.m2;
                     const fomc = d.per_overlay.fomc;
@@ -2495,7 +2496,7 @@ function renderMLKpis(k) {
         var el = document.getElementById(id);
         if (el) el.textContent = val;
     }
-    function fmtPct(v) {
+    function fmtRatioPct(v) {
         if (v == null) return '--';
         return (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
     }
@@ -2518,17 +2519,17 @@ function renderMLKpis(k) {
 
     var arEl = document.getElementById('ml-kpi-avgreturn');
     if (arEl) {
-        arEl.textContent = k.avg_return != null ? fmtPct(k.avg_return) : '--';
+        arEl.textContent = k.avg_return != null ? fmtRatioPct(k.avg_return) : '--';
         arEl.className = 'ml-kpi-value' + (k.avg_return != null ? (k.avg_return >= 0 ? ' c-green' : ' c-red') : '');
     }
-    setText('ml-kpi-bestworst', 'Best: ' + fmtPct(k.best_trade) + ' / Worst: ' + fmtPct(k.worst_trade));
+    setText('ml-kpi-bestworst', 'Best: ' + fmtRatioPct(k.best_trade) + ' / Worst: ' + fmtRatioPct(k.worst_trade));
 
     var pnlEl = document.getElementById('ml-kpi-pnl');
     if (pnlEl) {
         pnlEl.textContent = k.total_pnl != null ? fmtDollar(k.total_pnl) : '--';
         pnlEl.className = 'ml-kpi-value' + (k.total_pnl != null ? (k.total_pnl >= 0 ? ' c-green' : ' c-red') : '');
     }
-    setText('ml-kpi-alpha', 'Alpha vs S&P: ' + (k.avg_alpha != null ? fmtPct(k.avg_alpha) : '--'));
+    setText('ml-kpi-alpha', 'Alpha vs S&P: ' + (k.avg_alpha != null ? fmtRatioPct(k.avg_alpha) : '--'));
 
     setText('ml-kpi-days', k.trading_days != null ? k.trading_days : '--');
     setText('ml-kpi-decisions', (k.total_decisions || 0) + ' ' + t('ml-decisions'));
@@ -2718,6 +2719,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function init() {
         var carousel = document.getElementById('heroCarousel');
         if (!carousel) return;
+        totalSlides = carousel.querySelectorAll('.lh-stats-slide').length || 3;
         var dots = carousel.querySelectorAll('.lh-dot');
         var pauseBtn = document.getElementById('heroCarouselPause');
 
