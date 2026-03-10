@@ -30,6 +30,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Suppress yfinance noise
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True

@@ -1034,7 +1034,6 @@ class COMPASSLive:
         # Crash velocity check
         if self.crash_cooldown > 0:
             dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
-            self.crash_cooldown -= 1
         elif len(self.portfolio_values_history) >= 5:
             current_val = pv
             val_5d = self.portfolio_values_history[-5]
@@ -1817,6 +1816,10 @@ class COMPASSLive:
         self.trades_today = []
         self._daily_open_done = False
         self._preclose_entries_done = False
+
+        # Decrement crash cooldown once per trading day (not per leverage call)
+        if self.crash_cooldown > 0:
+            self.crash_cooldown -= 1
         self._rotation_sells_today = False
 
         # Snapshot portfolio before any exits (for cycle log)

@@ -272,10 +272,13 @@ class DecisionLogger:
         return uuid.uuid4().hex
 
     def _append_jsonl(self, path: Path, record: dict):
-        """Append one JSON line to a .jsonl file."""
-        line = json.dumps(record, default=str) + "\n"
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(line)
+        """Append one JSON line to a .jsonl file (fail-safe)."""
+        try:
+            line = json.dumps(record, default=str) + "\n"
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(line)
+        except Exception as e:
+            logger.error(f"Failed to append to {path}: {e}")
 
     def _regime_bucket(self, score: float) -> str:
         if score >= 0.65:
@@ -1538,17 +1541,21 @@ class COMPASSMLOrchestrator:
                  portfolio_value: float, portfolio_drawdown: float,
                  current_leverage: float, crash_cooldown: int, trading_day: int,
                  spy_hist=None, source: str = "live") -> str:
-        return self.logger.log_entry(
-            symbol=symbol, sector=sector, momentum_score=momentum_score,
-            momentum_rank=momentum_rank, entry_vol_ann=entry_vol_ann,
-            entry_daily_vol=entry_daily_vol, adaptive_stop_pct=adaptive_stop_pct,
-            trailing_stop_pct=trailing_stop_pct, regime_score=regime_score,
-            max_positions_target=max_positions_target,
-            current_n_positions=current_n_positions, portfolio_value=portfolio_value,
-            portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
-            crash_cooldown=crash_cooldown, trading_day=trading_day, spy_hist=spy_hist,
-            source=source,
-        )
+        try:
+            return self.logger.log_entry(
+                symbol=symbol, sector=sector, momentum_score=momentum_score,
+                momentum_rank=momentum_rank, entry_vol_ann=entry_vol_ann,
+                entry_daily_vol=entry_daily_vol, adaptive_stop_pct=adaptive_stop_pct,
+                trailing_stop_pct=trailing_stop_pct, regime_score=regime_score,
+                max_positions_target=max_positions_target,
+                current_n_positions=current_n_positions, portfolio_value=portfolio_value,
+                portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
+                crash_cooldown=crash_cooldown, trading_day=trading_day, spy_hist=spy_hist,
+                source=source,
+            )
+        except Exception as e:
+            logger.error(f"ML on_entry failed for {symbol}: {e}")
+            return ""
 
     def on_exit(self, symbol: str, sector: str, exit_reason: str,
                 entry_price: float, exit_price: float, pnl_usd: float,
@@ -1561,35 +1568,41 @@ class COMPASSMLOrchestrator:
                 crash_cooldown: int, trading_day: int, spy_hist=None,
                 spy_return_during_hold: Optional[float] = None,
                 source: str = "live"):
-        self.logger.log_exit(
-            symbol=symbol, sector=sector, exit_reason=exit_reason,
-            entry_price=entry_price, exit_price=exit_price, pnl_usd=pnl_usd,
-            days_held=days_held, high_price=high_price,
-            entry_vol_ann=entry_vol_ann, entry_daily_vol=entry_daily_vol,
-            adaptive_stop_pct=adaptive_stop_pct,
-            entry_momentum_score=entry_momentum_score,
-            entry_momentum_rank=entry_momentum_rank,
-            regime_score=regime_score, max_positions_target=max_positions_target,
-            current_n_positions=current_n_positions, portfolio_value=portfolio_value,
-            portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
-            crash_cooldown=crash_cooldown, trading_day=trading_day,
-            spy_hist=spy_hist, spy_return_during_hold=spy_return_during_hold,
-            source=source,
-        )
+        try:
+            self.logger.log_exit(
+                symbol=symbol, sector=sector, exit_reason=exit_reason,
+                entry_price=entry_price, exit_price=exit_price, pnl_usd=pnl_usd,
+                days_held=days_held, high_price=high_price,
+                entry_vol_ann=entry_vol_ann, entry_daily_vol=entry_daily_vol,
+                adaptive_stop_pct=adaptive_stop_pct,
+                entry_momentum_score=entry_momentum_score,
+                entry_momentum_rank=entry_momentum_rank,
+                regime_score=regime_score, max_positions_target=max_positions_target,
+                current_n_positions=current_n_positions, portfolio_value=portfolio_value,
+                portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
+                crash_cooldown=crash_cooldown, trading_day=trading_day,
+                spy_hist=spy_hist, spy_return_during_hold=spy_return_during_hold,
+                source=source,
+            )
+        except Exception as e:
+            logger.error(f"ML on_exit failed for {symbol}: {e}")
 
     def on_skip(self, symbol: str, sector: str, skip_reason: str,
                 universe_rank: Optional[int], momentum_score: Optional[float],
                 regime_score: float, trading_day: int, portfolio_value: float,
                 portfolio_drawdown: float, current_n_positions: int,
                 max_positions_target: int):
-        self.logger.log_skip(
-            symbol=symbol, sector=sector, skip_reason=skip_reason,
-            universe_rank=universe_rank, momentum_score=momentum_score,
-            regime_score=regime_score, trading_day=trading_day,
-            portfolio_value=portfolio_value, portfolio_drawdown=portfolio_drawdown,
-            current_n_positions=current_n_positions,
-            max_positions_target=max_positions_target,
-        )
+        try:
+            self.logger.log_skip(
+                symbol=symbol, sector=sector, skip_reason=skip_reason,
+                universe_rank=universe_rank, momentum_score=momentum_score,
+                regime_score=regime_score, trading_day=trading_day,
+                portfolio_value=portfolio_value, portfolio_drawdown=portfolio_drawdown,
+                current_n_positions=current_n_positions,
+                max_positions_target=max_positions_target,
+            )
+        except Exception as e:
+            logger.error(f"ML on_skip failed for {symbol}: {e}")
 
     def on_end_of_day(self, trading_day: int, portfolio_value: float, cash: float,
                       peak_value: float, n_positions: int, leverage: float,
@@ -1597,15 +1610,18 @@ class COMPASSMLOrchestrator:
                       max_positions_target: int, positions: List[str],
                       position_meta: dict, spy_hist=None,
                       prev_portfolio_value: Optional[float] = None):
-        self.set_trading_days(trading_day)
-        self.logger.log_daily_snapshot(
-            trading_day=trading_day, portfolio_value=portfolio_value, cash=cash,
-            peak_value=peak_value, n_positions=n_positions, leverage=leverage,
-            crash_cooldown=crash_cooldown, regime_score=regime_score,
-            max_positions_target=max_positions_target, positions=positions,
-            position_meta=position_meta, spy_hist=spy_hist,
-            prev_portfolio_value=prev_portfolio_value,
-        )
+        try:
+            self.set_trading_days(trading_day)
+            self.logger.log_daily_snapshot(
+                trading_day=trading_day, portfolio_value=portfolio_value, cash=cash,
+                peak_value=peak_value, n_positions=n_positions, leverage=leverage,
+                crash_cooldown=crash_cooldown, regime_score=regime_score,
+                max_positions_target=max_positions_target, positions=positions,
+                position_meta=position_meta, spy_hist=spy_hist,
+                prev_portfolio_value=prev_portfolio_value,
+            )
+        except Exception as e:
+            logger.error(f"ML on_end_of_day failed: {e}")
 
 
 # ===========================================================================
