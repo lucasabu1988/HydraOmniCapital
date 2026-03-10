@@ -21,8 +21,10 @@ import logging
 import json
 import os
 import sys
+import glob
 import tempfile
-from typing import Dict, List, Optional, Set, Tuple
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
 import warnings
 import time as time_module
 from zoneinfo import ZoneInfo
@@ -647,7 +649,6 @@ def filter_by_sector_concentration(ranked_candidates: List[Tuple[str, float]],
     Iterates through ranked candidates and only selects those whose sector
     has room (< max_per_sector positions).
     """
-    from collections import defaultdict
     sector_counts: Dict[str, int] = defaultdict(int)
     for sym in current_positions:
         sector = SECTOR_MAP.get(sym, 'Unknown')
@@ -2510,7 +2511,6 @@ class COMPASSLive:
 
     def load_state(self):
         """Load previous state with fallback chain: latest -> dated -> HALT."""
-        import glob
 
         # Build candidate list: latest first, then dated files newest-first
         candidates = []

@@ -249,14 +249,24 @@ def _run_live_engine():
 
         config = LIVE_CONFIG.copy()
 
-        # Load external config if available
+        # Load external config if available (merge chassis/broker keys only)
         config_file = 'omnicapital_config.json'
         if os.path.exists(config_file):
             try:
                 with open(config_file, 'r') as f:
-                    json.load(f)  # validate JSON
-            except Exception:
-                pass
+                    ext_config = json.load(f)
+                safe_keys = {
+                    'BROKER_TYPE', 'IBKR_HOST', 'IBKR_PORT', 'IBKR_CLIENT_ID',
+                    'IBKR_MOCK', 'PRICE_UPDATE_INTERVAL', 'PAPER_INITIAL_CASH',
+                    'LOG_LEVEL', 'STATE_DIR',
+                }
+                for k, v in ext_config.items():
+                    if k in safe_keys:
+                        config[k] = v
+                        logger.info(f"  Config override: {k}={v}")
+                logger.info(f"External config loaded: {config_file}")
+            except Exception as e:
+                logger.warning(f"Failed to load external config: {e}")
 
         trader = COMPASSLive(config)
         trader.load_state()
@@ -461,18 +471,20 @@ def read_state() -> Optional[dict]:
         try:
             with open(STATE_FILE, 'r') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(f"State file corrupt ({STATE_FILE}): {e}")
+        except IOError as e:
+            logger.warning(f"State file read error ({STATE_FILE}): {e}")
 
     pattern = os.path.join(STATE_DIR, 'compass_state_*.json')
     files = [f for f in glob.glob(pattern) if 'latest' not in f]
     if files:
-        latest = max(files, key=os.path.getctime)
+        latest = max(files, key=os.path.getmtime)
         try:
             with open(latest, 'r') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            pass
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Fallback state file corrupt ({latest}): {e}")
 
     return None
 
@@ -487,14 +499,13 @@ def read_recent_logs(max_lines: int = 50) -> List[dict]:
     log_file = os.path.join(LOG_DIR, f'compass_live_{today_str}.log')
 
     if not os.path.exists(log_file):
-        from datetime import timedelta
         yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
         log_file = os.path.join(LOG_DIR, f'compass_live_{yesterday}.log')
         if not os.path.exists(log_file):
             files = glob.glob(os.path.join(LOG_DIR, 'compass_live_*.log'))
             if not files:
                 return []
-            log_file = max(files, key=os.path.getctime)
+            log_file = max(files, key=os.path.getmtime)
 
     try:
         with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
@@ -1120,8 +1131,6 @@ _live_chart_cache_time = None
 def api_live_chart():
     """Return daily COMPASS vs S&P 500 indexed performance since live test start."""
     global _live_chart_cache, _live_chart_cache_time
-    import yfinance as yf
-
     now = datetime.now()
     if _live_chart_cache_time and (now - _live_chart_cache_time).total_seconds() < 60:
         return jsonify(_live_chart_cache)
@@ -1194,7 +1203,7 @@ def api_live_chart():
 
     # Use live SPY price for today (matches banner real-time value)
     today_str = date.today().strftime('%Y-%m-%d')
-    if today_str in [d for d in dates]:
+    if today_str in dates:
         try:
             live_spy = fetch_live_prices(['SPY'])
             if 'SPY' in live_spy:
@@ -1376,7 +1385,6 @@ def api_equity_comparison():
 
     # --- Net equity curve (Signal - 2.0% fixed annual execution costs) ---
     # Net CAGR = Signal CAGR - 2.0%.  Synthesis: net(t) = signal(t) * ((1+net)/(1+signal))^t
-    import numpy as np
     EXECUTION_COST = 0.02  # 2.0% annual (MOC slippage + commissions)
     daily_growth_signal = compass_cagr / 100.0
     net_cagr_decimal = daily_growth_signal - EXECUTION_COST

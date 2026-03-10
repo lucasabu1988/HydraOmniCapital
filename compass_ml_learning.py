@@ -33,7 +33,8 @@ from pathlib import Path
 import logging
 import warnings
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 # ---------------------------------------------------------------------------
 # Logging
