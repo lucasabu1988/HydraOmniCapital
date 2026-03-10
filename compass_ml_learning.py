@@ -305,6 +305,7 @@ class DecisionLogger:
         returns = close.pct_change().dropna()
         vol_10d = float(returns.iloc[-10:].std() * np.sqrt(252)) if len(returns) >= 10 else None
         ret_20d = float((close.iloc[-1] / close.iloc[-21]) - 1) if len(close) >= 21 else None
+        ret_1d = float(returns.iloc[-1]) if len(returns) >= 1 else None
         return {
             "spy_price": spy_price,
             "spy_sma200": sma200,
@@ -312,6 +313,7 @@ class DecisionLogger:
             "spy_sma50": sma50,
             "spy_10d_vol": vol_10d,
             "spy_20d_return": ret_20d,
+            "spy_daily_return": ret_1d,
         }
 
     # ------------------------------------------------------------------
@@ -721,7 +723,7 @@ class DecisionLogger:
             avg_entry_vol=avg_entry_vol,
             avg_days_held=avg_days_held,
             daily_pnl_pct=daily_pnl_pct,
-            spy_daily_return=spy_ctx.get("spy_20d_return"),
+            spy_daily_return=spy_ctx.get("spy_daily_return"),
         )
         self._append_jsonl(self._snapshots_path, snapshot.to_dict())
 
@@ -1052,7 +1054,7 @@ class LearningEngine:
             return {"n": 0}
 
         # Bootstrap 95% CI on mean return (2000 resamples)
-        rng = np.random.default_rng(42)
+        rng = np.random.default_rng(666)
         bootstrap_means = [
             rng.choice(returns.values, size=n, replace=True).mean()
             for _ in range(2000)
@@ -1220,7 +1222,7 @@ class LearningEngine:
                 colsample_bytree=0.8,
                 reg_alpha=0.1,
                 reg_lambda=0.1,
-                random_state=42,
+                random_state=666,
                 verbose=-1,
             )
             cv_scores = cross_val_score(model, X, y, cv=5, scoring="r2")
@@ -1239,7 +1241,7 @@ class LearningEngine:
             from sklearn.model_selection import cross_val_score
 
             rf = RandomForestRegressor(
-                n_estimators=200, max_depth=4, min_samples_leaf=5, random_state=42
+                n_estimators=200, max_depth=4, min_samples_leaf=5, random_state=666
             )
             cv_scores = cross_val_score(rf, X, y, cv=5, scoring="r2")
             rf.fit(X, y)

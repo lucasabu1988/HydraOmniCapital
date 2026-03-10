@@ -21,6 +21,7 @@ import logging
 import json
 import os
 import sys
+import tempfile
 from typing import Dict, List, Optional, Set, Tuple
 import warnings
 import time as time_module
@@ -374,7 +375,7 @@ class DataValidator:
 
 
 # ============================================================================
-# COMPASS v8.3 SIGNAL FUNCTIONS
+# COMPASS v8.4 SIGNAL FUNCTIONS
 # ============================================================================
 
 def compute_annual_top40(broad_pool: List[str], top_n: int = 40) -> List[str]:
@@ -702,7 +703,7 @@ def _dd_leverage(drawdown: float, config: Dict) -> float:
 # ============================================================================
 
 class COMPASSLive:
-    """COMPASS v8.3 Live Trading System"""
+    """COMPASS v8.4 Live Trading System"""
 
     def __init__(self, config: Dict):
         self.config = config
@@ -737,7 +738,7 @@ class COMPASSLive:
         # None = current MOC behavior preserved exactly
         self.execution_strategy = None
 
-        # ---- COMPASS v8.3 State ----
+        # ---- COMPASS v8.4 State ----
         # Portfolio
         self.peak_value = float(config['PAPER_INITIAL_CASH'])
         self.crash_cooldown = 0
@@ -2228,7 +2229,6 @@ class COMPASSLive:
 
         # Save (atomic write to prevent corruption on crash)
         os.makedirs('state', exist_ok=True)
-        import tempfile
         try:
             fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
             with os.fdopen(fd, 'w') as fp:
@@ -2326,7 +2326,6 @@ class COMPASSLive:
         })
 
         os.makedirs('state', exist_ok=True)
-        import tempfile
         try:
             fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
             with os.fdopen(fd, 'w') as fp:
@@ -2384,7 +2383,6 @@ class COMPASSLive:
             break
 
         try:
-            import tempfile
             fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
             with os.fdopen(fd, 'w') as fp:
                 json.dump(cycles, fp, indent=2)
@@ -2474,7 +2472,6 @@ class COMPASSLive:
         latest = 'state/compass_state_latest.json'
 
         # Atomic write: temp file + rename (prevents corruption on crash)
-        import tempfile
         for target in [filename, latest]:
             try:
                 fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
@@ -2522,7 +2519,7 @@ class COMPASSLive:
             candidates.append(latest)
         dated_files = sorted(
             [f for f in glob.glob('state/compass_state_2*.json') if 'latest' not in f],
-            key=os.path.getctime, reverse=True
+            key=os.path.getmtime, reverse=True
         )
         candidates.extend(dated_files)
 
@@ -2764,7 +2761,7 @@ class COMPASSLive:
 
     def run(self, interval: int = 60):
         """Main trading loop"""
-        logger.info("Starting COMPASS v8.3 live trading loop...")
+        logger.info("Starting COMPASS v8.4 live trading loop...")
 
         # Kill switch check
         kill_file = 'STOP_TRADING'
@@ -2828,7 +2825,16 @@ def main():
         try:
             with open(config_file, 'r') as f:
                 ext_config = json.load(f)
-            # Merge email, broker, paths (don't override algorithm params)
+            # Merge chassis/broker keys only (never override algorithm params)
+            safe_keys = {
+                'BROKER_TYPE', 'IBKR_HOST', 'IBKR_PORT', 'IBKR_CLIENT_ID',
+                'IBKR_MOCK', 'PRICE_UPDATE_INTERVAL', 'PAPER_INITIAL_CASH',
+                'LOG_LEVEL', 'STATE_DIR',
+            }
+            for k, v in ext_config.items():
+                if k in safe_keys:
+                    config[k] = v
+                    logger.info(f"  Config override: {k}={v}")
             logger.info(f"External config loaded: {config_file}")
         except Exception as e:
             logger.warning(f"Failed to load external config: {e}")
