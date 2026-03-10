@@ -692,6 +692,23 @@ body.dark::after { opacity: 0.03; }
     gap: 10px;
     margin-bottom: 10px;
 }
+.metrics-hero-row {
+    margin-bottom: var(--space-3, 12px);
+}
+.metric-card-hero {
+    text-align: center;
+    padding: var(--space-6, 24px) var(--space-8, 32px);
+}
+.metric-value-hero {
+    font-size: var(--type-display, 48px) !important;
+    line-height: 1.1;
+}
+.metrics-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3, 12px);
+    margin-bottom: var(--space-3, 12px);
+}
 .metric-card {
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
@@ -719,12 +736,12 @@ body.dark::after { opacity: 0.03; }
 }
 .metric-card:hover::before { opacity: 0.7; }
 .metric-label {
-    font-size: 11px;
+    font-size: var(--type-sm, 11px);
     color: var(--text-tertiary);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
     font-weight: 500;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-2, 8px);
 }
 .metric-value {
     font-family: 'JetBrains Mono', monospace;
@@ -2429,11 +2446,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     margin-bottom: 4px; display: block;
 }
 .lh-stat-value {
-    font-size: 28px; font-weight: 800;
+    font-size: var(--type-hero, 40px); font-weight: 800;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
     color: #fff; display: block; line-height: 1.1;
     font-variant-numeric: tabular-nums;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-2, 8px);
 }
 .lh-stat-value.green { color: #4ade80; text-shadow: 0 0 20px rgba(74,222,128,0.3); }
 .lh-stat-value.amber { color: #fbbf24; text-shadow: 0 0 20px rgba(251,191,36,0.2); }
@@ -2478,7 +2495,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .lh-title { font-size: 24px; }
     .lh-stats { flex-direction: column; padding: 8px; }
     .lh-stat { min-width: unset; padding: 14px 20px; }
-    .lh-stat-value { font-size: 22px; }
+    .lh-stat-value { font-size: clamp(22px, 5vw, 36px); }
     .lh-stat-divider { width: 100%; height: 1px; margin: 0; }
     .lh-features { gap: 8px; }
     .lh-feature { font-size: 11px; padding: 5px 10px; }
@@ -2718,6 +2735,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 @media (max-width: 768px) {
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .metrics-grid-4 { grid-template-columns: repeat(2, 1fr); }
     .header-bar {
         height: 48px;
         padding: 0 16px;
@@ -2775,6 +2793,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     body { font-size: 13px; }
     .metric-value { font-size: 18px; }
     .metrics-grid { grid-template-columns: 1fr; }
+    .metrics-grid-4 { grid-template-columns: 1fr; }
+    .metric-value-hero { font-size: clamp(32px, 8vw, 48px) !important; }
     .hdr-brand-text { font-size: 15px; }
     .hdr-brand-icon { width: 30px; height: 30px; }
     .hdr-brand-sub { display: none; }
