@@ -767,8 +767,9 @@ class COMPASSLive:
         self._hist_date: Optional[date] = None
 
         # Tracking
-        self.stop_events = []
         self.trades_today = []
+        self._block_new_entries = False  # Set True if SPY data unavailable
+        self._pending_stop_exits = []   # Stop-exit-to-entry linkage
         self._start_time = datetime.now()
         self._cycles_completed = 0
         self._consecutive_errors = 0
@@ -894,6 +895,15 @@ class COMPASSLive:
 
         logger.info("Refreshing daily historical data...")
 
+        # Prune stale symbols from data validator (prevents unbounded memory growth)
+        if hasattr(self, 'data_validator'):
+            active_symbols = set(self.current_universe) | set(self.position_meta.keys())
+            stale = [s for s in self.data_validator._price_history if s not in active_symbols]
+            for s in stale:
+                del self.data_validator._price_history[s]
+            if stale:
+                logger.debug(f"Pruned {len(stale)} stale symbols from data validator")
+
         # SPY for regime and vol targeting
         try:
             spy = yf.download('SPY', period='2y', progress=False)
@@ -903,6 +913,9 @@ class COMPASSLive:
             logger.info(f"SPY data: {len(spy)} days")
         except Exception as e:
             logger.error(f"Failed to download SPY: {e}")
+            if self._spy_hist is None:
+                logger.critical("No SPY data available -- regime unknown, blocking new entries today")
+                self._block_new_entries = True
 
         # Universe stocks for momentum scoring
         symbols_needed = set(self.current_universe) | set(self.position_meta.keys())
@@ -1218,8 +1231,6 @@ class COMPASSLive:
 
                     # Track stop exits for cycle log update when replacement enters
                     if exit_reason in ('position_stop', 'trailing_stop'):
-                        if not hasattr(self, '_pending_stop_exits'):
-                            self._pending_stop_exits = []
                         self._pending_stop_exits.append({
                             'symbol': symbol, 'reason': exit_reason, 'return': ret
                         })
@@ -1270,6 +1281,9 @@ class COMPASSLive:
 
     def open_new_positions(self, prices: Dict[str, float]):
         """Open new positions using momentum scoring + inverse-vol sizing"""
+        if self._block_new_entries:
+            logger.warning("New entries blocked (no SPY data for regime)")
+            return
         positions = self.broker.get_positions()
         # HYDRA: Only count COMPASS positions (those with position_meta)
         compass_positions = {s: p for s, p in positions.items() if s in self.position_meta}
@@ -1498,7 +1512,7 @@ class COMPASSLive:
                         logger.warning(f"ML entry logging failed for {symbol}: {e}")
 
                 # Cycle log: link this entry as replacement for a pending stop exit
-                if hasattr(self, '_pending_stop_exits') and self._pending_stop_exits:
+                if self._pending_stop_exits:
                     stop_exit = self._pending_stop_exits.pop(0)
                     try:
                         self._update_cycle_log_stop(
@@ -1820,6 +1834,7 @@ class COMPASSLive:
         # Decrement crash cooldown once per trading day (not per leverage call)
         if self.crash_cooldown > 0:
             self.crash_cooldown -= 1
+        self._block_new_entries = False  # Reset daily; refresh_daily_data may re-set if SPY fails
         self._rotation_sells_today = False
 
         # Snapshot portfolio before any exits (for cycle log)
@@ -1854,6 +1869,9 @@ class COMPASSLive:
         # 4. Track portfolio value for crash velocity
         portfolio = self.broker.get_portfolio()
         self.portfolio_values_history.append(portfolio.total_value)
+        # Trim in-memory to prevent unbounded growth (only need last 30 for crash velocity)
+        if len(self.portfolio_values_history) > 30:
+            self.portfolio_values_history = self.portfolio_values_history[-30:]
 
         # Log status
         current_leverage = self.get_current_leverage()
@@ -2414,9 +2432,6 @@ class COMPASSLive:
             'current_universe': self.current_universe,
             'universe_year': self.universe_year,
 
-            # Events
-            'stop_events': self.stop_events,
-
             # Intraday flags (prevents duplicate trades after mid-day restart)
             '_daily_open_done': getattr(self, '_daily_open_done', False),
             '_preclose_entries_done': getattr(self, '_preclose_entries_done', False),
@@ -2559,9 +2574,6 @@ class COMPASSLive:
         # Restore universe
         self.current_universe = state.get('current_universe', [])
         self.universe_year = state.get('universe_year')
-
-        # Restore events
-        self.stop_events = state.get('stop_events', [])
 
         # Restore intraday flags (prevents duplicate trades after mid-day restart)
         self._daily_open_done = state.get('_daily_open_done', False)
