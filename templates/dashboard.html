@@ -116,7 +116,7 @@
 
     <!-- DARK MODE TOGGLE -->
     <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode" onclick="toggleDarkMode()">&#9790;</button>
-    <button class="lang-toggle" id="lang-toggle" title="ES / EN" onclick="toggleLang()"><span class="lang-active">ES</span><span class="lang-sep">|</span><span class="lang-inactive">EN</span></button>
+    <button class="lang-toggle" id="lang-toggle" title="ES / EN" onclick="toggleLang()"><span data-lang="es" class="lang-active">ES</span><span class="lang-sep">|</span><span data-lang="en" class="lang-inactive">EN</span></button>
 
 </div>
 
@@ -2574,7 +2574,7 @@ Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &ra
     <div class="algo-card">
         <div class="algo-card-header" style="cursor:pointer;" onclick="var b=document.getElementById('algo-params-body');var a=document.getElementById('algo-toggle-arrow');if(b.style.display==='none'){b.style.display='block';a.textContent='▼';}else{b.style.display='none';a.textContent='▶';}">
             <span class="algo-card-num">09</span>
-            <span class="algo-card-title" data-i18n="algo-s9-title">Par&aacute;metros T&eacute;cnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);" data-i18n="algo-s9-subtitle">(para expertos)</span></span>
+            <span class="algo-card-title" data-i18n-html="algo-s9-full">Par&aacute;metros T&eacute;cnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);">(para expertos)</span></span>
             <span id="algo-toggle-arrow" style="margin-left:auto;font-size:14px;color:var(--text-tertiary);">&#9654;</span>
         </div>
         <div class="algo-card-body" id="algo-params-body" style="display:none;">
@@ -2973,8 +2973,8 @@ Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &ra
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/i18n.js?v=20260309"></script>
-<script src="/static/js/dashboard.js?v=20260308d"></script>
+<script src="/static/js/i18n.js?v=20260309b"></script>
+<script src="/static/js/dashboard.js?v=20260309b"></script>
 
 </body>
 </html>

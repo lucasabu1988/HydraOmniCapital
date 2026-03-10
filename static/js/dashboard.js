@@ -161,7 +161,7 @@ function updateStatusBar(p) {
 
     const ts = p.timestamp ? new Date(p.timestamp).toLocaleString() : '--';
     document.getElementById('upd-tooltip').innerHTML =
-        '\u00daltima actualizaci\u00f3n: ' + ts + '<br>Pr\u00f3xima en: ' + countdownSec + 's';
+        t('tooltip-last-update') + ': ' + ts + '<br>' + t('tooltip-next-in') + ': ' + countdownSec + 's';
 }
 
 function updatePreclose(preclose) {
@@ -832,7 +832,7 @@ function highlightCashtags(text) {
 }
 
 function sfDisplaySymbol(symbol) {
-    if (!symbol || symbol === 'MKT') return 'Mercado';
+    if (!symbol || symbol === 'MKT') return t('market-label');
     return '$' + escHtml(symbol);
 }
 
@@ -916,9 +916,9 @@ function sfUpdateStats(filtered) {
     var topTicker = '--', topCount = 0;
     for (var sym in tickerCounts) { if (tickerCounts[sym] > topCount) { topCount = tickerCounts[sym]; topTicker = sym; } }
     el = document.getElementById('sf-stat-top-ticker');
-    if (el) el.textContent = (topTicker === 'MKT' ? 'Mercado' : '$' + topTicker) + ' (' + topCount + ')';
+    if (el) el.textContent = (topTicker === 'MKT' ? t('market-label') : '$' + topTicker) + ' (' + topCount + ')';
     el = document.getElementById('sf-stat-freshness');
-    if (el) el.textContent = newestTime ? (sfTimeAgo(newestTime.toISOString()) || 'ahora') : '--';
+    if (el) el.textContent = newestTime ? (sfTimeAgo(newestTime.toISOString()) || t('sf-now')) : '--';
 }
 
 function sfRenderTimeline(filtered) {
@@ -962,7 +962,7 @@ function sfRenderGrouped(filtered) {
         var bull = 0, bear = 0;
         for (var i = 0; i < msgs.length; i++) { if (msgs[i].sentiment === 'bullish') bull++; else if (msgs[i].sentiment === 'bearish') bear++; }
         msgs.sort(function(a, b) { var d = sfGetTierOrder(a.source) - sfGetTierOrder(b.source); return d !== 0 ? d : (b.time || '').localeCompare(a.time || ''); });
-        var displaySym = sym === 'MKT' ? 'Mercado' : '$' + escHtml(sym);
+        var displaySym = sym === 'MKT' ? t('market-label') : '$' + escHtml(sym);
         html += '<div class="sf-ticker-group"><div class="sf-ticker-group-header">' +
             '<span class="sf-ticker-group-symbol">' + displaySym + '</span>' +
             '<span class="sf-ticker-group-count">' + msgs.length + ' publicaciones</span>' +
@@ -1019,7 +1019,7 @@ function sfBuildTickerPills() {
         var btn = document.createElement('button');
         btn.className = 'sf-pill';
         btn.setAttribute('data-ticker', syms[i]);
-        btn.textContent = syms[i] === 'MKT' ? 'Mercado' : '$' + syms[i];
+        btn.textContent = syms[i] === 'MKT' ? t('market-label') : '$' + syms[i];
         container.appendChild(btn);
     }
 }
@@ -1889,12 +1889,12 @@ function renderP2PScatter(positions) {
                         label: function(item) {
                             var d = item.raw;
                             return [
-                                'Sector: ' + d.sector,
-                                'Valor: $' + d.marketValue.toLocaleString('en-US', {maximumFractionDigits:0}),
+                                t('tt-sector') + ': ' + d.sector,
+                                t('tt-value') + ': $' + d.marketValue.toLocaleString('en-US', {maximumFractionDigits:0}),
                                 'P&L: ' + (d.pnlDollar >= 0 ? '+$' : '-$') + Math.abs(d.pnlDollar).toLocaleString('en-US', {maximumFractionDigits:0}),
-                                'Precio: $' + d.entryPrice.toFixed(2) + ' → $' + d.currentPrice.toFixed(2),
-                                'Acciones: ' + d.shares,
-                                'Días: ' + d.y + '/5  (quedan ' + d.daysRemaining + ')',
+                                t('tt-price') + ': $' + d.entryPrice.toFixed(2) + ' → $' + d.currentPrice.toFixed(2),
+                                t('tt-shares') + ': ' + d.shares,
+                                t('tt-days') + ': ' + d.y + '/5  (' + t('tt-remaining') + ' ' + d.daysRemaining + ')',
                                 d.adaptiveStop != null ? 'Stop: ' + d.adaptiveStop.toFixed(0) + '%' : ''
                             ].filter(Boolean);
                         }
@@ -1925,7 +1925,7 @@ function renderP2PScatter(positions) {
                 x: {
                     title: {
                         display: true,
-                        text: 'RETORNO %',
+                        text: t('p2p-axis-return'),
                         color: labelColor,
                         font: { size: 11, weight: '700', family: "'Inter', sans-serif" },
                         padding: { top: 6 }
@@ -1944,7 +1944,7 @@ function renderP2PScatter(positions) {
                 y: {
                     title: {
                         display: true,
-                        text: 'DÍAS EN POSICIÓN',
+                        text: t('p2p-axis-days'),
                         color: labelColor,
                         font: { size: 11, weight: '700', family: "'Inter', sans-serif" },
                         padding: { bottom: 6 }
@@ -2645,7 +2645,7 @@ function renderMLInterpretation(text, elId, timeElId) {
     var timeEl = document.getElementById(timeElId);
     if (!el) return;
     if (!text) {
-        el.innerHTML = '<p class="ml-interpret-loading">Esperando analisis...</p>';
+        el.innerHTML = '<p class="ml-interpret-loading">' + t('ml-waiting-analysis') + '</p>';
         return;
     }
     /* Simple markdown-to-HTML */

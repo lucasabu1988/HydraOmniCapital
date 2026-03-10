@@ -184,6 +184,7 @@ var TRANSLATIONS = {
     'algo-s8-title':              '¿Cómo aprende de sus propios resultados?',
     'algo-s9-title':              'Parámetros Técnicos',
     'algo-s9-subtitle':           '(para expertos)',
+    'algo-s9-full':               'Parámetros Técnicos <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);">(para expertos)</span>',
 
     // ML page
     'ml-engine-title':    'Motor de Aprendizaje',
@@ -220,7 +221,21 @@ var TRANSLATIONS = {
     'recycling-active':   'Recycling Active',
     'no-recycling':       'No Recycling',
     'position-singular':  'Posición',
-    'position-plural':    'Posiciones'
+    'position-plural':    'Posiciones',
+    'tooltip-last-update': 'Última actualización',
+    'tooltip-next-in':     'Próxima en',
+    'market-label':        'Mercado',
+    'value-label':         'Valor',
+    'tt-sector':           'Sector',
+    'tt-value':            'Valor',
+    'tt-price':            'Precio',
+    'tt-shares':           'Acciones',
+    'tt-days':             'Días',
+    'tt-remaining':        'quedan',
+    'sf-now':              'ahora',
+    'ml-waiting-analysis': 'Esperando analisis...',
+    'p2p-axis-return':     'RETORNO %',
+    'p2p-axis-days':       'DÍAS EN POSICIÓN'
   },
 
   en: {
@@ -401,6 +416,7 @@ var TRANSLATIONS = {
     'algo-s8-title':              'How does it learn from its own results?',
     'algo-s9-title':              'Technical Parameters',
     'algo-s9-subtitle':           '(for experts)',
+    'algo-s9-full':               'Technical Parameters <span style="font-size:13px;font-weight:400;color:var(--text-tertiary);">(for experts)</span>',
 
     // ML page
     'ml-engine-title':    'Learning Engine',
@@ -437,7 +453,21 @@ var TRANSLATIONS = {
     'recycling-active':   'Recycling Active',
     'no-recycling':       'No Recycling',
     'position-singular':  'Position',
-    'position-plural':    'Positions'
+    'position-plural':    'Positions',
+    'tooltip-last-update': 'Last update',
+    'tooltip-next-in':     'Next in',
+    'market-label':        'Market',
+    'value-label':         'Value',
+    'tt-sector':           'Sector',
+    'tt-value':            'Value',
+    'tt-price':            'Price',
+    'tt-shares':           'Shares',
+    'tt-days':             'Days',
+    'tt-remaining':        'remaining',
+    'sf-now':              'now',
+    'ml-waiting-analysis': 'Waiting for analysis...',
+    'p2p-axis-return':     'RETURN %',
+    'p2p-axis-days':       'DAYS IN POSITION'
   }
 };
 
@@ -491,10 +521,12 @@ function updateLangToggle() {
   var enSpan = btn.querySelector('[data-lang="en"]');
 
   if (esSpan) {
-    esSpan.classList.toggle('active', currentLang === 'es');
+    esSpan.classList.toggle('lang-active', currentLang === 'es');
+    esSpan.classList.toggle('lang-inactive', currentLang !== 'es');
   }
   if (enSpan) {
-    enSpan.classList.toggle('active', currentLang === 'en');
+    enSpan.classList.toggle('lang-active', currentLang === 'en');
+    enSpan.classList.toggle('lang-inactive', currentLang !== 'en');
   }
 }
 

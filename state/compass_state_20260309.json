@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-09T15:03:43.130032",
+  "timestamp": "2026-03-09T16:52:12.390974",
   "cash": 35585.88668505859,
   "peak_value": 100000.0,
-  "portfolio_value": 99982.80178515625,
+  "portfolio_value": 99247.4566850586,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
@@ -133,6 +133,6 @@
   },
   "stats": {
     "cycles_completed": 0,
-    "uptime_minutes": 0.20464918333333332
+    "uptime_minutes": 0.7807129333333334
   }
 }
