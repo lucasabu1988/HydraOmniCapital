@@ -675,13 +675,28 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
 
 
 def get_spy_start_price() -> Optional[float]:
-    """Get SPY close price on live test start date (cached after first fetch).
-    First tries cached value, then state files, then yfinance as fallback."""
+    """Get SPY price at live test start (cached after first fetch).
+    Uses cycle_log spy_start as source of truth (same value used by cycle log).
+    Falls back to yfinance if cycle_log unavailable."""
     global _spy_start_price
     if _spy_start_price is not None:
         return _spy_start_price
 
-    # Find earliest state file to determine live test start date
+    # Primary: use cycle_log spy_start (ensures dashboard == cycle log)
+    log_file = os.path.join(STATE_DIR, 'cycle_log.json')
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r') as f:
+                cycles = json.load(f)
+            if cycles:
+                first_spy = cycles[0].get('spy_start')
+                if first_spy and first_spy > 0:
+                    _spy_start_price = float(first_spy)
+                    return _spy_start_price
+        except Exception:
+            pass
+
+    # Fallback: fetch from yfinance
     state_files = sorted(glob.glob(os.path.join(STATE_DIR, 'compass_state_2*.json')))
     if not state_files:
         return None
