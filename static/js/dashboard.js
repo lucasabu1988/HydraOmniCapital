@@ -1,15 +1,23 @@
-/* ============ DARK MODE (permanent) ============ */
-document.body.classList.add('dark');
-
-/* ============ VALUE FLASH (Bloomberg-style) ============ */
-function flashValue(elementId, newValue, oldValue) {
-    if (oldValue === null || oldValue === undefined) return;
-    var el = document.getElementById(elementId);
-    if (!el || newValue === oldValue) return;
-    el.classList.remove('value-flash-pos', 'value-flash-neg');
-    void el.offsetWidth;
-    el.classList.add(newValue > oldValue ? 'value-flash-pos' : 'value-flash-neg');
+/* ============ DARK MODE ============ */
+function initDarkMode() {
+    // v2 key — forces dark default for users who had old 'hydra-dark-mode' saved
+    var saved = localStorage.getItem('hydra-theme-v2');
+    var isDark = saved !== null ? saved === 'dark' : true;
+    if (isDark) document.body.classList.add('dark');
+    updateDarkToggleIcon(isDark);
 }
+function toggleDarkMode() {
+    var isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('hydra-theme-v2', isDark ? 'dark' : 'light');
+    updateDarkToggleIcon(isDark);
+    // Update chart colors if charts exist
+    if (typeof updateChartColors === 'function') updateChartColors();
+}
+function updateDarkToggleIcon(isDark) {
+    var btn = document.getElementById('dark-toggle');
+    if (btn) btn.innerHTML = isDark ? '&#9788;' : '&#9790;';
+}
+initDarkMode();
 
 /* ============ COMPANY INFO MAP (for ticker tooltips) ============ */
 const COMPANY_INFO = {
@@ -69,32 +77,12 @@ let sfActiveView = 'timeline';
 let sfSymbols = [];
 /* ============ PAGE SWITCHING ============ */
 function switchPage(page) {
-    var current = document.querySelector('.page-content.active');
-    var next = document.getElementById('page-' + page);
-    if (!next || next === current) return;
-
-    document.querySelectorAll('.page-tab').forEach(function(t) {
-        t.classList.toggle('active', t.dataset.page === page);
-    });
-
-    if (current) {
-        current.style.opacity = '0';
-        setTimeout(function() {
-            current.classList.remove('active');
-            current.style.display = 'none';
-            current.style.opacity = '';
-            next.style.display = 'block';
-            next.style.opacity = '0';
-            next.classList.add('active');
-            requestAnimationFrame(function() {
-                next.style.opacity = '1';
-            });
-        }, 150);
-    } else {
-        next.style.display = 'block';
-        next.classList.add('active');
-        next.style.opacity = '1';
-    }
+    document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.page-tab').forEach(el => el.classList.remove('active'));
+    const pageEl = document.getElementById('page-' + page);
+    const tabEl = document.querySelector('.page-tab[data-page="' + page + '"]');
+    if (pageEl) pageEl.classList.add('active');
+    if (tabEl) tabEl.classList.add('active');
 }
 
 /* ============ HELPERS ============ */
@@ -110,7 +98,7 @@ function fmt$(v) {
 
 function fmtPct(v) {
     if (v == null || isNaN(v)) return '--';
-    return (v >= 0 ? '▲ +' : '▼ ') + Math.abs(v).toFixed(2) + '%';
+    return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
 }
 
 function colorCls(v) {
@@ -2091,16 +2079,16 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
      *                Y-axis tick by the custom plugin, not through bar colour.
      */
     var hydraColors = hydraRets.map(function(v) {
-        if (v >= 0) return '#10b981';
-        return '#f43f5e';
+        if (v >= 0) return isDark ? '#22c55e' : '#16a34a';
+        return isDark ? '#ef4444' : '#dc2626';
     });
     var spyColors = spyRets.map(function(v) {
         if (v == null) return 'transparent';
-        return 'rgba(100, 116, 139, 0.3)';
+        return isDark ? 'rgba(99, 102, 241, 0.28)' : 'rgba(99, 102, 241, 0.22)';
     });
     var spyBorderColors = spyRets.map(function(v) {
         if (v == null) return 'transparent';
-        return 'rgba(100, 116, 139, 0.45)';
+        return isDark ? 'rgba(99, 102, 241, 0.55)' : 'rgba(99, 102, 241, 0.50)';
     });
 
     var gridColor     = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
@@ -2112,7 +2100,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
      * Larger rows give better hover targets and clearer bar separation.
      * Minimum 440px to avoid a squashed look on small data sets.
      */
-    var PX_PER_YEAR = 36;
+    var PX_PER_YEAR = 30;
     var chartH = Math.max(440, data.length * PX_PER_YEAR + 80);
     var container = document.getElementById('annual-returns-container');
     if (container) container.style.height = chartH + 'px';
@@ -2203,8 +2191,9 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                         zeroLine: {
                             type: 'line',
                             xMin: 0, xMax: 0,
-                            borderColor: 'rgba(255, 255, 255, 0.2)',
-                            borderWidth: 0.5,
+                            borderColor: zeroLineColor,
+                            borderWidth: 1,
+                            borderDash: [3, 4],
                         }
                     }
                 }
@@ -2232,7 +2221,11 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                 y: {
                     ticks: {
                         color: isDark ? '#707090' : '#7070a0',
-                        font: { family: "'JetBrains Mono', monospace", size: 12, weight: '500' },
+                        font: {
+                            family: "'JetBrains Mono', monospace",
+                            size: 11,
+                            weight: '500',
+                        },
                         /* remove default padding so year label sits tight */
                         padding: 8,
                     },
