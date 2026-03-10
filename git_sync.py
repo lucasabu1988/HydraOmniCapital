@@ -180,7 +180,7 @@ def git_sync_async(state_file: str, latest_file: str):
         logger.debug("git sync: queue full, skipping this cycle")
 
 
-def git_sync_rotation(cycle_num: int, compass_return: float, status: str):
+def git_sync_rotation(cycle_num: int, hydra_return: float, status: str):
     """Queue a git sync after a 5-day rotation. Includes cycle_log + state files."""
     _ensure_worker()
 
@@ -197,8 +197,8 @@ def git_sync_rotation(cycle_num: int, compass_return: float, status: str):
 
     files = list(set(f.replace('\\', '/') for f in files))
 
-    sign = '+' if compass_return >= 0 else ''
-    message = f"auto: cycle #{cycle_num} closed ({sign}{compass_return:.2f}% {status}) — rotation complete"
+    sign = '+' if hydra_return >= 0 else ''
+    message = f"auto: cycle #{cycle_num} closed ({sign}{hydra_return:.2f}% {status}) — rotation complete"
 
     try:
         _git_queue.put_nowait({'files': files, 'message': message})

@@ -2155,15 +2155,15 @@ class COMPASSLive:
                     cycle['spy_end'] = round(spy_close, 2)
                     cycle['spy_return'] = round(
                         (spy_close - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
-                cycle['compass_return'] = round(
+                cycle['hydra_return'] = round(
                     (close_portfolio_value - cycle['portfolio_start'])
                     / cycle['portfolio_start'] * 100, 2)
-                if cycle.get('compass_return') is not None and cycle.get('spy_return') is not None:
-                    cycle['alpha'] = round(cycle['compass_return'] - cycle['spy_return'], 2)
+                if cycle.get('hydra_return') is not None and cycle.get('spy_return') is not None:
+                    cycle['alpha'] = round(cycle['hydra_return'] - cycle['spy_return'], 2)
 
                 status_str = 'WIN' if cycle.get('alpha', 0) >= 0 else 'LOSS'
                 logger.info(f"CYCLE #{cycle['cycle']} CLOSED: "
-                           f"COMPASS {cycle['compass_return']:+.2f}% | "
+                           f"HYDRA {cycle['hydra_return']:+.2f}% | "
                            f"S&P {cycle.get('spy_return', 0):+.2f}% | "
                            f"Alpha {cycle.get('alpha', 0):+.2f}pp | {status_str}")
                 break
@@ -2187,7 +2187,7 @@ class COMPASSLive:
             'spy_end': None,
             'positions': new_positions,
             'positions_current': list(new_positions),
-            'compass_return': None,
+            'hydra_return': None,
             'spy_return': None,
             'alpha': None,
             'stop_events': [],
@@ -2209,7 +2209,7 @@ class COMPASSLive:
                     cycle_num=next_cycle - 1,
                     closed_positions=self._pre_rotation_positions,
                     new_positions=new_positions,
-                    compass_return=closed_cycle_data.get('compass_return', 0.0),
+                    hydra_return=closed_cycle_data.get('hydra_return', 0.0),
                     spy_return=closed_cycle_data.get('spy_return', 0.0),
                     alpha=closed_cycle_data.get('alpha', 0.0),
                 )
@@ -2223,7 +2223,7 @@ class COMPASSLive:
             closed_status = 'WIN'
             for c in cycles:
                 if c.get('cycle') == closed_cycle:
-                    closed_return = c.get('compass_return', 0.0)
+                    closed_return = c.get('hydra_return', 0.0)
                     closed_status = 'WIN' if closed_return >= 0 else 'LOSS'
                     break
             try:
@@ -2274,7 +2274,7 @@ class COMPASSLive:
             'spy_end': None,
             'positions': current_positions,
             'positions_current': list(current_positions),
-            'compass_return': None,
+            'hydra_return': None,
             'spy_return': None,
             'alpha': None,
             'stop_events': [],

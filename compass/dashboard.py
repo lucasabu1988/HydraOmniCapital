@@ -308,6 +308,12 @@ def _run_live_engine():
         _engine_status['error'] = None
         _engine_status['cycles'] = 0
 
+        # Initial state save so overlay data and fresh state are immediately available
+        try:
+            trader.save_state()
+        except Exception as e:
+            logger.warning(f"Initial state save failed: {e}")
+
         # Main loop (same as omnicapital_live.py run(), but with stop flag)
         while _engine_status['running']:
             # Kill switch
@@ -550,8 +556,10 @@ def read_recent_logs(max_lines: int = 50) -> List[dict]:
 # DERIVED CALCULATIONS
 # ============================================================================
 
-def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict]:
+def compute_position_details(state: dict, prices: Dict[str, float], prev_closes: Dict[str, float] = None) -> List[dict]:
     """Compute enriched position data for display."""
+    if prev_closes is None:
+        prev_closes = {}
     positions = state.get('positions', {})
     position_meta = state.get('position_meta', {})
     trading_day = state.get('trading_day_counter', 0)
@@ -565,6 +573,16 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
         entry_date = meta.get('entry_date', '')
         shares = pos_data.get('shares', 0)
         current_price = prices.get(symbol, entry_price)
+
+        # If position was opened today, use entry_price to avoid phantom PnL
+        # from after-hours last_price vs MOC fill price mismatch
+        if entry_date:
+            try:
+                today_et = datetime.now(ZoneInfo('America/New_York')).date()
+                if date.fromisoformat(entry_date) == today_et:
+                    current_price = entry_price
+            except Exception:
+                pass
 
         if current_price and entry_price and entry_price > 0:
             pnl_pct = (current_price - entry_price) / entry_price
@@ -610,6 +628,15 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             adaptive_stop = COMPASS_CONFIG['POSITION_STOP_LOSS']  # fallback
         position_stop_level = entry_price * (1 + adaptive_stop)
 
+        # Today's change: current price vs previous regular close (not post-market)
+        prev_close = prev_closes.get(symbol)
+        if prev_close and prev_close > 0 and current_price:
+            today_change_pct = (current_price - prev_close) / prev_close * 100
+            today_change_dollar = (current_price - prev_close) * shares
+        else:
+            today_change_pct = 0.0
+            today_change_dollar = 0.0
+
         # Sector from meta
         sector = meta.get('sector', 'Unknown')
 
@@ -638,6 +665,9 @@ def compute_position_details(state: dict, prices: Dict[str, float]) -> List[dict
             'entry_date': entry_date,
             'near_stop': near_stop,
             'sector': sector,
+            'today_change_pct': round(today_change_pct, 2),
+            'today_change_dollar': round(today_change_dollar, 0),
+            'prev_close': round(prev_close, 2) if prev_close else None,
         })
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)
@@ -702,8 +732,23 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     # Recompute invested value with live prices if available
     invested = 0
     positions = state.get('positions', {})
+    position_meta = state.get('position_meta', {})
+    today_et = datetime.now(ZoneInfo('America/New_York')).date()
     for sym, pos in positions.items():
-        price = prices.get(sym, pos.get('avg_cost', 0))
+        meta = position_meta.get(sym, {})
+        entry_date = meta.get('entry_date', '')
+        entry_price = meta.get('entry_price', pos.get('avg_cost', 0))
+        # Use entry_price on entry day to avoid phantom PnL from after-hours prices
+        if entry_date:
+            try:
+                if date.fromisoformat(entry_date) == today_et:
+                    price = entry_price
+                else:
+                    price = prices.get(sym, entry_price)
+            except Exception:
+                price = prices.get(sym, entry_price)
+        else:
+            price = prices.get(sym, pos.get('avg_cost', 0))
         invested += pos.get('shares', 0) * price
 
     # If we have live prices, update portfolio_value
@@ -825,7 +870,7 @@ def api_state():
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
-    position_details = compute_position_details(state, prices)
+    position_details = compute_position_details(state, prices, _prev_close_cache)
     portfolio = compute_portfolio_metrics(state, prices)
 
     # Chassis status from COMPASS live engine
@@ -979,7 +1024,7 @@ def api_cycle_log():
             is_first_day = (cycle_start == last_trading) if cycle_start and last_trading else False
 
             if is_first_day:
-                c['compass_return'] = 0.0
+                c['hydra_return'] = 0.0
                 c['spy_return'] = 0.0
                 c['alpha'] = 0.0
                 c['portfolio_end'] = c.get('portfolio_start')
@@ -1007,7 +1052,7 @@ def api_cycle_log():
             port_start = c.get('portfolio_start')
             if port_start and port_start > 0:
                 c['portfolio_end'] = round(portfolio_now, 2)
-                c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
+                c['hydra_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
             # SPY cumulative return (from cycle start)
             spy_price = prices.get('SPY') if market_is_open else (_prev_close_cache.get('SPY') or prices.get('SPY'))
@@ -1017,8 +1062,8 @@ def api_cycle_log():
                 c['spy_return'] = round((spy_price / spy_start - 1) * 100, 2)
 
             # Alpha
-            if c.get('compass_return') is not None and c.get('spy_return') is not None:
-                c['alpha'] = round(c['compass_return'] - c['spy_return'], 2)
+            if c.get('hydra_return') is not None and c.get('spy_return') is not None:
+                c['alpha'] = round(c['hydra_return'] - c['spy_return'], 2)
         except Exception:
             pass
 
@@ -2080,11 +2125,21 @@ def api_engine_status():
 @app.route('/api/overlay-status')
 def api_overlay_status():
     """Return current overlay signals and diagnostics."""
-    state = read_state()
-    if not state:
-        return jsonify({'available': False, 'error': 'No state file'})
-
-    overlay = state.get('overlay', {})
+    # Prefer live engine data (state file may be stale after restart)
+    overlay = {}
+    if _live_engine and hasattr(_live_engine, '_overlay_available'):
+        overlay = {
+            'available': _live_engine._overlay_available,
+            'capital_scalar': _live_engine._overlay_result.get('capital_scalar', 1.0) if _live_engine._overlay_result else 1.0,
+            'per_overlay': _live_engine._overlay_result.get('per_overlay_scalars', {}) if _live_engine._overlay_result else {},
+            'position_floor': _live_engine._overlay_result.get('position_floor') if _live_engine._overlay_result else None,
+            'diagnostics': _live_engine._overlay_result.get('diagnostics', {}) if _live_engine._overlay_result else {},
+        }
+    else:
+        state = read_state()
+        if not state:
+            return jsonify({'available': False, 'error': 'No state file'})
+        overlay = state.get('overlay', {})
 
     # Color coding for scalar
     scalar = overlay.get('capital_scalar', 1.0)
@@ -2118,6 +2173,374 @@ def api_overlay_status():
             'excluded_sectors': diag.get('credit_filter', {}).get('excluded', []),
         },
     })
+
+
+def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
+    interp_path = os.path.join(ml_dir, 'interpretation.md')
+    # Check staleness: regenerate if file missing or 5+ days old
+    try:
+        mtime = os.path.getmtime(interp_path)
+        age_days = (time_module.time() - mtime) / 86400
+        if age_days < 5:
+            return
+    except OSError:
+        pass  # file missing → regenerate
+
+    # Count entries by type
+    n_entries = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'entry')
+    n_exits = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'exit')
+    n_skips = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'skip')
+    n_snapshots = sum(1 for r in entries if r.get('_type') == 'snapshot')
+    n_outcomes = sum(1 for r in entries if r.get('_type') == 'outcome')
+    n_decisions = n_entries + n_exits + n_skips
+
+    # Phase info
+    phase = insights.get('learning_phase', 1)
+    trading_days = insights.get('trading_days', 0)
+    days_to_phase2 = max(0, 63 - trading_days)
+
+    # Portfolio analytics
+    pa = insights.get('portfolio_analytics', {})
+    current_value = pa.get('current_value', 0)
+    total_return = pa.get('total_return', 0)
+    max_dd = pa.get('max_drawdown', 0)
+    daily_sharpe = pa.get('daily_sharpe_annualized')
+
+    # Trade analytics
+    ta = insights.get('trade_analytics', {})
+    overall = ta.get('overall', {})
+    n_trades = overall.get('n', 0)
+    win_rate = overall.get('win_rate')
+    mean_return = overall.get('mean_return')
+    stop_rate = overall.get('stop_rate')
+    avg_days = overall.get('avg_days_held')
+    best_trade = overall.get('best')
+    worst_trade = overall.get('worst')
+
+    # Regime distribution from snapshots
+    regime_counts = {}
+    snapshots = [r for r in entries if r.get('_type') == 'snapshot']
+    for s in snapshots:
+        bucket = s.get('regime_bucket', 'unknown')
+        regime_counts[bucket] = regime_counts.get(bucket, 0) + 1
+
+    # Exit reason breakdown
+    by_exit = ta.get('by_exit_reason', {})
+
+    # Recent activity (last 5 decisions)
+    decisions = [r for r in entries if r.get('_type') == 'decision']
+    recent = decisions[-5:] if len(decisions) > 5 else decisions
+
+    # Outcome summaries
+    outcomes = [r for r in entries if r.get('_type') == 'outcome']
+
+    # Build markdown
+    lines = []
+    lines.append(f'### System Status\n')
+    lines.append(f'COMPASS ML Learning is in **Phase {phase}** (data collection). {trading_days} trading days logged.')
+    if phase < 2:
+        lines.append(f' ML models activate at Phase 2 (~{days_to_phase2} trading days remaining).\n')
+    else:
+        lines.append('\n')
+
+    lines.append(f'### Data Summary\n')
+    lines.append(f'- **{n_decisions} decisions** logged: {n_entries} entries, {n_exits} exits, {n_skips} skips')
+    lines.append(f'- **{n_snapshots} daily snapshots** tracking portfolio evolution')
+    lines.append(f'- **{n_outcomes} completed trades** with full outcome data\n')
+
+    lines.append(f'### Portfolio Performance\n')
+    if current_value:
+        lines.append(f'- Current value: **${current_value:,.0f}**')
+        lines.append(f'- Total return: **{total_return * 100:+.2f}%**')
+        lines.append(f'- Max drawdown: **{max_dd * 100:.2f}%**')
+        if daily_sharpe is not None:
+            lines.append(f'- Daily Sharpe (annualized): **{daily_sharpe:.2f}**')
+    else:
+        lines.append(f'- Insufficient data')
+    lines.append('')
+
+    lines.append(f'### Trade Analysis\n')
+    if n_trades > 0:
+        lines.append(f'- Completed trades: **{n_trades}**')
+        if win_rate is not None:
+            lines.append(f'- Win rate: **{win_rate * 100:.0f}%**')
+        if mean_return is not None:
+            lines.append(f'- Average return: **{mean_return * 100:+.1f}%**')
+        if stop_rate is not None:
+            lines.append(f'- Stop rate: **{stop_rate * 100:.0f}%**')
+        if avg_days is not None:
+            lines.append(f'- Average holding period: **{avg_days:.1f} days**')
+        if best_trade is not None and worst_trade is not None:
+            lines.append(f'- Best trade: **{best_trade * 100:+.1f}%** / Worst: **{worst_trade * 100:+.1f}%**')
+
+        # Individual outcome details
+        if outcomes:
+            lines.append('')
+            wins = [o for o in outcomes if (o.get('gross_return') or 0) > 0]
+            losses = [o for o in outcomes if (o.get('gross_return') or 0) <= 0]
+            if wins:
+                win_str = ', '.join(f"{o['symbol']} {o['gross_return']*100:+.1f}%" for o in wins)
+                lines.append(f'- Winners: {win_str}')
+            if losses:
+                loss_str = ', '.join(f"{o['symbol']} {o['gross_return']*100:+.1f}%" for o in losses)
+                lines.append(f'- Losers: {loss_str}')
+    else:
+        lines.append(f'- No completed trades yet')
+    lines.append('')
+
+    lines.append(f'### Regime Observations\n')
+    if regime_counts:
+        total_snaps = sum(regime_counts.values())
+        for bucket, count in sorted(regime_counts.items(), key=lambda x: -x[1]):
+            pct = count / total_snaps * 100
+            lines.append(f'- **{bucket}**: {count} days ({pct:.0f}%)')
+    else:
+        lines.append(f'- No regime data yet')
+    lines.append('')
+
+    if by_exit:
+        lines.append(f'### Exit Reason Breakdown\n')
+        for reason, stats in by_exit.items():
+            n = stats.get('n', 0)
+            mr = stats.get('mean_return')
+            wr = stats.get('win_rate')
+            reason_label = reason.replace('_', ' ').replace('position stop adaptive', 'adaptive stop').title()
+            mr_str = f'{mr * 100:+.1f}%' if mr is not None else '--'
+            wr_str = f'{wr * 100:.0f}%' if wr is not None else '--'
+            lines.append(f'- **{reason_label}** ({n} trades): avg return {mr_str}, win rate {wr_str}')
+        lines.append('')
+
+    lines.append(f'### Recent Activity\n')
+    if recent:
+        for r in recent:
+            ts = (r.get('timestamp') or r.get('date', ''))[:16]
+            dtype = r.get('decision_type', '?').upper()
+            sym = r.get('symbol', '??')
+            if dtype == 'EXIT':
+                ret = r.get('current_return')
+                ret_str = f' return={ret * 100:+.1f}%' if ret is not None else ''
+                lines.append(f'- `{ts}` **{dtype}** {sym} — {r.get("exit_reason", "")}{ret_str}')
+            elif dtype == 'ENTRY':
+                regime = r.get('regime_bucket', '')
+                lines.append(f'- `{ts}` **{dtype}** {sym} — regime={regime}')
+            else:
+                lines.append(f'- `{ts}` **{dtype}** {sym}')
+    else:
+        lines.append(f'- No recent decisions')
+    lines.append('')
+
+    lines.append(f'### Next Milestone\n')
+    if phase < 2:
+        lines.append(f'Phase 2 ML begins in ~{days_to_phase2} trading days. Continue collecting entry/exit decisions and completed trade outcomes.')
+    else:
+        lines.append(f'Phase {phase} active. ML models are being trained on accumulated data.')
+    lines.append('')
+
+    # Backtest context
+    if bt_stats:
+        lines.append(f'### Backtest Reference (HYDRA + EFA/MSCI World)\n')
+        lines.append(f'- Period: **{bt_stats.get("start_date", "?")}** to **{bt_stats.get("end_date", "?")}** ({bt_stats.get("years", "?")} years)')
+        bt_cagr = bt_stats.get('cagr', 0)
+        lines.append(f'- CAGR: **{bt_cagr * 100:.1f}%**')
+        lines.append(f'- Sharpe: **{bt_stats.get("sharpe", 0):.3f}**')
+        bt_dd = bt_stats.get('max_drawdown', 0)
+        lines.append(f'- Max Drawdown: **{bt_dd * 100:.1f}%**')
+        bt_ret = bt_stats.get('total_return', 0)
+        lines.append(f'- Total Return: **{bt_ret * 100:.1f}%** (${bt_stats.get("start_value", 0):,.0f} → ${bt_stats.get("end_value", 0):,.0f})')
+        lines.append(f'- Trading Days: **{bt_stats.get("trading_days", 0):,}**')
+        lines.append('')
+        if trading_days > 0 and total_return:
+            lines.append(f'### Live vs Backtest\n')
+            live_ann = ((1 + total_return) ** (252 / max(1, trading_days))) - 1 if trading_days > 0 else 0
+            lines.append(f'- Live annualized return: **{live_ann * 100:+.1f}%** vs backtest CAGR **{bt_cagr * 100:.1f}%**')
+            if live_ann < bt_cagr * 0.5:
+                lines.append(f'- **Warning**: Live performance significantly below backtest expectations. Normal for early days with small sample size.')
+            elif live_ann > bt_cagr * 1.5:
+                lines.append(f'- Live performance above backtest — may indicate favorable market conditions.')
+            else:
+                lines.append(f'- Live performance tracking within expected range of backtest.')
+            lines.append('')
+
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+    lines.append(f'---\n*Auto-generated on {now_str}. Refreshes every 5 days.*')
+
+    md = '\n'.join(lines)
+    try:
+        with open(interp_path, 'w', encoding='utf-8') as f:
+            f.write(md)
+    except Exception:
+        pass
+
+
+@app.route('/api/ml-learning')
+def api_ml_learning():
+    """Return ML learning log entries, insights, and interpretation."""
+    ml_dir = os.path.join('state', 'ml_learning')
+    entries = []
+
+    # Read JSONL files
+    for fname, etype in [('decisions.jsonl', 'decision'), ('daily_snapshots.jsonl', 'snapshot'), ('outcomes.jsonl', 'outcome')]:
+        fpath = os.path.join(ml_dir, fname)
+        if os.path.exists(fpath):
+            try:
+                with open(fpath, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            rec = json.loads(line)
+                            rec['_type'] = etype
+                            entries.append(rec)
+            except Exception:
+                pass
+
+    # Sort by timestamp/date
+    def sort_key(r):
+        return r.get('timestamp', r.get('date', ''))
+    entries.sort(key=sort_key)
+
+    # Read insights (sanitize NaN which breaks JSON standard / jsonify)
+    insights = {}
+    insights_path = os.path.join(ml_dir, 'insights.json')
+    if os.path.exists(insights_path):
+        try:
+            with open(insights_path, 'r') as f:
+                raw = f.read().replace('NaN', 'null').replace('Infinity', 'null').replace('-Infinity', 'null')
+                insights = json.loads(raw)
+        except Exception:
+            pass
+
+    # Load backtest daily data (HYDRA + EFA/MSCI World)
+    backtest_entries = []
+    bt_stats = {}
+    bt_csv = os.path.join('backtests', 'exp60_hydra_efa_filtered.csv')
+    if os.path.exists(bt_csv):
+        try:
+            import csv
+            with open(bt_csv, 'r') as f:
+                reader = csv.DictReader(f)
+                bt_rows = list(reader)
+            if bt_rows:
+                for row in bt_rows:
+                    pv = float(row.get('value', 0))
+                    backtest_entries.append({
+                        '_type': 'backtest',
+                        'date': row.get('date', ''),
+                        'portfolio_value': round(pv, 2),
+                        'c_alloc': round(float(row.get('c_alloc', 0)), 4),
+                        'r_alloc': round(float(row.get('r_alloc', 0)), 4),
+                        'efa_alloc': round(float(row.get('efa_alloc', 0)), 4),
+                    })
+                values = [float(r['value']) for r in bt_rows]
+                start_val = 100000.0
+                end_val = values[-1]
+                n_bt_days = len(values)
+                years = n_bt_days / 252.0
+                total_bt_return = (end_val / start_val) - 1
+                cagr = (end_val / start_val) ** (1 / years) - 1 if years > 0 else 0
+                daily_rets = [(values[i] - values[i-1]) / values[i-1] for i in range(1, len(values))]
+                import statistics
+                dr_mean = statistics.mean(daily_rets) if daily_rets else 0
+                dr_std = statistics.stdev(daily_rets) if len(daily_rets) > 1 else 1
+                sharpe = dr_mean / dr_std * (252 ** 0.5) if dr_std > 0 else 0
+                peak_val = values[0]
+                max_dd = 0
+                for v in values:
+                    if v > peak_val:
+                        peak_val = v
+                    dd = (v - peak_val) / peak_val
+                    if dd < max_dd:
+                        max_dd = dd
+                bt_stats = {
+                    'start_date': bt_rows[0].get('date', ''),
+                    'end_date': bt_rows[-1].get('date', ''),
+                    'trading_days': n_bt_days,
+                    'years': round(years, 1),
+                    'start_value': round(start_val, 0),
+                    'end_value': round(end_val, 0),
+                    'total_return': round(total_bt_return, 4),
+                    'cagr': round(cagr, 4),
+                    'sharpe': round(sharpe, 3),
+                    'max_drawdown': round(max_dd, 4),
+                }
+        except Exception:
+            pass
+
+    all_entries = backtest_entries + entries
+    all_entries.sort(key=lambda r: r.get('timestamp', r.get('date', '')))
+
+    # Auto-regenerate interpretation if stale (5+ days)
+    _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats)
+
+    # Read interpretation
+    interpretation = ''
+    interp_path = os.path.join(ml_dir, 'interpretation.md')
+    if os.path.exists(interp_path):
+        try:
+            with open(interp_path, 'r') as f:
+                interpretation = f.read()
+        except Exception:
+            pass
+
+    # Compute KPIs from loaded data
+    outcomes = [r for r in entries if r.get('_type') == 'outcome']
+    decisions = [r for r in entries if r.get('_type') == 'decision']
+    snapshots = [r for r in entries if r.get('_type') == 'snapshot']
+    n_entries = sum(1 for d in decisions if d.get('decision_type') == 'entry')
+    n_exits = sum(1 for d in decisions if d.get('decision_type') == 'exit')
+
+    trading_days = insights.get('trading_days', 0)
+    phase = insights.get('learning_phase', 1)
+    days_to_phase2 = max(0, 63 - trading_days)
+
+    kpis = {
+        'total_decisions': len(decisions),
+        'total_entries': n_entries,
+        'total_exits': n_exits,
+        'total_outcomes': len(outcomes),
+        'total_snapshots': len(snapshots),
+        'trading_days': trading_days,
+        'phase': phase,
+        'days_to_phase2': days_to_phase2,
+        'phase2_progress_pct': round(min(100, trading_days / 63 * 100), 1),
+        'backtest': bt_stats,
+    }
+    if outcomes:
+        returns = [o.get('gross_return', 0) for o in outcomes if o.get('gross_return') is not None]
+        if returns:
+            kpis['win_rate'] = round(sum(1 for r in returns if r > 0) / len(returns), 3)
+            kpis['avg_return'] = round(sum(returns) / len(returns), 4)
+            kpis['best_trade'] = round(max(returns), 4)
+            kpis['worst_trade'] = round(min(returns), 4)
+        stop_count = sum(1 for o in outcomes if o.get('was_stopped'))
+        kpis['stop_rate'] = round(stop_count / len(outcomes), 3) if outcomes else 0
+        alphas = [o.get('alpha_vs_spy') for o in outcomes if o.get('alpha_vs_spy') is not None]
+        kpis['avg_alpha'] = round(sum(alphas) / len(alphas), 4) if alphas else None
+        pnls = [o.get('pnl_usd', 0) for o in outcomes]
+        kpis['total_pnl'] = round(sum(pnls), 2)
+
+    return jsonify({
+        'log_entries': all_entries,
+        'insights': insights,
+        'interpretation': interpretation,
+        'kpis': kpis,
+    })
+
+
+@app.route('/robots.txt')
+def robots_txt():
+    return app.response_class(
+        "User-agent: *\nAllow: /\nSitemap: http://localhost:5000/sitemap.xml\n",
+        mimetype='text/plain'
+    )
+
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>http://localhost:5000/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+</urlset>"""
+    return app.response_class(xml, mimetype='application/xml')
 
 
 # ============================================================================

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 _git_queue: Queue = Queue(maxsize=10)
 _worker_thread: threading.Thread | None = None
 _worker_started = False
-_repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_repo_dir = os.path.dirname(os.path.abspath(__file__))
 
 MIN_COMMIT_INTERVAL = 900  # 15 minutes between commits
 
@@ -180,11 +180,8 @@ def git_sync_async(state_file: str, latest_file: str):
         logger.debug("git sync: queue full, skipping this cycle")
 
 
-def git_sync_rotation(cycle_num: int, compass_return: float, status: str):
-    """Queue a git sync after a 5-day rotation. Includes cycle_log + state files.
-
-    This bypasses the throttle since rotations only happen every 5 trading days.
-    """
+def git_sync_rotation(cycle_num: int, hydra_return: float, status: str):
+    """Queue a git sync after a 5-day rotation. Includes cycle_log + state files."""
     _ensure_worker()
 
     files = [
@@ -200,8 +197,8 @@ def git_sync_rotation(cycle_num: int, compass_return: float, status: str):
 
     files = list(set(f.replace('\\', '/') for f in files))
 
-    sign = '+' if compass_return >= 0 else ''
-    message = f"auto: cycle #{cycle_num} closed ({sign}{compass_return:.2f}% {status}) — rotation complete"
+    sign = '+' if hydra_return >= 0 else ''
+    message = f"auto: cycle #{cycle_num} closed ({sign}{hydra_return:.2f}% {status}) — rotation complete"
 
     try:
         _git_queue.put_nowait({'files': files, 'message': message})

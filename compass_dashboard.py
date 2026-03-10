@@ -1024,7 +1024,7 @@ def api_cycle_log():
             is_first_day = (cycle_start == last_trading) if cycle_start and last_trading else False
 
             if is_first_day:
-                c['compass_return'] = 0.0
+                c['hydra_return'] = 0.0
                 c['spy_return'] = 0.0
                 c['alpha'] = 0.0
                 c['portfolio_end'] = c.get('portfolio_start')
@@ -1052,7 +1052,7 @@ def api_cycle_log():
             port_start = c.get('portfolio_start')
             if port_start and port_start > 0:
                 c['portfolio_end'] = round(portfolio_now, 2)
-                c['compass_return'] = round((portfolio_now / port_start - 1) * 100, 2)
+                c['hydra_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
             # SPY cumulative return (from cycle start)
             spy_price = prices.get('SPY') if market_is_open else (_prev_close_cache.get('SPY') or prices.get('SPY'))
@@ -1062,8 +1062,8 @@ def api_cycle_log():
                 c['spy_return'] = round((spy_price / spy_start - 1) * 100, 2)
 
             # Alpha
-            if c.get('compass_return') is not None and c.get('spy_return') is not None:
-                c['alpha'] = round(c['compass_return'] - c['spy_return'], 2)
+            if c.get('hydra_return') is not None and c.get('spy_return') is not None:
+                c['alpha'] = round(c['hydra_return'] - c['spy_return'], 2)
         except Exception:
             pass
 

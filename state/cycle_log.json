@@ -17,12 +17,19 @@
     "positions_current": [
       "MRK",
       "JNJ",
-      "LRCX",
       "GOOGL"
     ],
-    "compass_return": null,
+    "hydra_return": null,
     "spy_return": null,
     "alpha": null,
-    "stop_events": []
+    "stop_events": [
+      {
+        "date": "2026-03-09",
+        "stopped": "LRCX",
+        "replacement": null,
+        "reason": "position_stop",
+        "return": -8.2
+      }
+    ]
   }
 ]
