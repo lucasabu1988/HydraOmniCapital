@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-10T13:54:40.099202",
+  "timestamp": "2026-03-10T15:19:13.342036",
   "cash": 35585.88668505859,
   "peak_value": 100000.0,
-  "portfolio_value": 100296.72117297363,
+  "portfolio_value": 100130.83681933593,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
@@ -105,7 +105,6 @@
     "LRCX"
   ],
   "universe_year": 2026,
-  "stop_events": [],
   "_daily_open_done": true,
   "_preclose_entries_done": false,
   "overlay": {
@@ -133,7 +132,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 133,
-    "uptime_minutes": 878.4743269833333
+    "cycles_completed": 0,
+    "uptime_minutes": 0.10138503333333333
   }
 }
