@@ -1209,40 +1209,39 @@ def api_cycle_log():
                 c['spy_end'] = c.get('spy_start')
                 continue
 
-            # Current portfolio value from state (updated by live engine)
+            # Current holdings from state
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
-            # Fetch SPY ETF — benchmark for cycle P&L (matches spy_start in cycle_log)
             symbols = list(positions.keys()) + ['SPY']
             prices = fetch_live_prices(symbols)
 
             # Sync positions_current with actual state holdings
             c['positions_current'] = sorted(positions.keys())
 
-            # Portfolio value = sum(shares * current_price) + cash
-            portfolio_now = state.get('cash', 0)
+            # Holdings-only return: compare stock picks vs SPY (no cash dilution)
+            invested_now = 0
+            invested_at_cost = 0
             for sym, pos in positions.items():
+                shares = pos.get('shares', 0)
+                avg_cost = pos.get('avg_cost', 0)
                 price = prices.get(sym)
-                if price:
-                    portfolio_now += pos.get('shares', 0) * price
-                else:
-                    # Fallback to entry price
+                if not price:
                     meta = position_meta.get(sym, {})
-                    portfolio_now += pos.get('shares', 0) * meta.get('entry_price', pos.get('avg_cost', 0))
+                    price = meta.get('entry_price', avg_cost)
+                invested_now += shares * price
+                invested_at_cost += shares * avg_cost
 
-            port_start = c.get('portfolio_start')
-            if port_start and port_start > 0:
-                c['portfolio_end'] = round(portfolio_now, 2)
-                c['hydra_return'] = round((portfolio_now / port_start - 1) * 100, 2)
+            if invested_at_cost > 0:
+                c['hydra_return'] = round((invested_now / invested_at_cost - 1) * 100, 2)
 
-            # SPY ETF return (benchmark — matches spy_start stored as SPY ETF price)
+            # SPY ETF return over same period
             spy_price = prices.get('SPY')
             spy_start = c.get('spy_start')
             if spy_price and spy_start and spy_start > 0:
                 c['spy_end'] = round(spy_price, 2)
                 c['spy_return'] = round((spy_price / spy_start - 1) * 100, 2)
 
-            # Alpha
+            # Alpha: holdings return vs SPY
             if c.get('hydra_return') is not None and c.get('spy_return') is not None:
                 c['alpha'] = round(c['hydra_return'] - c['spy_return'], 2)
         except Exception:

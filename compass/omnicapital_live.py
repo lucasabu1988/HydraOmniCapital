@@ -2155,9 +2155,16 @@ class COMPASSLive:
                     cycle['spy_end'] = round(spy_close, 2)
                     cycle['spy_return'] = round(
                         (spy_close - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
-                cycle['hydra_return'] = round(
-                    (close_portfolio_value - cycle['portfolio_start'])
-                    / cycle['portfolio_start'] * 100, 2)
+                # Holdings-only return (excludes cash, direct comparison vs SPY)
+                invested_now = sum(p['shares'] * prices.get(s, p['avg_cost'])
+                                   for s, p in pre_rot_positions.items())
+                invested_at_cost = sum(p['shares'] * p['avg_cost']
+                                       for p in pre_rot_positions.values())
+                if invested_at_cost > 0:
+                    cycle['hydra_return'] = round(
+                        (invested_now / invested_at_cost - 1) * 100, 2)
+                else:
+                    cycle['hydra_return'] = 0.0
                 if cycle.get('hydra_return') is not None and cycle.get('spy_return') is not None:
                     cycle['alpha'] = round(cycle['hydra_return'] - cycle['spy_return'], 2)
 
