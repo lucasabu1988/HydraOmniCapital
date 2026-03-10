@@ -590,14 +590,16 @@ class PaperBroker(Broker):
         self.price_feed = feed
     
     def _get_fill_price(self, symbol: str, action: str) -> Optional[float]:
-        """Obtiene precio de ejecucion"""
+        """Get fill price using the current market price (no random slippage).
+
+        Pre-close entries (15:30-15:50 ET) conceptually execute at close.
+        Using the feed price directly (without random noise) ensures the
+        portfolio tracks real closes and avoids cumulative drift vs benchmarks.
+        """
         if self.price_feed:
             price = self.price_feed.get_price(symbol)
             if price:
-                # Simular slippage
-                import random
-                slippage = random.uniform(-0.001, 0.001)
-                return price * (1 + slippage)
+                return price
         return None
 
     def validate_fill_price(self, symbol: str, fill_price: float,
