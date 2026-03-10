@@ -10,7 +10,7 @@ import subprocess
 import threading
 import logging
 import os
-import glob as glob_mod
+
 from datetime import datetime
 from queue import Queue, Empty
 
@@ -157,26 +157,16 @@ def _ensure_worker():
     logger.info("git sync: background worker started")
 
 
-def git_sync_async(state_file: str, latest_file: str, log_pattern: str = 'logs/compass_live_*.log'):
+def git_sync_async(state_file: str, latest_file: str):
     """Queue a git sync operation. Non-blocking. Called from save_state().
 
     Args:
         state_file: e.g. 'state/compass_state_20260223.json'
         latest_file: e.g. 'state/compass_state_latest.json'
-        log_pattern: glob for log files to include
     """
     _ensure_worker()
 
     files = [state_file, latest_file]
-
-    # Add matching log files
-    log_files = glob_mod.glob(os.path.join(_repo_dir, log_pattern))
-    files.extend([os.path.relpath(f, _repo_dir) for f in log_files])
-
-    # Add trading_engine.log if it exists
-    engine_log = os.path.join(_repo_dir, 'logs', 'trading_engine.log')
-    if os.path.exists(engine_log):
-        files.append('logs/trading_engine.log')
 
     # Normalize to forward slashes (git on Windows)
     files = list(set(f.replace('\\', '/') for f in files))
@@ -207,10 +197,6 @@ def git_sync_rotation(cycle_num: int, compass_return: float, status: str):
     dated_state = f'state/compass_state_{today}.json'
     if os.path.exists(os.path.join(_repo_dir, dated_state)):
         files.append(dated_state)
-
-    # Add log files
-    log_files = glob_mod.glob(os.path.join(_repo_dir, 'logs', 'compass_live_*.log'))
-    files.extend([os.path.relpath(f, _repo_dir).replace('\\', '/') for f in log_files])
 
     files = list(set(f.replace('\\', '/') for f in files))
 
