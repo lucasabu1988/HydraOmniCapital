@@ -792,8 +792,6 @@ class COMPASSLive:
         self.rattle_regime = 'RISK_ON'
         self._vix_current: Optional[float] = None
         self.hydra_capital = None
-        # EFA: Third pillar (idle cash → international)
-        self.efa_position: Optional[dict] = None  # {shares, avg_cost, entry_date}
         self._efa_hist: Optional[pd.DataFrame] = None
         if _hydra_available:
             try:
@@ -1669,83 +1667,73 @@ class COMPASSLive:
         return efa_close > efa_sma
 
     def _manage_efa_position(self, prices: Dict[str, float]):
-        """Manage EFA third pillar: buy with idle cash, sell when capital needed.
+        """Manage EFA third pillar: buy with idle cash, sell when needed.
 
         Called at the END of pre-close cycle, after all Momentum and Rattlesnake
         entries have been filled. Only truly idle cash flows to EFA.
+        Uses _submit_order() for proper commission, audit trail, and IBKR compatibility.
         """
         if not self._hydra_available or not self.hydra_capital:
             return
 
         efa_price = prices.get(EFA_SYMBOL)
         if not efa_price or efa_price <= 0:
-            # Try from hist cache
             if self._efa_hist is not None and len(self._efa_hist) > 0:
                 efa_price = float(self._efa_hist['Close'].iloc[-1])
             else:
                 return
 
-        # Update EFA value with current price
-        if self.efa_position and self.efa_position.get('shares', 0) > 0:
-            self.efa_position['current_value'] = self.efa_position['shares'] * efa_price
-            if self.hydra_capital:
-                self.hydra_capital.efa_value = self.efa_position['current_value']
+        # Current EFA position from broker
+        positions = self.broker.get_positions()
+        efa_pos = positions.get(EFA_SYMBOL)
+        efa_shares = efa_pos.shares if efa_pos else 0
+
+        # Update hydra capital manager with current EFA value
+        if efa_shares > 0 and self.hydra_capital:
+            self.hydra_capital.efa_value = efa_shares * efa_price
 
         # Check if we should sell (EFA below SMA200)
-        if self.efa_position and self.efa_position.get('shares', 0) > 0:
-            if not self._efa_above_sma200():
-                # Sell all EFA — regime filter triggered
-                shares = self.efa_position['shares']
-                proceeds = shares * efa_price
-                logger.info(f"EFA SELL (below SMA200): {shares} shares @ ${efa_price:.2f} = ${proceeds:,.0f}")
-                self.broker.cash += proceeds
+        if efa_shares > 0 and not self._efa_above_sma200():
+            order = Order(symbol=EFA_SYMBOL, action='SELL',
+                          quantity=efa_shares, order_type='MARKET',
+                          decision_price=efa_price)
+            result = self._submit_order(order, prices)
+            if result.status == 'FILLED':
+                proceeds = result.filled_price * efa_shares
+                logger.info(f"EFA SELL (below SMA200): {efa_shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f}")
                 if self.hydra_capital:
-                    self.hydra_capital.sell_efa(self.efa_position.get('current_value', proceeds))
-                self.efa_position = None
-                return
+                    self.hydra_capital.sell_efa(proceeds)
+            return
 
         # Check if we should buy (idle cash available and EFA above SMA200)
         if not self._efa_above_sma200():
             return
 
-        # Compute idle cash after all active strategies
         portfolio = self.broker.get_portfolio()
         idle_cash = portfolio.cash * 0.90  # Keep 10% cash buffer
 
         if idle_cash < EFA_MIN_BUY:
             return
 
-        # Buy EFA with idle cash
         shares = int(idle_cash / efa_price)
         if shares < 1:
             return
 
-        cost = shares * efa_price
-        logger.info(f"EFA BUY: {shares} shares @ ${efa_price:.2f} = ${cost:,.0f}")
-        self.broker.cash -= cost
-
-        if self.hydra_capital:
-            self.hydra_capital.buy_efa(cost)
-
-        if self.efa_position and self.efa_position.get('shares', 0) > 0:
-            # Add to existing position
-            old_shares = self.efa_position['shares']
-            old_cost = old_shares * self.efa_position['avg_cost']
-            total_shares = old_shares + shares
-            self.efa_position['shares'] = total_shares
-            self.efa_position['avg_cost'] = (old_cost + cost) / total_shares
-            self.efa_position['current_value'] = total_shares * efa_price
-        else:
-            self.efa_position = {
-                'shares': shares,
-                'avg_cost': efa_price,
-                'entry_date': self.get_et_now().strftime('%Y-%m-%d'),
-                'current_value': cost,
-            }
+        order = Order(symbol=EFA_SYMBOL, action='BUY',
+                      quantity=shares, order_type='MARKET',
+                      decision_price=efa_price)
+        result = self._submit_order(order, prices)
+        if result.status == 'FILLED':
+            cost = result.filled_price * shares
+            logger.info(f"EFA BUY: {shares} shares @ ${result.filled_price:.2f} = ${cost:,.0f}")
+            if self.hydra_capital:
+                self.hydra_capital.buy_efa(cost)
 
     def _liquidate_efa_for_capital(self, prices: Dict[str, float]):
         """Sell EFA to free capital for active strategies. Called BEFORE entries."""
-        if not self.efa_position or self.efa_position.get('shares', 0) <= 0:
+        positions = self.broker.get_positions()
+        efa_pos = positions.get(EFA_SYMBOL)
+        if not efa_pos or efa_pos.shares <= 0:
             return
 
         efa_price = prices.get(EFA_SYMBOL)
@@ -1757,28 +1745,29 @@ class COMPASSLive:
 
         # Check if active strategies need capital
         max_positions = self.get_max_positions()
-        compass_positions = {s: p for s, p in self.broker.get_positions().items() if s in self.position_meta}
+        compass_positions = {s: p for s, p in positions.items() if s in self.position_meta}
         needed = max_positions - len(compass_positions)
 
         if needed <= 0:
             return  # No new positions needed, keep EFA
 
-        # Check if we have enough cash for potential entries
         portfolio = self.broker.get_portfolio()
-        avg_position_cost = portfolio.total_value * 0.20  # rough estimate
-
+        avg_position_cost = portfolio.total_value * 0.20
         if portfolio.cash >= avg_position_cost:
             return  # Enough cash already, keep EFA
 
         # Liquidate EFA
-        shares = self.efa_position['shares']
-        proceeds = shares * efa_price
-        pnl = proceeds - (shares * self.efa_position['avg_cost'])
-        logger.info(f"EFA LIQUIDATE (capital needed): {shares} shares @ ${efa_price:.2f} = ${proceeds:,.0f} (PnL: ${pnl:+,.0f})")
-        self.broker.cash += proceeds
-        if self.hydra_capital:
-            self.hydra_capital.sell_efa(self.efa_position.get('current_value', proceeds))
-        self.efa_position = None
+        shares = efa_pos.shares
+        pnl = (efa_price - efa_pos.avg_cost) * shares
+        order = Order(symbol=EFA_SYMBOL, action='SELL',
+                      quantity=shares, order_type='MARKET',
+                      decision_price=efa_price)
+        result = self._submit_order(order, prices)
+        if result.status == 'FILLED':
+            proceeds = result.filled_price * shares
+            logger.info(f"EFA LIQUIDATE (capital needed): {shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f} (PnL: ${pnl:+,.0f})")
+            if self.hydra_capital:
+                self.hydra_capital.sell_efa(proceeds)
 
     # ------------------------------------------------------------------
     # Order submission (with optional execution strategy)
@@ -2064,8 +2053,8 @@ class COMPASSLive:
                 meta['high_price'] = max(meta.get('high_price', entry_close), entry_close)
                 meta['_entry_reconciled'] = True
 
-                # Update broker's avg_cost too
-                if symbol in self.broker.positions:
+                # Update broker's avg_cost (PaperBroker only — IBKR positions are read-only)
+                if isinstance(self.broker, PaperBroker) and symbol in self.broker.positions:
                     self.broker.positions[symbol].avg_cost = entry_close
 
                 diff_pct = (entry_close / old_price - 1) * 100
@@ -2410,7 +2399,7 @@ class COMPASSLive:
                 'rattle_positions': self.rattle_positions,
                 'rattle_regime': self.rattle_regime,
                 'vix_current': self._vix_current,
-                'efa_position': self.efa_position,
+                'efa_position': None,  # deprecated: EFA now tracked in broker.positions
                 'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
             },
 
@@ -2496,7 +2485,6 @@ class COMPASSLive:
             raise RuntimeError("Cannot load any valid state file. Manual intervention required.")
 
         # Restore portfolio state
-        self.broker.cash = state.get('cash', self.config['PAPER_INITIAL_CASH'])
         self.peak_value = state.get('peak_value', self.config['PAPER_INITIAL_CASH'])
 
         # Restore drawdown / crash state
@@ -2511,13 +2499,22 @@ class COMPASSLive:
         ltd = state.get('last_trading_date')
         self.last_trading_date = date.fromisoformat(ltd) if ltd else None
 
-        # Restore positions
-        for symbol, data in state.get('positions', {}).items():
-            self.broker.positions[symbol] = Position(
-                symbol=symbol,
-                shares=data['shares'],
-                avg_cost=data['avg_cost']
-            )
+        # Restore positions — PaperBroker restores from JSON; IBKR uses broker as truth
+        is_paper = isinstance(self.broker, PaperBroker)
+        if is_paper:
+            self.broker.cash = state.get('cash', self.config['PAPER_INITIAL_CASH'])
+            for symbol, data in state.get('positions', {}).items():
+                self.broker.positions[symbol] = Position(
+                    symbol=symbol,
+                    shares=data['shares'],
+                    avg_cost=data['avg_cost']
+                )
+        else:
+            # IBKR mode: broker has real positions, just log comparison
+            broker_cash = self.broker.cash
+            json_cash = state.get('cash', 0)
+            if abs(broker_cash - json_cash) > 100:
+                logger.warning(f"Cash mismatch: broker=${broker_cash:,.0f} vs state=${json_cash:,.0f}")
 
         # Restore position metadata
         self.position_meta = state.get('position_meta', {})
@@ -2539,11 +2536,11 @@ class COMPASSLive:
             self.rattle_positions = hydra_state.get('rattle_positions', [])
             self.rattle_regime = hydra_state.get('rattle_regime', 'RISK_ON')
             self._vix_current = hydra_state.get('vix_current')
-            self.efa_position = hydra_state.get('efa_position')
             cap_state = hydra_state.get('capital_manager')
             if cap_state:
                 self.hydra_capital = HydraCapitalManager.from_dict(cap_state)
-                efa_str = f" | EFA=${self.hydra_capital.efa_value:,.0f}" if self.hydra_capital.efa_value > 0 else ""
+                efa_pos = self.broker.get_positions().get(EFA_SYMBOL)
+                efa_str = f" | EFA={efa_pos.shares}sh" if efa_pos and efa_pos.shares > 0 else ""
                 logger.info(f"  HYDRA restored: R_pos={len(self.rattle_positions)}{efa_str} | "
                            f"C_acct=${self.hydra_capital.compass_account:,.0f} | "
                            f"R_acct=${self.hydra_capital.rattle_account:,.0f}")
@@ -2602,8 +2599,9 @@ class COMPASSLive:
                 rp_ret = (prices.get(s, rp['entry_price']) - rp['entry_price']) / rp['entry_price']
                 r_pos_parts.append(f"{s}({rp_ret:.1%}|d{rp.get('days_held', 0)})")
             hydra_str = f" | R:{len(self.rattle_positions)} [{','.join(r_pos_parts)}]"
-            if self.efa_position and self.efa_position.get('shares', 0) > 0:
-                hydra_str += f" | EFA:{self.efa_position['shares']}sh"
+            efa_pos = self.broker.get_positions().get(EFA_SYMBOL)
+            if efa_pos and efa_pos.shares > 0:
+                hydra_str += f" | EFA:{efa_pos.shares}sh"
 
         logger.info(f"STATUS: ${portfolio.total_value:,.0f} | DD:{drawdown:.1%} | "
                      f"{regime_str} | Lev:{leverage:.2f}x | "
