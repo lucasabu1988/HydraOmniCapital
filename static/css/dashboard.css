@@ -689,8 +689,8 @@ body.dark::after { opacity: 0.03; }
 .metrics-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: var(--space-3, 12px);
+    margin-bottom: var(--space-3, 12px);
 }
 .metrics-hero-row {
     margin-bottom: var(--space-3, 12px);
@@ -715,7 +715,7 @@ body.dark::after { opacity: 0.03; }
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
-    padding: 12px 16px;
+    padding: var(--space-4, 16px);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
@@ -1417,13 +1417,25 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
 }
 .pos-card {
     background: var(--bg-card);
-    padding: 14px 18px;
+    padding: var(--space-4, 16px);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-2, 8px);
     transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
     position: relative;
     overflow: hidden;
+}
+/* Section rhythm — consistent gaps between major dashboard sections */
+.landing-hero,
+.preclose-bar,
+.universe-bar,
+.perf-banner,
+.metrics-hero-row,
+.regime-band,
+.overlay-band-wrap,
+.positions-hero,
+.card {
+    margin-bottom: var(--space-8, 32px);
 }
 .pos-card:hover { background: var(--bg-card-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
 /* Top gradient bar — instant visual P&L status (Bridgewater-inspired) */
