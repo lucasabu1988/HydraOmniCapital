@@ -110,7 +110,7 @@ function fmt$(v) {
 
 function fmtPct(v) {
     if (v == null || isNaN(v)) return '--';
-    return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    return (v >= 0 ? '▲ +' : '▼ ') + Math.abs(v).toFixed(2) + '%';
 }
 
 function colorCls(v) {

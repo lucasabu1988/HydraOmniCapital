@@ -318,6 +318,17 @@ body.dark ::-webkit-scrollbar-thumb:hover { background: rgba(129, 140, 248, 0.35
 ::selection { background: rgba(99, 102, 241, 0.3); color: inherit; }
 body.dark ::selection { background: rgba(129, 140, 248, 0.35); }
 
+/* Keyboard focus — visible only for keyboard navigation */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+button:focus-visible, .page-tab:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm, 8px);
+}
+
 /* Atmospheric background */
 body::before {
     content: '';
@@ -2428,9 +2439,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 .lh-carousel-dots { display: flex; gap: 6px; }
 .lh-dot {
-    width: 8px; height: 8px; border-radius: 50%;
+    width: 12px; height: 12px; border-radius: 50%;
     border: 1.5px solid rgba(255,255,255,0.25); background: transparent;
-    cursor: pointer; transition: all 0.3s; padding: 0;
+    cursor: pointer; transition: all 0.3s; padding: 8px;
+    box-sizing: content-box;
 }
 .lh-dot.active { background: var(--accent-light); border-color: var(--accent-light); box-shadow: 0 0 8px rgba(99, 102, 241, 0.4); }
 .lh-dot:hover { border-color: rgba(255,255,255,0.5); }
