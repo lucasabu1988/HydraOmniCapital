@@ -721,9 +721,8 @@ body.dark::after { opacity: 0.03; }
     overflow: hidden;
 }
 .metric-card:hover {
-    border-color: var(--glass-border-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md), var(--glow-accent);
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1), 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 .metric-card::before {
     content: '';
@@ -1437,7 +1436,7 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
 .card {
     margin-bottom: var(--space-8, 32px);
 }
-.pos-card:hover { background: var(--bg-card-hover); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.pos-card:hover { background: var(--bg-card-hover); box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1), var(--shadow-sm); }
 /* Top gradient bar — instant visual P&L status (Bridgewater-inspired) */
 .pos-card::after {
     content: '';
@@ -2444,7 +2443,6 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 .lh-stat:hover {
     background: rgba(255,255,255,0.05);
-    transform: translateY(-2px);
 }
 .lh-stat-divider {
     width: 1px;
