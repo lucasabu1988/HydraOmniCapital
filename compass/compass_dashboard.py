@@ -18,7 +18,7 @@ import glob
 import subprocess
 import threading
 import time as time_module
-from datetime import datetime, date, time as dtime, timedelta
+from datetime import datetime, date, time as dtime, timedelta, timezone
 from typing import Dict, Optional, List
 from zoneinfo import ZoneInfo
 import yfinance as yf
@@ -1747,7 +1747,7 @@ def _fetch_reddit_posts(symbols: List[str], max_per: int = 2) -> List[dict]:
                 sentiment = 'bullish' if (score > 10 and ratio > 0.7) else 'bearish' if ratio < 0.4 else None
 
                 created = d.get('created_utc', 0)
-                pub_iso = datetime.utcfromtimestamp(created).isoformat() + 'Z' if created else ''
+                pub_iso = datetime.fromtimestamp(created, tz=timezone.utc).isoformat() if created else ''
                 sub = d.get('subreddit', '')
                 permalink = d.get('permalink', '')
 

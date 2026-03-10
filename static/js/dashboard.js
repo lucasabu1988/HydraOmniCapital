@@ -515,6 +515,7 @@ function updatePositions(details) {
     });
 
     /* --- Tooltip positioning (appended to body to escape overflow:hidden) --- */
+    document.querySelectorAll('body > .ticker-tip').forEach(function(el) { el.remove(); });
     grid.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
         var tip = wrap.querySelector('.ticker-tip');
         if (!tip) return;
@@ -786,6 +787,7 @@ function updateUniverse(universe, positions) {
     }
     grid.innerHTML = html;
 
+    document.querySelectorAll('body > .ticker-tip').forEach(function(el) { el.remove(); });
     grid.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
         var tip = wrap.querySelector('.ticker-tip');
         if (!tip) return;
@@ -1072,6 +1074,7 @@ function updateSocialFeed(data) {
 async function fetchSocialFeed() {
     try {
         var res = await fetch('/api/social-feed');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         updateSocialFeed(data);
     } catch(e) { console.error('Social feed error:', e); }
@@ -1085,6 +1088,7 @@ async function fetchSocialFeed() {
 async function fetchCycleLog() {
     try {
         const res = await fetch('/api/cycle-log');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const cycles = await res.json();
         const tbody = document.getElementById('cycle-log-body');
         if (!tbody || !cycles.length) {
@@ -1119,8 +1123,8 @@ async function fetchCycleLog() {
                 var stoppedParts = [];
                 for (var si = 0; si < stops.length; si++) {
                     var s = stops[si];
-                    var label = '<s style="opacity:.5">' + s.stopped + '</s>';
-                    if (s.replacement) label += '→<s style="opacity:.5">' + s.replacement + '</s>';
+                    var label = '<s style="opacity:.5">' + escHtml(s.stopped) + '</s>';
+                    if (s.replacement) label += '→<s style="opacity:.5">' + escHtml(s.replacement) + '</s>';
                     stoppedParts.push(label);
                 }
                 if (stoppedParts.length > 0) {
@@ -1263,6 +1267,7 @@ function updateSpyTracker(prices, prevCloses) {
 async function fetchAll() {
     try {
         const stateRes = await fetch('/api/state');
+        if (!stateRes.ok) throw new Error('HTTP ' + stateRes.status);
         const stateData = await stateRes.json();
 
         if (stateData.status === 'offline') {
@@ -1382,10 +1387,11 @@ const TA_SEGMENTS = [
 async function fetchTradeAnalytics() {
     try {
         const res = await fetch('/api/trade-analytics');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (data.error) {
             document.getElementById('ta-table-container').innerHTML =
-                '<div style="color:var(--red);font-size:12px;">Error: ' + data.error + '</div>';
+                '<div style="color:var(--red);font-size:12px;">Error: ' + escHtml(data.error) + '</div>';
             return;
         }
         taData = data;
@@ -1396,7 +1402,7 @@ async function fetchTradeAnalytics() {
     } catch(e) {
         console.error('TA error:', e);
         document.getElementById('ta-table-container').innerHTML =
-            '<div style="color:var(--red);font-size:12px;">Failed to load: ' + e.message + '</div>';
+            '<div style="color:var(--red);font-size:12px;">Failed to load: ' + escHtml(e.message) + '</div>';
     }
 }
 
@@ -1435,7 +1441,7 @@ function renderTATable(segKey) {
         const pnlColor = s.avg_pnl >= 0 ? 'var(--green)' : 'var(--red)';
         const alphaColor = s.alpha_contribution_pct >= 0 ? 'var(--green)' : 'var(--red)';
         html += `<tr>`;
-        html += `<td style="color:var(--text-primary);font-weight:500;">${cat}</td>`;
+        html += `<td style="color:var(--text-primary);font-weight:500;">${escHtml(cat)}</td>`;
         html += `<td class="num">${s.count.toLocaleString()}</td>`;
         html += `<td class="num">${s.win_rate_pct.toFixed(1)}%</td>`;
         html += `<td class="num" style="color:${retColor};">${s.avg_return_pct >= 0 ? '+' : ''}${s.avg_return_pct.toFixed(2)}%</td>`;
@@ -1492,6 +1498,7 @@ function updateChartColors() {
 async function fetchEquityData() {
     try {
         var res = await fetch('/api/equity');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         if (!data.equity || data.equity.length === 0) return;
         renderEquityAndDrawdown(data.equity, data.milestones || []);
@@ -2008,6 +2015,7 @@ function renderP2PScatter(positions) {
 async function fetchAnnualReturns() {
     try {
         var res = await fetch('/api/annual-returns');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         if (!data.data || data.data.length === 0) return;
         _annualData = { data: data.data, positive: data.positive_years, total: data.total_years };
@@ -2471,6 +2479,7 @@ var _mlLastCount = 0;
 async function fetchMLLearning() {
     try {
         var res = await fetch('/api/ml-learning');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         renderMLTerminal(data.log_entries || [], data.insights || {});
         renderMLInterpretation(data.interpretation_backtest || '', 'ml-interpret-backtest', 'ml-interpret-bt-time');

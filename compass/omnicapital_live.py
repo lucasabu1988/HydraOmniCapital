@@ -2127,8 +2127,10 @@ class COMPASSLive:
         """Get S&P 500 index close price for today (or latest available)."""
         try:
             gspc = yf.download('^GSPC', period='2d', progress=False)
+            if isinstance(gspc.columns, pd.MultiIndex):
+                gspc.columns = [c[0] for c in gspc.columns]
             if len(gspc) > 0:
-                return float(gspc['Close'].iloc[-1].iloc[0])
+                return float(gspc['Close'].iloc[-1])
         except Exception as e:
             logger.warning(f"Could not fetch S&P 500 close: {e}")
         return None
@@ -2292,8 +2294,10 @@ class COMPASSLive:
         spy_price = None
         try:
             spy = yf.download('SPY', period='5d', progress=False)
+            if isinstance(spy.columns, pd.MultiIndex):
+                spy.columns = [c[0] for c in spy.columns]
             if len(spy) > 0:
-                spy_price = float(spy['Close'].iloc[-1].iloc[0])
+                spy_price = float(spy['Close'].iloc[-1])
         except Exception:
             pass
 
