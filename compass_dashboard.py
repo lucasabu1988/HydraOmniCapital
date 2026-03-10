@@ -75,6 +75,10 @@ COMPASS_CONFIG = {
     'ORDER_TIMEOUT_SECONDS': 300,
     'MAX_FILL_DEVIATION': 0.02,
     'MAX_PRICE_CHANGE_PCT': 0.20,
+
+    # Recovery stages (days before advancing)
+    'RECOVERY_STAGE_1_DAYS': 63,
+    'RECOVERY_STAGE_2_DAYS': 126,
 }
 
 STATE_FILE = 'state/compass_state_latest.json'

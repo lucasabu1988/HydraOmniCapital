@@ -2200,13 +2200,23 @@ class COMPASSLive:
             'stop_events': [],
         })
 
-        # Save
+        # Save (atomic write to prevent corruption on crash)
         os.makedirs('state', exist_ok=True)
-        with open(log_file, 'w') as f:
-            json.dump(cycles, f, indent=2)
+        import tempfile
+        try:
+            fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+            with os.fdopen(fd, 'w') as fp:
+                json.dump(cycles, fp, indent=2)
+            os.replace(tmp_path, log_file)
+        except Exception as e:
+            logger.error(f"Atomic cycle log write failed: {e}")
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
         logger.info(f"CYCLE #{next_cycle} OPENED: {', '.join(new_positions)} | "
-                    f"${new_value:,.0f}")
+                    f"${new_start_value:,.0f}")
 
         # WhatsApp/Email notification on rotation
         if self.notifier and hasattr(self.notifier, 'send_rotation_alert'):
@@ -2288,8 +2298,18 @@ class COMPASSLive:
         })
 
         os.makedirs('state', exist_ok=True)
-        with open(log_file, 'w') as f:
-            json.dump(cycles, f, indent=2)
+        import tempfile
+        try:
+            fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+            with os.fdopen(fd, 'w') as fp:
+                json.dump(cycles, fp, indent=2)
+            os.replace(tmp_path, log_file)
+        except Exception as e:
+            logger.error(f"Atomic cycle log write failed: {e}")
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
         logger.info(f"CYCLE #{next_cycle} initialized on startup: "
                     f"{list(self.broker.positions.keys())}")
@@ -2336,10 +2356,17 @@ class COMPASSLive:
             break
 
         try:
-            with open(log_file, 'w') as f:
-                json.dump(cycles, f, indent=2)
+            import tempfile
+            fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+            with os.fdopen(fd, 'w') as fp:
+                json.dump(cycles, fp, indent=2)
+            os.replace(tmp_path, log_file)
         except Exception as e:
             logger.warning(f"Failed to update cycle log stop: {e}")
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
     # ------------------------------------------------------------------
     # State persistence
