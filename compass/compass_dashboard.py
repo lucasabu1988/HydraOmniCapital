@@ -359,10 +359,10 @@ def start_engine():
     with _live_thread_lock:
         if _engine_status['running']:
             return False, 'Already running'
-        _engine_status['running'] = True
         _engine_status['error'] = None
         _engine_status['cycles'] = 0
         _engine_status['started_at'] = datetime.now().isoformat()
+        _engine_status['running'] = True  # Set before thread start; thread's finally block clears on exit
         _live_thread = threading.Thread(target=_run_live_engine, daemon=True, name='COMPASS-Live')
         _live_thread.start()
         return True, 'Started'
@@ -1051,12 +1051,12 @@ def api_cycle_log():
     current_time = now_et.time()
     is_weekday = now_et.weekday() < 5
     market_is_open = is_weekday and MARKET_OPEN <= current_time <= MARKET_CLOSE
+    state = read_state()  # Read once, reuse for all active cycles
 
     for c in cycles:
         if c.get('status') != 'active':
             continue
         try:
-            state = read_state()
             if not state:
                 continue
 
@@ -1113,10 +1113,18 @@ def api_cycle_log():
     return jsonify(cycles)
 
 
+_live_chart_cache = None
+_live_chart_cache_time = None
+
 @app.route('/api/live-chart')
 def api_live_chart():
     """Return daily COMPASS vs S&P 500 indexed performance since live test start."""
+    global _live_chart_cache, _live_chart_cache_time
     import yfinance as yf
+
+    now = datetime.now()
+    if _live_chart_cache_time and (now - _live_chart_cache_time).total_seconds() < 60:
+        return jsonify(_live_chart_cache)
 
     pattern = os.path.join(STATE_DIR, 'compass_state_2*.json')
     state_files = sorted(f for f in glob.glob(pattern)
@@ -1210,12 +1218,15 @@ def api_live_chart():
         else:
             result_spy.append(result_spy[-1] if result_spy else 100.0)
 
-    return jsonify({
+    result = {
         'dates': result_dates,
         'compass': result_compass,
         'spy': result_spy,
         'start_date': start_date,
-    })
+    }
+    _live_chart_cache = result
+    _live_chart_cache_time = now
+    return jsonify(result)
 
 
 @app.route('/api/equity')
@@ -2003,16 +2014,23 @@ def fetch_social_feed(symbols: List[str]) -> List[dict]:
         if cached is not None:
             return cached
 
-    # Fetch from all sources
-    news_items = _fetch_yfinance_news(symbols, max_per=3)
-    reddit_items = _fetch_reddit_posts(symbols, max_per=2)
-    sa_items = _fetch_seekingalpha_news(symbols, max_per=2)
-    sec_items = _fetch_sec_filings(symbols, max_per=2)
-    google_items = _fetch_google_news(symbols, max_per=2)
-    mw_items = _fetch_marketwatch_news(max_items=5)
-
-    # Merge and sort by time (newest first)
-    all_items = news_items + reddit_items + sa_items + sec_items + google_items + mw_items
+    # Fetch from all sources in parallel (reduces worst-case from ~48s to ~8s)
+    fetchers = [
+        lambda: _fetch_yfinance_news(symbols, max_per=3),
+        lambda: _fetch_reddit_posts(symbols, max_per=2),
+        lambda: _fetch_seekingalpha_news(symbols, max_per=2),
+        lambda: _fetch_sec_filings(symbols, max_per=2),
+        lambda: _fetch_google_news(symbols, max_per=2),
+        lambda: _fetch_marketwatch_news(max_items=5),
+    ]
+    all_items = []
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = [pool.submit(fn) for fn in fetchers]
+        for f in as_completed(futures):
+            try:
+                all_items.extend(f.result())
+            except Exception as e:
+                logger.warning(f"Social feed source failed: {e}")
     all_items.sort(key=lambda x: x.get('time', ''), reverse=True)
     result = all_items[:50]  # Increased from 20 to 50 (own tab now)
 

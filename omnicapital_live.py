@@ -1112,6 +1112,7 @@ class COMPASSLive:
         """
         positions = self.broker.get_positions()
         max_positions = self.get_max_positions()
+        self._regime_reduce_done = False  # Only allow one regime-reduce sell per call
 
         for symbol in list(positions.keys()):
             price = prices.get(symbol)
@@ -1163,8 +1164,9 @@ class COMPASSLive:
                 exit_reason = 'universe_rotation'
 
             # 5. Regime reduce (excess COMPASS positions)
+            #    Only sell one per check_position_exits call to prevent double-sell
             compass_count = sum(1 for s in positions if s in self.position_meta)
-            if exit_reason is None and compass_count > max_positions:
+            if exit_reason is None and compass_count > max_positions and not self._regime_reduce_done:
                 pos_returns = {}
                 for s, p in positions.items():
                     pr = prices.get(s)
@@ -1175,6 +1177,7 @@ class COMPASSLive:
                     worst = min(pos_returns, key=pos_returns.get)
                     if symbol == worst:
                         exit_reason = 'regime_reduce'
+                        self._regime_reduce_done = True
 
             # Execute exit
             if exit_reason:
