@@ -1212,8 +1212,8 @@ def api_cycle_log():
             # Current portfolio value from state (updated by live engine)
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
-            # Fetch S&P 500 index — benchmark with global P&L
-            symbols = list(positions.keys()) + ['^GSPC']
+            # Fetch SPY ETF — benchmark for cycle P&L (matches spy_start in cycle_log)
+            symbols = list(positions.keys()) + ['SPY']
             prices = fetch_live_prices(symbols)
 
             # Sync positions_current with actual state holdings
@@ -1235,8 +1235,8 @@ def api_cycle_log():
                 c['portfolio_end'] = round(portfolio_now, 2)
                 c['hydra_return'] = round((portfolio_now / port_start - 1) * 100, 2)
 
-            # S&P 500 index return (benchmark)
-            spy_price = prices.get('^GSPC')
+            # SPY ETF return (benchmark — matches spy_start stored as SPY ETF price)
+            spy_price = prices.get('SPY')
             spy_start = c.get('spy_start')
             if spy_price and spy_start and spy_start > 0:
                 c['spy_end'] = round(spy_price, 2)

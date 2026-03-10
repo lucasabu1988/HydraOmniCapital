@@ -1,16 +1,16 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-10T08:33:41.528726",
+  "timestamp": "2026-03-10T08:38:55.776065",
   "cash": 35585.88668505859,
   "peak_value": 100000.0,
-  "portfolio_value": 99817.0394407959,
+  "portfolio_value": 100002.46711413574,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
     99064.23415130615,
-    99817.0394407959
+    99815.47636096191
   ],
-  "current_regime_score": 0.5718605380213437,
+  "current_regime_score": 0.5735066277787306,
   "trading_day_counter": 3,
   "last_trading_date": "2026-03-10",
   "positions": {
@@ -33,7 +33,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 117.16999816894531,
+      "high_price": 117.36000061035156,
       "entry_vol": 0.28639434996138086,
       "entry_daily_vol": 0.01804114825932892,
       "sector": "Healthcare",
@@ -44,7 +44,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 244.03500366210938,
+      "high_price": 244.02999877929688,
       "entry_vol": 0.15534686069028528,
       "entry_daily_vol": 0.009785932389073585,
       "sector": "Healthcare",
@@ -55,7 +55,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 306.8179016113281,
+      "high_price": 307.57000732421875,
       "entry_vol": 0.23484680821013687,
       "entry_daily_vol": 0.014793958350507239,
       "sector": "Technology",
@@ -133,7 +133,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 102,
-    "uptime_minutes": 1050.2972950333333
+    "cycles_completed": 306,
+    "uptime_minutes": 1267.8117022833333
   }
 }
