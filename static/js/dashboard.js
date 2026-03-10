@@ -69,12 +69,32 @@ let sfActiveView = 'timeline';
 let sfSymbols = [];
 /* ============ PAGE SWITCHING ============ */
 function switchPage(page) {
-    document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.page-tab').forEach(el => el.classList.remove('active'));
-    const pageEl = document.getElementById('page-' + page);
-    const tabEl = document.querySelector('.page-tab[data-page="' + page + '"]');
-    if (pageEl) pageEl.classList.add('active');
-    if (tabEl) tabEl.classList.add('active');
+    var current = document.querySelector('.page-content.active');
+    var next = document.getElementById('page-' + page);
+    if (!next || next === current) return;
+
+    document.querySelectorAll('.page-tab').forEach(function(t) {
+        t.classList.toggle('active', t.dataset.page === page);
+    });
+
+    if (current) {
+        current.style.opacity = '0';
+        setTimeout(function() {
+            current.classList.remove('active');
+            current.style.display = 'none';
+            current.style.opacity = '';
+            next.style.display = 'block';
+            next.style.opacity = '0';
+            next.classList.add('active');
+            requestAnimationFrame(function() {
+                next.style.opacity = '1';
+            });
+        }, 150);
+    } else {
+        next.style.display = 'block';
+        next.classList.add('active');
+        next.style.opacity = '1';
+    }
 }
 
 /* ============ HELPERS ============ */

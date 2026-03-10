@@ -2185,7 +2185,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 .page-tab.active::after { left: 10%; right: 10%; background: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
 .page-tab-icon { width: 14px; height: 14px; vertical-align: -2px; flex-shrink: 0; }
-.page-content { display: none; }
+.page-content { display: none; transition: opacity 0.15s ease; }
 .page-content.active { display: block; }
 
 /* ============ LANDING HERO ============ */
