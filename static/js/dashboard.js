@@ -2061,16 +2061,16 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
      *                Y-axis tick by the custom plugin, not through bar colour.
      */
     var hydraColors = hydraRets.map(function(v) {
-        if (v >= 0) return isDark ? '#22c55e' : '#16a34a';
-        return isDark ? '#ef4444' : '#dc2626';
+        if (v >= 0) return '#10b981';
+        return '#f43f5e';
     });
     var spyColors = spyRets.map(function(v) {
         if (v == null) return 'transparent';
-        return isDark ? 'rgba(99, 102, 241, 0.28)' : 'rgba(99, 102, 241, 0.22)';
+        return 'rgba(100, 116, 139, 0.3)';
     });
     var spyBorderColors = spyRets.map(function(v) {
         if (v == null) return 'transparent';
-        return isDark ? 'rgba(99, 102, 241, 0.55)' : 'rgba(99, 102, 241, 0.50)';
+        return 'rgba(100, 116, 139, 0.45)';
     });
 
     var gridColor     = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
@@ -2082,7 +2082,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
      * Larger rows give better hover targets and clearer bar separation.
      * Minimum 440px to avoid a squashed look on small data sets.
      */
-    var PX_PER_YEAR = 30;
+    var PX_PER_YEAR = 36;
     var chartH = Math.max(440, data.length * PX_PER_YEAR + 80);
     var container = document.getElementById('annual-returns-container');
     if (container) container.style.height = chartH + 'px';
@@ -2173,9 +2173,8 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                         zeroLine: {
                             type: 'line',
                             xMin: 0, xMax: 0,
-                            borderColor: zeroLineColor,
-                            borderWidth: 1,
-                            borderDash: [3, 4],
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                            borderWidth: 0.5,
                         }
                     }
                 }
@@ -2203,11 +2202,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
                 y: {
                     ticks: {
                         color: isDark ? '#707090' : '#7070a0',
-                        font: {
-                            family: "'JetBrains Mono', monospace",
-                            size: 11,
-                            weight: '500',
-                        },
+                        font: { family: "'JetBrains Mono', monospace", size: 12, weight: '500' },
                         /* remove default padding so year label sits tight */
                         padding: 8,
                     },
