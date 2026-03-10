@@ -129,6 +129,14 @@ var TRANSLATIONS = {
     'yt-v2-title':       'Cómo Funciona el Trading Cuantitativo',
     'yt-v3-title':       'Gestión de Riesgo para Traders',
     'yt-v4-title':       'Cómo Funciona la Bolsa de Valores',
+    'yt-section-strategy': 'Estrategia & Educación',
+    'yt-section-holdings': 'Posiciones Actuales',
+    'yt-mrk1-title':     'Análisis de Merck (MRK)',
+    'yt-mrk2-title':     'Merck: Keytruda y Más Allá',
+    'yt-jnj1-title':     'Análisis de Johnson & Johnson (JNJ)',
+    'yt-jnj2-title':     'JNJ: Dividend King a Fondo',
+    'yt-googl1-title':   'Análisis de Alphabet (GOOGL)',
+    'yt-googl2-title':   'Google y la Carrera de IA',
 
     // Social Feed
     'sf-title':          'Noticias del Portfolio',
@@ -398,6 +406,14 @@ var TRANSLATIONS = {
     'yt-v2-title':       'How Quant Trading Works',
     'yt-v3-title':       'Risk Management for Traders',
     'yt-v4-title':       'How The Stock Market Works',
+    'yt-section-strategy': 'Strategy & Education',
+    'yt-section-holdings': 'Current Holdings',
+    'yt-mrk1-title':     'Merck (MRK) Stock Analysis',
+    'yt-mrk2-title':     'Merck: Keytruda & Beyond',
+    'yt-jnj1-title':     'Johnson & Johnson (JNJ) Analysis',
+    'yt-jnj2-title':     'JNJ: Dividend King Deep Dive',
+    'yt-googl1-title':   'Alphabet (GOOGL) Stock Analysis',
+    'yt-googl2-title':   'Google & the AI Race',
 
     // Social Feed
     'sf-title':          'Portfolio News',
