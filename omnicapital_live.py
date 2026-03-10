@@ -30,7 +30,7 @@ warnings.filterwarnings('ignore')
 
 # Importar modulos propios
 from omnicapital_data_feed import YahooDataFeed, MarketDataManager, HistoricalDataLoader
-from omnicapital_broker import PaperBroker, Order, Broker, Position
+from omnicapital_broker import PaperBroker, IBKRBroker, Order, Broker, Position
 
 # Git auto-sync (non-blocking, optional)
 try:
@@ -170,6 +170,11 @@ CONFIG = {
     # Broker
     'BROKER_TYPE': 'PAPER',
     'PAPER_INITIAL_CASH': 100_000,
+    'IBKR_HOST': '127.0.0.1',
+    'IBKR_PORT': 7497,       # 7497=paper, 7496=live
+    'IBKR_CLIENT_ID': 1,
+    'IBKR_MOCK': True,       # Start mock, switch to live later
+    'MAX_ORDER_VALUE': 50_000,
 
     # Data feed
     'DATA_FEED': 'YAHOO',
@@ -707,13 +712,25 @@ class COMPASSLive:
         # Data feed
         self.data_feed = YahooDataFeed(cache_duration=config['DATA_CACHE_DURATION'])
 
-        # Broker
-        self.broker = PaperBroker(
-            initial_cash=config['PAPER_INITIAL_CASH'],
-            commission_per_share=config['COMMISSION_PER_SHARE'],
-            max_fill_deviation=config.get('MAX_FILL_DEVIATION', 0.02)
-        )
-        self.broker.set_price_feed(self.data_feed)
+        # Broker (factory based on config)
+        broker_type = config.get('BROKER_TYPE', 'PAPER').upper()
+        if broker_type == 'IBKR':
+            self.broker = IBKRBroker(
+                host=config.get('IBKR_HOST', '127.0.0.1'),
+                port=config.get('IBKR_PORT', 7497),
+                client_id=config.get('IBKR_CLIENT_ID', 1),
+                mock=config.get('IBKR_MOCK', True),
+                max_order_value=config.get('MAX_ORDER_VALUE', 50_000),
+                price_feed=self.data_feed,
+            )
+        else:
+            self.broker = PaperBroker(
+                initial_cash=config['PAPER_INITIAL_CASH'],
+                commission_per_share=config['COMMISSION_PER_SHARE'],
+                max_fill_deviation=config.get('MAX_FILL_DEVIATION', 0.02)
+            )
+            self.broker.set_price_feed(self.data_feed)
+        logger.info(f"Broker: {broker_type} ({'mock' if getattr(self.broker, 'mock', True) else 'LIVE'})")
 
         # Execution strategy (chassis improvement — OFF by default)
         # Set to ExecutionStrategy instance to activate TWAP/VWAP/Passive
