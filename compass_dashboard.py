@@ -323,6 +323,7 @@ def _run_live_engine():
         _engine_status['started_at'] = datetime.now().isoformat()
         _engine_status['error'] = None
         _engine_status['cycles'] = 0
+        _engine_started_event.set()  # Signal that engine is running
 
         # Initial state save so overlay data and fresh state are immediately available
         try:
@@ -363,6 +364,8 @@ def _run_live_engine():
         _live_engine = None
 
 
+_engine_started_event = threading.Event()
+
 def start_engine():
     """Start the live engine in a background thread."""
     global _live_thread
@@ -372,10 +375,16 @@ def start_engine():
         _engine_status['error'] = None
         _engine_status['cycles'] = 0
         _engine_status['started_at'] = datetime.now().isoformat()
-        _engine_status['running'] = True  # Set before thread start; thread's finally block clears on exit
+        _engine_status['running'] = True  # Guard against double-start; thread's finally block clears on exit
+        _engine_started_event.clear()
         _live_thread = threading.Thread(target=_run_live_engine, daemon=True, name='COMPASS-Live')
         _live_thread.start()
-        return True, 'Started'
+        # Wait briefly for thread to confirm startup or fail
+        if _engine_started_event.wait(timeout=5):
+            return True, 'Started'
+        if not _engine_status['running']:
+            return False, _engine_status.get('error', 'Engine failed to start')
+        return True, 'Starting'
 
 
 def stop_engine():
@@ -441,7 +450,7 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     else:
         missing = symbols
         _price_cache = {}
-        _prev_close_cache = {}
+        # Don't clear _prev_close_cache — previous close is stable intraday
 
     # Async fetch for all missing symbols
     if missing:
@@ -909,6 +918,7 @@ def index():
 @app.route('/api/state')
 def api_state():
     """Return enriched state data as JSON."""
+    engine = _live_engine  # Capture once to avoid TOCTOU race
     state = read_state()
 
     if not state:
@@ -936,15 +946,15 @@ def api_state():
         'max_price_change_pct': COMPASS_CONFIG['MAX_PRICE_CHANGE_PCT'],
     }
 
-    if _live_engine and hasattr(_live_engine, 'validator'):
+    if engine and hasattr(engine, 'validator'):
         try:
-            chassis_status['validator_stats'] = _live_engine.validator.get_stats()
+            chassis_status['validator_stats'] = engine.validator.get_stats()
         except Exception:
             pass
 
-    if _live_engine and hasattr(_live_engine, 'broker'):
+    if engine and hasattr(engine, 'broker'):
         try:
-            stale = _live_engine.broker.check_stale_orders(
+            stale = engine.broker.check_stale_orders(
                 COMPASS_CONFIG['ORDER_TIMEOUT_SECONDS']
             )
             chassis_status['stale_orders'] = len(stale)
@@ -959,8 +969,8 @@ def api_state():
     moc_deadline = dtime(15, 50)
 
     preclose_entries_done = False
-    if _live_engine and hasattr(_live_engine, '_preclose_entries_done'):
-        preclose_entries_done = _live_engine._preclose_entries_done
+    if engine and hasattr(engine, '_preclose_entries_done'):
+        preclose_entries_done = engine._preclose_entries_done
 
     if not is_weekday or current_time < MARKET_OPEN:
         preclose_phase = 'market_closed'
@@ -986,9 +996,9 @@ def api_state():
 
     # --- Implementation Shortfall (IS) metrics ---
     is_metrics = {'available': False}
-    if _live_engine and hasattr(_live_engine, 'broker'):
+    if engine and hasattr(engine, 'broker'):
         try:
-            history = getattr(_live_engine.broker, 'order_history', [])
+            history = getattr(engine.broker, 'order_history', [])
             is_values = [o.is_bps for o in history
                          if getattr(o, 'is_bps', None) is not None]
             if is_values:
@@ -1009,7 +1019,7 @@ def api_state():
                     'total_sell_fills': len(sell_is),
                 }
                 # Today's IS from trades_today
-                today_is = [t.get('is_bps') for t in getattr(_live_engine, 'trades_today', [])
+                today_is = [t.get('is_bps') for t in getattr(engine, 'trades_today', [])
                             if t.get('is_bps') is not None]
                 if today_is:
                     is_metrics['today_avg_is_bps'] = round(sum(today_is) / len(today_is), 2)
@@ -1534,6 +1544,7 @@ def api_backtest_status():
 @app.route('/api/preflight')
 def api_preflight():
     """Pre-market readiness checks for 9:30 ET open."""
+    engine = _live_engine  # Capture once to avoid TOCTOU race
     now_et = datetime.now(ET)
     checks = {}
 
@@ -1657,9 +1668,9 @@ def api_preflight():
         'fill_circuit_breaker': True,
         'order_timeout': True,
     }
-    if _live_engine and hasattr(_live_engine, 'validator'):
+    if engine and hasattr(engine, 'validator'):
         try:
-            stats = _live_engine.validator.get_stats()
+            stats = engine.validator.get_stats()
             rejection_rate = stats.get('rejection_rate', 0)
             chassis_info['validator_rejection_rate'] = round(rejection_rate * 100, 1)
             # Flag if rejection rate is unusually high (>10%)
@@ -2022,6 +2033,10 @@ def fetch_social_feed(symbols: List[str]) -> List[dict]:
         if cached is not None:
             return cached
 
+    # Clear stale entries when symbol set changes (prevent unbounded growth)
+    if cache_key not in _social_cache:
+        _social_cache.clear()
+
     # Fetch from all sources in parallel (reduces worst-case from ~48s to ~8s)
     fetchers = [
         lambda: _fetch_yfinance_news(symbols, max_per=3),
@@ -2194,15 +2209,16 @@ def api_engine_status():
 @app.route('/api/overlay-status')
 def api_overlay_status():
     """Return current overlay signals and diagnostics."""
+    engine = _live_engine  # Capture once to avoid TOCTOU race
     # Prefer live engine data (state file may be stale after restart)
     overlay = {}
-    if _live_engine and hasattr(_live_engine, '_overlay_available'):
+    if engine and hasattr(engine, '_overlay_available'):
         overlay = {
-            'available': _live_engine._overlay_available,
-            'capital_scalar': _live_engine._overlay_result.get('capital_scalar', 1.0) if _live_engine._overlay_result else 1.0,
-            'per_overlay': _live_engine._overlay_result.get('per_overlay_scalars', {}) if _live_engine._overlay_result else {},
-            'position_floor': _live_engine._overlay_result.get('position_floor') if _live_engine._overlay_result else None,
-            'diagnostics': _live_engine._overlay_result.get('diagnostics', {}) if _live_engine._overlay_result else {},
+            'available': engine._overlay_available,
+            'capital_scalar': engine._overlay_result.get('capital_scalar', 1.0) if engine._overlay_result else 1.0,
+            'per_overlay': engine._overlay_result.get('per_overlay_scalars', {}) if engine._overlay_result else {},
+            'position_floor': engine._overlay_result.get('position_floor') if engine._overlay_result else None,
+            'diagnostics': engine._overlay_result.get('diagnostics', {}) if engine._overlay_result else {},
         }
     else:
         state = read_state()

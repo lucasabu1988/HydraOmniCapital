@@ -898,11 +898,11 @@ class COMPASSLive:
         logger.info("Refreshing daily historical data...")
 
         # Prune stale symbols from data validator (prevents unbounded memory growth)
-        if hasattr(self, 'data_validator'):
+        if hasattr(self, 'validator'):
             active_symbols = set(self.current_universe) | set(self.position_meta.keys())
-            stale = [s for s in self.data_validator._price_history if s not in active_symbols]
+            stale = [s for s in self.validator._price_history if s not in active_symbols]
             for s in stale:
-                del self.data_validator._price_history[s]
+                del self.validator._price_history[s]
             if stale:
                 logger.debug(f"Pruned {len(stale)} stale symbols from data validator")
 
@@ -1140,6 +1140,7 @@ class COMPASSLive:
                     exit_reason = 'hold_expired'
 
             # 2. Position stop loss (v8.4: adaptive, vol-scaled)
+            #    Stops override hold_expired (risk events take priority)
             pos_return = (price - meta['entry_price']) / meta['entry_price']
             entry_daily_vol = meta.get('entry_daily_vol')
             if entry_daily_vol is not None:
@@ -1150,9 +1151,10 @@ class COMPASSLive:
                 exit_reason = 'position_stop'
 
             # 3. Trailing stop (v8.4: vol-scaled)
+            #    Only if not already flagged for a harder stop
             if price > meta['high_price']:
                 meta['high_price'] = price
-            if meta['high_price'] > meta['entry_price'] * (1 + self.config['TRAILING_ACTIVATION']):
+            if exit_reason != 'position_stop' and meta['high_price'] > meta['entry_price'] * (1 + self.config['TRAILING_ACTIVATION']):
                 baseline = self.config['TRAILING_VOL_BASELINE']
                 entry_vol = meta.get('entry_vol', baseline)
                 vol_ratio = entry_vol / baseline
@@ -1161,8 +1163,8 @@ class COMPASSLive:
                 if price <= trailing_level:
                     exit_reason = 'trailing_stop'
 
-            # 4. Universe rotation
-            if symbol not in self.current_universe:
+            # 4. Universe rotation (only if no stop already triggered)
+            if exit_reason is None and symbol not in self.current_universe:
                 exit_reason = 'universe_rotation'
 
             # 5. Regime reduce (excess COMPASS positions)
@@ -2124,10 +2126,10 @@ class COMPASSLive:
             for sym, pos in positions_dict.items():
                 shares = pos.get('shares', 0)
                 try:
-                    if len(symbols) == 1:
-                        close = float(data['Close'].iloc[-1])
-                    else:
+                    if isinstance(data.columns, pd.MultiIndex):
                         close = float(data['Close'][sym].iloc[-1])
+                    else:
+                        close = float(data['Close'].iloc[-1])
                     total += shares * close
                 except Exception:
                     total += shares * pos.get('avg_cost', 0)
@@ -2305,7 +2307,7 @@ class COMPASSLive:
         portfolio = self.broker.get_portfolio()
         spy_price = None
         try:
-            spy = yf.download('SPY', period='5d', progress=False)
+            spy = yf.download('^GSPC', period='5d', progress=False)
             if isinstance(spy.columns, pd.MultiIndex):
                 spy.columns = [c[0] for c in spy.columns]
             if len(spy) > 0:

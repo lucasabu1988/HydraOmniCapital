@@ -259,14 +259,33 @@ class DecisionLogger:
         self._outcomes_path  = Path(OUTCOMES_FILE)
         self._snapshots_path = Path(SNAPSHOTS_FILE)
 
-        # In-memory index: symbol -> entry_decision_id (for linking outcomes)
-        self._open_entries: Dict[str, str] = {}
+        # Persistent index: symbol -> entry_decision_id (for linking outcomes)
+        self._open_entries_path = self.db_dir / "open_entries.json"
+        self._open_entries: Dict[str, str] = self._load_open_entries()
 
         logger.info(f"DecisionLogger initialized -> {self.db_dir}")
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _load_open_entries(self) -> Dict[str, str]:
+        try:
+            if self._open_entries_path.exists():
+                with open(self._open_entries_path) as f:
+                    data = json.load(f)
+                logger.info(f"Restored {len(data)} open entries from {self._open_entries_path}")
+                return data
+        except Exception as e:
+            logger.warning(f"Could not load open_entries.json: {e}")
+        return {}
+
+    def _save_open_entries(self):
+        try:
+            with open(self._open_entries_path, 'w') as f:
+                json.dump(self._open_entries, f)
+        except Exception as e:
+            logger.warning(f"Could not save open_entries.json: {e}")
 
     def _make_id(self) -> str:
         import uuid
@@ -385,7 +404,14 @@ class DecisionLogger:
             source=source,
         )
         self._append_jsonl(self._decisions_path, record.to_dict())
-        self._open_entries[symbol] = dec_id
+        self._open_entries[symbol] = {
+            'decision_id': dec_id,
+            'entry_date': record.date,
+            'entry_regime_score': regime_score,
+            'entry_portfolio_drawdown': record.portfolio_drawdown,
+            'entry_spy_vs_sma200': record.spy_vs_sma200_pct or 0.0,
+        }
+        self._save_open_entries()
         logger.debug(f"ML: logged entry {symbol} dec_id={dec_id[:8]}")
         return dec_id
 
@@ -463,8 +489,13 @@ class DecisionLogger:
         )
         self._append_jsonl(self._decisions_path, exit_record.to_dict())
 
-        # Outcome record
-        entry_decision_id = self._open_entries.pop(symbol, "unknown")
+        # Outcome record — use entry-time context if available
+        entry_ctx = self._open_entries.pop(symbol, {"decision_id": "unknown"})
+        if isinstance(entry_ctx, str):
+            # Legacy format: just the decision_id string
+            entry_ctx = {"decision_id": entry_ctx}
+        self._save_open_entries()
+        entry_decision_id = entry_ctx.get("decision_id", "unknown")
         outcome_label = self._classify_outcome(gross_return, exit_reason)
 
         outcome = OutcomeRecord(
@@ -472,22 +503,22 @@ class DecisionLogger:
             entry_decision_id=entry_decision_id,
             symbol=symbol,
             sector=sector,
-            entry_date=(
+            entry_date=entry_ctx.get("entry_date", (
                 pd.Timestamp.today() - pd.Timedelta(days=days_held)
-            ).strftime("%Y-%m-%d"),
+            ).strftime("%Y-%m-%d")),
             exit_date=date.today().isoformat(),
             trading_days_held=days_held,
             gross_return=gross_return,
             pnl_usd=pnl_usd,
             exit_reason=exit_reason,
-            entry_regime_score=regime_score,
-            entry_regime_bucket=self._regime_bucket(regime_score),
+            entry_regime_score=entry_ctx.get("entry_regime_score", regime_score),
+            entry_regime_bucket=self._regime_bucket(entry_ctx.get("entry_regime_score", regime_score)),
             entry_momentum_score=entry_momentum_score,
             entry_momentum_rank=entry_momentum_rank,
             entry_vol_ann=entry_vol_ann,
             entry_daily_vol=entry_daily_vol,
-            entry_portfolio_drawdown=portfolio_drawdown,
-            entry_spy_vs_sma200=spy_ctx["spy_vs_sma200_pct"] or 0.0,
+            entry_portfolio_drawdown=entry_ctx.get("entry_portfolio_drawdown", portfolio_drawdown),
+            entry_spy_vs_sma200=entry_ctx.get("entry_spy_vs_sma200", spy_ctx["spy_vs_sma200_pct"] or 0.0),
             entry_adaptive_stop=adaptive_stop_pct,
             outcome_label=outcome_label,
             was_stopped=(exit_reason in ("position_stop_adaptive", "position_stop")),

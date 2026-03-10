@@ -458,7 +458,7 @@ function updatePositions(details) {
             '<div class="pos-data-row">' +
                 '<div class="pos-datum"><span class="pos-datum-label">Entry</span><span class="pos-datum-value">$' + p.entry_price.toFixed(2) + '</span></div>' +
                 '<div class="pos-datum"><span class="pos-datum-label">' + t('pos-today') + '</span><span class="pos-datum-value ' + colorCls(priceChange) + '">' + priceChangeSign + '$' + Math.abs(priceChange).toFixed(2) + '</span></div>' +
-                '<div class="pos-datum"><span class="pos-datum-label">High</span><span class="pos-datum-value">$' + p.high_price.toFixed(2) + '</span></div>' +
+                '<div class="pos-datum"><span class="pos-datum-label">High</span><span class="pos-datum-value">$' + (p.high_price || 0).toFixed(2) + '</span></div>' +
             '</div>' +
             /* Hold progress bar */
             '<div class="pos-hold-bar-wrap">' +
@@ -470,7 +470,7 @@ function updatePositions(details) {
                 '<div class="pos-stop-item">' +
                     '<span class="pos-stop-dot" style="background:var(--red);"></span>' +
                     '<span class="pos-stop-label">Stop' + (p.adaptive_stop_pct != null ? ' (' + p.adaptive_stop_pct.toFixed(0) + '%)' : '') + '</span>' +
-                    '<span class="pos-stop-val">$' + p.position_stop_level.toFixed(2) + '</span>' +
+                    '<span class="pos-stop-val">$' + (p.position_stop_level || 0).toFixed(2) + '</span>' +
                 '</div>' +
                 trailHtml +
                 (p.sector ? '<div class="pos-stop-item"><span class="pos-stop-dot" style="background:var(--purple);"></span><span class="pos-stop-label">' + p.sector + '</span></div>' : '') +
@@ -2660,8 +2660,8 @@ function renderMLInterpretation(text, elId, timeElId) {
         el.innerHTML = '<p class="ml-interpret-loading">' + t('ml-waiting-analysis') + '</p>';
         return;
     }
-    /* Simple markdown-to-HTML */
-    var html = text
+    /* Simple markdown-to-HTML (sanitize first to prevent XSS) */
+    var html = escHtml(text)
         .replace(/### (.+)/g, '<h3>$1</h3>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/`([^`]+)`/g, '<code>$1</code>')
