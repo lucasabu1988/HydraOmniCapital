@@ -45,6 +45,39 @@
     --radius-lg: 16px;
     --radius-xl: 20px;
 
+    /* Typography scale */
+    --type-xs: 10px;
+    --type-sm: 11px;
+    --type-base: 13px;
+    --type-md: 14px;
+    --type-lg: 16px;
+    --type-xl: 20px;
+    --type-2xl: 24px;
+    --type-3xl: clamp(28px, 3.5vw, 36px);
+    --type-hero: clamp(40px, 5vw, 56px);
+    --type-display: clamp(48px, 6vw, 72px);
+
+    /* Spacing — 8px baseline grid */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* Semantic signal colors */
+    --positive: #16a34a;
+    --positive-dim: rgba(22, 163, 74, 0.08);
+    --negative: #dc2626;
+    --negative-dim: rgba(220, 38, 38, 0.08);
+    --accent-2: #0ea5e9;
+    --accent-2-dim: rgba(14, 165, 233, 0.12);
+    --neutral: #64748b;
+
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
     --shadow-lg: 0 8px 30px rgba(0,0,0,0.10);
@@ -61,7 +94,7 @@
 
 /* ============ DARK MODE ============ */
 body.dark {
-    --bg-root: #08081a;
+    --bg-root: #07071a;
     --bg-primary: #0e0e24;
     --bg-card: #13132e;
     --bg-card-hover: #1a1a3e;
@@ -75,7 +108,7 @@ body.dark {
     --text-primary: #e4e4f0;
     --text-secondary: #a0a0b8;
     --text-tertiary: #6a6a82;
-    --text-muted: #404058;
+    --text-muted: #505068;
 
     --green: #22c55e;
     --green-dim: rgba(34, 197, 94, 0.12);
@@ -88,6 +121,15 @@ body.dark {
     --cyan: #22d3ee;
     --cyan-dim: rgba(34, 211, 238, 0.12);
     --accent-light: #818cf8;
+    --positive: #10b981;
+    --positive-dim: rgba(16, 185, 129, 0.12);
+    --positive-glow: rgba(16, 185, 129, 0.18);
+    --negative: #f43f5e;
+    --negative-dim: rgba(244, 63, 94, 0.12);
+    --negative-glow: rgba(244, 63, 94, 0.18);
+    --accent-2: #0ea5e9;
+    --accent-2-dim: rgba(14, 165, 233, 0.12);
+    --neutral: #64748b;
 
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 0 8px rgba(99, 102, 241, 0.02);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 0 16px rgba(99, 102, 241, 0.03);
