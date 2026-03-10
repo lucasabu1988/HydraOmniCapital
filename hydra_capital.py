@@ -188,7 +188,7 @@ class HydraCapitalManager:
     @classmethod
     def from_dict(cls, d: Dict) -> 'HydraCapitalManager':
         """Restore from persisted state."""
-        total = d['compass_account'] + d['rattle_account']
+        total = d['compass_account'] + d['rattle_account'] + d.get('efa_value', 0.0)
         mgr = cls(total, d['base_compass_alloc'], d['base_rattle_alloc'],
                   d['max_compass_alloc'])
         mgr.compass_account = d['compass_account']
