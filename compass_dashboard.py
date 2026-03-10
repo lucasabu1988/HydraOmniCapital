@@ -805,13 +805,33 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     else:
         max_pos = COMPASS_CONFIG['NUM_POSITIONS_RISK_OFF']
 
-    # SPY benchmark return over same live test period
+    # SPY benchmark return over same live test period (cumulative)
     spy_start = get_spy_start_price()
     spy_current = prices.get('SPY')
     if spy_start and spy_current and spy_start > 0:
-        spy_return = round((spy_current - spy_start) / spy_start * 100, 2)
+        spy_cumulative = round((spy_current - spy_start) / spy_start * 100, 2)
     else:
-        spy_return = None
+        spy_cumulative = None
+
+    # Daily returns: today's change vs previous close (resets to 0% each morning)
+    prev_close_portfolio = cash
+    for sym, pos in positions.items():
+        pc = _prev_close_cache.get(sym)
+        if pc:
+            prev_close_portfolio += pos.get('shares', 0) * pc
+        else:
+            prev_close_portfolio += pos.get('shares', 0) * pos.get('avg_cost', 0)
+
+    if prev_close_portfolio > 0:
+        daily_return = round((portfolio_value - prev_close_portfolio) / prev_close_portfolio * 100, 2)
+    else:
+        daily_return = 0.0
+
+    spy_prev_close = _prev_close_cache.get('SPY')
+    if spy_current and spy_prev_close and spy_prev_close > 0:
+        spy_daily_return = round((spy_current - spy_prev_close) / spy_prev_close * 100, 2)
+    else:
+        spy_daily_return = None
 
     trading_days_elapsed = _compute_real_trading_day(state)
 
@@ -822,7 +842,9 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         'peak_value': round(peak_value, 2),
         'drawdown': round(drawdown * 100, 2),
         'total_return': round(total_return * 100, 2),
-        'spy_return': spy_return,
+        'daily_return': daily_return,
+        'spy_cumulative': spy_cumulative,
+        'spy_daily_return': spy_daily_return,
         'initial_capital': initial_capital,
         'num_positions': len(positions),
         'max_positions': max_pos,

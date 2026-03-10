@@ -312,18 +312,19 @@ function _fillAlpha(alphaEl, alphaLabel, hydraRet, spyRet) {
 }
 
 function updatePerfBanner(p) {
-    /* === ROW 1: DAILY === */
+    /* === ROW 1: DAILY (resets to 0% each morning) === */
     var dailyReturn = p.daily_return != null ? p.daily_return : 0;
     var hydraVal = document.getElementById('perf-hydra-val');
     hydraVal.textContent = fmtPct(dailyReturn);
     hydraVal.className = 'perf-side-value ' + colorCls(dailyReturn);
     document.getElementById('perf-hydra-sub').textContent = fmt$(p.portfolio_value);
 
+    var spyDaily = p.spy_daily_return;
     var spyVal = document.getElementById('perf-spy-val');
-    if (p.spy_return != null) {
-        spyVal.textContent = fmtPct(p.spy_return);
-        spyVal.className = 'perf-side-value ' + colorCls(p.spy_return);
-        document.getElementById('perf-spy-sub').textContent = fmtPct(p.spy_return);
+    if (spyDaily != null) {
+        spyVal.textContent = fmtPct(spyDaily);
+        spyVal.className = 'perf-side-value ' + colorCls(spyDaily);
+        document.getElementById('perf-spy-sub').textContent = fmtPct(spyDaily);
     } else {
         spyVal.textContent = '--';
         spyVal.className = 'perf-side-value';
@@ -332,10 +333,10 @@ function updatePerfBanner(p) {
     _fillAlpha(
         document.getElementById('perf-alpha'),
         document.getElementById('perf-alpha-label'),
-        dailyReturn, p.spy_return
+        dailyReturn, spyDaily
     );
 
-    /* === ROW 2: CUMULATIVE (General) === */
+    /* === ROW 2: CUMULATIVE (since inception) === */
     var cumReturn = p.total_return != null ? p.total_return : 0;
     var spyCum = p.spy_cumulative;
     var cumVal = document.getElementById('perf-hydra-cum');

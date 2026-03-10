@@ -599,7 +599,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'peak_value': round(peak_value, 2),
         'drawdown': round(drawdown * 100, 2),
         'total_return': cumulative_return,
-        'spy_return': spy_daily,
+        'spy_daily_return': spy_daily,
         'spy_cumulative': spy_cumulative,
         'daily_return': daily_return,
         'initial_capital': initial_capital,
