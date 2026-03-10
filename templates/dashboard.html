@@ -422,9 +422,11 @@
 <details class="regime-band anim-enter anim-d5" style="margin-top:0; border-top:1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding:0;">
     <summary style="padding:0.6rem 1.2rem; font-size:0.78rem; color:var(--text-secondary); cursor:pointer; list-style:none; display:flex; align-items:center; gap:0.5rem;">
         <span style="transition:transform 0.2s; display:inline-block;" class="collapse-arrow">&#9654;</span>
-        <strong style="color:var(--text-primary);">Regime Score</strong> &mdash; Term&oacute;metro del mercado de 0 a 1.
+        <strong style="color:var(--text-primary);">Regime Score</strong> &mdash;
+        <span class="lang-es">Term&oacute;metro del mercado de 0 a 1.</span>
+        <span class="lang-en" style="display:none">Market thermometer from 0 to 1.</span>
     </summary>
-    <div style="padding:0 1.2rem 0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
+    <div class="lang-es" style="padding:0 1.2rem 0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
         <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
             Combina <strong>tendencia</strong> (60%) &mdash; &iquest;el S&amp;P 500 viene subiendo? &mdash; con <strong>volatilidad</strong> (40%) &mdash; &iquest;hay mucha turbulencia? Determina cu&aacute;ntas posiciones mantener: 5 en mercado fuerte (&ge;0.65), 4 en moderado (&ge;0.50), 3 en precauci&oacute;n (&ge;0.35), 2 en mercado d&eacute;bil (&lt;0.35).
         </p>
@@ -433,6 +435,17 @@
             <div><strong style="color:var(--accent);">Volatilidad (40%)</strong> &mdash; Mide la turbulencia de los &uacute;ltimos 10 d&iacute;as comparada con el &uacute;ltimo a&ntilde;o. M&aacute;s calma = mejor score. Un mercado vol&aacute;til reduce el n&uacute;mero de posiciones autom&aacute;ticamente.</div>
             <div><strong style="color:var(--accent);">Bull Override</strong> &mdash; Si el S&amp;P 500 est&aacute; &gt;3% sobre su SMA200 y el momentum confirma (&gt;40%), se a&ntilde;ade +1 posici&oacute;n. Corrige 864 d&iacute;as donde la volatilidad daba una se&ntilde;al falsa de precauci&oacute;n.</div>
             <div><strong style="color:var(--accent);">Consecutivos</strong> &mdash; N&uacute;mero de d&iacute;as seguidos en el mismo r&eacute;gimen. Un r&eacute;gimen estable por muchos d&iacute;as indica una tendencia consolidada; cambios frecuentes indican incertidumbre.</div>
+        </div>
+    </div>
+    <div class="lang-en" style="display:none; padding:0 1.2rem 0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
+        <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
+            Combines <strong>trend</strong> (60%) &mdash; is the S&amp;P 500 going up? &mdash; with <strong>volatility</strong> (40%) &mdash; is there a lot of turbulence? Determines how many positions to hold: 5 in a strong market (&ge;0.65), 4 in moderate (&ge;0.50), 3 in caution (&ge;0.35), 2 in a weak market (&lt;0.35).
+        </p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.4rem 1.2rem; font-size:0.72rem; color:var(--text-tertiary); line-height:1.45;">
+            <div><strong style="color:var(--accent);">Trend (60%)</strong> &mdash; Evaluates 3 signals: price vs 200d moving average, 50d vs 200d moving average, and 20d momentum. Uses a <a href="https://en.wikipedia.org/wiki/Sigmoid_function" target="_blank" rel="noopener" style="color:var(--text-secondary);">sigmoid function</a> to produce a smooth value between 0 and 1.</div>
+            <div><strong style="color:var(--accent);">Volatility (40%)</strong> &mdash; Measures turbulence over the last 10 days compared to the last year. More calm = better score. A volatile market automatically reduces the number of positions.</div>
+            <div><strong style="color:var(--accent);">Bull Override</strong> &mdash; If the S&amp;P 500 is &gt;3% above its SMA200 and momentum confirms (&gt;40%), +1 position is added. Corrects 864 days where volatility gave a false caution signal.</div>
+            <div><strong style="color:var(--accent);">Consecutive</strong> &mdash; Number of consecutive days in the same regime. A stable regime over many days indicates a consolidated trend; frequent changes indicate uncertainty.</div>
         </div>
     </div>
 </details>
@@ -473,9 +486,11 @@
 <details class="regime-band anim-enter anim-d5" style="margin-top:0; border-top:1px solid var(--border-subtle, rgba(255,255,255,0.06)); padding:0;">
     <summary style="padding:0.6rem 1.2rem; font-size:0.78rem; color:var(--text-secondary); cursor:pointer; list-style:none; display:flex; align-items:center; gap:0.5rem;">
         <span style="transition:transform 0.2s; display:inline-block;" class="collapse-arrow">&#9654;</span>
-        <strong style="color:var(--text-primary);">Macro Overlay</strong> &mdash; Sistema de alerta temprana macroecon&oacute;mica.
+        <strong style="color:var(--text-primary);">Macro Overlay</strong> &mdash;
+        <span class="lang-es">Sistema de alerta temprana macroecon&oacute;mica.</span>
+        <span class="lang-en" style="display:none">Macroeconomic early warning system.</span>
     </summary>
-    <div style="padding:0 1.2rem 0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
+    <div class="lang-es" style="padding:0 1.2rem 0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
         <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
             Monitorea datos de la <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">Reserva Federal</a> para reducir autom&aacute;ticamente la exposici&oacute;n del portafolio antes de que una crisis impacte. No modifica el algoritmo: solo ajusta el capital asignado a nuevas posiciones. En mercados normales el multiplicador es 1.00 (sin efecto); en crisis puede bajar hasta 0.25.
         </p>
@@ -485,6 +500,18 @@
             <div><strong style="color:var(--accent);">FOMC</strong> &mdash; Sorpresas de la Fed. Detecta cambios abruptos en la <a href="https://fred.stlouisfed.org/series/DFF" target="_blank" rel="noopener" style="color:var(--text-secondary);">tasa de fondos federales</a> (&gt;25bps en 3 d&iacute;as). Se disipa en 14 d&iacute;as.</div>
             <div><strong style="color:var(--accent);">Fed Emerg.</strong> &mdash; Intervenci&oacute;n de emergencia. Detecta expansi&oacute;n masiva del <a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--text-secondary);">balance de la Fed</a> (&gt;5% en 30d). Impone m&iacute;nimo de 2 posiciones por 90 d&iacute;as.</div>
             <div><strong style="color:var(--accent);">Credit</strong> &mdash; Filtro sectorial. Excluye Financieras (HY &gt;1000bps) y Energ&iacute;a (HY &gt;1500bps) del universo en crisis extremas de cr&eacute;dito.</div>
+        </div>
+    </div>
+    <div class="lang-en" style="display:none; padding:0 1.2rem 0.75rem; display:flex; flex-direction:column; gap:0.5rem;">
+        <p style="margin:0; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
+            Monitors <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener" style="color:var(--accent);">Federal Reserve</a> data to automatically reduce portfolio exposure before a crisis hits. It does not modify the algorithm: it only adjusts the capital allocated to new positions. In normal markets the multiplier is 1.00 (no effect); in crises it can drop to 0.25.
+        </p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.4rem 1.2rem; font-size:0.72rem; color:var(--text-tertiary); line-height:1.45;">
+            <div><strong style="color:var(--accent);">BSO</strong> &mdash; Banking stress. Weighted average of <a href="https://fred.stlouisfed.org/series/NFCI" target="_blank" rel="noopener" style="color:var(--text-secondary);">NFCI</a> (40%), <a href="https://fred.stlouisfed.org/series/STLFSI4" target="_blank" rel="noopener" style="color:var(--text-secondary);">STLFSI</a> (25%) and <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener" style="color:var(--text-secondary);">HY spread</a> (35%). Reduces capital when the financial system is under stress.</div>
+            <div><strong style="color:var(--accent);">M2</strong> &mdash; Monetary momentum. Measures the acceleration of <a href="https://fred.stlouisfed.org/series/M2SL" target="_blank" rel="noopener" style="color:var(--text-secondary);">M2 money supply</a>. If money in circulation decelerates, it reduces capital.</div>
+            <div><strong style="color:var(--accent);">FOMC</strong> &mdash; Fed surprises. Detects abrupt changes in the <a href="https://fred.stlouisfed.org/series/DFF" target="_blank" rel="noopener" style="color:var(--text-secondary);">federal funds rate</a> (&gt;25bps in 3 days). Dissipates over 14 days.</div>
+            <div><strong style="color:var(--accent);">Fed Emerg.</strong> &mdash; Emergency intervention. Detects massive expansion of the <a href="https://fred.stlouisfed.org/series/WALCL" target="_blank" rel="noopener" style="color:var(--text-secondary);">Fed balance sheet</a> (&gt;5% in 30d). Imposes a minimum of 2 positions for 90 days.</div>
+            <div><strong style="color:var(--accent);">Credit</strong> &mdash; Sector filter. Excludes Financials (HY &gt;1000bps) and Energy (HY &gt;1500bps) from the universe during extreme credit crises.</div>
         </div>
     </div>
 </details>
@@ -695,7 +722,7 @@
             <div class="ar-stat">
                 <span class="ar-stat-label" data-i18n="ar-positive-years">A&ntilde;os positivos</span>
                 <span class="ar-stat-value positive" id="ar-stat-positive">--</span>
-                <span class="ar-stat-sub">de <span id="ar-stat-total">--</span> a&ntilde;os</span>
+                <span class="ar-stat-sub"><span class="lang-es">de <span id="ar-stat-total">--</span> a&ntilde;os</span><span class="lang-en" style="display:none">of <span id="ar-stat-total-en">--</span> years</span></span>
             </div>
             <div class="ar-stat">
                 <span class="ar-stat-label" data-i18n="ar-beats-sp">Bate al S&amp;P</span>
@@ -2754,8 +2781,8 @@ Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &ra
     <div class="ml-phases">
         <div class="ml-phase ml-phase-active">
             <div class="ml-phase-header">
-                <span class="ml-phase-badge ml-phase-1">Fase 1</span>
-                <span class="ml-phase-days">0 &ndash; 63 d&iacute;as</span>
+                <span class="ml-phase-badge ml-phase-1" data-i18n="ml-phase1-badge">Fase 1</span>
+                <span class="ml-phase-days" data-i18n="ml-phase1-days">0 &ndash; 63 d&iacute;as</span>
             </div>
             <div class="ml-phase-title" data-i18n="ml-phase1-title">Observar y Registrar</div>
             <p class="ml-phase-desc lang-es">
@@ -2782,8 +2809,8 @@ Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &ra
 
         <div class="ml-phase">
             <div class="ml-phase-header">
-                <span class="ml-phase-badge ml-phase-2">Fase 2</span>
-                <span class="ml-phase-days">63 &ndash; 252 d&iacute;as</span>
+                <span class="ml-phase-badge ml-phase-2" data-i18n="ml-phase2-badge">Fase 2</span>
+                <span class="ml-phase-days" data-i18n="ml-phase2-days">63 &ndash; 252 d&iacute;as</span>
             </div>
             <div class="ml-phase-title" data-i18n="ml-phase2-title">Primeras Se&ntilde;ales</div>
             <p class="ml-phase-desc lang-es">
@@ -2814,8 +2841,8 @@ Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &ra
 
         <div class="ml-phase">
             <div class="ml-phase-header">
-                <span class="ml-phase-badge ml-phase-3">Fase 3</span>
-                <span class="ml-phase-days">252+ d&iacute;as</span>
+                <span class="ml-phase-badge ml-phase-3" data-i18n="ml-phase3-badge">Fase 3</span>
+                <span class="ml-phase-days" data-i18n="ml-phase3-days">252+ d&iacute;as</span>
             </div>
             <div class="ml-phase-title" data-i18n="ml-phase3-title">ML Supervisado Completo</div>
             <p class="ml-phase-desc lang-es">

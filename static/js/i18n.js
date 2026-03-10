@@ -140,6 +140,35 @@ var TRANSLATIONS = {
     'sf-stat-freshest':  'Más reciente',
     'sf-no-results':     'No hay publicaciones para estos filtros',
     'sf-news-tier':      'Noticias',
+    'sf-analysis-tier':  'Análisis & Regulatorio',
+    'sf-community-tier': 'Comunidad',
+    'sf-posts':          'publicaciones',
+    'sf-bullish-count':  'alcista',
+    'sf-bearish-count':  'bajista',
+
+    // Dynamic strings
+    'near-stop':           '⚠ CERCA DEL STOP',
+    'no-rattle-positions': 'SIN POSICIONES RATTLESNAKE',
+    'live-test-prefix':    'Test en vivo',
+    'day-label':           'Día',
+    'start-label':         'Inicio',
+    'waking-server':       'DESPERTANDO SERVIDOR... INTENTO',
+    'paper-trading-live':  'PAPER TRADING EN VIVO',
+    'market-closes':       'cierra',
+    'market-opens':        'abre',
+    'ar-positive-count':   'positivos',
+    'ar-of-years-sub':     'años',
+    'ml-phase-active':     'activa',
+    'ml-phase-label':      'Fase',
+    'ml-days-label':       'días',
+
+    // ML phase badges
+    'ml-phase1-badge':     'Fase 1',
+    'ml-phase1-days':      '0 – 63 días',
+    'ml-phase2-badge':     'Fase 2',
+    'ml-phase2-days':      '63 – 252 días',
+    'ml-phase3-badge':     'Fase 3',
+    'ml-phase3-days':      '252+ días',
 
     // Roadmap
     'rm-heading':        'Camino hacia Lanzamiento',
@@ -372,6 +401,35 @@ var TRANSLATIONS = {
     'sf-stat-freshest':  'Most recent',
     'sf-no-results':     'No posts match these filters',
     'sf-news-tier':      'News',
+    'sf-analysis-tier':  'Analysis & Regulatory',
+    'sf-community-tier': 'Community',
+    'sf-posts':          'posts',
+    'sf-bullish-count':  'bullish',
+    'sf-bearish-count':  'bearish',
+
+    // Dynamic strings
+    'near-stop':           '⚠ NEAR STOP',
+    'no-rattle-positions': 'NO RATTLESNAKE POSITIONS',
+    'live-test-prefix':    'Live test',
+    'day-label':           'Day',
+    'start-label':         'Start',
+    'waking-server':       'WAKING SERVER... ATTEMPT',
+    'paper-trading-live':  'PAPER TRADING LIVE',
+    'market-closes':       'closes',
+    'market-opens':        'opens',
+    'ar-positive-count':   'positive',
+    'ar-of-years-sub':     'years',
+    'ml-phase-active':     'active',
+    'ml-phase-label':      'Phase',
+    'ml-days-label':       'days',
+
+    // ML phase badges
+    'ml-phase1-badge':     'Phase 1',
+    'ml-phase1-days':      '0 – 63 days',
+    'ml-phase2-badge':     'Phase 2',
+    'ml-phase2-days':      '63 – 252 days',
+    'ml-phase3-badge':     'Phase 3',
+    'ml-phase3-days':      '252+ days',
 
     // Roadmap
     'rm-heading':        'Road to Launch',

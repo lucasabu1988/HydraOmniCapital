@@ -370,7 +370,7 @@ function updatePerfBanner(p) {
     if (p.last_trading_date) {
         var days = p.trading_day || '?';
         document.getElementById('perf-period').textContent =
-            'Test en vivo \u00B7 D\u00eda ' + days + ' \u00B7 Inicio Mar 6, 2026';
+            t('live-test-prefix') + ' \u00B7 ' + t('day-label') + ' ' + days + ' \u00B7 ' + t('start-label') + ' Mar 6, 2026';
     }
 }
 
@@ -473,7 +473,7 @@ function updatePositions(details) {
                 '</div>' +
                 trailHtml +
                 (p.sector ? '<div class="pos-stop-item"><span class="pos-stop-dot" style="background:var(--purple);"></span><span class="pos-stop-label">' + p.sector + '</span></div>' : '') +
-                (p.near_stop ? '<span style="margin-left:auto; font-size:11px; font-weight:700; color:var(--yellow); letter-spacing:0.5px;">&#9888; CERCA DEL STOP</span>' : '') +
+                (p.near_stop ? '<span style="margin-left:auto; font-size:11px; font-weight:700; color:var(--yellow); letter-spacing:0.5px;">' + t('near-stop') + '</span>' : '') +
             '</div>' +
         '</div>';
     }
@@ -609,7 +609,7 @@ function updateHydra(hydra) {
             iconDiv.style.color = 'var(--yellow)';
             iconDiv.textContent = '\u25C6';
             emptyDiv.appendChild(iconDiv);
-            var textNode = document.createTextNode('SIN POSICIONES RATTLESNAKE');
+            var textNode = document.createTextNode(t('no-rattle-positions'));
             emptyDiv.appendChild(textNode);
             var subDiv = document.createElement('div');
             subDiv.style.cssText = 'font-size:11px;color:var(--text-tertiary);margin-top:4px;';
@@ -867,9 +867,9 @@ function sfRenderMessage(m) {
     var arr = srcMap[m.source] || ['sf-src-news', m.source || 'News'];
     var srcCls = arr[0], srcLabel = arr[1];
     var sentimentHtml = m.sentiment === 'bullish' ?
-        '<span class="sf-sentiment sf-sentiment-bull">Alcista</span>' :
+        '<span class="sf-sentiment sf-sentiment-bull">' + t('sf-stat-bull') + '</span>' :
         m.sentiment === 'bearish' ?
-        '<span class="sf-sentiment sf-sentiment-bear">Bajista</span>' : '';
+        '<span class="sf-sentiment sf-sentiment-bear">' + t('sf-stat-bear') + '</span>' : '';
 
     return '<div class="' + tierCls + '">' +
         '<div class="sf-msg-badge">' +
@@ -931,7 +931,7 @@ function sfRenderTimeline(filtered) {
     }
     var html = '';
     if (tier1.length > 0) {
-        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">An\u00e1lisis &amp; Regulatorio</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier1.length + '</span></div>';
+        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">' + t('sf-analysis-tier') + '</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier1.length + '</span></div>';
         for (var i = 0; i < tier1.length; i++) html += sfRenderMessage(tier1[i]);
         html += '</div>';
     }
@@ -941,7 +941,7 @@ function sfRenderTimeline(filtered) {
         html += '</div>';
     }
     if (tier3.length > 0) {
-        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">Comunidad</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier3.length + '</span></div>';
+        html += '<div class="sf-tier-section"><div class="sf-tier-header"><span class="sf-tier-label">' + t('sf-community-tier') + '</span><span class="sf-tier-line"></span><span class="sf-tier-count">' + tier3.length + '</span></div>';
         for (var i = 0; i < tier3.length; i++) html += sfRenderMessage(tier3[i]);
         html += '</div>';
     }
@@ -965,10 +965,10 @@ function sfRenderGrouped(filtered) {
         var displaySym = sym === 'MKT' ? t('market-label') : '$' + escHtml(sym);
         html += '<div class="sf-ticker-group"><div class="sf-ticker-group-header">' +
             '<span class="sf-ticker-group-symbol">' + displaySym + '</span>' +
-            '<span class="sf-ticker-group-count">' + msgs.length + ' publicaciones</span>' +
+            '<span class="sf-ticker-group-count">' + msgs.length + ' ' + t('sf-posts') + '</span>' +
             '<div class="sf-ticker-group-sentiment">' +
-            (bull > 0 ? '<span class="sf-sentiment sf-sentiment-bull">' + bull + ' alcista</span>' : '') +
-            (bear > 0 ? '<span class="sf-sentiment sf-sentiment-bear">' + bear + ' bajista</span>' : '') +
+            (bull > 0 ? '<span class="sf-sentiment sf-sentiment-bull">' + bull + ' ' + t('sf-bullish-count') + '</span>' : '') +
+            (bear > 0 ? '<span class="sf-sentiment sf-sentiment-bear">' + bear + ' ' + t('sf-bearish-count') + '</span>' : '') +
             '</div></div><div class="sf-ticker-group-body">';
         for (var i = 0; i < msgs.length; i++) html += sfRenderMessage(msgs[i]);
         html += '</div></div>';
@@ -1063,7 +1063,7 @@ function updateSocialFeed(data) {
     sfMessages = messages;
     sfSymbols = data.symbols || sfSymbols;
     var countEl = document.getElementById('sf-count');
-    if (countEl) countEl.textContent = messages.length + ' publicaciones';
+    if (countEl) countEl.textContent = messages.length + ' ' + t('sf-posts');
     sfBuildTickerPills();
     sfRender();
 }
@@ -1268,8 +1268,8 @@ async function fetchAll() {
             const banner = document.getElementById('offline-banner');
             banner.style.display = 'block';
             banner.textContent = _fetchRetries > 0
-                ? 'DESPERTANDO SERVIDOR... INTENTO ' + _fetchRetries + '/' + MAX_RETRIES
-                : 'CONECTANDO AL SERVIDOR...';
+                ? t('waking-server') + ' ' + _fetchRetries + '/' + MAX_RETRIES
+                : t('offline-banner');
             if (_fetchRetries < MAX_RETRIES) {
                 setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
                 _fetchRetries++;
@@ -1353,8 +1353,8 @@ async function fetchAll() {
         const banner = document.getElementById('offline-banner');
         banner.style.display = 'block';
         banner.innerHTML = _fetchRetries > 0
-            ? 'DESPERTANDO SERVIDOR... INTENTO ' + _fetchRetries + '/' + MAX_RETRIES
-            : 'CONECTANDO AL SERVIDOR...';
+            ? t('waking-server') + ' ' + _fetchRetries + '/' + MAX_RETRIES
+            : t('offline-banner');
         if (_fetchRetries < MAX_RETRIES) {
             setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
             _fetchRetries++;
@@ -1840,7 +1840,7 @@ function renderP2PScatter(positions) {
     avgEl.textContent = (avgRet >= 0 ? '+' : '') + avgRet.toFixed(2) + '%';
     avgEl.style.color = avgRet >= 0 ? 'var(--green)' : 'var(--red)';
     document.getElementById('p2p-total').textContent = '$' + totalVal.toLocaleString('en-US', {maximumFractionDigits:0});
-    document.getElementById('p2p-badge').textContent = positions.length + ' posiciones';
+    document.getElementById('p2p-badge').textContent = positions.length + ' ' + t('p2p-positions');
 
     // Destroy previous chart
     if (_p2pChart) _p2pChart.destroy();
@@ -2027,7 +2027,7 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
 
     /* ── Badge ─────────────────────────────────────────────────────────── */
     var badge = document.getElementById('ar-badge');
-    if (badge) badge.textContent = positiveYears + '/' + totalYears + ' positivos';
+    if (badge) badge.textContent = positiveYears + '/' + totalYears + ' ' + t('ar-positive-count');
 
     /* ── Per-year derived flags ─────────────────────────────────────────── */
     var underperforms = data.map(function(d) {
@@ -2057,6 +2057,8 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
     var elAlpha    = document.getElementById('ar-stat-alpha');
     if (elPositive) elPositive.textContent = positiveYears;
     if (elTotal)    elTotal.textContent    = totalYears;
+    var elTotalEn = document.getElementById('ar-stat-total-en');
+    if (elTotalEn)  elTotalEn.textContent = totalYears;
     if (elBeats)    elBeats.textContent    = hydraWins + '/' + validPairs;
     if (elLoses) {
         elLoses.textContent = hydraLosses + '/' + validPairs;
@@ -2351,11 +2353,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const mktOpen = 9 * 60 + 30, mktClose = 16 * 60;
         const isOpen = isWeekday && mins >= mktOpen && mins < mktClose;
         if (isOpen) {
-            lbl.textContent = 'PAPER TRADING EN VIVO';
+            lbl.textContent = t('paper-trading-live');
             lbl.style.color = 'var(--green)';
             const left = (mktClose * 60) - (mins * 60 + s);
             const hh = Math.floor(left / 3600), mm = Math.floor((left % 3600) / 60), ss = left % 60;
-            cd.textContent = 'cierra ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
+            cd.textContent = t('market-closes') + ' ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
         } else {
             lbl.textContent = t('hdr-market-closed');
             lbl.style.color = 'var(--text-muted)';
@@ -2376,7 +2378,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const diff = Math.max(0, secsToOpen);
             const hh = Math.floor(diff / 3600), mm = Math.floor((diff % 3600) / 60), ss = diff % 60;
-            cd.textContent = 'abre ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
+            cd.textContent = t('market-opens') + ' ' + hh + 'h ' + String(mm).padStart(2,'0') + 'm ' + String(ss).padStart(2,'0') + 's';
         }
     }
     updateMarketTimer();
@@ -2519,15 +2521,15 @@ function renderMLKpis(k) {
     setText('ml-kpi-alpha', 'Alpha vs S&P: ' + (k.avg_alpha != null ? fmtPct(k.avg_alpha) : '--'));
 
     setText('ml-kpi-days', k.trading_days != null ? k.trading_days : '--');
-    setText('ml-kpi-decisions', (k.total_decisions || 0) + ' decisiones');
+    setText('ml-kpi-decisions', (k.total_decisions || 0) + ' ' + t('ml-decisions'));
 
     setText('ml-kpi-phase', k.phase != null ? k.phase + '/3' : '--');
     var progressEl = document.getElementById('ml-kpi-progress');
     if (progressEl) progressEl.style.width = (k.phase2_progress_pct || 0) + '%';
     if (k.phase < 2) {
-        setText('ml-kpi-phase-sub', (k.days_to_phase2 || '--') + ' d\u00edas para Phase 2');
+        setText('ml-kpi-phase-sub', (k.days_to_phase2 || '--') + ' ' + t('ml-days-to-phase2'));
     } else {
-        setText('ml-kpi-phase-sub', 'Phase ' + k.phase + ' activa');
+        setText('ml-kpi-phase-sub', t('ml-phase-label') + ' ' + k.phase + ' ' + t('ml-phase-active'));
     }
 }
 
