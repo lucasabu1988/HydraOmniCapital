@@ -1,23 +1,5 @@
-/* ============ DARK MODE ============ */
-function initDarkMode() {
-    // v2 key — forces dark default for users who had old 'hydra-dark-mode' saved
-    var saved = localStorage.getItem('hydra-theme-v2');
-    var isDark = saved !== null ? saved === 'dark' : true;
-    if (isDark) document.body.classList.add('dark');
-    updateDarkToggleIcon(isDark);
-}
-function toggleDarkMode() {
-    var isDark = document.body.classList.toggle('dark');
-    localStorage.setItem('hydra-theme-v2', isDark ? 'dark' : 'light');
-    updateDarkToggleIcon(isDark);
-    // Update chart colors if charts exist
-    if (typeof updateChartColors === 'function') updateChartColors();
-}
-function updateDarkToggleIcon(isDark) {
-    var btn = document.getElementById('dark-toggle');
-    if (btn) btn.innerHTML = isDark ? '&#9788;' : '&#9790;';
-}
-initDarkMode();
+/* ============ DARK MODE (permanent) ============ */
+document.body.classList.add('dark');
 
 /* ============ COMPANY INFO MAP (for ticker tooltips) ============ */
 const COMPANY_INFO = {
