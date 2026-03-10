@@ -1,14 +1,14 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-10T13:38:42.003301",
+  "timestamp": "2026-03-10T13:54:21.069914",
   "cash": 35585.88668505859,
   "peak_value": 100000.0,
-  "portfolio_value": 100296.27728717041,
+  "portfolio_value": 100298.40896289062,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
     99064.23415130615,
-    99815.47636096191
+    99817.0394407959
   ],
   "current_regime_score": 0.5735066277787306,
   "trading_day_counter": 3,
@@ -133,7 +133,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 118,
-    "uptime_minutes": 862.5060613166667
+    "cycles_completed": 134,
+    "uptime_minutes": 878.3721762333333
   }
 }
