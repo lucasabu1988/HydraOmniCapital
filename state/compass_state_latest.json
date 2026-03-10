@@ -1,14 +1,14 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-10T09:15:12.233870",
+  "timestamp": "2026-03-10T09:20:32.490407",
   "cash": 35585.88668505859,
   "peak_value": 100000.0,
-  "portfolio_value": 100075.71260516357,
+  "portfolio_value": 100092.95035998535,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
     99064.23415130615,
-    99815.47636096191
+    99817.0394407959
   ],
   "current_regime_score": 0.5735066277787306,
   "trading_day_counter": 3,
@@ -55,7 +55,7 @@
       "entry_date": "2026-03-05",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 307.9599914550781,
+      "high_price": 307.989990234375,
       "entry_vol": 0.23484680821013687,
       "entry_daily_vol": 0.014793958350507239,
       "sector": "Technology",
@@ -133,7 +133,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 107,
-    "uptime_minutes": 983.7780945166667
+    "cycles_completed": 69,
+    "uptime_minutes": 604.5625181833333
   }
 }
