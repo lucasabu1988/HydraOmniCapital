@@ -43,3 +43,12 @@ demo_state.json
 .claude/*.local.md
 .claude/*.local.json
 .claude/agent-memory/
+
+# Tool configs
+.serena/
+
+# External repos
+awesome-systematic-trading/
+
+# Runtime PID files
+state/watchdog.pid
