@@ -28,7 +28,7 @@ templates/dashboard.html — Dashboard HTML template
 state/                  — Runtime state (JSON), cycle log, ML learning data
 backtests/              — CSV results, backtest outputs
 config/                 — Strategy YAML, broker config
-compass/                — Synced copies for cloud deployment
+compass/                — Python package (notifications, git_sync)
 ```
 
 ## Key Parameters (v8.4)
@@ -75,7 +75,7 @@ python scripts/simulate_live_trading.py   # Offline simulation
 ## Deployment
 - **Local**: `python compass_dashboard.py` → Flask on port 5000
 - **Cloud**: `render.yaml` → gunicorn on Render.com
-- **Sync**: after modifying `compass_dashboard.py` or `omnicapital_live.py`, sync to `compass/` folder
+- **compass/**: Python package only (notifications, git_sync) — no file syncing needed
 
 ## Git Workflow
 - Branch: `main` (single branch)
@@ -119,7 +119,7 @@ python scripts/simulate_live_trading.py   # Offline simulation
 Before completing any code change:
 1. **Syntax check**: `python -c "import py_compile; py_compile.compile('file.py')"`
 2. **State validation**: if state JSON modified, verify valid JSON
-3. **Dashboard sync**: if `compass_dashboard.py` or `omnicapital_live.py` changed, copy to `compass/`
+3. **No sync needed**: compass/ is now a pure Python package
 4. **Visual check**: if frontend changed, verify with Playwright screenshot
 5. **No debug code**: remove any temporary `print()` or test code
 6. **ML fail-safe**: any new ML hooks must be wrapped in try/except
@@ -128,7 +128,6 @@ Before completing any code change:
 - `protect-state-files` — warns before editing live state JSON
 - `block-algorithm-modification` — blocks edits to locked algorithm files
 - `protect-secrets` — blocks edits to .env/config with credentials
-- `require-compass-sync` — reminds to sync compass/ after dashboard edits
 - `verify-before-complete` — pre-completion verification checklist
 
 ## User Preferences
