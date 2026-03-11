@@ -7,5 +7,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.6"
-      - key: COMPASS_MODE
-        value: "showcase"
+      - key: HYDRA_MODE
+        value: "live"
+      - key: GIT_TOKEN
+        sync: false  # set manually in Render dashboard — GitHub PAT with repo write access

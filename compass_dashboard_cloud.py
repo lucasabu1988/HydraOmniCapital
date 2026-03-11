@@ -1686,34 +1686,47 @@ def api_trade_analytics():
 
 
 # ============================================================================
-# ENGINE CONTROL (disabled in showcase mode)
+# ENGINE CONTROL
 # ============================================================================
 
 @app.route('/api/engine/start', methods=['POST'])
 def api_engine_start():
-    return jsonify({'ok': False, 'message': 'Engine disabled in showcase mode'})
+    # Cloud engine auto-starts — manual start not needed
+    running = _cloud_engine is not None
+    return jsonify({'ok': running, 'message': 'Cloud engine auto-managed' if running else 'Engine not started yet'})
 
 
 @app.route('/api/engine/stop', methods=['POST'])
 def api_engine_stop():
-    return jsonify({'ok': False, 'message': 'Engine disabled in showcase mode'})
+    return jsonify({'ok': False, 'message': 'Cloud engine cannot be stopped via API (auto-managed)'})
 
 
 @app.route('/api/engine/status')
 def api_engine_status():
+    engine = _cloud_engine
+    if engine:
+        return jsonify({
+            'running': True,
+            'started_at': engine._start_time.isoformat() if hasattr(engine, '_start_time') else None,
+            'error': None,
+            'cycles': engine._cycles_completed if hasattr(engine, '_cycles_completed') else 0,
+            'mode': 'cloud-live',
+        })
     return jsonify({
         'running': False,
         'started_at': None,
-        'error': 'Showcase mode \u2014 view only',
+        'error': 'Engine starting...' if _cloud_engine_started else 'Engine not initialized',
         'cycles': 0,
+        'mode': 'cloud-live',
     })
 
 
 @app.route('/api/preflight')
 def api_preflight():
+    engine = _cloud_engine
     return jsonify({
-        'ready': False,
-        'checks': {'mode': 'showcase'},
+        'ready': engine is not None,
+        'checks': {'mode': 'cloud-live', 'engine': engine is not None, 'git_sync': bool(os.environ.get('GIT_TOKEN'))},
         'server_time': datetime.now().isoformat(),
     })
 
@@ -2217,10 +2230,37 @@ if os.path.exists(_engine_lock):
         pass
 
 
+def _git_pull_latest():
+    """Pull latest state from GitHub before engine starts.
+    Ensures cloud picks up any state changes pushed from local."""
+    import subprocess
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    git_token = os.environ.get('GIT_TOKEN', '')
+
+    if git_token:
+        # Configure HTTPS auth for push/pull
+        repo_url = f'https://x-access-token:{git_token}@github.com/lucasabu1988/NuevoProyecto.git'
+        subprocess.run(['git', 'remote', 'set-url', 'origin', repo_url],
+                       cwd=repo_dir, capture_output=True, timeout=10)
+
+    try:
+        result = subprocess.run(
+            ['git', 'pull', '--ff-only', 'origin', 'main'],
+            cwd=repo_dir, capture_output=True, text=True, timeout=60
+        )
+        if result.returncode == 0:
+            logger.info(f"git pull: {result.stdout.strip()}")
+        else:
+            logger.warning(f"git pull failed: {result.stderr.strip()[:200]}")
+    except Exception as e:
+        logger.warning(f"git pull error: {e}")
+
+
 def _run_cloud_engine():
     """Run the full HYDRA engine with PaperBroker in the cloud.
     Uses Yahoo Finance for all data — no IB dependency.
-    The engine saves state files that the dashboard reads directly."""
+    The engine saves state files that the dashboard reads directly.
+    Git sync enabled: pulls latest state on start, pushes state after trades."""
     global _cloud_engine
 
     if not _HAS_ENGINE:
@@ -2228,9 +2268,17 @@ def _run_cloud_engine():
         return
 
     try:
-        # Disable git sync on cloud (prevent Render from pushing back to GitHub)
+        # Pull latest state from GitHub (picks up local changes)
+        _git_pull_latest()
+
+        # Enable git sync on cloud if GIT_TOKEN is set
         import omnicapital_live as _engine_mod
-        _engine_mod._git_sync_available = False
+        if os.environ.get('GIT_TOKEN'):
+            _engine_mod._git_sync_available = True
+            logger.info("Cloud git sync ENABLED (GIT_TOKEN set)")
+        else:
+            _engine_mod._git_sync_available = False
+            logger.warning("Cloud git sync DISABLED (no GIT_TOKEN — state won't persist across deploys)")
 
         cloud_config = dict(ENGINE_CONFIG)
         cloud_config['PAPER_INITIAL_CASH'] = HYDRA_CONFIG['INITIAL_CAPITAL']

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 _git_queue: Queue = Queue(maxsize=10)
 _worker_thread: threading.Thread | None = None
 _worker_started = False
-_repo_dir = os.path.dirname(os.path.abspath(__file__))
+_repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root (parent of compass/)
 
 MIN_COMMIT_INTERVAL = 900  # 15 minutes between commits
 
@@ -142,11 +142,21 @@ def _git_worker():
                 pass
 
 
+def _ensure_git_identity():
+    """Set git committer identity if not configured (needed on Render/cloud)."""
+    ok, name = _run_git('config', 'user.name', warn_on_fail=False)
+    if not ok or not name.strip():
+        _run_git('config', 'user.name', 'HYDRA Cloud Engine')
+        _run_git('config', 'user.email', 'hydra@omnicapital.cloud')
+        logger.info("git sync: configured cloud committer identity")
+
+
 def _ensure_worker():
     """Start the background worker thread if not already running."""
     global _worker_thread, _worker_started
     if _worker_started and _worker_thread and _worker_thread.is_alive():
         return
+    _ensure_git_identity()
     _worker_thread = threading.Thread(
         target=_git_worker,
         daemon=True,
