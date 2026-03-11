@@ -1,7 +1,7 @@
 {
   "version": "8.4",
   "timestamp": "2026-03-10T17:41:47.090757",
-  "cash": 35585.88668505859,
+  "cash": 455.32668505859,
   "peak_value": 100000.0,
   "portfolio_value": 100130.83681933593,
   "crash_cooldown": 0,
@@ -25,6 +25,14 @@
     "GOOGL": {
       "shares": 27,
       "avg_cost": 300.88
+    },
+    "MU": {
+      "shares": 38,
+      "avg_cost": 389.32
+    },
+    "AMAT": {
+      "shares": 60,
+      "avg_cost": 338.94
     }
   },
   "position_meta": {
@@ -58,6 +66,28 @@
       "high_price": 308.79998779296875,
       "entry_vol": 0.23484680821013687,
       "entry_daily_vol": 0.014793958350507239,
+      "sector": "Technology",
+      "_entry_reconciled": true
+    },
+    "MU": {
+      "entry_price": 389.32,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 3,
+      "original_entry_day_index": 3,
+      "high_price": 389.32,
+      "entry_vol": 0.7059,
+      "entry_daily_vol": 0.044467,
+      "sector": "Technology",
+      "_entry_reconciled": true
+    },
+    "AMAT": {
+      "entry_price": 338.94,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 3,
+      "original_entry_day_index": 3,
+      "high_price": 338.94,
+      "entry_vol": 0.5126,
+      "entry_daily_vol": 0.032293,
       "sector": "Technology",
       "_entry_reconciled": true
     }
@@ -106,7 +136,7 @@
   ],
   "universe_year": 2026,
   "_daily_open_done": true,
-  "_preclose_entries_done": false,
+  "_preclose_entries_done": true,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
