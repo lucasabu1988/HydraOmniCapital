@@ -2333,6 +2333,38 @@ def _ensure_cloud_engine():
 @app.before_request
 def _start_background_tasks():
     _ensure_cloud_engine()
+    _ensure_self_ping()
+
+
+# ============================================================================
+# SELF-PING (keep Render free tier awake)
+# ============================================================================
+
+_self_ping_started = False
+
+def _self_ping_loop():
+    """Ping our own /api/preflight every 10 minutes to prevent Render sleep."""
+    import urllib.request
+    url = os.environ.get('RENDER_EXTERNAL_URL', 'https://omnicapital.onrender.com')
+    ping_url = f"{url}/api/preflight"
+    logger.info(f"Self-ping started: {ping_url} every 10 min")
+
+    while True:
+        time_module.sleep(600)  # 10 minutes
+        try:
+            resp = urllib.request.urlopen(ping_url, timeout=15)
+            logger.debug(f"Self-ping OK: {resp.status}")
+        except Exception as e:
+            logger.warning(f"Self-ping failed: {e}")
+
+
+def _ensure_self_ping():
+    global _self_ping_started
+    if _self_ping_started:
+        return
+    _self_ping_started = True
+    t = threading.Thread(target=_self_ping_loop, daemon=True)
+    t.start()
 
 
 # ============================================================================
