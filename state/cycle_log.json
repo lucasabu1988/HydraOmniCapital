@@ -27,5 +27,27 @@
         "return": -8.2
       }
     ]
+  },
+  {
+    "cycle": 2,
+    "start_date": "2026-03-11",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 100954.90,
+    "portfolio_end": null,
+    "spy_start": 6775.80,
+    "spy_end": null,
+    "positions": [
+      "JNJ",
+      "MRK"
+    ],
+    "positions_current": [
+      "JNJ",
+      "MRK"
+    ],
+    "hydra_return": null,
+    "spy_return": null,
+    "alpha": null,
+    "stop_events": []
   }
 ]

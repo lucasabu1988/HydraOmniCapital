@@ -1,7 +1,7 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-11T16:00:00.000000",
-  "cash": 100954.90,
+  "timestamp": "2026-03-11T15:30:00.000000",
+  "cash": 241.73,
   "peak_value": 100954.90,
   "portfolio_value": 100954.90,
   "crash_cooldown": 0,
@@ -11,11 +11,41 @@
     99815.47636096191,
     100954.90
   ],
-  "current_regime_score": 0.5735066277787306,
+  "current_regime_score": 0.9981058271480029,
   "trading_day_counter": 4,
   "last_trading_date": "2026-03-11",
-  "positions": {},
-  "position_meta": {},
+  "positions": {
+    "JNJ": {
+      "shares": 249,
+      "avg_cost": 242.99
+    },
+    "MRK": {
+      "shares": 346,
+      "avg_cost": 116.21
+    }
+  },
+  "position_meta": {
+    "JNJ": {
+      "entry_price": 242.99,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 242.99,
+      "entry_vol": 0.172,
+      "entry_daily_vol": 0.010838,
+      "sector": "Healthcare"
+    },
+    "MRK": {
+      "entry_price": 116.21,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 116.21,
+      "entry_vol": 0.2593,
+      "entry_daily_vol": 0.016337,
+      "sector": "Healthcare"
+    }
+  },
   "current_universe": [
     "TSLA",
     "MSFT",
