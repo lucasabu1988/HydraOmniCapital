@@ -1,10 +1,13 @@
 """
-HYDRA v8.4 — Cloud Dashboard (Showcase)
+HYDRA v8.4 — Cloud Dashboard
 ==========================================
 Full-featured Flask dashboard for Render.com deployment.
 Shows live prices, backtest equity curves, trade analytics,
 execution microstructure, social feed, and research paper.
-NO live trading engine — showcase/portfolio mode.
+
+Modes (set via HYDRA_MODE env var):
+  - showcase (default): read-only dashboard, no engine
+  - live: dashboard + HYDRA engine with PaperBroker
 
 Deploy: git push to GitHub → auto-deploy on Render.
 """
@@ -135,6 +138,14 @@ LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
 SHOWCASE_MODE = os.environ.get('HYDRA_MODE', 'showcase') == 'showcase'
+
+# Real engine status tracking
+_engine_status = {
+    'running': False,
+    'started_at': None,
+    'error': 'Showcase mode — set HYDRA_MODE=live to enable engine' if SHOWCASE_MODE else None,
+    'cycles': 0,
+}
 
 # ============================================================================
 # DATA PRELOAD (at import time — shared across gunicorn workers via --preload)
@@ -1103,12 +1114,7 @@ def api_state():
             'status': 'offline',
             'error': 'No state file found',
             'server_time': datetime.now().isoformat(),
-            'engine': {
-                'running': False,
-                'started_at': None,
-                'error': 'Showcase mode \u2014 view only',
-                'cycles': 0,
-            },
+            'engine': dict(_engine_status),
         })
 
     # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake held
@@ -1160,10 +1166,8 @@ def api_state():
         'implementation_shortfall': {'available': False},
         'server_time': datetime.now().isoformat(),
         'engine': {
-            'running': False,
-            'started_at': None,
-            'error': 'Showcase mode \u2014 view only',
-            'cycles': 0,
+            **_engine_status,
+            'cycles': _cloud_engine.stats.get('cycles_completed', 0) if _cloud_engine else _engine_status['cycles'],
         },
     })
 
@@ -2264,6 +2268,7 @@ def _run_cloud_engine():
     global _cloud_engine
 
     if not _HAS_ENGINE:
+        _engine_status['error'] = 'HYDRA engine not available — omnicapital_live import failed'
         logger.warning("HYDRA engine not available — cloud trading disabled")
         return
 
@@ -2291,6 +2296,10 @@ def _run_cloud_engine():
         _cloud_engine.broker.set_price_feed(shared_feed)
         _cloud_engine.load_state()
 
+        _engine_status['running'] = True
+        _engine_status['started_at'] = datetime.now().isoformat()
+        _engine_status['error'] = None
+
         logger.info("Cloud HYDRA engine started (SharedYahooDataFeed — no duplicate requests)")
         logger.info(f"  Positions: {list(_cloud_engine.broker.positions.keys())}")
         logger.info(f"  Cash: ${_cloud_engine.broker.cash:,.2f}")
@@ -2299,6 +2308,8 @@ def _run_cloud_engine():
         _cloud_engine.run(interval=60)
 
     except Exception as e:
+        _engine_status['running'] = False
+        _engine_status['error'] = f'Engine crashed: {e}'
         logger.error(f"Cloud engine crashed: {e}", exc_info=True)
         # Sleep and retry after 5 minutes
         time_module.sleep(300)
@@ -2312,6 +2323,10 @@ def _ensure_cloud_engine():
     if _cloud_engine_started:
         return
     _cloud_engine_started = True
+
+    if SHOWCASE_MODE:
+        logger.info("Showcase mode — engine disabled (set HYDRA_MODE=live to enable)")
+        return
 
     # File-based lock: first worker to create the file wins
     lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
@@ -2374,7 +2389,7 @@ def _ensure_self_ping():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("HYDRA v8.4 \u2014 Cloud Dashboard (Showcase)")
+    print(f"HYDRA v8.4 \u2014 Cloud Dashboard ({'Showcase' if SHOWCASE_MODE else 'Live'})")
     print("=" * 60)
     print(f"Port: {port}")
     print(f"Mode: {'SHOWCASE' if SHOWCASE_MODE else 'local'}")
