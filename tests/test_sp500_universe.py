@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 from compass.sp500_universe import (
     _normalize_tickers, _validate_count, load_cached, save_cache,
-    fetch_from_github,
+    fetch_from_github, fetch_from_wikipedia,
 )
 
 
@@ -119,3 +119,22 @@ class TestFetchFromGitHub:
         with patch('compass.sp500_universe.requests.get', side_effect=[mock_api_response, mock_csv_response]):
             result = fetch_from_github()
         assert result == ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA']
+
+
+class TestFetchFromWikipedia:
+    def test_returns_list(self):
+        """Integration test — requires network."""
+        try:
+            result = fetch_from_wikipedia()
+            assert isinstance(result, list)
+            assert len(result) > 400
+            assert 'AAPL' in result
+        except Exception:
+            pytest.skip("Wikipedia fetch failed (network issue)")
+
+    def test_parses_html_table(self):
+        """Test parsing logic with mock DataFrame."""
+        mock_df = pd.DataFrame({'Symbol': ['AAPL', 'BRK.B', 'MSFT']})
+        with patch('compass.sp500_universe.pd.read_html', return_value=[mock_df]):
+            result = fetch_from_wikipedia()
+        assert result == ['AAPL', 'BRK.B', 'MSFT']

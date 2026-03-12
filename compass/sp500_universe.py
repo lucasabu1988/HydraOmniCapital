@@ -95,3 +95,18 @@ def fetch_from_github() -> List[str]:
     tickers = [t.strip() for t in ticker_str.split(',') if t.strip()]
     logger.info(f"GitHub: parsed {len(tickers)} tickers from latest snapshot")
     return tickers
+
+
+def fetch_from_wikipedia() -> List[str]:
+    logger.info("Fetching S&P 500 constituents from Wikipedia...")
+    tables = pd.read_html(WIKIPEDIA_URL)
+    if not tables:
+        raise ValueError("No tables found on Wikipedia S&P 500 page")
+
+    df = tables[0]
+    if 'Symbol' not in df.columns:
+        raise ValueError(f"'Symbol' column not found. Columns: {list(df.columns)}")
+
+    tickers = df['Symbol'].dropna().tolist()
+    logger.info(f"Wikipedia: parsed {len(tickers)} tickers")
+    return tickers
