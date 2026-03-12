@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 from compass.sp500_universe import (
     _normalize_tickers, _validate_count, load_cached, save_cache,
-    fetch_from_github, fetch_from_wikipedia,
+    fetch_from_github, fetch_from_wikipedia, refresh_constituents,
 )
 
 
@@ -138,3 +138,79 @@ class TestFetchFromWikipedia:
         with patch('compass.sp500_universe.pd.read_html', return_value=[mock_df]):
             result = fetch_from_wikipedia()
         assert result == ['AAPL', 'BRK.B', 'MSFT']
+
+
+FAKE_500 = [f'TICK{i}' for i in range(503)]
+FALLBACK = ['AAPL', 'MSFT']
+
+
+class TestRefreshConstituents:
+    def test_github_success(self):
+        with patch('compass.sp500_universe.fetch_from_github', return_value=FAKE_500):
+            tickers, source = refresh_constituents(FALLBACK)
+        assert len(tickers) == 503
+        assert source == 'github'
+
+    def test_github_fails_wikipedia_succeeds(self):
+        with patch('compass.sp500_universe.fetch_from_github', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.fetch_from_wikipedia', return_value=FAKE_500):
+            tickers, source = refresh_constituents(FALLBACK)
+        assert len(tickers) == 503
+        assert source == 'wikipedia'
+
+    def test_both_fail_uses_cache(self):
+        cached = {'tickers': FAKE_500, 'source': 'github', 'date': '2025-01-01', 'count': 503}
+        with patch('compass.sp500_universe.fetch_from_github', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.fetch_from_wikipedia', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.load_cached', return_value=cached):
+            tickers, source = refresh_constituents(FALLBACK)
+        assert len(tickers) == 503
+        assert source == 'cached'
+
+    def test_all_fail_uses_fallback(self):
+        with patch('compass.sp500_universe.fetch_from_github', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.fetch_from_wikipedia', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.load_cached', return_value=None):
+            tickers, source = refresh_constituents(FALLBACK)
+        assert tickers == FALLBACK
+        assert source == 'fallback'
+
+    def test_validation_rejects_too_few(self):
+        small_list = ['AAPL', 'MSFT']
+        with patch('compass.sp500_universe.fetch_from_github', return_value=small_list), \
+             patch('compass.sp500_universe.fetch_from_wikipedia', return_value=FAKE_500):
+            tickers, source = refresh_constituents(FALLBACK)
+        assert source == 'wikipedia'
+
+    def test_normalizes_tickers(self):
+        raw = [f'tick.{i}' for i in range(503)]
+        with patch('compass.sp500_universe.fetch_from_github', return_value=raw):
+            tickers, source = refresh_constituents(FALLBACK)
+        assert all(t == t.upper() for t in tickers)
+        assert all('.' not in t for t in tickers)
+
+    def test_saves_cache_on_fresh_fetch(self):
+        with patch('compass.sp500_universe.fetch_from_github', return_value=FAKE_500), \
+             patch('compass.sp500_universe.save_cache') as mock_save:
+            refresh_constituents(FALLBACK)
+        mock_save.assert_called_once()
+        args = mock_save.call_args[0]
+        assert len(args[0]) == 503
+        assert args[1] == 'github'
+
+    def test_does_not_save_cache_on_fallback(self):
+        with patch('compass.sp500_universe.fetch_from_github', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.fetch_from_wikipedia', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.load_cached', return_value=None), \
+             patch('compass.sp500_universe.save_cache') as mock_save:
+            refresh_constituents(FALLBACK)
+        mock_save.assert_not_called()
+
+    def test_does_not_save_cache_on_cached(self):
+        cached = {'tickers': FAKE_500, 'source': 'github', 'date': '2025-01-01', 'count': 503}
+        with patch('compass.sp500_universe.fetch_from_github', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.fetch_from_wikipedia', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.load_cached', return_value=cached), \
+             patch('compass.sp500_universe.save_cache') as mock_save:
+            refresh_constituents(FALLBACK)
+        mock_save.assert_not_called()

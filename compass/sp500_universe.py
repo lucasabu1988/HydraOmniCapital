@@ -110,3 +110,40 @@ def fetch_from_wikipedia() -> List[str]:
     tickers = df['Symbol'].dropna().tolist()
     logger.info(f"Wikipedia: parsed {len(tickers)} tickers")
     return tickers
+
+
+def refresh_constituents(fallback_pool: List[str]) -> Tuple[List[str], str]:
+    # Layer 1: GitHub
+    try:
+        raw = fetch_from_github()
+        tickers = _normalize_tickers(raw)
+        if _validate_count(tickers):
+            save_cache(tickers, 'github')
+            return tickers, 'github'
+        logger.warning(f"GitHub returned {len(tickers)} tickers (expected {MIN_CONSTITUENTS}-{MAX_CONSTITUENTS}), trying Wikipedia")
+    except Exception as e:
+        logger.warning(f"GitHub fetch failed: {e}")
+
+    # Layer 2: Wikipedia
+    try:
+        raw = fetch_from_wikipedia()
+        tickers = _normalize_tickers(raw)
+        if _validate_count(tickers):
+            save_cache(tickers, 'wikipedia')
+            return tickers, 'wikipedia'
+        logger.warning(f"Wikipedia returned {len(tickers)} tickers (expected {MIN_CONSTITUENTS}-{MAX_CONSTITUENTS}), trying cache")
+    except Exception as e:
+        logger.warning(f"Wikipedia fetch failed: {e}")
+
+    # Layer 3: Cached file (still normalize + validate for safety)
+    cached = load_cached()
+    if cached and cached.get('tickers'):
+        tickers = _normalize_tickers(cached['tickers'])
+        if _validate_count(tickers):
+            logger.info(f"Using cached constituents from {cached.get('date', 'unknown')} ({len(tickers)} tickers)")
+            return tickers, 'cached'
+        logger.warning(f"Cached file has {len(tickers)} tickers (invalid count), falling back")
+
+    # Layer 4: Hardcoded fallback
+    logger.warning(f"All sources failed. Using hardcoded fallback ({len(fallback_pool)} tickers)")
+    return list(fallback_pool), 'fallback'
