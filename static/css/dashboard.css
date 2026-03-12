@@ -3937,3 +3937,133 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .lang-inactive { color: var(--text-muted); font-weight: 400; }
 .lang-sep { color: var(--text-muted); margin: 0 4px; font-weight: 300; }
 
+/* ============ FUND COMPARISON PAGE ============ */
+.fc-hero {
+    position: relative;
+    text-align: center;
+    padding: 48px 24px 32px;
+    overflow: hidden;
+}
+.fc-hero-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+}
+.fc-hero-sub {
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin-top: 6px;
+    font-weight: 600;
+}
+.fc-hero-tagline {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.fc-section {
+    padding: 0 24px 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.fc-section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+.fc-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.fc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+.fc-table th {
+    text-align: left;
+    padding: 8px 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+.fc-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
+    white-space: nowrap;
+}
+.fc-fund-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.fc-row-highlight {
+    background: rgba(0, 230, 118, 0.06);
+}
+.fc-row-highlight td {
+    border-bottom-color: rgba(0, 230, 118, 0.15);
+}
+.fc-pos { color: #00e676; font-weight: 600; }
+.fc-neg { color: #ff5252; font-weight: 600; }
+.fc-na { color: var(--text-muted); font-style: italic; }
+
+/* Equity chart */
+.fc-chart-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    height: 380px;
+}
+
+/* Heatmap */
+.fc-heatmap-wrap {
+    overflow-x: auto;
+}
+.fc-heatmap th, .fc-heatmap td {
+    text-align: center;
+    padding: 4px 6px;
+    font-size: 0.7rem;
+}
+.fc-hm-cell {
+    min-width: 42px;
+    border-radius: 3px;
+    font-variant-numeric: tabular-nums;
+}
+.fc-hm-name {
+    text-align: left;
+    min-width: 140px;
+    position: sticky;
+    left: 0;
+    background: var(--bg-root);
+    z-index: 1;
+}
+
+/* Notes */
+.fc-notes ul {
+    list-style: disc;
+    padding-left: 20px;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.7;
+}
+
+/* Mobile */
+@media (max-width: 700px) {
+    .fc-hero { padding: 32px 16px 24px; }
+    .fc-hero-title { font-size: 1.2rem; }
+    .fc-section { padding: 0 12px 24px; }
+    .fc-chart-wrap { height: 280px; }
+    .fc-hm-cell { min-width: 36px; font-size: 0.62rem; }
+    .fc-hm-name { min-width: 100px; font-size: 0.65rem; }
+}
+

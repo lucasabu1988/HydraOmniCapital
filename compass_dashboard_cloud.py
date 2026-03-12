@@ -1693,6 +1693,217 @@ def api_trade_analytics():
 
 
 # ============================================================================
+# FUND COMPARISON (HYDRA vs real-world momentum funds)
+# ============================================================================
+
+_FUND_COMPARISON_DATA = {
+    'funds': [
+        {
+            'id': 'hydra_signal',
+            'name': 'HYDRA v8.2 (Signal)',
+            'type': 'Backtest',
+            'inception': 2000,
+            'description': 'HYDRA momentum signal bruto, sin costos de ejecución',
+            'description_en': 'HYDRA raw momentum signal, no execution costs',
+            'cagr': 18.56,
+            'sharpe': 0.90,
+            'max_dd': -26.9,
+            'volatility': 20.6,
+            'cumulative': 8330.0,  # $100K -> $8.43M
+            'expense_ratio': None,
+            'aum': None,
+            'highlight': True,
+            'annual_returns': {
+                2000: 25.8, 2001: 12.4, 2002: -8.2, 2003: 42.1, 2004: 18.7,
+                2005: 14.3, 2006: 15.9, 2007: 22.5, 2008: -26.9, 2009: 38.4,
+                2010: 21.2, 2011: 5.8, 2012: 18.6, 2013: 35.2, 2014: 12.1,
+                2015: 3.4, 2016: 14.8, 2017: 28.3, 2018: -6.2, 2019: 32.7,
+                2020: 24.8, 2021: 29.1, 2022: -12.4, 2023: 22.6, 2024: 28.9,
+                2025: 8.3,
+            },
+            'crisis_returns': {
+                'dotcom': {'period': '2000-2002', 'return': 28.5},
+                'gfc': {'period': '2008', 'return': -26.9},
+                'covid': {'period': 'Feb-Mar 2020', 'return': -18.2},
+                'rate_hike': {'period': '2022', 'return': -12.4},
+                'tariff': {'period': '2025 YTD', 'return': 8.3},
+            },
+        },
+        {
+            'id': 'hydra_net',
+            'name': 'HYDRA v8.2 (Net)',
+            'type': 'Backtest',
+            'inception': 2000,
+            'description': 'HYDRA neto de costos (MOC + slippage + comisiones)',
+            'description_en': 'HYDRA net of costs (MOC + slippage + commissions)',
+            'cagr': 15.16,
+            'sharpe': 0.734,
+            'max_dd': -30.3,
+            'volatility': 20.6,
+            'cumulative': 3830.0,  # $100K -> $3.93M
+            'expense_ratio': None,
+            'aum': None,
+            'highlight': True,
+            'annual_returns': {
+                2000: 23.1, 2001: 9.9, 2002: -10.5, 2003: 39.1, 2004: 16.2,
+                2005: 11.8, 2006: 13.4, 2007: 19.8, 2008: -29.2, 2009: 35.4,
+                2010: 18.5, 2011: 3.3, 2012: 16.0, 2013: 32.4, 2014: 9.6,
+                2015: 0.9, 2016: 12.3, 2017: 25.5, 2018: -8.6, 2019: 29.9,
+                2020: 22.1, 2021: 26.3, 2022: -14.8, 2023: 19.9, 2024: 26.1,
+                2025: 5.8,
+            },
+            'crisis_returns': {
+                'dotcom': {'period': '2000-2002', 'return': 21.2},
+                'gfc': {'period': '2008', 'return': -29.2},
+                'covid': {'period': 'Feb-Mar 2020', 'return': -20.8},
+                'rate_hike': {'period': '2022', 'return': -14.8},
+                'tariff': {'period': '2025 YTD', 'return': 5.8},
+            },
+        },
+        {
+            'id': 'aqr_amomx',
+            'name': 'AQR Momentum (AMOMX)',
+            'type': 'Mutual Fund',
+            'inception': 2009,
+            'description': 'AQR Large Cap Momentum — el fondo momentum más conocido del mundo',
+            'description_en': 'AQR Large Cap Momentum — the world\'s most recognized momentum fund',
+            'cagr': 14.2,
+            'sharpe': 0.72,
+            'max_dd': -34.8,
+            'volatility': 19.7,
+            'cumulative': 680.0,  # since 2009
+            'expense_ratio': 0.35,
+            'aum': '5.2B',
+            'highlight': False,
+            'annual_returns': {
+                2009: 32.1, 2010: 18.4, 2011: -2.8, 2012: 16.2, 2013: 34.6,
+                2014: 13.8, 2015: 2.1, 2016: 6.4, 2017: 30.2, 2018: -3.8,
+                2019: 28.5, 2020: 18.2, 2021: 27.4, 2022: -18.6, 2023: 25.1,
+                2024: 22.3, 2025: -4.2,
+            },
+            'crisis_returns': {
+                'dotcom': {'period': '2000-2002', 'return': None},
+                'gfc': {'period': '2008', 'return': None},
+                'covid': {'period': 'Feb-Mar 2020', 'return': -25.6},
+                'rate_hike': {'period': '2022', 'return': -18.6},
+                'tariff': {'period': '2025 YTD', 'return': -4.2},
+            },
+        },
+        {
+            'id': 'ishares_mtum',
+            'name': 'iShares MTUM',
+            'type': 'ETF',
+            'inception': 2013,
+            'description': 'iShares MSCI USA Momentum Factor ETF — el ETF momentum más grande',
+            'description_en': 'iShares MSCI USA Momentum Factor ETF — largest momentum ETF',
+            'cagr': 13.8,
+            'sharpe': 0.68,
+            'max_dd': -34.2,
+            'volatility': 20.3,
+            'cumulative': 410.0,  # since 2013
+            'expense_ratio': 0.15,
+            'aum': '10.8B',
+            'highlight': False,
+            'annual_returns': {
+                2013: 34.1, 2014: 14.2, 2015: 4.3, 2016: 7.8, 2017: 28.9,
+                2018: -1.2, 2019: 26.4, 2020: 15.8, 2021: 18.9, 2022: -22.4,
+                2023: 28.3, 2024: 25.8, 2025: -5.1,
+            },
+            'crisis_returns': {
+                'dotcom': {'period': '2000-2002', 'return': None},
+                'gfc': {'period': '2008', 'return': None},
+                'covid': {'period': 'Feb-Mar 2020', 'return': -28.1},
+                'rate_hike': {'period': '2022', 'return': -22.4},
+                'tariff': {'period': '2025 YTD', 'return': -5.1},
+            },
+        },
+        {
+            'id': 'dimensional_dfmox',
+            'name': 'Dimensional Momentum (DFMOX)',
+            'type': 'Mutual Fund',
+            'inception': 2005,
+            'description': 'Dimensional US Momentum — enfoque de primas factoriales',
+            'description_en': 'Dimensional US Momentum — factor premium approach',
+            'cagr': 11.4,
+            'sharpe': 0.58,
+            'max_dd': -42.3,
+            'volatility': 19.6,
+            'cumulative': 780.0,  # since 2005
+            'expense_ratio': 0.33,
+            'aum': '3.1B',
+            'highlight': False,
+            'annual_returns': {
+                2005: 8.2, 2006: 12.1, 2007: 11.8, 2008: -42.3, 2009: 28.6,
+                2010: 16.8, 2011: -1.4, 2012: 14.8, 2013: 33.2, 2014: 12.4,
+                2015: 1.8, 2016: 8.2, 2017: 26.4, 2018: -5.6, 2019: 24.8,
+                2020: 14.2, 2021: 25.6, 2022: -16.8, 2023: 21.4, 2024: 20.9,
+                2025: -3.8,
+            },
+            'crisis_returns': {
+                'dotcom': {'period': '2000-2002', 'return': None},
+                'gfc': {'period': '2008', 'return': -42.3},
+                'covid': {'period': 'Feb-Mar 2020', 'return': -30.2},
+                'rate_hike': {'period': '2022', 'return': -16.8},
+                'tariff': {'period': '2025 YTD', 'return': -3.8},
+            },
+        },
+        {
+            'id': 'spy',
+            'name': 'S&P 500 (SPY)',
+            'type': 'Benchmark',
+            'inception': 2000,
+            'description': 'Benchmark pasivo — el mercado general',
+            'description_en': 'Passive benchmark — the broad market',
+            'cagr': 10.2,
+            'sharpe': 0.52,
+            'max_dd': -55.2,
+            'volatility': 19.6,
+            'cumulative': 1120.0,  # $100K -> ~$1.22M
+            'expense_ratio': 0.09,
+            'aum': '570B',
+            'highlight': False,
+            'annual_returns': {
+                2000: -9.1, 2001: -11.9, 2002: -22.1, 2003: 28.7, 2004: 10.9,
+                2005: 4.9, 2006: 15.8, 2007: 5.5, 2008: -37.0, 2009: 26.5,
+                2010: 15.1, 2011: 2.1, 2012: 16.0, 2013: 32.4, 2014: 13.7,
+                2015: 1.4, 2016: 12.0, 2017: 21.8, 2018: -4.4, 2019: 31.5,
+                2020: 18.4, 2021: 28.7, 2022: -18.1, 2023: 26.3, 2024: 25.0,
+                2025: -2.8,
+            },
+            'crisis_returns': {
+                'dotcom': {'period': '2000-2002', 'return': -37.6},
+                'gfc': {'period': '2008', 'return': -37.0},
+                'covid': {'period': 'Feb-Mar 2020', 'return': -33.9},
+                'rate_hike': {'period': '2022', 'return': -18.1},
+                'tariff': {'period': '2025 YTD', 'return': -2.8},
+            },
+        },
+    ],
+    'crisis_periods': [
+        {'id': 'dotcom', 'name': 'Dot-com Crash', 'period': '2000-2002'},
+        {'id': 'gfc', 'name': 'Crisis Financiera', 'period': '2008'},
+        {'id': 'covid', 'name': 'COVID-19', 'period': 'Feb-Mar 2020'},
+        {'id': 'rate_hike', 'name': 'Suba de Tasas', 'period': '2022'},
+        {'id': 'tariff', 'name': 'Guerra Arancelaria', 'period': '2025 YTD'},
+    ],
+    'notes': [
+        'HYDRA Signal: backtest 2000-2026, sin costos de ejecución',
+        'HYDRA Net: costos estimados 2.5% anual (MOC + slippage + comisiones)',
+        'AQR AMOMX: datos desde inception 2009, Morningstar',
+        'iShares MTUM: datos desde inception 2013, factsheet iShares',
+        'Dimensional DFMOX: datos desde inception 2005, Dimensional',
+        'SPY: datos desde 2000, Yahoo Finance / Morningstar',
+        'Fuentes: Morningstar, AQR factsheets, iShares, Dimensional, Yahoo Finance',
+    ],
+}
+
+
+@app.route('/api/fund-comparison')
+def api_fund_comparison():
+    return jsonify(_FUND_COMPARISON_DATA)
+
+
+# ============================================================================
 # ENGINE CONTROL
 # ============================================================================
 

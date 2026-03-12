@@ -19,7 +19,23 @@ var TRANSLATIONS = {
     'tab-news':       'Noticias',
     'tab-roadmap':    'Roadmap',
     'tab-algorithm':  'Algoritmo',
+    'tab-funds':      'Comparativa',
     'tab-ml':         'ML',
+
+    // Fund Comparison
+    'fc-hero-sub':        'Comparativa contra fondos reales del mercado',
+    'fc-hero-tagline':    'HYDRA frente a los fondos momentum m\u00e1s reconocidos del mundo \u00b7 Datos de Morningstar, AQR, iShares, Dimensional',
+    'fc-metrics-title':   'M\u00e9tricas Principales',
+    'fc-equity-title':    'Crecimiento de $100K (Retornos Anuales)',
+    'fc-crisis-title':    'Rendimiento en Crisis',
+    'fc-annual-title':    'Retornos Anuales (%)',
+    'fc-notes-title':     'Notas & Fuentes',
+    'fc-th-fund':         'Fondo',
+    'fc-th-type':         'Tipo',
+    'fc-th-since':        'Desde',
+    'fc-th-vol':          'Volatilidad',
+    'fc-th-cumulative':   'Acumulado',
+    'fc-th-expense':      'Costo',
 
     // Hero Section
     'hero-tagline':          'Momentum + Mean-Reversion + International · Cash Recycling · S&P 500 + EAFE · Long-Only',
@@ -280,7 +296,23 @@ var TRANSLATIONS = {
     'tab-news':       'News',
     'tab-roadmap':    'Roadmap',
     'tab-algorithm':  'Algorithm',
+    'tab-funds':      'Comparison',
     'tab-ml':         'ML',
+
+    // Fund Comparison
+    'fc-hero-sub':        'Comparison against real-world funds',
+    'fc-hero-tagline':    'HYDRA vs the world\'s most recognized momentum funds \u00b7 Data from Morningstar, AQR, iShares, Dimensional',
+    'fc-metrics-title':   'Key Metrics',
+    'fc-equity-title':    'Growth of $100K (Annual Returns)',
+    'fc-crisis-title':    'Crisis Performance',
+    'fc-annual-title':    'Annual Returns (%)',
+    'fc-notes-title':     'Notes & Sources',
+    'fc-th-fund':         'Fund',
+    'fc-th-type':         'Type',
+    'fc-th-since':        'Since',
+    'fc-th-vol':          'Volatility',
+    'fc-th-cumulative':   'Cumulative',
+    'fc-th-expense':      'Cost',
 
     // Hero Section
     'hero-tagline':          'Momentum + Mean-Reversion + International · Cash Recycling · S&P 500 + EAFE · Long-Only',

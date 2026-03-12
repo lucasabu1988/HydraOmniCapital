@@ -2336,6 +2336,7 @@ document.addEventListener('DOMContentLoaded', function() {
     sfInitFilters();
     fetchSocialFeed();
     fetchTradeAnalytics();
+    fetchFundComparison();
     setInterval(fetchSocialFeed, 300000);
     setInterval(function() { fetchAll(); fetchCycleLog(); countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
@@ -2755,6 +2756,226 @@ document.addEventListener('DOMContentLoaded', function() {
         init();
     }
 })();
+
+/* ============ FUND COMPARISON PAGE ============ */
+
+var _fcData = null;
+var _fcEquityChart = null;
+
+async function fetchFundComparison() {
+    try {
+        var res = await fetch('/api/fund-comparison');
+        var data = await res.json();
+        _fcData = data;
+        renderFCMetrics(data);
+        renderFCEquityChart(data);
+        renderFCCrisis(data);
+        renderFCAnnual(data);
+        renderFCNotes(data);
+    } catch (e) {
+        console.error('Fund comparison fetch failed:', e);
+    }
+}
+
+function _fcEscapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function _fcCreateRow(cells, isHighlight) {
+    var tr = document.createElement('tr');
+    if (isHighlight) tr.className = 'fc-row-highlight';
+    cells.forEach(function(cell) {
+        var td = document.createElement('td');
+        if (cell.cls) td.className = cell.cls;
+        if (cell.style) td.setAttribute('style', cell.style);
+        td.textContent = cell.text;
+        tr.appendChild(td);
+    });
+    return tr;
+}
+
+function renderFCMetrics(data) {
+    var tbody = document.getElementById('fc-metrics-body');
+    if (!tbody) return;
+    while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+    data.funds.forEach(function(f) {
+        var row = _fcCreateRow([
+            {text: f.name, cls: 'fc-fund-name'},
+            {text: f.type},
+            {text: String(f.inception)},
+            {text: f.cagr.toFixed(1) + '%', cls: f.cagr >= 0 ? 'fc-pos' : 'fc-neg'},
+            {text: f.sharpe.toFixed(2)},
+            {text: f.max_dd.toFixed(1) + '%', cls: 'fc-neg'},
+            {text: f.volatility.toFixed(1) + '%'},
+            {text: '+' + f.cumulative.toFixed(0) + '%'},
+            {text: f.expense_ratio != null ? f.expense_ratio.toFixed(2) + '%' : '\u2014'},
+            {text: f.aum || '\u2014'},
+        ], f.highlight);
+        tbody.appendChild(row);
+    });
+}
+
+function renderFCEquityChart(data) {
+    var canvas = document.getElementById('fc-equity-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    var allYears = [];
+    for (var y = 2000; y <= 2025; y++) allYears.push(y);
+
+    var colors = ['#00e676', '#69f0ae', '#2196f3', '#ff9800', '#ab47bc', '#78909c'];
+    var datasets = [];
+
+    data.funds.forEach(function(f, idx) {
+        var values = [];
+        var val = 100000;
+        allYears.forEach(function(year) {
+            var ret = (f.annual_returns && f.annual_returns[year] != null) ? f.annual_returns[year] : null;
+            if (ret !== null) {
+                val = val * (1 + ret / 100);
+                values.push(val);
+            } else {
+                values.push(null);
+            }
+        });
+        datasets.push({
+            label: f.name,
+            data: values,
+            borderColor: colors[idx % colors.length],
+            backgroundColor: 'transparent',
+            borderWidth: f.highlight ? 2.5 : 1.5,
+            borderDash: f.highlight ? [] : [4, 2],
+            pointRadius: 0,
+            tension: 0.3,
+            spanGaps: false,
+        });
+    });
+
+    if (_fcEquityChart) _fcEquityChart.destroy();
+    _fcEquityChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels: allYears, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, labels: { color: '#ccc', font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            if (ctx.raw == null) return ctx.dataset.label + ': N/A';
+                            return ctx.dataset.label + ': $' + Math.round(ctx.raw).toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: '#999' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: {
+                    type: 'logarithmic',
+                    ticks: {
+                        color: '#999',
+                        callback: function(v) {
+                            if (v >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
+                            if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'K';
+                            return '$' + v;
+                        }
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                }
+            }
+        }
+    });
+}
+
+function renderFCCrisis(data) {
+    var periods = data.crisis_periods || [];
+    periods.forEach(function(p, i) {
+        var th = document.getElementById('fc-crisis-h' + i);
+        if (th) th.textContent = p.name + ' (' + p.period + ')';
+    });
+
+    var tbody = document.getElementById('fc-crisis-body');
+    if (!tbody) return;
+    while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+    data.funds.forEach(function(f) {
+        var cells = [{text: f.name, cls: 'fc-fund-name'}];
+        periods.forEach(function(p) {
+            var cr = f.crisis_returns && f.crisis_returns[p.id];
+            if (cr && cr['return'] != null) {
+                var v = cr['return'];
+                cells.push({text: (v > 0 ? '+' : '') + v.toFixed(1) + '%', cls: v >= 0 ? 'fc-pos' : 'fc-neg'});
+            } else {
+                cells.push({text: 'N/A', cls: 'fc-na'});
+            }
+        });
+        tbody.appendChild(_fcCreateRow(cells, f.highlight));
+    });
+}
+
+function renderFCAnnual(data) {
+    var allYears = [];
+    for (var y = 2000; y <= 2025; y++) allYears.push(y);
+
+    var thead = document.getElementById('fc-annual-head');
+    var tbody = document.getElementById('fc-annual-body');
+    if (!thead || !tbody) return;
+
+    // Build header row with DOM
+    while (thead.firstChild) thead.removeChild(thead.firstChild);
+    var headRow = document.createElement('tr');
+    var thFund = document.createElement('th');
+    thFund.textContent = t('fc-th-fund');
+    headRow.appendChild(thFund);
+    allYears.forEach(function(y) {
+        var th = document.createElement('th');
+        th.textContent = y;
+        headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+
+    // Build body rows
+    while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+    data.funds.forEach(function(f) {
+        var tr = document.createElement('tr');
+        if (f.highlight) tr.className = 'fc-row-highlight';
+        var tdName = document.createElement('td');
+        tdName.className = 'fc-fund-name fc-hm-name';
+        tdName.textContent = f.name;
+        tr.appendChild(tdName);
+        allYears.forEach(function(y) {
+            var td = document.createElement('td');
+            td.className = 'fc-hm-cell';
+            var ret = (f.annual_returns && f.annual_returns[y] != null) ? f.annual_returns[y] : null;
+            if (ret !== null) {
+                var alpha = Math.min(0.6, Math.abs(ret) / 50);
+                var bg = ret >= 0
+                    ? 'rgba(0,230,118,' + alpha + ')'
+                    : 'rgba(255,82,82,' + alpha + ')';
+                td.style.background = bg;
+                td.textContent = (ret > 0 ? '+' : '') + ret.toFixed(1);
+            } else {
+                td.className += ' fc-na';
+                td.textContent = '\u2014';
+            }
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+}
+
+function renderFCNotes(data) {
+    var ul = document.getElementById('fc-notes-list');
+    if (!ul || !data.notes) return;
+    while (ul.firstChild) ul.removeChild(ul.firstChild);
+    data.notes.forEach(function(n) {
+        var li = document.createElement('li');
+        li.textContent = n;
+        ul.appendChild(li);
+    });
+}
 
 function refreshDashboard() {
     if (lastPortfolioData) {

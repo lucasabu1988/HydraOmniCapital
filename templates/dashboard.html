@@ -134,6 +134,9 @@
     <div class="page-tab" data-page="algoritmo" onclick="switchPage('algoritmo')">
         <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> <span data-i18n="tab-algorithm">Algoritmo</span>
     </div>
+    <div class="page-tab" data-page="fondos" onclick="switchPage('fondos')">
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg> <span data-i18n="tab-funds">Comparativa</span>
+    </div>
     <div class="page-tab" data-page="ml" onclick="switchPage('ml')">
         <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg> <span data-i18n="tab-ml">ML</span>
     </div>
@@ -2965,6 +2968,89 @@ Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &ra
     </div>
 </div>
 </div><!-- /page-ml -->
+
+<!-- ==================== PAGE: FONDOS (Fund Comparison) ==================== -->
+<div id="page-fondos" class="page-content">
+
+<!-- HERO -->
+<div class="fc-hero">
+    <div class="lh-glow lh-glow-1" style="opacity:0.2;"></div>
+    <div class="lh-glow lh-glow-2" style="opacity:0.15;"></div>
+    <div class="fc-hero-title">HYDRA vs Fondos Momentum</div>
+    <div class="fc-hero-sub" data-i18n="fc-hero-sub">Comparativa contra fondos reales del mercado</div>
+    <div class="fc-hero-tagline" data-i18n="fc-hero-tagline">HYDRA frente a los fondos momentum m&aacute;s reconocidos del mundo &middot; Datos de Morningstar, AQR, iShares, Dimensional</div>
+</div>
+
+<!-- METRICS TABLE -->
+<div class="fc-section">
+    <div class="fc-section-title" data-i18n="fc-metrics-title">M&eacute;tricas Principales</div>
+    <div class="fc-table-wrap">
+        <table class="fc-table" id="fc-metrics-table">
+            <thead>
+                <tr>
+                    <th data-i18n="fc-th-fund">Fondo</th>
+                    <th data-i18n="fc-th-type">Tipo</th>
+                    <th data-i18n="fc-th-since">Desde</th>
+                    <th>CAGR</th>
+                    <th>Sharpe</th>
+                    <th>Max DD</th>
+                    <th data-i18n="fc-th-vol">Volatilidad</th>
+                    <th data-i18n="fc-th-cumulative">Acumulado</th>
+                    <th data-i18n="fc-th-expense">Costo</th>
+                    <th>AUM</th>
+                </tr>
+            </thead>
+            <tbody id="fc-metrics-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- EQUITY CURVES CHART -->
+<div class="fc-section">
+    <div class="fc-section-title" data-i18n="fc-equity-title">Crecimiento de $100K (Retornos Anuales)</div>
+    <div class="fc-chart-wrap">
+        <canvas id="fc-equity-chart" height="340"></canvas>
+    </div>
+</div>
+
+<!-- CRISIS PERFORMANCE -->
+<div class="fc-section">
+    <div class="fc-section-title" data-i18n="fc-crisis-title">Rendimiento en Crisis</div>
+    <div class="fc-table-wrap">
+        <table class="fc-table" id="fc-crisis-table">
+            <thead>
+                <tr>
+                    <th data-i18n="fc-th-fund">Fondo</th>
+                    <th id="fc-crisis-h0"></th>
+                    <th id="fc-crisis-h1"></th>
+                    <th id="fc-crisis-h2"></th>
+                    <th id="fc-crisis-h3"></th>
+                    <th id="fc-crisis-h4"></th>
+                </tr>
+            </thead>
+            <tbody id="fc-crisis-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ANNUAL RETURNS HEATMAP -->
+<div class="fc-section">
+    <div class="fc-section-title" data-i18n="fc-annual-title">Retornos Anuales (%)</div>
+    <div class="fc-table-wrap fc-heatmap-wrap">
+        <table class="fc-table fc-heatmap" id="fc-annual-table">
+            <thead id="fc-annual-head"></thead>
+            <tbody id="fc-annual-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- NOTES -->
+<div class="fc-section fc-notes">
+    <div class="fc-section-title" data-i18n="fc-notes-title">Notas &amp; Fuentes</div>
+    <ul id="fc-notes-list"></ul>
+</div>
+
+</div><!-- /page-fondos -->
 
 <!-- FOOTER -->
 <footer class="footer-institutional">
