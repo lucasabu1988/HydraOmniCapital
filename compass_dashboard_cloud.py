@@ -322,14 +322,17 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
                 _price_cache[sym] = result['price']
                 if 'prev_close' in result:
                     _prev_close_cache[sym] = result['prev_close']
+            # Only reset cache timer when we actually got fresh data
+            with _price_cache_lock:
+                _price_cache_time = now
         else:
             _yf_consecutive_failures += 1
             if _yf_consecutive_failures >= 3:
                 logger.warning(f'Yahoo Finance: {_yf_consecutive_failures} consecutive failures, '
                               f'backing off to {PRICE_CACHE_SECONDS_BACKOFF}s cache TTL')
-
-    with _price_cache_lock:
-        _price_cache_time = now
+            # On failure: set short TTL so we retry soon (15s), not full cache duration
+            with _price_cache_lock:
+                _price_cache_time = now - timedelta(seconds=max(0, cache_ttl - 15))
     return {s: _price_cache[s] for s in symbols if s in _price_cache}
 
 
@@ -1692,6 +1695,61 @@ def api_trade_analytics():
 # ============================================================================
 # ENGINE CONTROL
 # ============================================================================
+
+@app.route('/api/price-debug')
+def api_price_debug():
+    """Diagnostic endpoint — test Yahoo Finance connectivity from cloud."""
+    test_sym = request.args.get('symbol', 'AAPL')
+    diag = {
+        'server_time': datetime.now().isoformat(),
+        'has_requests': _HAS_REQUESTS,
+        'consecutive_failures': _yf_consecutive_failures,
+        'cache_age_seconds': None,
+        'cached_symbols': list(_price_cache.keys()),
+        'showcase_mode': SHOWCASE_MODE,
+        'tests': {},
+    }
+    if _price_cache_time:
+        diag['cache_age_seconds'] = round((datetime.now() - _price_cache_time).total_seconds(), 1)
+
+    # Test v7 batch API
+    try:
+        session, crumb = _yf_get_session()
+        diag['tests']['crumb_obtained'] = bool(crumb)
+        if session and crumb:
+            url = 'https://query2.finance.yahoo.com/v7/finance/quote'
+            params = {'symbols': test_sym, 'fields': 'regularMarketPrice,symbol', 'crumb': crumb}
+            r = session.get(url, params=params, timeout=10)
+            diag['tests']['v7_status'] = r.status_code
+            if r.status_code == 200:
+                data = r.json()
+                quotes = data.get('quoteResponse', {}).get('result', [])
+                if quotes:
+                    diag['tests']['v7_price'] = quotes[0].get('regularMarketPrice')
+                else:
+                    diag['tests']['v7_price'] = None
+                    diag['tests']['v7_raw'] = str(data)[:500]
+            else:
+                diag['tests']['v7_body'] = r.text[:300]
+    except Exception as e:
+        diag['tests']['v7_error'] = str(e)
+
+    # Test v8 chart API fallback
+    try:
+        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{test_sym}'
+        r = http_requests.get(url, params={'range': '1d', 'interval': '1d'}, headers=_YF_HEADERS, timeout=10)
+        diag['tests']['v8_status'] = r.status_code
+        if r.status_code == 200:
+            data = r.json()
+            meta = data.get('chart', {}).get('result', [{}])[0].get('meta', {})
+            diag['tests']['v8_price'] = meta.get('regularMarketPrice')
+        else:
+            diag['tests']['v8_body'] = r.text[:300]
+    except Exception as e:
+        diag['tests']['v8_error'] = str(e)
+
+    return jsonify(diag)
+
 
 @app.route('/api/engine/start', methods=['POST'])
 def api_engine_start():
