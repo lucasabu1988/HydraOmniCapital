@@ -46,10 +46,10 @@ FUNDS = [
         'name': 'HYDRA Net (after costs)',
         'type': 'Backtest (Net)',
         'inception': 2000,
-        'expense_ratio': 2.50,  # 2.5% annual execution costs
+        'expense_ratio': 1.00,  # 1.0% annual execution costs
         'aum': None,
-        'description': 'HYDRA neto despues de 2.5% costos anuales de ejecucion',
-        'description_en': 'HYDRA net after 2.5% annual execution costs',
+        'description': 'HYDRA neto despues de 1.0% costos anuales de ejecucion',
+        'description_en': 'HYDRA net after 1.0% annual execution costs',
         'highlight': True,
         'source': 'csv_net',
     },
@@ -349,7 +349,7 @@ def main():
     hydra_df = load_hydra_daily()
     if hydra_df is not None:
         all_daily['HYDRA'] = hydra_df
-        all_daily['HYDRA_NET'] = apply_net_cost(hydra_df, 2.5)
+        all_daily['HYDRA_NET'] = apply_net_cost(hydra_df, 1.0)
 
     yf_tickers = [f['ticker'] for f in FUNDS if f['source'] == 'yfinance']
     for ticker in yf_tickers:
@@ -418,7 +418,7 @@ def main():
         ],
         'notes': [
             'HYDRA Multi-Strategy: backtest 2000-2026 — Momentum + Rattlesnake + EFA + Cash Recycling, survivorship-corrected',
-            'HYDRA Net: HYDRA gross minus 2.5% annual execution costs (MOC slippage + commissions)',
+            'HYDRA Net: HYDRA gross minus 1.0% annual execution costs (MOC slippage + commissions)',
             'All ETF/fund returns are TOTAL RETURNS (dividends reinvested) from yfinance adjusted close prices',
             'Crisis returns: peak-to-trough drawdown during each crisis period',
             'AQR AMOMX: inception Jul 2009 — AQR Large Cap Momentum Style Fund',
