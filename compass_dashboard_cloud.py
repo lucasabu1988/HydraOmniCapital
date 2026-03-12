@@ -132,7 +132,7 @@ PRICE_CACHE_SECONDS = 60  # legacy ref (use PRICE_CACHE_SECONDS_NORMAL)
 SOCIAL_CACHE_SECONDS = 300  # 5 minutes
 
 # Live test started Mar 6, 2026 — ^GSPC prev close on that date
-LIVE_TEST_START_DATE = '2026-03-06'
+LIVE_TEST_START_DATE = '2026-03-05'
 LIVE_TEST_SPY_START = 6830.71  # ^GSPC prev close on 2026-03-06
 LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
