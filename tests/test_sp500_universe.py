@@ -214,3 +214,29 @@ class TestRefreshConstituents:
              patch('compass.sp500_universe.save_cache') as mock_save:
             refresh_constituents(FALLBACK)
         mock_save.assert_not_called()
+
+
+class TestIntegration:
+    def test_full_refresh_cycle(self):
+        """Test the complete flow: fetch -> normalize -> validate -> cache -> return."""
+        with patch('compass.sp500_universe.fetch_from_github', return_value=FAKE_500), \
+             patch('compass.sp500_universe.save_cache') as mock_save:
+            tickers1, source1 = refresh_constituents(['FALLBACK'])
+
+        assert source1 == 'github'
+        assert len(tickers1) == 503
+
+        # Simulate second call using cache
+        cached_data = {
+            'date': '2026-01-02',
+            'source': 'github',
+            'tickers': tickers1,
+            'count': len(tickers1),
+        }
+        with patch('compass.sp500_universe.fetch_from_github', side_effect=Exception("rate limited")), \
+             patch('compass.sp500_universe.fetch_from_wikipedia', side_effect=Exception("down")), \
+             patch('compass.sp500_universe.load_cached', return_value=cached_data):
+            tickers2, source2 = refresh_constituents(['FALLBACK'])
+
+        assert source2 == 'cached'
+        assert tickers2 == tickers1
