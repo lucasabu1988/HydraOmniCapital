@@ -693,7 +693,7 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
     # If hydra capital manager state exists, use it
     cap_state = hydra_state.get('capital_manager')
     if cap_state:
-        hydra_account = cap_state.get('hydra_account', portfolio_value * R_BASE_HYDRA_ALLOC)
+        hydra_account = cap_state.get('compass_account', portfolio_value * R_BASE_HYDRA_ALLOC)
         rattle_account = cap_state.get('rattle_account', portfolio_value * R_BASE_RATTLE_ALLOC)
     else:
         # No persisted HYDRA state — compute from current portfolio
