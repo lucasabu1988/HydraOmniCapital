@@ -854,7 +854,7 @@ class COMPASSLive:
         logger.info(f"Exit renewal: max {config['HOLD_DAYS_MAX']}d | min profit {config['RENEWAL_PROFIT_MIN']:.0%} | mom pctl {config['MOMENTUM_RENEWAL_THRESHOLD']:.0%}")
         logger.info(f"Quality filter: vol_max={config['QUALITY_VOL_MAX']:.0%} | max_single_day={config['QUALITY_MAX_SINGLE_DAY']:.0%}")
         logger.info(f"Leverage: max {config['LEVERAGE_MAX']:.1f}x (no leverage -- broker margin destroys value)")
-        logger.info(f"Universe: {len(BROAD_POOL)} broad pool -> top {config['TOP_N']}")
+        logger.info(f"Universe: dynamic S&P 500 -> top {config['TOP_N']}")
         logger.info(f"Execution: Pre-close signal @ {config['PRECLOSE_SIGNAL_TIME'].strftime('%H:%M')} ET "
                      f"-> same-day MOC (deadline {config['MOC_DEADLINE'].strftime('%H:%M')} ET)")
         logger.info(f"Chassis: async fetch | order timeout {config.get('ORDER_TIMEOUT_SECONDS', 300)}s | "
@@ -998,15 +998,24 @@ class COMPASSLive:
                 logger.warning(f"FRED refresh failed, using cached data: {e}")
 
     def refresh_universe(self):
-        """Refresh top-N universe if new year"""
+        """Refresh top-N universe if new year (dynamic S&P 500 constituents)"""
         current_year = self.get_et_now().year
-        if self.universe_year != current_year:
+        needs_refresh = self.universe_year != current_year
+        # Retry if previous attempt fell back to cached/hardcoded
+        if not needs_refresh and getattr(self, '_universe_source', '') == 'fallback':
+            days_into_year = (self.get_et_now() - datetime(current_year, 1, 1)).days
+            needs_refresh = days_into_year <= 7
+
+        if needs_refresh:
             logger.info(f"Computing {current_year} universe...")
+            from compass.sp500_universe import refresh_constituents
+            broad_pool, source = refresh_constituents(fallback_pool=BROAD_POOL)
+            self._universe_source = source if source in ('github', 'wikipedia') else 'fallback'
             self.current_universe = compute_annual_top40(
-                BROAD_POOL, self.config['TOP_N']
+                broad_pool, self.config['TOP_N']
             )
             self.universe_year = current_year
-            logger.info(f"Universe updated: {len(self.current_universe)} stocks")
+            logger.info(f"Universe updated: {len(self.current_universe)} stocks from {len(broad_pool)} constituents (source: {source})")
 
     # ------------------------------------------------------------------
     # Regime detection
@@ -2516,6 +2525,7 @@ class COMPASSLive:
             # Universe
             'current_universe': self.current_universe,
             'universe_year': self.universe_year,
+            '_universe_source': getattr(self, '_universe_source', ''),
 
             # Intraday flags (prevents duplicate trades after mid-day restart)
             '_daily_open_done': getattr(self, '_daily_open_done', False),
@@ -2657,6 +2667,7 @@ class COMPASSLive:
         # Restore universe
         self.current_universe = state.get('current_universe', [])
         self.universe_year = state.get('universe_year')
+        self._universe_source = state.get('_universe_source', '')
 
         # Restore intraday flags (prevents duplicate trades after mid-day restart)
         self._daily_open_done = state.get('_daily_open_done', False)
