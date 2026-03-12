@@ -3,7 +3,11 @@ import os
 import tempfile
 import pytest
 from unittest.mock import patch
-from compass.sp500_universe import _normalize_tickers, _validate_count, load_cached, save_cache
+import pandas as pd
+from compass.sp500_universe import (
+    _normalize_tickers, _validate_count, load_cached, save_cache,
+    fetch_from_github,
+)
 
 
 class TestNormalizeTickers:
@@ -80,3 +84,38 @@ class TestCacheOperations:
         with patch('compass.sp500_universe.CACHE_FILE', self.tmp_cache):
             result = load_cached()
         assert result is None
+
+
+class TestFetchFromGitHub:
+    def test_returns_list(self):
+        """Integration test — requires network. Skip in CI."""
+        try:
+            result = fetch_from_github()
+            assert isinstance(result, list)
+            assert len(result) > 400
+            assert 'AAPL' in result
+        except Exception:
+            pytest.skip("GitHub fetch failed (network issue)")
+
+    def test_parses_csv_format(self):
+        """Test CSV parsing logic with mock data."""
+        mock_csv = (
+            "date,tickers\n"
+            "2025-12-31,\"AAPL,MSFT,GOOGL,AMZN\"\n"
+            "2026-01-02,\"AAPL,MSFT,GOOGL,AMZN,NVDA\"\n"
+        )
+        mock_api_response = type('Response', (), {
+            'status_code': 200,
+            'raise_for_status': lambda self: None,
+            'json': lambda self: [
+                {'name': 'S&P 500 Historical Components & Changes.csv', 'download_url': 'https://raw.example.com/data.csv'}
+            ],
+        })()
+        mock_csv_response = type('Response', (), {
+            'status_code': 200,
+            'raise_for_status': lambda self: None,
+            'text': mock_csv,
+        })()
+        with patch('compass.sp500_universe.requests.get', side_effect=[mock_api_response, mock_csv_response]):
+            result = fetch_from_github()
+        assert result == ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA']

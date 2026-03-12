@@ -66,3 +66,32 @@ def save_cache(tickers: List[str], source: str) -> None:
         logger.info(f"Cached {len(tickers)} S&P 500 constituents (source: {source})")
     except OSError as e:
         logger.warning(f"Failed to save constituent cache: {e}")
+
+
+def fetch_from_github() -> List[str]:
+    logger.info("Fetching S&P 500 constituents from GitHub (fja05680/sp500)...")
+
+    # Step 1: Use GitHub API to discover the CSV filename dynamically
+    resp = requests.get(GITHUB_API_URL, timeout=30)
+    resp.raise_for_status()
+    files = resp.json()
+    csv_files = [f for f in files if f['name'].endswith('.csv') and 'Historical' in f['name']]
+    if not csv_files:
+        raise ValueError("No historical CSV found in fja05680/sp500 repo")
+
+    # Step 2: Download the CSV via raw URL
+    download_url = csv_files[0]['download_url']
+    resp = requests.get(download_url, timeout=60)
+    resp.raise_for_status()
+
+    # Step 3: Parse with pd.read_csv (proven approach from exp40)
+    df = pd.read_csv(io.StringIO(resp.text))
+    if 'tickers' not in df.columns:
+        raise ValueError(f"'tickers' column not found. Columns: {list(df.columns)}")
+
+    # Last row = most recent composition
+    df = df.sort_values('date').reset_index(drop=True)
+    ticker_str = str(df.iloc[-1]['tickers'])
+    tickers = [t.strip() for t in ticker_str.split(',') if t.strip()]
+    logger.info(f"GitHub: parsed {len(tickers)} tickers from latest snapshot")
+    return tickers
