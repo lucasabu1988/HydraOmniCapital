@@ -2821,33 +2821,67 @@ function renderFCEquityChart(data) {
     var canvas = document.getElementById('fc-equity-chart');
     if (!canvas || typeof Chart === 'undefined') return;
 
-    var allYears = [];
-    for (var y = 2000; y <= 2025; y++) allYears.push(y);
+    /* Build unified monthly timeline from all funds' growth_100k data */
+    var allMonths = {};
+    data.funds.forEach(function(f) {
+        if (f.growth_100k) {
+            Object.keys(f.growth_100k).forEach(function(m) { allMonths[m] = true; });
+        }
+    });
+    var monthLabels = Object.keys(allMonths).sort();
 
-    var colors = ['#00e676', '#69f0ae', '#2196f3', '#ff9800', '#ab47bc', '#78909c'];
+    /* Fallback: if no growth_100k data, use annual returns compounding */
+    var useMonthly = monthLabels.length > 0;
+    if (!useMonthly) {
+        monthLabels = [];
+        for (var y = 2000; y <= 2026; y++) monthLabels.push(String(y));
+    }
+
+    /* Color palette: HYDRA lines get distinct greens, others spread across spectrum */
+    var colors = [
+        '#00e676', /* HYDRA gross — bright green */
+        '#69f0ae', /* HYDRA net — light green */
+        '#78909c', /* SPY — grey (benchmark) */
+        '#2196f3', /* AQR — blue */
+        '#e91e63', /* MTUM — pink */
+        '#ff9800', /* PDP — orange */
+        '#ab47bc', /* SPMO — purple */
+        '#00bcd4', /* QMOM — cyan */
+        '#8bc34a', /* VFMO — lime */
+        '#fdd835', /* QQQ — yellow */
+        '#ff7043', /* BRK.B — deep orange */
+    ];
     var datasets = [];
 
     data.funds.forEach(function(f, idx) {
         var values = [];
-        var val = 100000;
-        allYears.forEach(function(year) {
-            var ret = (f.annual_returns && f.annual_returns[year] != null) ? f.annual_returns[year] : null;
-            if (ret !== null) {
-                val = val * (1 + ret / 100);
-                values.push(val);
-            } else {
-                values.push(null);
-            }
-        });
+        if (useMonthly && f.growth_100k) {
+            monthLabels.forEach(function(m) {
+                values.push(f.growth_100k[m] != null ? f.growth_100k[m] : null);
+            });
+        } else {
+            /* Fallback: compound annual returns */
+            var val = 100000;
+            monthLabels.forEach(function(year) {
+                var yr = parseInt(year);
+                var ret = (f.annual_returns && f.annual_returns[yr] != null) ? f.annual_returns[yr] : null;
+                if (ret !== null) {
+                    val = val * (1 + ret / 100);
+                    values.push(val);
+                } else {
+                    values.push(null);
+                }
+            });
+        }
         datasets.push({
             label: f.name,
             data: values,
             borderColor: colors[idx % colors.length],
             backgroundColor: 'transparent',
-            borderWidth: f.highlight ? 2.5 : 1.5,
+            borderWidth: f.highlight ? 2.5 : 1.2,
             borderDash: f.highlight ? [] : [4, 2],
             pointRadius: 0,
-            tension: 0.3,
+            tension: 0.1,
             spanGaps: false,
         });
     });
@@ -2855,24 +2889,58 @@ function renderFCEquityChart(data) {
     if (_fcEquityChart) _fcEquityChart.destroy();
     _fcEquityChart = new Chart(canvas.getContext('2d'), {
         type: 'line',
-        data: { labels: allYears, datasets: datasets },
+        data: { labels: monthLabels, datasets: datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { display: true, labels: { color: '#ccc', font: { size: 11 } } },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        color: '#ccc',
+                        font: { size: 10 },
+                        boxWidth: 14,
+                        padding: 8,
+                        usePointStyle: true,
+                    }
+                },
                 tooltip: {
                     callbacks: {
+                        title: function(items) {
+                            if (!items.length) return '';
+                            var lbl = items[0].label || '';
+                            /* Show year-month or just year */
+                            return lbl.length === 7 ? lbl : lbl;
+                        },
                         label: function(ctx) {
                             if (ctx.raw == null) return ctx.dataset.label + ': N/A';
                             return ctx.dataset.label + ': $' + Math.round(ctx.raw).toLocaleString();
                         }
                     }
-                }
+                },
+                zoom: {
+                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' },
+                    pan: { enabled: true, mode: 'x' },
+                },
             },
             scales: {
-                x: { ticks: { color: '#999' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                x: {
+                    ticks: {
+                        color: '#999',
+                        font: { size: 10 },
+                        maxTicksLimit: 14,
+                        callback: function(val, idx) {
+                            var d = this.getLabelForValue(val);
+                            /* Show only Jan of each year (YYYY-01) or plain year */
+                            if (!d) return '';
+                            if (d.length === 7) return d.endsWith('-01') ? d.slice(0, 4) : '';
+                            return d;
+                        }
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                },
                 y: {
                     type: 'logarithmic',
                     ticks: {
@@ -2916,8 +2984,14 @@ function renderFCCrisis(data) {
 }
 
 function renderFCAnnual(data) {
-    var allYears = [];
-    for (var y = 2000; y <= 2025; y++) allYears.push(y);
+    /* Dynamically determine year range from data */
+    var yearSet = {};
+    data.funds.forEach(function(f) {
+        if (f.annual_returns) {
+            Object.keys(f.annual_returns).forEach(function(y) { yearSet[y] = true; });
+        }
+    });
+    var allYears = Object.keys(yearSet).map(Number).sort();
 
     var thead = document.getElementById('fc-annual-head');
     var tbody = document.getElementById('fc-annual-body');

@@ -1495,6 +1495,30 @@ def api_annual_returns():
     })
 
 
+@app.route('/api/fund-comparison')
+def api_fund_comparison():
+    """Return HYDRA vs real-world momentum funds comparison data."""
+    json_path = os.path.join('backtests', 'fund_comparison_data.json')
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            # Convert annual_returns keys from string to int (JSON keys are always strings)
+            for fund in data.get('funds', []):
+                if 'annual_returns' in fund:
+                    fund['annual_returns'] = {
+                        int(k): v for k, v in fund['annual_returns'].items()
+                    }
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({'error': f'Failed to load fund comparison: {str(e)}'})
+    return jsonify({
+        'funds': [], 'crisis_periods': [], 'notes': [
+            'Fund comparison data not generated yet. Run: python scripts/generate_fund_comparison.py'
+        ]
+    })
+
+
 @app.route('/api/backtest/status')
 def api_backtest_status():
     """Return backtest data freshness and scheduler status."""

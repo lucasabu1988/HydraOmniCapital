@@ -24,9 +24,9 @@ var TRANSLATIONS = {
 
     // Fund Comparison
     'fc-hero-sub':        'Comparativa contra fondos reales del mercado',
-    'fc-hero-tagline':    'HYDRA frente a los fondos momentum m\u00e1s reconocidos del mundo \u00b7 Datos de Morningstar, AQR, iShares, Dimensional',
+    'fc-hero-tagline':    'HYDRA frente a 9 fondos y benchmarks reales \u00b7 Datos de Yahoo Finance (precios ajustados con dividendos)',
     'fc-metrics-title':   'M\u00e9tricas Principales',
-    'fc-equity-title':    'Crecimiento de $100K (Retornos Anuales)',
+    'fc-equity-title':    'Crecimiento de $100K (Datos Mensuales Reales)',
     'fc-crisis-title':    'Rendimiento en Crisis',
     'fc-annual-title':    'Retornos Anuales (%)',
     'fc-notes-title':     'Notas & Fuentes',
@@ -301,9 +301,9 @@ var TRANSLATIONS = {
 
     // Fund Comparison
     'fc-hero-sub':        'Comparison against real-world funds',
-    'fc-hero-tagline':    'HYDRA vs the world\'s most recognized momentum funds \u00b7 Data from Morningstar, AQR, iShares, Dimensional',
+    'fc-hero-tagline':    'HYDRA vs 9 real-world funds & benchmarks \u00b7 Yahoo Finance adjusted close prices (dividends reinvested)',
     'fc-metrics-title':   'Key Metrics',
-    'fc-equity-title':    'Growth of $100K (Annual Returns)',
+    'fc-equity-title':    'Growth of $100K (Real Monthly Data)',
     'fc-crisis-title':    'Crisis Performance',
     'fc-annual-title':    'Annual Returns (%)',
     'fc-notes-title':     'Notes & Sources',

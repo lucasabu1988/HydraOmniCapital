@@ -1696,177 +1696,28 @@ def api_trade_analytics():
 # FUND COMPARISON (HYDRA vs real-world momentum funds)
 # ============================================================================
 
-_FUND_COMPARISON_DATA = {
-    'funds': [
-        {
-            'id': 'hydra_multi',
-            'name': 'HYDRA Multi-Strategy',
-            'type': 'Backtest',
-            'inception': 2000,
-            'description': 'HYDRA completo: Momentum + Rattlesnake + EFA + Cash Recycling (survivorship-corrected)',
-            'description_en': 'Full HYDRA: Momentum + Rattlesnake + EFA + Cash Recycling (survivorship-corrected)',
-            'cagr': 16.47,
-            'sharpe': 0.87,
-            'max_dd': -53.6,
-            'volatility': 19.9,
-            'cumulative': 5245.0,
-            'expense_ratio': None,
-            'aum': None,
-            'highlight': True,
-            # Actual backtest annual returns from hydra_corrected_daily.csv (survivorship-corrected)
-            'annual_returns': {
-                2000: 27.28, 2001: -3.66, 2002: -8.89, 2003: 56.87, 2004: 25.77,
-                2005: 13.32, 2006: 3.01, 2007: 35.45, 2008: -15.45, 2009: 23.52,
-                2010: 4.17, 2011: 1.14, 2012: 11.35, 2013: 52.76, 2014: 6.19,
-                2015: 20.92, 2016: 16.06, 2017: 28.15, 2018: 27.34, 2019: 17.28,
-                2020: 70.53, 2021: 44.68, 2022: -50.15, 2023: 21.83, 2024: 40.30,
-                2025: 23.14,
-            },
-            'crisis_returns': {
-                'dotcom': {'period': '2000-2002', 'return': 11.7},
-                'gfc': {'period': '2008', 'return': -15.45},
-                'covid': {'period': 'Feb-Mar 2020', 'return': -18.6},
-                'rate_hike': {'period': '2022', 'return': -50.15},
-                'tariff': {'period': '2025 YTD', 'return': 23.14},
-            },
-        },
-        {
-            'id': 'aqr_amomx',
-            'name': 'AQR Momentum (AMOMX)',
-            'type': 'Mutual Fund',
-            'inception': 2009,
-            'description': 'AQR Large Cap Momentum — el fondo momentum más conocido del mundo',
-            'description_en': 'AQR Large Cap Momentum — the world\'s most recognized momentum fund',
-            'cagr': 14.2,
-            'sharpe': 0.72,
-            'max_dd': -34.8,
-            'volatility': 19.7,
-            'cumulative': 680.0,  # since 2009
-            'expense_ratio': 0.35,
-            'aum': '5.2B',
-            'highlight': False,
-            'annual_returns': {
-                2009: 32.1, 2010: 18.4, 2011: -2.8, 2012: 16.2, 2013: 34.6,
-                2014: 13.8, 2015: 2.1, 2016: 6.4, 2017: 30.2, 2018: -3.8,
-                2019: 28.5, 2020: 18.2, 2021: 27.4, 2022: -18.6, 2023: 25.1,
-                2024: 22.3, 2025: -4.2,
-            },
-            'crisis_returns': {
-                'dotcom': {'period': '2000-2002', 'return': None},
-                'gfc': {'period': '2008', 'return': None},
-                'covid': {'period': 'Feb-Mar 2020', 'return': -25.6},
-                'rate_hike': {'period': '2022', 'return': -18.6},
-                'tariff': {'period': '2025 YTD', 'return': -4.2},
-            },
-        },
-        {
-            'id': 'ishares_mtum',
-            'name': 'iShares MTUM',
-            'type': 'ETF',
-            'inception': 2013,
-            'description': 'iShares MSCI USA Momentum Factor ETF — el ETF momentum más grande',
-            'description_en': 'iShares MSCI USA Momentum Factor ETF — largest momentum ETF',
-            'cagr': 13.8,
-            'sharpe': 0.68,
-            'max_dd': -34.2,
-            'volatility': 20.3,
-            'cumulative': 410.0,  # since 2013
-            'expense_ratio': 0.15,
-            'aum': '10.8B',
-            'highlight': False,
-            'annual_returns': {
-                2013: 34.1, 2014: 14.2, 2015: 4.3, 2016: 7.8, 2017: 28.9,
-                2018: -1.2, 2019: 26.4, 2020: 15.8, 2021: 18.9, 2022: -22.4,
-                2023: 28.3, 2024: 25.8, 2025: -5.1,
-            },
-            'crisis_returns': {
-                'dotcom': {'period': '2000-2002', 'return': None},
-                'gfc': {'period': '2008', 'return': None},
-                'covid': {'period': 'Feb-Mar 2020', 'return': -28.1},
-                'rate_hike': {'period': '2022', 'return': -22.4},
-                'tariff': {'period': '2025 YTD', 'return': -5.1},
-            },
-        },
-        {
-            'id': 'dimensional_dfmox',
-            'name': 'Dimensional Momentum (DFMOX)',
-            'type': 'Mutual Fund',
-            'inception': 2005,
-            'description': 'Dimensional US Momentum — enfoque de primas factoriales',
-            'description_en': 'Dimensional US Momentum — factor premium approach',
-            'cagr': 11.4,
-            'sharpe': 0.58,
-            'max_dd': -42.3,
-            'volatility': 19.6,
-            'cumulative': 780.0,  # since 2005
-            'expense_ratio': 0.33,
-            'aum': '3.1B',
-            'highlight': False,
-            'annual_returns': {
-                2005: 8.2, 2006: 12.1, 2007: 11.8, 2008: -42.3, 2009: 28.6,
-                2010: 16.8, 2011: -1.4, 2012: 14.8, 2013: 33.2, 2014: 12.4,
-                2015: 1.8, 2016: 8.2, 2017: 26.4, 2018: -5.6, 2019: 24.8,
-                2020: 14.2, 2021: 25.6, 2022: -16.8, 2023: 21.4, 2024: 20.9,
-                2025: -3.8,
-            },
-            'crisis_returns': {
-                'dotcom': {'period': '2000-2002', 'return': None},
-                'gfc': {'period': '2008', 'return': -42.3},
-                'covid': {'period': 'Feb-Mar 2020', 'return': -30.2},
-                'rate_hike': {'period': '2022', 'return': -16.8},
-                'tariff': {'period': '2025 YTD', 'return': -3.8},
-            },
-        },
-        {
-            'id': 'spy',
-            'name': 'S&P 500 (SPY)',
-            'type': 'Benchmark',
-            'inception': 2000,
-            'description': 'Benchmark pasivo — el mercado general',
-            'description_en': 'Passive benchmark — the broad market',
-            'cagr': 10.2,
-            'sharpe': 0.52,
-            'max_dd': -55.2,
-            'volatility': 19.6,
-            'cumulative': 1120.0,  # $100K -> ~$1.22M
-            'expense_ratio': 0.09,
-            'aum': '570B',
-            'highlight': False,
-            'annual_returns': {
-                2000: -9.1, 2001: -11.9, 2002: -22.1, 2003: 28.7, 2004: 10.9,
-                2005: 4.9, 2006: 15.8, 2007: 5.5, 2008: -37.0, 2009: 26.5,
-                2010: 15.1, 2011: 2.1, 2012: 16.0, 2013: 32.4, 2014: 13.7,
-                2015: 1.4, 2016: 12.0, 2017: 21.8, 2018: -4.4, 2019: 31.5,
-                2020: 18.4, 2021: 28.7, 2022: -18.1, 2023: 26.3, 2024: 25.0,
-                2025: -2.8,
-            },
-            'crisis_returns': {
-                'dotcom': {'period': '2000-2002', 'return': -37.6},
-                'gfc': {'period': '2008', 'return': -37.0},
-                'covid': {'period': 'Feb-Mar 2020', 'return': -33.9},
-                'rate_hike': {'period': '2022', 'return': -18.1},
-                'tariff': {'period': '2025 YTD', 'return': -2.8},
-            },
-        },
-    ],
-    'crisis_periods': [
-        {'id': 'dotcom', 'name': 'Dot-com Crash', 'period': '2000-2002'},
-        {'id': 'gfc', 'name': 'Crisis Financiera', 'period': '2008'},
-        {'id': 'covid', 'name': 'COVID-19', 'period': 'Feb-Mar 2020'},
-        {'id': 'rate_hike', 'name': 'Suba de Tasas', 'period': '2022'},
-        {'id': 'tariff', 'name': 'Guerra Arancelaria', 'period': '2025 YTD'},
-    ],
-    'notes': [
-        'HYDRA Multi-Strategy: backtest 2000-2026 (hydra_corrected_daily.csv) — Momentum + Rattlesnake + EFA + Cash Recycling, survivorship-corrected',
-        'HYDRA usa universo histórico S&P 500 point-in-time (exp40, 1194 tickers) — corregido por sesgo de supervivencia',
-        'Crisis "COVID": drawdown máximo Feb-Mar 2020 (no retorno anual)',
-        'AQR AMOMX: datos desde inception 2009, Morningstar',
-        'iShares MTUM: datos desde inception 2013, factsheet iShares',
-        'Dimensional DFMOX: datos desde inception 2005, Dimensional',
-        'SPY: datos desde 2000, Yahoo Finance / Morningstar',
-        'Fondos reales: retornos realizados. HYDRA: backtest (no son directamente comparables)',
-    ],
-}
+def _load_fund_comparison_data():
+    """Load fund comparison from pre-generated JSON (scripts/generate_fund_comparison.py)."""
+    json_path = os.path.join('backtests', 'fund_comparison_data.json')
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            # Convert annual_returns keys from string to int (JSON keys are always strings)
+            for fund in data.get('funds', []):
+                if 'annual_returns' in fund:
+                    fund['annual_returns'] = {
+                        int(k): v for k, v in fund['annual_returns'].items()
+                    }
+            logger.info(f"Loaded fund comparison data: {len(data.get('funds', []))} funds")
+            return data
+        except Exception as e:
+            logger.warning(f"Failed to load fund comparison JSON: {e}")
+    logger.warning("Fund comparison JSON not found — returning empty data")
+    return {'funds': [], 'crisis_periods': [], 'notes': ['Fund comparison data not generated yet. Run: python scripts/generate_fund_comparison.py']}
+
+
+_FUND_COMPARISON_DATA = _load_fund_comparison_data()
 
 
 @app.route('/api/fund-comparison')
