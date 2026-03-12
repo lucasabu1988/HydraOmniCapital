@@ -1196,6 +1196,13 @@ class COMPASSLive:
                     pnl = (result.filled_price - meta['entry_price']) * pos.shares - result.commission
                     ret = pnl / (meta['entry_price'] * pos.shares) if meta['entry_price'] * pos.shares > 0 else 0
 
+                    # HYDRA: Record COMPASS trade P&L to logical account
+                    if self.hydra_capital:
+                        try:
+                            self.hydra_capital.record_compass_trade(pnl)
+                        except Exception as e:
+                            logger.warning(f"HYDRA record_compass_trade failed: {e}")
+
                     # ML: log exit decision (before meta is popped)
                     if self.ml:
                         try:
@@ -1928,6 +1935,59 @@ class COMPASSLive:
                 if status['current_recycled'] > 0:
                     hydra_str += f" | recycled=${status['current_recycled']:,.0f} ({status['recycled_pct']:.0%})"
             logger.info(hydra_str)
+
+        # HYDRA: Sync logical accounts with actual portfolio performance
+        # In exp60 backtest, update_accounts_after_day() and update_efa_value()
+        # run every day to keep logical accounts aligned with real returns.
+        if self._hydra_available and self.hydra_capital:
+            try:
+                # Compute daily returns for each strategy from portfolio history
+                if len(self.portfolio_values_history) >= 2:
+                    prev_total = self.portfolio_values_history[-2]
+                    curr_total = portfolio.total_value
+                    if prev_total > 0:
+                        # Approximate COMPASS return from its positions
+                        compass_invested = sum(
+                            pos.shares * prices.get(sym, pos.avg_cost)
+                            for sym, pos in self.broker.positions.items()
+                            if sym in self.position_meta and sym != EFA_SYMBOL
+                        )
+                        compass_prev_invested = sum(
+                            pos.shares * self.position_meta[sym].get('entry_price', pos.avg_cost)
+                            for sym, pos in self.broker.positions.items()
+                            if sym in self.position_meta and sym != EFA_SYMBOL
+                        )
+                        c_ret = (compass_invested / compass_prev_invested - 1) if compass_prev_invested > 0 else 0.0
+
+                        # Approximate Rattlesnake return from its positions
+                        r_invested = sum(
+                            pos.get('shares', 0) * prices.get(pos['symbol'], pos['entry_price'])
+                            for pos in self.rattle_positions
+                        )
+                        r_prev_invested = sum(
+                            pos.get('shares', 0) * pos['entry_price']
+                            for pos in self.rattle_positions
+                        )
+                        r_ret = (r_invested / r_prev_invested - 1) if r_prev_invested > 0 else 0.0
+
+                        # Update logical accounts with daily returns
+                        r_exposure = compute_rattlesnake_exposure(
+                            self.rattle_positions, prices, self.hydra_capital.rattle_account
+                        )
+                        self.hydra_capital.update_accounts_after_day(c_ret, r_ret, r_exposure)
+
+                # Update EFA value with daily return
+                if self._efa_hist is not None and len(self._efa_hist) >= 2:
+                    efa_prices = self._efa_hist['Close']
+                    if len(efa_prices) >= 2:
+                        efa_ret = float(efa_prices.iloc[-1] / efa_prices.iloc[-2] - 1)
+                        self.hydra_capital.update_efa_value(efa_ret)
+
+                logger.info(f"HYDRA accounts synced: C=${self.hydra_capital.compass_account:,.0f} | "
+                           f"R=${self.hydra_capital.rattle_account:,.0f} | "
+                           f"EFA=${self.hydra_capital.efa_value:,.0f}")
+            except Exception as e:
+                logger.warning(f"HYDRA account sync failed (non-blocking): {e}")
 
         # ML: end-of-day snapshot
         if self.ml:
