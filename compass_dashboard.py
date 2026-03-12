@@ -2498,7 +2498,7 @@ def api_ml_learning():
     # Load backtest daily data (HYDRA + EFA/MSCI World)
     backtest_entries = []
     bt_stats = {}
-    bt_csv = os.path.join('backtests', 'exp60_hydra_efa_filtered.csv')
+    bt_csv = os.path.join('backtests', 'hydra_corrected_daily.csv')
     if os.path.exists(bt_csv):
         try:
             import csv

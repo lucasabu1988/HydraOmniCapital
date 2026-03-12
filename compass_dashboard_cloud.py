@@ -159,7 +159,7 @@ def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
     # HYDRA multi-strategy data (HYDRA + Rattlesnake with cash recycling)
-    csv_path = os.path.join('backtests', 'exp60_hydra_efa_filtered.csv')
+    csv_path = os.path.join('backtests', 'hydra_corrected_daily.csv')
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
@@ -1385,7 +1385,7 @@ def api_equity():
     """Return HYDRA equity curve data (full period from 2000)."""
     df = _equity_df
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_corrected_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
         try:
@@ -1480,7 +1480,7 @@ def api_equity_comparison():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_corrected_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -1573,7 +1573,7 @@ def api_annual_returns():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'v84_overlay_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_corrected_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -1703,31 +1703,31 @@ _FUND_COMPARISON_DATA = {
             'name': 'HYDRA Multi-Strategy',
             'type': 'Backtest',
             'inception': 2000,
-            'description': 'HYDRA completo: Momentum + Rattlesnake + EFA + Cash Recycling',
-            'description_en': 'Full HYDRA: Momentum + Rattlesnake + EFA + Cash Recycling',
-            'cagr': 14.92,
-            'sharpe': 1.124,
-            'max_dd': -22.3,
-            'volatility': 13.2,
-            'cumulative': 3669.0,
+            'description': 'HYDRA completo: Momentum + Rattlesnake + EFA + Cash Recycling (survivorship-corrected)',
+            'description_en': 'Full HYDRA: Momentum + Rattlesnake + EFA + Cash Recycling (survivorship-corrected)',
+            'cagr': 16.47,
+            'sharpe': 0.87,
+            'max_dd': -53.6,
+            'volatility': 19.9,
+            'cumulative': 5245.0,
             'expense_ratio': None,
             'aum': None,
             'highlight': True,
-            # Actual backtest annual returns from exp60_hydra_efa_filtered.csv
+            # Actual backtest annual returns from hydra_corrected_daily.csv (survivorship-corrected)
             'annual_returns': {
-                2000: 34.83, 2001: -6.45, 2002: -11.45, 2003: 47.08, 2004: 9.48,
-                2005: 20.79, 2006: 4.71, 2007: 27.51, 2008: -8.07, 2009: 29.58,
-                2010: 10.57, 2011: 4.51, 2012: 15.36, 2013: 20.81, 2014: 0.98,
-                2015: 10.97, 2016: 17.31, 2017: 20.82, 2018: 13.46, 2019: 21.61,
-                2020: 44.88, 2021: 37.89, 2022: -20.84, 2023: 24.19, 2024: 28.44,
-                2025: 10.40,
+                2000: 27.28, 2001: -3.66, 2002: -8.89, 2003: 56.87, 2004: 25.77,
+                2005: 13.32, 2006: 3.01, 2007: 35.45, 2008: -15.45, 2009: 23.52,
+                2010: 4.17, 2011: 1.14, 2012: 11.35, 2013: 52.76, 2014: 6.19,
+                2015: 20.92, 2016: 16.06, 2017: 28.15, 2018: 27.34, 2019: 17.28,
+                2020: 70.53, 2021: 44.68, 2022: -50.15, 2023: 21.83, 2024: 40.30,
+                2025: 23.14,
             },
             'crisis_returns': {
-                'dotcom': {'period': '2000-2002', 'return': 12.4},
-                'gfc': {'period': '2008', 'return': -8.07},
-                'covid': {'period': 'Feb-Mar 2020', 'return': -11.5},
-                'rate_hike': {'period': '2022', 'return': -20.84},
-                'tariff': {'period': '2025 YTD', 'return': 10.40},
+                'dotcom': {'period': '2000-2002', 'return': 11.7},
+                'gfc': {'period': '2008', 'return': -15.45},
+                'covid': {'period': 'Feb-Mar 2020', 'return': -18.6},
+                'rate_hike': {'period': '2022', 'return': -50.15},
+                'tariff': {'period': '2025 YTD', 'return': 23.14},
             },
         },
         {
@@ -1857,8 +1857,8 @@ _FUND_COMPARISON_DATA = {
         {'id': 'tariff', 'name': 'Guerra Arancelaria', 'period': '2025 YTD'},
     ],
     'notes': [
-        'HYDRA Multi-Strategy: backtest 2000-2025 (exp60_hydra_efa_filtered.csv) — Momentum + Rattlesnake + EFA + Cash Recycling',
-        'HYDRA tiene sesgo de supervivencia estimado en +5.19% CAGR — retornos reales probablemente menores',
+        'HYDRA Multi-Strategy: backtest 2000-2026 (hydra_corrected_daily.csv) — Momentum + Rattlesnake + EFA + Cash Recycling, survivorship-corrected',
+        'HYDRA usa universo histórico S&P 500 point-in-time (exp40, 1194 tickers) — corregido por sesgo de supervivencia',
         'Crisis "COVID": drawdown máximo Feb-Mar 2020 (no retorno anual)',
         'AQR AMOMX: datos desde inception 2009, Morningstar',
         'iShares MTUM: datos desde inception 2013, factsheet iShares',
@@ -2282,7 +2282,7 @@ def api_ml_learning():
     # Load backtest daily data (HYDRA + EFA/MSCI World)
     backtest_entries = []
     bt_stats = {}
-    bt_csv = os.path.join('backtests', 'exp60_hydra_efa_filtered.csv')
+    bt_csv = os.path.join('backtests', 'hydra_corrected_daily.csv')
     if os.path.exists(bt_csv):
         try:
             import csv
