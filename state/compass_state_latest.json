@@ -1,7 +1,7 @@
 {
   "version": "8.4",
   "timestamp": "2026-03-11T15:30:00.000000",
-  "cash": 241.73,
+  "cash": 491.51,
   "peak_value": 100954.90,
   "portfolio_value": 100954.90,
   "crash_cooldown": 0,
@@ -11,17 +11,29 @@
     99815.47636096191,
     100954.90
   ],
-  "current_regime_score": 0.9981058271480029,
+  "current_regime_score": 0.6104265869392883,
   "trading_day_counter": 4,
   "last_trading_date": "2026-03-11",
   "positions": {
     "JNJ": {
-      "shares": 249,
+      "shares": 132,
       "avg_cost": 242.99
     },
     "MRK": {
-      "shares": 346,
+      "shares": 184,
       "avg_cost": 116.21
+    },
+    "WMT": {
+      "shares": 148,
+      "avg_cost": 123.49
+    },
+    "XOM": {
+      "shares": 127,
+      "avg_cost": 151.58
+    },
+    "AMAT": {
+      "shares": 27,
+      "avg_cost": 351.07
     }
   },
   "position_meta": {
@@ -44,6 +56,36 @@
       "entry_vol": 0.2593,
       "entry_daily_vol": 0.016337,
       "sector": "Healthcare"
+    },
+    "WMT": {
+      "entry_price": 123.49,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 123.49,
+      "entry_vol": 0.3034,
+      "entry_daily_vol": 0.019112,
+      "sector": "Consumer Staples"
+    },
+    "XOM": {
+      "entry_price": 151.58,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 151.58,
+      "entry_vol": 0.2872,
+      "entry_daily_vol": 0.01809,
+      "sector": "Energy"
+    },
+    "AMAT": {
+      "entry_price": 351.07,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 351.07,
+      "entry_vol": 0.5784,
+      "entry_daily_vol": 0.036437,
+      "sector": "Technology"
     }
   },
   "current_universe": [

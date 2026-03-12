@@ -39,11 +39,17 @@
     "spy_end": null,
     "positions": [
       "JNJ",
-      "MRK"
+      "MRK",
+      "WMT",
+      "XOM",
+      "AMAT"
     ],
     "positions_current": [
       "JNJ",
-      "MRK"
+      "MRK",
+      "WMT",
+      "XOM",
+      "AMAT"
     ],
     "hydra_return": null,
     "spy_return": null,
