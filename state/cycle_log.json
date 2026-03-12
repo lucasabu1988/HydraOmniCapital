@@ -2,26 +2,22 @@
   {
     "cycle": 1,
     "start_date": "2026-03-06",
-    "end_date": null,
-    "status": "active",
+    "end_date": "2026-03-11",
+    "status": "completed",
     "portfolio_start": 99298.63,
-    "portfolio_end": null,
+    "portfolio_end": 100954.90,
     "spy_start": 6740.02,
-    "spy_end": null,
+    "spy_end": 6775.80,
     "positions": [
       "MRK",
       "JNJ",
       "LRCX",
       "GOOGL"
     ],
-    "positions_current": [
-      "MRK",
-      "JNJ",
-      "GOOGL"
-    ],
-    "hydra_return": null,
-    "spy_return": null,
-    "alpha": null,
+    "positions_current": [],
+    "hydra_return": 1.67,
+    "spy_return": 0.53,
+    "alpha": 1.14,
     "stop_events": [
       {
         "date": "2026-03-09",

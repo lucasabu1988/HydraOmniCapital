@@ -1,97 +1,21 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-10T17:41:47.090757",
-  "cash": 103.23668505859,
-  "peak_value": 100000.0,
-  "portfolio_value": 100130.83681933593,
+  "timestamp": "2026-03-11T16:00:00.000000",
+  "cash": 100954.90,
+  "peak_value": 100954.90,
+  "portfolio_value": 100954.90,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
     99064.23415130615,
-    99815.47636096191
+    99815.47636096191,
+    100954.90
   ],
   "current_regime_score": 0.5735066277787306,
-  "trading_day_counter": 3,
-  "last_trading_date": "2026-03-10",
-  "positions": {
-    "MRK": {
-      "shares": 239,
-      "avg_cost": 116.07
-    },
-    "JNJ": {
-      "shares": 116,
-      "avg_cost": 239.63
-    },
-    "GOOGL": {
-      "shares": 27,
-      "avg_cost": 300.88
-    },
-    "MU": {
-      "shares": 37,
-      "avg_cost": 397.05
-    },
-    "AMAT": {
-      "shares": 60,
-      "avg_cost": 346.53
-    }
-  },
-  "position_meta": {
-    "MRK": {
-      "entry_price": 116.07,
-      "entry_date": "2026-03-05",
-      "entry_day_index": 0,
-      "original_entry_day_index": 0,
-      "high_price": 118.83000183105469,
-      "entry_vol": 0.28639434996138086,
-      "entry_daily_vol": 0.01804114825932892,
-      "sector": "Healthcare",
-      "_entry_reconciled": true
-    },
-    "JNJ": {
-      "entry_price": 239.63,
-      "entry_date": "2026-03-05",
-      "entry_day_index": 0,
-      "original_entry_day_index": 0,
-      "high_price": 244.84500122070312,
-      "entry_vol": 0.15534686069028528,
-      "entry_daily_vol": 0.009785932389073585,
-      "sector": "Healthcare",
-      "_entry_reconciled": true
-    },
-    "GOOGL": {
-      "entry_price": 300.88,
-      "entry_date": "2026-03-05",
-      "entry_day_index": 0,
-      "original_entry_day_index": 0,
-      "high_price": 308.79998779296875,
-      "entry_vol": 0.23484680821013687,
-      "entry_daily_vol": 0.014793958350507239,
-      "sector": "Technology",
-      "_entry_reconciled": true
-    },
-    "MU": {
-      "entry_price": 397.05,
-      "entry_date": "2026-03-05",
-      "entry_day_index": 0,
-      "original_entry_day_index": 0,
-      "high_price": 397.05,
-      "entry_vol": 0.6927,
-      "entry_daily_vol": 0.043636,
-      "sector": "Technology",
-      "_entry_reconciled": true
-    },
-    "AMAT": {
-      "entry_price": 346.53,
-      "entry_date": "2026-03-05",
-      "entry_day_index": 0,
-      "original_entry_day_index": 0,
-      "high_price": 346.53,
-      "entry_vol": 0.4884,
-      "entry_daily_vol": 0.030764,
-      "sector": "Technology",
-      "_entry_reconciled": true
-    }
-  },
+  "trading_day_counter": 4,
+  "last_trading_date": "2026-03-11",
+  "positions": {},
+  "position_meta": {},
   "current_universe": [
     "TSLA",
     "MSFT",
@@ -162,7 +86,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 0,
+    "cycles_completed": 1,
     "uptime_minutes": 0.018441783333333333
   }
 }
