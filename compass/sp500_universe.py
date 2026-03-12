@@ -39,3 +39,30 @@ def _normalize_tickers(tickers: List[str]) -> List[str]:
 
 def _validate_count(tickers: List[str]) -> bool:
     return MIN_CONSTITUENTS <= len(tickers) <= MAX_CONSTITUENTS
+
+
+def load_cached() -> Optional[Dict]:
+    try:
+        with open(CACHE_FILE, 'r') as f:
+            data = json.load(f)
+        if 'tickers' in data and isinstance(data['tickers'], list):
+            return data
+        return None
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+
+
+def save_cache(tickers: List[str], source: str) -> None:
+    try:
+        os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+        data = {
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'source': source,
+            'tickers': tickers,
+            'count': len(tickers),
+        }
+        with open(CACHE_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+        logger.info(f"Cached {len(tickers)} S&P 500 constituents (source: {source})")
+    except OSError as e:
+        logger.warning(f"Failed to save constituent cache: {e}")

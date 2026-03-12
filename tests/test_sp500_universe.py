@@ -1,5 +1,9 @@
+import json
+import os
+import tempfile
 import pytest
-from compass.sp500_universe import _normalize_tickers, _validate_count
+from unittest.mock import patch
+from compass.sp500_universe import _normalize_tickers, _validate_count, load_cached, save_cache
 
 
 class TestNormalizeTickers:
@@ -42,3 +46,37 @@ class TestValidateCount:
 
     def test_empty(self):
         assert _validate_count([]) is False
+
+
+class TestCacheOperations:
+    def setup_method(self):
+        self.tmp_dir = tempfile.mkdtemp()
+        self.tmp_cache = os.path.join(self.tmp_dir, 'sp500_constituents.json')
+
+    def teardown_method(self):
+        if os.path.exists(self.tmp_cache):
+            os.remove(self.tmp_cache)
+        os.rmdir(self.tmp_dir)
+
+    def test_save_and_load(self):
+        tickers = ['AAPL', 'MSFT', 'GOOGL']
+        with patch('compass.sp500_universe.CACHE_FILE', self.tmp_cache):
+            save_cache(tickers, 'github')
+            result = load_cached()
+        assert result is not None
+        assert result['tickers'] == tickers
+        assert result['source'] == 'github'
+        assert result['count'] == 3
+        assert 'date' in result
+
+    def test_load_missing_file(self):
+        with patch('compass.sp500_universe.CACHE_FILE', '/nonexistent/path.json'):
+            result = load_cached()
+        assert result is None
+
+    def test_load_corrupt_json(self):
+        with open(self.tmp_cache, 'w') as f:
+            f.write('not valid json{{{')
+        with patch('compass.sp500_universe.CACHE_FILE', self.tmp_cache):
+            result = load_cached()
+        assert result is None
