@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-13T14:19:41.249989",
-  "cash": 9736.957670410156,
-  "peak_value": 101535.2842614746,
-  "portfolio_value": 101866.74944897462,
+  "timestamp": "2026-03-13T14:35:27.935034",
+  "cash": 1066.268,
+  "peak_value": 101755.58880078125,
+  "portfolio_value": 101760.83442150879,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
@@ -31,6 +31,10 @@
     "XOM": {
       "shares": 127,
       "avg_cost": 151.58
+    },
+    "EFA": {
+      "shares": 90,
+      "avg_cost": 96.33999633789062
     }
   },
   "position_meta": {
@@ -124,7 +128,7 @@
   "universe_year": 2026,
   "_universe_source": "",
   "_daily_open_done": true,
-  "_preclose_entries_done": false,
+  "_preclose_entries_done": true,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
@@ -140,17 +144,17 @@
     "efa_position": null,
     "capital_manager": {
       "compass_account": 50288.826611984725,
-      "rattle_account": 50144.42680599236,
+      "rattle_account": 41473.82713558221,
       "base_compass_alloc": 0.5,
       "base_rattle_alloc": 0.5,
       "max_compass_alloc": 0.75,
       "total_recycled_days": 1,
       "total_days": 1,
-      "efa_value": 0.0
+      "efa_value": 8670.599670410156
     }
   },
   "stats": {
-    "cycles_completed": 189,
-    "uptime_minutes": 262.52036933333335
+    "cycles_completed": 204,
+    "uptime_minutes": 278.29845385000004
   }
 }
