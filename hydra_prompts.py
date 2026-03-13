@@ -130,14 +130,25 @@ The main daily decision workflow. Execute between 15:30–15:50 ET (MOC window).
    EFA may need liquidation. If idle cash available and EFA above SMA200, note for entry.
    Note: EFA buy/sell is handled by the engine, but log your assessment.
 
-9. **Execute trades** — Place MOC orders by 15:50 ET deadline.
-   Orders: position_size = (effective_budget × target_weight) / price
-   Never exceed LEVERAGE_MAX = 1.0. Use capital manager budgets, not raw cash.
+9. **run_preclose_cycle** — Execute the FULL HYDRA pipeline in one call:
+   This triggers the engine's execute_preclose_entries() which handles:
+   (a) COMPASS hold-expired exits → (b) EFA liquidation if needed →
+   (c) COMPASS new entries from momentum → (d) Rattlesnake entries →
+   (e) EFA buy with remaining idle cash → (f) Cycle log + state save.
+   The engine handles position sizing using capital manager budgets.
+   MOC deadline enforced (15:50 ET). Never exceed LEVERAGE_MAX = 1.0.
 
-10. **save_state** — Write updated positions to `state/compass_state_latest.json`.
-    Always write with indent=2. Always keep dated backup.
+   ALTERNATIVELY, for finer control:
+   - **run_rattlesnake_cycle** — Run Rattlesnake exits + entries only
+   - **run_efa_management** — Run EFA liquidation + buy/sell only
+   - **execute_trade** — Execute a single COMPASS trade manually
 
-11. **update_cycle_log** — Record rotation cycle: exits, entries, reason codes.
+   In normal operation, prefer run_preclose_cycle (it does everything).
+   Use the individual tools only for edge cases or anomaly recovery.
+
+10. **get_capital_status** — Verify capital allocation after execution.
+
+11. **save_state** — Persist state if not already saved by run_preclose_cycle.
 
 12. **log_decision** — Scratchpad entry with full reasoning for every skip/entry/exit.
     Include capital allocation context (which account funded the trade).

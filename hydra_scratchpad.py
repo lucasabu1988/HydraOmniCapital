@@ -12,7 +12,7 @@ from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-MAX_TOOL_CALLS_PER_PHASE = 3
+MAX_TOOL_CALLS_PER_PHASE = 15
 
 
 class HydraScratchpad:

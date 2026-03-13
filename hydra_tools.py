@@ -214,6 +214,34 @@ TOOL_DEFINITIONS = [
             'required': ['symbol'],
         },
     },
+    # ---- HYDRA Execution (3) ----
+    {
+        'name': 'run_preclose_cycle',
+        'description': 'Execute the full HYDRA pre-close pipeline: (1) COMPASS hold-expired exits, (2) EFA liquidation if capital needed, (3) COMPASS new entries from momentum ranking, (4) Rattlesnake mean-reversion entries, (5) EFA buy with remaining idle cash. This is the main daily action — call during 15:30-15:50 ET window. Requires live prices dict.',
+        'input_schema': {
+            'type': 'object',
+            'properties': {},
+            'required': [],
+        },
+    },
+    {
+        'name': 'run_rattlesnake_cycle',
+        'description': 'Execute Rattlesnake exits and entries independently. Checks exit conditions (profit target +4%, stop -5%, max 8d hold) on open positions, then finds new mean-reversion candidates (RSI<25, -8% in 5d, above SMA200). Uses Rattlesnake capital budget.',
+        'input_schema': {
+            'type': 'object',
+            'properties': {},
+            'required': [],
+        },
+    },
+    {
+        'name': 'run_efa_management',
+        'description': 'Manage EFA third pillar: liquidate EFA if COMPASS or Rattlesnake need capital, or buy EFA with idle cash if above SMA200. Also handles SMA200 trend sell signal.',
+        'input_schema': {
+            'type': 'object',
+            'properties': {},
+            'required': [],
+        },
+    },
     # ---- Capital Management (3) ----
     {
         'name': 'get_capital_status',
@@ -553,6 +581,227 @@ class HydraToolExecutor:
             return json.dumps({'logged': True, 'event_type': event_type, 'total_events': len(cycle_log)})
         except Exception as e:
             return json.dumps({'error': f'Cycle log update failed: {e}'})
+
+    # ----------------------------------------------------------------
+    # HYDRA Execution
+    # ----------------------------------------------------------------
+
+    def _fetch_live_prices(self):
+        """Fetch current prices for all held + universe symbols."""
+        import yfinance as yf
+
+        symbols = set()
+        # Broker positions
+        for sym in self.engine.broker.positions:
+            symbols.add(sym)
+        # Rattlesnake positions
+        for p in getattr(self.engine, 'rattle_positions', []):
+            symbols.add(p['symbol'])
+        # Universe
+        for sym in getattr(self.engine, 'universe', []):
+            symbols.add(sym)
+        # EFA + SPY
+        symbols.add('EFA')
+        symbols.add('SPY')
+        # Rattlesnake universe
+        try:
+            from rattlesnake_signals import R_UNIVERSE
+            for sym in R_UNIVERSE:
+                symbols.add(sym)
+        except ImportError:
+            pass
+
+        symbols = list(symbols)
+        prices = {}
+        if not symbols:
+            return prices
+
+        data = yf.download(symbols, period='1d', progress=False)
+        if data.empty:
+            return prices
+
+        if len(symbols) == 1:
+            try:
+                prices[symbols[0]] = float(data['Close'].iloc[-1])
+            except Exception:
+                pass
+        else:
+            for sym in symbols:
+                try:
+                    val = data['Close'][sym].iloc[-1]
+                    if not (val != val):  # not NaN
+                        prices[sym] = float(val)
+                except Exception:
+                    continue
+
+        return prices
+
+    def _tool_run_preclose_cycle(self, inp):
+        """Execute the full HYDRA pre-close pipeline via the engine."""
+        et_now = _get_et_now()
+
+        # Guard: MOC deadline
+        if et_now.hour > MOC_DEADLINE_HOUR or (et_now.hour == MOC_DEADLINE_HOUR and et_now.minute > MOC_DEADLINE_MINUTE):
+            return json.dumps({
+                'rejected': True,
+                'reason': f'MOC deadline passed ({MOC_DEADLINE_HOUR}:{MOC_DEADLINE_MINUTE:02d} ET)',
+            })
+
+        # Guard: already done today
+        if getattr(self.engine, '_preclose_entries_done', False):
+            return json.dumps({
+                'skipped': True,
+                'reason': 'Pre-close entries already executed today',
+            })
+
+        try:
+            # Fetch live prices
+            prices = self._fetch_live_prices()
+            if not prices or 'SPY' not in prices:
+                return json.dumps({'error': 'Failed to fetch live prices (SPY missing)'})
+
+            # Capture state before
+            positions_before = set(self.engine.broker.positions.keys())
+            trades_before = len(getattr(self.engine, 'trades_today', []))
+
+            # Execute the full pipeline
+            self.engine.execute_preclose_entries(prices)
+
+            # Capture state after
+            positions_after = set(self.engine.broker.positions.keys())
+            trades_after = getattr(self.engine, 'trades_today', [])
+            new_trades = trades_after[trades_before:]
+
+            # Build result
+            exits = [t for t in new_trades if t.get('action') == 'SELL']
+            entries = [t for t in new_trades if t.get('action') == 'BUY']
+
+            result = {
+                'executed': True,
+                'exits': [{
+                    'symbol': t.get('symbol'),
+                    'reason': t.get('exit_reason', 'unknown'),
+                    'pnl': round(t.get('pnl', 0), 2),
+                    'strategy': t.get('strategy', 'COMPASS'),
+                } for t in exits],
+                'entries': [{
+                    'symbol': t.get('symbol'),
+                    'price': round(t.get('price', 0), 2),
+                    'strategy': t.get('strategy', 'COMPASS'),
+                } for t in entries],
+                'total_exits': len(exits),
+                'total_entries': len(entries),
+                'positions_before': list(positions_before),
+                'positions_after': list(positions_after),
+            }
+
+            # Log to scratchpad
+            self.scratchpad.log('preclose_cycle', result)
+            return json.dumps(result)
+
+        except Exception as e:
+            return json.dumps({'error': f'Pre-close cycle failed: {e}'})
+
+    def _tool_run_rattlesnake_cycle(self, inp):
+        """Execute Rattlesnake exits and entries."""
+        if not getattr(self.engine, '_hydra_available', False):
+            return json.dumps({'error': 'Rattlesnake not available (import failed)'})
+
+        try:
+            prices = self._fetch_live_prices()
+            if not prices:
+                return json.dumps({'error': 'Failed to fetch live prices'})
+
+            rattle_before = [p.copy() for p in getattr(self.engine, 'rattle_positions', [])]
+            trades_before = len(getattr(self.engine, 'trades_today', []))
+
+            # Run exits
+            self.engine._check_rattlesnake_exits(prices)
+
+            # Run entries
+            self.engine._open_rattlesnake_positions(prices)
+
+            rattle_after = getattr(self.engine, 'rattle_positions', [])
+            trades_after = getattr(self.engine, 'trades_today', [])
+            new_trades = trades_after[trades_before:]
+
+            r_trades = [t for t in new_trades if t.get('strategy') == 'Rattlesnake']
+            exits = [t for t in r_trades if t.get('action') == 'SELL']
+            entries = [t for t in r_trades if t.get('action') == 'BUY']
+
+            result = {
+                'executed': True,
+                'exits': [{
+                    'symbol': t.get('symbol'),
+                    'reason': t.get('exit_reason', 'unknown'),
+                    'pnl': round(t.get('pnl', 0), 2),
+                } for t in exits],
+                'entries': [{
+                    'symbol': t.get('symbol'),
+                    'price': round(t.get('price', 0), 2),
+                } for t in entries],
+                'positions_before': len(rattle_before),
+                'positions_after': len(rattle_after),
+                'current_positions': [{
+                    'symbol': p.get('symbol'),
+                    'days_held': p.get('days_held', 0),
+                } for p in rattle_after],
+            }
+
+            self.scratchpad.log('rattlesnake_cycle', result)
+            return json.dumps(result)
+
+        except Exception as e:
+            return json.dumps({'error': f'Rattlesnake cycle failed: {e}'})
+
+    def _tool_run_efa_management(self, inp):
+        """Manage EFA: liquidate if capital needed, buy if idle cash available."""
+        if not getattr(self.engine, '_hydra_available', False):
+            return json.dumps({'error': 'HYDRA not available (import failed)'})
+
+        try:
+            prices = self._fetch_live_prices()
+            if not prices:
+                return json.dumps({'error': 'Failed to fetch live prices'})
+
+            efa_before = self.engine.broker.positions.get('EFA')
+            efa_shares_before = getattr(efa_before, 'shares', 0) if efa_before else 0
+
+            trades_before = len(getattr(self.engine, 'trades_today', []))
+
+            # First: liquidate if active strategies need capital
+            self.engine._liquidate_efa_for_capital(prices)
+
+            # Then: manage (buy/sell based on SMA200)
+            self.engine._manage_efa_position(prices)
+
+            efa_after = self.engine.broker.positions.get('EFA')
+            efa_shares_after = getattr(efa_after, 'shares', 0) if efa_after else 0
+
+            trades_after = getattr(self.engine, 'trades_today', [])
+            new_trades = trades_after[trades_before:]
+            efa_trades = [t for t in new_trades if t.get('symbol') == 'EFA']
+
+            hc = getattr(self.engine, 'hydra_capital', None)
+
+            result = {
+                'executed': True,
+                'efa_shares_before': efa_shares_before,
+                'efa_shares_after': efa_shares_after,
+                'trades': [{
+                    'action': t.get('action'),
+                    'shares': t.get('shares', 0),
+                    'price': round(t.get('price', 0), 2),
+                    'pnl': round(t.get('pnl', 0), 2),
+                } for t in efa_trades],
+                'efa_value_in_capital_mgr': round(hc.efa_value, 2) if hc else 0,
+            }
+
+            self.scratchpad.log('efa_management', result)
+            return json.dumps(result)
+
+        except Exception as e:
+            return json.dumps({'error': f'EFA management failed: {e}'})
 
     # ----------------------------------------------------------------
     # Capital Management
