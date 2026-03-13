@@ -2837,17 +2837,12 @@ function renderFCEquityChart(data) {
         for (var y = 2000; y <= 2026; y++) monthLabels.push(String(y));
     }
 
-    /* Color palette: HYDRA lines get distinct greens, others spread across spectrum */
+    /* Color palette: HYDRA highlighted, others distinct */
     var colors = [
-        '#00e676', /* HYDRA gross — bright green */
-        '#69f0ae', /* HYDRA net — light green */
+        '#00e676', /* HYDRA Net — bright green */
         '#78909c', /* SPY — grey (benchmark) */
         '#2196f3', /* AQR — blue */
         '#e91e63', /* MTUM — pink */
-        '#ff9800', /* PDP — orange */
-        '#ab47bc', /* SPMO — purple */
-        '#00bcd4', /* QMOM — cyan */
-        '#8bc34a', /* VFMO — lime */
         '#fdd835', /* QQQ — yellow */
         '#ff7043', /* BRK.B — deep orange */
     ];
