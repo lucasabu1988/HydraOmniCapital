@@ -7,7 +7,7 @@ Entry types: briefing, tool_call, decision, trade, stop_event, alert, summary
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -79,22 +79,8 @@ class HydraScratchpad:
                     sells.add(sym)
         return len(buys & sells)
 
-    def cleanup(self, max_age_days=90):
-        cutoff = datetime.now() - timedelta(days=max_age_days)
-        removed = 0
-        for fname in os.listdir(self._sp_dir):
-            if not fname.endswith('.jsonl'):
-                continue
-            try:
-                date_str = fname.replace('.jsonl', '')
-                file_date = datetime.strptime(date_str, '%Y-%m-%d')
-                if file_date < cutoff:
-                    os.remove(os.path.join(self._sp_dir, fname))
-                    removed += 1
-            except ValueError:
-                continue
-        if removed:
-            logger.info(f"Scratchpad cleanup: removed {removed} files older than {max_age_days}d")
+    def cleanup(self, max_age_days=None):
+        pass
 
     def summarize_phase(self, phase_hint=''):
         entries = self.read_today()
