@@ -119,7 +119,7 @@ HYDRA_CONFIG = {
 }
 
 STATE_FILE = 'state/compass_state_latest.json'
-STATE_DIR = 'state'
+STATE_DIR = os.environ.get('STATE_DIR', 'state')
 SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
 
 # Rattlesnake parameters (mirrored from rattlesnake_signals.py for dashboard)
@@ -2272,6 +2272,24 @@ def robots_txt():
     )
 
 
+@app.route('/api/agent/scratchpad')
+def api_agent_scratchpad():
+    """Read today's agent scratchpad entries (read-only)."""
+    today = datetime.now().strftime('%Y-%m-%d')
+    sp_path = os.path.join(STATE_DIR, 'agent_scratchpad', f'{today}.jsonl')
+    entries = []
+    if os.path.exists(sp_path):
+        with open(sp_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+    return jsonify(entries)
+
+
 @app.route('/sitemap.xml')
 def sitemap_xml():
     xml = """<?xml version="1.0" encoding="UTF-8"?>
@@ -2307,6 +2325,11 @@ class SharedYahooDataFeed:
             return bool(prices)
         except Exception:
             return False
+
+
+# AGENT_MODE: when true, the HYDRA Worker is the sole state writer.
+# Dashboard becomes read-only — do not start cloud engine thread.
+AGENT_MODE = os.environ.get('AGENT_MODE', '').lower() == 'true'
 
 
 # ============================================================================
@@ -2414,6 +2437,10 @@ def _ensure_cloud_engine():
     if _cloud_engine_started:
         return
     _cloud_engine_started = True
+
+    if AGENT_MODE:
+        logger.info("AGENT_MODE=true — cloud engine disabled (Worker is sole state writer)")
+        return
 
     if SHOWCASE_MODE:
         logger.info("Showcase mode — engine disabled (set HYDRA_MODE=live to enable)")
