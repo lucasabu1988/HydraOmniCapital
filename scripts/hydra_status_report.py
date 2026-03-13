@@ -109,4 +109,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import os, io
+    # Suppress stderr to avoid Claude Code showing "error" label
+    sys.stderr = io.StringIO()
+    try:
+        main()
+    except Exception:
+        print("HYDRA status check failed")

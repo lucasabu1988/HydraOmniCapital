@@ -1,17 +1,4 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python \"C:/Users/caslu/Desktop/NuevoProyecto/scripts/hydra_status_report.py\" 2>/dev/null || echo 'HYDRA status check failed'",
-            "timeout": 20
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(python:*)",
@@ -121,7 +108,47 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:teddykoker.com)",
       "WebFetch(domain:robotwealth.com)",
-      "WebFetch(domain:riazarbi.github.io)"
+      "WebFetch(domain:riazarbi.github.io)",
+      "Bash(cd \"C:/Users/caslu/Desktop/NuevoProyecto\" && cp omnicapital_live.py compass/live.py && cp omnicapital_broker.py compass/broker.py && echo \"Synced\")",
+      "Bash(cd \"C:/Users/caslu/Desktop/NuevoProyecto\" && npm install)",
+      "Bash(npm install:*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "Bash(cd \"C:\\\\Users\\\\caslu\\\\Desktop\\\\NuevoProyecto\" && cp compass_dashboard.py compass/dashboard.py && cp compass_dashboard.py compass/compass_dashboard.py && cp omnicapital_live.py compass/omnicapital_live.py && cp omnicapital_live.py compass/live.py && cp git_sync.py compass/git_sync.py && echo \"Sync complete\")",
+      "Bash(cd \"C:\\\\Users\\\\caslu\\\\Desktop\\\\NuevoProyecto\" && cp templates/dashboard.html compass/dashboard.html && echo \"Synced\")",
+      "Bash(cd \"C:\\\\Users\\\\caslu\\\\Desktop\\\\NuevoProyecto\" && cp compass_dashboard.py compass/dashboard.py && cp compass_dashboard.py compass/compass_dashboard.py && cp compass_dashboard_cloud.py compass/dashboard_cloud.py && echo \"Synced\")",
+      "Skill(commit-commands:commit)",
+      "Bash(cd \"C:\\\\Users\\\\caslu\\\\Desktop\\\\NuevoProyecto\" && cp compass_dashboard.py compass/compass_dashboard.py && cp omnicapital_live.py compass/omnicapital_live.py && echo \"Synced\")",
+      "Bash(cd \"C:\\\\Users\\\\caslu\\\\Desktop\\\\NuevoProyecto\" && cp omnicapital_live.py compass/omnicapital_live.py && echo \"Synced\")",
+      "Bash(cd \"C:/Users/caslu/Desktop/NuevoProyecto\" && cp compass_ml_learning.py compass/compass_ml_learning.py && cp omnicapital_live.py compass/omnicapital_live.py && echo \"Synced\")",
+      "Bash(cd \"C:/Users/caslu/Desktop/NuevoProyecto\" && cp omnicapital_live.py compass/omnicapital_live.py && cp compass_dashboard.py compass/compass_dashboard.py && cp compass_ml_learning.py compass/compass_ml_learning.py && echo \"Synced\")",
+      "Bash(cd C:/Users/caslu/Desktop/NuevoProyecto && rm compass/compass_dashboard.py compass/compass_dashboard_cloud.py compass/compass_ml_learning.py compass/dashboard.py compass/dashboard_cloud.py compass/omnicapital_live.py compass/dashboard.html compass/broker.py compass/data_feed.py compass/fred_data.py compass/hydra_capital.py compass/live.py compass/overlays.py compass/rattlesnake_signals.py)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "Bash(cd C:/Users/caslu/Desktop/NuevoProyecto && PYTHONPATH=. python experiments/exp50_hydra_dynamic_pool.py 2>&1)",
+      "Bash(PYTHONPATH=. python experiments/exp50_hydra_dynamic_pool.py 2>&1)",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "Bash(systeminfo | grep \"Original Install Date\")",
+      "Bash(find \"C:/Users/caslu/OneDrive\" -type f \\\\\\( -iname \"*upc*\" -o -iname \"*comprobante*\" -o -iname \"*ciencias aplicadas*\" -o -iname \"*matricula*\" -o -iname \"*pension*\" -o -iname \"*boleta*pago*\" \\\\\\) 2>/dev/null | head -30)",
+      "Bash(find \"C:/Users/caslu/OneDrive\" -type f \\\\\\( -iname \"*constancia*\" -o -iname \"*voucher*\" -o -iname \"*transferencia*\" -o -iname \"*deposito*\" -o -iname \"*depósito*\" \\\\\\) 2>/dev/null | grep -i -E \"upc|emba|maestr|universidad\" | head -20)",
+      "Bash(find \"C:/Users/caslu/OneDrive\" -type f \\\\\\( -iname \"*constancia*\" -o -iname \"*voucher*\" -o -iname \"*transferencia*\" -o -iname \"*deposito*\" -o -iname \"*depósito*\" -o -iname \"*comprobante*operacion*\" -o -iname \"*pago*realizado*\" \\\\\\) 2>/dev/null | head -30)",
+      "Bash(cd \"C:/Users/caslu/Desktop/NuevoProyecto\" && node -c static/js/dashboard.js && echo \"JS OK\" && node -c static/js/i18n.js && echo \"i18n OK\")",
+      "WebSearch",
+      "WebFetch(domain:www.lazyportfolioetf.com)",
+      "WebFetch(domain:www.slickcharts.com)",
+      "mcp__plugin_playwright_playwright__browser_run_code"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/caslu/Desktop/NuevoProyecto/scripts/hydra_status_report.py\"",
+            "timeout": 20
+          }
+        ]
+      }
     ]
   }
 }
