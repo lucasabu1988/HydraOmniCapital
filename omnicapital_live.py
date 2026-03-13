@@ -1760,12 +1760,21 @@ class COMPASSLive:
 
         # Check if we should buy (idle cash available and EFA above SMA200)
         if not self._efa_above_sma200():
+            logger.debug("EFA: skipped (below SMA200)")
             return
 
+        # Use capital manager to determine truly idle cash (after recycling)
+        r_exposure = compute_rattlesnake_exposure(
+            self.rattle_positions, prices, self.hydra_capital.rattle_account
+        )
+        alloc = self.hydra_capital.compute_allocation(r_exposure)
         portfolio = self.broker.get_portfolio()
-        idle_cash = portfolio.cash * 0.90  # Keep 10% cash buffer
+        # efa_idle = remaining Rattlesnake idle cash after recycling to COMPASS
+        # Cap by actual broker cash to avoid over-allocation
+        idle_cash = min(alloc['efa_idle'], portfolio.cash) * 0.90
 
         if idle_cash < EFA_MIN_BUY:
+            logger.info(f"EFA: skipped (idle=${idle_cash:,.0f} < min=${EFA_MIN_BUY})")
             return
 
         shares = int(idle_cash / efa_price)
@@ -1796,13 +1805,25 @@ class COMPASSLive:
             else:
                 return
 
-        # Check if active strategies need capital
+        # Check if COMPASS needs capital
         max_positions = self.get_max_positions()
-        compass_positions = {s: p for s, p in positions.items() if s in self.position_meta}
-        needed = max_positions - len(compass_positions)
+        compass_positions = {s: p for s, p in positions.items()
+                             if s in self.position_meta and s != EFA_SYMBOL}
+        compass_needed = max_positions - len(compass_positions)
 
-        if needed <= 0:
-            return  # No new positions needed, keep EFA
+        # Check if Rattlesnake needs capital (has signals pending)
+        rattle_needed = False
+        if self._hydra_available and self.hydra_capital:
+            rattle_count = len(self.rattle_positions)
+            regime_info = check_rattlesnake_regime(
+                self._spy_hist, self._vix_current
+            ) if self._spy_hist is not None else {'max_positions': R_MAX_POSITIONS}
+            max_r = regime_info['max_positions']
+            if rattle_count < max_r:
+                rattle_needed = True
+
+        if compass_needed <= 0 and not rattle_needed:
+            return  # No strategies need capital, keep EFA
 
         portfolio = self.broker.get_portfolio()
         avg_position_cost = portfolio.total_value * 0.20
@@ -1812,13 +1833,14 @@ class COMPASSLive:
         # Liquidate EFA
         shares = efa_pos.shares
         pnl = (efa_price - efa_pos.avg_cost) * shares
+        reason = "COMPASS" if compass_needed > 0 else "Rattlesnake"
         order = Order(symbol=EFA_SYMBOL, action='SELL',
                       quantity=shares, order_type='MARKET',
                       decision_price=efa_price)
         result = self._submit_order(order, prices)
         if result.status == 'FILLED':
             proceeds = result.filled_price * shares
-            logger.info(f"EFA LIQUIDATE (capital needed): {shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f} (PnL: ${pnl:+,.0f})")
+            logger.info(f"EFA LIQUIDATE ({reason} needs capital): {shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f} (PnL: ${pnl:+,.0f})")
             if self.hydra_capital:
                 self.hydra_capital.sell_efa(proceeds)
 

@@ -124,11 +124,54 @@ Before completing any code change:
 5. **No debug code**: remove any temporary `print()` or test code
 6. **ML fail-safe**: any new ML hooks must be wrapped in try/except
 
+## Post-Implementation Workflow
+After finishing any implementation:
+1. **Simplify** — review changed code for reuse, quality, and efficiency; fix issues found
+2. **Run tests** — `pytest tests/ -v` (unit) + syntax check on modified files
+3. **Verify end-to-end** — if dashboard changed, Playwright screenshot; if live engine changed, validate state JSON
+4. **Commit** — conventional commit with clear message, push if requested
+
+## Subagent & Fork Strategy
+- **Fork (no subagent_type)** for open-ended research — inherits context, shares cache. Use for: "what's the state of X", audit questions, investigation
+- **Subagent (with type)** for fresh-perspective tasks — starts clean. Use for: code review, independent analysis
+- **Parallel forks** when research splits into independent questions (launch all in one message)
+- **Never peek** at fork output mid-flight — wait for completion notification
+- **Never fabricate** fork results — if user asks before fork returns, say "still running"
+- **Brief subagents fully** — they have zero context, explain what/why/what's been tried
+
+## Simplify Reviews (3-agent parallel)
+When reviewing code changes, launch 3 parallel review agents:
+1. **Code Reuse** — search for existing utilities that could replace new code; flag duplicated functionality
+2. **Code Quality** — redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code
+3. **Efficiency** — unnecessary work, missed concurrency, hot-path bloat, recurring no-op updates, memory leaks, overly broad operations
+Fix real issues, skip false positives without arguing.
+
+## Verification Plans
+For non-trivial changes, create structured verification plans:
+- Store in `~/.claude/plans/<slug>.md`
+- Include: metadata, files being verified, preconditions, setup steps, verification steps with expected outcomes, cleanup
+- Execute steps in order, report PASS/FAIL for each
+- Stop on first FAIL — don't round up "almost working" to PASS
+
 ## Hookify Rules (active)
 - `protect-state-files` — warns before editing live state JSON
 - `block-algorithm-modification` — blocks edits to locked algorithm files
 - `protect-secrets` — blocks edits to .env/config with credentials
 - `verify-before-complete` — pre-completion verification checklist
+
+## Autonomous Operations Mode
+When performing ops tasks (deploy, debug, troubleshoot):
+1. **Execute immediately** — make reasonable assumptions, don't block on ambiguity
+2. **Minimize interruptions** — only ask when genuinely cannot proceed (e.g., fundamentally different approaches)
+3. **Prefer action over planning** — start doing, don't over-plan simple tasks
+4. **Be thorough** — complete full task including tests and verification without stopping to ask
+
+## Careful Action Protocol
+- **Freely take**: local, reversible actions (edit files, run tests, read logs)
+- **Confirm first**: destructive ops (delete files/branches, reset --hard, force-push), shared-state actions (push, PR comments, external messages)
+- **Never shortcut**: don't bypass safety checks (--no-verify), don't delete unfamiliar state — investigate first
+- **Measure twice**: resolve merge conflicts rather than discarding; investigate lock files rather than deleting
+- **Scope-match**: authorization for one action doesn't extend to all similar actions
 
 ## User Preferences
 - Language: Spanish prompts, English code/commits
@@ -149,3 +192,11 @@ Agents and plugins should act **proactively** without being explicitly invoked:
 - **brainstorming**: Auto-engage before any new feature or algorithm change
 
 Agents should intervene freely based on context — do not wait for explicit user invocation. If a plugin or agent is relevant to the current task, use it.
+
+## Anti-Patterns (avoid these)
+- **No premature abstractions** — don't create helpers/utilities for one-time operations; 3 similar lines > premature abstraction
+- **No hypothetical design** — don't design for future requirements that don't exist yet
+- **No unnecessary error handling** — don't add fallbacks for impossible scenarios; trust internal code, only validate at boundaries (user input, broker API, data feeds)
+- **No over-engineering** — only make changes directly requested or clearly necessary; a bug fix doesn't need surrounding cleanup
+- **No compatibility hacks** — don't rename unused _vars, re-export dead types, or add "// removed" comments; if unused, delete completely
+- **No feature flags** for internal changes — just change the code directly

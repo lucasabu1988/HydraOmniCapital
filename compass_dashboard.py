@@ -933,7 +933,7 @@ def api_state():
         })
 
     # Collect all symbols for price fetching
-    symbols = ['SPY', '^GSPC', 'ES=F', 'NQ=F', '^TNX', 'DX-Y.NYB'] + list(state.get('positions', {}).keys())
+    symbols = ['SPY', '^GSPC', 'ES=F', 'NQ=F', '^TNX', 'DX-Y.NYB', 'EFA'] + list(state.get('positions', {}).keys())
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
@@ -1030,6 +1030,22 @@ def api_state():
         except Exception:
             pass
 
+    # HYDRA status (EFA third pillar, Rattlesnake, cash recycling)
+    hydra_status = state.get('hydra', {})
+    if engine and hasattr(engine, 'hydra_capital') and engine.hydra_capital:
+        try:
+            hc = engine.hydra_capital.get_status()
+            hydra_status['capital'] = {
+                'compass_account': round(hc['compass_account'], 2),
+                'rattle_account': round(hc['rattle_account'], 2),
+                'efa_value': round(hc['efa_value'], 2),
+                'efa_pct': round(hc['efa_pct'] * 100, 1),
+                'recycled_pct': round(hc['recycled_pct'] * 100, 1),
+                'recycling_frequency': round(hc['recycling_frequency'] * 100, 1),
+            }
+        except Exception:
+            pass
+
     return jsonify({
         'status': 'online',
         'portfolio': portfolio,
@@ -1042,6 +1058,7 @@ def api_state():
         'chassis': chassis_status,
         'preclose': preclose_status,
         'implementation_shortfall': is_metrics,
+        'hydra': hydra_status,
         'server_time': datetime.now().isoformat(),
         'engine': _engine_status,
     })

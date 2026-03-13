@@ -1,0 +1,59 @@
+# Git
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# Data caches (large)
+data_cache/
+*.pkl
+
+# Logs
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+.serena/
+.playwright-mcp/
+
+# Backtests and experiments (not needed in cloud)
+backtests/
+experiments/
+scripts/
+tests/
+docs/
+
+# Deprecated
+optimization_results/
+universe_tests/
+awesome-systematic-trading/
+
+# Large docs (not needed in cloud)
+*.docx
+*.xlsx
+OMNICAPITAL_PROJECT_REVIEW.py
+OMNICAPITAL_PROJECT_REVIEW.txt
+
+# Secrets
+omnicapital_config.json
+.env
+
+# Docker
+Dockerfile
+.dockerignore
+deploy.sh
