@@ -194,13 +194,13 @@
             <div class="lh-stat-divider"></div>
             <div class="lh-stat">
                 <span class="lh-stat-label" data-i18n="hero-beats-label">Beats S&amp;P</span>
-                <span class="lh-stat-value green">19/27</span>
+                <span class="lh-stat-value green">18/27</span>
                 <span class="lh-stat-context" data-i18n="hero-beats-context">years with alpha &gt; 0</span>
             </div>
             <div class="lh-stat-divider"></div>
             <div class="lh-stat">
                 <span class="lh-stat-label" data-i18n="hero-alpha-label">Avg Alpha</span>
-                <span class="lh-stat-value green">+8.3 pp</span>
+                <span class="lh-stat-value green">+10.6 pp</span>
                 <span class="lh-stat-context" data-i18n="hero-alpha-context">per year vs S&amp;P 500</span>
             </div>
         </div>
@@ -223,11 +223,21 @@
                 <span class="lh-stat-context" data-i18n="hero-growth-context">2000&ndash;2026 backtest</span>
             </div>
         </div>
+        <div class="lh-stats lh-stats-slide" data-slide="3">
+            <div style="width:100%; padding:4px 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span class="lh-stat-label" data-i18n="hero-alphachart-label">Annual Alpha vs S&amp;P 500</span>
+                    <span style="font-size:11px; color:var(--text-tertiary);" data-i18n="hero-alphachart-avg">Avg +10.6 pp &middot; 18/27 years positive</span>
+                </div>
+                <canvas id="heroAlphaChart" height="60"></canvas>
+            </div>
+        </div>
         <div class="lh-carousel-controls">
             <div class="lh-carousel-dots">
                 <button class="lh-dot active" data-slide="0" aria-label="Slide 1"></button>
                 <button class="lh-dot" data-slide="1" aria-label="Slide 2"></button>
                 <button class="lh-dot" data-slide="2" aria-label="Slide 3"></button>
+                <button class="lh-dot" data-slide="3" aria-label="Slide 4"></button>
             </div>
             <button class="lh-carousel-pause" id="heroCarouselPause" aria-label="Pause rotation">&#10074;&#10074;</button>
         </div>
