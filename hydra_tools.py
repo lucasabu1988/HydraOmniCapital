@@ -363,7 +363,7 @@ class HydraToolExecutor:
             spy_hist = spy.history(period='6mo')
 
             # Load universe (engine should have it cached)
-            universe = getattr(self.engine, 'universe', [])
+            universe = getattr(self.engine, 'current_universe', [])
             if not universe:
                 return json.dumps({'error': 'No universe loaded in engine'})
 
@@ -600,7 +600,7 @@ class HydraToolExecutor:
         for p in getattr(self.engine, 'rattle_positions', []):
             symbols.add(p['symbol'])
         # Universe
-        for sym in getattr(self.engine, 'universe', []):
+        for sym in getattr(self.engine, 'current_universe', []):
             symbols.add(sym)
         # EFA + SPY
         symbols.add('EFA')

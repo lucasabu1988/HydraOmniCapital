@@ -606,6 +606,7 @@ def _last_weekday(year, month, weekday):
 # ---------------------------------------------------------------------------
 
 def main():
+    os.makedirs('logs', exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
@@ -617,7 +618,6 @@ def main():
             ),
         ],
     )
-    os.makedirs('logs', exist_ok=True)
 
     agent = HydraAgent()
     agent.run()
