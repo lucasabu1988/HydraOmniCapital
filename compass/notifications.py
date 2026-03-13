@@ -548,11 +548,12 @@ class TelegramCommandHandler:
       /resume    — deactivate kill switch
     """
 
-    def __init__(self, bot_token, chat_id, engine=None, state_dir='state'):
+    def __init__(self, bot_token, chat_id, engine=None, state_dir='state', agent=None):
         self.bot_token = bot_token
         self.chat_id = str(chat_id)
         self.engine = engine
         self.state_dir = state_dir
+        self.agent = agent  # HydraAgent ref for /ask command
         self._last_update_id = 0
         self._notifier = TelegramNotifier(bot_token=bot_token, chat_id=chat_id)
 
@@ -593,6 +594,13 @@ class TelegramCommandHandler:
             '/resume': self._cmd_resume,
             '/help': self._cmd_help,
         }
+        if cmd == '/ask':
+            question = text[len(text.split()[0]):].strip()
+            try:
+                self._cmd_ask(question)
+            except Exception as e:
+                self._notifier._send_message(f"Ask error: {e}")
+            return
         handler = handlers.get(cmd, self._cmd_unknown)
         try:
             handler()
@@ -667,12 +675,49 @@ class TelegramCommandHandler:
         else:
             self._notifier._send_message("Kill switch was not active.")
 
+    def _cmd_ask(self, question):
+        if not question:
+            self._notifier._send_message("Usage: /ask &lt;your question&gt;\nExample: /ask why did we skip NVDA today?")
+            return
+        if not self.agent:
+            self._notifier._send_message("Agent not available — /ask requires the HYDRA agent to be running.")
+            return
+
+        self._notifier._send_message("Thinking...")
+
+        try:
+            response = self.agent._call_claude(
+                'OPERATOR_QUERY',
+                f"The operator is asking you a question via Telegram. "
+                f"Answer concisely (max 3-4 short paragraphs). "
+                f"Use plain text, no HTML tags.\n\n"
+                f"Question: {question}",
+            )
+        except Exception as e:
+            self._notifier._send_message(f"Claude API error: {e}")
+            return
+
+        if not response:
+            self._notifier._send_message("No response from Claude.")
+            return
+
+        # Telegram limit is 4096 chars — chunk if needed
+        MAX_LEN = 4000
+        response = response.strip()
+        if len(response) <= MAX_LEN:
+            self._notifier._send_message(response)
+        else:
+            chunks = [response[i:i + MAX_LEN] for i in range(0, len(response), MAX_LEN)]
+            for chunk in chunks:
+                self._notifier._send_message(chunk)
+
     def _cmd_help(self):
         self._notifier._send_message(
             "<b>HYDRA Commands</b>\n"
             "/status — agent heartbeat\n"
             "/positions — open positions\n"
             "/capital — capital allocation\n"
+            "/ask &lt;question&gt; — ask HYDRA anything\n"
             "/stop — halt all trading\n"
             "/resume — resume trading\n"
             "/help — this message"

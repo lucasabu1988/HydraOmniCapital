@@ -100,6 +100,7 @@ class HydraAgent:
                 return TelegramCommandHandler(
                     bot_token=bot_token, chat_id=chat_id,
                     engine=self.engine, state_dir=self.state_dir,
+                    agent=self,
                 )
         except Exception as e:
             logger.debug(f"Telegram command handler not available: {e}")
