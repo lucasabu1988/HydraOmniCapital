@@ -5,6 +5,7 @@ Sends email alerts for trades, stop losses, regime changes,
 daily summaries, and system errors.
 """
 
+import os
 import smtplib
 import logging
 from email.mime.text import MIMEText
@@ -536,7 +537,152 @@ class TelegramNotifier:
         self._send_message(text)
 
 
+class TelegramCommandHandler:
+    """Polls Telegram getUpdates for operator commands.
+
+    Supported commands:
+      /status    — agent heartbeat + phase info
+      /positions — current portfolio positions
+      /capital   — capital allocation (COMPASS/Rattlesnake/EFA)
+      /stop      — activate kill switch (halt all trading)
+      /resume    — deactivate kill switch
+    """
+
+    def __init__(self, bot_token, chat_id, engine=None, state_dir='state'):
+        self.bot_token = bot_token
+        self.chat_id = str(chat_id)
+        self.engine = engine
+        self.state_dir = state_dir
+        self._last_update_id = 0
+        self._notifier = TelegramNotifier(bot_token=bot_token, chat_id=chat_id)
+
+    def poll(self):
+        import urllib.request
+        import json as _json
+
+        url = (f"https://api.telegram.org/bot{self.bot_token}/getUpdates"
+               f"?offset={self._last_update_id + 1}&timeout=1")
+        try:
+            req = urllib.request.Request(url, method='GET')
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = _json.loads(resp.read().decode())
+        except Exception as e:
+            logger.debug(f"Telegram poll error: {e}")
+            return
+
+        if not data.get('ok'):
+            return
+
+        for update in data.get('result', []):
+            self._last_update_id = update['update_id']
+            msg = update.get('message', {})
+            # Only accept commands from the authorized chat
+            if str(msg.get('chat', {}).get('id', '')) != self.chat_id:
+                continue
+            text = msg.get('text', '').strip()
+            if text.startswith('/'):
+                self._handle_command(text)
+
+    def _handle_command(self, text):
+        cmd = text.split()[0].lower().split('@')[0]  # strip @botname
+        handlers = {
+            '/status': self._cmd_status,
+            '/positions': self._cmd_positions,
+            '/capital': self._cmd_capital,
+            '/stop': self._cmd_stop,
+            '/resume': self._cmd_resume,
+            '/help': self._cmd_help,
+        }
+        handler = handlers.get(cmd, self._cmd_unknown)
+        try:
+            handler()
+        except Exception as e:
+            self._notifier._send_message(f"Command error: {e}")
+
+    def _cmd_status(self):
+        import json as _json
+        hb_path = os.path.join(self.state_dir, 'agent_heartbeat.json')
+        if os.path.exists(hb_path):
+            with open(hb_path) as f:
+                hb = _json.load(f)
+            phases = ', '.join(hb.get('phase', [])) or 'none'
+            usage = hb.get('token_usage', {})
+            total_in = sum(v.get('input_tokens', 0) for v in usage.values())
+            total_out = sum(v.get('output_tokens', 0) for v in usage.values())
+            msg = (f"<b>HYDRA Status</b>\n"
+                   f"Last heartbeat: {hb.get('ts', '?')}\n"
+                   f"Phases today: {phases}\n"
+                   f"Kill switch: {'ON' if hb.get('kill_switch') else 'OFF'}\n"
+                   f"Tokens: {total_in:,} in / {total_out:,} out")
+        else:
+            msg = "<b>HYDRA Status</b>\nNo heartbeat found — agent may be offline"
+        self._notifier._send_message(msg)
+
+    def _cmd_positions(self):
+        if not self.engine:
+            self._notifier._send_message("Engine not available")
+            return
+        positions = self.engine.broker.positions
+        if not positions:
+            self._notifier._send_message("No open positions")
+            return
+        lines = ["<b>Positions</b>"]
+        meta = getattr(self.engine, 'position_meta', {})
+        for sym, pos in positions.items():
+            shares = getattr(pos, 'shares', 0)
+            avg = getattr(pos, 'avg_cost', 0)
+            sector = meta.get(sym, {}).get('sector', '?')
+            lines.append(f"  {sym}: {shares:.0f} sh @ ${avg:.2f} [{sector}]")
+        cash = self.engine.broker.cash
+        lines.append(f"\nCash: ${cash:,.2f}")
+        self._notifier._send_message('\n'.join(lines))
+
+    def _cmd_capital(self):
+        if not self.engine:
+            self._notifier._send_message("Engine not available")
+            return
+        cap = getattr(self.engine, 'capital_manager', None)
+        if not cap:
+            self._notifier._send_message("Capital manager not initialized")
+            return
+        status = cap.get_status()
+        msg = (f"<b>Capital Allocation</b>\n"
+               f"COMPASS: ${status.get('compass_budget', 0):,.0f}\n"
+               f"Rattlesnake: ${status.get('rattlesnake_budget', 0):,.0f}\n"
+               f"EFA: ${status.get('efa_value', 0):,.0f}\n"
+               f"Recycling: {'ON' if status.get('recycling_active') else 'OFF'}")
+        self._notifier._send_message(msg)
+
+    def _cmd_stop(self):
+        stop_path = os.path.join(self.state_dir, 'STOP_TRADING')
+        with open(stop_path, 'w') as f:
+            f.write(datetime.now().isoformat())
+        self._notifier._send_message("Kill switch ACTIVATED. Trading halted.")
+
+    def _cmd_resume(self):
+        stop_path = os.path.join(self.state_dir, 'STOP_TRADING')
+        if os.path.exists(stop_path):
+            os.remove(stop_path)
+            self._notifier._send_message("Kill switch DEACTIVATED. Trading resumed.")
+        else:
+            self._notifier._send_message("Kill switch was not active.")
+
+    def _cmd_help(self):
+        self._notifier._send_message(
+            "<b>HYDRA Commands</b>\n"
+            "/status — agent heartbeat\n"
+            "/positions — open positions\n"
+            "/capital — capital allocation\n"
+            "/stop — halt all trading\n"
+            "/resume — resume trading\n"
+            "/help — this message"
+        )
+
+    def _cmd_unknown(self):
+        self._notifier._send_message("Unknown command. Send /help for available commands.")
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     print("Notification module loaded successfully.")
-    print("Available: EmailNotifier, WhatsAppNotifier, TelegramNotifier")
+    print("Available: EmailNotifier, WhatsAppNotifier, TelegramNotifier, TelegramCommandHandler")

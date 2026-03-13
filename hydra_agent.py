@@ -85,9 +85,25 @@ class HydraAgent:
             api_key=os.environ.get('ANTHROPIC_API_KEY'),
         )
 
+        self.cmd_handler = self._init_cmd_handler()
+
         self._phases_run_today = {}
         self._last_intraday_run = None
         self._token_usage = {}  # {phase: {input_tokens, output_tokens, api_calls}}
+
+    def _init_cmd_handler(self):
+        try:
+            bot_token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+            chat_id = os.environ.get('TELEGRAM_CHAT_ID', '')
+            if bot_token and chat_id:
+                from compass.notifications import TelegramCommandHandler
+                return TelegramCommandHandler(
+                    bot_token=bot_token, chat_id=chat_id,
+                    engine=self.engine, state_dir=self.state_dir,
+                )
+        except Exception as e:
+            logger.debug(f"Telegram command handler not available: {e}")
+        return None
 
     def _configure_git_auth(self):
         """Configure git remote with token auth for Render (enables state push)."""
@@ -536,6 +552,13 @@ class HydraAgent:
 
                 # Write heartbeat
                 self._write_heartbeat(now)
+
+                # Poll Telegram commands
+                if self.cmd_handler:
+                    try:
+                        self.cmd_handler.poll()
+                    except Exception as e:
+                        logger.debug(f"Telegram poll error: {e}")
 
             except KeyboardInterrupt:
                 logger.info("HYDRA Agent stopped by user")
