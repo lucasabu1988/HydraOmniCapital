@@ -101,17 +101,10 @@ class HydraAgent:
     def _init_notifier(self):
         try:
             from compass.notifications import WhatsAppNotifier
-            account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
-            auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
-            from_number = os.environ.get('TWILIO_FROM_NUMBER')
-            to_number = os.environ.get('TWILIO_TO_NUMBER')
-            if all([account_sid, auth_token, from_number, to_number]):
-                return WhatsAppNotifier(
-                    account_sid=account_sid,
-                    auth_token=auth_token,
-                    from_number=from_number,
-                    to_number=to_number,
-                )
+            phone = os.environ.get('WHATSAPP_PHONE', '')
+            apikey = os.environ.get('WHATSAPP_API_KEY', '')
+            if phone and apikey:
+                return WhatsAppNotifier(phone=phone, apikey=apikey)
         except Exception as e:
             logger.debug(f"Notifier not available: {e}")
         return None
