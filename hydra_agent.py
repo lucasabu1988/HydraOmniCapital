@@ -99,14 +99,23 @@ class HydraAgent:
             logger.warning(f"Could not load engine state: {e}")
 
     def _init_notifier(self):
+        # Try Telegram first, then WhatsApp fallback
         try:
-            from compass.notifications import WhatsAppNotifier
+            bot_token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+            chat_id = os.environ.get('TELEGRAM_CHAT_ID', '')
+            if bot_token and chat_id:
+                from compass.notifications import TelegramNotifier
+                return TelegramNotifier(bot_token=bot_token, chat_id=chat_id)
+        except Exception as e:
+            logger.debug(f"Telegram not available: {e}")
+        try:
             phone = os.environ.get('WHATSAPP_PHONE', '')
             apikey = os.environ.get('WHATSAPP_API_KEY', '')
             if phone and apikey:
+                from compass.notifications import WhatsAppNotifier
                 return WhatsAppNotifier(phone=phone, apikey=apikey)
         except Exception as e:
-            logger.debug(f"Notifier not available: {e}")
+            logger.debug(f"WhatsApp not available: {e}")
         return None
 
     def _check_kill_switch(self):

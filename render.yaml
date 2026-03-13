@@ -36,6 +36,10 @@ services:
         sync: false
       - key: GIT_TOKEN
         sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
       - key: WHATSAPP_PHONE
         sync: false
       - key: WHATSAPP_API_KEY

@@ -400,8 +400,143 @@ class WhatsAppNotifier:
         self._send_message(text)
 
 
+class TelegramNotifier:
+    """Telegram notification system via Bot API.
+
+    Setup (30 seconds):
+      1. Message @BotFather on Telegram, send /newbot, follow prompts
+      2. Copy the bot token (e.g. 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11)
+      3. Start a chat with your new bot (send /start)
+      4. Get your chat_id: visit https://api.telegram.org/bot<TOKEN>/getUpdates
+      5. Configure: TelegramNotifier(bot_token='...', chat_id='...')
+    """
+
+    def __init__(self, bot_token: str = '', chat_id: str = '', **kwargs):
+        self.bot_token = bot_token
+        self.chat_id = chat_id
+        self._enabled = bool(self.bot_token and self.chat_id)
+
+        if self._enabled:
+            logger.info(f"TelegramNotifier configured: chat_id={self.chat_id}")
+        else:
+            logger.warning("TelegramNotifier not configured (missing bot_token or chat_id)")
+
+    def _send_message(self, text: str):
+        """Send a Telegram message via Bot API. Never raises."""
+        if not self._enabled:
+            logger.debug("Telegram skipped (not configured)")
+            return
+
+        import urllib.request
+        import urllib.parse
+        import json as _json
+
+        url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        payload = _json.dumps({
+            'chat_id': self.chat_id,
+            'text': text,
+            'parse_mode': 'HTML',
+        }).encode('utf-8')
+
+        try:
+            req = urllib.request.Request(url, data=payload, method='POST',
+                                         headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                status = resp.status
+            if status == 200:
+                logger.info(f"Telegram sent: {text[:60]}...")
+            else:
+                logger.warning(f"Telegram API returned {status}")
+        except Exception as e:
+            logger.error(f"Telegram send failed: {e}")
+
+    def send_trade_alert(self, action: str, symbol: str, shares: float,
+                         price: float, exit_reason: Optional[str] = None,
+                         pnl: Optional[float] = None):
+        if action == 'BUY':
+            text = (f"<b>HYDRA BUY</b>\n"
+                    f"{symbol} | {shares:.0f} shares @ ${price:.2f}\n"
+                    f"Value: ${shares * price:,.0f}\n"
+                    f"{datetime.now().strftime('%H:%M ET')}")
+        else:
+            pnl_str = f"${pnl:+,.0f}" if pnl is not None else "N/A"
+            reason = exit_reason or 'manual'
+            text = (f"<b>HYDRA SELL</b> [{reason}]\n"
+                    f"{symbol} @ ${price:.2f}\n"
+                    f"P&L: {pnl_str}\n"
+                    f"{datetime.now().strftime('%H:%M ET')}")
+        self._send_message(text)
+
+    def send_portfolio_stop_alert(self, portfolio_value: float,
+                                  drawdown: float, peak_value: float):
+        text = (f"<b>PORTFOLIO STOP LOSS</b>\n"
+                f"DD: {drawdown:.1%} | ${portfolio_value:,.0f}\n"
+                f"Peak: ${peak_value:,.0f}\n"
+                f"Protection Mode activated\n"
+                f"{datetime.now().strftime('%H:%M ET')}")
+        self._send_message(text)
+
+    def send_regime_change_alert(self, is_risk_on: bool,
+                                 spy_price: float, sma_value: float):
+        regime = "RISK_ON" if is_risk_on else "RISK_OFF"
+        emoji = "🟢" if is_risk_on else "🟡"
+        n_pos = 5 if is_risk_on else 2
+        text = (f"{emoji} <b>REGIME → {regime}</b>\n"
+                f"SPY: ${spy_price:.2f} | SMA200: ${sma_value:.2f}\n"
+                f"Max positions: {n_pos}\n"
+                f"{datetime.now().strftime('%H:%M ET')}")
+        self._send_message(text)
+
+    def send_daily_summary(self, portfolio_value: float, num_positions: int,
+                           drawdown: float, trades_today: List[Dict],
+                           is_risk_on: bool, leverage: float):
+        regime = "RISK_ON" if is_risk_on else "RISK_OFF"
+        n_trades = len(trades_today)
+        total_pnl = sum(t.get('pnl', 0) for t in trades_today if t.get('action') == 'SELL')
+        text = (f"<b>HYDRA DAILY</b>\n"
+                f"${portfolio_value:,.0f} | DD: {drawdown:.1%}\n"
+                f"{num_positions} pos | {regime} | {leverage:.2f}x\n"
+                f"Trades: {n_trades} | P&L: ${total_pnl:+,.0f}\n"
+                f"{datetime.now().strftime('%Y-%m-%d')}")
+        self._send_message(text)
+
+    def send_recovery_stage_alert(self, stage: int, portfolio_value: float):
+        if stage == 0:
+            title = "FULL RECOVERY"
+        else:
+            title = f"RECOVERY Stage {stage}"
+        text = (f"<b>{title}</b>\n"
+                f"Portfolio: ${portfolio_value:,.0f}\n"
+                f"{datetime.now().strftime('%H:%M ET')}")
+        self._send_message(text)
+
+    def send_error_alert(self, error_message: str, traceback_str: str = ''):
+        text = (f"<b>HYDRA ERROR</b>\n"
+                f"{error_message[:200]}\n"
+                f"{datetime.now().strftime('%H:%M ET')}")
+        self._send_message(text)
+
+    def send_test_message(self):
+        text = (f"<b>HYDRA v8.4 Telegram OK</b>\n"
+                f"Notifications active\n"
+                f"{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        self._send_message(text)
+        return True
+
+    def send_rotation_alert(self, cycle_num: int, closed_positions: list,
+                            new_positions: list, compass_return: float,
+                            spy_return: float, alpha: float):
+        status = "✅ WIN" if alpha >= 0 else "❌ LOSS"
+        text = (f"<b>ROTATION #{cycle_num}</b> {status}\n"
+                f"COMPASS: {compass_return:+.2f}% | S&P: {spy_return:+.2f}%\n"
+                f"Alpha: {alpha:+.2f}pp\n"
+                f"OUT: {', '.join(closed_positions)}\n"
+                f"IN: {', '.join(new_positions)}\n"
+                f"{datetime.now().strftime('%H:%M ET')}")
+        self._send_message(text)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     print("Notification module loaded successfully.")
-    print("Available: EmailNotifier, WhatsAppNotifier")
-    print("WhatsApp setup: Add +34 644 52 74 88, send 'I allow callmebot to send me messages'")
+    print("Available: EmailNotifier, WhatsAppNotifier, TelegramNotifier")
