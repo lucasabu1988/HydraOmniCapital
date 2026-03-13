@@ -1807,12 +1807,18 @@ def api_engine_status():
             'cycles': engine._cycles_completed if hasattr(engine, '_cycles_completed') else 0,
             'mode': 'cloud-live',
         })
+    if AGENT_MODE:
+        status_msg = 'AGENT_MODE — engine disabled (Worker is sole state writer)'
+    elif _cloud_engine_started:
+        status_msg = 'Engine starting...'
+    else:
+        status_msg = 'Engine not initialized'
     return jsonify({
         'running': False,
         'started_at': None,
-        'error': 'Engine starting...' if _cloud_engine_started else 'Engine not initialized',
+        'error': status_msg,
         'cycles': 0,
-        'mode': 'cloud-live',
+        'mode': 'agent' if AGENT_MODE else 'cloud-live',
     })
 
 
