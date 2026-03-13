@@ -1,19 +1,20 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-13T09:57:14.590691",
-  "cash": 491.51,
-  "peak_value": 100954.9,
-  "portfolio_value": 101537.06812072753,
+  "timestamp": "2026-03-13T10:14:31.350850",
+  "cash": 9736.957670410156,
+  "peak_value": 101535.2842614746,
+  "portfolio_value": 101570.83566113282,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
     99064.23415130615,
     99815.47636096191,
-    100954.9
+    100954.9,
+    101535.2842614746
   ],
-  "current_regime_score": 0.6104265869392883,
-  "trading_day_counter": 4,
-  "last_trading_date": "2026-03-11",
+  "current_regime_score": 0.5351695017140906,
+  "trading_day_counter": 5,
+  "last_trading_date": "2026-03-13",
   "positions": {
     "JNJ": {
       "shares": 132,
@@ -30,10 +31,6 @@
     "XOM": {
       "shares": 127,
       "avg_cost": 151.58
-    },
-    "AMAT": {
-      "shares": 27,
-      "avg_cost": 351.07
     }
   },
   "position_meta": {
@@ -42,50 +39,44 @@
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 242.99,
+      "high_price": 244.22999572753906,
       "entry_vol": 0.172,
       "entry_daily_vol": 0.010838,
-      "sector": "Healthcare"
+      "sector": "Healthcare",
+      "_entry_reconciled": true
     },
     "MRK": {
       "entry_price": 116.21,
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 116.21,
+      "high_price": 116.25,
       "entry_vol": 0.2593,
       "entry_daily_vol": 0.016337,
-      "sector": "Healthcare"
+      "sector": "Healthcare",
+      "_entry_reconciled": true
     },
     "WMT": {
       "entry_price": 123.49,
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 123.49,
+      "high_price": 126.0886001586914,
       "entry_vol": 0.3034,
       "entry_daily_vol": 0.019112,
-      "sector": "Consumer Staples"
+      "sector": "Consumer Staples",
+      "_entry_reconciled": true
     },
     "XOM": {
       "entry_price": 151.58,
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 151.58,
+      "high_price": 154.27499389648438,
       "entry_vol": 0.2872,
       "entry_daily_vol": 0.01809,
-      "sector": "Energy"
-    },
-    "AMAT": {
-      "entry_price": 351.07,
-      "entry_date": "2026-03-11",
-      "entry_day_index": 4,
-      "original_entry_day_index": 4,
-      "high_price": 351.07,
-      "entry_vol": 0.5784,
-      "entry_daily_vol": 0.036437,
-      "sector": "Technology"
+      "sector": "Energy",
+      "_entry_reconciled": true
     }
   },
   "current_universe": [
@@ -133,7 +124,7 @@
   "universe_year": 2026,
   "_universe_source": "",
   "_daily_open_done": true,
-  "_preclose_entries_done": true,
+  "_preclose_entries_done": false,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
@@ -145,21 +136,21 @@
     "available": true,
     "rattle_positions": [],
     "rattle_regime": "RISK_ON",
-    "vix_current": 24.8799991607666,
+    "vix_current": 26.040000915527344,
     "efa_position": null,
     "capital_manager": {
-      "compass_account": 50000.0,
-      "rattle_account": 50000.0,
+      "compass_account": 50288.826611984725,
+      "rattle_account": 50144.42680599236,
       "base_compass_alloc": 0.5,
       "base_rattle_alloc": 0.5,
       "max_compass_alloc": 0.75,
-      "total_recycled_days": 0,
-      "total_days": 0,
+      "total_recycled_days": 1,
+      "total_days": 1,
       "efa_value": 0.0
     }
   },
   "stats": {
-    "cycles_completed": 0,
-    "uptime_minutes": 0.07604758333333334
+    "cycles_completed": 12,
+    "uptime_minutes": 17.35538366666667
   }
 }
