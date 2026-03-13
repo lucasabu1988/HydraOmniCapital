@@ -9,6 +9,8 @@ venv/
 
 # Data caches (too large for GitHub)
 data_cache/
+data_cache_parquet/
+data_sources/
 *.pkl
 
 # Logs (runtime)

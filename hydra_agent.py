@@ -65,6 +65,8 @@ class HydraAgent:
         self.state_dir = state_dir or os.environ.get('STATE_DIR', 'state')
         os.makedirs(self.state_dir, exist_ok=True)
 
+        self._configure_git_auth()
+
         self.scratchpad = HydraScratchpad(state_dir=self.state_dir)
         self.scratchpad.cleanup(max_age_days=90)
 
@@ -85,6 +87,21 @@ class HydraAgent:
 
         self._phases_run_today = {}
         self._last_intraday_run = None
+
+    def _configure_git_auth(self):
+        """Configure git remote with token auth for Render (enables state push)."""
+        git_token = os.environ.get('GIT_TOKEN', '')
+        if not git_token:
+            return
+        try:
+            import subprocess
+            # Set remote URL with token for push access
+            url = f'https://x-access-token:{git_token}@github.com/lucasabu1988/NuevoProyecto.git'
+            subprocess.run(['git', 'remote', 'set-url', 'origin', url],
+                           capture_output=True, timeout=10)
+            logger.info("Git auth configured for state sync")
+        except Exception as e:
+            logger.debug(f"Git auth setup failed (non-critical): {e}")
 
     def _init_engine(self):
         from omnicapital_live import COMPASSLive, CONFIG
@@ -273,16 +290,23 @@ class HydraAgent:
         messages = [{'role': 'user', 'content': user_message}]
 
         for turn in range(MAX_AGENT_TURNS):
-            try:
-                response = self.client.messages.create(
-                    model=AGENT_MODEL,
-                    max_tokens=4096,
-                    system=system_prompt,
-                    tools=TOOL_DEFINITIONS,
-                    messages=messages,
-                )
-            except Exception as e:
-                logger.error(f"Claude API error (turn {turn}): {e}")
+            response = None
+            for attempt in range(3):
+                try:
+                    response = self.client.messages.create(
+                        model=AGENT_MODEL,
+                        max_tokens=4096,
+                        system=system_prompt,
+                        tools=TOOL_DEFINITIONS,
+                        messages=messages,
+                    )
+                    break
+                except Exception as e:
+                    logger.error(f"Claude API error (turn {turn}, attempt {attempt+1}/3): {e}")
+                    if attempt < 2:
+                        time.sleep(2 ** attempt)  # 1s, 2s backoff
+            if response is None:
+                logger.error(f"Claude API failed after 3 attempts, aborting phase {phase}")
                 break
 
             # Process response content
