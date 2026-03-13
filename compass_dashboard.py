@@ -138,7 +138,7 @@ _engine_status = {
 
 BACKTEST_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'omnicapital_v8_compass.py')
 REFRESH_PARQUET_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refresh_parquet_cache.py')
-BACKTEST_CSV = os.path.join('backtests', 'v8_compass_daily.csv')
+BACKTEST_CSV = os.path.join('backtests', 'hydra_clean_daily.csv')
 
 _backtest_status = {
     'last_run_date': None,   # date string 'YYYY-MM-DD' of last run attempt
@@ -1253,8 +1253,10 @@ def api_live_chart():
 
 @app.route('/api/equity')
 def api_equity():
-    """Return COMPASS equity curve data."""
-    csv_path = os.path.join('backtests', 'v8_compass_daily.csv')
+    """Return HYDRA equity curve data."""
+    csv_path = os.path.join('backtests', 'hydra_clean_daily.csv')
+    if not os.path.exists(csv_path):
+        csv_path = os.path.join('backtests', 'v8_compass_daily.csv')
 
     if not os.path.exists(csv_path):
         return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
@@ -1350,7 +1352,9 @@ SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
 @app.route('/api/equity-comparison')
 def api_equity_comparison():
     """Return COMPASS vs S&P 500 comparison data (both normalised to $100K)."""
-    csv_path = os.path.join('backtests', 'v8_compass_daily.csv')
+    csv_path = os.path.join('backtests', 'hydra_clean_daily.csv')
+    if not os.path.exists(csv_path):
+        csv_path = os.path.join('backtests', 'v8_compass_daily.csv')
     if not os.path.exists(csv_path):
         return jsonify({'error': 'No backtest data'})
     if not os.path.exists(SPY_BENCHMARK_CSV):
