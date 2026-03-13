@@ -122,6 +122,7 @@ def load_hydra_daily():
     """Load HYDRA daily portfolio values from CSV."""
     # Try multiple possible CSV files
     candidates = [
+        os.path.join(BACKTESTS_DIR, 'hydra_clean_daily.csv'),
         os.path.join(BACKTESTS_DIR, 'hydra_corrected_daily.csv'),
         os.path.join(BACKTESTS_DIR, 'v8_compass_daily.csv'),
         os.path.join(BACKTESTS_DIR, 'v84_compass_daily.csv'),
