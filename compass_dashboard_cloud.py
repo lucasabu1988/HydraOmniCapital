@@ -159,7 +159,7 @@ def _preload_data():
     """Load CSV data at startup (not on first request)."""
     global _equity_df, _spy_df
     # HYDRA multi-strategy data (HYDRA + Rattlesnake with cash recycling)
-    csv_path = os.path.join('backtests', 'hydra_corrected_daily.csv')
+    csv_path = os.path.join('backtests', 'hydra_clean_daily.csv')
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
@@ -1385,7 +1385,7 @@ def api_equity():
     """Return HYDRA equity curve data (full period from 2000)."""
     df = _equity_df
     if df is None:
-        csv_path = os.path.join('backtests', 'hydra_corrected_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_clean_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
         try:
@@ -1480,7 +1480,7 @@ def api_equity_comparison():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'hydra_corrected_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_clean_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -1526,8 +1526,8 @@ def api_equity_comparison():
     hydra_cagr = (pow(hydra_final / hydra_start, 1 / years) - 1) * 100 if years > 0 else 0
     spy_cagr = (pow(spy_final / hydra_start, 1 / years) - 1) * 100 if years > 0 else 0
 
-    # Net equity curve (Signal - 2.0% fixed annual execution costs)
-    EXECUTION_COST = 0.02
+    # Net equity curve (Signal - 1.0% fixed annual execution costs)
+    EXECUTION_COST = 0.01
     daily_growth_signal = hydra_cagr / 100.0
     net_cagr_decimal = daily_growth_signal - EXECUTION_COST
     days_elapsed = (merged['date_key'] - first_date).dt.days.values
@@ -1573,7 +1573,7 @@ def api_annual_returns():
     spy_df = _spy_df
 
     if df is None:
-        csv_path = os.path.join('backtests', 'hydra_corrected_daily.csv')
+        csv_path = os.path.join('backtests', 'hydra_clean_daily.csv')
         if not os.path.exists(csv_path):
             return jsonify({'error': 'No backtest data'})
         try:
@@ -2133,7 +2133,7 @@ def api_ml_learning():
     # Load backtest daily data (HYDRA + EFA/MSCI World)
     backtest_entries = []
     bt_stats = {}
-    bt_csv = os.path.join('backtests', 'hydra_corrected_daily.csv')
+    bt_csv = os.path.join('backtests', 'hydra_clean_daily.csv')
     if os.path.exists(bt_csv):
         try:
             import csv

@@ -1393,9 +1393,9 @@ def api_equity_comparison():
     compass_cagr = (pow(compass_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
     spy_cagr = (pow(spy_final / compass_start, 1 / years) - 1) * 100 if years > 0 else 0
 
-    # --- Net equity curve (Signal - 2.0% fixed annual execution costs) ---
-    # Net CAGR = Signal CAGR - 2.0%.  Synthesis: net(t) = signal(t) * ((1+net)/(1+signal))^t
-    EXECUTION_COST = 0.02  # 2.0% annual (MOC slippage + commissions)
+    # --- Net equity curve (Signal - 1.0% fixed annual execution costs) ---
+    # Net CAGR = Signal CAGR - 1.0%.  Synthesis: net(t) = signal(t) * ((1+net)/(1+signal))^t
+    EXECUTION_COST = 0.01  # 1.0% annual (MOC slippage + commissions)
     daily_growth_signal = compass_cagr / 100.0
     net_cagr_decimal = daily_growth_signal - EXECUTION_COST
     days_elapsed = (merged['date_key'] - first_date).dt.days.values
@@ -2522,7 +2522,7 @@ def api_ml_learning():
     # Load backtest daily data (HYDRA + EFA/MSCI World)
     backtest_entries = []
     bt_stats = {}
-    bt_csv = os.path.join('backtests', 'hydra_corrected_daily.csv')
+    bt_csv = os.path.join('backtests', 'hydra_clean_daily.csv')
     if os.path.exists(bt_csv):
         try:
             import csv
