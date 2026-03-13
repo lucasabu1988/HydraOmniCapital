@@ -87,6 +87,7 @@ class HydraAgent:
 
         self._phases_run_today = {}
         self._last_intraday_run = None
+        self._token_usage = {}  # {phase: {input_tokens, output_tokens, api_calls}}
 
     def _configure_git_auth(self):
         """Configure git remote with token auth for Render (enables state push)."""
@@ -309,6 +310,13 @@ class HydraAgent:
                 logger.error(f"Claude API failed after 3 attempts, aborting phase {phase}")
                 break
 
+            # Track token usage
+            if hasattr(response, 'usage'):
+                usage = self._token_usage.setdefault(phase, {'input_tokens': 0, 'output_tokens': 0, 'api_calls': 0})
+                usage['input_tokens'] += getattr(response.usage, 'input_tokens', 0)
+                usage['output_tokens'] += getattr(response.usage, 'output_tokens', 0)
+                usage['api_calls'] += 1
+
             # Process response content
             assistant_content = response.content
             messages.append({'role': 'assistant', 'content': assistant_content})
@@ -343,6 +351,17 @@ class HydraAgent:
             # Check stop reason
             if response.stop_reason == 'end_turn':
                 break
+
+        # Log token usage for this phase
+        usage = self._token_usage.get(phase, {})
+        if usage:
+            logger.info(f"API usage [{phase}]: {usage.get('input_tokens', 0)} in / {usage.get('output_tokens', 0)} out / {usage.get('api_calls', 0)} calls")
+            self.scratchpad.log('api_usage', {
+                'phase': phase,
+                'input_tokens': usage.get('input_tokens', 0),
+                'output_tokens': usage.get('output_tokens', 0),
+                'api_calls': usage.get('api_calls', 0),
+            })
 
         # Extract final text response
         final_text = ''
@@ -484,6 +503,20 @@ class HydraAgent:
                         logger.error(f"Phase {phase} failed: {e}")
                     self._phases_run_today[phase] = now.isoformat()
 
+    def _write_heartbeat(self, now):
+        heartbeat = {
+            'ts': now.isoformat(),
+            'phase': list(self._phases_run_today.keys()),
+            'token_usage': self._token_usage,
+            'kill_switch': self._check_kill_switch(),
+        }
+        path = os.path.join(self.state_dir, 'agent_heartbeat.json')
+        try:
+            with open(path, 'w') as f:
+                json.dump(heartbeat, f, indent=2, default=str)
+        except Exception:
+            pass
+
     def run(self):
         logger.info("HYDRA Agent starting...")
         while True:
@@ -500,6 +533,9 @@ class HydraAgent:
 
                 now = _get_et_now()
                 self._run_schedule(now)
+
+                # Write heartbeat
+                self._write_heartbeat(now)
 
             except KeyboardInterrupt:
                 logger.info("HYDRA Agent stopped by user")

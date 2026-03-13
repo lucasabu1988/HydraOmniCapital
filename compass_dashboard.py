@@ -2659,6 +2659,53 @@ def api_ml_learning():
     })
 
 
+@app.route('/api/agent-scratchpad')
+def api_agent_scratchpad():
+    """Return today's HYDRA agent scratchpad entries."""
+    sp_dir = os.path.join('state', 'agent_scratchpad')
+    today = datetime.now().strftime('%Y-%m-%d')
+    day = request.args.get('date', today)
+    entries = []
+    path = os.path.join(sp_dir, f'{day}.jsonl')
+    if os.path.exists(path):
+        try:
+            with open(path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        entries.append(json.loads(line))
+        except Exception:
+            pass
+    # List available days
+    available = []
+    if os.path.isdir(sp_dir):
+        available = sorted([f.replace('.jsonl', '') for f in os.listdir(sp_dir) if f.endswith('.jsonl')], reverse=True)
+    return jsonify({'date': day, 'entries': entries, 'available_dates': available[:30]})
+
+
+@app.route('/api/agent-heartbeat')
+def api_agent_heartbeat():
+    """Return HYDRA agent heartbeat status."""
+    hb_path = os.path.join('state', 'agent_heartbeat.json')
+    if not os.path.exists(hb_path):
+        return jsonify({'alive': False, 'message': 'No heartbeat file found'})
+    try:
+        with open(hb_path, 'r') as f:
+            data = json.load(f)
+        # Check if heartbeat is recent (< 2 minutes)
+        ts = data.get('ts', '')
+        if ts:
+            last_beat = datetime.fromisoformat(ts)
+            age_seconds = (datetime.now() - last_beat).total_seconds()
+            data['alive'] = age_seconds < 120
+            data['age_seconds'] = round(age_seconds)
+        else:
+            data['alive'] = False
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'alive': False, 'error': str(e)})
+
+
 @app.route('/robots.txt')
 def robots_txt():
     return app.response_class(
