@@ -1,0 +1,504 @@
+{
+  "run_timestamp": "2026-03-12T20:58:19.302948",
+  "tickers_probed": 18,
+  "has_data_count": 9,
+  "no_data_count": 5,
+  "index_only_count": 4,
+  "results": {
+    "ENE": {
+      "description": "Enron Corp (bankrupt Dec 2001, delisted)",
+      "exists": false,
+      "meta_error": "HTTP 404 \u2014 ticker not in Tiingo index",
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": null,
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": null,
+      "verdict": "NO_DATA"
+    },
+    "WCOM": {
+      "description": "WorldCom (bankrupt Jul 2002, became MCI 2003)",
+      "exists": false,
+      "meta_error": "HTTP 404 \u2014 ticker not in Tiingo index",
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": null,
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": null,
+      "verdict": "NO_DATA"
+    },
+    "CIT": {
+      "description": "CIT Group (bankrupt Nov 2009, relisted as new entity)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "2009-12-10",
+      "tiingo_end": "2022-01-03",
+      "name": "CIT Group Inc",
+      "price_rows": 20,
+      "price_start": "2009-12-10",
+      "price_end": "2010-01-08",
+      "price_sample": [
+        {
+          "date": "2009-12-10",
+          "adjClose": 23.8786,
+          "adjVolume": 17222400
+        },
+        {
+          "date": "2009-12-11",
+          "adjClose": 24.414,
+          "adjVolume": 7513900
+        },
+        {
+          "date": "2009-12-14",
+          "adjClose": 23.475,
+          "adjVolume": 4643300
+        },
+        {
+          "date": "2009-12-15",
+          "adjClose": 21.5805,
+          "adjVolume": 6196800
+        },
+        {
+          "date": "2009-12-16",
+          "adjClose": 21.5888,
+          "adjVolume": 11923400
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    },
+    "LEH": {
+      "description": "Lehman Brothers (bankrupt Sep 2008, delisted)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": "LEHMAN BROTHERS HOLDINGS INC",
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": "Empty response \u2014 ticker exists in index but no price data in this range",
+      "verdict": "INDEX_ONLY_NO_PRICES"
+    },
+    "WM": {
+      "description": "Washington Mutual (bankrupt Sep 2008, delisted) -- CAUTION: ticker reused by Waste Management",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "1991-09-30",
+      "tiingo_end": "2026-03-12",
+      "name": "Waste Management Inc",
+      "price_rows": 23,
+      "price_start": "1991-09-30",
+      "price_end": "1991-10-30",
+      "price_sample": [
+        {
+          "date": "1991-09-30",
+          "adjClose": 6.9067,
+          "adjVolume": 5200
+        },
+        {
+          "date": "1991-10-01",
+          "adjClose": 7.1101,
+          "adjVolume": 3000
+        },
+        {
+          "date": "1991-10-02",
+          "adjClose": 6.9067,
+          "adjVolume": 15800
+        },
+        {
+          "date": "1991-10-03",
+          "adjClose": 7.2118,
+          "adjVolume": 1000
+        },
+        {
+          "date": "1991-10-04",
+          "adjClose": 6.9067,
+          "adjVolume": 3700
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    },
+    "BSC": {
+      "description": "Bear Stearns (acquired by JPMorgan Mar 2008)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": "BEAR STEARNS COMPANIES INC",
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": "Empty response \u2014 ticker exists in index but no price data in this range",
+      "verdict": "INDEX_ONLY_NO_PRICES"
+    },
+    "WB": {
+      "description": "Wachovia (acquired by Wells Fargo Oct 2008)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "2014-04-17",
+      "tiingo_end": "2026-03-12",
+      "name": "Weibo Corp",
+      "price_rows": 21,
+      "price_start": "2014-04-17",
+      "price_end": "2014-05-16",
+      "price_sample": [
+        {
+          "date": "2014-04-17",
+          "adjClose": 15.6278,
+          "adjVolume": 32090000
+        },
+        {
+          "date": "2014-04-21",
+          "adjClose": 17.4577,
+          "adjVolume": 13428800
+        },
+        {
+          "date": "2014-04-22",
+          "adjClose": 17.8747,
+          "adjVolume": 10470300
+        },
+        {
+          "date": "2014-04-23",
+          "adjClose": 16.5312,
+          "adjVolume": 7597400
+        },
+        {
+          "date": "2014-04-24",
+          "adjClose": 15.7822,
+          "adjVolume": 4991500
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    },
+    "COUN": {
+      "description": "Countrywide Financial (acquired by BofA Jul 2008)",
+      "exists": false,
+      "meta_error": "HTTP 404 \u2014 ticker not in Tiingo index",
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": null,
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": null,
+      "verdict": "NO_DATA"
+    },
+    "AIG": {
+      "description": "AIG (survived, but critical pre-2008 data needed for full backtest)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "1984-09-07",
+      "tiingo_end": "2026-03-12",
+      "name": "American International Group Inc",
+      "price_rows": 21,
+      "price_start": "1984-09-07",
+      "price_end": "1984-10-05",
+      "price_sample": [
+        {
+          "date": "1984-09-07",
+          "adjClose": 30.7956,
+          "adjVolume": 63500
+        },
+        {
+          "date": "1984-09-10",
+          "adjClose": 30.9145,
+          "adjVolume": 37000
+        },
+        {
+          "date": "1984-09-11",
+          "adjClose": 31.1523,
+          "adjVolume": 137399
+        },
+        {
+          "date": "1984-09-12",
+          "adjClose": 31.8657,
+          "adjVolume": 118799
+        },
+        {
+          "date": "1984-09-13",
+          "adjClose": 32.2795,
+          "adjVolume": 105000
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    },
+    "C": {
+      "description": "Citigroup (survived massive dilution \u2014 verify pre-2009 adjusted data is correct)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "1977-01-03",
+      "tiingo_end": "2026-03-12",
+      "name": "Citigroup Inc",
+      "price_rows": 23,
+      "price_start": "1977-01-03",
+      "price_end": "1977-02-02",
+      "price_sample": [
+        {
+          "date": "1977-01-03",
+          "adjClose": 7.2215,
+          "adjVolume": 95399
+        },
+        {
+          "date": "1977-01-04",
+          "adjClose": 7.2455,
+          "adjVolume": 67999
+        },
+        {
+          "date": "1977-01-05",
+          "adjClose": 7.1993,
+          "adjVolume": 30599
+        },
+        {
+          "date": "1977-01-06",
+          "adjClose": 7.1532,
+          "adjVolume": 77599
+        },
+        {
+          "date": "1977-01-07",
+          "adjClose": 7.1772,
+          "adjVolume": 40799
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    },
+    "FNM": {
+      "description": "Fannie Mae (delisted 2010, conservatorship Sep 2008)",
+      "exists": false,
+      "meta_error": "HTTP 404 \u2014 ticker not in Tiingo index",
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": null,
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": null,
+      "verdict": "NO_DATA"
+    },
+    "FRE": {
+      "description": "Freddie Mac (delisted 2010, conservatorship Sep 2008)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": "Firebrick Pharma Limited",
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": "Empty response \u2014 ticker exists in index but no price data in this range",
+      "verdict": "INDEX_ONLY_NO_PRICES"
+    },
+    "GM": {
+      "description": "General Motors old entity (bankrupt Jun 2009) -- CAUTION: ticker reused by new GM",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "2010-11-18",
+      "tiingo_end": "2026-03-12",
+      "name": "General Motors Company",
+      "price_rows": 21,
+      "price_start": "2010-11-18",
+      "price_end": "2010-12-17",
+      "price_sample": [
+        {
+          "date": "2010-11-18",
+          "adjClose": 25.4455,
+          "adjVolume": 457044300
+        },
+        {
+          "date": "2010-11-19",
+          "adjClose": 25.4976,
+          "adjVolume": 107842000
+        },
+        {
+          "date": "2010-11-22",
+          "adjClose": 25.3636,
+          "adjVolume": 36650600
+        },
+        {
+          "date": "2010-11-23",
+          "adjClose": 24.7459,
+          "adjVolume": 31170200
+        },
+        {
+          "date": "2010-11-24",
+          "adjClose": 24.9171,
+          "adjVolume": 26138000
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    },
+    "PALM": {
+      "description": "Palm Inc (acquired by HP Apr 2010)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "2007-10-25",
+      "tiingo_end": "2010-07-19",
+      "name": "PALM INC",
+      "price_rows": 21,
+      "price_start": "2007-10-25",
+      "price_end": "2007-11-23",
+      "price_sample": [
+        {
+          "date": "2007-10-25",
+          "adjClose": 8.5,
+          "adjVolume": 13176735
+        },
+        {
+          "date": "2007-10-26",
+          "adjClose": 9.08,
+          "adjVolume": 7573528
+        },
+        {
+          "date": "2007-10-29",
+          "adjClose": 9.17,
+          "adjVolume": 5583454
+        },
+        {
+          "date": "2007-10-30",
+          "adjClose": 9.44,
+          "adjVolume": 5369942
+        },
+        {
+          "date": "2007-10-31",
+          "adjClose": 9.02,
+          "adjVolume": 6256127
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    },
+    "SUNW": {
+      "description": "Sun Microsystems (acquired by Oracle Jan 2010)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": null,
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": "Empty response \u2014 ticker exists in index but no price data in this range",
+      "verdict": "INDEX_ONLY_NO_PRICES"
+    },
+    "EDS": {
+      "description": "Electronic Data Systems (acquired by HP Aug 2008)",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "2007-12-03",
+      "tiingo_end": "2015-04-29",
+      "name": "Exceed Company Ltd",
+      "price_rows": 21,
+      "price_start": "2007-12-03",
+      "price_end": "2008-01-02",
+      "price_sample": [
+        {
+          "date": "2007-12-03",
+          "adjClose": 7.21,
+          "adjVolume": 950000
+        },
+        {
+          "date": "2007-12-04",
+          "adjClose": 7.18,
+          "adjVolume": 6000
+        },
+        {
+          "date": "2007-12-05",
+          "adjClose": 7.23,
+          "adjVolume": 265100
+        },
+        {
+          "date": "2007-12-06",
+          "adjClose": 7.11,
+          "adjVolume": 11500
+        },
+        {
+          "date": "2007-12-07",
+          "adjClose": 7.11,
+          "adjVolume": 0
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    },
+    "MWD": {
+      "description": "Morgan Stanley Dean Witter (renamed to MS 2002)",
+      "exists": false,
+      "meta_error": "HTTP 404 \u2014 ticker not in Tiingo index",
+      "tiingo_start": null,
+      "tiingo_end": null,
+      "name": null,
+      "price_rows": 0,
+      "price_start": null,
+      "price_end": null,
+      "price_sample": [],
+      "price_error": null,
+      "verdict": "NO_DATA"
+    },
+    "S": {
+      "description": "Sprint Nextel / Sprint Corp (merged with T-Mobile 2020) -- verify ticker continuity",
+      "exists": true,
+      "meta_error": null,
+      "tiingo_start": "2021-06-30",
+      "tiingo_end": "2026-03-12",
+      "name": "SentinelOne Inc - Class A",
+      "price_rows": 22,
+      "price_start": "2021-06-30",
+      "price_end": "2021-07-30",
+      "price_sample": [
+        {
+          "date": "2021-06-30",
+          "adjClose": 42.5,
+          "adjVolume": 20587281
+        },
+        {
+          "date": "2021-07-01",
+          "adjClose": 40.04,
+          "adjVolume": 6293429
+        },
+        {
+          "date": "2021-07-02",
+          "adjClose": 44.59,
+          "adjVolume": 4637064
+        },
+        {
+          "date": "2021-07-06",
+          "adjClose": 49.5,
+          "adjVolume": 7135819
+        },
+        {
+          "date": "2021-07-07",
+          "adjClose": 51.49,
+          "adjVolume": 7092822
+        }
+      ],
+      "price_error": null,
+      "verdict": "HAS_DATA"
+    }
+  },
+  "rate_analysis": {
+    "full_universe_tickers": 475,
+    "calls_per_ticker": 2,
+    "total_calls": 950,
+    "rate_limit_per_hour": 500,
+    "sleep_secs": 3.0,
+    "estimated_minutes": 47.5,
+    "estimated_hours_at_limit": 1.9
+  }
+}
