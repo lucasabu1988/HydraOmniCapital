@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-13T13:36:05.455653",
+  "timestamp": "2026-03-13T13:52:00.304048",
   "cash": 9736.957670410156,
   "peak_value": 101535.2842614746,
-  "portfolio_value": 101899.10761853028,
+  "portfolio_value": 102046.25382824708,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
@@ -61,7 +61,7 @@
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 126.45999908447266,
+      "high_price": 126.55000305175781,
       "entry_vol": 0.3034,
       "entry_daily_vol": 0.019112,
       "sector": "Consumer Staples",
@@ -72,7 +72,7 @@
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 156.74000549316406,
+      "high_price": 156.8249969482422,
       "entry_vol": 0.2872,
       "entry_daily_vol": 0.01809,
       "sector": "Energy",
@@ -150,7 +150,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 167,
-    "uptime_minutes": 218.92379788333335
+    "cycles_completed": 182,
+    "uptime_minutes": 234.83793736666667
   }
 }
