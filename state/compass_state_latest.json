@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-13T10:30:17.253731",
+  "timestamp": "2026-03-13T10:46:05.280523",
   "cash": 9736.957670410156,
   "peak_value": 101535.2842614746,
-  "portfolio_value": 101491.88825817872,
+  "portfolio_value": 101477.12176342774,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
@@ -72,7 +72,7 @@
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 154.55999755859375,
+      "high_price": 154.85000610351562,
       "entry_vol": 0.2872,
       "entry_daily_vol": 0.01809,
       "sector": "Energy",
@@ -150,7 +150,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 27,
-    "uptime_minutes": 33.12043228333333
+    "cycles_completed": 42,
+    "uptime_minutes": 48.92087871666667
   }
 }
