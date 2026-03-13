@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-13T12:48:52.151405",
+  "timestamp": "2026-03-13T13:04:35.380250",
   "cash": 9736.957670410156,
   "peak_value": 101535.2842614746,
-  "portfolio_value": 101810.41288586427,
+  "portfolio_value": 101875.4281751709,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000.0,
@@ -50,7 +50,7 @@
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 116.77999877929688,
+      "high_price": 116.81500244140625,
       "entry_vol": 0.2593,
       "entry_daily_vol": 0.016337,
       "sector": "Healthcare",
@@ -72,7 +72,7 @@
       "entry_date": "2026-03-11",
       "entry_day_index": 4,
       "original_entry_day_index": 4,
-      "high_price": 155.86500549316406,
+      "high_price": 156.1551971435547,
       "entry_vol": 0.2872,
       "entry_daily_vol": 0.01809,
       "sector": "Energy",
@@ -150,7 +150,7 @@
     }
   },
   "stats": {
-    "cycles_completed": 122,
-    "uptime_minutes": 171.70206008333335
+    "cycles_completed": 137,
+    "uptime_minutes": 187.4225409
   }
 }
