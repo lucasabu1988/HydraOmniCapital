@@ -81,13 +81,48 @@ def load_sp500_snapshots() -> pd.DataFrame:
 
 
 def load_universe_prices() -> Dict[str, pd.DataFrame]:
-    cache_file = 'data_cache/sp500_universe_prices.pkl'
-    if not os.path.exists(cache_file):
-        print("ERROR: sp500_universe_prices.pkl not found. Run exp40 first.")
-        sys.exit(1)
-    print("[Cache] Loading universe prices (827 tickers)...")
-    with open(cache_file, 'rb') as f:
-        return pickle.load(f)
+    # Load from merged_universe (924 tickers, multi-source)
+    merged_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                              'data_sources', 'merged_universe')
+    if os.path.exists(merged_dir):
+        print(f"[merged_universe] Loading from {merged_dir}...")
+        data = {}
+        corrupted = 0
+        for f in os.listdir(merged_dir):
+            if not f.endswith('.parquet'):
+                continue
+            ticker = f.replace('.parquet', '')
+            try:
+                df = pd.read_parquet(os.path.join(merged_dir, f))
+                if len(df) < 10 or 'Close' not in df.columns:
+                    continue
+                if df.index.tz is not None:
+                    df.index = df.index.tz_localize(None)
+                df = df[df.index >= '2000-01-01']
+                if len(df) < 10:
+                    continue
+                # Sanitize: max price, near-zero, daily returns
+                if df['Close'].max() > 5000:
+                    corrupted += 1; continue
+                if (df['Close'] < 0.01).sum() > 5:
+                    corrupted += 1; continue
+                returns = df['Close'].pct_change().abs()
+                bad = returns > 0.80
+                if bad.sum() / len(df) > 0.02:
+                    corrupted += 1; continue
+                if bad.sum() > 0:
+                    bad.iloc[0] = False
+                    df = df[~bad]
+                if len(df) < 10:
+                    continue
+                data[ticker] = df
+            except Exception:
+                pass
+        print(f"  Loaded {len(data)} tickers ({corrupted} corrupted removed)")
+        return data
+
+    print("ERROR: No merged_universe found. Run merge_survivorship_data.py first.")
+    sys.exit(1)
 
 
 def get_sp500_members_on_date(snapshots: pd.DataFrame, date: pd.Timestamp) -> Set[str]:

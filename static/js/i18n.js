@@ -39,9 +39,9 @@ var TRANSLATIONS = {
 
     // Hero Section
     'hero-tagline':          'Momentum + Mean-Reversion + International · Cash Recycling · S&P 500 + EAFE · Long-Only',
-    'hero-cagr-context':     '26-year backtest',
+    'hero-cagr-context':     'Survivorship-corrected (882 tickers)',
     'hero-sharpe-context':   'Risk-adjusted',
-    'hero-maxdd-context':    'vs −32.6% Momentum solo',
+    'hero-maxdd-context':    'vs −55.2% SPY',
     'hero-posyears-label':   'Positive Years',
     'hero-posyears-context': '85% win rate by year',
     'hero-beats-label':      'Beats S&P',
@@ -323,9 +323,9 @@ var TRANSLATIONS = {
 
     // Hero Section
     'hero-tagline':          'Momentum + Mean-Reversion + International · Cash Recycling · S&P 500 + EAFE · Long-Only',
-    'hero-cagr-context':     '26-year backtest',
+    'hero-cagr-context':     'Survivorship-corrected (882 tickers)',
     'hero-sharpe-context':   'Risk-adjusted',
-    'hero-maxdd-context':    'vs −32.6% Momentum only',
+    'hero-maxdd-context':    'vs −55.2% SPY',
     'hero-posyears-label':   'Positive Years',
     'hero-posyears-context': '85% win rate by year',
     'hero-beats-label':      'Beats S&P',
