@@ -1489,7 +1489,7 @@ def api_annual_returns():
             positive_years += 1
         result.append({
             'year': yr,
-            'compass': item['return'],
+            'hydra': item['return'],
             'spy': spy_ret,
         })
 
