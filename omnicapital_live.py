@@ -1950,6 +1950,13 @@ class COMPASSLive:
         # run every day to keep logical accounts aligned with real returns.
         if self._hydra_available and self.hydra_capital:
             try:
+                # Fetch current prices for HYDRA sync (not yet available from run_once)
+                sync_symbols = set(self.position_meta.keys())
+                sync_symbols |= {p['symbol'] for p in self.rattle_positions}
+                sync_symbols.discard(EFA_SYMBOL)
+                raw_sync = self.data_feed.get_prices(list(sync_symbols))
+                prices = self.validator.validate_batch(raw_sync) if raw_sync else {}
+
                 # Compute daily returns for each strategy from portfolio history
                 if len(self.portfolio_values_history) >= 2:
                     prev_total = self.portfolio_values_history[-2]

@@ -142,7 +142,10 @@ def load_hydra_daily():
     return None
 
 
-def download_fund_prices(ticker, start='1999-12-31', end='2026-03-15'):
+def download_fund_prices(ticker, start='1999-12-31', end=None):
+    if end is None:
+        from datetime import datetime
+        end = datetime.today().strftime('%Y-%m-%d')
     """Download daily adjusted close prices from yfinance."""
     if not _HAS_YF:
         return None

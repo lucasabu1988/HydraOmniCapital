@@ -70,20 +70,22 @@ def main():
     if portfolio_value is not None:
         lines.append(f"Portfolio: {format_currency(portfolio_value)}")
 
-    # --- Positions from /api/state ---
-    positions = state.get("positions", {})
-    cash = state.get("cash")
-    regime = state.get("regime", "unknown")
+    # --- Portfolio & Positions from /api/state ---
+    portfolio = state.get("portfolio", {})
+    cash = portfolio.get("cash")
+    regime = portfolio.get("regime", "unknown")
+    position_details = state.get("position_details", [])
 
     lines.append(f"Regime: {regime}")
     if cash is not None:
         lines.append(f"Cash: {format_currency(cash)}")
-    lines.append(f"Positions: {len(positions)}")
+    lines.append(f"Positions: {len(position_details)}")
 
-    if positions:
+    if position_details:
         lines.append("")
-        for ticker, pos in positions.items():
-            pnl = pos.get("unrealized_pnl_pct")
+        for pos in position_details:
+            ticker = pos.get("symbol", "?")
+            pnl = pos.get("pnl_pct")
             entry = pos.get("entry_price")
             pnl_str = format_pct(pnl) if pnl is not None else "n/a"
             lines.append(f"  {ticker}: {pnl_str} (entry {format_currency(entry) if entry else '?'})")

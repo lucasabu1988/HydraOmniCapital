@@ -26,6 +26,9 @@ import numpy as np
 import pandas as pd
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import requests as http_requests  # for external APIs
+import xml.etree.ElementTree as XmlET
+import re as _re
 
 # Suppress yfinance noise
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
@@ -624,7 +627,7 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
         if entry_date:
             try:
                 entry_dt = date.fromisoformat(entry_date)
-                today = date.today()
+                today = datetime.now(ZoneInfo('America/New_York')).date()
                 total_days = (today - entry_dt).days
                 # Count trading days from entry to today, inclusive of entry day (+1)
                 days_held = 1 + sum(1 for d in range(1, total_days + 1)
@@ -1734,9 +1737,6 @@ _social_cache: Dict = {}
 _social_cache_time: Optional[datetime] = None
 SOCIAL_CACHE_SECONDS = 300  # 5 min cache
 
-import requests as http_requests  # for external APIs
-import xml.etree.ElementTree as XmlET
-import re as _re
 
 
 def _fetch_yfinance_news(symbols: List[str], max_per: int = 3) -> List[dict]:
