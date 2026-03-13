@@ -200,6 +200,9 @@ def compute_crisis_return(df, start_date, end_date):
     return None
 
 
+RF_RATE = 2.5  # avg Fed Funds rate 2000-2026 (covers ZIRP + rate hike years), annualized %
+
+
 def compute_metrics(df, annual_returns):
     """Compute CAGR, Sharpe, max drawdown, volatility, cumulative return."""
     if df is None or df.empty:
@@ -218,7 +221,8 @@ def compute_metrics(df, annual_returns):
     daily_rets = pd.Series(values).pct_change().dropna()
     ann_vol = float(daily_rets.std() * np.sqrt(252) * 100)
     ann_mean = float(daily_rets.mean() * 252 * 100)
-    sharpe = ann_mean / ann_vol if ann_vol > 0 else 0
+    # Sharpe: excess return over risk-free rate (2.5% avg Fed Funds 2000-2026)
+    sharpe = (ann_mean - RF_RATE) / ann_vol if ann_vol > 0 else 0
 
     # Max drawdown
     peak = np.maximum.accumulate(values)
