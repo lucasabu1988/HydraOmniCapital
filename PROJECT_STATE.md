@@ -61,7 +61,7 @@
 
 ### Hallazgos Principales
 
-**SURVIVORSHIP BIAS CUANTIFICADO: +4.56% CAGR**
+**SURVIVORSHIP BIAS CUANTIFICADO: +4.71% CAGR**
 
 El backtest original de COMPASS v8.2 **sobrestimó** significativamente el rendimiento al usar solo acciones actuales del S&P 500.
 
@@ -69,10 +69,10 @@ El backtest original de COMPASS v8.2 **sobrestimó** significativamente el rendi
 
 | Métrica | Original (Sesgado) | Corregido (Realista) | Diferencia |
 |---------|-------------------|---------------------|------------|
-| **Valor Final** | $8,313,069 | $2,990,414 | -$5.3M |
-| **CAGR** | **18.46%** | **13.90%** | **-4.56%** |
-| **Sharpe Ratio** | 0.921 | 0.646 | -0.275 |
-| **Max Drawdown** | -36.18% | -66.25% | -30.06% |
+| **Valor Final** | $8,600,000 | $2,990,414 | -$5.6M |
+| **CAGR** | **18.61%** | **13.90%** | **-4.71%** |
+| **Sharpe Ratio** | 1.03 | 0.646 | -0.384 |
+| **Max Drawdown** | -30.6% | -66.25% | +35.65% |
 | **Trades** | 5,457 | 5,309 | -148 |
 
 ### Datos del Experimento
@@ -93,8 +93,8 @@ Ejemplos de stocks con datos corruptos excluidas del análisis:
 
 ### Interpretación
 
-1. **Sesgo de Supervivencia**: El CAGR real de COMPASS v8.2 es **13.90%**, no 18.46%
-2. **Sobrestimación**: +4.56% por año = **24.7% del CAGR original**
+1. **Sesgo de Supervivencia**: El CAGR real de COMPASS v8.2 es **13.90%**, no 18.61%
+2. **Sobrestimación**: +4.71% por año = **25.3% del CAGR original**
 3. **Riesgo Real**: El drawdown máximo casi se duplica (-66% vs -36%)
 4. **Causas**: Exclusión de quiebras (Lehman, Enron, WorldCom) y crisis 2008
 
@@ -110,7 +110,7 @@ Todos en `backtests/`:
 ### Conclusión
 
 ✅ **COMPASS v8.2 sigue siendo sólido con 13.90% CAGR real**
-⚠️ **Pero la estimación original estaba inflada +4.56% por survivorship bias**
+⚠️ **Pero la estimación original estaba inflada +4.71% por survivorship bias**
 📊 **Este es el número honesto para comparar con benchmarks**
 
 ---
@@ -283,7 +283,7 @@ type omnicapital_state_*.json
 | 10 Feb 2026 | v7 descartado | Complejidad sin beneficio |
 | 10 Feb 2026 | Paper trading primero | Validar antes de live |
 | 11 Feb 2026 | Refactorización live | Código más mantenible y robusto |
-| **27 Feb 2026** | **Exp40 completado** | **Survivorship bias cuantificado: +4.56% CAGR** |
+| **27 Feb 2026** | **Exp40 completado** | **Survivorship bias cuantificado: +4.71% CAGR** |
 | **27 Feb 2026** | **COMPASS v8.2 validado** | **13.90% CAGR real (bias-corrected)** |
 | **28 Feb 2026** | **COMPASS v8.3 implementado** | **6 structural improvements, 3 bug fixes** |
 

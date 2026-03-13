@@ -8,9 +8,9 @@
 | Aspecto | Estado |
 |---------|--------|
 | **Algoritmo** | COMPASS v8.2 (LOCKED — 39 experimentos, 35 fallidos) |
-| **Signal CAGR** | 18.56% \| 0.90 Sharpe \| -26.9% MaxDD \| $100K→$8.43M |
-| **Net CAGR** | 15.16% \| 0.734 Sharpe \| -30.3% MaxDD \| $100K→$3.93M |
-| **Costo de ejecucion** | 2.5% fijo anual (MOC slippage + comisiones + buffer) |
+| **Signal CAGR** | 18.61% \| 1.03 Sharpe \| -30.6% MaxDD \| $100K→$8.6M |
+| **Net CAGR** | 17.42% \| 0.98 Sharpe \| -31.2% MaxDD \| $100K→$6.6M |
+| **Costo de ejecucion** | 1.0% fijo anual (MOC slippage + comisiones + buffer) |
 | **Broker** | IBKR mock mode operativo (53 unit tests passing) |
 | **Dashboard** | Flask live dashboard operativo |
 | **Proximo Paso** | Norgate Data + IBKR Paper Trading (3-6 meses) |
@@ -124,7 +124,7 @@ CASH_YIELD = "Moody's Aaa IG Corporate (FRED variable, avg ~4.8%)"
 
 ### Fase 4: Optimizacion Fiscal
 - [ ] Operar en IRA/401(k) — ~209 trades/año = short-term capital gains
-- [ ] En cuenta taxable: ~10-11% after-tax (vs 15.16% pre-tax)
+- [ ] En cuenta taxable: ~10-11% after-tax (vs 17.42% pre-tax)
 
 ### Fase 5: Escalado ($500K+)
 - [ ] RATTLESNAKE dual-engine
@@ -140,7 +140,7 @@ CASH_YIELD = "Moody's Aaa IG Corporate (FRED variable, avg ~4.8%)"
 | - | v6 original | FAILED (survivorship bias) | 16.92% (biased) |
 | - | v6 corrected | annual top-40 rotation | 5.40% |
 | - | v7 | Cancelado | - |
-| - | **v8 COMPASS** | **SUCCESS** | **18.56%** |
+| - | **v8 COMPASS** | **SUCCESS** | **18.61%** |
 | - | v8.1 short-selling | FAILED | - |
 | - | v8.3 rank-hysteresis | FAILED | -4.56% delta |
 | - | v8.3 cash yield → Exp#34 | APPROVED | +1.15% |

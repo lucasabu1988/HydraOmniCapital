@@ -317,7 +317,7 @@ mypy src/
 - [x] Algoritmo COMPASS v8.2 validado (39 experimentos, motor LOCKED)
 - [x] Integración IBKR con mock mode (53 unit tests passing)
 - [x] Dashboard web en tiempo real (Flask)
-- [x] Net backtest con costos reales (15.16% CAGR neto)
+- [x] Net backtest con costos reales (17.42% CAGR neto)
 - [x] Cash yield Moody's Aaa IG Corporate (FRED variable)
 - [x] Pre-close execution model (signal 15:30 ET + MOC same-day)
 - [x] Safety guards: paper port verification, MOC deadline, kill switch, order limits
