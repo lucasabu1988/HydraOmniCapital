@@ -1,8 +1,10 @@
 """Tool definitions for the HYDRA autonomous agent (Anthropic API format).
 
-15 tools organized in 3 categories:
+21 tools organized in 5 categories:
   Trading Core (7): momentum signals, regime, stops, trade execution, state
   Market Intelligence (5): earnings, macro, insider, financials, news
+  HYDRA Execution (3): preclose cycle, rattlesnake cycle, EFA management
+  Capital Management (3): capital status, rattlesnake status, EFA status
   Operations (3): notifications, decision logging, data validation
 """
 
@@ -174,7 +176,7 @@ TOOL_DEFINITIONS = [
     },
     {
         'name': 'get_insider_trades',
-        'description': 'Get recent insider trading activity for a symbol. (Stub — future MCP integration.)',
+        'description': 'Get recent insider trading activity for a symbol (via yfinance).',
         'input_schema': {
             'type': 'object',
             'properties': {
@@ -188,7 +190,7 @@ TOOL_DEFINITIONS = [
     },
     {
         'name': 'get_financial_metrics',
-        'description': 'Get key financial metrics (P/E, revenue growth, margins) for a symbol. (Stub — future MCP integration.)',
+        'description': 'Get key financial metrics (P/E, market cap, margins, debt/equity, sector) for a symbol (via yfinance).',
         'input_schema': {
             'type': 'object',
             'properties': {
@@ -202,7 +204,7 @@ TOOL_DEFINITIONS = [
     },
     {
         'name': 'get_news_headlines',
-        'description': 'Get recent news headlines for a symbol. (Stub — future MCP integration.)',
+        'description': 'Get recent news headlines for a symbol (via yfinance).',
         'input_schema': {
             'type': 'object',
             'properties': {
@@ -1017,27 +1019,56 @@ class HydraToolExecutor:
 
     def _tool_get_insider_trades(self, inp):
         sym = inp['symbol']
-        return json.dumps({
-            'status': 'stub',
-            'message': 'Insider trades data source not yet connected via MCP',
-            'symbol': sym,
-        })
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(sym)
+            holders = getattr(ticker, 'insider_transactions', None)
+            if holders is not None and not holders.empty:
+                rows = holders.head(10).to_dict('records')
+                for r in rows:
+                    for k, v in r.items():
+                        if hasattr(v, 'isoformat'):
+                            r[k] = v.isoformat()
+                return json.dumps({'symbol': sym, 'transactions': rows})
+            return json.dumps({'symbol': sym, 'transactions': [], 'note': 'No insider transaction data available'})
+        except Exception as e:
+            return json.dumps({'symbol': sym, 'error': str(e)})
 
     def _tool_get_financial_metrics(self, inp):
         sym = inp['symbol']
-        return json.dumps({
-            'status': 'stub',
-            'message': 'Financial metrics data source not yet connected via MCP',
-            'symbol': sym,
-        })
+        try:
+            import yfinance as yf
+            info = yf.Ticker(sym).info
+            metrics = {}
+            for key in ['marketCap', 'trailingPE', 'forwardPE', 'priceToBook',
+                         'debtToEquity', 'returnOnEquity', 'revenueGrowth',
+                         'profitMargins', 'operatingMargins', 'dividendYield',
+                         'beta', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'sector', 'industry']:
+                if key in info:
+                    metrics[key] = info[key]
+            return json.dumps({'symbol': sym, 'metrics': metrics})
+        except Exception as e:
+            return json.dumps({'symbol': sym, 'error': str(e)})
 
     def _tool_get_news_headlines(self, inp):
         sym = inp['symbol']
-        return json.dumps({
-            'status': 'stub',
-            'message': 'News headlines data source not yet connected via MCP',
-            'symbol': sym,
-        })
+        try:
+            import yfinance as yf
+            ticker = yf.Ticker(sym)
+            news = getattr(ticker, 'news', None)
+            if news:
+                headlines = []
+                for item in news[:10]:
+                    headlines.append({
+                        'title': item.get('title', ''),
+                        'publisher': item.get('publisher', ''),
+                        'link': item.get('link', ''),
+                        'published': item.get('providerPublishTime', ''),
+                    })
+                return json.dumps({'symbol': sym, 'headlines': headlines})
+            return json.dumps({'symbol': sym, 'headlines': [], 'note': 'No news available'})
+        except Exception as e:
+            return json.dumps({'symbol': sym, 'error': str(e)})
 
     # ----------------------------------------------------------------
     # Operations
