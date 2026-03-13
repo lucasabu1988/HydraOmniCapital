@@ -214,6 +214,34 @@ TOOL_DEFINITIONS = [
             'required': ['symbol'],
         },
     },
+    # ---- Capital Management (3) ----
+    {
+        'name': 'get_capital_status',
+        'description': 'Get HYDRA capital manager status: COMPASS account, Rattlesnake account, EFA value, recycling metrics, and effective allocations after cash recycling.',
+        'input_schema': {
+            'type': 'object',
+            'properties': {},
+            'required': [],
+        },
+    },
+    {
+        'name': 'get_rattlesnake_status',
+        'description': 'Get Rattlesnake strategy status: open positions with entry prices and days held, regime (risk-on/off, VIX panic), available slots, and exposure fraction.',
+        'input_schema': {
+            'type': 'object',
+            'properties': {},
+            'required': [],
+        },
+    },
+    {
+        'name': 'get_efa_status',
+        'description': 'Get EFA third pillar status: current position (shares, cost, value), SMA200 trend, idle cash available for EFA, and whether buy/sell conditions are met.',
+        'input_schema': {
+            'type': 'object',
+            'properties': {},
+            'required': [],
+        },
+    },
     # ---- Operations (3) ----
     {
         'name': 'send_notification',
@@ -319,7 +347,7 @@ class HydraToolExecutor:
                 except Exception:
                     continue
 
-            scores = compute_momentum_scores(hist_data, lookback=90, skip=5)
+            scores = compute_momentum_scores(hist_data, universe, lookback=90, skip=5)
             ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_n]
             result = [{'rank': i + 1, 'symbol': sym, 'score': round(sc, 4)} for i, (sym, sc) in enumerate(ranked)]
             return json.dumps({'signals': result, 'count': len(result)})
@@ -525,6 +553,174 @@ class HydraToolExecutor:
             return json.dumps({'logged': True, 'event_type': event_type, 'total_events': len(cycle_log)})
         except Exception as e:
             return json.dumps({'error': f'Cycle log update failed: {e}'})
+
+    # ----------------------------------------------------------------
+    # Capital Management
+    # ----------------------------------------------------------------
+
+    def _tool_get_capital_status(self, inp):
+        try:
+            hc = getattr(self.engine, 'hydra_capital', None)
+            if not hc:
+                return json.dumps({'error': 'Capital manager not available'})
+
+            status = hc.get_status()
+
+            # Compute current allocation with recycling
+            rattle_positions = getattr(self.engine, 'rattle_positions', [])
+            r_exposure = 0.0
+            if rattle_positions and hc.rattle_account > 0:
+                try:
+                    from rattlesnake_signals import compute_rattlesnake_exposure
+                    import yfinance as yf
+                    symbols = [p['symbol'] for p in rattle_positions]
+                    prices_data = yf.download(symbols, period='1d', progress=False)
+                    prices = {}
+                    if len(symbols) == 1:
+                        prices[symbols[0]] = float(prices_data['Close'].iloc[-1])
+                    else:
+                        for sym in symbols:
+                            try:
+                                prices[sym] = float(prices_data['Close'][sym].iloc[-1])
+                            except Exception:
+                                pass
+                    r_exposure = compute_rattlesnake_exposure(rattle_positions, prices, hc.rattle_account)
+                except Exception:
+                    pass
+
+            alloc = hc.compute_allocation(r_exposure)
+
+            return json.dumps({
+                'total_capital': round(status['total_capital'], 2),
+                'compass_account': round(status['compass_account'], 2),
+                'rattle_account': round(status['rattle_account'], 2),
+                'compass_pct': round(status['compass_pct'] * 100, 1),
+                'rattle_pct': round(status['rattle_pct'] * 100, 1),
+                'efa_value': round(status['efa_value'], 2),
+                'efa_pct': round(status['efa_pct'] * 100, 1),
+                'current_recycled': round(status['current_recycled'], 2),
+                'recycled_pct': round(status['recycled_pct'] * 100, 1),
+                'recycling_frequency_pct': round(status['recycling_frequency'] * 100, 1),
+                'effective_compass_budget': round(alloc['compass_budget'], 2),
+                'effective_rattle_budget': round(alloc['rattle_budget'], 2),
+                'efa_idle_cash': round(alloc['efa_idle'], 2),
+            })
+        except Exception as e:
+            return json.dumps({'error': str(e)})
+
+    def _tool_get_rattlesnake_status(self, inp):
+        try:
+            rattle_positions = getattr(self.engine, 'rattle_positions', [])
+            hydra_available = getattr(self.engine, '_hydra_available', False)
+
+            if not hydra_available:
+                return json.dumps({'error': 'Rattlesnake not available (import failed)'})
+
+            # Regime
+            spy_hist = getattr(self.engine, '_spy_hist', None)
+            vix = getattr(self.engine, '_vix_current', None)
+            regime_info = {'regime': 'UNKNOWN', 'entries_allowed': False, 'max_positions': 0}
+            try:
+                from rattlesnake_signals import check_rattlesnake_regime, R_MAX_POSITIONS
+                if spy_hist is not None:
+                    regime_info = check_rattlesnake_regime(spy_hist, vix)
+                else:
+                    regime_info = {'regime': 'UNKNOWN', 'entries_allowed': True, 'max_positions': R_MAX_POSITIONS}
+            except Exception:
+                pass
+
+            # Positions
+            pos_list = []
+            for p in rattle_positions:
+                pos_list.append({
+                    'symbol': p.get('symbol'),
+                    'entry_price': round(p.get('entry_price', 0), 2),
+                    'days_held': p.get('days_held', 0),
+                    'shares': p.get('shares', 0),
+                })
+
+            open_slots = regime_info.get('max_positions', 5) - len(rattle_positions)
+
+            return json.dumps({
+                'positions': pos_list,
+                'count': len(pos_list),
+                'regime': regime_info.get('regime', 'UNKNOWN'),
+                'entries_allowed': regime_info.get('entries_allowed', False),
+                'max_positions': regime_info.get('max_positions', 5),
+                'open_slots': max(0, open_slots),
+                'vix_current': vix,
+                'vix_panic_threshold': 35,
+            })
+        except Exception as e:
+            return json.dumps({'error': str(e)})
+
+    def _tool_get_efa_status(self, inp):
+        try:
+            positions = self.engine.broker.positions
+            efa_pos = positions.get('EFA')
+            hc = getattr(self.engine, 'hydra_capital', None)
+
+            # EFA SMA200 check
+            efa_above_sma = False
+            efa_price = None
+            efa_sma = None
+            try:
+                import yfinance as yf
+                efa_df = yf.download('EFA', period='1y', progress=False)
+                if len(efa_df) >= 200:
+                    efa_price = float(efa_df['Close'].iloc[-1])
+                    efa_sma = float(efa_df['Close'].iloc[-200:].mean())
+                    efa_above_sma = efa_price > efa_sma
+            except Exception:
+                pass
+
+            # Current position
+            position = None
+            if efa_pos:
+                shares = getattr(efa_pos, 'shares', 0)
+                avg_cost = getattr(efa_pos, 'avg_cost', 0)
+                current_value = shares * efa_price if efa_price else 0
+                pnl = (efa_price - avg_cost) * shares if efa_price else 0
+                position = {
+                    'shares': shares,
+                    'avg_cost': round(avg_cost, 2),
+                    'current_price': round(efa_price, 2) if efa_price else None,
+                    'current_value': round(current_value, 2),
+                    'pnl': round(pnl, 2),
+                    'return_pct': round((efa_price / avg_cost - 1) * 100, 2) if avg_cost > 0 and efa_price else 0,
+                }
+
+            # Idle cash available
+            idle_cash = 0
+            if hc:
+                try:
+                    from rattlesnake_signals import compute_rattlesnake_exposure
+                    rattle_positions = getattr(self.engine, 'rattle_positions', [])
+                    r_exposure = compute_rattlesnake_exposure(
+                        rattle_positions, {}, hc.rattle_account
+                    ) if rattle_positions else 0.0
+                    alloc = hc.compute_allocation(r_exposure)
+                    idle_cash = alloc['efa_idle']
+                except Exception:
+                    pass
+
+            buy_ok = efa_above_sma and idle_cash >= 1000 and position is None
+            sell_reason = None
+            if position and not efa_above_sma:
+                sell_reason = 'EFA below SMA200'
+
+            return json.dumps({
+                'position': position,
+                'efa_price': round(efa_price, 2) if efa_price else None,
+                'efa_sma200': round(efa_sma, 2) if efa_sma else None,
+                'above_sma200': efa_above_sma,
+                'idle_cash_available': round(idle_cash, 2),
+                'buy_conditions_met': buy_ok,
+                'sell_signal': sell_reason,
+                'efa_value_in_capital_mgr': round(hc.efa_value, 2) if hc else 0,
+            })
+        except Exception as e:
+            return json.dumps({'error': str(e)})
 
     # ----------------------------------------------------------------
     # Market Intelligence

@@ -30,24 +30,33 @@ You are starting the trading day. Execute the following steps in order:
 1. **get_portfolio_state** — Load current positions, cash, regime score, and drawdown tier
    from `state/compass_state_latest.json`. Verify JSON is valid. If corrupted, halt and notify.
 
-2. **validate_data_feeds** — Confirm yfinance is responsive. Fetch a test quote (SPY).
+2. **get_capital_status** — Check HYDRA capital manager: COMPASS vs Rattlesnake accounts,
+   cash recycling status, EFA allocation. Report effective budgets after recycling.
+
+3. **get_rattlesnake_status** — Check Rattlesnake positions, regime, VIX level, open slots.
+
+4. **get_efa_status** — Check EFA third pillar: position, SMA200 trend, idle cash available.
+
+5. **validate_data_feeds** — Confirm yfinance is responsive. Fetch a test quote (SPY).
    If data feed is stale or fails, log the failure and send_notification immediately.
    Do not proceed with a broken data feed.
 
-3. **get_earnings_calendar** — Check earnings announcements for:
+6. **get_earnings_calendar** — Check earnings announcements for:
    - All currently held positions (earnings today or tomorrow → flag for potential exit)
    - Top momentum candidates (top 10 ranked) for the next 24h (earnings <24h → SKIP entry)
 
-4. **log_decision** — Record briefing summary in scratchpad:
+7. **log_decision** — Record briefing summary in scratchpad:
    - Current date/time ET
    - Portfolio state snapshot (positions, cash, regime)
+   - Capital allocation (COMPASS/Rattlesnake/EFA split)
    - Data feed status
    - Earnings flags
    - Any anomalies detected
 
-5. **send_notification** — Send morning briefing to operator:
+8. **send_notification** — Send morning briefing to operator:
    - Positions count and cash balance
-   - Regime status
+   - Capital allocation summary (C: $X / R: $X / EFA: $X)
+   - Regime status (COMPASS + Rattlesnake)
    - Any earnings warnings
    - Data feed health
 """,
@@ -83,44 +92,61 @@ You are notified AFTER execution. Your role:
 
 The main daily decision workflow. Execute between 15:30–15:50 ET (MOC window).
 
-1. **Load momentum signals** — Read the ranked momentum list from the signal engine.
+1. **get_capital_status** — Check capital allocation FIRST. Know how much each strategy has.
+   COMPASS budget, Rattlesnake budget, EFA value, recycling status.
+
+2. **Load momentum signals** — Read the ranked momentum list from the signal engine.
    Signals use Close[T-1] at 15:30 ET. Ranking: 90d return / 90d vol, inv-vol equal weight.
 
-2. **Regime check** — SPY vs SMA(200), 3-day confirmation.
+3. **Regime check** — SPY vs SMA(200), 3-day confirmation.
    - Risk-on: 5 positions (+ bull override if SPY > SMA200×103% & score>40%)
    - Risk-off: 2 positions
    - Crash brake active: 15% leverage cap — do not add positions
 
-3. **Adaptive stops check** — Review each held position:
+4. **get_rattlesnake_status** — Check Rattlesnake regime and open slots. Mean-reversion
+   opportunities may exist. Note: Rattlesnake execution is handled by the engine, but
+   you should be aware of its state for capital allocation decisions.
+
+5. **Adaptive stops check** — Review each held position:
    - Stop = entry_price × (1 - STOP_DAILY_VOL_MULT × entry_daily_vol), range [-6%, -15%]
    - Trailing stop: high_water × (1 - trail_pct), trail_pct ∈ [3%, 5%]
    - If triggered: EXIT via MOC order. Stops are non-negotiable.
 
-4. **Identify exits** — Positions eligible for rotation (max 10d hold, or stop triggered):
+6. **Identify exits** — Positions eligible for rotation (max 10d hold, or stop triggered):
    - Hold >= 10 days AND (profit < 4% OR momentum pctl < 85%) → EXIT
    - Stop triggered → EXIT
    - Earnings in next 24h (held position) → consider EXIT (log reasoning)
 
-5. **Identify entries** — Fill empty slots from top-ranked candidates:
+7. **Identify entries** — Fill empty COMPASS slots from top-ranked candidates:
    For each candidate (top 10 by momentum rank):
    - Earnings announcement < 24h → **SKIP** (log reason)
    - Sector already at 3 positions → **SKIP** (log reason)
    - Data stale (last price > 1 day old) → **SKIP** (log reason)
    - Already held → SKIP
    - Otherwise: **ENTER** via MOC order
+   Position size uses COMPASS effective budget (after recycling), not raw broker cash.
 
-6. **Execute trades** — Place MOC orders by 15:50 ET deadline.
-   Orders: position_size = (portfolio_value × target_weight) / price
-   Never exceed LEVERAGE_MAX = 1.0.
+8. **get_efa_status** — Check EFA conditions. If active strategies freed capital,
+   EFA may need liquidation. If idle cash available and EFA above SMA200, note for entry.
+   Note: EFA buy/sell is handled by the engine, but log your assessment.
 
-7. **save_state** — Write updated positions to `state/compass_state_latest.json`.
-   Always write with indent=2. Always keep dated backup.
+9. **Execute trades** — Place MOC orders by 15:50 ET deadline.
+   Orders: position_size = (effective_budget × target_weight) / price
+   Never exceed LEVERAGE_MAX = 1.0. Use capital manager budgets, not raw cash.
 
-8. **update_cycle_log** — Record rotation cycle: exits, entries, reason codes.
+10. **save_state** — Write updated positions to `state/compass_state_latest.json`.
+    Always write with indent=2. Always keep dated backup.
 
-9. **log_decision** — Scratchpad entry with full reasoning for every skip/entry/exit.
+11. **update_cycle_log** — Record rotation cycle: exits, entries, reason codes.
 
-10. **send_notification** — End-of-cycle summary to operator.
+12. **log_decision** — Scratchpad entry with full reasoning for every skip/entry/exit.
+    Include capital allocation context (which account funded the trade).
+
+13. **send_notification** — End-of-cycle summary to operator:
+    - Trades executed with strategy attribution (COMPASS/Rattlesnake)
+    - Capital status after trades (C: $X / R: $X / EFA: $X)
+    - Recycling in effect? How much?
+    - Regime status for both strategies
 """,
 
     'POST_CLOSE_SUMMARY': """
@@ -130,23 +156,33 @@ Market is closed. Compile the daily summary.
 
 1. **Read state** — Load `state/compass_state_latest.json`. Verify integrity.
 
-2. **Review scratchpad** — Read all log_decision entries from today.
+2. **get_capital_status** — End-of-day capital snapshot. Record COMPASS/Rattlesnake/EFA
+   account balances and recycling metrics.
+
+3. **get_rattlesnake_status** — Rattlesnake end-of-day: positions, days held, regime.
+
+4. **get_efa_status** — EFA end-of-day: position value, SMA200 trend.
+
+5. **Review scratchpad** — Read all log_decision entries from today.
    Identify: decisions made, skips, stops fired, anomalies.
 
-3. **Calculate P&L** — For each position:
-   - Unrealized P&L = (current_price - entry_price) / entry_price
-   - Realized P&L = sum of closed trades today
+6. **Calculate P&L** — For each position by strategy:
+   - COMPASS positions: unrealized P&L per position
+   - Rattlesnake positions: unrealized P&L per position
+   - EFA: unrealized P&L
+   - Realized P&L = sum of closed trades today (attributed to correct strategy)
    - Portfolio total return vs SPY today
 
-4. **update_cycle_log** — Mark active cycle complete if rotation occurred.
-   Log metrics: turnover, P&L, regime state.
+7. **update_cycle_log** — Mark active cycle complete if rotation occurred.
+   Log metrics: turnover, P&L, regime state, capital allocation.
 
-5. **send_notification** — Daily summary to operator:
-   - Portfolio value, cash, positions
-   - Today's P&L (realized + unrealized)
-   - Trades executed (entries/exits with reasoning)
+8. **send_notification** — Daily summary to operator:
+   - Portfolio value breakdown (COMPASS: $X / Rattlesnake: $X / EFA: $X / Cash: $X)
+   - Today's P&L by strategy (realized + unrealized)
+   - Trades executed with strategy attribution
+   - Cash recycling status (amount recycled, frequency)
    - Any anomalies or warnings
-   - Regime status for tomorrow
+   - Regime status for both strategies
    - Next scheduled action
 """,
 }
