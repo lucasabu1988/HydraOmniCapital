@@ -1,48 +1,21 @@
 services:
-  - type: web
-    name: compass-dashboard
-    runtime: python
-    buildCommand: pip install -r requirements-cloud.txt
-    startCommand: gunicorn compass_dashboard_cloud:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.6"
-      - key: HYDRA_MODE
-        value: "live"
-      - key: AGENT_MODE
-        value: "true"
-      - key: STATE_DIR
-        value: "state"
-      - key: GIT_TOKEN
-        sync: false
-
   - type: worker
     name: hydra-agent
     runtime: python
     buildCommand: pip install -r requirements-cloud.txt -r requirements-agent.txt
     startCommand: python hydra_agent.py
-    disk:
-      name: hydra-state
-      mountPath: /data/state
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.6"
       - key: STATE_DIR
-        value: "/data/state"
+        value: "state"
       - key: BROKER_TYPE
         value: "PAPER"
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: GIT_TOKEN
-        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID
-        sync: false
-      - key: WHATSAPP_PHONE
-        sync: false
-      - key: WHATSAPP_API_KEY
         sync: false
       - key: NOTIFICATION_ENABLED
         value: "true"
