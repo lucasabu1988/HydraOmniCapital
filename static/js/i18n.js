@@ -21,6 +21,7 @@ var TRANSLATIONS = {
     'tab-algorithm':  'Algoritmo',
     'tab-funds':      'Comparativa',
     'tab-ml':         'ML',
+    'tab-intelligence': 'Inteligencia',
 
     // Fund Comparison
     'fc-hero-sub':        'Comparativa contra fondos reales del mercado',
@@ -305,6 +306,7 @@ var TRANSLATIONS = {
     'tab-algorithm':  'Algorithm',
     'tab-funds':      'Comparison',
     'tab-ml':         'ML',
+    'tab-intelligence': 'Intelligence',
 
     // Fund Comparison
     'fc-hero-sub':        'Comparison against real-world funds',

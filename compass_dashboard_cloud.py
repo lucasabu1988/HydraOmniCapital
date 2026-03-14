@@ -1956,13 +1956,9 @@ def api_intelligence():
                 raw = resp.read().decode('utf-8')
             if raw.strip().startswith('<!'):
                 return None
-            lines = [l.strip() for l in raw.strip().split('\n') if l.strip() and not l.startswith('observation')]
-            if not lines:
-                return None
-            # Skip header, get last valid value
             values = []
-            for line in lines[0:] if 'observation' not in lines[0] else lines:
-                parts = line.split(',')
+            for line in raw.strip().split('\n')[1:]:
+                parts = line.strip().split(',')
                 if len(parts) == 2 and parts[1] != '.':
                     try:
                         values.append({'date': parts[0], 'value': float(parts[1])})
