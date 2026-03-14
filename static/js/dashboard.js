@@ -1764,12 +1764,12 @@ let _p2pChart = null;
 const P2P_SECTOR_COLORS = {
     'Technology':         { bg: 'rgba(14,165,233,0.85)',  border: '#0ea5e9', glow: 'rgba(14,165,233,0.4)' },
     'Healthcare':         { bg: 'rgba(16,185,129,0.85)',  border: '#10b981', glow: 'rgba(16,185,129,0.4)' },
-    'Semiconductors':     { bg: 'rgba(139,92,246,0.85)',  border: '#8b5cf6', glow: 'rgba(139,92,246,0.4)' },
+    'Semiconductors':     { bg: 'rgba(6,182,212,0.85)',   border: '#06b6d4', glow: 'rgba(6,182,212,0.4)' },
     'Financial Services': { bg: 'rgba(59,130,246,0.85)',  border: '#3b82f6', glow: 'rgba(59,130,246,0.4)' },
     'Banking':            { bg: 'rgba(14,165,233,0.85)',  border: '#0ea5e9', glow: 'rgba(14,165,233,0.4)' },
     'Energy':             { bg: 'rgba(234,88,12,0.85)',   border: '#ea580c', glow: 'rgba(234,88,12,0.4)' },
     'Retail':             { bg: 'rgba(236,72,153,0.85)',  border: '#ec4899', glow: 'rgba(236,72,153,0.4)' },
-    'Software':           { bg: 'rgba(168,85,247,0.85)',  border: '#a855f7', glow: 'rgba(168,85,247,0.4)' },
+    'Software':           { bg: 'rgba(56,189,248,0.85)',  border: '#38bdf8', glow: 'rgba(56,189,248,0.4)' },
     'default':            { bg: 'rgba(148,163,184,0.85)', border: '#94a3b8', glow: 'rgba(148,163,184,0.4)' }
 };
 

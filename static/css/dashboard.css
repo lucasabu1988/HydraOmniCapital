@@ -1320,7 +1320,7 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, var(--accent), var(--purple), var(--cyan));
+    background: linear-gradient(90deg, var(--accent), #0d9488, var(--cyan));
 }
 .positions-hero-header {
     padding: 14px 20px 10px;
@@ -2116,7 +2116,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* ============ LANDING HERO ============ */
 .landing-hero {
-    background: linear-gradient(135deg, #0f0c29 0%, #1a1650 30%, #302b63 60%, #24243e 100%);
+    background: linear-gradient(135deg, #0a0e12 0%, #0c1620 30%, #0e1a2a 60%, #0b1018 100%);
     border-radius: 20px;
     padding: 3px 32px 10px;
     margin-bottom: 10px;
@@ -2133,14 +2133,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
         radial-gradient(ellipse at 20% 50%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(13, 148, 136, 0.12) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 100%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
-    background-size: 200% 200%;
-    animation: heroMesh 12s ease-in-out infinite;
     pointer-events: none;
-}
-@keyframes heroMesh {
-    0%, 100% { background-position: 0% 50%; }
-    33% { background-position: 100% 0%; }
-    66% { background-position: 50% 100%; }
 }
 /* Floating glow orbs */
 .lh-glow {
@@ -2208,7 +2201,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     margin-bottom: 16px;
     letter-spacing: 0.5px;
     color: rgba(255,255,255,0.45);
-    text-shadow: 0 0 12px rgba(165,180,252,0.15);
+    text-shadow: 0 0 12px rgba(14,165,233,0.12);
 }
 .lh-chalk-secondary {
     font-size: 17px;
