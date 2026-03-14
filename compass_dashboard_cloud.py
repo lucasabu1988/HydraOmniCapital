@@ -1115,69 +1115,80 @@ def index():
 @app.route('/api/state')
 def api_state():
     """Return enriched state data with live prices."""
-    state = read_state()
+    try:
+        state = read_state()
 
-    if not state:
+        if not state:
+            return jsonify({
+                'status': 'offline',
+                'error': 'No state file found',
+                'server_time': datetime.now().isoformat(),
+                'engine': dict(_engine_status),
+            })
+
+        # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake held
+        rattle_syms = [p.get('symbol') for p in state.get('hydra', {}).get('rattle_positions', []) if p.get('symbol')]
+        symbols = ['SPY', '^GSPC', 'ES=F', '^VIX'] + list(state.get('positions', {}).keys()) + rattle_syms
+        symbols = list(set(symbols))
+        prices = fetch_live_prices(symbols)
+
+        position_details = compute_position_details(state, prices)
+        portfolio = compute_portfolio_metrics(state, prices)
+
+        # HYDRA: Rattlesnake + Cash Recycling data
+        hydra_data = compute_hydra_data(state, prices)
+
+        # Pre-close status (computed from real ET time)
+        ET = ZoneInfo('America/New_York')
+        now_et = datetime.now(ET)
+        is_weekday = now_et.weekday() < 5
+        current_time = now_et.time()
+        if not is_weekday or current_time < dtime(9, 30) or current_time >= dtime(16, 0):
+            preclose_phase = 'market_closed'
+        elif current_time < dtime(15, 30):
+            preclose_phase = 'waiting'
+        elif current_time <= dtime(15, 50):
+            preclose_phase = 'window_open'
+        else:
+            preclose_phase = 'entries_done'
+
+        preclose_status = {
+            'phase': preclose_phase,
+            'signal_time': '15:30 ET',
+            'moc_deadline': '15:50 ET',
+            'current_time_et': now_et.strftime('%H:%M:%S'),
+            'entries_done': preclose_phase == 'entries_done',
+        }
+
+        return jsonify({
+            'status': 'online',
+            'portfolio': portfolio,
+            'position_details': position_details,
+            'prices': prices,
+            'prev_closes': _prev_close_cache,
+            'universe': state.get('current_universe', []),
+            'universe_year': state.get('universe_year'),
+            'config': HYDRA_CONFIG,
+            'chassis': {},
+            'preclose': preclose_status,
+            'hydra': hydra_data,
+            'implementation_shortfall': {'available': False},
+            'server_time': datetime.now().isoformat(),
+            'engine': {
+                **_engine_status,
+                'cycles': _cloud_engine.stats.get('cycles_completed', 0) if _cloud_engine else _engine_status['cycles'],
+            },
+        })
+    except Exception as e:
+        import traceback
+        logger.error(f"/api/state crashed: {e}", exc_info=True)
         return jsonify({
             'status': 'offline',
-            'error': 'No state file found',
+            'error': f'Worker {os.getpid()} crashed: {type(e).__name__}: {e}',
+            'traceback': traceback.format_exc(),
             'server_time': datetime.now().isoformat(),
             'engine': dict(_engine_status),
-        })
-
-    # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake held
-    rattle_syms = [p.get('symbol') for p in state.get('hydra', {}).get('rattle_positions', []) if p.get('symbol')]
-    symbols = ['SPY', '^GSPC', 'ES=F', '^VIX'] + list(state.get('positions', {}).keys()) + rattle_syms
-    symbols = list(set(symbols))
-    prices = fetch_live_prices(symbols)
-
-    position_details = compute_position_details(state, prices)
-    portfolio = compute_portfolio_metrics(state, prices)
-
-    # HYDRA: Rattlesnake + Cash Recycling data
-    hydra_data = compute_hydra_data(state, prices)
-
-    # Pre-close status (computed from real ET time)
-    ET = ZoneInfo('America/New_York')
-    now_et = datetime.now(ET)
-    is_weekday = now_et.weekday() < 5
-    current_time = now_et.time()
-    if not is_weekday or current_time < dtime(9, 30) or current_time >= dtime(16, 0):
-        preclose_phase = 'market_closed'
-    elif current_time < dtime(15, 30):
-        preclose_phase = 'waiting'
-    elif current_time <= dtime(15, 50):
-        preclose_phase = 'window_open'
-    else:
-        preclose_phase = 'entries_done'
-
-    preclose_status = {
-        'phase': preclose_phase,
-        'signal_time': '15:30 ET',
-        'moc_deadline': '15:50 ET',
-        'current_time_et': now_et.strftime('%H:%M:%S'),
-        'entries_done': preclose_phase == 'entries_done',
-    }
-
-    return jsonify({
-        'status': 'online',
-        'portfolio': portfolio,
-        'position_details': position_details,
-        'prices': prices,
-        'prev_closes': _prev_close_cache,
-        'universe': state.get('current_universe', []),
-        'universe_year': state.get('universe_year'),
-        'config': HYDRA_CONFIG,
-        'chassis': {},
-        'preclose': preclose_status,
-        'hydra': hydra_data,
-        'implementation_shortfall': {'available': False},
-        'server_time': datetime.now().isoformat(),
-        'engine': {
-            **_engine_status,
-            'cycles': _cloud_engine.stats.get('cycles_completed', 0) if _cloud_engine else _engine_status['cycles'],
-        },
-    })
+        }), 200  # Return 200 so frontend can display the error
 
 
 
