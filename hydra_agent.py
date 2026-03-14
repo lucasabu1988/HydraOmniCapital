@@ -535,31 +535,28 @@ class HydraAgent:
             pass
 
     def run(self):
-        logger.info("HYDRA Agent starting...")
+        logger.info("HYDRA Agent starting (local assistant mode)...")
+        if self.cmd_handler:
+            logger.info("Telegram commands: ACTIVE (polling every 5s)")
+        else:
+            logger.warning("Telegram commands: DISABLED (missing bot_token or chat_id)")
+
         while True:
             try:
-                if self._check_kill_switch():
-                    logger.warning("Kill switch active — halting")
-                    time.sleep(60)
-                    continue
-
-                if not self._is_trading_day():
-                    logger.debug("Not a trading day — sleeping 5 min")
-                    time.sleep(300)
-                    continue
-
-                now = _get_et_now()
-                self._run_schedule(now)
-
-                # Write heartbeat
-                self._write_heartbeat(now)
-
-                # Poll Telegram commands
+                # Telegram polling — ALWAYS runs, regardless of trading day/hours
                 if self.cmd_handler:
                     try:
                         self.cmd_handler.poll()
                     except Exception as e:
                         logger.debug(f"Telegram poll error: {e}")
+
+                # Write heartbeat
+                now = _get_et_now()
+                self._write_heartbeat(now)
+
+                # Trading schedule — only on trading days, outside kill switch
+                if not self._check_kill_switch() and self._is_trading_day():
+                    self._run_schedule(now)
 
             except KeyboardInterrupt:
                 logger.info("HYDRA Agent stopped by user")
@@ -567,7 +564,7 @@ class HydraAgent:
             except Exception as e:
                 logger.error(f"Main loop error: {e}", exc_info=True)
 
-            time.sleep(30)
+            time.sleep(5)
 
 
 # ---------------------------------------------------------------------------
@@ -607,6 +604,13 @@ def _last_weekday(year, month, weekday):
 # ---------------------------------------------------------------------------
 
 def main():
+    # Load .env file for local assistant mode
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass  # dotenv not installed — use system env vars
+
     os.makedirs('logs', exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,

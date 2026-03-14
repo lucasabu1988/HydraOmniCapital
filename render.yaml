@@ -1,21 +1,20 @@
 services:
-  - type: worker
-    name: hydra-agent
+  - type: web
+    name: omnicapital
     runtime: python
-    buildCommand: pip install -r requirements-cloud.txt -r requirements-agent.txt
-    startCommand: python hydra_agent.py
+    repo: https://github.com/lucasabu1988/NuevoProyecto
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r requirements-cloud.txt
+    startCommand: gunicorn compass_dashboard_cloud:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.6"
-      - key: STATE_DIR
-        value: "state"
-      - key: BROKER_TYPE
-        value: "PAPER"
+      - key: HYDRA_MODE
+        sync: false
+      - key: COMPASS_MODE
+        sync: false
+      - key: GIT_TOKEN
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: TELEGRAM_CHAT_ID
-        sync: false
-      - key: NOTIFICATION_ENABLED
-        value: "true"

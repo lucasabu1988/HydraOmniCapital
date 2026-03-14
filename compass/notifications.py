@@ -590,6 +590,13 @@ class TelegramCommandHandler:
             '/status': self._cmd_status,
             '/positions': self._cmd_positions,
             '/capital': self._cmd_capital,
+            '/prices': self._cmd_prices,
+            '/pnl': self._cmd_pnl,
+            '/regime': self._cmd_regime,
+            '/next': self._cmd_next,
+            '/cycle': self._cmd_cycle,
+            '/logs': self._cmd_logs,
+            '/deploy': self._cmd_deploy,
             '/stop': self._cmd_stop,
             '/resume': self._cmd_resume,
             '/help': self._cmd_help,
@@ -711,16 +718,240 @@ class TelegramCommandHandler:
             for chunk in chunks:
                 self._notifier._send_message(chunk)
 
+    def _cmd_prices(self):
+        if not self.engine:
+            self._notifier._send_message("Engine not available")
+            return
+        positions = self.engine.broker.positions
+        if not positions:
+            self._notifier._send_message("No open positions")
+            return
+        try:
+            import yfinance as yf
+            meta = getattr(self.engine, 'position_meta', {})
+            lines = ["<b>Live Prices</b>"]
+            for sym in positions:
+                pos = positions[sym]
+                shares = getattr(pos, 'shares', 0)
+                avg_cost = getattr(pos, 'avg_cost', 0)
+                try:
+                    ticker = yf.Ticker(sym)
+                    price = ticker.fast_info.get('lastPrice', 0) or ticker.fast_info.get('previousClose', 0)
+                except Exception:
+                    price = avg_cost
+                pnl_pct = ((price - avg_cost) / avg_cost * 100) if avg_cost > 0 else 0
+                pnl_dollar = (price - avg_cost) * shares
+                icon = "🟢" if pnl_pct >= 0 else "🔴"
+                lines.append(f"{icon} {sym}: ${price:.2f} ({pnl_pct:+.1f}%) ${pnl_dollar:+,.0f}")
+            self._notifier._send_message('\n'.join(lines))
+        except Exception as e:
+            self._notifier._send_message(f"Price fetch error: {e}")
+
+    def _cmd_pnl(self):
+        if not self.engine:
+            self._notifier._send_message("Engine not available")
+            return
+        try:
+            import yfinance as yf
+            positions = self.engine.broker.positions
+            cash = self.engine.broker.cash
+            total_cost = 0
+            total_market = 0
+            for sym, pos in positions.items():
+                shares = getattr(pos, 'shares', 0)
+                avg_cost = getattr(pos, 'avg_cost', 0)
+                try:
+                    ticker = yf.Ticker(sym)
+                    price = ticker.fast_info.get('lastPrice', 0) or ticker.fast_info.get('previousClose', 0)
+                except Exception:
+                    price = avg_cost
+                total_cost += avg_cost * shares
+                total_market += price * shares
+            portfolio_value = total_market + cash
+            initial = 100000.0
+            total_pnl = portfolio_value - initial
+            total_pct = (portfolio_value / initial - 1) * 100
+            unrealized = total_market - total_cost
+            unrealized_pct = (unrealized / total_cost * 100) if total_cost > 0 else 0
+            msg = (f"<b>Portfolio P&L</b>\n"
+                   f"Value: ${portfolio_value:,.0f}\n"
+                   f"Total: ${total_pnl:+,.0f} ({total_pct:+.2f}%)\n"
+                   f"Unrealized: ${unrealized:+,.0f} ({unrealized_pct:+.1f}%)\n"
+                   f"Cash: ${cash:,.2f}")
+            self._notifier._send_message(msg)
+        except Exception as e:
+            self._notifier._send_message(f"P&L error: {e}")
+
+    def _cmd_regime(self):
+        if not self.engine:
+            self._notifier._send_message("Engine not available")
+            return
+        try:
+            import yfinance as yf
+            spy = yf.Ticker('SPY')
+            hist = spy.history(period='1y')
+            if hist.empty:
+                self._notifier._send_message("Could not fetch SPY data")
+                return
+            spy_price = hist['Close'].iloc[-1]
+            sma200 = hist['Close'].rolling(200).mean().iloc[-1]
+            bull_threshold = sma200 * 1.03
+            regime_score = getattr(self.engine, 'current_regime_score', None)
+            is_risk_on = spy_price > sma200
+            is_bull = spy_price > bull_threshold
+
+            regime = "RISK_ON" if is_risk_on else "RISK_OFF"
+            icon = "🟢" if is_risk_on else "🔴"
+            bull_icon = "🐂" if is_bull else ""
+
+            # Count days in current regime
+            closes = hist['Close']
+            sma_series = closes.rolling(200).mean()
+            days_in_regime = 0
+            for i in range(len(closes) - 1, -1, -1):
+                if sma_series.iloc[i] != sma_series.iloc[i]:  # NaN check
+                    break
+                if (closes.iloc[i] > sma_series.iloc[i]) == is_risk_on:
+                    days_in_regime += 1
+                else:
+                    break
+
+            msg = (f"{icon} <b>Regime: {regime}</b> {bull_icon}\n"
+                   f"SPY: ${spy_price:.2f}\n"
+                   f"SMA200: ${sma200:.2f} ({((spy_price/sma200 - 1)*100):+.1f}%)\n"
+                   f"Bull threshold: ${bull_threshold:.2f}\n"
+                   f"Days in regime: {days_in_regime}")
+            if regime_score is not None:
+                msg += f"\nRegime score: {regime_score:.2f}"
+            self._notifier._send_message(msg)
+        except Exception as e:
+            self._notifier._send_message(f"Regime error: {e}")
+
+    def _cmd_next(self):
+        if not self.engine:
+            self._notifier._send_message("Engine not available")
+            return
+        trading_day = getattr(self.engine, 'trading_day_counter', 0)
+        hold_days = self.engine.config.get('HOLD_DAYS', 5)
+        days_into_cycle = trading_day % hold_days
+        days_remaining = hold_days - days_into_cycle
+        last_date = getattr(self.engine, 'last_trading_date', '?')
+        n_positions = len(self.engine.broker.positions)
+
+        msg = (f"<b>Next Rotation</b>\n"
+               f"Cycle day: {days_into_cycle + 1}/{hold_days}\n"
+               f"Days remaining: {days_remaining}\n"
+               f"Trading day #: {trading_day}\n"
+               f"Last trade date: {last_date}\n"
+               f"Positions: {n_positions}")
+        self._notifier._send_message(msg)
+
+    def _cmd_cycle(self):
+        import json as _json
+        cycle_path = os.path.join(self.state_dir, 'cycle_log.json')
+        if not os.path.exists(cycle_path):
+            self._notifier._send_message("No cycle log found")
+            return
+        try:
+            with open(cycle_path) as f:
+                cycles = _json.load(f)
+            if not cycles:
+                self._notifier._send_message("No cycles recorded yet")
+                return
+            c = cycles[-1]
+            compass_ret = c.get('compass_return', 0)
+            spy_ret = c.get('spy_return', 0)
+            alpha = compass_ret - spy_ret
+            icon = "✅" if alpha >= 0 else "❌"
+            entries = ', '.join(c.get('entries', [])) or 'none'
+            exits = ', '.join(c.get('exits', [])) or 'none'
+            msg = (f"<b>Cycle #{c.get('cycle', '?')}</b> {icon}\n"
+                   f"HYDRA: {compass_ret:+.2f}% | SPY: {spy_ret:+.2f}%\n"
+                   f"Alpha: {alpha:+.2f}pp\n"
+                   f"IN: {entries}\n"
+                   f"OUT: {exits}")
+            self._notifier._send_message(msg)
+        except Exception as e:
+            self._notifier._send_message(f"Cycle error: {e}")
+
+    def _cmd_logs(self):
+        log_dir = 'logs'
+        if not os.path.exists(log_dir):
+            self._notifier._send_message("No logs directory found")
+            return
+        # Find today's log file
+        today = datetime.now().strftime('%Y%m%d')
+        log_file = os.path.join(log_dir, f'hydra_agent_{today}.log')
+        if not os.path.exists(log_file):
+            # Try to find most recent log
+            import glob
+            files = sorted(glob.glob(os.path.join(log_dir, 'hydra_agent_*.log')))
+            if not files:
+                self._notifier._send_message("No agent log files found")
+                return
+            log_file = files[-1]
+        try:
+            with open(log_file, encoding='utf-8') as f:
+                lines = f.readlines()
+            tail = lines[-15:] if len(lines) > 15 else lines
+            text = '<b>Recent Logs</b>\n<pre>' + ''.join(tail)[-3500:] + '</pre>'
+            self._notifier._send_message(text)
+        except Exception as e:
+            self._notifier._send_message(f"Log read error: {e}")
+
+    def _cmd_deploy(self):
+        import subprocess
+        try:
+            # Stage state files + push
+            result = subprocess.run(
+                ['git', 'add', 'state/compass_state_latest.json',
+                 'state/ml_learning/', 'state/cycle_log.json'],
+                capture_output=True, text=True, timeout=10,
+            )
+            # Check if there's anything to commit
+            status = subprocess.run(
+                ['git', 'status', '--porcelain', '--untracked-files=no'],
+                capture_output=True, text=True, timeout=10,
+            )
+            if not status.stdout.strip():
+                self._notifier._send_message("Nothing to deploy — no changes to commit")
+                return
+            # Commit
+            subprocess.run(
+                ['git', 'commit', '-m', 'chore: sync state from local agent'],
+                capture_output=True, text=True, timeout=15,
+            )
+            # Push
+            push = subprocess.run(
+                ['git', 'push'],
+                capture_output=True, text=True, timeout=30,
+            )
+            if push.returncode == 0:
+                self._notifier._send_message("✅ Deployed — state pushed to GitHub → Render")
+            else:
+                self._notifier._send_message(f"Push failed: {push.stderr[:500]}")
+        except Exception as e:
+            self._notifier._send_message(f"Deploy error: {e}")
+
     def _cmd_help(self):
         self._notifier._send_message(
-            "<b>HYDRA Commands</b>\n"
+            "<b>HYDRA Commands</b>\n\n"
+            "<b>Portfolio</b>\n"
             "/status — agent heartbeat\n"
             "/positions — open positions\n"
-            "/capital — capital allocation\n"
+            "/prices — live prices + P&L\n"
+            "/pnl — portfolio P&L summary\n"
+            "/capital — capital allocation\n\n"
+            "<b>Market</b>\n"
+            "/regime — SPY vs SMA200 regime\n"
+            "/next — next rotation countdown\n"
+            "/cycle — current cycle summary\n\n"
+            "<b>System</b>\n"
+            "/logs — recent agent logs\n"
+            "/deploy — push state to Render\n"
             "/ask &lt;question&gt; — ask HYDRA anything\n"
             "/stop — halt all trading\n"
-            "/resume — resume trading\n"
-            "/help — this message"
+            "/resume — resume trading"
         )
 
     def _cmd_unknown(self):
