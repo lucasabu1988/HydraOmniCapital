@@ -341,13 +341,18 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
 # ============================================================================
 
 def read_state() -> Optional[dict]:
-    """Read latest state from JSON file (bundled with deploy)."""
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, 'r') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            pass
+    """Read latest state from JSON file (with retry on decode error from concurrent write)."""
+    for attempt in range(2):
+        if os.path.exists(STATE_FILE):
+            try:
+                with open(STATE_FILE, 'r') as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                if attempt == 0:
+                    time_module.sleep(0.1)
+                    continue
+            except IOError:
+                break
     return None
 
 

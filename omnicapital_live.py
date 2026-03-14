@@ -2601,6 +2601,11 @@ class COMPASSLive:
                 'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
             },
 
+            # Pre-rotation snapshot (survives restart between execute_new_day and _update_cycle_log)
+            '_pre_rotation_positions_data': getattr(self, '_pre_rotation_positions_data', {}),
+            '_pre_rotation_cash': getattr(self, '_pre_rotation_cash', None),
+            '_pre_rotation_value': getattr(self, '_pre_rotation_value', None),
+
             # Stats
             'stats': {
                 'cycles_completed': self._cycles_completed,
@@ -2614,17 +2619,23 @@ class COMPASSLive:
 
         # Atomic write: temp file + rename (prevents corruption on crash)
         for target in [filename, latest]:
-            try:
-                fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
-                with os.fdopen(fd, 'w') as fp:
-                    json.dump(state, fp, indent=2, default=str)
-                os.replace(tmp_path, target)
-            except Exception as write_err:
-                logger.error(f"Atomic write failed for {target}: {write_err}")
+            written = False
+            for attempt in range(2):
                 try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
+                    fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+                    with os.fdopen(fd, 'w') as fp:
+                        json.dump(state, fp, indent=2, default=str)
+                    os.replace(tmp_path, target)
+                    written = True
+                    break
+                except Exception as write_err:
+                    logger.error(f"Atomic write failed for {target} (attempt {attempt+1}): {write_err}")
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+            if not written:
+                logger.error(f"STATE SAVE FAILED for {target} after 2 attempts")
 
         logger.info(f"State saved: {filename}")
 
@@ -2738,6 +2749,13 @@ class COMPASSLive:
                 logger.info(f"  HYDRA restored: R_pos={len(self.rattle_positions)}{efa_str} | "
                            f"C_acct=${self.hydra_capital.compass_account:,.0f} | "
                            f"R_acct=${self.hydra_capital.rattle_account:,.0f}")
+
+        # Restore pre-rotation snapshot (survives restart between rotation and cycle log update)
+        saved_pre_rot = state.get('_pre_rotation_positions_data')
+        if saved_pre_rot:
+            self._pre_rotation_positions_data = saved_pre_rot
+            self._pre_rotation_cash = state.get('_pre_rotation_cash', self.broker.cash)
+            self._pre_rotation_value = state.get('_pre_rotation_value')
 
         regime_str = f"score={self.current_regime_score:.2f}"
 

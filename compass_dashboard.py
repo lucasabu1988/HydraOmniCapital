@@ -478,15 +478,20 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
 # ============================================================================
 
 def read_state() -> Optional[dict]:
-    """Read latest state from JSON file."""
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, 'r') as f:
-                return json.load(f)
-        except json.JSONDecodeError as e:
-            logger.warning(f"State file corrupt ({STATE_FILE}): {e}")
-        except IOError as e:
-            logger.warning(f"State file read error ({STATE_FILE}): {e}")
+    """Read latest state from JSON file (with retry on decode error from concurrent write)."""
+    for attempt in range(2):
+        if os.path.exists(STATE_FILE):
+            try:
+                with open(STATE_FILE, 'r') as f:
+                    return json.load(f)
+            except json.JSONDecodeError as e:
+                if attempt == 0:
+                    time_module.sleep(0.1)  # brief wait for atomic write to complete
+                    continue
+                logger.warning(f"State file corrupt ({STATE_FILE}): {e}")
+            except IOError as e:
+                logger.warning(f"State file read error ({STATE_FILE}): {e}")
+                break
 
     pattern = os.path.join(STATE_DIR, 'compass_state_*.json')
     files = [f for f in glob.glob(pattern) if 'latest' not in f]
