@@ -2244,7 +2244,7 @@ def _api_ml_learning_impl():
                 kpis['best_trade'] = round(max(returns), 4)
                 kpis['worst_trade'] = round(min(returns), 4)
             stop_count = sum(1 for o in outcomes if o.get('was_stopped'))
-            kpis['stop_rate'] = round(stop_count / len(outcomes), 3)
+            kpis['stop_rate'] = round(stop_count / len(outcomes), 3) if len(outcomes) > 0 else 0
             alphas = [float(a) for a in (o.get('alpha_vs_spy') for o in outcomes) if a is not None]
             kpis['avg_alpha'] = round(sum(alphas) / len(alphas), 4) if alphas else None
             pnls = [float(o.get('pnl_usd') or 0) for o in outcomes]
