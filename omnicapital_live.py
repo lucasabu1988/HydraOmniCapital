@@ -1244,7 +1244,9 @@ class COMPASSLive:
                         except Exception as e:
                             logger.warning(f"ML exit logging failed for {symbol}: {e}")
 
-                    self.position_meta.pop(symbol, None)
+                    # Only remove metadata if position is fully closed
+                    if symbol not in self.broker.positions:
+                        self.position_meta.pop(symbol, None)
 
                     self.trades_today.append({
                         'symbol': symbol, 'action': 'SELL',
@@ -1798,6 +1800,7 @@ class COMPASSLive:
                 'entry_vol': 0.15,
                 'entry_daily_vol': 0.0095,
                 'sector': 'International Equity',
+                '_entry_reconciled': True,  # MARKET order fill = real price, no reconciliation needed
             }
             if self.hydra_capital:
                 self.hydra_capital.buy_efa(cost)
@@ -2437,13 +2440,20 @@ class COMPASSLive:
         next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
         today = self.last_trading_date.isoformat() if self.last_trading_date else date.today().isoformat()
 
+        # Use last closed cycle's portfolio_end as start value (more accurate than current market price)
+        last_closed = [c for c in cycles if c.get('status') == 'closed' and c.get('portfolio_end')]
+        if last_closed:
+            start_value = last_closed[-1]['portfolio_end']
+        else:
+            start_value = round(portfolio.total_value, 2)
+
         current_positions = list(self.broker.positions.keys())
         cycles.append({
             'cycle': next_cycle,
             'start_date': today,
             'end_date': None,
             'status': 'active',
-            'portfolio_start': round(portfolio.total_value, 2),
+            'portfolio_start': start_value,
             'portfolio_end': None,
             'spy_start': round(spy_price, 2) if spy_price else None,
             'spy_end': None,
