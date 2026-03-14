@@ -2112,6 +2112,16 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
 
 @app.route('/api/ml-learning')
 def api_ml_learning():
+    try:
+        return _api_ml_learning_impl()
+    except Exception as e:
+        logger.error(f"/api/ml-learning crashed: {e}", exc_info=True)
+        return jsonify({'log_entries': [], 'insights': {}, 'interpretation': '',
+                        'interpretation_backtest': '', 'interpretation_live': '',
+                        'kpis': {}, 'error': str(e)}), 200
+
+
+def _api_ml_learning_impl():
     ml_dir = os.path.join('state', 'ml_learning')
     entries = []
     for fname, etype in [('decisions.jsonl', 'decision'), ('daily_snapshots.jsonl', 'snapshot'), ('outcomes.jsonl', 'outcome')]:

@@ -1754,6 +1754,7 @@ class COMPASSLive:
             if result.status == 'FILLED':
                 proceeds = result.filled_price * efa_shares
                 logger.info(f"EFA SELL (below SMA200): {efa_shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f}")
+                self.position_meta.pop(EFA_SYMBOL, None)
                 if self.hydra_capital:
                     self.hydra_capital.sell_efa(proceeds)
             return
@@ -1788,6 +1789,16 @@ class COMPASSLive:
         if result.status == 'FILLED':
             cost = result.filled_price * shares
             logger.info(f"EFA BUY: {shares} shares @ ${result.filled_price:.2f} = ${cost:,.0f}")
+            self.position_meta[EFA_SYMBOL] = {
+                'entry_price': result.filled_price,
+                'entry_date': date.today().isoformat(),
+                'entry_day_index': self.trading_day_counter,
+                'original_entry_day_index': self.trading_day_counter,
+                'high_price': result.filled_price,
+                'entry_vol': 0.15,
+                'entry_daily_vol': 0.0095,
+                'sector': 'International Equity',
+            }
             if self.hydra_capital:
                 self.hydra_capital.buy_efa(cost)
 
@@ -1841,6 +1852,7 @@ class COMPASSLive:
         if result.status == 'FILLED':
             proceeds = result.filled_price * shares
             logger.info(f"EFA LIQUIDATE ({reason} needs capital): {shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f} (PnL: ${pnl:+,.0f})")
+            self.position_meta.pop(EFA_SYMBOL, None)
             if self.hydra_capital:
                 self.hydra_capital.sell_efa(proceeds)
 

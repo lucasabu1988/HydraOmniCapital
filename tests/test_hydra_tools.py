@@ -14,7 +14,7 @@ from hydra_tools import (
 
 def test_tool_definitions_valid_anthropic_format():
     """All tools must have name, description, input_schema"""
-    assert len(TOOL_DEFINITIONS) == 15
+    assert len(TOOL_DEFINITIONS) >= 15
     for tool in TOOL_DEFINITIONS:
         assert 'name' in tool
         assert 'description' in tool

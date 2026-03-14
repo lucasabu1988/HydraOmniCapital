@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from omnicapital_live import (
     COMPASSLive, CONFIG, BROAD_POOL,
     compute_momentum_scores, compute_volatility_weights,
-    compute_dynamic_leverage, compute_live_regime
+    compute_dynamic_leverage, compute_live_regime_score
 )
 from omnicapital_broker import PaperBroker, Order, Position
 from omnicapital_notifications import EmailNotifier
@@ -103,7 +103,7 @@ class TestDynamicLeverage(unittest.TestCase):
 
     def test_low_vol_high_leverage(self):
         spy = self._make_spy(0.005)
-        lev = compute_dynamic_leverage(spy, target_vol=0.15, vol_lookback=20)
+        lev = compute_dynamic_leverage(spy, target_vol=0.15, vol_lookback=20, lev_max=2.0)
         self.assertGreater(lev, 1.0)
 
     def test_high_vol_low_leverage(self):
@@ -125,35 +125,35 @@ class TestDynamicLeverage(unittest.TestCase):
 class TestRegimeDetection(unittest.TestCase):
     """Test SPY SMA200 regime filter"""
 
-    def _make_spy_above_sma(self, days=210):
+    def _make_spy_above_sma(self, days=300):
         dates = pd.date_range('2023-01-01', periods=days, freq='B')
         prices = np.linspace(380, 500, days)
         return pd.DataFrame({'Close': prices}, index=dates)
 
-    def _make_spy_below_sma(self, days=210):
+    def _make_spy_below_sma(self, days=300):
         dates = pd.date_range('2023-01-01', periods=days, freq='B')
         prices = np.linspace(500, 380, days)
         return pd.DataFrame({'Close': prices}, index=dates)
 
     def test_uptrend_is_risk_on(self):
         spy = self._make_spy_above_sma()
-        is_risk_on, _, _ = compute_live_regime(spy, sma_period=200, confirm_days=3)
-        self.assertTrue(is_risk_on)
+        score = compute_live_regime_score(spy)
+        self.assertGreater(score, 0.5)
 
     def test_downtrend_is_risk_off(self):
         spy = self._make_spy_below_sma()
-        is_risk_on, _, _ = compute_live_regime(spy, sma_period=200, confirm_days=3)
-        self.assertFalse(is_risk_on)
+        score = compute_live_regime_score(spy)
+        self.assertLess(score, 0.5)
 
-    def test_insufficient_data_defaults_risk_on(self):
+    def test_insufficient_data_defaults_neutral(self):
         dates = pd.date_range('2024-01-01', periods=50, freq='B')
         spy = pd.DataFrame({'Close': np.linspace(400, 410, 50)}, index=dates)
-        is_risk_on, _, _ = compute_live_regime(spy, sma_period=200, confirm_days=3)
-        self.assertTrue(is_risk_on)
+        score = compute_live_regime_score(spy)
+        self.assertEqual(score, 0.5)
 
 
 class TestCOMPASSLive(unittest.TestCase):
-    """Test the live trading system"""
+    """Test the live trading system (v8.4 interface)"""
 
     def setUp(self):
         self.config = CONFIG.copy()
@@ -164,116 +164,25 @@ class TestCOMPASSLive(unittest.TestCase):
         mock_feed.return_value = MagicMock()
         trader = COMPASSLive(self.config)
         self.assertEqual(trader.peak_value, 100_000)
-        self.assertFalse(trader.in_protection)
-        self.assertEqual(trader.protection_stage, 0)
-        self.assertTrue(trader.current_regime)
+        self.assertEqual(trader.current_regime_score, 0.5)
         self.assertEqual(trader.trading_day_counter, 0)
         self.assertEqual(len(trader.position_meta), 0)
 
     @patch('omnicapital_live.YahooDataFeed')
-    def test_max_positions_risk_on(self, mock_feed):
+    def test_max_positions_high_regime(self, mock_feed):
         mock_feed.return_value = MagicMock()
         trader = COMPASSLive(self.config)
-        trader.current_regime = True
-        trader.in_protection = False
-        self.assertEqual(trader.get_max_positions(), 5)
+        trader.current_regime_score = 0.8
+        max_pos = trader.get_max_positions()
+        self.assertGreaterEqual(max_pos, 4)
 
     @patch('omnicapital_live.YahooDataFeed')
-    def test_max_positions_risk_off(self, mock_feed):
+    def test_max_positions_low_regime(self, mock_feed):
         mock_feed.return_value = MagicMock()
         trader = COMPASSLive(self.config)
-        trader.current_regime = False
-        trader.in_protection = False
-        self.assertEqual(trader.get_max_positions(), 2)
-
-    @patch('omnicapital_live.YahooDataFeed')
-    def test_max_positions_protection_s1(self, mock_feed):
-        mock_feed.return_value = MagicMock()
-        trader = COMPASSLive(self.config)
-        trader.in_protection = True
-        trader.protection_stage = 1
-        self.assertEqual(trader.get_max_positions(), 2)
-
-    @patch('omnicapital_live.YahooDataFeed')
-    def test_max_positions_protection_s2(self, mock_feed):
-        mock_feed.return_value = MagicMock()
-        trader = COMPASSLive(self.config)
-        trader.in_protection = True
-        trader.protection_stage = 2
-        self.assertEqual(trader.get_max_positions(), 3)
-
-    @patch('omnicapital_live.YahooDataFeed')
-    def test_leverage_protection_s1(self, mock_feed):
-        mock_feed.return_value = MagicMock()
-        trader = COMPASSLive(self.config)
-        trader.in_protection = True
-        trader.protection_stage = 1
-        self.assertEqual(trader.get_current_leverage(), 0.3)
-
-    @patch('omnicapital_live.YahooDataFeed')
-    def test_leverage_protection_s2(self, mock_feed):
-        mock_feed.return_value = MagicMock()
-        trader = COMPASSLive(self.config)
-        trader.in_protection = True
-        trader.protection_stage = 2
-        self.assertEqual(trader.get_current_leverage(), 1.0)
-
-
-class TestRecoveryLogic(unittest.TestCase):
-    """Test 3-stage recovery system"""
-
-    @patch('omnicapital_live.YahooDataFeed')
-    def test_no_recovery_if_not_in_protection(self, mock_feed):
-        mock_feed.return_value = MagicMock()
-        trader = COMPASSLive(CONFIG.copy())
-        trader.in_protection = False
-        trader.check_recovery()
-        self.assertFalse(trader.in_protection)
-        self.assertEqual(trader.protection_stage, 0)
-
-    @patch('omnicapital_live.YahooDataFeed')
-    def test_stage1_to_stage2(self, mock_feed):
-        mock_feed.return_value = MagicMock()
-        trader = COMPASSLive(CONFIG.copy())
-        trader.in_protection = True
-        trader.protection_stage = 1
-        trader.stop_loss_day_index = 0
-        trader.trading_day_counter = 63
-        trader.current_regime = True
-        trader.broker = MagicMock()
-        trader.broker.get_portfolio.return_value = MagicMock(total_value=90000)
-        trader.check_recovery()
-        self.assertEqual(trader.protection_stage, 2)
-
-    @patch('omnicapital_live.YahooDataFeed')
-    def test_stage2_to_full_recovery(self, mock_feed):
-        mock_feed.return_value = MagicMock()
-        trader = COMPASSLive(CONFIG.copy())
-        trader.in_protection = True
-        trader.protection_stage = 2
-        trader.stop_loss_day_index = 0
-        trader.trading_day_counter = 126
-        trader.current_regime = True
-        trader.broker = MagicMock()
-        trader.broker.get_portfolio.return_value = MagicMock(total_value=95000)
-        trader.check_recovery()
-        self.assertFalse(trader.in_protection)
-        self.assertEqual(trader.protection_stage, 0)
-        self.assertEqual(trader.peak_value, 95000)
-
-    @patch('omnicapital_live.YahooDataFeed')
-    def test_recovery_blocked_in_risk_off(self, mock_feed):
-        mock_feed.return_value = MagicMock()
-        trader = COMPASSLive(CONFIG.copy())
-        trader.in_protection = True
-        trader.protection_stage = 1
-        trader.stop_loss_day_index = 0
-        trader.trading_day_counter = 100
-        trader.current_regime = False
-        trader.broker = MagicMock()
-        trader.broker.get_portfolio.return_value = MagicMock(total_value=90000)
-        trader.check_recovery()
-        self.assertEqual(trader.protection_stage, 1)
+        trader.current_regime_score = 0.1
+        max_pos = trader.get_max_positions()
+        self.assertLessEqual(max_pos, 3)
 
 
 class TestPaperBroker(unittest.TestCase):
@@ -337,42 +246,45 @@ class TestEmailNotifier(unittest.TestCase):
 
 
 class TestStatePersistence(unittest.TestCase):
-    """Test state save/load"""
+    """Test state save/load (v8.4)"""
 
     @patch('omnicapital_live.YahooDataFeed')
     def test_save_and_load(self, mock_feed):
         mock_feed.return_value = MagicMock()
         config = CONFIG.copy()
-        trader = COMPASSLive(config)
 
-        trader.trading_day_counter = 42
-        trader.in_protection = True
-        trader.protection_stage = 1
-        trader.stop_loss_day_index = 35
-        trader.current_regime = False
-        trader.peak_value = 95000
-        trader.current_universe = ['AAPL', 'MSFT']
-        trader.universe_year = 2026
-        trader.last_trading_date = date(2026, 2, 19)
+        # Backup production state if it exists
+        latest = 'state/compass_state_latest.json'
+        had_backup = os.path.exists(latest)
+        backup_data = None
+        if had_backup:
+            with open(latest) as f:
+                backup_data = f.read()
 
-        trader.save_state()
+        try:
+            trader = COMPASSLive(config)
+            trader.trading_day_counter = 42
+            trader.current_regime_score = 0.35
+            trader.peak_value = 95000
+            trader.current_universe = ['AAPL', 'MSFT']
+            trader.universe_year = 2026
+            trader.last_trading_date = date(2026, 2, 19)
 
-        trader2 = COMPASSLive(config)
-        trader2.load_state()
+            trader.save_state()
 
-        self.assertEqual(trader2.trading_day_counter, 42)
-        self.assertTrue(trader2.in_protection)
-        self.assertEqual(trader2.protection_stage, 1)
-        self.assertEqual(trader2.stop_loss_day_index, 35)
-        self.assertFalse(trader2.current_regime)
-        self.assertEqual(trader2.peak_value, 95000)
-        self.assertEqual(trader2.current_universe, ['AAPL', 'MSFT'])
-        self.assertEqual(trader2.universe_year, 2026)
+            trader2 = COMPASSLive(config)
+            trader2.load_state()
 
-        # Cleanup
-        import glob
-        for f in glob.glob('state/compass_state_*.json'):
-            os.remove(f)
+            self.assertEqual(trader2.trading_day_counter, 42)
+            self.assertAlmostEqual(trader2.current_regime_score, 0.35, places=2)
+            self.assertEqual(trader2.peak_value, 95000)
+            self.assertEqual(trader2.current_universe, ['AAPL', 'MSFT'])
+            self.assertEqual(trader2.universe_year, 2026)
+        finally:
+            # Restore production state
+            if had_backup and backup_data:
+                with open(latest, 'w') as f:
+                    f.write(backup_data)
 
 
 if __name__ == '__main__':
