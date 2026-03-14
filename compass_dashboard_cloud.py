@@ -137,7 +137,7 @@ LIVE_TEST_SPY_START = 6830.71  # ^GSPC prev close on 2026-03-06
 LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
-SHOWCASE_MODE = os.environ.get('HYDRA_MODE', 'showcase') == 'showcase'
+SHOWCASE_MODE = os.environ.get('HYDRA_MODE', 'live') == 'showcase'
 
 # Real engine status tracking
 _engine_status = {
