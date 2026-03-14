@@ -2343,9 +2343,9 @@ class SharedYahooDataFeed:
             return False
 
 
-# AGENT_MODE: when true, the HYDRA Worker is the sole state writer.
-# Dashboard becomes read-only — do not start cloud engine thread.
-AGENT_MODE = os.environ.get('AGENT_MODE', '').lower() == 'true'
+# AGENT_MODE: disabled — hydra-agent worker was removed.
+# Cloud engine runs directly in the dashboard process.
+AGENT_MODE = False
 
 
 # ============================================================================
