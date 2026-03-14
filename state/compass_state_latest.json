@@ -1,0 +1,170 @@
+{
+  "version": "8.4",
+  "timestamp": "2026-03-13T14:51:32.268219",
+  "cash": 1066.268,
+  "peak_value": 101755.58880078125,
+  "portfolio_value": 101462.04744946289,
+  "crash_cooldown": 0,
+  "portfolio_values_history": [
+    100000.0,
+    99064.23415130615,
+    99815.47636096191,
+    100954.9,
+    101535.2842614746
+  ],
+  "current_regime_score": 0.5351695017140906,
+  "trading_day_counter": 5,
+  "last_trading_date": "2026-03-13",
+  "positions": {
+    "JNJ": {
+      "shares": 132,
+      "avg_cost": 242.99
+    },
+    "MRK": {
+      "shares": 184,
+      "avg_cost": 116.21
+    },
+    "WMT": {
+      "shares": 148,
+      "avg_cost": 123.49
+    },
+    "XOM": {
+      "shares": 127,
+      "avg_cost": 151.58
+    },
+    "EFA": {
+      "shares": 90,
+      "avg_cost": 96.33999633789062
+    }
+  },
+  "position_meta": {
+    "JNJ": {
+      "entry_price": 242.99,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 244.22999572753906,
+      "entry_vol": 0.172,
+      "entry_daily_vol": 0.010838,
+      "sector": "Healthcare",
+      "_entry_reconciled": true
+    },
+    "MRK": {
+      "entry_price": 116.21,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 116.87999725341797,
+      "entry_vol": 0.2593,
+      "entry_daily_vol": 0.016337,
+      "sector": "Healthcare",
+      "_entry_reconciled": true
+    },
+    "WMT": {
+      "entry_price": 123.49,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 126.6449966430664,
+      "entry_vol": 0.3034,
+      "entry_daily_vol": 0.019112,
+      "sector": "Consumer Staples",
+      "_entry_reconciled": true
+    },
+    "XOM": {
+      "entry_price": 151.58,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 156.8699951171875,
+      "entry_vol": 0.2872,
+      "entry_daily_vol": 0.01809,
+      "sector": "Energy",
+      "_entry_reconciled": true
+    },
+    "EFA": {
+      "entry_price": 96.34,
+      "entry_date": "2026-03-11",
+      "entry_day_index": 4,
+      "original_entry_day_index": 4,
+      "high_price": 96.34,
+      "entry_vol": 0.15,
+      "entry_daily_vol": 0.0095,
+      "sector": "International Equity"
+    }
+  },
+  "current_universe": [
+    "TSLA",
+    "MSFT",
+    "META",
+    "AMZN",
+    "GOOGL",
+    "AVGO",
+    "UNH",
+    "ORCL",
+    "MU",
+    "LLY",
+    "INTC",
+    "JPM",
+    "BRK-B",
+    "COST",
+    "V",
+    "CRM",
+    "WMT",
+    "BAC",
+    "XOM",
+    "BA",
+    "GS",
+    "MA",
+    "NOW",
+    "MRVL",
+    "ADBE",
+    "JNJ",
+    "AMAT",
+    "QCOM",
+    "HD",
+    "TXN",
+    "CVX",
+    "GE",
+    "PG",
+    "MRK",
+    "C",
+    "IBM",
+    "WFC",
+    "ABBV",
+    "PFE",
+    "LRCX"
+  ],
+  "universe_year": 2026,
+  "_universe_source": "",
+  "_daily_open_done": true,
+  "_preclose_entries_done": true,
+  "overlay": {
+    "available": true,
+    "capital_scalar": 1.0,
+    "per_overlay": {},
+    "position_floor": null,
+    "diagnostics": {}
+  },
+  "hydra": {
+    "available": true,
+    "rattle_positions": [],
+    "rattle_regime": "RISK_ON",
+    "vix_current": 26.040000915527344,
+    "efa_position": null,
+    "capital_manager": {
+      "compass_account": 50288.826611984725,
+      "rattle_account": 41473.82713558221,
+      "base_compass_alloc": 0.5,
+      "base_rattle_alloc": 0.5,
+      "max_compass_alloc": 0.75,
+      "total_recycled_days": 1,
+      "total_days": 1,
+      "efa_value": 8670.599670410156
+    }
+  },
+  "stats": {
+    "cycles_completed": 219,
+    "uptime_minutes": 294.37067363333335
+  }
+}
