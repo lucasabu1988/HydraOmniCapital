@@ -83,6 +83,7 @@ function switchPage(page) {
     const tabEl = document.querySelector('.page-tab[data-page="' + page + '"]');
     if (pageEl) pageEl.classList.add('active');
     if (tabEl) tabEl.classList.add('active');
+    if (page === 'inteligencia') loadIntelligence();
 }
 
 /* ============ HELPERS ============ */
@@ -3071,5 +3072,91 @@ function refreshDashboard() {
         }
         updateUniverse(d.universe, posDict);
         sfRender();
+    }
+}
+
+/* ============ INTELLIGENCE TAB ============ */
+var _intelLoaded = false;
+
+function loadIntelligence() {
+    fetch('/api/intelligence')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            _intelLoaded = true;
+            renderIntelligence(d);
+        })
+        .catch(function(e) {
+            console.error('Intelligence fetch failed:', e);
+            var badge = document.getElementById('intel-status-badge');
+            if (badge) { badge.textContent = 'Error'; badge.className = 'intel-composite-badge badge-stressed'; }
+        });
+}
+
+function renderIntelligence(d) {
+    // Composite
+    var compEl = document.getElementById('intel-composite-value');
+    if (compEl) compEl.textContent = d.composite != null ? d.composite.toFixed(3) : '--';
+
+    var badge = document.getElementById('intel-status-badge');
+    if (badge) {
+        badge.textContent = d.status_label || '--';
+        badge.className = 'intel-composite-badge badge-' + (d.status || 'normal');
+    }
+
+    var updateEl = document.getElementById('intel-last-update');
+    if (updateEl && d.timestamp) {
+        var dt = new Date(d.timestamp);
+        updateEl.textContent = 'Actualizado: ' + dt.toLocaleString('es-AR');
+    }
+
+    var s = d.signals || {};
+
+    // VIX
+    renderSignal('intel-vix', s.vix, {
+        format: function(v) { return v != null ? v.toFixed(1) : '--'; },
+        barPct: function(v) { return v != null ? Math.min(100, (v / 80) * 100) : 0; },
+        barColor: function(v) { return v > 30 ? 'var(--red)' : v > 20 ? '#eab308' : 'var(--green)'; }
+    });
+
+    // Yield Curve
+    renderSignal('intel-yc', s.yield_curve, {
+        format: function(v) { return v != null ? (v >= 0 ? '+' : '') + v.toFixed(2) + '%' : '--'; },
+        barPct: function(v) { return v != null ? Math.min(100, Math.max(0, (v + 2) / 4 * 100)) : 50; },
+        barColor: function(v) { return v < 0 ? 'var(--red)' : v < 0.5 ? '#eab308' : 'var(--green)'; }
+    });
+
+    // GSCPI
+    renderSignal('intel-gscpi', s.gscpi, {
+        format: function(v) { return v != null ? v.toFixed(2) : 'Sin datos'; },
+        barPct: function(v) { return v != null ? Math.min(100, Math.max(0, (v + 2) / 6 * 100)) : 0; },
+        barColor: function(v) { return v > 1.5 ? 'var(--red)' : v > 0 ? '#eab308' : 'var(--green)'; }
+    });
+
+    // WTI
+    renderSignal('intel-wti', s.wti, {
+        format: function(v) { return v != null ? '$' + v.toFixed(2) : '--'; },
+        barPct: function(v) { return v != null ? Math.min(100, (v / 150) * 100) : 0; },
+        barColor: function() { return 'var(--accent)'; }
+    });
+
+    // GPR
+    renderSignal('intel-gpr', s.gpr, {
+        format: function(v) { return v != null ? v.toFixed(0) : 'Sin datos'; },
+        barPct: function(v) { return v != null ? Math.min(100, (v / 400) * 100) : 0; },
+        barColor: function(v) { return v > 150 ? 'var(--red)' : v > 100 ? '#eab308' : 'var(--green)'; }
+    });
+}
+
+function renderSignal(prefix, signal, opts) {
+    var valEl = document.getElementById(prefix + '-value');
+    var barEl = document.getElementById(prefix + '-bar');
+    var v = signal ? signal.value : null;
+
+    if (valEl) valEl.textContent = opts.format(v);
+
+    if (barEl) {
+        var pct = opts.barPct(v);
+        barEl.style.width = pct + '%';
+        barEl.style.background = opts.barColor(v);
     }
 }

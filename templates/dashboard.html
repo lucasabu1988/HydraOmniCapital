@@ -140,6 +140,9 @@
     <div class="page-tab" data-page="ml" onclick="switchPage('ml')">
         <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg> <span data-i18n="tab-ml">ML</span>
     </div>
+    <div class="page-tab" data-page="inteligencia" onclick="switchPage('inteligencia')">
+        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <span data-i18n="tab-intelligence">Inteligencia</span>
+    </div>
 </div>
 
 <div class="main">
@@ -3087,6 +3090,134 @@ Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &ra
 </div>
 
 </div><!-- /page-fondos -->
+
+<!-- ==================== PAGE: INTELIGENCIA (Crucix Intelligence) ==================== -->
+<div id="page-inteligencia" class="page-content">
+
+<!-- HERO -->
+<div class="intel-hero">
+    <div class="lh-glow lh-glow-1" style="opacity:0.2;"></div>
+    <div class="lh-glow lh-glow-2" style="opacity:0.15;"></div>
+    <div class="intel-hero-title">Inteligencia Global</div>
+    <div class="intel-hero-sub">Monitor macro y geopol&iacute;tico en tiempo real</div>
+    <div class="intel-hero-tagline">5 fuentes de datos &middot; Actualizado cada 15 min &middot; Solo informativo &mdash; no alimenta el algoritmo</div>
+</div>
+
+<!-- COMPOSITE STATUS -->
+<div class="grid-2" style="margin-bottom:20px;">
+    <div class="intel-composite-card">
+        <div class="intel-composite-header">
+            <span class="intel-composite-label">Estado Global</span>
+            <span class="intel-composite-badge" id="intel-status-badge">Cargando...</span>
+        </div>
+        <div class="intel-composite-value" id="intel-composite-value">--</div>
+        <div class="intel-composite-desc">Escalar compuesto de estr&eacute;s macro/geopol&iacute;tico [0.25 &ndash; 1.00]</div>
+        <div class="intel-last-update" id="intel-last-update"></div>
+    </div>
+    <div class="intel-composite-card">
+        <div class="intel-composite-header">
+            <span class="intel-composite-label">Impacto en HYDRA</span>
+        </div>
+        <div class="intel-composite-desc" style="margin-top:12px;">
+            Este monitor es <strong>solo informativo</strong>. El algoritmo HYDRA opera de forma independiente.<br><br>
+            <span style="color:var(--text-secondary);">Exp #64 demostr&oacute; que aplicar estas se&ntilde;ales como overlay de capital reduce CAGR (-0.41%) sin mejorar MaxDD.
+            VIX es la &uacute;nica se&ntilde;al que individualmente mejora Sharpe (+0.048) y CAGR (+0.45%).</span>
+        </div>
+    </div>
+</div>
+
+<!-- SIGNAL CARDS -->
+<div class="grid-3" style="margin-bottom:20px;">
+    <!-- VIX -->
+    <div class="intel-signal-card">
+        <div class="intel-signal-header">
+            <span class="intel-signal-icon" style="color:var(--red);">&#9888;</span>
+            <span class="intel-signal-name">VIX</span>
+            <span class="intel-signal-source">CBOE / FRED</span>
+        </div>
+        <div class="intel-signal-value" id="intel-vix-value">--</div>
+        <div class="intel-signal-bar-wrap">
+            <div class="intel-signal-bar" id="intel-vix-bar"></div>
+        </div>
+        <div class="intel-signal-desc">Volatilidad impl&iacute;cita S&amp;P 500. >30 = miedo elevado. >50 = p&aacute;nico.</div>
+        <div class="intel-signal-threshold">Umbral: 30 &middot; Escalar: 1.0 &rarr; 0.25</div>
+    </div>
+    <!-- YIELD CURVE -->
+    <div class="intel-signal-card">
+        <div class="intel-signal-header">
+            <span class="intel-signal-icon" style="color:var(--accent);">&#128200;</span>
+            <span class="intel-signal-name">Curva de Rendimiento</span>
+            <span class="intel-signal-source">T10Y2Y / FRED</span>
+        </div>
+        <div class="intel-signal-value" id="intel-yc-value">--</div>
+        <div class="intel-signal-bar-wrap">
+            <div class="intel-signal-bar" id="intel-yc-bar"></div>
+        </div>
+        <div class="intel-signal-desc">Spread 10a &ndash; 2a. Negativo = curva invertida = se&ntilde;al de recesi&oacute;n.</div>
+        <div class="intel-signal-threshold">Umbral: 0.00 &middot; Inversi&oacute;n = estr&eacute;s</div>
+    </div>
+    <!-- GSCPI -->
+    <div class="intel-signal-card">
+        <div class="intel-signal-header">
+            <span class="intel-signal-icon" style="color:var(--cyan);">&#128666;</span>
+            <span class="intel-signal-name">GSCPI</span>
+            <span class="intel-signal-source">NY Fed</span>
+        </div>
+        <div class="intel-signal-value" id="intel-gscpi-value">--</div>
+        <div class="intel-signal-bar-wrap">
+            <div class="intel-signal-bar" id="intel-gscpi-bar"></div>
+        </div>
+        <div class="intel-signal-desc">Presi&oacute;n en cadena de suministro global. Z-score normalizado. >1.5 = significativo.</div>
+        <div class="intel-signal-threshold">Umbral: 1.5 std &middot; COVID pico: 4.3</div>
+    </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px;">
+    <!-- WTI CRUDE -->
+    <div class="intel-signal-card">
+        <div class="intel-signal-header">
+            <span class="intel-signal-icon" style="color:var(--green);">&#9981;</span>
+            <span class="intel-signal-name">WTI Crudo</span>
+            <span class="intel-signal-source">FRED / DCOILWTICO</span>
+        </div>
+        <div class="intel-signal-value" id="intel-wti-value">--</div>
+        <div class="intel-signal-bar-wrap">
+            <div class="intel-signal-bar" id="intel-wti-bar"></div>
+        </div>
+        <div class="intel-signal-desc">Precio del petr&oacute;leo WTI. Z-score 60d. >2.0 = spike de precio = estr&eacute;s energ&eacute;tico.</div>
+        <div class="intel-signal-threshold">Umbral: z-score >2.0 sobre media m&oacute;vil 60d</div>
+    </div>
+    <!-- GPR -->
+    <div class="intel-signal-card">
+        <div class="intel-signal-header">
+            <span class="intel-signal-icon" style="color:var(--red);">&#127758;</span>
+            <span class="intel-signal-name">GPR</span>
+            <span class="intel-signal-source">Caldara-Iacoviello</span>
+        </div>
+        <div class="intel-signal-value" id="intel-gpr-value">--</div>
+        <div class="intel-signal-bar-wrap">
+            <div class="intel-signal-bar" id="intel-gpr-bar"></div>
+        </div>
+        <div class="intel-signal-desc">&Iacute;ndice de Riesgo Geopol&iacute;tico (AER 2022). 100 = media hist&oacute;rica. Guerras, sanciones, terrorismo.</div>
+        <div class="intel-signal-threshold">Umbral: 150 &middot; Escalar: 1.0 &rarr; 0.25</div>
+    </div>
+</div>
+
+<!-- METHODOLOGY -->
+<div class="intel-methodology">
+    <div class="intel-method-title">Metodolog&iacute;a</div>
+    <div class="intel-method-content">
+        <p>Cada se&ntilde;al produce un escalar [0.25, 1.0] seg&uacute;n umbrales fijos de referencia externa (no ajustados al backtest de HYDRA).
+        Agregaci&oacute;n multiplicativa con piso de 0.25.</p>
+        <p><strong>Resultado Exp #64:</strong> El overlay compuesto mejora Sharpe (+0.049) pero cuesta CAGR (-0.41%) sin mejorar MaxDD.
+        La inversi&oacute;n de curva persiste durante a&ntilde;os en mercados alcistas (2021-2024: 1,275 d&iacute;as estresados), creando arrastre inaceptable.
+        Decisi&oacute;n: <strong>solo informativo</strong>.</p>
+        <p style="color:var(--text-tertiary);font-size:0.75rem;">Fuentes: FRED (St. Louis Fed), NY Fed GSCPI, Caldara-Iacoviello GPR (American Economic Review 2022).
+        Datos actualizados cada 15 minutos. Crucix: github.com/calesthio/Crucix</p>
+    </div>
+</div>
+
+</div><!-- /page-inteligencia -->
 
 <!-- FOOTER -->
 <footer class="footer-institutional">

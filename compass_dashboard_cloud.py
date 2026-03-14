@@ -1931,6 +1931,131 @@ def api_overlay_status():
     })
 
 
+@app.route('/api/intelligence')
+def api_intelligence():
+    """Return macro/geopolitical intelligence data (informational only)."""
+    import urllib.request, io
+    FRED_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv'
+    cache_dir = os.path.join(STATE_DIR, 'intelligence')
+    os.makedirs(cache_dir, exist_ok=True)
+
+    def fetch_fred(series_id):
+        cache_file = os.path.join(cache_dir, f'{series_id}.json')
+        # Cache for 15 minutes
+        if os.path.exists(cache_file):
+            try:
+                age = time.time() - os.path.getmtime(cache_file)
+                if age < 900:
+                    with open(cache_file) as f:
+                        return json.load(f)
+            except Exception:
+                pass
+        try:
+            url = f'{FRED_URL}?id={series_id}&cosd=2025-01-01&coed=2027-01-01'
+            with urllib.request.urlopen(url, timeout=15) as resp:
+                raw = resp.read().decode('utf-8')
+            if raw.strip().startswith('<!'):
+                return None
+            lines = [l.strip() for l in raw.strip().split('\n') if l.strip() and not l.startswith('observation')]
+            if not lines:
+                return None
+            # Skip header, get last valid value
+            values = []
+            for line in lines[0:] if 'observation' not in lines[0] else lines:
+                parts = line.split(',')
+                if len(parts) == 2 and parts[1] != '.':
+                    try:
+                        values.append({'date': parts[0], 'value': float(parts[1])})
+                    except ValueError:
+                        pass
+            if not values:
+                return None
+            result = {'latest': values[-1]['value'], 'date': values[-1]['date'], 'series': series_id}
+            with open(cache_file, 'w') as f:
+                json.dump(result, f)
+            return result
+        except Exception:
+            return None
+
+    vix_data = fetch_fred('VIXCLS')
+    yc_data = fetch_fred('T10Y2Y')
+    wti_data = fetch_fred('DCOILWTICO')
+
+    # Compute scalars (same thresholds as exp64)
+    vix_val = vix_data['latest'] if vix_data else None
+    yc_val = yc_data['latest'] if yc_data else None
+    wti_val = wti_data['latest'] if wti_data else None
+
+    vix_scalar = 1.0
+    if vix_val is not None and vix_val > 30:
+        vix_scalar = max(0.25, 1.0 - (vix_val - 30) / 66.67 * 0.75)
+
+    yc_scalar = 1.0
+    if yc_val is not None and yc_val < 0:
+        yc_scalar = max(0.60, 1.0 + yc_val * 0.40)
+
+    # WTI: no z-score in real-time, just flag extremes
+    wti_scalar = 1.0
+
+    # GPR and GSCPI are monthly — use cached values from exp64 data if available
+    gscpi_val = None
+    gpr_val = None
+    gscpi_scalar = 1.0
+    gpr_scalar = 1.0
+
+    gscpi_cache = os.path.join(cache_dir, 'GSCPI_latest.json')
+    gpr_cache = os.path.join(cache_dir, 'GPR_latest.json')
+
+    if os.path.exists(gscpi_cache):
+        try:
+            with open(gscpi_cache) as f:
+                gscpi_data = json.load(f)
+                gscpi_val = gscpi_data.get('latest')
+        except Exception:
+            pass
+
+    if os.path.exists(gpr_cache):
+        try:
+            with open(gpr_cache) as f:
+                gpr_data = json.load(f)
+                gpr_val = gpr_data.get('latest')
+        except Exception:
+            pass
+
+    if gscpi_val is not None and gscpi_val > 1.5:
+        gscpi_scalar = max(0.25, 1.0 - (gscpi_val - 1.5) / 4.0 * 0.75)
+
+    if gpr_val is not None and gpr_val > 150:
+        gpr_scalar = max(0.25, 1.0 - (gpr_val - 150) / 333.33 * 0.75)
+
+    composite = vix_scalar * yc_scalar * wti_scalar * gscpi_scalar * gpr_scalar
+    composite = max(0.25, min(1.0, composite))
+
+    if composite >= 0.90:
+        status = 'normal'
+        status_label = 'Normal'
+    elif composite >= 0.60:
+        status = 'cautious'
+        status_label = 'Cauteloso'
+    else:
+        status = 'stressed'
+        status_label = 'Estresado'
+
+    return jsonify({
+        'composite': round(composite, 3),
+        'status': status,
+        'status_label': status_label,
+        'signals': {
+            'vix': {'value': vix_val, 'scalar': round(vix_scalar, 3), 'date': vix_data['date'] if vix_data else None},
+            'yield_curve': {'value': yc_val, 'scalar': round(yc_scalar, 3), 'date': yc_data['date'] if yc_data else None},
+            'wti': {'value': wti_val, 'scalar': round(wti_scalar, 3), 'date': wti_data['date'] if wti_data else None},
+            'gscpi': {'value': gscpi_val, 'scalar': round(gscpi_scalar, 3)},
+            'gpr': {'value': gpr_val, 'scalar': round(gpr_scalar, 3)},
+        },
+        'timestamp': datetime.now().isoformat(),
+    })
+
+
 # Terminal removed — replaced with WhatsApp contact FAB
 
 # ============================================================================
