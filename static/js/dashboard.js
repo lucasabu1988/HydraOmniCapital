@@ -452,7 +452,7 @@ function updatePositions(details) {
             '<div class="pos-data-row">' +
                 '<div class="pos-datum"><span class="pos-datum-label">Value</span><span class="pos-datum-value" style="color:var(--text-primary);">' + fmt$(p.market_value) + '</span></div>' +
                 '<div class="pos-datum"><span class="pos-datum-label">P&amp;L</span><span class="pos-datum-value ' + colorCls(p.pnl_dollar) + '">' + fmt$(p.pnl_dollar) + '</span></div>' +
-                '<div class="pos-datum"><span class="pos-datum-label">Shares</span><span class="pos-datum-value">' + p.shares.toFixed(1) + '</span></div>' +
+                '<div class="pos-datum"><span class="pos-datum-label">Shares</span><span class="pos-datum-value">' + Math.round(p.shares) + '</span></div>' +
             '</div>' +
             /* Row 2: Entry, Chg$, High */
             '<div class="pos-data-row">' +
@@ -2401,8 +2401,8 @@ function fetchExpAnalysis() {
     const container = document.getElementById('exp-analysis-container');
     if (!container) return;
 
-    const totalExp = 37;
-    const failed = 33;
+    const totalExp = 62;
+    const failed = 57;
     const approved = 3;  /* v8 HYDRA + Exp #34 IG Cash Yield + EXP59 HYDRA */
     const partial = 2;   /* RATTLESNAKE standalone + QUANTUM */
     const failRate = ((failed / totalExp) * 100).toFixed(1);
