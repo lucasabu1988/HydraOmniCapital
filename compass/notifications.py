@@ -695,10 +695,7 @@ class TelegramCommandHandler:
         try:
             response = self.agent._call_claude(
                 'OPERATOR_QUERY',
-                f"The operator is asking you a question via Telegram. "
-                f"Answer concisely (max 3-4 short paragraphs). "
-                f"Use plain text, no HTML tags.\n\n"
-                f"Question: {question}",
+                question,
             )
         except Exception as e:
             self._notifier._send_message(f"Claude API error: {e}")
