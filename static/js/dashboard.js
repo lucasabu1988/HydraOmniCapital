@@ -1762,7 +1762,7 @@ let _annualData = null;
 let _p2pChart = null;
 
 const P2P_SECTOR_COLORS = {
-    'Technology':         { bg: 'rgba(99,102,241,0.85)',  border: '#6366f1', glow: 'rgba(99,102,241,0.4)' },
+    'Technology':         { bg: 'rgba(14,165,233,0.85)',  border: '#0ea5e9', glow: 'rgba(14,165,233,0.4)' },
     'Healthcare':         { bg: 'rgba(16,185,129,0.85)',  border: '#10b981', glow: 'rgba(16,185,129,0.4)' },
     'Semiconductors':     { bg: 'rgba(139,92,246,0.85)',  border: '#8b5cf6', glow: 'rgba(139,92,246,0.4)' },
     'Financial Services': { bg: 'rgba(59,130,246,0.85)',  border: '#3b82f6', glow: 'rgba(59,130,246,0.4)' },
@@ -2102,11 +2102,11 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
     });
     var spyColors = spyRets.map(function(v) {
         if (v == null) return 'transparent';
-        return isDark ? 'rgba(99, 102, 241, 0.28)' : 'rgba(99, 102, 241, 0.22)';
+        return isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)';
     });
     var spyBorderColors = spyRets.map(function(v) {
         if (v == null) return 'transparent';
-        return isDark ? 'rgba(99, 102, 241, 0.55)' : 'rgba(99, 102, 241, 0.50)';
+        return isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)';
     });
 
     var gridColor     = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
