@@ -1934,14 +1934,12 @@ def api_overlay_status():
 @app.route('/api/intelligence')
 def api_intelligence():
     """Return macro/geopolitical intelligence data (informational only)."""
-    import urllib.request, io
-    FRED_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv'
+    import urllib.request
     cache_dir = os.path.join(STATE_DIR, 'intelligence')
     os.makedirs(cache_dir, exist_ok=True)
 
-    def fetch_fred(series_id):
-        cache_file = os.path.join(cache_dir, f'{series_id}.json')
-        # Cache for 15 minutes
+    def fetch_yahoo(symbol, cache_key):
+        cache_file = os.path.join(cache_dir, f'{cache_key}.json')
         if os.path.exists(cache_file):
             try:
                 age = time.time() - os.path.getmtime(cache_file)
@@ -1951,44 +1949,38 @@ def api_intelligence():
             except Exception:
                 pass
         try:
-            url = f'{FRED_URL}?id={series_id}&cosd=2025-01-01&coed=2027-01-01'
-            with urllib.request.urlopen(url, timeout=15) as resp:
-                raw = resp.read().decode('utf-8')
-            if raw.strip().startswith('<!'):
-                return None
-            values = []
-            for line in raw.strip().split('\n')[1:]:
-                parts = line.strip().split(',')
-                if len(parts) == 2 and parts[1] != '.':
-                    try:
-                        values.append({'date': parts[0], 'value': float(parts[1])})
-                    except ValueError:
-                        pass
-            if not values:
-                return None
-            result = {'latest': values[-1]['value'], 'date': values[-1]['date'], 'series': series_id}
+            url = f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1d'
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+            price = data['chart']['result'][0]['meta']['regularMarketPrice']
+            result = {'latest': price, 'date': datetime.now().strftime('%Y-%m-%d'), 'series': cache_key}
             with open(cache_file, 'w') as f:
                 json.dump(result, f)
             return result
         except Exception:
             return None
 
-    vix_data = fetch_fred('VIXCLS')
-    yc_data = fetch_fred('T10Y2Y')
-    wti_data = fetch_fred('DCOILWTICO')
+    vix_data = fetch_yahoo('%5EVIX', 'VIXCLS')
+    wti_data = fetch_yahoo('CL%3DF', 'DCOILWTICO')
+    # Yield curve: 10Y - compute from Yahoo ^TNX (10Y yield)
+    tnx_data = fetch_yahoo('%5ETNX', 'TNX')
+    # T10Y2Y approximation: use 10Y yield directly as proxy (no clean 2Y on Yahoo)
+    # For display, show 10Y yield; for scalar, skip yield curve (FRED only)
+    yc_data = None
 
     # Compute scalars (same thresholds as exp64)
     vix_val = vix_data['latest'] if vix_data else None
-    yc_val = yc_data['latest'] if yc_data else None
+    tnx_val = tnx_data['latest'] if tnx_data else None
+    # Show 10Y yield for display; no T10Y2Y spread available via Yahoo
+    yc_val = round(tnx_val, 2) if tnx_val else None  # ^TNX = 10Y yield (%)
     wti_val = wti_data['latest'] if wti_data else None
 
     vix_scalar = 1.0
     if vix_val is not None and vix_val > 30:
         vix_scalar = max(0.25, 1.0 - (vix_val - 30) / 66.67 * 0.75)
 
-    yc_scalar = 1.0
-    if yc_val is not None and yc_val < 0:
-        yc_scalar = max(0.60, 1.0 + yc_val * 0.40)
+    yc_scalar = 1.0  # 10Y yield only (no T10Y2Y spread via Yahoo), scalar always 1.0
 
     # WTI: no z-score in real-time, just flag extremes
     wti_scalar = 1.0
@@ -2043,7 +2035,7 @@ def api_intelligence():
         'status_label': status_label,
         'signals': {
             'vix': {'value': vix_val, 'scalar': round(vix_scalar, 3), 'date': vix_data['date'] if vix_data else None},
-            'yield_curve': {'value': yc_val, 'scalar': round(yc_scalar, 3), 'date': yc_data['date'] if yc_data else None},
+            'yield_curve': {'value': yc_val, 'scalar': round(yc_scalar, 3), 'date': tnx_data['date'] if tnx_data else None, 'note': '10Y yield (Yahoo)'},
             'wti': {'value': wti_val, 'scalar': round(wti_scalar, 3), 'date': wti_data['date'] if wti_data else None},
             'gscpi': {'value': gscpi_val, 'scalar': round(gscpi_scalar, 3)},
             'gpr': {'value': gpr_val, 'scalar': round(gpr_scalar, 3)},
