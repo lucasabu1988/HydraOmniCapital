@@ -1301,69 +1301,75 @@ async function fetchAll() {
             }
             updateUniverse(stateData.universe, posDict);
 
-            // Overlay status
-            fetch('/api/overlay-status')
-                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-                .then(d => {
+            // Overlay status (awaited to prevent race conditions on rapid fetchAll calls)
+            try {
+                const ovRes = await fetch('/api/overlay-status');
+                if (ovRes.ok) {
+                    const d = await ovRes.json();
                     if (!d.available) {
                         const ovScalar = document.getElementById('ov-scalar');
                         const ovTag = document.getElementById('ov-tag');
                         if (ovScalar) ovScalar.textContent = 'OFF';
                         if (ovTag) { ovTag.textContent = 'Unavailable'; ovTag.className = 'regime-band-tag'; }
-                        return;
-                    }
-                    const scalar = d.capital_scalar;
-                    const ovScalar = document.getElementById('ov-scalar');
-                    if (ovScalar) ovScalar.textContent = scalar != null ? scalar.toFixed(2) : '--';
+                    } else {
+                        const scalar = d.capital_scalar;
+                        const ovScalar = document.getElementById('ov-scalar');
+                        if (ovScalar) ovScalar.textContent = scalar != null ? scalar.toFixed(2) : '--';
 
-                    const tag = document.getElementById('ov-tag');
-                    if (tag) {
-                        tag.textContent = d.scalar_label;
-                        tag.className = 'regime-band-tag';
-                        if (d.scalar_color === 'green') tag.style.cssText = 'color:var(--green); background:var(--green-dim);';
-                        else if (d.scalar_color === 'yellow') tag.style.cssText = 'color:var(--yellow); background:var(--yellow-dim);';
-                        else tag.style.cssText = 'color:var(--red); background:var(--red-dim);';
-                    }
+                        const tag = document.getElementById('ov-tag');
+                        if (tag) {
+                            tag.textContent = d.scalar_label;
+                            tag.className = 'regime-band-tag';
+                            if (d.scalar_color === 'green') tag.style.cssText = 'color:var(--green); background:var(--green-dim);';
+                            else if (d.scalar_color === 'yellow') tag.style.cssText = 'color:var(--yellow); background:var(--yellow-dim);';
+                            else tag.style.cssText = 'color:var(--red); background:var(--red-dim);';
+                        }
 
-                    const colorVal = v => v >= 0.90 ? 'var(--green)' : v >= 0.60 ? 'var(--yellow)' : 'var(--red)';
-                    if (!d.per_overlay || !d.credit_filter) return;
-                    const bso = d.per_overlay.bso;
-                    const m2 = d.per_overlay.m2;
-                    const fomc = d.per_overlay.fomc;
+                        const colorVal = v => v >= 0.90 ? 'var(--green)' : v >= 0.60 ? 'var(--yellow)' : 'var(--red)';
+                        if (d.per_overlay && d.credit_filter) {
+                            const bso = d.per_overlay.bso;
+                            const m2 = d.per_overlay.m2;
+                            const fomc = d.per_overlay.fomc;
 
-                    const bsoEl = document.getElementById('ov-bso');
-                    if (bsoEl && bso != null) { bsoEl.textContent = bso.toFixed(2); bsoEl.style.color = colorVal(bso); }
+                            const bsoEl = document.getElementById('ov-bso');
+                            if (bsoEl && bso != null) { bsoEl.textContent = bso.toFixed(2); bsoEl.style.color = colorVal(bso); }
 
-                    const m2El = document.getElementById('ov-m2');
-                    if (m2El && m2 != null) { m2El.textContent = m2.toFixed(2); m2El.style.color = colorVal(m2); }
+                            const m2El = document.getElementById('ov-m2');
+                            if (m2El && m2 != null) { m2El.textContent = m2.toFixed(2); m2El.style.color = colorVal(m2); }
 
-                    const fomcEl = document.getElementById('ov-fomc');
-                    if (fomcEl && fomc != null) { fomcEl.textContent = fomc.toFixed(2); fomcEl.style.color = colorVal(fomc); }
+                            const fomcEl = document.getElementById('ov-fomc');
+                            if (fomcEl && fomc != null) { fomcEl.textContent = fomc.toFixed(2); fomcEl.style.color = colorVal(fomc); }
 
-                    const fedEl = document.getElementById('ov-fed');
-                    if (fedEl) { fedEl.textContent = d.fed_emergency_active ? 'ACTIVE' : 'Inactive'; fedEl.style.color = d.fed_emergency_active ? 'var(--red)' : 'var(--text-muted)'; }
+                            const fedEl = document.getElementById('ov-fed');
+                            if (fedEl) { fedEl.textContent = d.fed_emergency_active ? 'ACTIVE' : 'Inactive'; fedEl.style.color = d.fed_emergency_active ? 'var(--red)' : 'var(--text-muted)'; }
 
-                    const creditEl = document.getElementById('ov-credit');
-                    if (creditEl) {
-                        const excluded = d.credit_filter.excluded_sectors;
-                        if (excluded && excluded.length > 0) {
-                            creditEl.textContent = excluded.join(', ');
-                            creditEl.style.color = 'var(--red)';
-                        } else {
-                            creditEl.textContent = 'Clear';
-                            creditEl.style.color = 'var(--green)';
+                            const creditEl = document.getElementById('ov-credit');
+                            if (creditEl) {
+                                const excluded = d.credit_filter.excluded_sectors;
+                                if (excluded && excluded.length > 0) {
+                                    creditEl.textContent = excluded.join(', ');
+                                    creditEl.style.color = 'var(--red)';
+                                } else {
+                                    creditEl.textContent = 'Clear';
+                                    creditEl.style.color = 'var(--green)';
+                                }
+                            }
                         }
                     }
-                })
-                .catch(() => {});
+                }
+            } catch (ovErr) {
+                console.warn('Overlay status fetch failed:', ovErr.message);
+            }
         }
     } catch (err) {
         console.error('Fetch error:', err);
         const banner = document.getElementById('offline-banner');
-        banner.style.display = 'block';
-        banner.innerHTML = _fetchRetries > 0
-            ? t('waking-server') + ' ' + _fetchRetries + '/' + MAX_RETRIES
-            : t('offline-banner');
+        if (banner) {
+            banner.style.display = 'block';
+            banner.textContent = _fetchRetries > 0
+                ? t('waking-server') + ' ' + _fetchRetries + '/' + MAX_RETRIES
+                : t('offline-banner');
+        }
         if (_fetchRetries < MAX_RETRIES) {
             setTimeout(fetchAll, RETRY_DELAYS[_fetchRetries]);
             _fetchRetries++;

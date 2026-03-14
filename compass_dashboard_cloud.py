@@ -2236,7 +2236,7 @@ def _api_ml_learning_impl():
     }
     try:
         if outcomes:
-            returns = [float(o['gross_return']) for o in outcomes
+            returns = [float(o.get('gross_return', 0)) for o in outcomes
                        if o.get('gross_return') is not None]
             if returns:
                 kpis['win_rate'] = round(sum(1 for r in returns if r > 0) / len(returns), 3)

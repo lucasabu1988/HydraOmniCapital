@@ -2637,19 +2637,23 @@ def api_ml_learning():
         'phase2_progress_pct': round(min(100, trading_days / 63 * 100), 1),
         'backtest': bt_stats,
     }
-    if outcomes:
-        returns = [o.get('gross_return', 0) for o in outcomes if o.get('gross_return') is not None]
-        if returns:
-            kpis['win_rate'] = round(sum(1 for r in returns if r > 0) / len(returns), 3)
-            kpis['avg_return'] = round(sum(returns) / len(returns), 4)
-            kpis['best_trade'] = round(max(returns), 4)
-            kpis['worst_trade'] = round(min(returns), 4)
-        stop_count = sum(1 for o in outcomes if o.get('was_stopped'))
-        kpis['stop_rate'] = round(stop_count / len(outcomes), 3) if outcomes else 0
-        alphas = [o.get('alpha_vs_spy') for o in outcomes if o.get('alpha_vs_spy') is not None]
-        kpis['avg_alpha'] = round(sum(alphas) / len(alphas), 4) if alphas else None
-        pnls = [o.get('pnl_usd', 0) for o in outcomes]
-        kpis['total_pnl'] = round(sum(pnls), 2)
+    try:
+        if outcomes:
+            returns = [float(o.get('gross_return', 0)) for o in outcomes
+                       if o.get('gross_return') is not None]
+            if returns:
+                kpis['win_rate'] = round(sum(1 for r in returns if r > 0) / len(returns), 3)
+                kpis['avg_return'] = round(sum(returns) / len(returns), 4)
+                kpis['best_trade'] = round(max(returns), 4)
+                kpis['worst_trade'] = round(min(returns), 4)
+            stop_count = sum(1 for o in outcomes if o.get('was_stopped'))
+            kpis['stop_rate'] = round(stop_count / len(outcomes), 3) if len(outcomes) > 0 else 0
+            alphas = [float(a) for a in (o.get('alpha_vs_spy') for o in outcomes) if a is not None]
+            kpis['avg_alpha'] = round(sum(alphas) / len(alphas), 4) if alphas else None
+            pnls = [float(o.get('pnl_usd') or 0) for o in outcomes]
+            kpis['total_pnl'] = round(sum(pnls), 2)
+    except Exception as e:
+        logger.warning(f"KPI calculation error: {e}")
 
     return jsonify({
         'log_entries': all_entries,
