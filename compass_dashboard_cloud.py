@@ -59,26 +59,20 @@ logger = logging.getLogger(__name__)
 
 @app.errorhandler(500)
 def handle_500(e):
-    import traceback
-    tb = traceback.format_exc()
-    logger.error(f"500 error (worker {os.getpid()}): {e}\n{tb}")
+    logger.error(f"500 error (worker {os.getpid()}): {e}", exc_info=True)
     return jsonify({
         'status': 'offline',
-        'error': f'Worker {os.getpid()}: {type(e).__name__}: {e}',
-        'traceback': tb,
+        'error': f'Internal server error',
         'server_time': datetime.now().isoformat(),
     }), 200
 
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    import traceback
-    tb = traceback.format_exc()
-    logger.error(f"Unhandled exception (worker {os.getpid()}): {e}\n{tb}")
+    logger.error(f"Unhandled exception (worker {os.getpid()}): {e}", exc_info=True)
     return jsonify({
         'status': 'offline',
-        'error': f'Worker {os.getpid()}: {type(e).__name__}: {e}',
-        'traceback': tb,
+        'error': f'Internal server error',
         'server_time': datetime.now().isoformat(),
     }), 200
 
@@ -1202,7 +1196,7 @@ def api_state():
             'server_time': datetime.now().isoformat(),
             'engine': {
                 **_engine_status,
-                'cycles': _cloud_engine.stats.get('cycles_completed', 0) if _cloud_engine else _engine_status['cycles'],
+                'cycles': getattr(_cloud_engine, 'stats', {}).get('cycles_completed', 0) if _cloud_engine else _engine_status['cycles'],
             },
         })
     except Exception as e:
