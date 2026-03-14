@@ -2097,8 +2097,8 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
      *                Y-axis tick by the custom plugin, not through bar colour.
      */
     var hydraColors = hydraRets.map(function(v) {
-        if (v >= 0) return isDark ? '#22c55e' : '#16a34a';
-        return isDark ? '#ef4444' : '#dc2626';
+        if (v >= 0) return isDark ? '#22c55e' : '#15803d';
+        return isDark ? '#f87171' : '#b91c1c';
     });
     var spyColors = spyRets.map(function(v) {
         if (v == null) return 'transparent';
