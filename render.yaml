@@ -18,3 +18,27 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+
+  - type: worker
+    name: hydra-agent
+    runtime: python
+    repo: https://github.com/lucasabu1988/NuevoProyecto
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r requirements-cloud.txt -r requirements-agent.txt
+    startCommand: python hydra_agent.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.6"
+      - key: STATE_DIR
+        value: "state"
+      - key: BROKER_TYPE
+        value: "PAPER"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: GIT_TOKEN
+        sync: false
