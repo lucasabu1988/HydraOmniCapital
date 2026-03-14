@@ -57,6 +57,32 @@ app = Flask(__name__)
 logger = logging.getLogger(__name__)
 
 
+@app.errorhandler(500)
+def handle_500(e):
+    import traceback
+    tb = traceback.format_exc()
+    logger.error(f"500 error (worker {os.getpid()}): {e}\n{tb}")
+    return jsonify({
+        'status': 'offline',
+        'error': f'Worker {os.getpid()}: {type(e).__name__}: {e}',
+        'traceback': tb,
+        'server_time': datetime.now().isoformat(),
+    }), 200
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    tb = traceback.format_exc()
+    logger.error(f"Unhandled exception (worker {os.getpid()}): {e}\n{tb}")
+    return jsonify({
+        'status': 'offline',
+        'error': f'Worker {os.getpid()}: {type(e).__name__}: {e}',
+        'traceback': tb,
+        'server_time': datetime.now().isoformat(),
+    }), 200
+
+
 @app.after_request
 def set_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
