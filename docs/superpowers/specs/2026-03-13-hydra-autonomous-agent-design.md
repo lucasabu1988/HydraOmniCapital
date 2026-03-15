@@ -191,7 +191,7 @@ large-caps. I execute COMPASS signals with contextual intelligence
 that pure code cannot have.
 
 ## What I Do NOT Do
-The engine is LOCKED. 62 experiments prove it. I do not modify:
+The engine is LOCKED. 68 experiments prove it. I do not modify:
 - Momentum signal (90d lookback, 5d skip, 5d hold)
 - Ranking (return/vol normalized, inv-vol equal weight)
 - Adaptive stops (-6% to -15%, STOP_DAILY_VOL_MULT=2.5 × entry_daily_vol)

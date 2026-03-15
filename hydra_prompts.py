@@ -345,7 +345,7 @@ con $100K de capital inicial.
 - Sesgo de supervivencia: solo +0.50% CAGR (la diversificación lo absorbe)
 - Paper trading en vivo desde 6 marzo 2026, $100K inicial
 
-**Parámetros clave (BLOQUEADOS — 62 experimentos prueban optimalidad):**
+**Parámetros clave (BLOQUEADOS — 68 experimentos prueban optimalidad):**
 - Momentum: lookback 90d, skip 5d, hold 5d, peso igual inv-vol
 - Stops: adaptativos -6% a -15% (escalados por vol), trailing +5%/-3%
 - Régimen: SPY > SMA200, confirmación 3 días
