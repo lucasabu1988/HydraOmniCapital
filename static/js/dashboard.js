@@ -2524,7 +2524,7 @@ function fetchExpAnalysis() {
     html += '<div class="exp-analysis-grid">';
     html += '<div class="exp-stat-box"><div class="exp-stat-label">EXPERIMENTS RUN</div><div class="exp-stat-val" style="color:var(--cyan);">' + totalExp + '</div><div class="exp-stat-note">' + failed + ' failed, ' + approved + ' approved, ' + partial + ' partial</div></div>';
     html += '<div class="exp-stat-box"><div class="exp-stat-label">FAILURE RATE</div><div class="exp-stat-val" style="color:var(--red);">' + failRate + '%</div><div class="exp-stat-note">Algorithm inelasticity confirmed</div></div>';
-    html += '<div class="exp-stat-box"><div class="exp-stat-label">HYDRA CAGR</div><div class="exp-stat-val" style="color:var(--green);">14.45%</div><div class="exp-stat-note">Survivorship-corrected (882 PIT tickers) | bias +0.50%</div></div>';
+    html += '<div class="exp-stat-box"><div class="exp-stat-label">HYDRA CAGR</div><div class="exp-stat-val" style="color:var(--green);">15.62%</div><div class="exp-stat-note">Survivorship-corrected (882 PIT tickers) | +Catalyst 4th pillar</div></div>';
     html += '<div class="exp-stat-box"><div class="exp-stat-label">WORST EXPERIMENT</div><div class="exp-stat-val" style="color:var(--red);">-20.87%</div><div class="exp-stat-note">HYDRA EU v1 ($100K &rarr; $507)</div></div>';
     html += '</div>';
 

@@ -83,7 +83,7 @@ var TRANSLATIONS = {
     // Metric Cards
     'metric-portfolio': 'Valor del Portfolio',
     'metric-cagr':      'CAGR Esperado',
-    'metric-cagr-sub':  'HYDRA (Momentum + Rattlesnake + EFA) | No leverage',
+    'metric-cagr-sub':  'HYDRA (Momentum + Rattlesnake + Catalyst + EFA) | No leverage',
     'metric-cash':      'Efectivo',
     'metric-drawdown':  'Drawdown',
     'metric-positions': 'Posiciones',
@@ -197,7 +197,7 @@ var TRANSLATIONS = {
 
     // Roadmap
     'rm-heading':        'Camino hacia Lanzamiento',
-    'rm-heading-sub':    'HYDRA (Momentum + Rattlesnake + EFA) — Checklist de producción. Cada fase debe completarse antes de operar con capital real.',
+    'rm-heading-sub':    'HYDRA (Momentum + Rattlesnake + Catalyst + EFA) — Checklist de producción. Cada fase debe completarse antes de operar con capital real.',
     'rm-progress-text':  'completado',
     'rm-summary-title':  'Resumen de Progreso',
     'rm-completed':      'Completado',
@@ -217,7 +217,7 @@ var TRANSLATIONS = {
 
     // Algorithm page
     'algo-hero-sub':              'Cómo Funciona',
-    'algo-hero-tagline':          'Momentum + Rattlesnake (mean-reversion) + EFA (international) con cash recycling · S&P 500 + EAFE · Sin deuda · Completamente automático',
+    'algo-hero-tagline':          'Momentum + Rattlesnake (mean-reversion) + Catalyst (trend/gold) + EFA (international) con cash recycling · S&P 500 + EAFE · Sin deuda · Completamente automático',
     'algo-pipe-universe':         'Universo',
     'algo-pipe-universe-detail':  'Las 40 más líquidas',
     'algo-pipe-signals':          'Señales',
@@ -369,7 +369,7 @@ var TRANSLATIONS = {
     // Metric Cards
     'metric-portfolio': 'Portfolio Value',
     'metric-cagr':      'Expected CAGR',
-    'metric-cagr-sub':  'HYDRA (Momentum + Rattlesnake + EFA) | No leverage',
+    'metric-cagr-sub':  'HYDRA (Momentum + Rattlesnake + Catalyst + EFA) | No leverage',
     'metric-cash':      'Cash',
     'metric-drawdown':  'Drawdown',
     'metric-positions': 'Positions',
@@ -483,7 +483,7 @@ var TRANSLATIONS = {
 
     // Roadmap
     'rm-heading':        'Road to Launch',
-    'rm-heading-sub':    'HYDRA (Momentum + Rattlesnake + EFA) — Production checklist. Each phase must be completed before trading with real capital.',
+    'rm-heading-sub':    'HYDRA (Momentum + Rattlesnake + Catalyst + EFA) — Production checklist. Each phase must be completed before trading with real capital.',
     'rm-progress-text':  'completed',
     'rm-summary-title':  'Progress Summary',
     'rm-completed':      'Completed',
@@ -503,7 +503,7 @@ var TRANSLATIONS = {
 
     // Algorithm page
     'algo-hero-sub':              'How It Works',
-    'algo-hero-tagline':          'Momentum + Rattlesnake (mean-reversion) + EFA (international) with cash recycling · S&P 500 + EAFE · No debt · Fully automated',
+    'algo-hero-tagline':          'Momentum + Rattlesnake (mean-reversion) + Catalyst (trend/gold) + EFA (international) with cash recycling · S&P 500 + EAFE · No debt · Fully automated',
     'algo-pipe-universe':         'Universe',
     'algo-pipe-universe-detail':  'Top 40 most liquid',
     'algo-pipe-signals':          'Signals',
