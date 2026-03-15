@@ -1,1 +1,132 @@
-{}
+{
+  "generated_at": "2026-03-13T09:58:37.548850",
+  "trading_days": 5,
+  "learning_phase": 1,
+  "phase_description": "Phase 1 \u2014 Statistical summaries only. Need 63+ trading days for ML.",
+  "data_summary": {
+    "total_decisions": 13,
+    "completed_trades": 4,
+    "daily_snapshots": 9,
+    "decisions_by_type": {
+      "entry": 9,
+      "exit": 4
+    }
+  },
+  "trade_analytics": {
+    "n_completed_trades": 4,
+    "overall": {
+      "n": 1,
+      "mean_return": -0.0825,
+      "mean_return_ci_95": [
+        -0.0825,
+        -0.0825
+      ],
+      "median_return": -0.0825,
+      "std_return": null,
+      "win_rate": 0.0,
+      "stop_rate": 0.0,
+      "avg_days_held": 3.5,
+      "best": -0.0825,
+      "worst": -0.0825,
+      "sharpe_approx": null
+    },
+    "by_regime": {
+      "mild_bull": {
+        "n": 1,
+        "mean_return": -0.0825,
+        "mean_return_ci_95": [
+          -0.0825,
+          -0.0825
+        ],
+        "median_return": -0.0825,
+        "std_return": null,
+        "win_rate": 0.0,
+        "stop_rate": 0.0,
+        "avg_days_held": 3.5,
+        "best": -0.0825,
+        "worst": -0.0825,
+        "sharpe_approx": null
+      }
+    },
+    "by_sector": {
+      "Technology": {
+        "n": 1,
+        "mean_return": -0.0825,
+        "mean_return_ci_95": [
+          -0.0825,
+          -0.0825
+        ],
+        "median_return": -0.0825,
+        "std_return": null,
+        "win_rate": 0.0,
+        "stop_rate": 0.0,
+        "avg_days_held": 3.0,
+        "best": -0.0825,
+        "worst": -0.0825,
+        "sharpe_approx": null
+      },
+      "Healthcare": {
+        "n": 0
+      }
+    },
+    "by_exit_reason": {
+      "position_stop": {
+        "n": 1,
+        "mean_return": -0.0825,
+        "mean_return_ci_95": [
+          -0.0825,
+          -0.0825
+        ],
+        "median_return": -0.0825,
+        "std_return": null,
+        "win_rate": 0.0,
+        "stop_rate": 1.0,
+        "avg_days_held": 2.0,
+        "best": -0.0825,
+        "worst": -0.0825,
+        "sharpe_approx": null
+      },
+      "hold_expired": {
+        "n": 0
+      }
+    },
+    "by_vol_bucket": {
+      "low_vol": {
+        "n": 0
+      }
+    },
+    "stop_analysis": {
+      "total_stops": 1,
+      "overall_stop_rate": 0.25,
+      "avg_return_when_stopped": -0.0825,
+      "avg_return_when_not_stopped": NaN,
+      "stop_by_vol_bucket": {
+        "low_vol": {
+          "n": 2,
+          "stop_rate": 0.0,
+          "avg_return_when_stopped": null
+        }
+      }
+    }
+  },
+  "ml_models": {},
+  "stop_analysis": {
+    "status": "insufficient_data",
+    "n": 4,
+    "message": "Need at least 5 completed trades for stop analysis."
+  },
+  "portfolio_analytics": {
+    "n_days": 9,
+    "start_value": 99872.84,
+    "current_value": 101535.28,
+    "total_return": 0.0166,
+    "annualized_return_approx": 0.5876,
+    "daily_sharpe_annualized": 4.763,
+    "max_drawdown": -0.0082,
+    "daily_returns_mean": 0.00209,
+    "daily_returns_std": 0.00697
+  },
+  "parameter_suggestions": [],
+  "warnings": [],
+  "next_milestone": "Phase 2 ML begins in ~58 trading days (~2 months). Collect more entry/exit decisions and completed trade outcomes."
+}
