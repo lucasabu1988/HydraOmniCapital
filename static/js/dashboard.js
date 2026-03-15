@@ -3075,88 +3075,42 @@ function refreshDashboard() {
     }
 }
 
-/* ============ INTELLIGENCE TAB ============ */
-var _intelLoaded = false;
+/* ============ INTELLIGENCE TAB (Crucix Embed) ============ */
+var _crucixLoaded = false;
+var _crucixUrl = null;
 
 function loadIntelligence() {
-    fetch('/api/intelligence')
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            _intelLoaded = true;
-            renderIntelligence(d);
+    if (_crucixLoaded) return;
+    // Try multiple Crucix locations
+    var urls = [
+        'http://localhost:3117',     // Local Crucix default
+        'http://127.0.0.1:3117',
+    ];
+    tryCrucixUrls(urls, 0);
+}
+
+function tryCrucixUrls(urls, idx) {
+    if (idx >= urls.length) {
+        // All URLs failed
+        var statusEl = document.getElementById('crucix-status');
+        if (statusEl) statusEl.textContent = 'Crucix no disponible';
+        return;
+    }
+    var url = urls[idx];
+    var statusEl = document.getElementById('crucix-status');
+    if (statusEl) statusEl.textContent = 'Probando ' + url + '...';
+
+    fetch(url + '/api/health', { mode: 'no-cors', signal: AbortSignal.timeout(3000) })
+        .then(function() {
+            // Connected — load iframe
+            _crucixUrl = url;
+            _crucixLoaded = true;
+            var iframe = document.getElementById('crucix-iframe');
+            var offline = document.getElementById('crucix-offline');
+            if (iframe) iframe.src = url;
+            if (offline) offline.classList.add('hidden');
         })
-        .catch(function(e) {
-            console.error('Intelligence fetch failed:', e);
-            var badge = document.getElementById('intel-status-badge');
-            if (badge) { badge.textContent = 'Error'; badge.className = 'intel-composite-badge badge-stressed'; }
+        .catch(function() {
+            tryCrucixUrls(urls, idx + 1);
         });
-}
-
-function renderIntelligence(d) {
-    // Composite
-    var compEl = document.getElementById('intel-composite-value');
-    if (compEl) compEl.textContent = d.composite != null ? d.composite.toFixed(3) : '--';
-
-    var badge = document.getElementById('intel-status-badge');
-    if (badge) {
-        badge.textContent = d.status_label || '--';
-        badge.className = 'intel-composite-badge badge-' + (d.status || 'normal');
-    }
-
-    var updateEl = document.getElementById('intel-last-update');
-    if (updateEl && d.timestamp) {
-        var dt = new Date(d.timestamp);
-        updateEl.textContent = 'Actualizado: ' + dt.toLocaleString('es-AR');
-    }
-
-    var s = d.signals || {};
-
-    // VIX
-    renderSignal('intel-vix', s.vix, {
-        format: function(v) { return v != null ? v.toFixed(1) : '--'; },
-        barPct: function(v) { return v != null ? Math.min(100, (v / 80) * 100) : 0; },
-        barColor: function(v) { return v > 30 ? 'var(--red)' : v > 20 ? '#eab308' : 'var(--green)'; }
-    });
-
-    // Yield Curve
-    renderSignal('intel-yc', s.yield_curve, {
-        format: function(v) { return v != null ? (v >= 0 ? '+' : '') + v.toFixed(2) + '%' : '--'; },
-        barPct: function(v) { return v != null ? Math.min(100, Math.max(0, (v + 2) / 4 * 100)) : 50; },
-        barColor: function(v) { return v < 0 ? 'var(--red)' : v < 0.5 ? '#eab308' : 'var(--green)'; }
-    });
-
-    // GSCPI
-    renderSignal('intel-gscpi', s.gscpi, {
-        format: function(v) { return v != null ? v.toFixed(2) : 'Sin datos'; },
-        barPct: function(v) { return v != null ? Math.min(100, Math.max(0, (v + 2) / 6 * 100)) : 0; },
-        barColor: function(v) { return v > 1.5 ? 'var(--red)' : v > 0 ? '#eab308' : 'var(--green)'; }
-    });
-
-    // WTI
-    renderSignal('intel-wti', s.wti, {
-        format: function(v) { return v != null ? '$' + v.toFixed(2) : '--'; },
-        barPct: function(v) { return v != null ? Math.min(100, (v / 150) * 100) : 0; },
-        barColor: function() { return 'var(--accent)'; }
-    });
-
-    // GPR
-    renderSignal('intel-gpr', s.gpr, {
-        format: function(v) { return v != null ? v.toFixed(0) : 'Sin datos'; },
-        barPct: function(v) { return v != null ? Math.min(100, (v / 400) * 100) : 0; },
-        barColor: function(v) { return v > 150 ? 'var(--red)' : v > 100 ? '#eab308' : 'var(--green)'; }
-    });
-}
-
-function renderSignal(prefix, signal, opts) {
-    var valEl = document.getElementById(prefix + '-value');
-    var barEl = document.getElementById(prefix + '-bar');
-    var v = signal ? signal.value : null;
-
-    if (valEl) valEl.textContent = opts.format(v);
-
-    if (barEl) {
-        var pct = opts.barPct(v);
-        barEl.style.width = pct + '%';
-        barEl.style.background = opts.barColor(v);
-    }
 }
