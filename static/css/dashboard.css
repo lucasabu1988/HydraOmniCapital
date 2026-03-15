@@ -14,10 +14,10 @@
     --border-active: rgba(0,0,0,0.16);
     --border-accent: rgba(14, 165, 233, 0.25);
 
-    --text-primary: #111114;
-    --text-secondary: #2d2d3a;
-    --text-tertiary: #4a4a5c;
-    --text-muted: #64647a;
+    --text-primary: #0a0a0c;
+    --text-secondary: #1a1a24;
+    --text-tertiary: #2a2a38;
+    --text-muted: #3a3a4c;
 
     /* Brand accent — same sky-blue as dark mode */
     --accent: #0284c7;
