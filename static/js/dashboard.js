@@ -586,6 +586,23 @@ function updateHydra(hydra) {
     if (rHero) rHero.style.display = 'block';
 
     var rPositions = hydra.rattle_positions || [];
+
+    /* Collapsible behavior: collapsed when empty, expanded when has positions */
+    if (rHero) {
+        rHero.classList.add('rattle-collapsible');
+        if (rPositions.length === 0) {
+            if (!rHero._userToggled) rHero.classList.add('rattle-collapsed');
+        } else {
+            rHero.classList.remove('rattle-collapsed');
+        }
+        if (!rHero._clickBound) {
+            rHero._clickBound = true;
+            rHero.querySelector('.positions-hero-header').addEventListener('click', function() {
+                rHero._userToggled = true;
+                rHero.classList.toggle('rattle-collapsed');
+            });
+        }
+    }
     document.getElementById('rh-count').textContent = rPositions.length;
 
     var regimeEl = document.getElementById('rh-regime');

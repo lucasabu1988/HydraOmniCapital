@@ -1736,6 +1736,38 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
     font-size: 32px; margin-bottom: 8px; opacity: 0.3;
 }
 
+/* Collapsible Rattlesnake section */
+.positions-hero.rattle-collapsible .positions-hero-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+.positions-hero.rattle-collapsible .positions-hero-header:hover {
+    background: rgba(255,255,255,0.03);
+}
+.rattle-chevron {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    transition: transform 0.3s ease;
+    margin-left: 8px;
+}
+.positions-hero.rattle-collapsed .rattle-chevron {
+    transform: rotate(0deg);
+}
+.positions-hero:not(.rattle-collapsed) .rattle-chevron {
+    transform: rotate(90deg);
+}
+.positions-hero.rattle-collapsed .positions-grid,
+.positions-hero.rattle-collapsed .positions-hero-summary {
+    display: none !important;
+}
+.positions-hero.rattle-collapsed {
+    margin-bottom: 6px;
+}
+.positions-hero.rattle-collapsed .positions-hero-header {
+    padding-bottom: 14px;
+}
+
 /* Legacy table elements kept for compatibility */
 .tbl-wrap { overflow-x: auto; width: 100%; display: none; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 920px; }
@@ -4082,69 +4114,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     .fc-hm-name { min-width: 100px; font-size: 0.69rem; }
 }
 
-/* ============ INTELIGENCIA TAB (Crucix Embed) ============ */
-.crucix-embed-wrap {
-    position: relative;
-    width: 100%;
-    height: calc(100vh - 120px);
-    min-height: 600px;
-}
-.crucix-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    border-radius: 8px;
-    background: #020408;
-}
-.crucix-offline {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-card);
-    border-radius: 8px;
-    text-align: center;
-    padding: 40px;
-}
-.crucix-offline.hidden { display: none; }
-.crucix-offline-icon { font-size: 3rem; margin-bottom: 16px; }
-.crucix-offline-title {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-    letter-spacing: -0.02em;
-}
-.crucix-offline-desc {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    line-height: 1.6;
-    margin-bottom: 16px;
-    max-width: 500px;
-}
-.crucix-offline-status {
-    font-size: 0.8rem;
-    color: var(--accent);
-    margin-bottom: 16px;
-    font-weight: 600;
-}
-.crucix-offline-help {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-}
-.crucix-offline-help code {
-    background: var(--bg-root);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-family: var(--font-mono, monospace);
-    font-size: 0.8rem;
-    color: var(--accent);
-}
+/* ============ INTELIGENCIA TAB (Crucix Terminal — styles in crucix-terminal.css) ============ */
 
 /* Legacy intel cards (kept for reference) */
 .intel-hero {
