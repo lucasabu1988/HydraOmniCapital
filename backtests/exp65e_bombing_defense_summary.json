@@ -1,0 +1,185 @@
+{
+  "experiment": "EXP65e -- US Bombing -> Top 5 Defense Stocks",
+  "hydra": {
+    "cagr": 14.42,
+    "sharpe": 0.908,
+    "max_dd": -27.01,
+    "final": 3370396.69
+  },
+  "combined": {
+    "cagr": 13.43,
+    "sharpe": 0.846,
+    "max_dd": -28.58,
+    "final": 2682069.1
+  },
+  "events": [
+    {
+      "date": "2001-10-07",
+      "target": "Afghanistan",
+      "stocks": [
+        "LMT",
+        "BA",
+        "NOC",
+        "GD",
+        "LHX"
+      ],
+      "defense_return": -4.04,
+      "hydra_return": -0.4,
+      "delta": -3.64
+    },
+    {
+      "date": "2003-03-20",
+      "target": "Iraq",
+      "stocks": [
+        "LMT",
+        "BA",
+        "NOC",
+        "GD",
+        "LHX"
+      ],
+      "defense_return": 2.93,
+      "hydra_return": 1.27,
+      "delta": 1.67
+    },
+    {
+      "date": "2008-01-29",
+      "target": "Pakistan",
+      "stocks": [
+        "LMT",
+        "BA",
+        "NOC",
+        "GD",
+        "LHX"
+      ],
+      "defense_return": -1.6,
+      "hydra_return": 0.87,
+      "delta": -2.47
+    },
+    {
+      "date": "2011-03-19",
+      "target": "Libya",
+      "stocks": [
+        "LMT",
+        "BA",
+        "NOC",
+        "GD",
+        "LHX"
+      ],
+      "defense_return": 5.49,
+      "hydra_return": -2.64,
+      "delta": 8.13
+    },
+    {
+      "date": "2014-09-23",
+      "target": "Syria/Iraq",
+      "stocks": [
+        "LMT",
+        "BA",
+        "NOC",
+        "GD",
+        "LHX"
+      ],
+      "defense_return": 6.04,
+      "hydra_return": 1.96,
+      "delta": 4.08
+    },
+    {
+      "date": "2017-04-07",
+      "target": "Syria",
+      "stocks": [
+        "LMT",
+        "BA",
+        "NOC",
+        "GD",
+        "LHX"
+      ],
+      "defense_return": 6.1,
+      "hydra_return": 8.59,
+      "delta": -2.49
+    },
+    {
+      "date": "2018-04-14",
+      "target": "Syria",
+      "stocks": [
+        "LMT",
+        "BA",
+        "NOC",
+        "GD",
+        "LHX"
+      ],
+      "defense_return": -4.75,
+      "hydra_return": 5.18,
+      "delta": -9.93
+    },
+    {
+      "date": "2020-01-03",
+      "target": "Iraq",
+      "stocks": [
+        "LMT",
+        "RTX",
+        "NOC",
+        "GD",
+        "BA"
+      ],
+      "defense_return": -11.47,
+      "hydra_return": -5.05,
+      "delta": -6.42
+    },
+    {
+      "date": "2021-02-25",
+      "target": "Syria",
+      "stocks": [
+        "LMT",
+        "RTX",
+        "NOC",
+        "GD",
+        "BA"
+      ],
+      "defense_return": 9.47,
+      "hydra_return": 7.56,
+      "delta": 1.91
+    },
+    {
+      "date": "2021-08-29",
+      "target": "Afghanistan",
+      "stocks": [
+        "LMT",
+        "RTX",
+        "NOC",
+        "GD",
+        "BA"
+      ],
+      "defense_return": -1.74,
+      "hydra_return": 8.26,
+      "delta": -10.0
+    },
+    {
+      "date": "2024-01-12",
+      "target": "Yemen",
+      "stocks": [
+        "LMT",
+        "RTX",
+        "NOC",
+        "GD",
+        "BA"
+      ],
+      "defense_return": -0.99,
+      "hydra_return": 9.34,
+      "delta": -10.33
+    },
+    {
+      "date": "2024-02-03",
+      "target": "Yemen/Iraq/Syria",
+      "stocks": [
+        "LMT",
+        "RTX",
+        "NOC",
+        "GD",
+        "BA"
+      ],
+      "defense_return": 3.71,
+      "hydra_return": 7.94,
+      "delta": -4.22
+    }
+  ]
+}
