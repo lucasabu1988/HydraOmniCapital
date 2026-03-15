@@ -1,0 +1,36 @@
+{
+  "experiment": "EXP68 -- 85% HYDRA + 10% Cross-Asset Trend + 5% Gold",
+  "weights": {
+    "hydra": 0.85,
+    "trend": 0.1,
+    "gold": 0.05
+  },
+  "trend_assets": [
+    "SPY",
+    "EFA",
+    "TLT",
+    "GLD",
+    "DBC"
+  ],
+  "trend_rule": "Equal-weight assets above SMA200, cash if none qualify",
+  "hydra": {
+    "cagr": 14.42,
+    "sharpe": 0.908,
+    "max_dd": -27.01,
+    "vol": 16.36,
+    "final": 3370396.69
+  },
+  "combined": {
+    "cagr": 15.62,
+    "sharpe": 1.079,
+    "max_dd": -21.68,
+    "vol": 14.46,
+    "final": 4426337.28
+  },
+  "improvement": {
+    "cagr_delta": 1.2,
+    "sharpe_delta": 0.171,
+    "dd_reduction": 5.33,
+    "vol_reduction": -1.9
+  }
+}
