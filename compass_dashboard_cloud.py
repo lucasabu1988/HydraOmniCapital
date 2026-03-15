@@ -144,8 +144,9 @@ SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
 
 # Rattlesnake parameters (mirrored from rattlesnake_signals.py for dashboard)
 R_VIX_PANIC = 35
-R_BASE_HYDRA_ALLOC = 0.50
-R_BASE_RATTLE_ALLOC = 0.50
+R_BASE_HYDRA_ALLOC = 0.425
+R_BASE_RATTLE_ALLOC = 0.425
+R_BASE_CATALYST_ALLOC = 0.15
 R_MAX_HYDRA_ALLOC = 0.75
 
 PRICE_CACHE_SECONDS = 60  # legacy ref (use PRICE_CACHE_SECONDS_NORMAL)

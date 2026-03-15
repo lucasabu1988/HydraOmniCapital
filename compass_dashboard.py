@@ -937,8 +937,10 @@ def api_state():
             'engine': _engine_status,
         })
 
-    # Collect all symbols for price fetching
-    symbols = ['SPY', '^GSPC', 'ES=F', 'NQ=F', '^TNX', 'DX-Y.NYB', 'EFA'] + list(state.get('positions', {}).keys())
+    # Collect all symbols for price fetching (include Rattlesnake + Catalyst held)
+    rattle_syms = [p.get('symbol') for p in state.get('hydra', {}).get('rattle_positions', []) if p.get('symbol')]
+    catalyst_syms = [p.get('symbol') for p in state.get('hydra', {}).get('catalyst_positions', []) if p.get('symbol')]
+    symbols = ['SPY', '^GSPC', 'ES=F', 'NQ=F', '^TNX', 'DX-Y.NYB', 'EFA', 'TLT', 'GLD', 'DBC'] + list(state.get('positions', {}).keys()) + rattle_syms + catalyst_syms
     symbols = list(set(symbols))
     prices = fetch_live_prices(symbols)
 
@@ -1035,18 +1037,38 @@ def api_state():
         except Exception:
             pass
 
-    # HYDRA status (EFA third pillar, Rattlesnake, cash recycling)
+    # HYDRA status (Rattlesnake, Catalyst, EFA, cash recycling)
     hydra_status = state.get('hydra', {})
+
+    # Enrich catalyst_positions with live prices
+    catalyst_raw = hydra_status.get('catalyst_positions', [])
+    catalyst_enriched = []
+    for cp in catalyst_raw:
+        sym = cp.get('symbol', '')
+        ep = cp.get('entry_price', 0)
+        cur = prices.get(sym, ep)
+        pnl = (cur / ep - 1.0) if ep > 0 else 0
+        catalyst_enriched.append({
+            'symbol': sym, 'entry_price': round(ep, 2),
+            'current_price': round(cur, 2), 'pnl_pct': round(pnl, 4),
+            'shares': cp.get('shares', 0), 'sub_strategy': cp.get('sub_strategy', 'trend'),
+        })
+    hydra_status['catalyst_positions'] = catalyst_enriched
+
     if engine and hasattr(engine, 'hydra_capital') and engine.hydra_capital:
         try:
             hc = engine.hydra_capital.get_status()
+            total = hc.get('total_capital', 1)
             hydra_status['capital'] = {
-                'compass_account': round(hc['compass_account'], 2),
+                'hydra_account': round(hc['compass_account'], 2),
                 'rattle_account': round(hc['rattle_account'], 2),
+                'catalyst_account': round(hc.get('catalyst_account', 0), 2),
                 'efa_value': round(hc['efa_value'], 2),
-                'efa_pct': round(hc['efa_pct'] * 100, 1),
-                'recycled_pct': round(hc['recycled_pct'] * 100, 1),
-                'recycling_frequency': round(hc['recycling_frequency'] * 100, 1),
+                'hydra_pct': round(hc['compass_pct'], 4),
+                'rattle_pct': round(hc['rattle_pct'], 4),
+                'catalyst_pct': round(hc.get('catalyst_pct', 0), 4),
+                'efa_pct': round(hc['efa_pct'], 4),
+                'recycled_pct': round(hc['recycled_pct'], 4),
             }
         except Exception:
             pass
