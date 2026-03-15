@@ -23,6 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/dashboard.css?v=20260308d">
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -139,9 +140,6 @@
     </div>
     <div class="page-tab" data-page="ml" onclick="switchPage('ml')">
         <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.57-3.25 3.92v1.58h2.5a2.5 2.5 0 0 1 2.5 2.5v1.08A4 4 0 0 1 16 23a4 4 0 0 1-1.75-7.58V14a.5.5 0 0 0-.5-.5h-2.5v1.92A4 4 0 0 1 8 23a4 4 0 0 1-1.75-7.58V14a2.5 2.5 0 0 1 2.5-2.5h2.5v-1.58A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg> <span data-i18n="tab-ml">ML</span>
-    </div>
-    <div class="page-tab" data-page="inteligencia" onclick="switchPage('inteligencia')">
-        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <span data-i18n="tab-intelligence">Inteligencia</span>
     </div>
 </div>
 
@@ -3091,29 +3089,6 @@ Every 5 days &rarr; run_learning() &rarr; FeatureStore &rarr; LearningEngine &ra
 
 </div><!-- /page-fondos -->
 
-<!-- ==================== PAGE: INTELIGENCIA (Crucix Intelligence) ==================== -->
-<div id="page-inteligencia" class="page-content">
-<div class="crucix-embed-wrap">
-    <iframe id="crucix-iframe"
-            class="crucix-iframe"
-            src="about:blank"
-            frameborder="0"
-            allowfullscreen>
-    </iframe>
-    <div id="crucix-offline" class="crucix-offline">
-        <div class="crucix-offline-icon">&#127758;</div>
-        <div class="crucix-offline-title">Crucix Intelligence Terminal</div>
-        <div class="crucix-offline-desc">
-            26 fuentes OSINT &middot; Mapa mundial D3.js &middot; Actualizaci&oacute;n cada 15 min<br>
-            <strong>Solo informativo</strong> &mdash; no alimenta el algoritmo HYDRA
-        </div>
-        <div class="crucix-offline-status" id="crucix-status">Conectando...</div>
-        <div class="crucix-offline-help">
-            <code>cd crucix &amp;&amp; node server.mjs</code>
-        </div>
-    </div>
-</div>
-</div><!-- /page-inteligencia -->
 
 <!-- FOOTER -->
 <footer class="footer-institutional">

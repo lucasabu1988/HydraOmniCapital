@@ -83,7 +83,6 @@ function switchPage(page) {
     const tabEl = document.querySelector('.page-tab[data-page="' + page + '"]');
     if (pageEl) pageEl.classList.add('active');
     if (tabEl) tabEl.classList.add('active');
-    if (page === 'inteligencia') loadIntelligence();
 }
 
 /* ============ HELPERS ============ */
@@ -3075,42 +3074,3 @@ function refreshDashboard() {
     }
 }
 
-/* ============ INTELLIGENCE TAB (Crucix Embed) ============ */
-var _crucixLoaded = false;
-var _crucixUrl = null;
-
-function loadIntelligence() {
-    if (_crucixLoaded) return;
-    // Try multiple Crucix locations
-    var urls = [
-        'http://localhost:3117',     // Local Crucix default
-        'http://127.0.0.1:3117',
-    ];
-    tryCrucixUrls(urls, 0);
-}
-
-function tryCrucixUrls(urls, idx) {
-    if (idx >= urls.length) {
-        // All URLs failed
-        var statusEl = document.getElementById('crucix-status');
-        if (statusEl) statusEl.textContent = 'Crucix no disponible';
-        return;
-    }
-    var url = urls[idx];
-    var statusEl = document.getElementById('crucix-status');
-    if (statusEl) statusEl.textContent = 'Probando ' + url + '...';
-
-    fetch(url + '/api/health', { mode: 'no-cors', signal: AbortSignal.timeout(3000) })
-        .then(function() {
-            // Connected — load iframe
-            _crucixUrl = url;
-            _crucixLoaded = true;
-            var iframe = document.getElementById('crucix-iframe');
-            var offline = document.getElementById('crucix-offline');
-            if (iframe) iframe.src = url;
-            if (offline) offline.classList.add('hidden');
-        })
-        .catch(function() {
-            tryCrucixUrls(urls, idx + 1);
-        });
-}
