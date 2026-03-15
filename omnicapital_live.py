@@ -1209,13 +1209,15 @@ class COMPASSLive:
 
             # 5. Regime reduce (excess COMPASS positions)
             #    Only sell one per check_position_exits call to prevent double-sell
-            compass_count = sum(1 for s in positions if s in self.position_meta)
+            #    Exclude Catalyst positions from count and worst-performer search
+            compass_count = sum(1 for s in positions if s in self.position_meta
+                                and not self.position_meta.get(s, {}).get('_catalyst'))
             if exit_reason is None and compass_count > max_positions and not self._regime_reduce_done:
                 pos_returns = {}
                 for s, p in positions.items():
                     pr = prices.get(s)
                     m = self.position_meta.get(s)
-                    if pr and m:
+                    if pr and m and not m.get('_catalyst'):
                         pos_returns[s] = (pr - m['entry_price']) / m['entry_price']
                 if pos_returns:
                     worst = min(pos_returns, key=pos_returns.get)
@@ -1751,7 +1753,7 @@ class COMPASSLive:
     def _manage_catalyst_positions(self, prices: Dict[str, float]):
         """Manage Catalyst 4th pillar: rebalance every 5 days.
 
-        Cross-asset trend (10% of portfolio): equal-weight among SPY/EFA/TLT/GLD/DBC
+        Cross-asset trend (10% of portfolio): equal-weight among TLT/GLD/DBC
         above their SMA200. Gold (5%): permanent GLD allocation.
         """
         if not _catalyst_available or not self.hydra_capital:
