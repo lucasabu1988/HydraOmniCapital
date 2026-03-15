@@ -102,13 +102,13 @@ Los modelos ML se activan en Fase 2 (~58 días de trading restantes).
 Fase 2 ML comienza en ~58 días de trading (~2 meses). Se necesitan al menos 5 trades con retornos calculados para análisis de stops.
 Actualmente: 5 trades completados, 1 con retorno numérico. Prioridad: acumular más outcomes.
 
-### Referencia Backtest (HYDRA + EFA/MSCI World)
+### Referencia Backtest (HYDRA + Catalyst + EFA)
 
 - Período: **2000-01-04** a **2026-02-20** (26.1 años)
-- CAGR: **14.9%**
-- Sharpe: **1.124**
-- Max Drawdown: **-22.2%**
-- Retorno Total: **3669.1%** ($100,000 → $3,769,106)
+- CAGR: **15.62%**
+- Sharpe: **1.079**
+- Max Drawdown: **-21.7%**
+- Retorno Total: **4341.1%** ($100,000 → $4,426,337)
 - Días de Trading: **6,572**
 
 ---
