@@ -1059,7 +1059,7 @@ def api_state():
         'prev_closes': _prev_close_cache,
         'universe': state.get('current_universe', []),
         'universe_year': state.get('universe_year'),
-        'config': COMPASS_CONFIG,
+        'config': {},  # Algorithm parameters are confidential
         'chassis': chassis_status,
         'preclose': preclose_status,
         'implementation_shortfall': is_metrics,

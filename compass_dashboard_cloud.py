@@ -1188,7 +1188,7 @@ def api_state():
             'prev_closes': _prev_close_cache,
             'universe': state.get('current_universe', []),
             'universe_year': state.get('universe_year'),
-            'config': HYDRA_CONFIG,
+            'config': {},  # Algorithm parameters are confidential
             'chassis': {},
             'preclose': preclose_status,
             'hydra': hydra_data,
