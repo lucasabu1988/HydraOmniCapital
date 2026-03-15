@@ -230,7 +230,8 @@ function updateCards(p) {
 
     document.getElementById('card-positions').textContent = p.num_positions + ' / ' + p.max_positions;
     var regimeLabel = p.regime === 'RISK_ON' ? 'Risk On' : 'Risk Off';
-    document.getElementById('card-maxpos').textContent = regimeLabel + (p.in_protection ? ' | DD Scaling' : '');
+    var efaNote = p.num_positions > p.max_positions ? ' · ' + t('positions-efa-note') : '';
+    document.getElementById('card-maxpos').textContent = regimeLabel + (p.in_protection ? ' | DD Scaling' : '') + efaNote;
 }
 
 function updateRegimeBand(p) {

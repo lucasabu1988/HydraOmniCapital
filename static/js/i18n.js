@@ -172,6 +172,7 @@ var TRANSLATIONS = {
     // Dynamic strings
     'near-stop':           '⚠ CERCA DEL STOP',
     'no-rattle-positions': 'SIN POSICIONES RATTLESNAKE',
+    'positions-efa-note':  'incl. EFA',
     'live-test-prefix':    'Test en vivo',
     'day-label':           'Día',
     'start-label':         'Inicio',
@@ -456,6 +457,7 @@ var TRANSLATIONS = {
     // Dynamic strings
     'near-stop':           '⚠ NEAR STOP',
     'no-rattle-positions': 'NO RATTLESNAKE POSITIONS',
+    'positions-efa-note':  'incl. EFA',
     'live-test-prefix':    'Live test',
     'day-label':           'Day',
     'start-label':         'Start',
