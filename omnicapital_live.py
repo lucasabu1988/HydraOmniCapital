@@ -1,16 +1,16 @@
 """
-OmniCapital HYDRA - Live Trading System (COMPASS + Rattlesnake)
-================================================================
-Multi-strategy system combining COMPASS v8.4 (momentum) with
-Rattlesnake v1.0 (mean-reversion) and cash recycling.
+OmniCapital HYDRA - Live Trading System (4 Strategies)
+=======================================================
+Multi-strategy system: COMPASS v8.4 (momentum) + Rattlesnake v1.0
+(mean-reversion) + Catalyst (cross-asset trend + gold) + EFA (international).
 
 COMPASS: Risk-adjusted cross-sectional momentum (90d return / 63d vol)
 Rattlesnake: RSI<25 dip-buying on S&P 100 (uptrend filter)
-HYDRA: Cash recycling — idle Rattlesnake cash flows to COMPASS (cap 75%)
+Catalyst: Cross-asset trend (TLT/GLD/DBC above SMA200) + permanent gold
+HYDRA: Cash recycling between COMPASS and Rattlesnake (cap 75%)
 
 Results (backtest 2000-2026):
-  CAGR 13.28% | MaxDD -23.49% | Sharpe 1.04
-  vs COMPASS solo: +1.01% CAGR, +8.61% MaxDD, +0.19 Sharpe
+  CAGR 15.62% | MaxDD -21.7% | Sharpe 1.08
 """
 
 import pandas as pd

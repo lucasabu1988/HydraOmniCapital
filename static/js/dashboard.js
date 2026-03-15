@@ -2493,7 +2493,7 @@ function fetchExpAnalysis() {
     const container = document.getElementById('exp-analysis-container');
     if (!container) return;
 
-    const totalExp = 62;
+    const totalExp = 68;
     const failed = 57;
     const approved = 3;  /* v8 HYDRA + Exp #34 IG Cash Yield + EXP59 HYDRA */
     const partial = 2;   /* RATTLESNAKE standalone + QUANTUM */
@@ -2550,7 +2550,7 @@ function fetchExpAnalysis() {
     html += '<div class="exp-proposals"><div class="exp-proposals-title">CONCLUSION</div>';
     html += '<div class="exp-proposal-card">';
     html += '<div class="exp-proposal-name">Algorithm Motor: LOCKED <span class="exp-proposal-priority exp-priority-high">FINAL</span></div>';
-    html += '<div class="exp-proposal-desc">59 experiments confirm HYDRA (Momentum + Rattlesnake + Cash Recycling) as the optimal configuration. EXP59 validated segregated accounts with cash recycling: 13.28% CAGR, 1.04 Sharpe, -23.5% MaxDD.</div>';
+    html += '<div class="exp-proposal-desc">68 experiments confirm HYDRA (Momentum + Rattlesnake + Catalyst + EFA) as the optimal configuration. EXP68 validated 4th pillar (cross-asset trend + gold): 15.62% CAGR, 1.08 Sharpe, -21.7% MaxDD.</div>';
     html += '<div class="exp-proposal-rationale">Focus on chassis (execution quality, broker integration, data sources) and operations (paper trading, tax optimization, scaling).</div>';
     html += '</div>';
 

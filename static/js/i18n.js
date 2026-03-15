@@ -62,7 +62,7 @@ var TRANSLATIONS = {
     'hero-alphapositive-label':'Alpha Positivo',
     'hero-bestalpha-label':    'Mejor Alpha',
     'hero-worstalpha-label':   'Peor Alpha',
-    'hero-feat-experiments':   '60 Experiments',
+    'hero-feat-experiments':   '68 Experiments',
     'hero-feat-noleverage':    'No Leverage',
     'hero-feat-cashrecycling': 'Cash Recycling',
     'hero-feat-noblackbox':    'No Black Box',
@@ -102,7 +102,7 @@ var TRANSLATIONS = {
     'overlay-title': 'Macro Overlay',
 
     // HYDRA header
-    'hydra-header-sub': '3 estrategias · Cash Recycling activo · Capital segregado',
+    'hydra-header-sub': '4 estrategias · Cash Recycling activo · Capital segregado',
 
     // Strategy labels
     'strategy-1':         'ESTRATEGIA 1',
@@ -348,7 +348,7 @@ var TRANSLATIONS = {
     'hero-alphapositive-label':'Alpha Positive',
     'hero-bestalpha-label':    'Best Alpha',
     'hero-worstalpha-label':   'Worst Alpha',
-    'hero-feat-experiments':   '60 Experiments',
+    'hero-feat-experiments':   '68 Experiments',
     'hero-feat-noleverage':    'No Leverage',
     'hero-feat-cashrecycling': 'Cash Recycling',
     'hero-feat-noblackbox':    'No Black Box',
@@ -388,7 +388,7 @@ var TRANSLATIONS = {
     'overlay-title': 'Macro Overlay',
 
     // HYDRA header
-    'hydra-header-sub': '3 strategies · Cash Recycling active · Segregated capital',
+    'hydra-header-sub': '4 strategies · Cash Recycling active · Segregated capital',
 
     // Strategy labels
     'strategy-1':         'STRATEGY 1',

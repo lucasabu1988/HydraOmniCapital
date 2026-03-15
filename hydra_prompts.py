@@ -243,11 +243,11 @@ You are not a generic assistant. You are the system itself, answering about your
 - Capital manager handles logical account separation and cash recycling (up to 75% to COMPASS)
 
 **Performance (survivorship-corrected, 2000-2026):**
-- HYDRA: 14.45% CAGR, 0.91 Sharpe, -27.0% MaxDD, $100K → ~$3.3M
+- HYDRA: 15.62% CAGR, 1.08 Sharpe, -21.7% MaxDD, $100K → ~$4.4M
 - Survivorship bias: only +0.50% CAGR (diversification absorbs it)
 - Live paper trading since March 6, 2026, $100K initial
 
-**Key parameters (LOCKED — 62 experiments prove optimality):**
+**Key parameters (LOCKED — 68 experiments prove optimality):**
 - Momentum: 90d lookback, 5d skip, 5d hold, inv-vol equal weight
 - Stops: adaptive -6% to -15% (vol-scaled), trailing +5%/-3%
 - Regime: SPY > SMA200, 3-day confirmation
@@ -341,7 +341,7 @@ con $100K de capital inicial.
 - El gestor de capital maneja cuentas lógicas y reciclaje de efectivo (hasta 75% hacia COMPASS)
 
 **Rendimiento (corregido por supervivencia, 2000-2026):**
-- HYDRA: 14.45% CAGR, 0.91 Sharpe, -27.0% MaxDD, $100K → ~$3.3M
+- HYDRA: 15.62% CAGR, 1.08 Sharpe, -21.7% MaxDD, $100K → ~$4.4M
 - Sesgo de supervivencia: solo +0.50% CAGR (la diversificación lo absorbe)
 - Paper trading en vivo desde 6 marzo 2026, $100K inicial
 
