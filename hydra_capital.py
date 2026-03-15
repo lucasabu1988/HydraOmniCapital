@@ -171,7 +171,7 @@ class HydraCapitalManager:
 
     def update_catalyst_value(self, catalyst_return: float):
         """Apply daily return to the Catalyst allocation."""
-        if self.catalyst_account > 0 and catalyst_return != 0:
+        if catalyst_return != 0:
             self.catalyst_account *= (1 + catalyst_return)
 
     def get_status(self) -> Dict:

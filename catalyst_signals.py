@@ -17,7 +17,10 @@ from typing import Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # Parameters
-CATALYST_TREND_ASSETS = ['SPY', 'EFA', 'TLT', 'GLD', 'DBC']
+# Only assets NOT managed by other HYDRA pillars
+# SPY excluded: covered by COMPASS (Momentum)
+# EFA excluded: covered by EFA passive pillar
+CATALYST_TREND_ASSETS = ['TLT', 'GLD', 'DBC']
 CATALYST_GOLD_SYMBOL = 'GLD'
 CATALYST_SMA_PERIOD = 200
 CATALYST_REBALANCE_DAYS = 5

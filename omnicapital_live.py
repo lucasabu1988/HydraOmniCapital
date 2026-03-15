@@ -61,14 +61,17 @@ try:
         check_rattlesnake_regime, compute_rattlesnake_exposure,
     )
     from hydra_capital import HydraCapitalManager
+    _hydra_available = True
+except ImportError:
+    _hydra_available = False
+
+try:
     from catalyst_signals import (
         compute_catalyst_targets, compute_trend_holdings,
         CATALYST_TREND_ASSETS, CATALYST_GOLD_SYMBOL, CATALYST_REBALANCE_DAYS,
     )
-    _hydra_available = True
     _catalyst_available = True
 except ImportError:
-    _hydra_available = False
     _catalyst_available = False
 
 # Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
@@ -1158,6 +1161,10 @@ class COMPASSLive:
             if not meta:
                 continue
 
+            # Skip Catalyst positions — managed by _manage_catalyst_positions
+            if meta.get('_catalyst'):
+                continue
+
             exit_reason = None
 
             # 1. Hold time expired (entry day counts as day 1)
@@ -1787,11 +1794,11 @@ class COMPASSLive:
                     logger.info(f"CATALYST SELL {sym}: {cp['shares']} shares @ ${result.filled_price:.2f} (PnL: ${pnl:+,.0f})")
                     self.hydra_capital.record_catalyst_trade(pnl)
                     self.catalyst_positions.remove(cp)
-                    # Remove from position_meta if no other strategy holds it
-                    if sym not in target_map:
-                        meta = self.position_meta.get(sym, {})
-                        if meta.get('_catalyst'):
-                            self.position_meta.pop(sym, None)
+                    # Remove from position_meta only if no other strategy holds it
+                    in_rattle = any(rp['symbol'] == sym for rp in self.rattle_positions)
+                    in_compass = sym in self.position_meta and not self.position_meta.get(sym, {}).get('_catalyst')
+                    if not in_rattle and not in_compass:
+                        self.position_meta.pop(sym, None)
 
         # 2. Buy new targets or adjust up
         for sym, target in target_map.items():
@@ -1809,9 +1816,10 @@ class COMPASSLive:
             if price <= 0:
                 continue
 
+            available_cash = self.broker.get_portfolio().cash
             cost = needed * price
-            if cost > self.broker.cash * 0.95:
-                needed = int(self.broker.cash * 0.95 / price)
+            if cost > available_cash * 0.95:
+                needed = int(available_cash * 0.95 / price)
                 if needed <= 0:
                     continue
 
