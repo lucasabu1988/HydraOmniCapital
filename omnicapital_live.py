@@ -61,9 +61,15 @@ try:
         check_rattlesnake_regime, compute_rattlesnake_exposure,
     )
     from hydra_capital import HydraCapitalManager
+    from catalyst_signals import (
+        compute_catalyst_targets, compute_trend_holdings,
+        CATALYST_TREND_ASSETS, CATALYST_GOLD_SYMBOL, CATALYST_REBALANCE_DAYS,
+    )
     _hydra_available = True
+    _catalyst_available = True
 except ImportError:
     _hydra_available = False
+    _catalyst_available = False
 
 # Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
 try:
@@ -796,10 +802,14 @@ class COMPASSLive:
         self._vix_current: Optional[float] = None
         self.hydra_capital = None
         self._efa_hist: Optional[pd.DataFrame] = None
+        # Catalyst 4th pillar
+        self.catalyst_positions: List[dict] = []  # {symbol, shares, entry_price, sub_strategy}
+        self._catalyst_hist: Dict[str, pd.DataFrame] = {}
+        self._catalyst_day_counter = 0
         if _hydra_available:
             try:
                 self.hydra_capital = HydraCapitalManager(config['PAPER_INITIAL_CASH'])
-                logger.info("HYDRA multi-strategy: ACTIVE (Momentum + Rattlesnake + EFA + Cash Recycling)")
+                logger.info("HYDRA multi-strategy: ACTIVE (Momentum + Rattlesnake + Catalyst + EFA + Cash Recycling)")
             except Exception as e:
                 logger.warning(f"HYDRA init failed (running COMPASS-only): {e}")
                 self._hydra_available = False
@@ -978,7 +988,21 @@ class COMPASSLive:
             except Exception as e:
                 logger.warning(f"Failed to download EFA: {e}")
 
-            logger.info(f"Historical data refreshed: {len(self._hist_cache)} stocks (COMPASS + Rattlesnake)")
+            # Catalyst 4th pillar data
+            if _catalyst_available:
+                for cat_sym in CATALYST_TREND_ASSETS:
+                    try:
+                        cat_df = yf.download(cat_sym, period='1y', progress=False)
+                        if isinstance(cat_df.columns, pd.MultiIndex):
+                            cat_df.columns = [c[0] for c in cat_df.columns]
+                        if len(cat_df) >= 200:
+                            self._catalyst_hist[cat_sym] = cat_df
+                    except Exception as e:
+                        logger.warning(f"Catalyst: failed to download {cat_sym}: {e}")
+                above = compute_trend_holdings(self._catalyst_hist) if self._catalyst_hist else []
+                logger.info(f"Catalyst: {len(above)}/{len(CATALYST_TREND_ASSETS)} assets above SMA200: {above}")
+
+            logger.info(f"Historical data refreshed: {len(self._hist_cache)} stocks (COMPASS + Rattlesnake + Catalyst)")
 
         self._hist_date = today
 
@@ -1713,6 +1737,122 @@ class COMPASSLive:
     # EFA Third Pillar
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Catalyst 4th Pillar (Cross-Asset Trend + Gold)
+    # ------------------------------------------------------------------
+
+    def _manage_catalyst_positions(self, prices: Dict[str, float]):
+        """Manage Catalyst 4th pillar: rebalance every 5 days.
+
+        Cross-asset trend (10% of portfolio): equal-weight among SPY/EFA/TLT/GLD/DBC
+        above their SMA200. Gold (5%): permanent GLD allocation.
+        """
+        if not _catalyst_available or not self.hydra_capital:
+            return
+
+        self._catalyst_day_counter += 1
+
+        # Only rebalance every CATALYST_REBALANCE_DAYS (or on first run)
+        if self._catalyst_day_counter < CATALYST_REBALANCE_DAYS and self.catalyst_positions:
+            return
+
+        self._catalyst_day_counter = 0
+
+        # Compute targets
+        targets = compute_catalyst_targets(
+            self._catalyst_hist,
+            self.hydra_capital.catalyst_account,
+            prices,
+        )
+        target_map = {t['symbol']: t for t in targets}
+
+        positions = self.broker.get_positions()
+
+        # 1. Sell catalyst positions no longer in targets (or adjust down)
+        for cp in list(self.catalyst_positions):
+            sym = cp['symbol']
+            pos = positions.get(sym)
+            if not pos:
+                self.catalyst_positions.remove(cp)
+                continue
+
+            if sym not in target_map:
+                # Sell all shares of this catalyst position
+                order = Order(symbol=sym, action='SELL',
+                              quantity=cp['shares'], order_type='MARKET',
+                              decision_price=prices.get(sym, pos.avg_cost))
+                result = self._submit_order(order, prices)
+                if result.status == 'FILLED':
+                    pnl = (result.filled_price - cp['entry_price']) * cp['shares']
+                    logger.info(f"CATALYST SELL {sym}: {cp['shares']} shares @ ${result.filled_price:.2f} (PnL: ${pnl:+,.0f})")
+                    self.hydra_capital.record_catalyst_trade(pnl)
+                    self.catalyst_positions.remove(cp)
+                    # Remove from position_meta if no other strategy holds it
+                    if sym not in target_map:
+                        meta = self.position_meta.get(sym, {})
+                        if meta.get('_catalyst'):
+                            self.position_meta.pop(sym, None)
+
+        # 2. Buy new targets or adjust up
+        for sym, target in target_map.items():
+            current_shares = 0
+            for cp in self.catalyst_positions:
+                if cp['symbol'] == sym:
+                    current_shares = cp['shares']
+                    break
+
+            needed = target['target_shares'] - current_shares
+            if needed <= 0:
+                continue
+
+            price = prices.get(sym, 0)
+            if price <= 0:
+                continue
+
+            cost = needed * price
+            if cost > self.broker.cash * 0.95:
+                needed = int(self.broker.cash * 0.95 / price)
+                if needed <= 0:
+                    continue
+
+            order = Order(symbol=sym, action='BUY',
+                          quantity=needed, order_type='MARKET',
+                          decision_price=price)
+            result = self._submit_order(order, prices)
+            if result.status == 'FILLED':
+                fill_price = result.filled_price
+                logger.info(f"CATALYST BUY {sym}: {needed} shares @ ${fill_price:.2f} ({target['sub_strategy']})")
+
+                # Update catalyst_positions list
+                existing = [cp for cp in self.catalyst_positions if cp['symbol'] == sym]
+                if existing:
+                    old = existing[0]
+                    total_shares = old['shares'] + needed
+                    old['entry_price'] = (old['entry_price'] * old['shares'] + fill_price * needed) / total_shares
+                    old['shares'] = total_shares
+                else:
+                    self.catalyst_positions.append({
+                        'symbol': sym,
+                        'shares': needed,
+                        'entry_price': fill_price,
+                        'entry_date': date.today().isoformat(),
+                        'sub_strategy': target['sub_strategy'],
+                    })
+
+                # Mark in position_meta
+                self.position_meta[sym] = {
+                    'entry_price': fill_price,
+                    'entry_date': date.today().isoformat(),
+                    'entry_day_index': self.trading_day_counter,
+                    'original_entry_day_index': self.trading_day_counter,
+                    'high_price': fill_price,
+                    'entry_vol': 0.15,
+                    'entry_daily_vol': 0.0095,
+                    'sector': f'Catalyst ({target["sub_strategy"]})',
+                    '_catalyst': True,
+                    '_entry_reconciled': True,
+                }
+
     def _efa_above_sma200(self) -> bool:
         """Check if EFA is above its 200-day SMA (regime filter for third pillar)."""
         if self._efa_hist is None or len(self._efa_hist) < EFA_SMA_PERIOD:
@@ -2132,7 +2272,14 @@ class COMPASSLive:
         if self._hydra_available:
             self._open_rattlesnake_positions(prices)
 
-        # HYDRA: EFA third pillar (after all active strategies, uses remaining idle cash)
+        # HYDRA: Catalyst 4th pillar (cross-asset trend + gold, rebalances every 5 days)
+        if self._hydra_available and _catalyst_available:
+            try:
+                self._manage_catalyst_positions(prices)
+            except Exception as e:
+                logger.warning(f"Catalyst management failed (non-blocking): {e}")
+
+        # HYDRA: EFA passive pillar (after all active strategies, uses remaining idle cash)
         if self._hydra_available:
             self._manage_efa_position(prices)
 
@@ -2598,6 +2745,8 @@ class COMPASSLive:
                 'rattle_regime': self.rattle_regime,
                 'vix_current': self._vix_current,
                 'efa_position': None,  # deprecated: EFA now tracked in broker.positions
+                'catalyst_positions': self.catalyst_positions,
+                'catalyst_day_counter': self._catalyst_day_counter,
                 'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
             },
 
@@ -2741,14 +2890,18 @@ class COMPASSLive:
             self.rattle_positions = hydra_state.get('rattle_positions', [])
             self.rattle_regime = hydra_state.get('rattle_regime', 'RISK_ON')
             self._vix_current = hydra_state.get('vix_current')
+            self.catalyst_positions = hydra_state.get('catalyst_positions', [])
+            self._catalyst_day_counter = hydra_state.get('catalyst_day_counter', 0)
             cap_state = hydra_state.get('capital_manager')
             if cap_state:
                 self.hydra_capital = HydraCapitalManager.from_dict(cap_state)
                 efa_pos = self.broker.get_positions().get(EFA_SYMBOL)
                 efa_str = f" | EFA={efa_pos.shares}sh" if efa_pos and efa_pos.shares > 0 else ""
-                logger.info(f"  HYDRA restored: R_pos={len(self.rattle_positions)}{efa_str} | "
+                cat_str = f" | Cat_pos={len(self.catalyst_positions)}" if self.catalyst_positions else ""
+                logger.info(f"  HYDRA restored: R_pos={len(self.rattle_positions)}{cat_str}{efa_str} | "
                            f"C_acct=${self.hydra_capital.compass_account:,.0f} | "
-                           f"R_acct=${self.hydra_capital.rattle_account:,.0f}")
+                           f"R_acct=${self.hydra_capital.rattle_account:,.0f} | "
+                           f"Cat_acct=${self.hydra_capital.catalyst_account:,.0f}")
 
         # Restore pre-rotation snapshot (survives restart between rotation and cycle log update)
         saved_pre_rot = state.get('_pre_rotation_positions_data')
