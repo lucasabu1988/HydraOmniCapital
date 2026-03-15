@@ -723,14 +723,18 @@ function updateHydra(hydra) {
         var cPct = (cap.hydra_pct || 0.5) * 100;
         var rPct = (cap.rattle_pct || 0.5) * 100;
         var ePct = (cap.efa_pct || 0) * 100;
+        var catPct = (cap.catalyst_pct || 0) * 100;
         document.getElementById('hydra-bar-momentum').style.width = cPct + '%';
         document.getElementById('hydra-bar-rattle').style.width = rPct + '%';
+        document.getElementById('hydra-bar-catalyst').style.width = catPct + '%';
         document.getElementById('hydra-bar-efa').style.width = ePct + '%';
         document.getElementById('hydra-m-pct').textContent = cPct.toFixed(0) + '%';
         document.getElementById('hydra-r-pct').textContent = rPct.toFixed(0) + '%';
+        document.getElementById('hydra-cat-pct').textContent = catPct.toFixed(0) + '%';
         document.getElementById('hydra-e-pct').textContent = ePct.toFixed(0) + '%';
         document.getElementById('hydra-m-val').textContent = fmt$(cap.hydra_account || 0);
         document.getElementById('hydra-r-val').textContent = fmt$(cap.rattle_account || 0);
+        document.getElementById('hydra-cat-val').textContent = fmt$(cap.catalyst_account || 0);
         document.getElementById('hydra-e-val').textContent = fmt$(cap.efa_value || 0);
         var recycled = cap.recycled_pct || 0;
         document.getElementById('hydra-recycled').textContent = (recycled * 100).toFixed(0) + '% recycled';
@@ -741,6 +745,86 @@ function updateHydra(hydra) {
         } else {
             tag.textContent = t('no-recycling');
             tag.style.cssText = 'color:var(--text-muted); background:var(--bg-tertiary);';
+        }
+    }
+
+    /* Catalyst positions */
+    var catHero = document.getElementById('catalyst-positions-hero');
+    if (catHero) {
+        var cPositions = hydra.catalyst_positions || [];
+        if (cPositions.length > 0 || hydra.available) {
+            catHero.style.display = 'block';
+        }
+
+        document.getElementById('ch-count').textContent = cPositions.length;
+
+        /* Count trend vs gold */
+        var trendCount = 0, goldCount = 0;
+        for (var ci = 0; ci < cPositions.length; ci++) {
+            var sub = cPositions[ci].sub_strategy || '';
+            if (sub.indexOf('gold') >= 0) goldCount++;
+            if (sub.indexOf('trend') >= 0) trendCount++;
+        }
+        document.getElementById('ch-trend').textContent = trendCount + ' assets';
+        document.getElementById('ch-trend').style.color = trendCount > 0 ? 'var(--green)' : 'var(--text-muted)';
+        var goldEl = document.getElementById('ch-gold');
+        goldEl.textContent = goldCount > 0 ? 'GLD' : '--';
+
+        /* Collapsible */
+        catHero.classList.add('rattle-collapsible');
+        if (cPositions.length === 0) {
+            if (!catHero._userToggled) catHero.classList.add('rattle-collapsed');
+        } else {
+            catHero.classList.remove('rattle-collapsed');
+        }
+        if (!catHero._clickBound) {
+            catHero._clickBound = true;
+            catHero.querySelector('.positions-hero-header').addEventListener('click', function() {
+                catHero._userToggled = true;
+                catHero.classList.toggle('rattle-collapsed');
+            });
+        }
+
+        var catGrid = document.getElementById('catalyst-grid');
+        if (catGrid) {
+            catGrid.textContent = '';
+            if (cPositions.length === 0) {
+                var emptyDiv = document.createElement('div');
+                emptyDiv.className = 'positions-empty';
+                emptyDiv.style.gridColumn = '1 / -1';
+                emptyDiv.textContent = t('no-catalyst-positions') || 'Catalyst positions will appear after first rebalance';
+                catGrid.appendChild(emptyDiv);
+            } else {
+                for (var ci = 0; ci < cPositions.length; ci++) {
+                    var cp = cPositions[ci];
+                    var cpPnl = cp.pnl_pct || 0;
+                    var cpUp = cpPnl >= 0;
+                    var card = document.createElement('div');
+                    card.className = 'pos-card ' + (cpUp ? 'pos-profit' : 'pos-loss');
+                    card.style.borderTop = '2px solid var(--green)';
+
+                    var top = document.createElement('div');
+                    top.className = 'pos-top';
+                    var sym = document.createElement('span');
+                    sym.className = 'pos-symbol';
+                    sym.textContent = cp.symbol;
+                    top.appendChild(sym);
+                    var tag = document.createElement('span');
+                    tag.style.cssText = 'font-size:10px;color:var(--green);font-weight:600;margin-left:4px;padding:1px 4px;border-radius:3px;background:rgba(21,128,61,0.12);';
+                    tag.textContent = (cp.sub_strategy || 'T').charAt(0).toUpperCase();
+                    top.appendChild(tag);
+                    var priceSpan = document.createElement('span');
+                    priceSpan.style.cssText = 'font-size:15px;font-weight:700;color:var(--text-primary);font-family:var(--font-mono,monospace);margin-left:auto;margin-right:6px;';
+                    priceSpan.textContent = '$' + (cp.current_price || 0).toFixed(2);
+                    top.appendChild(priceSpan);
+                    var badge = document.createElement('span');
+                    badge.className = 'pos-pnl-badge ' + (cpUp ? 'pnl-up' : 'pnl-dn');
+                    badge.textContent = fmtPct(cpPnl);
+                    top.appendChild(badge);
+                    card.appendChild(top);
+                    catGrid.appendChild(card);
+                }
+            }
         }
     }
 }

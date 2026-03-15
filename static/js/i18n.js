@@ -172,6 +172,7 @@ var TRANSLATIONS = {
     // Dynamic strings
     'near-stop':           '⚠ CERCA DEL STOP',
     'no-rattle-positions': 'SIN POSICIONES RATTLESNAKE',
+    'no-catalyst-positions': 'Esperando primer rebalanceo Catalyst',
     'positions-efa-note':  'incl. EFA',
     'live-test-prefix':    'Test en vivo',
     'day-label':           'Día',
@@ -457,6 +458,7 @@ var TRANSLATIONS = {
     // Dynamic strings
     'near-stop':           '⚠ NEAR STOP',
     'no-rattle-positions': 'NO RATTLESNAKE POSITIONS',
+    'no-catalyst-positions': 'Waiting for first Catalyst rebalance',
     'positions-efa-note':  'incl. EFA',
     'live-test-prefix':    'Live test',
     'day-label':           'Day',

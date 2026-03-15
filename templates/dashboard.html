@@ -581,6 +581,10 @@
                 font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
                 color: var(--yellow); background: rgba(234,179,8,0.12);
             ">RATTLESNAKE</span>
+            <span style="
+                font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+                color: var(--green); background: rgba(21,128,61,0.12);
+            ">CATALYST</span>
         </div>
     </div>
 </div>
@@ -595,12 +599,14 @@
         <div style="display:flex; gap:2px; height:8px; border-radius:4px; overflow:hidden; background:var(--bg-tertiary);">
             <div id="hydra-bar-momentum" style="background:var(--accent); transition:width 0.3s;" title="Momentum"></div>
             <div id="hydra-bar-rattle" style="background:var(--yellow); transition:width 0.3s;" title="Rattlesnake"></div>
+            <div id="hydra-bar-catalyst" style="background:var(--green); transition:width 0.3s;" title="Catalyst"></div>
             <div id="hydra-bar-efa" style="background:var(--cyan); transition:width 0.3s;" title="EFA"></div>
         </div>
         <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--text-muted);">
-            <span>Momentum: <span id="hydra-m-pct">50%</span> (<span id="hydra-m-val">$--</span>)</span>
+            <span>Momentum: <span id="hydra-m-pct">42.5%</span> (<span id="hydra-m-val">$--</span>)</span>
+            <span>Catalyst: <span id="hydra-cat-pct">15%</span> (<span id="hydra-cat-val">$--</span>)</span>
             <span>EFA: <span id="hydra-e-pct">0%</span> (<span id="hydra-e-val">$--</span>)</span>
-            <span>Rattlesnake: <span id="hydra-r-pct">50%</span> (<span id="hydra-r-val">$--</span>)</span>
+            <span>Rattlesnake: <span id="hydra-r-pct">42.5%</span> (<span id="hydra-r-val">$--</span>)</span>
         </div>
     </div>
     <div class="regime-band-right">
@@ -695,6 +701,39 @@
         </div>
     </div>
     <div class="positions-grid" id="rattle-grid"></div>
+</div>
+
+<!-- STRATEGY 3: CATALYST (Cross-Asset Trend + Gold) -->
+<div class="positions-hero anim-enter anim-d5" id="catalyst-positions-hero" style="display:none;">
+    <div class="positions-hero-header">
+        <div class="positions-hero-title">
+            <div class="ph-icon" style="color:var(--green);">&#9670;</div>
+            <span style="
+                font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+                color: var(--green); background: rgba(21,128,61,0.12);
+                letter-spacing: 0.5px; margin-right: 6px; vertical-align: middle;
+            " data-i18n="strategy-3">ESTRATEGIA 3</span>
+            Catalyst <span style="font-size:12px; font-weight:400; color:var(--text-muted); margin-left:6px;">Trend + Gold</span>
+            <span class="rattle-chevron" id="catalyst-chevron">&#9654;</span>
+        </div>
+        <div class="positions-hero-summary" id="catalyst-summary">
+            <div class="ph-stat">
+                <span class="ph-stat-label" data-i18n="strat-positions">Posiciones</span>
+                <span class="ph-stat-value c-white" id="ch-count">0</span>
+            </div>
+            <div class="ph-stat-divider"></div>
+            <div class="ph-stat">
+                <span class="ph-stat-label">Trend</span>
+                <span class="ph-stat-value" id="ch-trend">--</span>
+            </div>
+            <div class="ph-stat-divider"></div>
+            <div class="ph-stat">
+                <span class="ph-stat-label">Gold</span>
+                <span class="ph-stat-value" id="ch-gold" style="color:var(--yellow);">--</span>
+            </div>
+        </div>
+    </div>
+    <div class="positions-grid" id="catalyst-grid"></div>
 </div>
 
 <!-- Hidden legacy table for data compatibility -->

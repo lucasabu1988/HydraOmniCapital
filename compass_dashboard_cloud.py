@@ -716,20 +716,36 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
             'days_held': rp.get('days_held', 0),
         })
 
+    # --- Catalyst positions from state ---
+    catalyst_positions_raw = hydra_state.get('catalyst_positions', [])
+    catalyst_positions = []
+    for cp in catalyst_positions_raw:
+        symbol = cp.get('symbol', '')
+        entry_price = cp.get('entry_price', 0)
+        current_price = prices.get(symbol, entry_price)
+        pnl_pct = (current_price / entry_price - 1.0) if entry_price > 0 else 0
+        catalyst_positions.append({
+            'symbol': symbol,
+            'entry_price': round(entry_price, 2),
+            'current_price': round(current_price, 2),
+            'pnl_pct': round(pnl_pct, 4),
+            'shares': cp.get('shares', 0),
+            'sub_strategy': cp.get('sub_strategy', 'trend'),
+        })
+
     # --- Capital allocation (cash recycling) ---
     portfolio_value = state.get('portfolio_value', HYDRA_CONFIG['INITIAL_CAPITAL'])
-    # If hydra capital manager state exists, use it
     cap_state = hydra_state.get('capital_manager')
     if cap_state:
         hydra_account = cap_state.get('compass_account', portfolio_value * R_BASE_HYDRA_ALLOC)
         rattle_account = cap_state.get('rattle_account', portfolio_value * R_BASE_RATTLE_ALLOC)
+        catalyst_account = cap_state.get('catalyst_account', 0)
     else:
-        # No persisted HYDRA state — compute from current portfolio
-        # Rattlesnake has 0 exposure when no positions → all idle cash recycles to HYDRA
         hydra_account = portfolio_value * R_BASE_HYDRA_ALLOC
         rattle_account = portfolio_value * R_BASE_RATTLE_ALLOC
+        catalyst_account = portfolio_value * 0.15
 
-    # EFA third pillar
+    # EFA passive pillar
     efa_value = 0.0
     efa_position = hydra_state.get('efa_position')
     if efa_position and efa_position.get('shares', 0) > 0:
@@ -737,7 +753,7 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
     if cap_state:
         efa_value = max(efa_value, cap_state.get('efa_value', 0))
 
-    total = hydra_account + rattle_account + efa_value
+    total = hydra_account + rattle_account + catalyst_account + efa_value
     if total <= 0:
         total = portfolio_value or HYDRA_CONFIG['INITIAL_CAPITAL']
         hydra_account = total * R_BASE_HYDRA_ALLOC
@@ -758,6 +774,7 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
     return {
         'available': True,
         'rattle_positions': rattle_positions,
+        'catalyst_positions': catalyst_positions,
         'rattle_regime': rattle_regime,
         'vix_current': round(vix_current, 2) if vix_current else None,
         'vix_panic': vix_panic,
@@ -769,9 +786,11 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
         'capital': {
             'hydra_account': round(c_effective, 2),
             'rattle_account': round(r_effective, 2),
+            'catalyst_account': round(catalyst_account, 2),
             'efa_value': round(efa_value, 2),
-            'hydra_pct': round(c_effective / total, 4) if total > 0 else 0.5,
-            'rattle_pct': round(r_effective / total, 4) if total > 0 else 0.5,
+            'hydra_pct': round(c_effective / total, 4) if total > 0 else 0.425,
+            'rattle_pct': round(r_effective / total, 4) if total > 0 else 0.425,
+            'catalyst_pct': round(catalyst_account / total, 4) if total > 0 else 0.15,
             'efa_pct': round(efa_value / total, 4) if total > 0 else 0,
             'recycled_pct': round(recycled / total, 4) if total > 0 else 0,
         },
@@ -1146,9 +1165,10 @@ def api_state():
                 'engine': dict(_engine_status),
             })
 
-        # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake held
+        # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake + Catalyst held
         rattle_syms = [p.get('symbol') for p in state.get('hydra', {}).get('rattle_positions', []) if p.get('symbol')]
-        symbols = ['SPY', '^GSPC', 'ES=F', '^VIX'] + list(state.get('positions', {}).keys()) + rattle_syms
+        catalyst_syms = [p.get('symbol') for p in state.get('hydra', {}).get('catalyst_positions', []) if p.get('symbol')]
+        symbols = ['SPY', '^GSPC', 'ES=F', '^VIX', 'EFA', 'TLT', 'GLD', 'DBC'] + list(state.get('positions', {}).keys()) + rattle_syms + catalyst_syms
         symbols = list(set(symbols))
         prices = fetch_live_prices(symbols)
 
