@@ -547,13 +547,22 @@ def compute_momentum_scores(hist_data: Dict[str, pd.DataFrame],
             if len(returns) >= 15:
                 ann_vol = float(returns.std() * (252 ** 0.5))
                 if ann_vol > 0.01:
-                    scores[symbol] = raw_score / ann_vol
+                    val = raw_score / ann_vol
                 else:
-                    scores[symbol] = raw_score
+                    val = raw_score
             else:
-                scores[symbol] = raw_score
+                val = raw_score
+            
+            # Ensure finite score
+            if np.isfinite(val):
+                scores[symbol] = float(val)
+            else:
+                scores[symbol] = 0.0
         else:
-            scores[symbol] = raw_score
+            if np.isfinite(raw_score):
+                scores[symbol] = float(raw_score)
+            else:
+                scores[symbol] = 0.0
 
     return scores
 
@@ -800,6 +809,8 @@ class COMPASSLive:
         self._last_state_save = datetime.now()
         self._last_persisted_cycles_completed = None
         self._last_persisted_trading_day_counter = None
+        self._state_positions_snapshot = {}
+        self._state_cash_snapshot = float(config['PAPER_INITIAL_CASH'])
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
 
@@ -3169,6 +3180,189 @@ class COMPASSLive:
         self._last_persisted_trading_day_counter = trading_day_counter
         return state, violations
 
+    def _snapshot_positions(self, positions=None):
+        if positions is None:
+            positions = self.broker.get_positions()
+        snapshot = {}
+        for symbol, pos in (positions or {}).items():
+            snapshot[symbol] = {
+                'shares': round(self._coerce_float(getattr(pos, 'shares', 0.0), 0.0), 8),
+                'avg_cost': round(self._coerce_float(getattr(pos, 'avg_cost', 0.0), 0.0), 8),
+            }
+        return snapshot
+
+    def _build_reconciled_position_meta(self, symbol, broker_pos, current_meta=None):
+        current_meta = copy.deepcopy(current_meta or {})
+        entry_date = current_meta.get('entry_date')
+        if not entry_date:
+            if self.last_trading_date:
+                entry_date = self.last_trading_date.isoformat()
+            else:
+                entry_date = self.get_et_now().date().isoformat()
+
+        defaults = self._build_position_meta_defaults(
+            symbol,
+            {'avg_cost': getattr(broker_pos, 'avg_cost', 0.0)},
+            self.trading_day_counter,
+            entry_date,
+        )
+        merged = defaults
+        merged.update(current_meta)
+
+        avg_cost = self._coerce_float(getattr(broker_pos, 'avg_cost', 0.0), defaults['entry_price'])
+        market_price = self._coerce_float(
+            getattr(broker_pos, 'market_price', None),
+            avg_cost,
+        )
+        merged['entry_price'] = self._coerce_float(merged.get('entry_price'), avg_cost) or avg_cost
+        merged['high_price'] = max(
+            self._coerce_float(merged.get('high_price'), merged['entry_price']),
+            market_price,
+            merged['entry_price'],
+        )
+        merged['entry_day_index'] = self._coerce_int(
+            merged.get('entry_day_index'),
+            self.trading_day_counter,
+        )
+        merged['original_entry_day_index'] = self._coerce_int(
+            merged.get('original_entry_day_index'),
+            merged['entry_day_index'],
+        )
+
+        if symbol == EFA_SYMBOL:
+            merged['sector'] = 'International Equity'
+        elif merged.get('_catalyst'):
+            merged['sector'] = merged.get('sector', defaults['sector'])
+        else:
+            merged['sector'] = merged.get('sector') or defaults['sector']
+        merged['entry_date'] = merged.get('entry_date') or entry_date
+        return merged
+
+    def _append_reconciliation_log(self, payload):
+        os.makedirs('state', exist_ok=True)
+        log_path = os.path.join('state', 'reconciliation_log.jsonl')
+        try:
+            with open(log_path, 'a', encoding='utf-8') as log_file:
+                log_file.write(json.dumps(payload, default=str) + '\n')
+        except Exception as e:
+            logger.error(f"Failed to write reconciliation log: {e}")
+
+    def _reconcile_runtime_state(self):
+        skip_flag = os.environ.get('SKIP_RECONCILIATION', '')
+        if skip_flag.strip().lower() in ('1', 'true', 'yes', 'on'):
+            logger.info("Position reconciliation skipped via SKIP_RECONCILIATION=%s", skip_flag)
+            return False
+
+        broker_positions = self.broker.get_positions()
+        broker_snapshot = self._snapshot_positions(broker_positions)
+        state_snapshot = copy.deepcopy(self._state_positions_snapshot or {})
+        state_cash = self._coerce_float(self._state_cash_snapshot, self.broker.cash)
+        broker_cash = self._coerce_float(getattr(self.broker, 'cash', state_cash), state_cash)
+
+        mismatches = []
+        for symbol in sorted(set(state_snapshot.keys()) | set(broker_snapshot.keys())):
+            state_pos = state_snapshot.get(symbol)
+            broker_pos = broker_snapshot.get(symbol)
+
+            if state_pos and not broker_pos:
+                mismatches.append({
+                    'symbol': symbol,
+                    'status': 'phantom_state_position',
+                    'state_shares': state_pos.get('shares', 0.0),
+                    'broker_shares': 0.0,
+                })
+                continue
+            if broker_pos and not state_pos:
+                mismatches.append({
+                    'symbol': symbol,
+                    'status': 'broker_only_position',
+                    'state_shares': 0.0,
+                    'broker_shares': broker_pos.get('shares', 0.0),
+                })
+                continue
+
+            state_shares = self._coerce_float(state_pos.get('shares'), 0.0)
+            broker_shares = self._coerce_float(broker_pos.get('shares'), 0.0)
+            if abs(state_shares - broker_shares) > 0.01:
+                mismatches.append({
+                    'symbol': symbol,
+                    'status': 'share_count_mismatch',
+                    'state_shares': state_shares,
+                    'broker_shares': broker_shares,
+                })
+                continue
+
+            state_avg_cost = self._coerce_float(state_pos.get('avg_cost'), 0.0)
+            broker_avg_cost = self._coerce_float(broker_pos.get('avg_cost'), 0.0)
+            if abs(state_avg_cost - broker_avg_cost) > 0.01:
+                mismatches.append({
+                    'symbol': symbol,
+                    'status': 'avg_cost_mismatch',
+                    'state_avg_cost': state_avg_cost,
+                    'broker_avg_cost': broker_avg_cost,
+                })
+
+        cash_mismatch = abs(state_cash - broker_cash) > 1.0
+        if cash_mismatch:
+            mismatches.append({
+                'symbol': '__cash__',
+                'status': 'cash_mismatch',
+                'state_cash': round(state_cash, 2),
+                'broker_cash': round(broker_cash, 2),
+            })
+
+        if not mismatches:
+            self._state_positions_snapshot = broker_snapshot
+            self._state_cash_snapshot = broker_cash
+            return False
+
+        event = {
+            'timestamp': datetime.now().isoformat(),
+            'trading_day_counter': self.trading_day_counter,
+            'action': 'trust_broker_and_resave_state',
+            'mismatch_count': len(mismatches),
+            'mismatches': mismatches,
+            'state_cash': round(state_cash, 2),
+            'broker_cash': round(broker_cash, 2),
+        }
+        logger.critical(f"POSITION RECONCILIATION CRITICAL: {event}")
+
+        preserved_meta = copy.deepcopy(self.position_meta)
+        rebuilt_meta = {}
+        for symbol, broker_pos in broker_positions.items():
+            rebuilt_meta[symbol] = self._build_reconciled_position_meta(
+                symbol,
+                broker_pos,
+                preserved_meta.get(symbol),
+            )
+        self.position_meta = rebuilt_meta
+
+        self.rattle_positions = [
+            {
+                **pos,
+                'shares': broker_positions[pos['symbol']].shares,
+                'entry_price': pos.get('entry_price') or broker_positions[pos['symbol']].avg_cost,
+            }
+            for pos in self.rattle_positions
+            if pos.get('symbol') in broker_positions
+        ]
+        self.catalyst_positions = [
+            {
+                **pos,
+                'shares': broker_positions[pos['symbol']].shares,
+                'entry_price': pos.get('entry_price') or broker_positions[pos['symbol']].avg_cost,
+            }
+            for pos in self.catalyst_positions
+            if pos.get('symbol') in broker_positions
+        ]
+
+        self._state_positions_snapshot = broker_snapshot
+        self._state_cash_snapshot = broker_cash
+        self._append_reconciliation_log(event)
+        self.save_state()
+        self._last_state_save = datetime.now()
+        return True
+
     def save_state(self):
         """Save full system state to JSON"""
         portfolio = self.broker.get_portfolio()
@@ -3300,6 +3494,8 @@ class COMPASSLive:
                 logger.error(f"STATE SAVE FAILED for {target} after 2 attempts")
 
         logger.info(f"State saved: {filename}")
+        self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
+        self._state_cash_snapshot = self._coerce_float(state.get('cash'), self.broker.cash)
 
         # Auto git sync (non-blocking, never crashes engine)
         if _git_sync_available:
@@ -3447,6 +3643,12 @@ class COMPASSLive:
         if loaded_from != latest:
             logger.warning(f"  Loaded from FALLBACK file (not latest): {loaded_from}")
 
+        self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
+        self._state_cash_snapshot = self._coerce_float(
+            state.get('cash'),
+            getattr(self.broker, 'cash', self.config['PAPER_INITIAL_CASH']),
+        )
+
         # Position reconciliation (logs discrepancies vs broker)
         if hasattr(self.broker, 'reconcile_positions'):
             try:
@@ -3516,6 +3718,10 @@ class COMPASSLive:
             # New trading day setup
             if self.is_new_trading_day():
                 self.daily_open()
+                try:
+                    self._reconcile_runtime_state()
+                except Exception as reconcile_err:
+                    logger.error(f"Automated reconciliation failed: {reconcile_err}", exc_info=True)
 
             # Get current prices (async fetch + batch validation)
             symbols_needed = set(self.current_universe) | set(self.position_meta.keys())
