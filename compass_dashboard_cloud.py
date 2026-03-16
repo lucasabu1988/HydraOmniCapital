@@ -423,6 +423,133 @@ def _engine_snapshot():
     return snapshot
 
 
+def _coerce_health_timestamp(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return datetime.combine(value, dtime.min).isoformat()
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value).isoformat()
+        except ValueError:
+            try:
+                return datetime.combine(date.fromisoformat(value), dtime.min).isoformat()
+            except ValueError:
+                return value
+    return str(value)
+
+
+def _health_uptime_minutes(engine, state):
+    stats = state.get('stats', {}) if state else {}
+    uptime = stats.get('uptime_minutes')
+    if uptime is not None:
+        return round(float(uptime), 2)
+
+    started_at = None
+    if engine:
+        started_at = engine.get('started_at')
+    if not started_at:
+        started_at = _engine_status.get('started_at')
+    if started_at:
+        try:
+            started = datetime.fromisoformat(started_at)
+            return round((datetime.now() - started).total_seconds() / 60, 2)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _build_health_payload(engine, state):
+    price_age_seconds = None
+    last_price_update = None
+    if _price_cache_time:
+        last_price_update = _price_cache_time.isoformat()
+        price_age_seconds = round((datetime.now() - _price_cache_time).total_seconds(), 1)
+
+    ml_errors = {
+        'entry': 0,
+        'exit': 0,
+        'hold': 0,
+        'skip': 0,
+        'snapshot': 0,
+    }
+    if state:
+        ml_errors.update(state.get('ml_error_counts', {}))
+
+    portfolio_value = 0.0
+    cash = 0.0
+    drawdown_pct = None
+    num_positions = 0
+    if state:
+        portfolio_value = float(state.get('portfolio_value', 0.0) or 0.0)
+        cash = float(state.get('cash', 0.0) or 0.0)
+        peak_value = float(state.get('peak_value', portfolio_value) or portfolio_value or 0.0)
+        if peak_value > 0:
+            drawdown_pct = round((portfolio_value - peak_value) / peak_value * 100, 2)
+        num_positions = len(state.get('positions', {}))
+
+    state_exists = os.path.exists(STATE_FILE)
+    state_last_modified = None
+    if state_exists:
+        try:
+            state_last_modified = datetime.fromtimestamp(os.path.getmtime(STATE_FILE)).isoformat()
+        except OSError:
+            state_last_modified = None
+
+    engine_running = bool(engine.get('running'))
+    ml_error_total = sum(abs(int(value or 0)) for value in ml_errors.values())
+    if not engine_running or (price_age_seconds is not None and price_age_seconds > 300):
+        overall_status = 'critical'
+    elif price_age_seconds is None or price_age_seconds > 60 or ml_error_total > 0:
+        overall_status = 'degraded'
+    else:
+        overall_status = 'healthy'
+
+    git_sync_enabled = bool(os.environ.get('GIT_TOKEN'))
+
+    return {
+        'status': overall_status,
+        'timestamp': datetime.now().isoformat(),
+        'engine': {
+            'running': engine_running,
+            'uptime_minutes': _health_uptime_minutes(engine, state),
+            'cycles_completed': (
+                state.get('stats', {}).get('cycles_completed')
+                if state else engine.get('cycles', 0)
+            ),
+            'last_cycle_at': _coerce_health_timestamp(
+                state.get('timestamp') if state else engine.get('started_at')
+            ),
+            'ml_errors': ml_errors,
+        },
+        'data_feed': {
+            'last_price_update': last_price_update,
+            'price_age_seconds': price_age_seconds,
+            'consecutive_failures': _yf_consecutive_failures,
+            'cache_size': len(_price_cache),
+        },
+        'portfolio': {
+            'value': round(portfolio_value, 2),
+            'num_positions': num_positions,
+            'cash': round(cash, 2),
+            'drawdown_pct': drawdown_pct,
+        },
+        'state': {
+            'file_exists': state_exists,
+            'last_modified': state_last_modified,
+            'recovered_from': (
+                state.get('_recovered_from') if state else None
+            ) or engine.get('state_recovery'),
+        },
+        'git_sync': {
+            'enabled': git_sync_enabled,
+            'last_push_at': None,
+        },
+    }
+
+
 # ============================================================================
 # DERIVED CALCULATIONS
 # ============================================================================
@@ -2079,6 +2206,13 @@ def api_preflight():
         'checks': {'mode': 'cloud-live', 'engine': engine is not None, 'git_sync': bool(os.environ.get('GIT_TOKEN'))},
         'server_time': datetime.now().isoformat(),
     })
+
+
+@app.route('/api/health')
+def api_health():
+    state = read_state()
+    engine = _engine_snapshot()
+    return jsonify(_build_health_payload(engine, state))
 
 
 @app.route('/api/data-quality')

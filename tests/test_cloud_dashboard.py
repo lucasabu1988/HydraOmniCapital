@@ -51,11 +51,18 @@ def make_state(positions=None, universe=None):
         'last_trading_date': '2026-03-13',
         'stop_events': [],
         'timestamp': '2026-03-16T09:30:00',
-        'stats': {'uptime_minutes': 42},
+        'stats': {'uptime_minutes': 42, 'cycles_completed': 5},
         'portfolio_values_history': [103000.0],
         'hydra': {
             'rattle_positions': [],
             'catalyst_positions': [],
+        },
+        'ml_error_counts': {
+            'entry': 0,
+            'exit': 0,
+            'hold': 0,
+            'skip': 0,
+            'snapshot': 0,
         },
         'dd_leverage': 1.0,
         'crash_cooldown': 0,
@@ -522,6 +529,137 @@ def test_api_state_exposes_state_recovery_source(client, monkeypatch):
     payload = response.get_json()
     assert payload['state_recovery'] == 'github_api'
     assert payload['engine']['state_recovery'] == 'github_api'
+
+
+def test_api_health_reports_healthy_when_engine_running_and_prices_fresh(client):
+    state = make_state()
+    write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._engine_status.update({
+        'running': True,
+        'started_at': '2026-03-16T09:00:00',
+        'error': None,
+        'cycles': 5,
+        'state_recovery': None,
+    })
+    dashboard._price_cache = {'AAPL': 110.0, 'SPY': 505.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=15)
+    dashboard._yf_consecutive_failures = 0
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'healthy'
+    assert payload['engine']['running'] is True
+    assert payload['engine']['cycles_completed'] == 5
+    assert payload['data_feed']['price_age_seconds'] < 60
+    assert payload['portfolio']['num_positions'] == 1
+
+
+def test_api_health_degrades_when_price_cache_is_stale(client):
+    state = make_state()
+    write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._engine_status.update({
+        'running': True,
+        'started_at': '2026-03-16T09:00:00',
+        'error': None,
+        'cycles': 5,
+    })
+    dashboard._price_cache = {'AAPL': 110.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=120)
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'degraded'
+    assert payload['data_feed']['price_age_seconds'] > 60
+
+
+def test_api_health_degrades_when_ml_errors_are_present(client):
+    state = make_state()
+    state['ml_error_counts']['hold'] = 2
+    write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._engine_status.update({
+        'running': True,
+        'started_at': '2026-03-16T09:00:00',
+        'error': None,
+        'cycles': 5,
+    })
+    dashboard._price_cache = {'AAPL': 110.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=10)
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'degraded'
+    assert payload['engine']['ml_errors']['hold'] == 2
+
+
+def test_api_health_is_critical_when_engine_is_not_running(client):
+    state = make_state()
+    write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._engine_status.update({
+        'running': False,
+        'started_at': None,
+        'error': 'engine down',
+        'cycles': 0,
+    })
+    dashboard._price_cache = {'AAPL': 110.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=5)
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'critical'
+    assert payload['engine']['running'] is False
+
+
+def test_api_health_is_critical_when_data_is_very_stale(client):
+    state = make_state()
+    write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._engine_status.update({
+        'running': True,
+        'started_at': '2026-03-16T09:00:00',
+        'error': None,
+        'cycles': 5,
+    })
+    dashboard._price_cache = {'AAPL': 110.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=360)
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'critical'
+    assert payload['data_feed']['price_age_seconds'] > 300
+
+
+def test_api_health_reports_state_recovery_and_git_sync_metadata(client, monkeypatch):
+    state = make_state()
+    state['_recovered_from'] = 'git_pull'
+    write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._engine_status.update({
+        'running': True,
+        'started_at': '2026-03-16T09:00:00',
+        'error': None,
+        'cycles': 5,
+        'state_recovery': 'git_pull',
+    })
+    dashboard._price_cache = {'AAPL': 110.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=20)
+    monkeypatch.setenv('GIT_TOKEN', 'test-token')
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['state']['file_exists'] is True
+    assert payload['state']['last_modified'] is not None
+    assert payload['state']['recovered_from'] == 'git_pull'
+    assert payload['git_sync']['enabled'] is True
 
 
 def test_ensure_cloud_engine_acquires_lock_and_starts_thread(monkeypatch):
