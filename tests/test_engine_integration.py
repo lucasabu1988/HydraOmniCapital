@@ -22,6 +22,46 @@ class StubPriceFeed:
         return self.prices.get(symbol)
 
 
+class MultiDayPriceFeed:
+    def __init__(self, prices_by_day, clock):
+        self.prices_by_day = dict(prices_by_day)
+        self.clock = clock
+
+    def _current_prices(self):
+        current_day = self.clock.current.date().isoformat()
+        return self.prices_by_day[current_day]
+
+    def get_prices(self, symbols):
+        prices = self._current_prices()
+        return {symbol: prices[symbol] for symbol in symbols if symbol in prices}
+
+    def get_price(self, symbol):
+        return self._current_prices().get(symbol)
+
+
+class FrozenDateTime(datetime):
+    current = datetime(2026, 3, 10, 15, 35)
+
+    @classmethod
+    def now(cls, tz=None):
+        if tz is not None:
+            current = cls.current
+            if current.tzinfo is None:
+                current = current.replace(tzinfo=tz)
+            else:
+                current = current.astimezone(tz)
+            return cls(
+                current.year, current.month, current.day,
+                current.hour, current.minute, current.second, current.microsecond,
+                tzinfo=current.tzinfo,
+            )
+        current = cls.current.replace(tzinfo=None)
+        return cls(
+            current.year, current.month, current.day,
+            current.hour, current.minute, current.second, current.microsecond,
+        )
+
+
 class FailingML:
     def __init__(self, fail_on):
         self.fail_on = fail_on
@@ -192,3 +232,186 @@ def test_ml_exit_fail_safe_counter_increments(trader):
     trader.check_position_exits({'AAPL': 125.0})
 
     assert live._ml_error_counts['exit'] == 1
+
+
+def test_multi_day_cycle_with_stop_exit(monkeypatch, temp_runtime):
+    trading_days = [
+        datetime(2026, 3, 10, 15, 35),
+        datetime(2026, 3, 11, 15, 35),
+        datetime(2026, 3, 12, 15, 35),
+        datetime(2026, 3, 13, 15, 35),
+        datetime(2026, 3, 16, 15, 35),
+    ]
+    prices_by_day = {
+        '2026-03-10': {
+            'AAPL': 125.0,
+            'MSFT': 120.0,
+            'NVDA': 115.0,
+            'AMZN': 110.0,
+            'LLY': 108.0,
+            'META': 106.0,
+            'GOOGL': 104.0,
+            'GE': 102.0,
+            'SPY': 505.0,
+        },
+        '2026-03-11': {
+            'AAPL': 128.0,
+            'MSFT': 123.0,
+            'NVDA': 118.0,
+            'AMZN': 111.0,
+            'LLY': 109.0,
+            'META': 107.0,
+            'GOOGL': 105.0,
+            'GE': 103.0,
+            'SPY': 506.0,
+        },
+        '2026-03-12': {
+            'AAPL': 131.0,
+            'MSFT': 125.0,
+            'NVDA': 120.0,
+            'AMZN': 112.0,
+            'LLY': 110.0,
+            'META': 108.0,
+            'GOOGL': 106.0,
+            'GE': 104.0,
+            'SPY': 507.0,
+        },
+        '2026-03-13': {
+            'AAPL': 132.0,
+            'MSFT': 109.0,
+            'NVDA': 121.0,
+            'AMZN': 114.0,
+            'LLY': 111.0,
+            'META': 109.0,
+            'GOOGL': 107.0,
+            'GE': 105.0,
+            'SPY': 508.0,
+        },
+        '2026-03-16': {
+            'AAPL': 134.0,
+            'MSFT': 110.0,
+            'NVDA': 123.0,
+            'AMZN': 116.0,
+            'LLY': 112.0,
+            'META': 112.0,
+            'GOOGL': 110.0,
+            'GE': 106.0,
+            'SPY': 510.0,
+        },
+    }
+    universe_by_day = {
+        '2026-03-10': ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'LLY'],
+        '2026-03-11': ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'LLY'],
+        '2026-03-12': ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'LLY'],
+        '2026-03-13': ['AAPL', 'NVDA', 'AMZN', 'LLY', 'META'],
+        '2026-03-16': ['AAPL', 'NVDA', 'AMZN', 'LLY', 'META'],
+    }
+    preclose_universe_by_day = {
+        '2026-03-16': ['AMZN', 'META', 'GOOGL', 'LLY', 'GE'],
+    }
+    hist_cache = {
+        'AAPL': make_hist(100.0, 0.60),
+        'MSFT': make_hist(100.0, 0.55),
+        'NVDA': make_hist(100.0, 0.50),
+        'AMZN': make_hist(100.0, 0.30),
+        'LLY': make_hist(100.0, 0.28),
+        'META': make_hist(100.0, 0.25),
+        'GOOGL': make_hist(100.0, 0.20),
+        'GE': make_hist(100.0, 0.15),
+    }
+
+    FrozenDateTime.current = trading_days[0]
+    monkeypatch.setattr(live, 'datetime', FrozenDateTime)
+
+    feed = MultiDayPriceFeed(prices_by_day, FrozenDateTime)
+    monkeypatch.setattr(live, 'YahooDataFeed', lambda cache_duration: feed)
+    monkeypatch.setattr(live, '_git_sync_available', False, raising=False)
+    monkeypatch.setattr(live, '_overlay_available', False, raising=False)
+    monkeypatch.setattr(live.yf, 'download', lambda *args, **kwargs: pd.DataFrame({
+        'Close': [5000.0, 5010.0]
+    }))
+
+    live._ml_error_counts = {
+        'entry': 0,
+        'exit': 0,
+        'hold': 0,
+        'skip': 0,
+        'snapshot': 0,
+    }
+
+    config = live.CONFIG.copy()
+    config['BROKER_TYPE'] = 'PAPER'
+    config['PAPER_INITIAL_CASH'] = 100000
+    config['MIN_MOMENTUM_STOCKS'] = 1
+    config['STATE_SAVE_INTERVAL'] = 0
+    config['STOP_CHECK_INTERVAL'] = 0
+
+    trader = live.COMPASSLive(config)
+    trader.broker.connect()
+    trader.broker.fill_delay = 0
+    trader.validator.validate_batch = lambda raw_prices: raw_prices
+
+    monkeypatch.setattr(trader, 'is_market_open', lambda: True)
+    monkeypatch.setattr(trader, 'refresh_universe', lambda: None)
+    monkeypatch.setattr(trader, 'refresh_daily_data', lambda: None)
+    monkeypatch.setattr(trader, '_reconcile_entry_prices', lambda: None)
+    monkeypatch.setattr(trader, 'update_regime', lambda: None)
+    monkeypatch.setattr(trader, 'log_status', lambda prices: None)
+    monkeypatch.setattr(trader, 'get_max_positions', lambda: 3)
+    monkeypatch.setattr(trader, '_should_renew', lambda *args, **kwargs: False)
+    monkeypatch.setattr(trader, '_reconstruct_close_portfolio',
+                        lambda positions, cash: trader._pre_rotation_value)
+    monkeypatch.setattr(trader, '_get_spy_close', lambda: 5100.0)
+
+    trader._hydra_available = False
+    trader.current_regime_score = 0.72
+    trader._hist_cache = hist_cache
+    trader._spy_hist = make_hist(430.0, 0.35, periods=260)
+    trader._last_stop_check = FrozenDateTime.now() - timedelta(hours=1)
+    trader._last_state_save = FrozenDateTime.now() - timedelta(hours=1)
+
+    original_execute_trading_logic = trader.execute_trading_logic
+
+    def execute_trading_logic_with_rotation(prices):
+        original_execute_trading_logic(prices)
+        rotation_universe = preclose_universe_by_day.get(
+            FrozenDateTime.current.date().isoformat()
+        )
+        if rotation_universe is not None:
+            trader.current_universe = rotation_universe
+
+    monkeypatch.setattr(trader, 'execute_trading_logic', execute_trading_logic_with_rotation)
+
+    for idx, when in enumerate(trading_days):
+        FrozenDateTime.current = when
+        trader.current_universe = universe_by_day[when.date().isoformat()]
+        trader._last_stop_check = FrozenDateTime.now() - timedelta(hours=1)
+        trader._last_state_save = FrozenDateTime.now() - timedelta(hours=1)
+
+        result = trader.run_once()
+
+        assert result is True
+
+        if idx == 0:
+            trader._ensure_active_cycle()
+
+    cycle_log = json.loads((temp_runtime / 'state' / 'cycle_log.json').read_text(encoding='utf-8'))
+    decisions = [
+        json.loads(line)
+        for line in (temp_runtime / 'state' / 'ml_learning' / 'decisions.jsonl').read_text(encoding='utf-8').splitlines()
+        if line.strip()
+    ]
+    latest_state = json.loads((temp_runtime / 'state' / 'compass_state_latest.json').read_text(encoding='utf-8'))
+
+    decision_types = {record['decision_type'] for record in decisions}
+    closed_cycles = [cycle for cycle in cycle_log if cycle.get('status') == 'closed']
+    exit_records = [record for record in decisions if record.get('decision_type') == 'exit']
+
+    assert closed_cycles
+    assert {'entry', 'hold', 'exit', 'skip'}.issubset(decision_types)
+    assert any('stop' in (record.get('exit_reason') or '') for record in exit_records)
+    assert any(event.get('reason') == 'position_stop' for event in closed_cycles[0].get('stop_events', []))
+    assert latest_state['trading_day_counter'] >= 5
+    assert latest_state['portfolio_value'] != pytest.approx(100000.0)
+    assert 'AMZN' in latest_state['positions']
+    assert 'META' in latest_state['positions'] or 'GOOGL' in latest_state['positions']
