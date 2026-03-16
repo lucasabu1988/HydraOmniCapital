@@ -20,8 +20,22 @@ _git_queue: Queue = Queue(maxsize=10)
 _worker_thread: threading.Thread | None = None
 _worker_started = False
 _repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root (parent of compass/)
+_disabled_notice_logged = False
 
 MIN_COMMIT_INTERVAL = 900  # 15 minutes between commits
+
+
+def _git_sync_disabled() -> bool:
+    value = os.environ.get('DISABLE_GIT_SYNC', '').strip().lower()
+    return value in ('1', 'true', 'yes', 'on')
+
+
+def _log_disabled_once():
+    global _disabled_notice_logged
+    if _disabled_notice_logged:
+        return
+    _disabled_notice_logged = True
+    logger.info("git sync disabled via DISABLE_GIT_SYNC=1; skipping auto-commit worker")
 
 
 def _run_git(*args, timeout=30, warn_on_fail=True) -> tuple[bool, str]:
@@ -154,8 +168,11 @@ def _ensure_git_identity():
 def _ensure_worker():
     """Start the background worker thread if not already running."""
     global _worker_thread, _worker_started
+    if _git_sync_disabled():
+        _log_disabled_once()
+        return False
     if _worker_started and _worker_thread and _worker_thread.is_alive():
-        return
+        return True
     _ensure_git_identity()
     _worker_thread = threading.Thread(
         target=_git_worker,
@@ -165,6 +182,7 @@ def _ensure_worker():
     _worker_thread.start()
     _worker_started = True
     logger.info("git sync: background worker started")
+    return True
 
 
 def git_sync_async(state_file: str, latest_file: str):
@@ -174,7 +192,9 @@ def git_sync_async(state_file: str, latest_file: str):
         state_file: e.g. 'state/compass_state_20260223.json'
         latest_file: e.g. 'state/compass_state_latest.json'
     """
-    _ensure_worker()
+    # Local dashboard keeps this opt-in so state snapshots do not pollute main history.
+    if not _ensure_worker():
+        return
 
     files = [state_file, latest_file]
 
@@ -192,7 +212,8 @@ def git_sync_async(state_file: str, latest_file: str):
 
 def git_sync_rotation(cycle_num: int, hydra_return: float, status: str):
     """Queue a git sync after a 5-day rotation. Includes cycle_log + state files."""
-    _ensure_worker()
+    if not _ensure_worker():
+        return
 
     files = [
         'state/cycle_log.json',

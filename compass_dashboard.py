@@ -39,6 +39,19 @@ app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 
+
+def _configure_local_git_sync():
+    disabled = os.environ.get('DISABLE_GIT_SYNC')
+    if disabled is None:
+        # Local auto-sync is opt-in so frequent state snapshots do not pollute main branch history.
+        os.environ['DISABLE_GIT_SYNC'] = '1'
+        logger.info("Local git auto-sync disabled by default (set DISABLE_GIT_SYNC=0 to re-enable)")
+        return
+    if disabled.strip().lower() in ('1', 'true', 'yes', 'on'):
+        logger.info("Local git auto-sync disabled via DISABLE_GIT_SYNC=%s", disabled)
+    else:
+        logger.info("Local git auto-sync enabled explicitly (DISABLE_GIT_SYNC=%s)", disabled)
+
 # ============================================================================
 # COMPASS v8.4 PARAMETERS (read-only reference, must match omnicapital_live.py)
 # ============================================================================
@@ -248,6 +261,7 @@ def _run_live_engine():
     global _live_engine, _engine_status
 
     try:
+        _configure_local_git_sync()
         from omnicapital_live import COMPASSLive, CONFIG as LIVE_CONFIG
 
         config = LIVE_CONFIG.copy()
