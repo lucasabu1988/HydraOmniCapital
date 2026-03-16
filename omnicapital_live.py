@@ -3213,7 +3213,20 @@ class COMPASSLive:
         if not isinstance(stats, dict):
             violations.append("stats must be a dict; resetting to empty")
             stats = {}
-        cycles_completed = self._coerce_int(stats.get('cycles_completed'), 0)
+        legacy_cycles_completed = self._coerce_int(stats.get('cycles_completed'), 0)
+        engine_iterations = self._coerce_int(
+            stats.get('engine_iterations'),
+            legacy_cycles_completed,
+        )
+        if engine_iterations < 0:
+            violations.append(f"engine_iterations={engine_iterations} cannot be negative; resetting to 0")
+            engine_iterations = 0
+        cycles_completed = self._coerce_int(
+            stats.get('cycles_completed'),
+            self._get_closed_cycle_count(),
+        )
+        if 'engine_iterations' not in stats and source == 'load':
+            cycles_completed = self._get_closed_cycle_count()
         if cycles_completed < 0:
             violations.append(f"cycles_completed={cycles_completed} cannot be negative; resetting to 0")
             cycles_completed = 0
@@ -3221,17 +3234,21 @@ class COMPASSLive:
         prev_cycles = None
         if previous_state is not None:
             prev_cycles = self._coerce_int(
-                (previous_state.get('stats') or {}).get('cycles_completed'),
-                cycles_completed,
+                (previous_state.get('stats') or {}).get('engine_iterations'),
+                self._coerce_int(
+                    (previous_state.get('stats') or {}).get('cycles_completed'),
+                    engine_iterations,
+                ),
             )
         elif self._last_persisted_cycles_completed is not None:
             prev_cycles = self._last_persisted_cycles_completed
-        if prev_cycles is not None and cycles_completed > prev_cycles + 1:
+        if prev_cycles is not None and engine_iterations > prev_cycles + 1:
             violations.append(
-                f"cycles_completed jumped from {prev_cycles} to {cycles_completed}; capping to {prev_cycles + 1}"
+                f"engine_iterations jumped from {prev_cycles} to {engine_iterations}; capping to {prev_cycles + 1}"
             )
-            cycles_completed = prev_cycles + 1
+            engine_iterations = prev_cycles + 1
         stats['cycles_completed'] = cycles_completed
+        stats['engine_iterations'] = engine_iterations
         state['stats'] = stats
 
         cash = self._coerce_float(state.get('cash'), initial_capital)
@@ -3304,7 +3321,7 @@ class COMPASSLive:
                     entry_date,
                 )
 
-        self._last_persisted_cycles_completed = cycles_completed
+        self._last_persisted_cycles_completed = engine_iterations
         self._last_persisted_trading_day_counter = trading_day_counter
         return state, violations
 
@@ -3375,6 +3392,23 @@ class COMPASSLive:
                 log_file.write(json.dumps(payload, default=str) + '\n')
         except Exception as e:
             logger.error(f"Failed to write reconciliation log: {e}")
+
+    def _get_closed_cycle_count(self):
+        cycle_log_path = os.path.join('state', 'cycle_log.json')
+        if not os.path.exists(cycle_log_path):
+            return 0
+        try:
+            with open(cycle_log_path, 'r', encoding='utf-8') as cycle_file:
+                cycles = json.load(cycle_file)
+            if not isinstance(cycles, list):
+                return 0
+            return sum(
+                1 for cycle in cycles
+                if isinstance(cycle, dict) and cycle.get('status') == 'closed'
+            )
+        except Exception as e:
+            logger.debug(f"Failed to read cycle log count: {e}")
+            return 0
 
     def _reconcile_runtime_state(self):
         skip_flag = os.environ.get('SKIP_RECONCILIATION', '')
@@ -3497,6 +3531,7 @@ class COMPASSLive:
         """Save full system state to JSON"""
         with self._state_save_lock:
             portfolio = self.broker.get_portfolio()
+            closed_cycles = self._get_closed_cycle_count()
             state = {
                 'version': '8.4',
                 'timestamp': datetime.now().isoformat(),
@@ -3566,7 +3601,8 @@ class COMPASSLive:
 
                 # Stats
                 'stats': {
-                    'cycles_completed': self._cycles_completed,
+                    'cycles_completed': closed_cycles,
+                    'engine_iterations': self._cycles_completed,
                     'uptime_minutes': (datetime.now() - self._start_time).total_seconds() / 60
                 },
 

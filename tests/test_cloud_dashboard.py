@@ -51,7 +51,7 @@ def make_state(positions=None, universe=None):
         'last_trading_date': '2026-03-13',
         'stop_events': [],
         'timestamp': '2026-03-16T09:30:00',
-        'stats': {'uptime_minutes': 42, 'cycles_completed': 5},
+        'stats': {'uptime_minutes': 42, 'cycles_completed': 5, 'engine_iterations': 42},
         'portfolio_values_history': [103000.0],
         'hydra': {
             'rattle_positions': [],

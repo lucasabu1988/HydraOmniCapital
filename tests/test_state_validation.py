@@ -66,7 +66,8 @@ def make_state(**overrides):
         '_pre_rotation_cash': None,
         '_pre_rotation_value': None,
         'stats': {
-            'cycles_completed': 1,
+            'cycles_completed': 0,
+            'engine_iterations': 1,
             'uptime_minutes': 5,
         },
         'ml_error_counts': {
@@ -163,7 +164,26 @@ def test_save_state_caps_cycles_completed_jump_between_saves(trader, tmp_path):
     trader.save_state()
 
     state = read_json(tmp_path / 'state' / 'compass_state_latest.json')
-    assert state['stats']['cycles_completed'] == 2
+    assert state['stats']['engine_iterations'] == 2
+    assert state['stats']['cycles_completed'] == 0
+
+
+def test_save_state_tracks_closed_cycles_separately_from_engine_iterations(trader, tmp_path):
+    write_json(
+        tmp_path / 'state' / 'cycle_log.json',
+        [
+            {'cycle': 1, 'status': 'closed'},
+            {'cycle': 2, 'status': 'active'},
+        ],
+    )
+    trader.trading_day_counter = 5
+    trader._cycles_completed = 384
+
+    trader.save_state()
+
+    state = read_json(tmp_path / 'state' / 'compass_state_latest.json')
+    assert state['stats']['cycles_completed'] == 1
+    assert state['stats']['engine_iterations'] == 384
 
 
 def test_save_state_prevents_trading_day_counter_decrease(trader, tmp_path):
@@ -303,7 +323,7 @@ def test_save_state_is_thread_safe_under_concurrent_calls(trader, tmp_path):
     assert trader._last_persisted_trading_day_counter == 7
     assert trader._last_persisted_cycles_completed == 3
     assert state['trading_day_counter'] == 7
-    assert state['stats']['cycles_completed'] == 3
+    assert state['stats']['engine_iterations'] == 3
 
 
 def test_write_corrupted_state_backup_prunes_old_files(trader, tmp_path):

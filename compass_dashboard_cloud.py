@@ -425,7 +425,7 @@ def _engine_snapshot():
     snapshot = dict(_engine_status)
     snapshot['thread_alive'] = _engine_thread_is_alive()
     snapshot['cycles'] = (
-        getattr(_cloud_engine, 'stats', {}).get('cycles_completed', 0)
+        getattr(_cloud_engine, '_cycles_completed', 0)
         if _cloud_engine else _engine_status['cycles']
     )
     return snapshot
@@ -467,6 +467,38 @@ def _health_uptime_minutes(engine, state):
         except (TypeError, ValueError):
             return None
     return None
+
+
+def _closed_cycle_count_from_log():
+    cycle_log_path = os.path.join(STATE_DIR, 'cycle_log.json')
+    if not os.path.exists(cycle_log_path):
+        return 0
+    try:
+        with open(cycle_log_path, 'r', encoding='utf-8') as cycle_file:
+            cycles = json.load(cycle_file)
+        if not isinstance(cycles, list):
+            return 0
+        return sum(1 for cycle in cycles if isinstance(cycle, dict) and cycle.get('status') == 'closed')
+    except Exception:
+        return 0
+
+
+def _health_cycle_counts(state, engine):
+    stats = state.get('stats', {}) if state else {}
+    closed_from_log = _closed_cycle_count_from_log()
+    has_engine_iterations = 'engine_iterations' in stats
+
+    cycles_completed = stats.get('cycles_completed')
+    if has_engine_iterations:
+        cycles_completed = closed_from_log if cycles_completed is None else cycles_completed
+    elif closed_from_log > 0:
+        cycles_completed = closed_from_log
+
+    engine_iterations = stats.get('engine_iterations')
+    if engine_iterations is None:
+        engine_iterations = engine.get('cycles', 0) if engine else _engine_status.get('cycles', 0)
+
+    return int(cycles_completed or 0), int(engine_iterations or 0)
 
 
 def _build_health_payload(engine, state):
@@ -516,6 +548,7 @@ def _build_health_payload(engine, state):
         overall_status = 'healthy'
 
     git_sync_enabled = bool(os.environ.get('GIT_TOKEN'))
+    cycles_completed, engine_iterations = _health_cycle_counts(state, engine)
 
     return {
         'status': overall_status,
@@ -523,10 +556,8 @@ def _build_health_payload(engine, state):
         'engine': {
             'running': engine_running,
             'uptime_minutes': _health_uptime_minutes(engine, state),
-            'cycles_completed': (
-                state.get('stats', {}).get('cycles_completed')
-                if state else engine.get('cycles', 0)
-            ),
+            'cycles_completed': cycles_completed,
+            'engine_iterations': engine_iterations,
             'last_cycle_at': _coerce_health_timestamp(
                 state.get('timestamp') if state else engine.get('started_at')
             ),
@@ -2283,11 +2314,14 @@ def api_engine_stop():
 def api_engine_status():
     engine = _cloud_engine
     if engine:
+        closed_cycles = _closed_cycle_count_from_log()
         return jsonify({
             'running': True,
             'started_at': engine._start_time.isoformat() if hasattr(engine, '_start_time') else None,
             'error': None,
             'cycles': engine._cycles_completed if hasattr(engine, '_cycles_completed') else 0,
+            'engine_iterations': engine._cycles_completed if hasattr(engine, '_cycles_completed') else 0,
+            'cycles_completed': closed_cycles,
             'mode': 'cloud-live',
         })
     if AGENT_MODE:

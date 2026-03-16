@@ -563,6 +563,38 @@ def _health_uptime_minutes(state):
     return None
 
 
+def _closed_cycle_count_from_log():
+    cycle_log_path = os.path.join(STATE_DIR, 'cycle_log.json')
+    if not os.path.exists(cycle_log_path):
+        return 0
+    try:
+        with open(cycle_log_path, 'r', encoding='utf-8') as cycle_file:
+            cycles = json.load(cycle_file)
+        if not isinstance(cycles, list):
+            return 0
+        return sum(1 for cycle in cycles if isinstance(cycle, dict) and cycle.get('status') == 'closed')
+    except Exception:
+        return 0
+
+
+def _health_cycle_counts(state):
+    stats = state.get('stats', {}) if state else {}
+    closed_from_log = _closed_cycle_count_from_log()
+    has_engine_iterations = 'engine_iterations' in stats
+
+    cycles_completed = stats.get('cycles_completed')
+    if has_engine_iterations:
+        cycles_completed = closed_from_log if cycles_completed is None else cycles_completed
+    elif closed_from_log > 0:
+        cycles_completed = closed_from_log
+
+    engine_iterations = stats.get('engine_iterations')
+    if engine_iterations is None:
+        engine_iterations = _engine_status.get('cycles', 0)
+
+    return int(cycles_completed or 0), int(engine_iterations or 0)
+
+
 def _build_health_payload(state):
     price_age_seconds = None
     last_price_update = None
@@ -609,16 +641,16 @@ def _build_health_payload(state):
     else:
         overall_status = 'healthy'
 
+    cycles_completed, engine_iterations = _health_cycle_counts(state)
+
     return {
         'status': overall_status,
         'timestamp': datetime.now().isoformat(),
         'engine': {
             'running': engine_running,
             'uptime_minutes': _health_uptime_minutes(state),
-            'cycles_completed': (
-                state.get('stats', {}).get('cycles_completed')
-                if state else _engine_status.get('cycles', 0)
-            ),
+            'cycles_completed': cycles_completed,
+            'engine_iterations': engine_iterations,
             'last_cycle_at': _coerce_health_timestamp(
                 state.get('timestamp') if state else _engine_status.get('started_at')
             ),
@@ -2511,7 +2543,12 @@ def api_engine_stop():
 @app.route('/api/engine/status')
 def api_engine_status():
     """Get current engine status."""
-    return jsonify(_engine_status)
+    state = read_state()
+    cycles_completed, engine_iterations = _health_cycle_counts(state)
+    payload = dict(_engine_status)
+    payload['engine_iterations'] = engine_iterations
+    payload['cycles_completed'] = cycles_completed
+    return jsonify(payload)
 
 
 @app.route('/api/overlay-status')
