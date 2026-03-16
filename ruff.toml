@@ -1,0 +1,38 @@
+include = [
+    "catalyst_signals.py",
+    "compass_dashboard.py",
+    "compass_dashboard_cloud.py",
+    "compass_fred_data.py",
+    "compass_ml_learning.py",
+    "compass_montecarlo.py",
+    "compass_overlays.py",
+    "compass_portfolio_risk.py",
+    "compass_trade_analytics.py",
+    "git_sync.py",
+    "hydra_capital.py",
+    "hydra_prompts.py",
+    "hydra_scratchpad.py",
+    "hydra_tools.py",
+    "omnicapital_broker.py",
+    "omnicapital_data_feed.py",
+    "omnicapital_live.py",
+    "omnicapital_notifications.py",
+    "rattlesnake_signals.py",
+]
+exclude = [
+    "*.venv",
+    ".venv",
+    "__pycache__",
+    "archive",
+    "backtests",
+    "data_cache",
+    "data_cache_parquet",
+    "docs",
+    "scripts",
+    "tests",
+]
+target-version = "py314"
+
+[lint]
+ignore = ["E501", "W291", "W292", "W293"]
+select = ["E", "F", "W"]
