@@ -244,6 +244,74 @@ class TestEmailNotifier(unittest.TestCase):
         notifier.send_portfolio_stop_alert(90000, -0.10, 100000)
         notifier.send_daily_summary(100000, 5, -0.05, [], True, 1.5)
 
+    @patch('omnicapital_notifications.smtplib.SMTP')
+    def test_daily_summary_formats_positions_pnl_and_drawdown(self, mock_smtp):
+        notifier = EmailNotifier(
+            sender='test@test.com',
+            password='pass',
+            recipients=['u@t.com'],
+        )
+        smtp_server = mock_smtp.return_value.__enter__.return_value
+        trades_today = [
+            {'action': 'BUY', 'symbol': 'AAPL'},
+            {'action': 'SELL', 'symbol': 'MSFT', 'exit_reason': 'stop_loss', 'pnl': -1234.56},
+        ]
+
+        notifier.send_daily_summary(98765.43, 2, -0.1234, trades_today, False, 0.6)
+
+        smtp_server.starttls.assert_called_once()
+        smtp_server.login.assert_called_once_with('test@test.com', 'pass')
+        message = smtp_server.send_message.call_args[0][0]
+        payload = message.as_string()
+
+        self.assertEqual(message['Subject'], 'COMPASS Daily: $98,765 | RISK_OFF | 2 trades')
+        self.assertIn('Portfolio Value:', payload)
+        self.assertIn('$98,765', payload)
+        self.assertIn('Drawdown:', payload)
+        self.assertIn('-12.3%', payload)
+        self.assertIn('Positions:</b></td><td>2', payload)
+        self.assertIn("Today's Trades", payload)
+        self.assertIn('MSFT', payload)
+        self.assertIn('stop_loss', payload)
+        self.assertIn('$-1,235', payload)
+
+    @patch('omnicapital_notifications.smtplib.SMTP')
+    def test_error_alert_includes_error_message_and_traceback(self, mock_smtp):
+        notifier = EmailNotifier(
+            sender='test@test.com',
+            password='pass',
+            recipients=['u@t.com'],
+        )
+        smtp_server = mock_smtp.return_value.__enter__.return_value
+        traceback_str = 'Traceback (most recent call last):\nValueError: boom'
+
+        notifier.send_error_alert('boom', traceback_str)
+
+        message = smtp_server.send_message.call_args[0][0]
+        payload = message.as_string()
+
+        self.assertEqual(message['Subject'], 'COMPASS ERROR: boom')
+        self.assertEqual(message['X-Priority'], '1')
+        self.assertIn('System Error', payload)
+        self.assertIn('boom', payload)
+        self.assertIn(traceback_str, payload)
+
+    @patch('omnicapital_notifications.smtplib.SMTP')
+    def test_daily_summary_and_error_alert_are_noops_when_disabled(self, mock_smtp):
+        notifier = EmailNotifier()
+
+        notifier.send_daily_summary(
+            100000,
+            3,
+            -0.05,
+            [{'action': 'SELL', 'symbol': 'AAPL', 'pnl': -250.0}],
+            True,
+            1.0,
+        )
+        notifier.send_error_alert('network timeout', 'Traceback...')
+
+        mock_smtp.assert_not_called()
+
 
 class TestStatePersistence(unittest.TestCase):
     """Test state save/load (v8.4)"""
