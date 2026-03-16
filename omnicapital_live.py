@@ -3742,6 +3742,8 @@ class COMPASSLive:
                 symbols_needed |= {p['symbol'] for p in self.rattle_positions}
                 symbols_needed |= set(R_UNIVERSE)
                 symbols_needed.add(EFA_SYMBOL)
+                if _catalyst_available:
+                    symbols_needed |= set(CATALYST_TREND_ASSETS)
             symbols_needed = list(symbols_needed)
             raw_prices = self.data_feed.get_prices(symbols_needed)
             prices = self.validator.validate_batch(raw_prices)
