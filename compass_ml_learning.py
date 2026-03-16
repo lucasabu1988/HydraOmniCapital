@@ -521,10 +521,16 @@ class DecisionLogger:
         self._append_jsonl(self._decisions_path, exit_record.to_dict())
 
         # Outcome record — use entry-time context if available
+        had_open_entry = symbol in self._open_entries
         entry_ctx = self._open_entries.pop(symbol, {"decision_id": "unknown"})
         if isinstance(entry_ctx, str):
             # Legacy format: just the decision_id string
             entry_ctx = {"decision_id": entry_ctx}
+        if not had_open_entry:
+            logger.warning(
+                "ML: exit for %s had no matching open entry; using fallback context",
+                symbol,
+            )
         self._save_open_entries()
         entry_decision_id = entry_ctx.get("decision_id", "unknown")
         outcome_label = self._classify_outcome(gross_return, exit_reason)

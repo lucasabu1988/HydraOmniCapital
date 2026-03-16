@@ -1,5 +1,7 @@
 import json
+import logging
 import sys
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -19,6 +21,38 @@ def read_jsonl(path):
         if line.strip():
             records.append(json.loads(line))
     return records
+
+
+def assert_uuid4_hex(value):
+    parsed = uuid.UUID(value)
+
+    assert parsed.hex == value
+    assert parsed.version == 4
+
+
+def assert_decision_record_shape(record, expected_type):
+    assert set(record) == set(ml.DecisionRecord.__dataclass_fields__)
+    assert_uuid4_hex(record['decision_id'])
+    assert record['decision_type'] == expected_type
+    assert isinstance(record['timestamp'], str)
+    assert isinstance(record['trading_day'], int)
+    assert isinstance(record['date'], str)
+    assert isinstance(record['symbol'], str)
+    assert isinstance(record['sector'], str)
+    assert isinstance(record['portfolio_value'], float)
+    assert isinstance(record['portfolio_drawdown'], float)
+
+
+def assert_outcome_record_shape(record):
+    assert set(record) == set(ml.OutcomeRecord.__dataclass_fields__)
+    assert_uuid4_hex(record['outcome_id'])
+    assert isinstance(record['entry_decision_id'], str)
+    assert isinstance(record['symbol'], str)
+    assert isinstance(record['gross_return'], float)
+    assert isinstance(record['pnl_usd'], float)
+    assert isinstance(record['trading_days_held'], int)
+    assert isinstance(record['outcome_label'], str)
+    assert isinstance(record['beat_spy'], bool)
 
 
 class StubFeatureStore:
@@ -96,7 +130,7 @@ def logger(isolate_ml_paths):
     return ml.DecisionLogger(str(isolate_ml_paths))
 
 
-def test_log_entry_writes_valid_jsonl_record(logger):
+def test_log_entry_writes_valid_jsonl_record(logger, isolate_ml_paths):
     decision_id = logger.log_entry(
         symbol='AAPL',
         sector='Technology',
@@ -117,15 +151,25 @@ def test_log_entry_writes_valid_jsonl_record(logger):
     )
 
     records = read_jsonl(Path(ml.DECISIONS_FILE))
+    restored_logger = ml.DecisionLogger(str(isolate_ml_paths))
+    restored_open_entries = restored_logger._load_open_entries()
 
     assert len(records) == 1
+    assert_decision_record_shape(records[0], 'entry')
     assert records[0]['decision_id'] == decision_id
-    assert records[0]['decision_type'] == 'entry'
     assert records[0]['symbol'] == 'AAPL'
     assert records[0]['momentum_score'] == 0.91
+    assert records[0]['momentum_rank'] == 0.95
+    assert records[0]['current_leverage'] == 1.0
+    assert records[0]['spy_price'] is None
+    assert records[0]['exit_reason'] is None
+    assert restored_open_entries['AAPL']['decision_id'] == decision_id
+    assert restored_open_entries['AAPL']['entry_date'] == records[0]['date']
+    assert restored_open_entries['AAPL']['entry_regime_score'] == 0.7
+    assert restored_open_entries['AAPL']['entry_portfolio_drawdown'] == -0.01
 
 
-def test_log_exit_writes_exit_and_outcome_records(logger):
+def test_log_exit_writes_exit_and_outcome_records(logger, isolate_ml_paths):
     entry_id = logger.log_entry(
         symbol='AAPL',
         sector='Technology',
@@ -172,13 +216,60 @@ def test_log_exit_writes_exit_and_outcome_records(logger):
 
     decision_records = read_jsonl(Path(ml.DECISIONS_FILE))
     outcome_records = read_jsonl(Path(ml.OUTCOMES_FILE))
+    restored_logger = ml.DecisionLogger(str(isolate_ml_paths))
 
     assert len(decision_records) == 2
-    assert decision_records[-1]['decision_type'] == 'exit'
+    assert_decision_record_shape(decision_records[-1], 'exit')
+    assert decision_records[-1]['current_return'] == pytest.approx(0.08)
+    assert decision_records[-1]['drawdown_from_high'] == pytest.approx(-0.01818181818181818)
+    assert decision_records[-1]['exit_reason'] == 'hold_expired'
     assert len(outcome_records) == 1
+    assert_outcome_record_shape(outcome_records[0])
     assert outcome_records[0]['entry_decision_id'] == entry_id
+    assert outcome_records[0]['gross_return'] == pytest.approx(0.08)
+    assert outcome_records[0]['pnl_usd'] == 800.0
+    assert outcome_records[0]['trading_days_held'] == 5
     assert outcome_records[0]['outcome_label'] == 'strong_win'
     assert outcome_records[0]['alpha_vs_spy'] == 0.07
+    assert restored_logger._load_open_entries() == {}
+
+
+def test_log_exit_without_open_entry_logs_warning_and_uses_fallback_context(logger, caplog):
+    with caplog.at_level(logging.WARNING, logger=ml.logger.name):
+        logger.log_exit(
+            symbol='MSFT',
+            sector='Technology',
+            exit_reason='hold_expired',
+            entry_price=200.0,
+            exit_price=190.0,
+            pnl_usd=-1000.0,
+            days_held=4,
+            high_price=210.0,
+            entry_vol_ann=0.18,
+            entry_daily_vol=0.012,
+            adaptive_stop_pct=-0.07,
+            entry_momentum_score=0.67,
+            entry_momentum_rank=0.8,
+            regime_score=0.55,
+            max_positions_target=5,
+            current_n_positions=4,
+            portfolio_value=99000.0,
+            portfolio_drawdown=-0.03,
+            current_leverage=1.0,
+            crash_cooldown=0,
+            trading_day=11,
+            spy_return_during_hold=-0.01,
+        )
+
+    outcome_records = read_jsonl(Path(ml.OUTCOMES_FILE))
+
+    assert 'no matching open entry' in caplog.text
+    assert len(outcome_records) == 1
+    assert outcome_records[0]['entry_decision_id'] == 'unknown'
+    assert outcome_records[0]['entry_regime_score'] == 0.55
+    assert outcome_records[0]['entry_spy_vs_sma200'] == 0.0
+    assert outcome_records[0]['gross_return'] == pytest.approx(-0.05)
+    assert outcome_records[0]['outcome_label'] == 'weak_loss'
 
 
 def test_log_skip_writes_skip_record(logger):
