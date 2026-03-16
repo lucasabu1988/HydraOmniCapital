@@ -1,4 +1,5 @@
 import json
+import logging
 import sys
 from datetime import date
 from pathlib import Path
@@ -149,6 +150,24 @@ def test_reconcile_runtime_state_prunes_strategy_lists_when_positions_disappear(
     assert trader.catalyst_positions == []
 
 
+def test_avg_cost_mismatch_preserves_entry_volatility(trader):
+    trader.broker.cash = 98500.0
+    trader.broker.positions['AAPL'] = Position('AAPL', 10, 151.25)
+    trader.position_meta['AAPL'] = {
+        **meta_for('AAPL'),
+        'entry_vol': 0.025,
+        'entry_daily_vol': 0.018,
+    }
+    trader._state_positions_snapshot = {'AAPL': {'shares': 10.0, 'avg_cost': 150.0}}
+    trader._state_cash_snapshot = 98500.0
+
+    changed = trader._reconcile_runtime_state()
+
+    assert changed is True
+    assert trader.position_meta['AAPL']['entry_vol'] == pytest.approx(0.025)
+    assert trader.position_meta['AAPL']['entry_daily_vol'] == pytest.approx(0.018)
+
+
 def test_run_once_triggers_reconciliation_after_daily_open(trader, monkeypatch):
     calls = []
 
@@ -163,3 +182,22 @@ def test_run_once_triggers_reconciliation_after_daily_open(trader, monkeypatch):
 
     assert result is False
     assert calls == ['reconciled']
+
+
+def test_reconcile_exception_does_not_crash_engine(trader, monkeypatch, caplog):
+    monkeypatch.setattr(trader, 'is_market_open', lambda: True)
+    monkeypatch.setattr(trader, 'is_new_trading_day', lambda: True)
+    monkeypatch.setattr(trader, 'daily_open', lambda: None)
+
+    def blow_up():
+        raise RuntimeError('boom')
+
+    monkeypatch.setattr(trader, '_reconcile_runtime_state', blow_up)
+    monkeypatch.setattr(trader.data_feed, 'get_prices', lambda symbols: {})
+    trader.validator.validate_batch = lambda raw_prices: raw_prices
+
+    with caplog.at_level(logging.ERROR, logger=live.logger.name):
+        result = trader.run_once()
+
+    assert result is False
+    assert any('Automated reconciliation failed: boom' in record.message for record in caplog.records)
