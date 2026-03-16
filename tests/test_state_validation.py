@@ -280,3 +280,18 @@ def test_save_state_is_thread_safe_under_concurrent_calls(trader, tmp_path):
     assert trader._last_persisted_cycles_completed == 3
     assert state['trading_day_counter'] == 7
     assert state['stats']['cycles_completed'] == 3
+
+
+def test_write_corrupted_state_backup_prunes_old_files(trader, tmp_path):
+    state_dir = tmp_path / 'state'
+    state_dir.mkdir(parents=True, exist_ok=True)
+    for idx in range(25):
+        backup_path = state_dir / f'compass_state_CORRUPTED_20260316_120000_{idx:06d}.json'
+        backup_path.write_text('{}', encoding='utf-8')
+
+    backup_path = trader._write_corrupted_state_backup(make_state(cash=-1.0), ['cash invalid'])
+    backups = sorted(state_dir.glob('compass_state_CORRUPTED_*.json'))
+
+    assert backup_path is not None
+    assert len(backups) == 20
+    assert backups[0].name == 'compass_state_CORRUPTED_20260316_120000_000006.json'

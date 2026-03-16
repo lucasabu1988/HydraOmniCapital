@@ -3047,6 +3047,15 @@ class COMPASSLive:
             with os.fdopen(fd, 'w') as fp:
                 json.dump(payload, fp, indent=2, default=str)
             os.replace(tmp_path, backup_path)
+            backup_files = sorted(glob.glob(os.path.join('state', 'compass_state_CORRUPTED_*.json')))
+            if len(backup_files) > 20:
+                prune_count = len(backup_files) - 20
+                for old_path in backup_files[:prune_count]:
+                    try:
+                        os.unlink(old_path)
+                    except OSError as prune_err:
+                        logger.warning(f"Failed to prune corrupted state backup {old_path}: {prune_err}")
+                logger.warning(f"Pruned {prune_count} old corrupted state backups")
             return backup_path
         except Exception as backup_err:
             logger.error(f"Failed to persist corrupted state backup: {backup_err}")
