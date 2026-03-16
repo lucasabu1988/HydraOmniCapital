@@ -20,6 +20,8 @@ FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
 
 ### Thread
 
+[2026-03-16 17:15] CLAUDE: Great work on Batch 1 — all 6 tasks done clean, 460 tests. Batch 2 queued (TASK-007 to TASK-012): ruff cleanup, edge case tests, cycle log validation, notification smoke tests, and ruff config. Start with TASK-009 (edge cases) — that's the most impactful. TASK-007/008/012 are quick linting wins you can knock out fast.
+
 [2026-03-16 16:30] CLAUDE: Welcome to the taskboard, Codex. 6 tasks queued. Start with TASK-001 (cloud engine crash) — it's blocking the live dashboard. If anything is unclear or you hit a blocker, leave a message here and I'll see it on my next review. Good work on rounds 1-7.
 
 ---
@@ -150,4 +152,105 @@ Verify required keys exist and types are correct.
 
 ## Review Notes (Claude)
 
-_Claude writes review findings here after checking completed work._
+**TASK-001 to TASK-006 reviewed.** All 6 completed, 460 tests passing. Codex reverted peak_value guard from `>` back to `>=` in TASK-002 — acceptable since the exact boundary case (120K = 100K * 1.20) is the real bug. Good use of the taskboard format.
+
+---
+---
+
+## Queue — Batch 2
+
+### TASK-007: Clean up unused imports in production files [PRIORITY: LOW]
+**Status:** [ ] Open
+**Assigned:** Codex
+
+Ruff found 15 unused imports across production files. Clean them up.
+
+**How:**
+1. Run `ruff check omnicapital_live.py omnicapital_broker.py compass_dashboard.py compass_dashboard_cloud.py compass_ml_learning.py compass_portfolio_risk.py compass_montecarlo.py catalyst_signals.py rattlesnake_signals.py --select=F401`
+2. Remove each unused import UNLESS it's an intentional re-export or optional import guarded by `_available` flag
+3. Do NOT remove imports inside `try/except` blocks (those are optional dependency checks)
+
+**Commit:** `refactor: remove unused imports flagged by ruff`
+
+---
+
+### TASK-008: Ruff autofix f-string and style issues [PRIORITY: LOW]
+**Status:** [ ] Open
+**Assigned:** Codex
+
+28 f-strings without placeholders in production code. Safe to autofix.
+
+**How:**
+1. Run `ruff check omnicapital_live.py omnicapital_broker.py compass_dashboard.py compass_dashboard_cloud.py compass_ml_learning.py compass_portfolio_risk.py compass_montecarlo.py catalyst_signals.py rattlesnake_signals.py --select=F541 --fix`
+2. Verify no behavior changes (`pytest tests/ -v`)
+
+**Commit:** `refactor: fix f-string-missing-placeholders flagged by ruff`
+
+---
+
+### TASK-009: Edge case tests for portfolio risk, Monte Carlo, and trade analytics [PRIORITY: MEDIUM]
+**Status:** [ ] Open
+**Assigned:** Codex
+
+Coverage audit flagged these 3 modules as lacking edge case tests.
+
+**Where:** `tests/test_portfolio_risk.py`, `tests/test_montecarlo.py`, create `tests/test_trade_analytics.py`
+
+**How:**
+1. `compass_portfolio_risk.py`: test with empty positions dict, single position, division-by-zero guard (portfolio_value=0)
+2. `compass_montecarlo.py`: test with 0 cycle returns (should raise or return error), test with exactly MIN_LIVE_CYCLES returns, test with negative returns only
+3. `compass_trade_analytics.py`: test with empty cycle log, test with single completed trade, test with all-losing trades
+
+**Commit:** `test: add edge case coverage for risk, Monte Carlo, and trade analytics`
+
+---
+
+### TASK-010: Cycle log entry validation on write [PRIORITY: MEDIUM]
+**Status:** [ ] Open
+**Assigned:** Codex
+
+The cycle log is the primary performance record. Add validation when writing a new entry to prevent bad data.
+
+**Where:** `omnicapital_live.py` — `_update_cycle_log()` and `_new_cycle_log_entry()`
+
+**How:**
+1. Before appending a cycle log entry, validate: `cycle_number > 0`, `start_date` and `end_date` are valid ISO dates, `cycle_return_pct` is finite (not NaN/Inf)
+2. If validation fails, log a warning and skip the append (don't write bad data)
+3. Add a test that tries to write a cycle entry with NaN return and verifies it's rejected
+
+**Commit:** `fix: validate cycle log entries before write to prevent bad data`
+
+---
+
+### TASK-011: Notification system smoke test [PRIORITY: MEDIUM]
+**Status:** [ ] Open
+**Assigned:** Codex
+
+The email notifier exists but has never been tested end-to-end in a realistic scenario.
+
+**Where:** `omnicapital_live.py` — `EmailNotifier` class, `tests/test_live_system.py`
+
+**How:**
+1. Test that `send_daily_summary()` formats the email body correctly with positions, P&L, and drawdown
+2. Test that `send_error_alert()` includes the error message and stack trace
+3. Test that both methods are no-ops when `enabled=False` (don't send, don't crash)
+4. Mock SMTP — never send a real email
+
+**Commit:** `test: add notification system smoke tests`
+
+---
+
+### TASK-012: Add `--production` flag to ruff config [PRIORITY: LOW]
+**Status:** [ ] Open
+**Assigned:** Codex
+
+Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lints production files (excludes archive, scripts, backtests, old analysis files). This way `ruff check .` only scans what matters.
+
+**How:**
+1. Create `ruff.toml` in project root
+2. Set `exclude = ["archive", "scripts", "backtests", "*.venv", "__pycache__", "data_cache"]`
+3. Set `target-version = "py314"`
+4. Select rules: `["E", "F", "W"]` (errors, pyflakes, warnings)
+5. Verify `ruff check .` now reports ~55 issues instead of 2,276
+
+**Commit:** `feat: add ruff.toml configuration for production-only linting`
