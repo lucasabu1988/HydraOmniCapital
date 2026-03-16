@@ -13,6 +13,7 @@ Results (backtest 2000-2026):
   CAGR 15.62% | MaxDD -21.7% | Sharpe 1.08
 """
 
+import math
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -643,6 +644,17 @@ def compute_adaptive_stop(entry_daily_vol: float, config: Dict) -> float:
       High-vol (daily_vol=4.5%):  stop = -11.25%
       Very-high (daily_vol=6%+):  stop = -15.0% (CEILING)
     """
+    if entry_daily_vol is None:
+        return config['STOP_FLOOR']
+
+    try:
+        entry_daily_vol = float(entry_daily_vol)
+    except (TypeError, ValueError):
+        return config['STOP_FLOOR']
+
+    if not math.isfinite(entry_daily_vol) or entry_daily_vol <= 0:
+        return config['STOP_FLOOR']
+
     raw_stop = -config['STOP_DAILY_VOL_MULT'] * entry_daily_vol
     return max(config['STOP_CEILING'], min(config['STOP_FLOOR'], raw_stop))
 
