@@ -709,14 +709,12 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
 
 
 def get_spy_start_price() -> Optional[float]:
-    """Get SPY price at live test start (cached after first fetch).
-    Uses cycle_log spy_start as source of truth (same value used by cycle log).
-    Falls back to yfinance if cycle_log unavailable."""
+    """Get SPY price at live test start from cycle_log first cycle.
+    Returns None if no cycles exist yet (fresh start)."""
     global _spy_start_price
     if _spy_start_price is not None:
         return _spy_start_price
 
-    # Primary: use cycle_log spy_start (ensures dashboard == cycle log)
     log_file = os.path.join(STATE_DIR, 'cycle_log.json')
     if os.path.exists(log_file):
         try:
@@ -729,26 +727,6 @@ def get_spy_start_price() -> Optional[float]:
                     return _spy_start_price
         except Exception:
             pass
-
-    # Fallback: fetch from yfinance
-    state_files = sorted(glob.glob(os.path.join(STATE_DIR, 'compass_state_2*.json')))
-    if not state_files:
-        return None
-
-    try:
-        with open(state_files[0], 'r') as f:
-            first_state = json.load(f)
-        start_date = first_state.get('last_trading_date')
-        if not start_date:
-            return None
-
-        spy = yf.Ticker('SPY')
-        hist = spy.history(start=start_date, end=(date.fromisoformat(start_date) + timedelta(days=5)).isoformat())
-        if not hist.empty:
-            _spy_start_price = float(hist['Close'].iloc[0])
-            return _spy_start_price
-    except Exception:
-        pass
 
     return None
 

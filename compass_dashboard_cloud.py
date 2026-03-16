@@ -154,7 +154,6 @@ SOCIAL_CACHE_SECONDS = 300  # 5 minutes
 
 # Live test started Mar 6, 2026 — ^GSPC prev close on that date
 LIVE_TEST_START_DATE = '2026-03-05'
-LIVE_TEST_SPY_START = 6830.71  # ^GSPC prev close on 2026-03-06
 LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
@@ -489,14 +488,26 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
 
 
 def get_spy_start_price() -> Optional[float]:
-    """Get S&P 500 index close price on live test start date (cached)."""
+    """Get SPY price at live test start from cycle_log first cycle.
+    Returns None if no cycles exist yet (fresh start)."""
     global _spy_start_price
     if _spy_start_price is not None:
         return _spy_start_price
 
-    # Use hardcoded value (verified ^GSPC close on live test start date)
-    _spy_start_price = LIVE_TEST_SPY_START
-    return _spy_start_price
+    log_file = os.path.join(STATE_DIR, 'cycle_log.json')
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r') as f:
+                cycles = json.load(f)
+            if cycles:
+                first_spy = cycles[0].get('spy_start')
+                if first_spy and first_spy > 0:
+                    _spy_start_price = float(first_spy)
+                    return _spy_start_price
+        except Exception:
+            pass
+
+    return None
 
 
 def _compute_real_trading_day(state: dict) -> int:
