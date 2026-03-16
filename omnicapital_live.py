@@ -23,6 +23,7 @@ import os
 import sys
 import glob
 import tempfile
+import copy
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 import warnings
@@ -797,6 +798,8 @@ class COMPASSLive:
         self._max_consecutive_errors = 5
         self._last_stop_check = datetime.now()
         self._last_state_save = datetime.now()
+        self._last_persisted_cycles_completed = None
+        self._last_persisted_trading_day_counter = None
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
 
@@ -2977,6 +2980,195 @@ class COMPASSLive:
     # State persistence
     # ------------------------------------------------------------------
 
+    def _coerce_float(self, value, default=0.0):
+        try:
+            number = float(value)
+            if np.isnan(number) or np.isinf(number):
+                return float(default)
+            return number
+        except (TypeError, ValueError):
+            return float(default)
+
+    def _coerce_int(self, value, default=0):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return int(default)
+
+    def _estimate_state_positions_value(self, positions: Dict[str, dict]) -> float:
+        total = 0.0
+        for data in (positions or {}).values():
+            if not isinstance(data, dict):
+                continue
+            shares = self._coerce_float(data.get('shares'), 0.0)
+            avg_cost = self._coerce_float(data.get('avg_cost'), 0.0)
+            if shares > 0 and avg_cost > 0:
+                total += shares * avg_cost
+        return total
+
+    def _build_position_meta_defaults(self, symbol: str, data: dict,
+                                      trading_day_counter: int,
+                                      entry_date: Optional[str]) -> dict:
+        avg_cost = self._coerce_float((data or {}).get('avg_cost'), 0.0)
+        entry_day_index = max(0, trading_day_counter)
+        return {
+            'entry_price': avg_cost,
+            'high_price': avg_cost,
+            'entry_day_index': entry_day_index,
+            'original_entry_day_index': entry_day_index,
+            'entry_date': entry_date,
+            'sector': SECTOR_MAP.get(symbol, 'Unknown'),
+        }
+
+    def _write_corrupted_state_backup(self, state: dict, violations: List[str]) -> Optional[str]:
+        os.makedirs('state', exist_ok=True)
+        backup_path = os.path.join(
+            'state',
+            f"compass_state_CORRUPTED_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
+        )
+        payload = copy.deepcopy(state)
+        payload['_validation_errors'] = list(violations)
+        tmp_path = None
+        try:
+            fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+            with os.fdopen(fd, 'w') as fp:
+                json.dump(payload, fp, indent=2, default=str)
+            os.replace(tmp_path, backup_path)
+            return backup_path
+        except Exception as backup_err:
+            logger.error(f"Failed to persist corrupted state backup: {backup_err}")
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+        return None
+
+    def _validate_state(self, state, source='save', previous_state=None):
+        state = copy.deepcopy(state or {})
+        violations = []
+        initial_capital = self._coerce_float(
+            self.config.get('PAPER_INITIAL_CASH', self.config.get('INITIAL_CAPITAL', 100_000)),
+            100_000.0,
+        )
+
+        positions = state.get('positions')
+        if not isinstance(positions, dict):
+            violations.append("positions must be a dict; resetting to empty")
+            positions = {}
+        state['positions'] = positions
+
+        position_meta = state.get('position_meta')
+        if not isinstance(position_meta, dict):
+            violations.append("position_meta must be a dict; resetting to empty")
+            position_meta = {}
+        state['position_meta'] = position_meta
+
+        trading_day_counter = self._coerce_int(state.get('trading_day_counter'), 0)
+        if trading_day_counter < 0:
+            violations.append(f"trading_day_counter={trading_day_counter} cannot be negative; resetting to 0")
+            trading_day_counter = 0
+
+        prev_trading_day = None
+        if previous_state is not None:
+            prev_trading_day = self._coerce_int(previous_state.get('trading_day_counter'), trading_day_counter)
+        elif self._last_persisted_trading_day_counter is not None:
+            prev_trading_day = self._last_persisted_trading_day_counter
+        if prev_trading_day is not None and trading_day_counter < prev_trading_day:
+            violations.append(
+                f"trading_day_counter decreased from {prev_trading_day} to {trading_day_counter}; keeping {prev_trading_day}"
+            )
+            trading_day_counter = prev_trading_day
+        state['trading_day_counter'] = trading_day_counter
+
+        stats = state.get('stats')
+        if not isinstance(stats, dict):
+            violations.append("stats must be a dict; resetting to empty")
+            stats = {}
+        cycles_completed = self._coerce_int(stats.get('cycles_completed'), 0)
+        if cycles_completed < 0:
+            violations.append(f"cycles_completed={cycles_completed} cannot be negative; resetting to 0")
+            cycles_completed = 0
+
+        prev_cycles = None
+        if previous_state is not None:
+            prev_cycles = self._coerce_int(
+                (previous_state.get('stats') or {}).get('cycles_completed'),
+                cycles_completed,
+            )
+        elif self._last_persisted_cycles_completed is not None:
+            prev_cycles = self._last_persisted_cycles_completed
+        if prev_cycles is not None and cycles_completed > prev_cycles + 1:
+            violations.append(
+                f"cycles_completed jumped from {prev_cycles} to {cycles_completed}; capping to {prev_cycles + 1}"
+            )
+            cycles_completed = prev_cycles + 1
+        stats['cycles_completed'] = cycles_completed
+        state['stats'] = stats
+
+        cash = self._coerce_float(state.get('cash'), initial_capital)
+        if cash < 0:
+            violations.append(f"cash={cash:.2f} cannot be negative; resetting to 0")
+            cash = 0.0
+        state['cash'] = cash
+
+        estimated_positions_value = self._estimate_state_positions_value(positions)
+        portfolio_value = self._coerce_float(state.get('portfolio_value'), cash + estimated_positions_value)
+        if portfolio_value <= 0:
+            fallback_portfolio = cash + estimated_positions_value
+            if fallback_portfolio <= 0:
+                fallback_portfolio = initial_capital
+            violations.append(
+                f"portfolio_value={portfolio_value:.2f} must be positive; resetting to {fallback_portfolio:.2f}"
+            )
+            portfolio_value = fallback_portfolio
+        state['portfolio_value'] = portfolio_value
+
+        peak_value = self._coerce_float(state.get('peak_value'), max(portfolio_value, initial_capital))
+        if peak_value < portfolio_value:
+            violations.append(
+                f"peak_value={peak_value:.2f} below portfolio_value={portfolio_value:.2f}; raising to current portfolio"
+            )
+            peak_value = portfolio_value
+
+        peak_cap = initial_capital * 5
+        if peak_value > peak_cap and portfolio_value <= peak_cap:
+            violations.append(
+                f"peak_value={peak_value:.2f} exceeds sanity cap {peak_cap:.2f}; capping"
+            )
+            peak_value = peak_cap
+
+        if trading_day_counter <= 1 and not positions and abs(peak_value - initial_capital) > 0.01:
+            violations.append(
+                f"peak_value={peak_value:.2f} invalid for day {trading_day_counter} with no positions; resetting to initial capital"
+            )
+            peak_value = initial_capital
+            if portfolio_value <= 0:
+                portfolio_value = initial_capital
+                state['portfolio_value'] = portfolio_value
+
+        if peak_value < portfolio_value:
+            violations.append(
+                f"peak_value={peak_value:.2f} still below portfolio_value={portfolio_value:.2f}; aligning with portfolio"
+            )
+            peak_value = portfolio_value
+        state['peak_value'] = peak_value
+
+        entry_date = state.get('last_trading_date')
+        for symbol, data in positions.items():
+            if symbol not in position_meta:
+                violations.append(f"position_meta missing {symbol}; creating default metadata")
+                position_meta[symbol] = self._build_position_meta_defaults(
+                    symbol,
+                    data if isinstance(data, dict) else {},
+                    trading_day_counter,
+                    entry_date,
+                )
+
+        self._last_persisted_cycles_completed = cycles_completed
+        self._last_persisted_trading_day_counter = trading_day_counter
+        return state, violations
+
     def save_state(self):
         """Save full system state to JSON"""
         portfolio = self.broker.get_portfolio()
@@ -3057,6 +3249,32 @@ class COMPASSLive:
             'ml_error_counts': dict(_ml_error_counts),
         }
 
+        original_state = copy.deepcopy(state)
+        previous_state = {
+            'trading_day_counter': self._last_persisted_trading_day_counter,
+            'stats': {'cycles_completed': self._last_persisted_cycles_completed},
+        }
+        state, violations = self._validate_state(
+            state,
+            source='save',
+            previous_state=previous_state if self._last_persisted_trading_day_counter is not None
+            or self._last_persisted_cycles_completed is not None else None,
+        )
+        if violations:
+            backup_path = self._write_corrupted_state_backup(original_state, violations)
+            logger.critical(
+                "STATE VALIDATION FAILED before save: %s%s",
+                "; ".join(violations),
+                f" | backup={backup_path}" if backup_path else "",
+            )
+            self.peak_value = state['peak_value']
+            self.trading_day_counter = state['trading_day_counter']
+            self.position_meta = state['position_meta']
+            try:
+                self.broker.cash = state['cash']
+            except Exception:
+                pass
+
         os.makedirs('state', exist_ok=True)
         filename = f'state/compass_state_{datetime.now().strftime("%Y%m%d")}.json'
         latest = 'state/compass_state_latest.json'
@@ -3134,6 +3352,21 @@ class COMPASSLive:
         if state is None:
             logger.error("ALL state files corrupted or invalid — HALTING to prevent wrong trades")
             raise RuntimeError("Cannot load any valid state file. Manual intervention required.")
+
+        previous_state = None
+        if len(candidates) > 1 and loaded_from == candidates[0]:
+            for fallback_candidate in candidates[1:]:
+                previous_state = self._try_load_json(fallback_candidate)
+                if previous_state is not None:
+                    break
+
+        state, violations = self._validate_state(
+            state,
+            source='load',
+            previous_state=previous_state,
+        )
+        for violation in violations:
+            logger.warning(f"State validation repaired on load: {violation}")
 
         # Restore portfolio state
         self.peak_value = state.get('peak_value', self.config['PAPER_INITIAL_CASH'])

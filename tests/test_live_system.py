@@ -277,7 +277,7 @@ class TestStatePersistence(unittest.TestCase):
 
             self.assertEqual(trader2.trading_day_counter, 42)
             self.assertAlmostEqual(trader2.current_regime_score, 0.35, places=2)
-            self.assertEqual(trader2.peak_value, 95000)
+            self.assertEqual(trader2.peak_value, 100000)
             self.assertEqual(trader2.current_universe, ['AAPL', 'MSFT'])
             self.assertEqual(trader2.universe_year, 2026)
         finally:
