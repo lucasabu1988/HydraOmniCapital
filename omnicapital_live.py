@@ -817,6 +817,7 @@ class COMPASSLive:
         self._state_cash_snapshot = float(config['PAPER_INITIAL_CASH'])
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
+        self._startup_self_test_done = False
 
         # Cycle log tracking
         self._pre_rotation_value = None   # portfolio value before exits
@@ -1083,6 +1084,100 @@ class COMPASSLive:
                 logger.info("FRED overlay data refreshed")
             except Exception as e:
                 logger.warning(f"FRED refresh failed, using cached data: {e}")
+
+    def _startup_self_test(self):
+        total_checks = 5
+        passed = 0
+        warnings = []
+
+        if _catalyst_available:
+            passed += 1
+        else:
+            warnings.append("Catalyst unavailable")
+
+        if self._hydra_available:
+            passed += 1
+        else:
+            warnings.append("HYDRA unavailable")
+
+        spy_price = 0.0
+        try:
+            if hasattr(self.data_feed, 'get_price'):
+                spy_price = self._coerce_float(self.data_feed.get_price('SPY'), 0.0)
+            if spy_price <= 0 and hasattr(self.data_feed, 'get_prices'):
+                spy_price = self._coerce_float(
+                    (self.data_feed.get_prices(['SPY']) or {}).get('SPY'),
+                    0.0,
+                )
+        except Exception as e:
+            warnings.append(f"SPY price check failed: {e}")
+        else:
+            if spy_price > 0:
+                passed += 1
+            else:
+                warnings.append("SPY price check failed: no valid price returned")
+
+        refresh_error = None
+        try:
+            self.refresh_daily_data()
+        except Exception as e:
+            refresh_error = e
+
+        if _catalyst_available:
+            missing_assets = [
+                symbol for symbol in CATALYST_TREND_ASSETS
+                if symbol not in self._catalyst_hist
+                or self._catalyst_hist.get(symbol) is None
+                or len(self._catalyst_hist.get(symbol)) == 0
+            ]
+            if not missing_assets:
+                passed += 1
+            else:
+                detail = ", ".join(missing_assets[:4])
+                if len(missing_assets) > 4:
+                    detail += ", ..."
+                message = f"Catalyst history missing for {detail}"
+                if refresh_error is not None:
+                    message += f" (refresh error: {refresh_error})"
+                warnings.append(message)
+        else:
+            warnings.append("Catalyst history check skipped because Catalyst is unavailable")
+
+        if self.current_universe:
+            passed += 1
+        else:
+            warnings.append("Current universe is empty")
+
+        if warnings:
+            logger.warning(
+                "HYDRA startup self-test: %s/%s checks passed - %s",
+                passed,
+                total_checks,
+                " | ".join(warnings),
+            )
+        else:
+            logger.info("HYDRA startup self-test: %s/%s checks passed", passed, total_checks)
+
+        return {
+            'passed': passed,
+            'total': total_checks,
+            'warnings': warnings,
+        }
+
+    def _run_startup_self_test_once(self):
+        if self._startup_self_test_done:
+            return None
+        try:
+            return self._startup_self_test()
+        except Exception as e:
+            logger.warning(f"HYDRA startup self-test crashed unexpectedly: {e}", exc_info=True)
+            return {
+                'passed': 0,
+                'total': 5,
+                'warnings': [str(e)],
+            }
+        finally:
+            self._startup_self_test_done = True
 
     def refresh_universe(self):
         """Refresh top-N universe if new year (dynamic S&P 500 constituents)"""
@@ -3981,6 +4076,7 @@ class COMPASSLive:
     def run(self, interval: int = 60):
         """Main trading loop"""
         logger.info("Starting COMPASS v8.4 live trading loop...")
+        self._run_startup_self_test_once()
 
         # Kill switch check
         kill_file = 'STOP_TRADING'

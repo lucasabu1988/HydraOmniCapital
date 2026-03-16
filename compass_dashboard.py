@@ -289,6 +289,7 @@ def _run_live_engine():
 
         trader = COMPASSLive(config)
         trader.load_state()
+        trader._run_startup_self_test_once()
 
         # Try notifications (WhatsApp preferred, email fallback)
         try:

@@ -243,6 +243,32 @@ def test_run_once_ignores_stale_guard_when_market_is_closed(trader, caplog, monk
                    for record in caplog.records)
 
 
+def test_startup_self_test_logs_expected_summary(trader, monkeypatch, caplog):
+    trader._hydra_available = True
+    trader._startup_self_test_done = False
+    trader.current_universe = ['AAPL', 'MSFT']
+
+    monkeypatch.setattr(live, '_catalyst_available', True, raising=False)
+    monkeypatch.setattr(live, 'CATALYST_TREND_ASSETS', ['TLT', 'GLD'], raising=False)
+
+    def fake_refresh_daily_data():
+        trader._catalyst_hist = {
+            'TLT': make_hist(90.0, 0.05, periods=220),
+            'GLD': make_hist(180.0, 0.03, periods=220),
+        }
+
+    monkeypatch.setattr(trader, 'refresh_daily_data', fake_refresh_daily_data)
+
+    with caplog.at_level(logging.INFO, logger=live.logger.name):
+        result = trader._startup_self_test()
+
+    assert result['passed'] == 5
+    assert result['total'] == 5
+    assert result['warnings'] == []
+    assert any('HYDRA startup self-test: 5/5 checks passed' in record.message
+               for record in caplog.records)
+
+
 @pytest.mark.parametrize('fail_on', ['entry', 'hold', 'skip', 'snapshot'])
 def test_ml_fail_safe_counters_increment_without_crashing(trader, temp_runtime, fail_on):
     trader.ml = FailingML(fail_on)
