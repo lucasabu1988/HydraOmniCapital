@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-16T14:25:12.575018",
-  "cash": 100000,
+  "timestamp": "2026-03-16T14:41:08.449814",
+  "cash": 57684.10548822021,
   "peak_value": 120000,
-  "portfolio_value": 100000,
+  "portfolio_value": 99959.43597070311,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000
@@ -11,8 +11,57 @@
   "current_regime_score": 0.48326506712266426,
   "trading_day_counter": 1,
   "last_trading_date": "2026-03-16",
-  "positions": {},
-  "position_meta": {},
+  "positions": {
+    "JNJ": {
+      "shares": 107,
+      "avg_cost": 242.47500610351562
+    },
+    "GEV": {
+      "shares": 9,
+      "avg_cost": 824.1900024414062
+    },
+    "EFA": {
+      "shares": 91,
+      "avg_cost": 98.04000091552734
+    }
+  },
+  "position_meta": {
+    "JNJ": {
+      "entry_price": 242.47500610351562,
+      "entry_date": "2026-03-16",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 242.50999450683594,
+      "entry_vol": 0.15986035968629964,
+      "entry_daily_vol": 0.010070256100649625,
+      "sector": "Healthcare",
+      "entry_momentum_score": 1.9890691457592615,
+      "entry_momentum_rank": 1.0
+    },
+    "GEV": {
+      "entry_price": 824.1900024414062,
+      "entry_date": "2026-03-16",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 826.1500244140625,
+      "entry_vol": 0.4165747650252211,
+      "entry_daily_vol": 0.026241743588616726,
+      "sector": "Unknown",
+      "entry_momentum_score": 0.9331994416779369,
+      "entry_momentum_rank": 0.9393939393939394
+    },
+    "EFA": {
+      "entry_price": 98.04000091552734,
+      "entry_date": "2026-03-16",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 98.06500244140625,
+      "entry_vol": 0.15,
+      "entry_daily_vol": 0.0095,
+      "sector": "International Equity",
+      "_entry_reconciled": true
+    }
+  },
   "current_universe": [
     "TSLA",
     "NVDA",
@@ -58,13 +107,35 @@
   "universe_year": 2026,
   "_universe_source": "github",
   "_daily_open_done": true,
-  "_preclose_entries_done": false,
+  "_preclose_entries_done": true,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
-    "per_overlay": {},
+    "per_overlay": {
+      "bso": 1.0,
+      "m2": 1.0,
+      "fomc": 1.0
+    },
     "position_floor": null,
-    "diagnostics": {}
+    "diagnostics": {
+      "bso": {
+        "nfci": -0.5137,
+        "stlfsi": -0.4279,
+        "hy_pct": 3.17,
+        "scalar": 1.0
+      },
+      "m2": {
+        "scalar": 1.0
+      },
+      "fomc": {
+        "scalar": 1.0,
+        "surprise_active": false
+      },
+      "fed_emergency": {
+        "emergency_active": false,
+        "position_floor": null
+      }
+    }
   },
   "hydra": {
     "available": true,
@@ -75,23 +146,23 @@
     "catalyst_positions": [],
     "catalyst_day_counter": 0,
     "capital_manager": {
-      "compass_account": 42500.0,
-      "rattle_account": 42500.0,
+      "compass_account": 42499.899,
+      "rattle_account": 33578.35991668701,
       "catalyst_account": 15000.0,
       "base_compass_alloc": 0.425,
       "base_rattle_alloc": 0.425,
       "base_catalyst_alloc": 0.15,
       "max_compass_alloc": 0.75,
-      "total_recycled_days": 0,
-      "total_days": 0,
-      "efa_value": 0.0
+      "total_recycled_days": 5,
+      "total_days": 5,
+      "efa_value": 8921.640083312988
     }
   },
   "_pre_rotation_positions_data": {},
   "_pre_rotation_cash": 100000,
   "_pre_rotation_value": 100000,
   "stats": {
-    "cycles_completed": 354,
-    "uptime_minutes": 957.2541537666667
+    "cycles_completed": 369,
+    "uptime_minutes": 973.1854004666667
   }
 }
