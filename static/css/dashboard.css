@@ -1324,9 +1324,146 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
 .cycle-log-table .cl-active { color: var(--yellow); font-weight: 600; }
 .cycle-log-table .cl-pos { color: var(--green); }
 .cycle-log-table .cl-neg { color: var(--red); }
-.cycle-log-table .cl-tickers { color: var(--text-tertiary); font-size: 11px; }
+.cycle-log-table .cl-tickers {
+    color: var(--text-tertiary);
+    font-size: 11px;
+    min-width: 320px;
+    vertical-align: top;
+}
 .cycle-log-table .cl-num { text-align: right; font-variant-numeric: tabular-nums; }
 .cycle-log-table th.cl-num { text-align: right; }
+.cl-cycle-tickers {
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+.cl-cycle-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+.cl-alpha-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--bg-card, rgba(255,255,255,0.03));
+    border: 1px solid var(--border);
+}
+.cl-alpha-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.cl-alpha-badge {
+    font-size: 11px;
+    font-weight: 700;
+}
+.cl-alpha-pos { color: var(--green); }
+.cl-alpha-neg { color: var(--red); }
+.cl-alpha-flat { color: var(--yellow); }
+.cl-reason-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.cl-reason-pill,
+.cl-detail-exit {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    border: 1px solid transparent;
+}
+.cl-reason-pill {
+    background: var(--bg-card, rgba(255,255,255,0.03));
+}
+.cl-reason-stop_loss {
+    color: var(--red);
+    background: rgba(239, 68, 68, 0.10);
+    border-color: rgba(239, 68, 68, 0.20);
+}
+.cl-reason-rotation {
+    color: var(--yellow);
+    background: rgba(245, 158, 11, 0.10);
+    border-color: rgba(245, 158, 11, 0.20);
+}
+.cl-reason-trailing {
+    color: var(--green);
+    background: rgba(34, 197, 94, 0.10);
+    border-color: rgba(34, 197, 94, 0.20);
+}
+.cl-detail-block {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.cl-detail-title {
+    margin-bottom: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.cl-detail-table-wrap {
+    overflow-x: auto;
+}
+.cl-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+.cl-detail-table th,
+.cl-detail-table td {
+    padding: 6px 0;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.cl-detail-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.cl-detail-table td:last-child,
+.cl-detail-table th:last-child {
+    text-align: right;
+}
+.cl-detail-table td:nth-child(2),
+.cl-detail-table th:nth-child(2) {
+    text-align: right;
+}
+.cl-detail-symbol {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+.cl-detail-pnl {
+    font-variant-numeric: tabular-nums;
+}
+.cl-detail-exit-pos {
+    color: var(--green);
+    background: rgba(34, 197, 94, 0.10);
+    border-color: rgba(34, 197, 94, 0.20);
+}
+.cl-detail-exit-neg {
+    color: var(--red);
+    background: rgba(239, 68, 68, 0.10);
+    border-color: rgba(239, 68, 68, 0.20);
+}
+.cl-detail-exit-flat {
+    color: var(--yellow);
+    background: rgba(245, 158, 11, 0.10);
+    border-color: rgba(245, 158, 11, 0.20);
+}
 
 /* ============ POSITIONS — HERO SECTION ============ */
 .positions-hero {
@@ -2794,6 +2931,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     /* Cycle log table horizontal scroll */
     .cycle-log { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .cycle-log-table { min-width: 600px; }
+    .cl-reason-pills,
+    .cl-detail-table-wrap { display: none; }
+    .cl-cycle-tickers { margin-bottom: 6px; }
     /* Perf banner period padding */
     .perf-banner-period { padding: 0 16px 12px; }
 }

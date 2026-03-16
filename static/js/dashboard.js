@@ -1169,6 +1169,85 @@ async function fetchSocialFeed() {
 
 
 /* ============ CYCLE LOG ============ */
+function fmtCyclePp(v) {
+    if (v == null || isNaN(v)) return '--';
+    return (v >= 0 ? '+' : '') + v.toFixed(2) + ' pp';
+}
+
+function cycleExitLabel(reason) {
+    const labels = {
+        position_stop: 'Stop loss',
+        trailing_stop: 'Trailing',
+        hold_expired: 'Rotación',
+        universe_rotation: 'Rotación',
+        carried_forward: 'Sigue activo',
+    };
+    if (!reason) return '--';
+    return labels[reason] || reason.replace(/_/g, ' ');
+}
+
+function cycleReasonLabel(reason) {
+    const labels = {
+        stop_loss: 'stop',
+        rotation: 'rotación',
+        trailing: 'trailing',
+    };
+    if (!reason) return '--';
+    return labels[reason] || reason.replace(/_/g, ' ');
+}
+
+function renderCycleReasonPills(exitsByReason) {
+    if (!exitsByReason || typeof exitsByReason !== 'object') return '';
+    const orderedKeys = ['stop_loss', 'rotation', 'trailing'];
+    const extraKeys = Object.keys(exitsByReason).filter(function(key) {
+        return orderedKeys.indexOf(key) === -1;
+    });
+    const keys = orderedKeys.concat(extraKeys).filter(function(key) {
+        return exitsByReason[key];
+    });
+    if (!keys.length) return '';
+
+    const pills = keys.map(function(key) {
+        return '<span class="cl-reason-pill cl-reason-' + escHtml(key) + '">'
+            + escHtml(String(exitsByReason[key])) + 'x ' + escHtml(cycleReasonLabel(key))
+            + '</span>';
+    });
+    return '<div class="cl-reason-pills">' + pills.join('') + '</div>';
+}
+
+function renderCycleAlphaBadge(alphaPp) {
+    const cls = alphaPp > 0 ? 'cl-alpha-pos' : alphaPp < 0 ? 'cl-alpha-neg' : 'cl-alpha-flat';
+    return '<div class="cl-alpha-box">'
+        + '<span class="cl-alpha-label">Alpha vs S&amp;P</span>'
+        + '<span class="cl-alpha-badge ' + cls + '">' + fmtCyclePp(alphaPp) + '</span>'
+        + '</div>';
+}
+
+function renderCyclePositionsDetail(details) {
+    if (!Array.isArray(details) || !details.length) return '';
+
+    const rows = details.map(function(detail) {
+        const pnl = detail && detail.pnl_pct != null ? detail.pnl_pct : null;
+        const pnlCls = pnl > 0 ? 'cl-pos' : pnl < 0 ? 'cl-neg' : '';
+        const exitCls = pnl > 0 ? 'cl-detail-exit-pos' : pnl < 0 ? 'cl-detail-exit-neg' : 'cl-detail-exit-flat';
+        return '<tr>'
+            + '<td class="cl-detail-symbol">' + escHtml(detail.symbol || '--') + '</td>'
+            + '<td class="cl-detail-pnl ' + pnlCls + '">' + fmtPct(pnl) + '</td>'
+            + '<td><span class="cl-detail-exit ' + exitCls + '">' + escHtml(cycleExitLabel(detail.exit_reason)) + '</span></td>'
+            + '</tr>';
+    });
+
+    return '<div class="cl-detail-block">'
+        + '<div class="cl-detail-title">Detalle</div>'
+        + '<div class="cl-detail-table-wrap">'
+        + '<table class="cl-detail-table">'
+        + '<thead><tr><th>Ticker</th><th>P&amp;L</th><th>Razón de salida</th></tr></thead>'
+        + '<tbody>' + rows.join('') + '</tbody>'
+        + '</table>'
+        + '</div>'
+        + '</div>';
+}
+
 async function fetchCycleLog() {
     try {
         const res = await fetch('/api/cycle-log');
@@ -1189,6 +1268,9 @@ async function fetchCycleLog() {
             const spyCls = c.spy_return > 0 ? 'cl-pos' : c.spy_return < 0 ? 'cl-neg' : '';
             const alphaCls = c.alpha > 0 ? 'cl-pos' : c.alpha < 0 ? 'cl-neg' : '';
             const period = c.end_date ? c.start_date + ' → ' + c.end_date : c.start_date + ' → ...';
+            const alphaBadge = renderCycleAlphaBadge(c.alpha_pct != null ? c.alpha_pct : c.alpha);
+            const reasonPills = renderCycleReasonPills(c.exits_by_reason);
+            const detailTable = renderCyclePositionsDetail(c.positions_detail);
             // Build tickers display — use positions_current for active cycles
             var tickers = '--';
             var displayPositions = (isActive && c.positions_current) ? c.positions_current : c.positions;
@@ -1201,7 +1283,7 @@ async function fetchCycleLog() {
                 }
                 var parts = [];
                 for (var ti = 0; ti < displayPositions.length; ti++) {
-                    parts.push(displayPositions[ti]);
+                    parts.push(escHtml(displayPositions[ti]));
                 }
                 // Show stopped tickers as strikethrough prefix
                 var stoppedParts = [];
@@ -1223,7 +1305,11 @@ async function fetchCycleLog() {
             html += '<tr>' +
                 '<td>#' + c.cycle + '</td>' +
                 '<td>' + period + '</td>' +
-                '<td class="cl-tickers">' + tickers + '</td>' +
+                '<td class="cl-tickers">'
+                    + '<div class="cl-cycle-tickers">' + tickers + '</div>'
+                    + '<div class="cl-cycle-meta-row">' + alphaBadge + reasonPills + '</div>'
+                    + detailTable
+                    + '</td>' +
                 '<td class="cl-num ' + hydraCls + '">' + hydra + '</td>' +
                 '<td class="cl-num ' + spyCls + '">' + spy + '</td>' +
                 '<td class="cl-num ' + alphaCls + '">' + alpha + '</td>' +
