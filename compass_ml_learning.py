@@ -285,11 +285,11 @@ class DecisionLogger:
     def __init__(self, db_dir: str = LEARNING_DB_DIR):
         self.db_dir = Path(db_dir)
         self.db_dir.mkdir(parents=True, exist_ok=True)
-        Path(MODELS_DIR).mkdir(parents=True, exist_ok=True)
+        (self.db_dir / "models").mkdir(parents=True, exist_ok=True)
 
-        self._decisions_path = Path(DECISIONS_FILE)
-        self._outcomes_path  = Path(OUTCOMES_FILE)
-        self._snapshots_path = Path(SNAPSHOTS_FILE)
+        self._decisions_path = self.db_dir / "decisions.jsonl"
+        self._outcomes_path  = self.db_dir / "outcomes.jsonl"
+        self._snapshots_path = self.db_dir / "daily_snapshots.jsonl"
 
         # Persistent index: symbol -> entry_decision_id (for linking outcomes)
         self._open_entries_path = self.db_dir / "open_entries.json"

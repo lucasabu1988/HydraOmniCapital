@@ -333,10 +333,9 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     if not symbols:
         return {}
 
-    # Adaptive cache TTL: back off when Yahoo is rate-limiting
-    cache_ttl = PRICE_CACHE_SECONDS_BACKOFF if _yf_consecutive_failures >= 3 else PRICE_CACHE_SECONDS_NORMAL
-
     with _price_cache_lock:
+        # Adaptive cache TTL: back off when Yahoo is rate-limiting
+        cache_ttl = PRICE_CACHE_SECONDS_BACKOFF if _yf_consecutive_failures >= 3 else PRICE_CACHE_SECONDS_NORMAL
         now = datetime.now()
         if _price_cache_time and (now - _price_cache_time).total_seconds() < cache_ttl:
             missing = [s for s in symbols if s not in _price_cache]
@@ -348,22 +347,20 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
 
     if missing:
         yf_results = _yf_fetch_batch(missing)
-        if yf_results:
-            _yf_consecutive_failures = 0
-            for sym, result in yf_results.items():
-                _price_cache[sym] = result['price']
-                if 'prev_close' in result:
-                    _prev_close_cache[sym] = result['prev_close']
-            # Only reset cache timer when we actually got fresh data
-            with _price_cache_lock:
+        with _price_cache_lock:
+            if yf_results:
+                _yf_consecutive_failures = 0
+                for sym, result in yf_results.items():
+                    _price_cache[sym] = result['price']
+                    if 'prev_close' in result:
+                        _prev_close_cache[sym] = result['prev_close']
                 _price_cache_time = now
-        else:
-            _yf_consecutive_failures += 1
-            if _yf_consecutive_failures >= 3:
-                logger.warning(f'Yahoo Finance: {_yf_consecutive_failures} consecutive failures, '
-                              f'backing off to {PRICE_CACHE_SECONDS_BACKOFF}s cache TTL')
-            # On failure: set short TTL so we retry soon (15s), not full cache duration
-            with _price_cache_lock:
+            else:
+                _yf_consecutive_failures += 1
+                if _yf_consecutive_failures >= 3:
+                    logger.warning(f'Yahoo Finance: {_yf_consecutive_failures} consecutive failures, '
+                                  f'backing off to {PRICE_CACHE_SECONDS_BACKOFF}s cache TTL')
+                # On failure: set short TTL so we retry soon (15s), not full cache duration
                 _price_cache_time = now - timedelta(seconds=max(0, cache_ttl - 15))
     return {s: _price_cache[s] for s in symbols if s in _price_cache}
 

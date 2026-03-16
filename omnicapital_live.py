@@ -1267,9 +1267,9 @@ class COMPASSLive:
                         trading_day=self.trading_day_counter,
                         portfolio_value=portfolio_now.total_value,
                         portfolio_drawdown=drawdown,
-                        spy_price=ml_spy_ctx['spy_price'],
-                        spy_sma200=ml_spy_ctx['spy_sma200'],
-                        spy_regime_score=ml_spy_ctx['spy_regime_score'],
+                        spy_price=ml_spy_ctx['spy_price'] if ml_spy_ctx else None,
+                        spy_sma200=ml_spy_ctx['spy_sma200'] if ml_spy_ctx else None,
+                        spy_regime_score=ml_spy_ctx['spy_regime_score'] if ml_spy_ctx else None,
                     )
                 except Exception as e:
                     logger.warning(f"ML hold logging failed for {symbol}: {e}")
@@ -1475,9 +1475,9 @@ class COMPASSLive:
                         portfolio_drawdown=drawdown,
                         current_n_positions=len(positions),
                         max_positions_target=max_positions,
-                        spy_price=ml_spy_ctx['spy_price'],
-                        spy_sma200=ml_spy_ctx['spy_sma200'],
-                        spy_regime_score=ml_spy_ctx['spy_regime_score'],
+                        spy_price=ml_spy_ctx['spy_price'] if ml_spy_ctx else None,
+                        spy_sma200=ml_spy_ctx['spy_sma200'] if ml_spy_ctx else None,
+                        spy_regime_score=ml_spy_ctx['spy_regime_score'] if ml_spy_ctx else None,
                     )
             except Exception as e:
                 logger.warning(f"ML skip logging failed: {e}")
