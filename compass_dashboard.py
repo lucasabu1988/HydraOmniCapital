@@ -647,6 +647,8 @@ def _build_health_payload(state):
     return {
         'status': overall_status,
         'timestamp': datetime.now().isoformat(),
+        'engine_running': engine_running,
+        'price_freshness': price_age_seconds,
         'engine': {
             'running': engine_running,
             'uptime_minutes': _health_uptime_minutes(state),
@@ -1132,6 +1134,11 @@ def api_state():
         return jsonify({
             'status': 'offline',
             'error': 'No state file found',
+            'positions': {},
+            'cash': 0.0,
+            'portfolio_value': 0.0,
+            'regime_score': None,
+            'trading_day_counter': 0,
             'server_time': datetime.now().isoformat(),
             'engine': _engine_status,
         })
@@ -1274,6 +1281,13 @@ def api_state():
 
     return jsonify({
         'status': 'online',
+        'positions': state.get('positions', {}),
+        'cash': float(portfolio.get('cash', state.get('cash', 0.0) or 0.0)),
+        'portfolio_value': float(
+            portfolio.get('portfolio_value', state.get('portfolio_value', 0.0) or 0.0)
+        ),
+        'regime_score': state.get('current_regime_score'),
+        'trading_day_counter': int(state.get('trading_day_counter', 0) or 0),
         'portfolio': portfolio,
         'position_details': position_details,
         'prices': prices,
@@ -1327,6 +1341,10 @@ def api_cycle_log():
     state = read_state()  # Read once, reuse for all active cycles
 
     for c in cycles:
+        c.setdefault('cycle_number', c.get('cycle'))
+        c.setdefault('cycle_return_pct', None)
+        c.setdefault('start_date', None)
+        c.setdefault('end_date', None)
         if c.get('status') != 'active':
             continue
         try:
