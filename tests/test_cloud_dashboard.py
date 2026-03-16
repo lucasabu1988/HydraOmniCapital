@@ -100,6 +100,7 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._social_cache_time = None
     dashboard._trade_analytics_cache = None
     dashboard._montecarlo_cache = None
+    dashboard._montecarlo_cache_signature = None
     dashboard._risk_cache = None
     dashboard._risk_cache_time = None
     dashboard._equity_df = None

@@ -161,6 +161,15 @@ var TRANSLATIONS = {
     'risk-high-label': 'ALTO',
     'risk-extreme-label': 'EXTREMO',
     'risk-positions-label': 'posiciones',
+    'mc-title': 'Proyección 1 Año',
+    'mc-median-return': 'Retorno Mediano',
+    'mc-outcome-range': 'Rango 5-95%',
+    'mc-prob-gain': 'Prob. Ganancia >10%',
+    'mc-prob-dd': 'Prob. DD > -20%',
+    'mc-source-live': 'LIVE',
+    'mc-source-backtest': 'BACKTEST',
+    'mc-day-prefix': 'Día',
+    'mc-days-axis': 'Días',
 
     // Social Feed
     'sf-title':          'Noticias del Portfolio',
@@ -464,6 +473,15 @@ var TRANSLATIONS = {
     'risk-high-label': 'HIGH',
     'risk-extreme-label': 'EXTREME',
     'risk-positions-label': 'positions',
+    'mc-title': '1-Year Projection',
+    'mc-median-return': 'Median Return',
+    'mc-outcome-range': '5-95% Range',
+    'mc-prob-gain': 'Prob. Gain >10%',
+    'mc-prob-dd': 'Prob. DD > -20%',
+    'mc-source-live': 'LIVE',
+    'mc-source-backtest': 'BACKTEST',
+    'mc-day-prefix': 'Day',
+    'mc-days-axis': 'Days',
 
     // Social Feed
     'sf-title':          'Portfolio News',

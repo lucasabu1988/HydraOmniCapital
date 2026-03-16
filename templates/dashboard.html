@@ -22,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260316a">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260316b">
 <style>
 .startup-loading[hidden] { display: none !important; }
 .startup-loading {
@@ -947,6 +947,37 @@
     </div>
 </div>
 
+<!-- MONTE CARLO -->
+<div class="card full-width anim-enter anim-d6" id="montecarlo-card">
+    <div class="card-header">
+        <span class="card-title" data-i18n="mc-title">Proyección 1 Año</span>
+        <span class="card-badge" id="mc-badge" style="color:var(--accent-light); background:var(--accent-glow);">--</span>
+    </div>
+    <div class="card-body">
+        <div class="mc-chart-wrap">
+            <canvas id="mcFanChart" height="280"></canvas>
+        </div>
+        <div class="mc-stats-grid">
+            <div class="mc-milestone-card">
+                <div class="mc-label" data-i18n="mc-median-return">Retorno Mediano</div>
+                <div class="mc-val" id="mc-median-return">--</div>
+            </div>
+            <div class="mc-milestone-card">
+                <div class="mc-label" data-i18n="mc-outcome-range">Rango 5-95%</div>
+                <div class="mc-val" id="mc-outcome-range">--</div>
+            </div>
+            <div class="mc-milestone-card">
+                <div class="mc-label" data-i18n="mc-prob-gain">Prob. Ganancia &gt;10%</div>
+                <div class="mc-val" id="mc-prob-gain">--</div>
+            </div>
+            <div class="mc-milestone-card">
+                <div class="mc-label" data-i18n="mc-prob-dd">Prob. DD &gt; -20%</div>
+                <div class="mc-val" id="mc-prob-dd">--</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- TRADE ANALYTICS -->
 <div class="card full-width anim-enter anim-d6" id="trade-analytics-card">
     <div class="card-header">
@@ -1626,8 +1657,8 @@
 
 <!-- Contact: use footer link instead of FAB -->
 
-<script src="/static/js/i18n.js?v=20260316a"></script>
-<script src="/static/js/dashboard.js?v=20260316a"></script>
+<script src="/static/js/i18n.js?v=20260316b"></script>
+<script src="/static/js/dashboard.js?v=20260316b"></script>
 
 </body>
 </html>

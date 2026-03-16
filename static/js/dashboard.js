@@ -1593,7 +1593,161 @@ async function fetchAll() {
     }
 }
 
-/* (Monte Carlo removed — replaced by Fund Scatter Plot on dashboard) */
+let _mcChart = null;
+
+async function fetchMonteCarlo() {
+    try {
+        const res = await fetch('/api/montecarlo');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        renderMonteCarloPanel(data);
+    } catch (e) {
+        console.error('Monte Carlo fetch failed:', e);
+        const badge = document.getElementById('mc-badge');
+        if (badge) {
+            badge.textContent = 'ERROR';
+            badge.style.color = 'var(--red)';
+            badge.style.background = 'var(--red-dim)';
+        }
+    }
+}
+
+function renderMonteCarloPanel(data) {
+    const badge = document.getElementById('mc-badge');
+    const summary = data.summary || {};
+    const historical = data.historical_stats || {};
+    if (badge) {
+        const liveSource = data.source === 'live_cycle_log';
+        badge.textContent = liveSource ? t('mc-source-live') : t('mc-source-backtest');
+        badge.style.color = liveSource ? 'var(--green)' : 'var(--yellow)';
+        badge.style.background = liveSource ? 'var(--green-dim)' : 'var(--yellow-dim)';
+    }
+
+    const medianEl = document.getElementById('mc-median-return');
+    const rangeEl = document.getElementById('mc-outcome-range');
+    const gainEl = document.getElementById('mc-prob-gain');
+    const ddEl = document.getElementById('mc-prob-dd');
+    if (medianEl) {
+        medianEl.textContent = fmtPct(summary.median_return_pct || 0);
+        medianEl.style.color = (summary.median_return_pct || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+    if (rangeEl) {
+        rangeEl.textContent = fmt$(summary.p5_outcome || 0) + ' / ' + fmt$(summary.p95_outcome || 0);
+    }
+    if (gainEl) {
+        gainEl.textContent = (summary.prob_gain_10_pct || 0).toFixed(1) + '%';
+        gainEl.style.color = (summary.prob_gain_10_pct || 0) >= 50 ? 'var(--green)' : 'var(--yellow)';
+    }
+    if (ddEl) {
+        ddEl.textContent = (summary.prob_drawdown_better_than_20_pct || 0).toFixed(1) + '%';
+        ddEl.style.color = (summary.prob_drawdown_better_than_20_pct || 0) >= 60 ? 'var(--green)' : 'var(--yellow)';
+        ddEl.title = (historical.sample_size || 0) + ' ciclos base · seed ' + (data.seed || 666);
+    }
+
+    renderMonteCarloChart(data.fan_chart || {});
+}
+
+function renderMonteCarloChart(fan) {
+    const canvas = document.getElementById('mcFanChart');
+    if (!canvas || typeof Chart === 'undefined' || !fan.days || fan.days.length === 0) return;
+
+    if (_mcChart) {
+        _mcChart.destroy();
+        _mcChart = null;
+    }
+
+    const ctx = canvas.getContext('2d');
+    _mcChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: fan.days,
+            datasets: [
+                {
+                    label: 'P95',
+                    data: fan.p95,
+                    borderColor: 'rgba(34, 197, 94, 0)',
+                    pointRadius: 0,
+                    fill: false,
+                },
+                {
+                    label: 'P5',
+                    data: fan.p5,
+                    borderColor: 'rgba(34, 197, 94, 0)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                    pointRadius: 0,
+                    fill: '-1',
+                },
+                {
+                    label: 'P75',
+                    data: fan.p75,
+                    borderColor: 'rgba(34, 197, 94, 0)',
+                    pointRadius: 0,
+                    fill: false,
+                },
+                {
+                    label: 'P25',
+                    data: fan.p25,
+                    borderColor: 'rgba(34, 197, 94, 0)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.18)',
+                    pointRadius: 0,
+                    fill: '-1',
+                },
+                {
+                    label: 'P50',
+                    data: fan.p50,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.4,
+                    pointRadius: 0,
+                    tension: 0.18,
+                    fill: false,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: items => t('mc-day-prefix') + ' ' + items[0].label,
+                        label: item => item.dataset.label + ': ' + fmt$(item.raw),
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: '#8f96ad',
+                        callback: (value, index) => {
+                            const day = fan.days[index];
+                            return day % 25 === 0 || day === 0 ? day : '';
+                        },
+                    },
+                    title: {
+                        display: true,
+                        text: t('mc-days-axis'),
+                        color: '#8f96ad',
+                    },
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: '#8f96ad',
+                        callback: value => fmt$(value),
+                    },
+                },
+            },
+        },
+    });
+}
 
 function riskTone(score) {
     if (score < 30) return { cls: 'risk-low', color: 'var(--green)' };
@@ -2645,6 +2799,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchAll();
     fetchCycleLog();
     fetchRiskData();
+    fetchMonteCarlo();
 
     sfInitFilters();
     fetchSocialFeed();
@@ -2652,6 +2807,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchFundComparison();
     setInterval(fetchSocialFeed, 300000);
     setInterval(fetchRiskData, 300000);
+    setInterval(fetchMonteCarlo, 300000);
     setInterval(function() { fetchAll(); fetchCycleLog(); if (!_startupRetryTimer) countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
         countdownSec = Math.max(0, countdownSec - 1);

@@ -1494,7 +1494,20 @@ def fetch_social_feed(symbols: List[str]) -> List[dict]:
 # ============================================================================
 
 _montecarlo_cache = None
+_montecarlo_cache_signature = None
 _trade_analytics_cache = None
+
+
+def _montecarlo_signature():
+    cycle_log_path = os.path.join('state', 'cycle_log.json')
+    backtest_path = os.path.join('backtests', 'hydra_clean_daily.csv')
+    signature = []
+    for path in (cycle_log_path, backtest_path):
+        if os.path.exists(path):
+            signature.append(os.path.getmtime(path))
+        else:
+            signature.append(None)
+    return tuple(signature)
 
 
 # ============================================================================
@@ -2121,13 +2134,15 @@ def api_risk():
 @app.route('/api/montecarlo')
 def api_montecarlo():
     """Return Monte Carlo simulation results."""
-    global _montecarlo_cache
-    if _montecarlo_cache is not None:
+    global _montecarlo_cache, _montecarlo_cache_signature
+    signature = _montecarlo_signature()
+    if _montecarlo_cache is not None and _montecarlo_cache_signature == signature:
         return jsonify(_montecarlo_cache)
     try:
         from compass_montecarlo import COMPASSMonteCarlo
         mc = COMPASSMonteCarlo()
         _montecarlo_cache = mc.run_all()
+        _montecarlo_cache_signature = signature
         return jsonify(_montecarlo_cache)
     except Exception as e:
         return jsonify({'error': f'Monte Carlo unavailable: {str(e)}'})

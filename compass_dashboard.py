@@ -2337,8 +2337,7 @@ def api_news():
 # ============================================================================
 
 _montecarlo_cache = None
-_montecarlo_cache_time = None
-MONTECARLO_CACHE_SECONDS = 3600
+_montecarlo_cache_signature = None
 
 _risk_cache = None
 _risk_cache_time = None
@@ -2355,6 +2354,18 @@ DATA_QUALITY_CACHE_SECONDS = 1800
 _exec_micro_cache = None
 _exec_micro_cache_time = None
 EXEC_MICRO_CACHE_SECONDS = 3600   # 1 hour (static backtest analysis)
+
+
+def _montecarlo_signature():
+    cycle_log_path = os.path.join('state', 'cycle_log.json')
+    backtest_path = os.path.join('backtests', 'hydra_clean_daily.csv')
+    signature = []
+    for path in (cycle_log_path, backtest_path):
+        if os.path.exists(path):
+            signature.append(os.path.getmtime(path))
+        else:
+            signature.append(None)
+    return tuple(signature)
 
 
 @app.route('/api/risk')
@@ -2397,17 +2408,16 @@ def api_risk():
 @app.route('/api/montecarlo')
 def api_montecarlo():
     """Return Monte Carlo simulation results (10K paths, confidence bands)."""
-    global _montecarlo_cache, _montecarlo_cache_time
-    now = datetime.now()
-    if _montecarlo_cache and _montecarlo_cache_time and \
-       (now - _montecarlo_cache_time).total_seconds() < MONTECARLO_CACHE_SECONDS:
+    global _montecarlo_cache, _montecarlo_cache_signature
+    signature = _montecarlo_signature()
+    if _montecarlo_cache and _montecarlo_cache_signature == signature:
         return jsonify(_montecarlo_cache)
     try:
         from compass_montecarlo import COMPASSMonteCarlo
         mc = COMPASSMonteCarlo()
         results = mc.run_all()
         _montecarlo_cache = results
-        _montecarlo_cache_time = now
+        _montecarlo_cache_signature = signature
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)})

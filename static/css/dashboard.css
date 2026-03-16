@@ -2129,6 +2129,31 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     }
     .risk-gauge-score { font-size: 30px; }
 }
+.mc-chart-wrap {
+    position: relative;
+    width: 100%;
+    min-height: 280px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    padding: 14px;
+    margin-bottom: 16px;
+}
+.mc-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+@media (max-width: 900px) {
+    .mc-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+    .mc-stats-grid { grid-template-columns: 1fr; }
+    .mc-chart-wrap {
+        min-height: 240px;
+        padding: 10px;
+    }
+}
 .mc-milestone-card {
     background: var(--bg-elevated);
     border: 1px solid var(--border);
