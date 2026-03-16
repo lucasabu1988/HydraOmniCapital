@@ -106,6 +106,7 @@ def isolate_dashboard(monkeypatch, tmp_path):
         'cycles': 0,
         'startup_started_at': None,
         'last_git_pull': None,
+        'state_recovery': None,
     }
 
     yield tmp_path
@@ -169,6 +170,7 @@ def test_api_state_returns_enriched_payload_when_state_exists(client, monkeypatc
     assert payload['portfolio']['portfolio_value'] == 105000.0
     assert payload['position_details'][0]['symbol'] == 'AAPL'
     assert payload['hydra']['status'] == 'ok'
+    assert payload['state_recovery'] is None
     assert 'AAPL' in captured['symbols']
     assert 'SPY' in captured['symbols']
 
@@ -458,6 +460,68 @@ def test_git_pull_latest_marks_auth_failures(monkeypatch):
     assert 'Authentication failed' in result['message']
     assert 'secret-token' not in result['message']
     assert any(cmd[:2] == ['git', 'pull'] for cmd in calls)
+
+
+def test_recover_cloud_state_marks_git_pull_state(tmp_path):
+    write_json(Path('state/compass_state_latest.json'), make_state())
+
+    recovered = dashboard._recover_cloud_state({'ok': True, 'message': 'Already up to date.'})
+    stored = json.loads(Path('state/compass_state_latest.json').read_text(encoding='utf-8'))
+
+    assert recovered['_recovered_from'] == 'git_pull'
+    assert stored['_recovered_from'] == 'git_pull'
+    assert stored['cash'] == 5000.0
+
+
+def test_recover_cloud_state_uses_github_fallback_when_state_missing(monkeypatch):
+    monkeypatch.setattr(dashboard, '_HAS_REQUESTS', True)
+    monkeypatch.setattr(
+        dashboard.http_requests,
+        'get',
+        lambda *args, **kwargs: FakeResponse(200, payload=make_state()),
+    )
+
+    recovered = dashboard._recover_cloud_state({'ok': False, 'message': 'auth failed'})
+
+    assert recovered['_recovered_from'] == 'github_api'
+    assert json.loads(Path('state/compass_state_latest.json').read_text(encoding='utf-8'))['_recovered_from'] == 'github_api'
+
+
+def test_recover_cloud_state_falls_back_to_default_when_sources_invalid(monkeypatch):
+    monkeypatch.setattr(dashboard, '_HAS_REQUESTS', True)
+    monkeypatch.setattr(
+        dashboard.http_requests,
+        'get',
+        lambda *args, **kwargs: FakeResponse(200, payload={'cash': 'bad'}),
+    )
+
+    recovered = dashboard._recover_cloud_state({'ok': False, 'message': 'auth failed'})
+
+    assert recovered['_recovered_from'] == 'default'
+    assert recovered['cash'] == dashboard.HYDRA_CONFIG['INITIAL_CAPITAL']
+    assert recovered['positions'] == {}
+    assert recovered['trading_day_counter'] == 0
+
+
+def test_api_state_exposes_state_recovery_source(client, monkeypatch):
+    state = make_state()
+    state['_recovered_from'] = 'github_api'
+    write_json(Path('state/compass_state_latest.json'), state)
+
+    monkeypatch.setattr(dashboard, 'fetch_live_prices', lambda symbols: {'AAPL': 110.0, '^GSPC': 5000.0})
+    monkeypatch.setattr(dashboard, 'compute_position_details',
+                        lambda state, prices: [{'symbol': 'AAPL', 'pnl_pct': 10.0}])
+    monkeypatch.setattr(dashboard, 'compute_portfolio_metrics',
+                        lambda state, prices: {'portfolio_value': 105000.0})
+    monkeypatch.setattr(dashboard, 'compute_hydra_data',
+                        lambda state, prices: {'status': 'ok'})
+
+    response = client.get('/api/state')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['state_recovery'] == 'github_api'
+    assert payload['engine']['state_recovery'] == 'github_api'
 
 
 def test_ensure_cloud_engine_acquires_lock_and_starts_thread(monkeypatch):

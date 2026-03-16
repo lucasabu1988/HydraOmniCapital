@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 import logging
 import time as time_module
+import tempfile
 from datetime import datetime, date, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
@@ -152,6 +153,7 @@ HYDRA_CONFIG = {
 STATE_FILE = 'state/compass_state_latest.json'
 STATE_DIR = os.environ.get('STATE_DIR', 'state')
 SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
+GITHUB_STATE_URL = 'https://raw.githubusercontent.com/lucasabu1988/NuevoProyecto/main/state/compass_state_latest.json'
 
 # Rattlesnake parameters (mirrored from rattlesnake_signals.py for dashboard)
 R_VIX_PANIC = 35
@@ -178,6 +180,7 @@ _engine_status = {
     'cycles': 0,
     'startup_started_at': None,
     'last_git_pull': None,
+    'state_recovery': None,
 }
 
 # ============================================================================
@@ -550,6 +553,123 @@ def get_spy_start_price() -> Optional[float]:
             pass
 
     return None
+
+
+def _atomic_write_json(path, payload):
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=f'.{os.path.basename(path)}.',
+        suffix='.tmp',
+        dir=os.path.dirname(path) or '.',
+    )
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as tmp_file:
+            json.dump(payload, tmp_file, indent=2)
+        os.replace(tmp_path, path)
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
+def _validate_recovered_state(state, source):
+    if not isinstance(state, dict):
+        logger.error('Recovered state from %s is not a JSON object', source)
+        return None
+    if not isinstance(state.get('positions'), dict):
+        logger.error('Recovered state from %s is missing a valid positions map', source)
+        return None
+    cash = state.get('cash')
+    if not isinstance(cash, (int, float)) or isinstance(cash, bool):
+        logger.error('Recovered state from %s is missing numeric cash', source)
+        return None
+    trading_day_counter = state.get('trading_day_counter')
+    if not isinstance(trading_day_counter, int) or isinstance(trading_day_counter, bool):
+        logger.error('Recovered state from %s is missing integer trading_day_counter', source)
+        return None
+    return state
+
+
+def _prepare_recovered_state(state, source):
+    recovered = dict(state)
+    recovered['_recovered_from'] = source
+    recovered['_recovered_at'] = datetime.now().isoformat()
+    return recovered
+
+
+def _build_default_state():
+    initial_cash = HYDRA_CONFIG['INITIAL_CAPITAL']
+    return {
+        'portfolio_value': initial_cash,
+        'peak_value': initial_cash,
+        'cash': initial_cash,
+        'positions': {},
+        'position_meta': {},
+        'current_universe': [],
+        'universe_year': None,
+        'current_regime_score': 0.5,
+        'current_regime': False,
+        'regime_consecutive': 0,
+        'trading_day_counter': 0,
+        'last_trading_date': None,
+        'stop_events': [],
+        'timestamp': datetime.now().isoformat(),
+        'stats': {},
+        'portfolio_values_history': [],
+        'hydra': {
+            'rattle_positions': [],
+            'catalyst_positions': [],
+        },
+        'dd_leverage': 1.0,
+        'crash_cooldown': 0,
+    }
+
+
+def _fetch_state_from_github():
+    if not _HAS_REQUESTS:
+        logger.warning('Cloud state recovery fallback unavailable: requests is not installed')
+        return None
+    try:
+        response = http_requests.get(GITHUB_STATE_URL, timeout=15)
+        if response.status_code != 200:
+            logger.warning('GitHub state fallback returned HTTP %s', response.status_code)
+            return None
+        return response.json()
+    except Exception as e:
+        logger.warning('GitHub state fallback failed: %s', e, exc_info=True)
+        return None
+
+
+def _recover_cloud_state(git_pull_result=None):
+    local_state = read_state()
+    if local_state:
+        source = local_state.get('_recovered_from') or 'git_pull'
+        if _validate_recovered_state(local_state, source):
+            recovered = _prepare_recovered_state(local_state, source)
+            _atomic_write_json(STATE_FILE, recovered)
+            logger.info('Cloud state recovery ready from %s', recovered['_recovered_from'])
+            return recovered
+        logger.error('State file present but failed validation, attempting fallback recovery')
+
+    github_state = _fetch_state_from_github()
+    if github_state and _validate_recovered_state(github_state, 'github_api'):
+        recovered = _prepare_recovered_state(github_state, 'github_api')
+        _atomic_write_json(STATE_FILE, recovered)
+        logger.info('Cloud state recovered from GitHub fallback')
+        return recovered
+
+    recovered = _prepare_recovered_state(_build_default_state(), 'default')
+    _atomic_write_json(STATE_FILE, recovered)
+    if git_pull_result and not git_pull_result.get('ok'):
+        logger.error(
+            'Cloud state recovery fell back to default state after git pull failure: %s',
+            git_pull_result.get('message'),
+        )
+    else:
+        logger.warning('Cloud state recovery fell back to default state')
+    return recovered
 
 
 def _compute_real_trading_day(state: dict) -> int:
@@ -1281,8 +1401,12 @@ def api_state():
             'preclose': preclose_status,
             'hydra': hydra_data,
             'implementation_shortfall': {'available': False},
+            'state_recovery': state.get('_recovered_from'),
             'server_time': datetime.now().isoformat(),
-            'engine': engine,
+            'engine': {
+                **engine,
+                'state_recovery': state.get('_recovered_from') or engine.get('state_recovery'),
+            },
         })
     except Exception as e:
         import traceback
@@ -2588,6 +2712,8 @@ def _run_cloud_engine():
                 'Cloud engine startup continuing after git pull issue: %s',
                 _engine_status['last_git_pull']['message'],
             )
+        recovered_state = _recover_cloud_state(_engine_status['last_git_pull'])
+        _engine_status['state_recovery'] = recovered_state.get('_recovered_from')
 
         # Enable git sync on cloud if GIT_TOKEN is set
         import omnicapital_live as _engine_mod
