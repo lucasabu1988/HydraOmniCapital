@@ -250,14 +250,10 @@ def test_startup_self_test_logs_expected_summary(trader, monkeypatch, caplog):
 
     monkeypatch.setattr(live, '_catalyst_available', True, raising=False)
     monkeypatch.setattr(live, 'CATALYST_TREND_ASSETS', ['TLT', 'GLD'], raising=False)
-
-    def fake_refresh_daily_data():
-        trader._catalyst_hist = {
-            'TLT': make_hist(90.0, 0.05, periods=220),
-            'GLD': make_hist(180.0, 0.03, periods=220),
-        }
-
-    monkeypatch.setattr(trader, 'refresh_daily_data', fake_refresh_daily_data)
+    trader._catalyst_hist = {
+        'TLT': make_hist(90.0, 0.05, periods=220),
+        'GLD': make_hist(180.0, 0.03, periods=220),
+    }
 
     with caplog.at_level(logging.INFO, logger=live.logger.name):
         result = trader._startup_self_test()
@@ -267,6 +263,30 @@ def test_startup_self_test_logs_expected_summary(trader, monkeypatch, caplog):
     assert result['warnings'] == []
     assert any('HYDRA startup self-test: 5/5 checks passed' in record.message
                for record in caplog.records)
+
+
+def test_run_startup_self_test_once_does_not_call_refresh_daily_data(trader, monkeypatch):
+    trader._hydra_available = True
+    trader._startup_self_test_done = False
+    trader.current_universe = ['AAPL', 'MSFT']
+    trader._catalyst_hist = {
+        'TLT': make_hist(90.0, 0.05, periods=220),
+        'GLD': make_hist(180.0, 0.03, periods=220),
+    }
+
+    monkeypatch.setattr(live, '_catalyst_available', True, raising=False)
+    monkeypatch.setattr(live, 'CATALYST_TREND_ASSETS', ['TLT', 'GLD'], raising=False)
+    monkeypatch.setattr(
+        trader,
+        'refresh_daily_data',
+        lambda: (_ for _ in ()).throw(RuntimeError('refresh should not run during self-test')),
+    )
+
+    result = trader._run_startup_self_test_once()
+
+    assert result['passed'] == 5
+    assert result['warnings'] == []
+    assert trader._startup_self_test_done is True
 
 
 @pytest.mark.parametrize('fail_on', ['entry', 'hold', 'skip', 'snapshot'])

@@ -1129,12 +1129,6 @@ class COMPASSLive:
             else:
                 warnings.append("SPY price check failed: no valid price returned")
 
-        refresh_error = None
-        try:
-            self.refresh_daily_data()
-        except Exception as e:
-            refresh_error = e
-
         if _catalyst_available:
             missing_assets = [
                 symbol for symbol in CATALYST_TREND_ASSETS
@@ -1148,10 +1142,7 @@ class COMPASSLive:
                 detail = ", ".join(missing_assets[:4])
                 if len(missing_assets) > 4:
                     detail += ", ..."
-                message = f"Catalyst history missing for {detail}"
-                if refresh_error is not None:
-                    message += f" (refresh error: {refresh_error})"
-                warnings.append(message)
+                warnings.append(f"Catalyst history missing for {detail}")
         else:
             warnings.append("Catalyst history check skipped because Catalyst is unavailable")
 
