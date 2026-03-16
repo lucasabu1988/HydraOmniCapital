@@ -1383,7 +1383,13 @@ class COMPASSLive:
                     # Track stop exits for cycle log update when replacement enters
                     if exit_reason in ('position_stop', 'trailing_stop'):
                         self._pending_stop_exits.append({
-                            'symbol': symbol, 'reason': exit_reason, 'return': ret
+                            'symbol': symbol,
+                            'reason': exit_reason,
+                            'return': ret,
+                            'exit_price': result.filled_price,
+                            'entry_price': meta.get('entry_price', pos.avg_cost),
+                            'sector': SECTOR_MAP.get(symbol, meta.get('sector', 'Unknown')),
+                            'days_held': total_days_held,
                         })
 
                     stop_info = ""
@@ -1694,6 +1700,7 @@ class COMPASSLive:
                             replacement_symbol=symbol,
                             exit_reason=stop_exit['reason'],
                             stop_return=stop_exit['return'],
+                            stop_details=stop_exit,
                         )
                     except Exception as e:
                         logger.warning(f"Cycle log stop update failed: {e}")
@@ -2169,7 +2176,14 @@ class COMPASSLive:
         self._pre_rotation_positions = list(self.broker.positions.keys())
         # Deep copy position data for close-price reconstruction in _update_cycle_log
         self._pre_rotation_positions_data = {
-            sym: {'shares': pos.shares, 'avg_cost': pos.avg_cost}
+            sym: {
+                'shares': pos.shares,
+                'avg_cost': pos.avg_cost,
+                'entry_price': self.position_meta.get(sym, {}).get('entry_price', pos.avg_cost),
+                'sector': self.position_meta.get(sym, {}).get('sector', SECTOR_MAP.get(sym, 'Unknown')),
+                'entry_day_index': self.position_meta.get(sym, {}).get('entry_day_index', self.trading_day_counter),
+                'entry_date': self.position_meta.get(sym, {}).get('entry_date'),
+            }
             for sym, pos in self.broker.positions.items()
         }
         self._pre_rotation_cash = self.broker.cash
@@ -2529,6 +2543,176 @@ class COMPASSLive:
             logger.warning(f"Could not fetch S&P 500 close: {e}")
         return None
 
+    def _new_cycle_log_entry(self, cycle_number: int, start_date: str,
+                             portfolio_start: float, spy_start: Optional[float],
+                             positions: List[str]):
+        return {
+            'cycle': cycle_number,
+            'start_date': start_date,
+            'end_date': None,
+            'status': 'active',
+            'portfolio_start': round(portfolio_start, 2),
+            'portfolio_end': None,
+            'spy_start': round(spy_start, 2) if spy_start else None,
+            'spy_end': None,
+            'positions': list(positions),
+            'positions_current': list(positions),
+            'hydra_return': None,
+            'spy_return': None,
+            'alpha': None,
+            'stop_events': [],
+            'positions_detail': [],
+            'sector_breakdown': {},
+            'exits_by_reason': {},
+            'cycle_return_pct': None,
+            'spy_return_pct': None,
+            'alpha_pct': None,
+        }
+
+    def _cycle_exit_reason_bucket(self, exit_reason: Optional[str]) -> Optional[str]:
+        mapping = {
+            'position_stop': 'stop_loss',
+            'trailing_stop': 'trailing',
+            'hold_expired': 'rotation',
+            'universe_rotation': 'rotation',
+        }
+        return mapping.get(exit_reason, exit_reason)
+
+    def _build_cycle_positions_detail(self, cycle: dict,
+                                      pre_rot_positions: dict,
+                                      prices: Dict[str, float]) -> List[dict]:
+        details = []
+        stop_events = {
+            event.get('stopped'): event
+            for event in cycle.get('stop_events', [])
+            if event.get('stopped')
+        }
+        sell_trades = {
+            trade.get('symbol'): trade
+            for trade in self.trades_today
+            if trade.get('action') == 'SELL' and trade.get('symbol')
+        }
+
+        symbols = list(dict.fromkeys(
+            list(cycle.get('positions', []))
+            + list(cycle.get('positions_current', []))
+            + list(stop_events.keys())
+        ))
+        carried_symbols = set(self.broker.positions.keys()) & set(symbols)
+
+        for symbol in symbols:
+            base = pre_rot_positions.get(symbol, {})
+            stop_event = stop_events.get(symbol)
+            sell_trade = sell_trades.get(symbol)
+            current_meta = self.position_meta.get(symbol, {})
+            current_pos = self.broker.positions.get(symbol)
+
+            entry_price = (
+                base.get('entry_price')
+                or (stop_event.get('entry_price') if stop_event else None)
+                or current_meta.get('entry_price')
+                or base.get('avg_cost')
+                or (current_pos.avg_cost if current_pos else None)
+            )
+            if not entry_price:
+                continue
+
+            sector = (
+                base.get('sector')
+                or (stop_event.get('sector') if stop_event else None)
+                or current_meta.get('sector')
+                or SECTOR_MAP.get(symbol, 'Unknown')
+            )
+
+            exit_reason = None
+            exit_price = None
+            pnl_pct = None
+            days_held = None
+
+            if sell_trade:
+                exit_reason = sell_trade.get('exit_reason')
+                exit_price = sell_trade.get('price')
+                pnl_pct = ((exit_price - entry_price) / entry_price * 100) if exit_price else None
+                entry_day_index = base.get('entry_day_index', self.trading_day_counter)
+                days_held = self.trading_day_counter - entry_day_index + 1
+            elif stop_event:
+                exit_reason = stop_event.get('reason')
+                exit_price = stop_event.get('exit_price')
+                if exit_price:
+                    pnl_pct = (exit_price - entry_price) / entry_price * 100
+                elif stop_event.get('return') is not None:
+                    pnl_pct = stop_event.get('return')
+                days_held = stop_event.get('days_held')
+            elif symbol in carried_symbols and current_pos:
+                exit_reason = 'carried_forward'
+                exit_price = prices.get(symbol, current_pos.avg_cost)
+                pnl_pct = (exit_price - entry_price) / entry_price * 100 if exit_price else None
+                entry_day_index = current_meta.get('entry_day_index', self.trading_day_counter)
+                days_held = self.trading_day_counter - entry_day_index + 1
+            else:
+                continue
+
+            details.append({
+                'symbol': symbol,
+                'entry_price': round(entry_price, 2),
+                'exit_price': round(exit_price, 2) if exit_price is not None else None,
+                'pnl_pct': round(pnl_pct, 2) if pnl_pct is not None else None,
+                'exit_reason': exit_reason,
+                'sector': sector,
+                'days_held': int(days_held) if days_held is not None else None,
+            })
+
+        return details
+
+    def _enrich_cycle_summary(self, cycle: dict, pre_rot_positions: dict,
+                              prices: Dict[str, float]):
+        defaults = {
+            'positions_detail': [],
+            'sector_breakdown': {},
+            'exits_by_reason': {},
+            'cycle_return_pct': None,
+            'spy_return_pct': cycle.get('spy_return'),
+            'alpha_pct': None,
+        }
+
+        try:
+            positions_detail = self._build_cycle_positions_detail(
+                cycle, pre_rot_positions, prices
+            )
+            sector_breakdown = {}
+            exits_by_reason = {}
+            for detail in positions_detail:
+                sector = detail.get('sector') or 'Unknown'
+                sector_breakdown[sector] = sector_breakdown.get(sector, 0) + 1
+                exit_bucket = self._cycle_exit_reason_bucket(detail.get('exit_reason'))
+                if exit_bucket and exit_bucket != 'carried_forward':
+                    exits_by_reason[exit_bucket] = exits_by_reason.get(exit_bucket, 0) + 1
+
+            cycle_return_pct = None
+            portfolio_start = cycle.get('portfolio_start')
+            portfolio_end = cycle.get('portfolio_end')
+            if portfolio_start:
+                cycle_return_pct = round(
+                    (portfolio_end - portfolio_start) / portfolio_start * 100, 2
+                )
+
+            spy_return_pct = cycle.get('spy_return')
+            alpha_pct = None
+            if cycle_return_pct is not None and spy_return_pct is not None:
+                alpha_pct = round(cycle_return_pct - spy_return_pct, 2)
+
+            cycle.update({
+                'positions_detail': positions_detail,
+                'sector_breakdown': sector_breakdown,
+                'exits_by_reason': exits_by_reason,
+                'cycle_return_pct': cycle_return_pct,
+                'spy_return_pct': spy_return_pct,
+                'alpha_pct': alpha_pct,
+            })
+        except Exception as e:
+            logger.warning(f"Cycle log enrichment failed: {e}")
+            cycle.update(defaults)
+
     def _update_cycle_log(self, prices: Dict[str, float]):
         """Close the active cycle and open a new one in cycle_log.json.
 
@@ -2585,6 +2769,8 @@ class COMPASSLive:
                 if cycle.get('hydra_return') is not None and cycle.get('spy_return') is not None:
                     cycle['alpha'] = round(cycle['hydra_return'] - cycle['spy_return'], 2)
 
+                self._enrich_cycle_summary(cycle, pre_rot_positions, prices)
+
                 status_str = 'WIN' if cycle.get('alpha', 0) >= 0 else 'LOSS'
                 logger.info(f"CYCLE #{cycle['cycle']} CLOSED: "
                            f"HYDRA {cycle['hydra_return']:+.2f}% | "
@@ -2600,22 +2786,11 @@ class COMPASSLive:
         new_positions = list(self.broker.positions.keys())
         next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
 
-        cycles.append({
-            'cycle': next_cycle,
-            'start_date': today,
-            'end_date': None,
-            'status': 'active',
-            'portfolio_start': round(new_start_value, 2),
-            'portfolio_end': None,
-            'spy_start': round(new_spy_start, 2) if new_spy_start else None,
-            'spy_end': None,
-            'positions': new_positions,
-            'positions_current': list(new_positions),
-            'hydra_return': None,
-            'spy_return': None,
-            'alpha': None,
-            'stop_events': [],
-        })
+        cycles.append(
+            self._new_cycle_log_entry(
+                next_cycle, today, new_start_value, new_spy_start, new_positions
+            )
+        )
 
         # Save (atomic write to prevent corruption on crash)
         os.makedirs('state', exist_ok=True)
@@ -2705,22 +2880,11 @@ class COMPASSLive:
             start_value = round(portfolio.total_value, 2)
 
         current_positions = list(self.broker.positions.keys())
-        cycles.append({
-            'cycle': next_cycle,
-            'start_date': today,
-            'end_date': None,
-            'status': 'active',
-            'portfolio_start': start_value,
-            'portfolio_end': None,
-            'spy_start': round(spy_price, 2) if spy_price else None,
-            'spy_end': None,
-            'positions': current_positions,
-            'positions_current': list(current_positions),
-            'hydra_return': None,
-            'spy_return': None,
-            'alpha': None,
-            'stop_events': [],
-        })
+        cycles.append(
+            self._new_cycle_log_entry(
+                next_cycle, today, start_value, spy_price, current_positions
+            )
+        )
 
         os.makedirs('state', exist_ok=True)
         try:
@@ -2739,7 +2903,8 @@ class COMPASSLive:
                     f"{list(self.broker.positions.keys())}")
 
     def _update_cycle_log_stop(self, stopped_symbol: str, replacement_symbol: str,
-                                exit_reason: str, stop_return: float):
+                                exit_reason: str, stop_return: float,
+                                stop_details: dict = None):
         """Update the active cycle when a mid-cycle stop fires and a replacement enters.
 
         Records the stop event and updates positions_current so the dashboard
@@ -2763,13 +2928,31 @@ class COMPASSLive:
                 c['positions_current'] = list(c.get('positions', []))
 
             today = self.get_et_now().date().isoformat()
-            c['stop_events'].append({
+            event = {
                 'date': today,
                 'stopped': stopped_symbol,
                 'replacement': replacement_symbol,
                 'reason': exit_reason,
-                'return': round(stop_return * 100, 1),
-            })
+            }
+            if stop_details:
+                if stop_details.get('exit_price') is not None:
+                    event['exit_price'] = round(stop_details['exit_price'], 2)
+                if stop_details.get('entry_price') is not None:
+                    event['entry_price'] = round(stop_details['entry_price'], 2)
+                if stop_details.get('sector'):
+                    event['sector'] = stop_details['sector']
+                if stop_details.get('days_held') is not None:
+                    event['days_held'] = int(stop_details['days_held'])
+            event_return = stop_return
+            if (stop_details and stop_details.get('entry_price')
+                    and stop_details.get('exit_price') is not None):
+                entry_price = stop_details['entry_price']
+                if entry_price:
+                    event_return = (
+                        (stop_details['exit_price'] - entry_price) / entry_price
+                    )
+            event['return'] = round(event_return * 100, 1)
+            c['stop_events'].append(event)
 
             current = c['positions_current']
             if stopped_symbol in current:

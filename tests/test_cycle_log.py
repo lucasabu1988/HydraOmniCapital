@@ -14,7 +14,8 @@ ALL_CYCLE_FIELDS = {
     'cycle', 'start_date', 'end_date', 'status', 'portfolio_start',
     'portfolio_end', 'spy_start', 'spy_end', 'positions',
     'positions_current', 'hydra_return', 'spy_return', 'alpha',
-    'stop_events',
+    'stop_events', 'positions_detail', 'sector_breakdown',
+    'exits_by_reason', 'cycle_return_pct', 'spy_return_pct', 'alpha_pct',
 }
 
 
@@ -36,6 +37,12 @@ def _new_cycle(cycle_number, start_date, portfolio_start, spy_start,
         'spy_return': None,
         'alpha': None,
         'stop_events': [],
+        'positions_detail': [],
+        'sector_breakdown': {},
+        'exits_by_reason': {},
+        'cycle_return_pct': None,
+        'spy_return_pct': None,
+        'alpha_pct': None,
     }
 
 
@@ -72,6 +79,12 @@ def _close_cycle(cycle, end_date, spy_end, pre_rot_positions, prices):
         p['shares'] * prices.get(sym, p['avg_cost'])
         for sym, p in pre_rot_positions.items())
     cycle['portfolio_end'] = round(portfolio_end, 2)
+    if cycle.get('portfolio_start'):
+        cycle['cycle_return_pct'] = round(
+            (cycle['portfolio_end'] - cycle['portfolio_start']) / cycle['portfolio_start'] * 100, 2)
+    cycle['spy_return_pct'] = cycle.get('spy_return')
+    if cycle.get('cycle_return_pct') is not None and cycle.get('spy_return_pct') is not None:
+        cycle['alpha_pct'] = round(cycle['cycle_return_pct'] - cycle['spy_return_pct'], 2)
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +118,12 @@ class TestNewCycleCreation:
         assert cycle['spy_return'] is None
         assert cycle['alpha'] is None
         assert cycle['stop_events'] == []
+        assert cycle['positions_detail'] == []
+        assert cycle['sector_breakdown'] == {}
+        assert cycle['exits_by_reason'] == {}
+        assert cycle['cycle_return_pct'] is None
+        assert cycle['spy_return_pct'] is None
+        assert cycle['alpha_pct'] is None
 
 
 class TestCycleClosure:
@@ -172,6 +191,16 @@ class TestCycleClosure:
         cycle = _new_cycle(1, '2026-03-06', 100_000.0, 5800.0, [])
         _close_cycle(cycle, '2026-03-12', 5800.0, {}, {})
         assert cycle['hydra_return'] == 0.0
+
+    def test_cycle_return_pct_uses_portfolio_start_and_end(self):
+        cycle = _new_cycle(1, '2026-03-06', 100_000.0, 5800.0, ['AAPL'])
+        pre_rot = {'AAPL': {'shares': 100, 'avg_cost': 200.0}}
+        _close_cycle(cycle, '2026-03-12', 5858.0, pre_rot, {'AAPL': 210.0})
+
+        assert cycle['portfolio_end'] == 21_000.0
+        assert cycle['cycle_return_pct'] == -79.0
+        assert cycle['spy_return_pct'] == pytest.approx(1.0)
+        assert cycle['alpha_pct'] == pytest.approx(-80.0)
 
 
 class TestCycleLogSerialization:

@@ -450,11 +450,30 @@ def test_multi_day_cycle_with_stop_exit(monkeypatch, temp_runtime):
     decision_types = {record['decision_type'] for record in decisions}
     closed_cycles = [cycle for cycle in cycle_log if cycle.get('status') == 'closed']
     exit_records = [record for record in decisions if record.get('decision_type') == 'exit']
+    closed_cycle = closed_cycles[0]
+    positions_detail = closed_cycle.get('positions_detail', [])
+    stop_details = [detail for detail in positions_detail if 'stop' in (detail.get('exit_reason') or '')]
 
     assert closed_cycles
     assert {'entry', 'hold', 'exit', 'skip'}.issubset(decision_types)
     assert any('stop' in (record.get('exit_reason') or '') for record in exit_records)
-    assert any(event.get('reason') == 'position_stop' for event in closed_cycles[0].get('stop_events', []))
+    assert any(event.get('reason') == 'position_stop' for event in closed_cycle.get('stop_events', []))
+    assert positions_detail
+    assert all(
+        {'symbol', 'entry_price', 'exit_price', 'pnl_pct', 'exit_reason', 'sector', 'days_held'}
+        <= set(detail.keys())
+        for detail in positions_detail
+    )
+    assert stop_details
+    assert any(detail['pnl_pct'] < 0 and detail['pnl_pct'] > -100 for detail in stop_details)
+    assert any(event.get('return', 0) < 0 for event in closed_cycle.get('stop_events', []))
+    assert closed_cycle.get('exits_by_reason', {}).get('stop_loss', 0) >= 1
+    assert closed_cycle.get('sector_breakdown')
+    assert closed_cycle.get('cycle_return_pct') is not None
+    assert closed_cycle.get('spy_return_pct') is not None
+    assert closed_cycle.get('alpha_pct') == pytest.approx(
+        closed_cycle['cycle_return_pct'] - closed_cycle['spy_return_pct']
+    )
     assert latest_state['trading_day_counter'] >= 5
     assert latest_state['portfolio_value'] != pytest.approx(100000.0)
     assert 'AMZN' in latest_state['positions']
