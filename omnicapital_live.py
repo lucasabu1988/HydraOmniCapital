@@ -2789,6 +2789,50 @@ class COMPASSLive:
             'alpha_pct': None,
         }
 
+    def _validate_cycle_log_entry(self, entry: dict) -> bool:
+        issues = []
+        cycle_number = self._coerce_int(entry.get('cycle'), 0)
+        if cycle_number <= 0:
+            issues.append(f"cycle={cycle_number} must be > 0")
+
+        start_date = entry.get('start_date')
+        try:
+            date.fromisoformat(start_date)
+        except Exception:
+            issues.append(f"start_date={start_date!r} is not a valid ISO date")
+
+        end_date = entry.get('end_date')
+        if end_date not in (None, ''):
+            try:
+                date.fromisoformat(end_date)
+            except Exception:
+                issues.append(f"end_date={end_date!r} is not a valid ISO date")
+
+        cycle_return_pct = entry.get('cycle_return_pct')
+        if cycle_return_pct is not None:
+            try:
+                cycle_return_pct = float(cycle_return_pct)
+            except (TypeError, ValueError):
+                issues.append(f"cycle_return_pct={cycle_return_pct!r} is not numeric")
+            else:
+                if not math.isfinite(cycle_return_pct):
+                    issues.append(f"cycle_return_pct={cycle_return_pct!r} is not finite")
+
+        if issues:
+            logger.warning(
+                "Skipping invalid cycle log entry %s: %s",
+                entry.get('cycle', '?'),
+                " | ".join(issues),
+            )
+            return False
+        return True
+
+    def _append_cycle_log_entry(self, cycles: List[dict], entry: dict) -> bool:
+        if not self._validate_cycle_log_entry(entry):
+            return False
+        cycles.append(entry)
+        return True
+
     def _cycle_exit_reason_bucket(self, exit_reason: Optional[str]) -> Optional[str]:
         mapping = {
             'position_stop': 'stop_loss',
@@ -3005,11 +3049,10 @@ class COMPASSLive:
         new_positions = list(self.broker.positions.keys())
         next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
 
-        cycles.append(
-            self._new_cycle_log_entry(
-                next_cycle, today, new_start_value, new_spy_start, new_positions
-            )
+        new_cycle_entry = self._new_cycle_log_entry(
+            next_cycle, today, new_start_value, new_spy_start, new_positions
         )
+        new_cycle_opened = self._append_cycle_log_entry(cycles, new_cycle_entry)
 
         # Save (atomic write to prevent corruption on crash)
         os.makedirs('state', exist_ok=True)
@@ -3025,8 +3068,9 @@ class COMPASSLive:
             except OSError:
                 pass
 
-        logger.info(f"CYCLE #{next_cycle} OPENED: {', '.join(new_positions)} | "
-                    f"${new_start_value:,.0f}")
+        if new_cycle_opened:
+            logger.info(f"CYCLE #{next_cycle} OPENED: {', '.join(new_positions)} | "
+                        f"${new_start_value:,.0f}")
 
         # WhatsApp/Email notification on rotation
         if self.notifier and hasattr(self.notifier, 'send_rotation_alert'):
@@ -3099,11 +3143,11 @@ class COMPASSLive:
             start_value = round(portfolio.total_value, 2)
 
         current_positions = list(self.broker.positions.keys())
-        cycles.append(
-            self._new_cycle_log_entry(
-                next_cycle, today, start_value, spy_price, current_positions
-            )
+        new_cycle_entry = self._new_cycle_log_entry(
+            next_cycle, today, start_value, spy_price, current_positions
         )
+        if not self._append_cycle_log_entry(cycles, new_cycle_entry):
+            return
 
         os.makedirs('state', exist_ok=True)
         try:

@@ -751,3 +751,43 @@ def test_cycle_log_records_accurate_portfolio_pnl_and_alpha(monkeypatch, temp_ru
     assert positions_detail['AAPL']['exit_reason'] == 'hold_expired'
     assert positions_detail['MSFT']['pnl_pct'] == pytest.approx(-6.67, abs=0.01)
     assert positions_detail['JNJ']['pnl_pct'] == pytest.approx(5.0)
+
+
+def test_ensure_active_cycle_rejects_invalid_cycle_log_entry(trader, temp_runtime, monkeypatch, caplog):
+    trader.broker.positions['AAPL'] = live.Position(symbol='AAPL', shares=10, avg_cost=100.0)
+    trader.last_trading_date = datetime(2026, 3, 16).date()
+
+    monkeypatch.setattr(live.yf, 'download', lambda *args, **kwargs: pd.DataFrame())
+
+    def invalid_cycle_entry(cycle_number, start_date, portfolio_start, spy_start, positions):
+        return {
+            'cycle': cycle_number,
+            'start_date': start_date,
+            'end_date': start_date,
+            'status': 'closed',
+            'portfolio_start': round(portfolio_start, 2),
+            'portfolio_end': round(portfolio_start, 2),
+            'spy_start': round(spy_start, 2) if spy_start else None,
+            'spy_end': round(spy_start, 2) if spy_start else None,
+            'positions': list(positions),
+            'positions_current': list(positions),
+            'hydra_return': 0.0,
+            'spy_return': 0.0,
+            'alpha': 0.0,
+            'stop_events': [],
+            'positions_detail': [],
+            'sector_breakdown': {},
+            'exits_by_reason': {},
+            'cycle_return_pct': float('nan'),
+            'spy_return_pct': 0.0,
+            'alpha_pct': 0.0,
+        }
+
+    monkeypatch.setattr(trader, '_new_cycle_log_entry', invalid_cycle_entry)
+
+    with caplog.at_level(logging.WARNING, logger=live.logger.name):
+        trader._ensure_active_cycle()
+
+    cycle_log_path = temp_runtime / 'state' / 'cycle_log.json'
+    assert not cycle_log_path.exists()
+    assert any('Skipping invalid cycle log entry' in record.message for record in caplog.records)
