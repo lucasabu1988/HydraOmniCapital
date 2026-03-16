@@ -757,7 +757,7 @@ class PaperBroker(Broker):
             cash=self.cash,
             positions=positions,
             total_value=total_value,
-            buying_power=self.cash * 2  # Simular 2:1 margin
+            buying_power=self.cash  # Production stays cash-only: LEVERAGE_MAX = 1.0
         )
     
     def get_account_info(self) -> Dict:
