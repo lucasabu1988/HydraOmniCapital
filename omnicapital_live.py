@@ -4002,6 +4002,11 @@ class COMPASSLive:
             if not prices:
                 logger.warning("No valid prices obtained after validation")
                 self._consecutive_errors += 1
+                if self._consecutive_errors >= self._max_consecutive_errors:
+                    logger.critical(f"Too many consecutive errors ({self._consecutive_errors}). Stopping.")
+                    if self.notifier:
+                        self.notifier.send_error_alert("No valid prices obtained after validation", "")
+                    raise RuntimeError("Too many consecutive errors")
                 return False
 
             self._consecutive_errors = 0
