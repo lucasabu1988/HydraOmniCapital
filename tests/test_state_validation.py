@@ -274,6 +274,30 @@ def test_load_state_caps_unreasonably_high_peak_in_early_days(trader, tmp_path):
     assert trader.peak_value == pytest.approx(100000.0)
 
 
+def test_load_state_caps_peak_at_exact_early_day_threshold(trader, tmp_path):
+    latest_state = make_state(
+        trading_day_counter=1,
+        portfolio_value=100000.0,
+        peak_value=120000.0,
+        positions={'AAPL': {'shares': 10, 'avg_cost': 150.0}},
+        position_meta={
+            'AAPL': {
+                'entry_price': 150.0,
+                'entry_date': '2026-03-16',
+                'entry_day_index': 1,
+                'original_entry_day_index': 1,
+                'high_price': 150.0,
+                'sector': 'Technology',
+            }
+        },
+    )
+    write_json(tmp_path / 'state' / 'compass_state_latest.json', latest_state)
+
+    trader.load_state()
+
+    assert trader.peak_value == pytest.approx(100000.0)
+
+
 def test_load_state_resets_non_dict_sections(trader, tmp_path):
     invalid_state = make_state(
         positions=[],

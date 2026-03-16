@@ -3385,7 +3385,7 @@ class COMPASSLive:
         if (
             source == 'load'
             and trading_day_counter <= 5
-            and peak_value > early_peak_cap
+            and peak_value >= early_peak_cap
         ):
             violations.append(
                 f"peak_value={peak_value:.2f} unreasonably high for early day {trading_day_counter}; capping to portfolio_value={portfolio_value:.2f}"
