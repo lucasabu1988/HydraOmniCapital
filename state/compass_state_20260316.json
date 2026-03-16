@@ -1,6 +1,6 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-16T10:30:37.996873",
+  "timestamp": "2026-03-16T10:34:40.582653",
   "cash": 100000,
   "peak_value": 95000,
   "portfolio_value": 100000,
@@ -52,6 +52,13 @@
   "_pre_rotation_value": null,
   "stats": {
     "cycles_completed": 0,
-    "uptime_minutes": 0.0012660500000000001
+    "uptime_minutes": 0.0012549500000000001
+  },
+  "ml_error_counts": {
+    "entry": 0,
+    "exit": 1,
+    "hold": 0,
+    "skip": 0,
+    "snapshot": 0
   }
 }
