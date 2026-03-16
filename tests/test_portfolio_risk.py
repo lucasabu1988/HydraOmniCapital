@@ -151,3 +151,19 @@ def test_var_95_scales_to_30_day_horizon():
 
     assert risk['var_95_pct'] == pytest.approx(expected_pct, abs=0.01)
     assert risk['var_95'] == pytest.approx(expected_value, abs=0.01)
+
+
+def test_zero_portfolio_value_falls_back_to_live_position_value():
+    state = {
+        'cash': 0.0,
+        'portfolio_value': 0.0,
+        'positions': {'AAPL': {'shares': 10, 'avg_cost': 100.0}},
+        'position_meta': {'AAPL': {'sector': 'Tech'}},
+    }
+
+    risk = compute_portfolio_risk(state, {'AAPL': 100.0}, {})
+
+    assert risk['portfolio_value'] == pytest.approx(1000.0)
+    assert risk['num_positions'] == 1
+    assert risk['max_position_pct'] == pytest.approx(100.0)
+    assert math.isfinite(risk['risk_score'])

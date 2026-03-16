@@ -77,6 +77,11 @@ class COMPASSTradeAnalytics:
         """Load and parse trade and daily CSVs."""
         self.trades_df = pd.read_csv(self.trades_csv, parse_dates=['entry_date', 'exit_date'])
         self.daily_df = pd.read_csv(self.daily_csv, parse_dates=['date'])
+        for column in ('entry_date', 'exit_date'):
+            if column in self.trades_df.columns:
+                self.trades_df[column] = pd.to_datetime(self.trades_df[column], errors='coerce')
+        if 'date' in self.daily_df.columns:
+            self.daily_df['date'] = pd.to_datetime(self.daily_df['date'], errors='coerce')
         self.daily_df = self.daily_df.sort_values('date').reset_index(drop=True)
 
     def enrich_trades(self):
@@ -98,22 +103,35 @@ class COMPASSTradeAnalytics:
         # Win/Loss
         df['win'] = df['return'] > 0
 
-        # Regime at entry: merge with daily data
-        daily_regime = self.daily_df[['date', 'risk_on', 'leverage', 'in_protection']].copy()
-        df = pd.merge_asof(
-            df.sort_values('entry_date'),
-            daily_regime.sort_values('date'),
-            left_on='entry_date',
-            right_on='date',
-            direction='backward'
-        )
-        df['regime_at_entry'] = df['risk_on'].map({True: 'Risk-ON', False: 'Risk-OFF'})
+        if df.empty:
+            df['risk_on'] = pd.Series(dtype='object')
+            df['leverage'] = pd.Series(dtype='float64')
+            df['in_protection'] = pd.Series(dtype='bool')
+            df['regime_at_entry'] = pd.Series(dtype='object')
+            df['vol_environment'] = pd.Series(dtype='object')
+            df['in_protection_at_entry'] = pd.Series(dtype='bool')
+        else:
+            # Regime at entry: merge with daily data
+            if self.daily_df.empty:
+                df['risk_on'] = np.nan
+                df['leverage'] = np.nan
+                df['in_protection'] = False
+            else:
+                daily_regime = self.daily_df[['date', 'risk_on', 'leverage', 'in_protection']].copy()
+                df = pd.merge_asof(
+                    df.sort_values('entry_date'),
+                    daily_regime.sort_values('date'),
+                    left_on='entry_date',
+                    right_on='date',
+                    direction='backward'
+                )
+            df['regime_at_entry'] = df['risk_on'].map({True: 'Risk-ON', False: 'Risk-OFF'}).fillna('Unknown')
 
-        # Vol environment: based on leverage (low leverage = high vol targeting = high vol)
-        df['vol_environment'] = np.where(df['leverage'] < 0.7, 'High Vol', 'Low Vol')
+            # Vol environment: based on leverage (low leverage = high vol targeting = high vol)
+            df['vol_environment'] = np.where(df['leverage'] < 0.7, 'High Vol', 'Low Vol')
 
-        # Protection mode at entry
-        df['in_protection_at_entry'] = df['in_protection'].fillna(False)
+            # Protection mode at entry
+            df['in_protection_at_entry'] = df['in_protection'].fillna(False)
 
         self.trades_df = df
 
@@ -206,6 +224,23 @@ class COMPASSTradeAnalytics:
     def get_overall_stats(self):
         """Compute overall trade statistics."""
         df = self.trades_df
+        if df is None or len(df) == 0:
+            return {
+                'total_trades': 0,
+                'total_pnl': 0.0,
+                'avg_return_pct': 0.0,
+                'win_rate_pct': 0.0,
+                'avg_holding_days': 0.0,
+                'unique_symbols': 0,
+                'date_range': None,
+            }
+
+        entry_min = df['entry_date'].min()
+        exit_max = df['exit_date'].max()
+        date_range = None
+        if not pd.isna(entry_min) and not pd.isna(exit_max):
+            date_range = f"{entry_min.strftime('%Y-%m-%d')} to {exit_max.strftime('%Y-%m-%d')}"
+
         return {
             'total_trades': int(len(df)),
             'total_pnl': round(float(df['pnl'].sum()), 2),
@@ -213,7 +248,7 @@ class COMPASSTradeAnalytics:
             'win_rate_pct': round(float(df['win'].mean() * 100), 1),
             'avg_holding_days': round(float(df['holding_days'].mean()), 1),
             'unique_symbols': int(df['symbol'].nunique()),
-            'date_range': f"{df['entry_date'].min().strftime('%Y-%m-%d')} to {df['exit_date'].max().strftime('%Y-%m-%d')}",
+            'date_range': date_range,
         }
 
     def get_summary(self):

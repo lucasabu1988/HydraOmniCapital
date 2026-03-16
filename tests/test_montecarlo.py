@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from compass_montecarlo import COMPASSMonteCarlo
+from compass_montecarlo import COMPASSMonteCarlo, CYCLE_DAYS, MIN_LIVE_CYCLES
 
 
 def write_cycle_log(path, cycle_returns_pct):
@@ -123,3 +123,55 @@ def test_montecarlo_is_reproducible_with_seed_666(tmp_path, monkeypatch):
 
     assert first['summary'] == second['summary']
     assert first['fan_chart']['p50'] == second['fan_chart']['p50']
+
+
+def test_montecarlo_raises_when_no_cycle_returns_are_available(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    write_cycle_log(tmp_path / 'state' / 'cycle_log.json', [])
+    write_backtest_daily(tmp_path / 'backtests' / 'hydra_clean_daily.csv', [100000.0] * CYCLE_DAYS)
+
+    mc = COMPASSMonteCarlo(
+        cycle_log_path='state/cycle_log.json',
+        daily_csv_path='backtests/hydra_clean_daily.csv',
+        n_simulations=64,
+    )
+
+    with pytest.raises(ValueError, match='enough data for 5-day cycles'):
+        mc.run_all()
+
+
+def test_montecarlo_uses_live_cycle_log_at_exact_minimum_threshold(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    write_cycle_log(
+        tmp_path / 'state' / 'cycle_log.json',
+        [1.0, -0.8, 0.6, 1.2, -0.5, 0.4, 0.9, -0.3],
+    )
+
+    mc = COMPASSMonteCarlo(
+        cycle_log_path='state/cycle_log.json',
+        daily_csv_path='backtests/hydra_clean_daily.csv',
+        n_simulations=64,
+    )
+    mc.load_input_returns()
+
+    assert mc.source == 'live_cycle_log'
+    assert len(mc.cycle_returns) == MIN_LIVE_CYCLES
+
+
+def test_montecarlo_negative_only_returns_produce_downside_projection(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    write_cycle_log(
+        tmp_path / 'state' / 'cycle_log.json',
+        [-2.5, -1.8, -1.2, -2.0, -0.9, -1.5, -2.2, -1.1],
+    )
+
+    summary = COMPASSMonteCarlo(
+        cycle_log_path='state/cycle_log.json',
+        daily_csv_path='backtests/hydra_clean_daily.csv',
+        n_simulations=128,
+    ).run_all()
+
+    assert summary['source'] == 'live_cycle_log'
+    assert summary['summary']['median_return_pct'] < 0
+    assert summary['summary']['prob_gain_10_pct'] == 0.0
+    assert summary['summary']['p95_outcome'] < summary['initial_value']
