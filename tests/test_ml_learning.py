@@ -469,6 +469,7 @@ def test_learning_engine_phase1_handles_empty_outcomes(isolate_ml_paths):
 
 
 def test_learning_engine_enters_phase2_at_63_days(isolate_ml_paths, monkeypatch):
+    pytest.importorskip('sklearn')
     feature_store = ml.FeatureStore(str(isolate_ml_paths))
     monkeypatch.setattr(
         feature_store,
@@ -497,6 +498,7 @@ def test_learning_engine_phase2_insufficient_data(isolate_ml_paths):
 
 
 def test_learning_engine_enters_phase3_at_252_days(isolate_ml_paths, monkeypatch):
+    pytest.importorskip('sklearn')
     feature_store = ml.FeatureStore(str(isolate_ml_paths))
     monkeypatch.setattr(
         feature_store,
