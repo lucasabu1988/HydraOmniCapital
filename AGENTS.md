@@ -222,6 +222,15 @@ Each has a clear scope, acceptance criteria, and relevant file pointers.
 
 ---
 
+## Task Board
+
+**Check `TASKBOARD.md` first.** It contains the live task queue managed by Claude. Tasks there take priority over the challenges below. Pick up any task marked `[ ] Open` and `Assigned: Codex`.
+
+When you complete a task:
+1. Mark it `[x]` in TASKBOARD.md
+2. Add the commit hash in the Completed section
+3. Move to the next open task
+
 ## How to Work
 
 1. **One challenge per commit** — keep changes focused and reviewable
