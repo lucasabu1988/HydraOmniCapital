@@ -10,6 +10,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import omnicapital_live as live
+import rattlesnake_signals as rattlesnake
 
 
 class StubPriceFeed:
@@ -311,6 +312,45 @@ def test_manage_efa_position_buys_when_above_sma_and_idle_cash(monkeypatch, temp
     assert trader.position_meta[live.EFA_SYMBOL]['sector'] == 'International Equity'
     assert trader.position_meta[live.EFA_SYMBOL]['_efa'] is True
     assert trader.hydra_capital.efa_value == pytest.approx(efa_pos.shares * efa_price)
+
+
+def test_open_rattlesnake_positions_enters_on_live_price_panic(monkeypatch, temp_runtime):
+    monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL'])
+    feed = StubPriceFeed({
+        'AAPL': 126.0,
+        'SPY': 505.0,
+    })
+    monkeypatch.setattr(live, 'YahooDataFeed', lambda cache_duration: feed)
+    monkeypatch.setattr(live, '_git_sync_available', False, raising=False)
+
+    config = live.CONFIG.copy()
+    config['BROKER_TYPE'] = 'PAPER'
+    config['PAPER_INITIAL_CASH'] = 100000
+
+    trader = live.COMPASSLive(config)
+    trader.broker.connect()
+    trader.broker.fill_delay = 0
+    trader.validator.validate_batch = lambda raw_prices: raw_prices
+    trader._hydra_available = True
+    trader.hydra_capital = live.HydraCapitalManager(config['PAPER_INITIAL_CASH'])
+    trader._spy_hist = make_hist(430.0, 0.35, periods=260)
+    trader._vix_current = 20.0
+
+    base_len = rattlesnake.R_TREND_SMA + 10 - 6
+    base = pd.Series([100.0 + ((40.0 * idx) / max(base_len - 1, 1)) for idx in range(base_len)])
+    recent = pd.Series([140.0, 141.0, 140.0, 141.0, 140.0, 139.0])
+    closes = pd.concat([base, recent], ignore_index=True)
+    trader._hist_cache = {
+        'AAPL': pd.DataFrame({
+            'Close': closes,
+            'Volume': [1_000_000.0] * len(closes),
+        })
+    }
+
+    trader._open_rattlesnake_positions({'AAPL': 126.0})
+
+    assert any(pos['symbol'] == 'AAPL' for pos in trader.rattle_positions)
+    assert 'AAPL' in trader.broker.get_positions()
 
 
 def test_multi_day_cycle_with_stop_exit(monkeypatch, temp_runtime):

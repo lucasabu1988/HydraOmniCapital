@@ -121,11 +121,18 @@ def find_rattlesnake_candidates(
             continue
 
         close = df['Close']
+        signal_close = close
+        last_hist_close = float(close.iloc[-1])
+        if abs(current_price - last_hist_close) > 1e-9:
+            signal_close = pd.concat([
+                close,
+                pd.Series([current_price]),
+            ], ignore_index=True)
 
         # 1. Drop threshold: fell >= 8% in last 5 days
-        if len(close) < R_DROP_LOOKBACK + 1:
+        if len(signal_close) < R_DROP_LOOKBACK + 1:
             continue
-        past_price = float(close.iloc[-(R_DROP_LOOKBACK + 1)])
+        past_price = float(signal_close.iloc[-(R_DROP_LOOKBACK + 1)])
         if past_price <= 0:
             continue
         drop = (current_price / past_price) - 1.0
@@ -133,12 +140,12 @@ def find_rattlesnake_candidates(
             continue
 
         # 2. RSI check
-        rsi_val = compute_rsi(close, R_RSI_PERIOD)
+        rsi_val = compute_rsi(signal_close, R_RSI_PERIOD)
         if rsi_val > R_RSI_THRESHOLD:
             continue
 
         # 3. Trend filter: above 200-day SMA
-        sma_val = float(close.iloc[-R_TREND_SMA:].mean())
+        sma_val = float(signal_close.iloc[-R_TREND_SMA:].mean())
         if current_price < sma_val:
             continue
 

@@ -1816,7 +1816,22 @@ class COMPASSLive:
         )
 
         if not candidates:
+            logger.info(
+                "Rattlesnake: no qualifying entries | held=%d | slots=%d | price_symbols=%d",
+                len(held),
+                r_slots,
+                len(prices),
+            )
             return
+
+        top = candidates[0]
+        logger.info(
+            "Rattlesnake candidates: %d | top=%s drop=%.1f%% RSI=%.1f",
+            len(candidates),
+            top.get('symbol'),
+            top.get('drop_pct', 0.0) * 100,
+            top.get('rsi', 0.0),
+        )
 
         # Compute Rattlesnake budget
         r_exposure = compute_rattlesnake_exposure(
