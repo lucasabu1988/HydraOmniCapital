@@ -1,0 +1,150 @@
+import numpy as np
+import pandas as pd
+import pytest
+
+import rattlesnake_signals as rattlesnake
+
+
+def make_history(recent_closes, trend_start, trend_end=None, volume=1_000_000):
+    trend_end = recent_closes[0] if trend_end is None else trend_end
+    base_len = rattlesnake.R_TREND_SMA + 10 - len(recent_closes)
+    base = np.linspace(trend_start, trend_end, base_len)
+    closes = np.concatenate([base, np.array(recent_closes, dtype=float)])
+    index = pd.date_range('2025-01-01', periods=len(closes), freq='D')
+    return pd.DataFrame({
+        'Close': closes,
+        'Volume': np.full(len(closes), volume, dtype=float),
+    }, index=index)
+
+
+class TestRattlesnakeSignals:
+
+    def test_buy_signal_fires_for_oversold_stock_above_sma200(self, monkeypatch):
+        monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL'])
+        history = make_history([140, 137, 134, 131, 128, 126], trend_start=100)
+
+        candidates = rattlesnake.find_rattlesnake_candidates(
+            hist_data={'AAPL': history},
+            current_prices={'AAPL': 126.0},
+            held_symbols=set(),
+        )
+
+        assert len(candidates) == 1
+        assert candidates[0]['symbol'] == 'AAPL'
+        assert candidates[0]['drop_pct'] == pytest.approx(-0.10)
+        assert candidates[0]['rsi'] < rattlesnake.R_RSI_THRESHOLD
+        assert candidates[0]['price'] > history['Close'].iloc[-rattlesnake.R_TREND_SMA:].mean()
+
+    def test_no_signal_when_drop_is_less_than_threshold(self, monkeypatch):
+        monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL'])
+        history = make_history([140, 139, 138, 137, 136, 133], trend_start=100)
+
+        drop = 133.0 / 140.0 - 1.0
+        rsi = rattlesnake.compute_rsi(history['Close'], rattlesnake.R_RSI_PERIOD)
+
+        candidates = rattlesnake.find_rattlesnake_candidates(
+            hist_data={'AAPL': history},
+            current_prices={'AAPL': 133.0},
+            held_symbols=set(),
+        )
+
+        assert drop > rattlesnake.R_DROP_THRESHOLD
+        assert rsi < rattlesnake.R_RSI_THRESHOLD
+        assert 133.0 > history['Close'].iloc[-rattlesnake.R_TREND_SMA:].mean()
+        assert candidates == []
+
+    def test_no_signal_when_rsi_is_not_oversold(self, monkeypatch):
+        monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL'])
+        history = make_history([140, 132, 138, 132, 136, 128], trend_start=100)
+
+        drop = 128.0 / 140.0 - 1.0
+        rsi = rattlesnake.compute_rsi(history['Close'], rattlesnake.R_RSI_PERIOD)
+
+        candidates = rattlesnake.find_rattlesnake_candidates(
+            hist_data={'AAPL': history},
+            current_prices={'AAPL': 128.0},
+            held_symbols=set(),
+        )
+
+        assert drop <= rattlesnake.R_DROP_THRESHOLD
+        assert rsi > rattlesnake.R_RSI_THRESHOLD
+        assert 128.0 > history['Close'].iloc[-rattlesnake.R_TREND_SMA:].mean()
+        assert candidates == []
+
+    def test_no_signal_when_price_is_below_sma200(self, monkeypatch):
+        monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL'])
+        history = make_history([150, 147, 144, 141, 138, 135], trend_start=170)
+
+        drop = 135.0 / 150.0 - 1.0
+        rsi = rattlesnake.compute_rsi(history['Close'], rattlesnake.R_RSI_PERIOD)
+
+        candidates = rattlesnake.find_rattlesnake_candidates(
+            hist_data={'AAPL': history},
+            current_prices={'AAPL': 135.0},
+            held_symbols=set(),
+        )
+
+        assert drop <= rattlesnake.R_DROP_THRESHOLD
+        assert rsi < rattlesnake.R_RSI_THRESHOLD
+        assert 135.0 < history['Close'].iloc[-rattlesnake.R_TREND_SMA:].mean()
+        assert candidates == []
+
+    def test_exit_hits_profit_target_at_four_percent(self):
+        reason = rattlesnake.check_rattlesnake_exit(
+            symbol='AAPL',
+            entry_price=100.0,
+            current_price=104.0,
+            days_held=3,
+        )
+
+        assert reason == 'PROFIT'
+
+    def test_exit_hits_stop_loss_at_negative_five_percent(self):
+        reason = rattlesnake.check_rattlesnake_exit(
+            symbol='AAPL',
+            entry_price=100.0,
+            current_price=95.0,
+            days_held=3,
+        )
+
+        assert reason == 'STOP'
+
+    def test_exit_hits_time_stop_at_eight_days(self):
+        reason = rattlesnake.check_rattlesnake_exit(
+            symbol='AAPL',
+            entry_price=100.0,
+            current_price=101.0,
+            days_held=8,
+        )
+
+        assert reason == 'TIME'
+
+    def test_multiple_candidates_are_ranked_by_largest_drop_first(self, monkeypatch):
+        monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL', 'MSFT', 'GOOG'])
+        histories = {
+            'AAPL': make_history([140, 137, 134, 131, 128, 126], trend_start=100),
+            'MSFT': make_history([200, 195, 190, 185, 180, 176], trend_start=120),
+            'GOOG': make_history([160, 156, 152, 148, 144, 142], trend_start=110),
+        }
+        current_prices = {'AAPL': 126.0, 'MSFT': 176.0, 'GOOG': 142.0}
+
+        candidates = rattlesnake.find_rattlesnake_candidates(
+            hist_data=histories,
+            current_prices=current_prices,
+            held_symbols=set(),
+            max_candidates=3,
+        )
+
+        assert [candidate['symbol'] for candidate in candidates] == ['MSFT', 'GOOG', 'AAPL']
+        assert [candidate['score'] for candidate in candidates] == pytest.approx([0.12, 0.1125, 0.10])
+
+    def test_empty_universe_returns_no_candidates(self, monkeypatch):
+        monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', [])
+
+        candidates = rattlesnake.find_rattlesnake_candidates(
+            hist_data={},
+            current_prices={},
+            held_symbols=set(),
+        )
+
+        assert candidates == []
