@@ -865,7 +865,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     trading_days_elapsed = _compute_real_trading_day(state)
 
     # Don't show SPY benchmark until HYDRA has actual positions
-    if not positions and state.get('trading_day_counter', 0) == 0:
+    if not positions:
         spy_cumulative = None
         spy_daily_return = None
 
