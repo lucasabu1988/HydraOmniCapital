@@ -28,7 +28,6 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests as http_requests  # for external APIs
 import xml.etree.ElementTree as XmlET
-import re as _re
 
 from compass_portfolio_risk import compute_portfolio_risk
 

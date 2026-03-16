@@ -17,7 +17,7 @@ import math
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, timedelta, time, date
+from datetime import datetime, time, date
 import logging
 import json
 import os
@@ -35,8 +35,8 @@ from zoneinfo import ZoneInfo
 warnings.filterwarnings('ignore')
 
 # Importar modulos propios
-from omnicapital_data_feed import YahooDataFeed, MarketDataManager, HistoricalDataLoader
-from omnicapital_broker import PaperBroker, IBKRBroker, Order, Broker, Position
+from omnicapital_data_feed import YahooDataFeed
+from omnicapital_broker import PaperBroker, IBKRBroker, Order, Position
 
 # Git auto-sync (non-blocking, optional)
 try:
@@ -66,7 +66,7 @@ _ml_error_counts = {
 
 # HYDRA: Rattlesnake + Cash Recycling (non-blocking, optional)
 try:
-    from rattlesnake_signals import (
+    from rattlesnake_signals import (  # noqa: F401 - optional dependency availability gate
         R_UNIVERSE, R_MAX_POSITIONS, R_POSITION_SIZE, R_MAX_POS_RISK_OFF,
         find_rattlesnake_candidates, check_rattlesnake_exit,
         check_rattlesnake_regime, compute_rattlesnake_exposure,
@@ -77,7 +77,7 @@ except ImportError:
     _hydra_available = False
 
 try:
-    from catalyst_signals import (
+    from catalyst_signals import (  # noqa: F401 - optional dependency availability gate
         compute_catalyst_targets, compute_trend_holdings,
         CATALYST_TREND_ASSETS, CATALYST_GOLD_SYMBOL, CATALYST_REBALANCE_DAYS,
     )
@@ -88,7 +88,7 @@ except ImportError:
 # Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
 try:
     from compass_fred_data import download_all_overlay_data
-    from compass_overlays import (
+    from compass_overlays import (  # noqa: F401 - optional dependency availability gate
         BankingStressOverlay, M2MomentumIndicator, FOMCSurpriseSignal,
         FedEmergencySignal, CreditSectorPreFilter, compute_overlay_signals,
         OVERLAY_FLOOR,

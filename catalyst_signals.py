@@ -11,8 +11,9 @@ Gold: always hold GLD (separate from trend basket).
 Backtest reference: EXP68 — CAGR 14.42% -> 15.62%, Sharpe 0.908 -> 1.079
 """
 import logging
+from typing import Dict, List
+
 import pandas as pd
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

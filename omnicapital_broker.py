@@ -526,7 +526,6 @@ class ConnectionManager:
 
     def _reconnect_loop(self):
         """Background thread: attempt reconnection periodically."""
-        import time as _time
         while (self._reconnect_count < self.max_reconnect_attempts
                and not self._stop_reconnect.is_set()):
             self._reconnect_count += 1
