@@ -131,7 +131,7 @@ def trader(monkeypatch, temp_runtime):
 
     config = live.CONFIG.copy()
     config['BROKER_TYPE'] = 'PAPER'
-    config['PAPER_INITIAL_CASH'] = 100000
+    config['PAPER_INITIAL_CASH'] = 99500.499
     config['MIN_MOMENTUM_STOCKS'] = 1
     config['STATE_SAVE_INTERVAL'] = 0
     config['STOP_CHECK_INTERVAL'] = 0
@@ -317,7 +317,7 @@ def test_manage_efa_position_buys_when_above_sma_and_idle_cash(monkeypatch, temp
 
     config = live.CONFIG.copy()
     config['BROKER_TYPE'] = 'PAPER'
-    config['PAPER_INITIAL_CASH'] = 100000
+    config['PAPER_INITIAL_CASH'] = 99500.499
 
     trader = live.COMPASSLive(config)
     trader.broker.connect()
@@ -351,7 +351,7 @@ def test_open_rattlesnake_positions_enters_on_live_price_panic(monkeypatch, temp
 
     config = live.CONFIG.copy()
     config['BROKER_TYPE'] = 'PAPER'
-    config['PAPER_INITIAL_CASH'] = 100000
+    config['PAPER_INITIAL_CASH'] = 99500.499
 
     trader = live.COMPASSLive(config)
     trader.broker.connect()
@@ -486,7 +486,7 @@ def test_multi_day_cycle_with_stop_exit(monkeypatch, temp_runtime):
 
     config = live.CONFIG.copy()
     config['BROKER_TYPE'] = 'PAPER'
-    config['PAPER_INITIAL_CASH'] = 100000
+    config['PAPER_INITIAL_CASH'] = 99500.499
     config['MIN_MOMENTUM_STOCKS'] = 1
     config['STATE_SAVE_INTERVAL'] = 0
     config['STOP_CHECK_INTERVAL'] = 0
@@ -579,3 +579,155 @@ def test_multi_day_cycle_with_stop_exit(monkeypatch, temp_runtime):
     assert latest_state['portfolio_value'] != pytest.approx(100000.0)
     assert 'AMZN' in latest_state['positions']
     assert 'META' in latest_state['positions'] or 'GOOGL' in latest_state['positions']
+
+
+def test_cycle_log_records_accurate_portfolio_pnl_and_alpha(monkeypatch, temp_runtime):
+    buy_prices = {
+        'AAPL': 100.0,
+        'MSFT': 150.0,
+        'JNJ': 500.0,
+        'SPY': 500.0,
+    }
+    sell_prices = {
+        'AAPL': 110.0,
+        'MSFT': 140.0,
+        'JNJ': 525.0,
+        'SPY': 510.0,
+    }
+    feed = StubPriceFeed(buy_prices)
+    monkeypatch.setattr(live, 'YahooDataFeed', lambda cache_duration: feed)
+    monkeypatch.setattr(live, '_git_sync_available', False, raising=False)
+
+    config = live.CONFIG.copy()
+    config['BROKER_TYPE'] = 'PAPER'
+    config['PAPER_INITIAL_CASH'] = 99500.499
+
+    trader = live.COMPASSLive(config)
+    trader.broker.connect()
+    trader.broker.fill_delay = 0
+    trader.validator.validate_batch = lambda raw_prices: raw_prices
+    trader.notifier = None
+    trader.config['PAPER_INITIAL_CASH'] = config['PAPER_INITIAL_CASH']
+    trader.broker.cash = config['PAPER_INITIAL_CASH']
+    trader.trading_day_counter = 5
+
+    start_date = '2026-03-10'
+    end_date = '2026-03-16'
+    entry_specs = {
+        'AAPL': {'shares': 200, 'sector': 'Technology'},
+        'MSFT': {'shares': 200, 'sector': 'Technology'},
+        'JNJ': {'shares': 99, 'sector': 'Healthcare'},
+    }
+
+    trader.trades_today = []
+    for symbol, spec in entry_specs.items():
+        buy_result = trader.broker.submit_order(
+            live.Order(symbol=symbol, action='BUY', quantity=spec['shares'], order_type='MARKET')
+        )
+        trader.position_meta[symbol] = {
+            'entry_price': buy_result.filled_price,
+            'entry_date': start_date,
+            'entry_day_index': 1,
+            'original_entry_day_index': 1,
+            'high_price': buy_result.filled_price,
+            'entry_vol': 0.25,
+            'entry_daily_vol': 0.016,
+            'sector': spec['sector'],
+        }
+
+    trader._pre_rotation_positions_data = {
+        symbol: {
+            'shares': position.shares,
+            'avg_cost': position.avg_cost,
+            'entry_price': trader.position_meta[symbol]['entry_price'],
+            'entry_day_index': trader.position_meta[symbol]['entry_day_index'],
+            'sector': trader.position_meta[symbol]['sector'],
+        }
+        for symbol, position in trader.broker.positions.items()
+    }
+    trader._pre_rotation_positions = list(trader.broker.positions.keys())
+    trader._pre_rotation_cash = 0.0
+    trader._pre_rotation_value = round(config['PAPER_INITIAL_CASH'], 2)
+
+    cycle_log_path = temp_runtime / 'state' / 'cycle_log.json'
+    cycle_log_path.parent.mkdir(parents=True, exist_ok=True)
+    cycle_log_path.write_text(json.dumps([
+        trader._new_cycle_log_entry(
+            cycle_number=1,
+            start_date=start_date,
+            portfolio_start=trader._pre_rotation_value,
+            spy_start=500.0,
+            positions=list(entry_specs.keys()),
+        )
+    ], indent=2), encoding='utf-8')
+
+    feed.prices = dict(sell_prices)
+    for symbol in list(entry_specs.keys()):
+        shares = trader.broker.positions[symbol].shares
+        sell_result = trader.broker.submit_order(
+            live.Order(symbol=symbol, action='SELL', quantity=shares, order_type='MARKET')
+        )
+        entry_price = trader.position_meta[symbol]['entry_price']
+        pnl = (sell_result.filled_price - entry_price) * shares
+        ret = (sell_result.filled_price - entry_price) / entry_price
+        trader.trades_today.append({
+            'symbol': symbol,
+            'action': 'SELL',
+            'exit_reason': 'hold_expired',
+            'pnl': pnl,
+            'return': ret,
+            'price': sell_result.filled_price,
+            'is_bps': sell_result.is_bps,
+        })
+
+    monkeypatch.setattr(
+        trader,
+        '_reconstruct_close_portfolio',
+        lambda positions, cash: round(
+            cash + sum(pos['shares'] * sell_prices[symbol] for symbol, pos in positions.items()),
+            2,
+        ),
+    )
+    monkeypatch.setattr(trader, '_get_spy_close', lambda: sell_prices['SPY'])
+
+    class FrozenCycleDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            current = datetime(2026, 3, 16, 15, 55)
+            if tz is not None:
+                current = current.replace(tzinfo=tz)
+            return cls(
+                current.year, current.month, current.day,
+                current.hour, current.minute, current.second, current.microsecond,
+                tzinfo=current.tzinfo,
+            )
+
+    monkeypatch.setattr(live, 'datetime', FrozenCycleDateTime)
+    trader.last_trading_date = datetime.fromisoformat(end_date).date()
+
+    trader._update_cycle_log({
+        'AAPL': sell_prices['AAPL'],
+        'MSFT': sell_prices['MSFT'],
+        'JNJ': sell_prices['JNJ'],
+    })
+
+    cycle_log = json.loads(cycle_log_path.read_text(encoding='utf-8'))
+    closed_cycle = next(cycle for cycle in cycle_log if cycle['status'] == 'closed')
+
+    assert closed_cycle['start_date'] == start_date
+    assert closed_cycle['end_date'] == end_date
+    assert closed_cycle['portfolio_end'] == pytest.approx(101975.0)
+    assert closed_cycle['cycle_return_pct'] == pytest.approx(2.49, abs=0.01)
+    assert closed_cycle['hydra_return'] == pytest.approx(2.49, abs=0.01)
+    assert closed_cycle['spy_end'] == pytest.approx(510.0)
+    assert closed_cycle['spy_return'] == pytest.approx(2.0)
+    assert closed_cycle['alpha'] == pytest.approx(0.49, abs=0.01)
+    assert closed_cycle['alpha_pct'] == pytest.approx(0.49, abs=0.01)
+
+    positions_detail = {detail['symbol']: detail for detail in closed_cycle['positions_detail']}
+    assert positions_detail['AAPL']['entry_price'] == pytest.approx(100.0)
+    assert positions_detail['AAPL']['exit_price'] == pytest.approx(110.0)
+    assert positions_detail['AAPL']['pnl_pct'] == pytest.approx(10.0)
+    assert positions_detail['AAPL']['exit_reason'] == 'hold_expired'
+    assert positions_detail['MSFT']['pnl_pct'] == pytest.approx(-6.67, abs=0.01)
+    assert positions_detail['JNJ']['pnl_pct'] == pytest.approx(5.0)
