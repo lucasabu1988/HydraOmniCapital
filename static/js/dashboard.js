@@ -1216,6 +1216,7 @@ function renderCycleReasonPills(exitsByReason) {
 }
 
 function renderCycleAlphaBadge(alphaPp) {
+    if (alphaPp == null) return '';
     const cls = alphaPp > 0 ? 'cl-alpha-pos' : alphaPp < 0 ? 'cl-alpha-neg' : 'cl-alpha-flat';
     return '<div class="cl-alpha-box">'
         + '<span class="cl-alpha-label">Alpha vs S&amp;P</span>'

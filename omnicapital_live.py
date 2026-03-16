@@ -2587,11 +2587,10 @@ class COMPASSLive:
             for event in cycle.get('stop_events', [])
             if event.get('stopped')
         }
-        sell_trades = {
-            trade.get('symbol'): trade
-            for trade in self.trades_today
-            if trade.get('action') == 'SELL' and trade.get('symbol')
-        }
+        sell_trades = {}
+        for trade in self.trades_today:
+            if trade.get('action') == 'SELL' and trade.get('symbol'):
+                sell_trades.setdefault(trade['symbol'], trade)
 
         symbols = list(dict.fromkeys(
             list(cycle.get('positions', []))
@@ -2691,7 +2690,7 @@ class COMPASSLive:
             cycle_return_pct = None
             portfolio_start = cycle.get('portfolio_start')
             portfolio_end = cycle.get('portfolio_end')
-            if portfolio_start:
+            if portfolio_start and portfolio_end is not None:
                 cycle_return_pct = round(
                     (portfolio_end - portfolio_start) / portfolio_start * 100, 2
                 )
