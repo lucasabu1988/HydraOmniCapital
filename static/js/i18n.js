@@ -107,6 +107,11 @@ var TRANSLATIONS = {
     // Strategy labels
     'strategy-1':         'ESTRATEGIA 1',
     'strategy-2':         'ESTRATEGIA 2',
+    'strategy-3':         'ESTRATEGIA 3',
+    'strat-desc-momentum': 'Compra las acciones con mayor momentum ajustado por riesgo (retorno 90d / volatilidad 63d) del top-40 S&P 500. Rota cada 5 días con stops adaptativos por volatilidad.',
+    'strat-desc-rattle':   'Compra acciones del S&P 100 que caen ≥8% en 5 días con RSI(5)<25 y tendencia alcista. Objetivo +4%, stop −5%, máximo 8 días.',
+    'strat-desc-catalyst': 'Mantiene ETFs de tendencia macro (TLT, GLD, DBC) que estén sobre su SMA200, más una asignación permanente en oro. Rebalancea cada 5 días.',
+    'strat-desc-efa':      'Capital idle después del reciclaje se aparca en EFA (mercados desarrollados internacionales) cuando EFA > SMA200. Se liquida si las estrategias activas necesitan capital.',
     'strat-invested':     'Invertido',
     'strat-return':       'Retorno',
     'strat-positions':    'Posiciones',
@@ -393,6 +398,11 @@ var TRANSLATIONS = {
     // Strategy labels
     'strategy-1':         'STRATEGY 1',
     'strategy-2':         'STRATEGY 2',
+    'strategy-3':         'STRATEGY 3',
+    'strat-desc-momentum': 'Buys the top risk-adjusted momentum stocks (90d return / 63d volatility) from the S&P 500 top-40. Rotates every 5 days with volatility-scaled adaptive stops.',
+    'strat-desc-rattle':   'Buys S&P 100 stocks that drop ≥8% in 5 days with RSI(5)<25 and uptrend filter. Target +4%, stop −5%, max 8-day hold.',
+    'strat-desc-catalyst': 'Holds macro trend ETFs (TLT, GLD, DBC) above their SMA200, plus a permanent gold allocation. Rebalances every 5 days.',
+    'strat-desc-efa':      'Idle cash after recycling parks in EFA (international developed markets) when EFA > SMA200. Liquidated if active strategies need capital.',
     'strat-invested':     'Invested',
     'strat-return':       'Return',
     'strat-positions':    'Positions',
