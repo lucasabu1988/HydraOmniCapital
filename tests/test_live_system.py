@@ -223,6 +223,14 @@ class TestCOMPASSLive(unittest.TestCase):
         closes = [base_close] * (days - 1) + [last_close]
         return pd.DataFrame({'Close': closes}, index=dates)
 
+    def _set_renewal_scores(self, trader):
+        trader._current_scores = {
+            'AAPL': 0.95,
+            'MSFT': 0.90,
+            'JPM': 0.70,
+            'XOM': 0.50,
+        }
+
     @patch('omnicapital_live.YahooDataFeed')
     def test_initialization(self, mock_feed):
         mock_feed.return_value = MagicMock()
@@ -286,6 +294,78 @@ class TestCOMPASSLive(unittest.TestCase):
                 trader._spy_hist = self._make_spy_hist(last_close=104.0)
 
                 self.assertEqual(trader.get_max_positions(), expected)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_should_renew_when_profit_and_momentum_clear_thresholds(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        self._set_renewal_scores(trader)
+
+        should_renew = trader._should_renew(
+            'AAPL', {'entry_price': 100.0}, price=105.0, total_days=5
+        )
+
+        self.assertTrue(should_renew)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_should_not_renew_when_profit_is_below_minimum(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        self._set_renewal_scores(trader)
+
+        should_renew = trader._should_renew(
+            'AAPL', {'entry_price': 100.0}, price=103.9, total_days=5
+        )
+
+        self.assertFalse(should_renew)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_should_not_renew_when_momentum_percentile_is_too_low(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        self._set_renewal_scores(trader)
+
+        should_renew = trader._should_renew(
+            'MSFT', {'entry_price': 100.0}, price=105.0, total_days=5
+        )
+
+        self.assertFalse(should_renew)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_should_not_renew_when_total_days_exceeds_maximum(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        self._set_renewal_scores(trader)
+
+        should_renew = trader._should_renew(
+            'AAPL', {'entry_price': 100.0}, price=105.0, total_days=11
+        )
+
+        self.assertFalse(should_renew)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_should_not_renew_when_total_days_reaches_maximum(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        self._set_renewal_scores(trader)
+
+        should_renew = trader._should_renew(
+            'AAPL', {'entry_price': 100.0}, price=105.0, total_days=10
+        )
+
+        self.assertFalse(should_renew)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_should_renew_on_exact_profit_threshold_before_max_days(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        self._set_renewal_scores(trader)
+
+        should_renew = trader._should_renew(
+            'AAPL', {'entry_price': 100.0}, price=104.0, total_days=6
+        )
+
+        self.assertTrue(should_renew)
 
 
 class TestPaperBroker(unittest.TestCase):
