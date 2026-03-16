@@ -1595,6 +1595,94 @@ async function fetchAll() {
 
 /* (Monte Carlo removed — replaced by Fund Scatter Plot on dashboard) */
 
+function riskTone(score) {
+    if (score < 30) return { cls: 'risk-low', color: 'var(--green)' };
+    if (score < 60) return { cls: 'risk-moderate', color: 'var(--yellow)' };
+    return { cls: score < 80 ? 'risk-high' : 'risk-extreme', color: 'var(--red)' };
+}
+
+function riskLabel(label) {
+    if (label === 'LOW') return t('risk-low-label');
+    if (label === 'MODERATE') return t('risk-moderate-label');
+    if (label === 'HIGH') return t('risk-high-label');
+    if (label === 'EXTREME') return t('risk-extreme-label');
+    return '--';
+}
+
+function setRiskMetric(id, text, toneCls) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'risk-metric-value ' + toneCls;
+}
+
+function renderRiskPanel(data) {
+    const gauge = document.getElementById('risk-gauge');
+    const scoreEl = document.getElementById('risk-score');
+    const labelEl = document.getElementById('risk-label');
+    const badgeEl = document.getElementById('risk-badge');
+    const captionEl = document.getElementById('risk-caption');
+    if (!gauge || !scoreEl || !labelEl || !badgeEl || !captionEl) return;
+
+    const score = Math.max(0, Math.min(100, Number(data.risk_score || 0)));
+    const tone = riskTone(score);
+    const label = riskLabel(data.risk_label);
+    const sweep = Math.round(score * 3.6);
+
+    gauge.style.background =
+        'conic-gradient(' + tone.color + ' 0deg, ' + tone.color + ' ' + sweep +
+        'deg, rgba(255,255,255,0.06) ' + sweep + 'deg 360deg)';
+    scoreEl.textContent = score.toFixed(1);
+    scoreEl.style.color = tone.color;
+    labelEl.textContent = label;
+    badgeEl.textContent = label;
+    badgeEl.style.color = tone.color;
+    badgeEl.style.background =
+        tone.cls === 'risk-low' ? 'var(--green-dim)' :
+        tone.cls === 'risk-moderate' ? 'var(--yellow-dim)' : 'var(--red-dim)';
+    captionEl.textContent =
+        (data.num_positions || 0) + ' ' + t('risk-positions-label') +
+        ' · ' + (data.lookback_days || 30) + 'd';
+
+    setRiskMetric('risk-concentration', (data.concentration_risk || 0).toFixed(2), tone.cls);
+    setRiskMetric('risk-sector', fmtPct(data.sector_concentration || 0), tone.cls);
+    setRiskMetric('risk-correlation', (data.correlation_risk || 0).toFixed(2), tone.cls);
+    setRiskMetric(
+        'risk-var',
+        fmt$(data.var_95 || 0) + ' / ' + fmtPct(data.var_95_pct || 0),
+        tone.cls
+    );
+    setRiskMetric('risk-maxpos', fmtPct(data.max_position_pct || 0), tone.cls);
+    setRiskMetric('risk-beta', (data.beta || 0).toFixed(2), tone.cls);
+}
+
+async function fetchRiskData() {
+    try {
+        const res = await fetch('/api/risk');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data.error && (data.num_positions || 0) === 0) {
+            renderRiskPanel({
+                risk_score: 0,
+                risk_label: 'LOW',
+                num_positions: 0,
+                lookback_days: 30,
+                concentration_risk: 0,
+                sector_concentration: 0,
+                correlation_risk: 0,
+                var_95: 0,
+                var_95_pct: 0,
+                max_position_pct: 0,
+                beta: 0,
+            });
+            return;
+        }
+        renderRiskPanel(data);
+    } catch (e) {
+        console.error('Risk fetch failed:', e);
+    }
+}
+
 
 /* ============ TRADE ANALYTICS ============ */
 let taData = null;
@@ -2556,12 +2644,14 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchAnnualReturns();
     fetchAll();
     fetchCycleLog();
+    fetchRiskData();
 
     sfInitFilters();
     fetchSocialFeed();
     fetchTradeAnalytics();
     fetchFundComparison();
     setInterval(fetchSocialFeed, 300000);
+    setInterval(fetchRiskData, 300000);
     setInterval(function() { fetchAll(); fetchCycleLog(); if (!_startupRetryTimer) countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
         countdownSec = Math.max(0, countdownSec - 1);

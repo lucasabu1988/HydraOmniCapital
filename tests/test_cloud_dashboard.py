@@ -100,6 +100,8 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._social_cache_time = None
     dashboard._trade_analytics_cache = None
     dashboard._montecarlo_cache = None
+    dashboard._risk_cache = None
+    dashboard._risk_cache_time = None
     dashboard._equity_df = None
     dashboard._spy_df = None
     dashboard._cloud_engine = None
@@ -285,6 +287,67 @@ def test_api_trade_analytics_returns_error_on_failure(client, monkeypatch):
 
     assert response.status_code == 200
     assert 'Trade analytics unavailable' in response.get_json()['error']
+
+
+def test_api_risk_returns_low_risk_when_state_missing(client):
+    response = client.get('/api/risk')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['risk_score'] == 0.0
+    assert payload['risk_label'] == 'LOW'
+    assert payload['error'] == 'No state file found'
+
+
+def test_api_risk_returns_computed_payload(client, monkeypatch):
+    write_json(Path('state/compass_state_latest.json'), make_state())
+    monkeypatch.setattr(
+        dashboard,
+        'fetch_live_prices',
+        lambda symbols: {'AAPL': 112.0, 'SPY': 500.0},
+    )
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_risk_histories',
+        lambda symbols: {
+            'AAPL': pd.DataFrame({'Close': [100.0, 102.0, 101.0, 103.0]}),
+            'SPY': pd.DataFrame({'Close': [400.0, 401.0, 403.0, 404.0]}),
+        },
+    )
+
+    response = client.get('/api/risk')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['num_positions'] == 1
+    assert payload['max_position_pct'] > 0
+    assert payload['risk_label'] in {'LOW', 'MODERATE', 'HIGH', 'EXTREME'}
+
+
+def test_api_risk_uses_cache_until_ttl_expires(client, monkeypatch):
+    write_json(Path('state/compass_state_latest.json'), make_state())
+    call_count = {'prices': 0}
+
+    def fake_prices(symbols):
+        call_count['prices'] += 1
+        return {'AAPL': 110.0, 'SPY': 500.0}
+
+    monkeypatch.setattr(dashboard, 'fetch_live_prices', fake_prices)
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_risk_histories',
+        lambda symbols: {
+            'AAPL': pd.DataFrame({'Close': [100.0, 101.0, 102.0, 103.0]}),
+            'SPY': pd.DataFrame({'Close': [400.0, 401.0, 402.0, 403.0]}),
+        },
+    )
+
+    first = client.get('/api/risk')
+    second = client.get('/api/risk')
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert call_count['prices'] == 1
 
 
 def test_api_social_feed_uses_open_positions(client, monkeypatch):

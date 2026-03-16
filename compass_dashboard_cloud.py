@@ -26,6 +26,8 @@ from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
 import threading
 
+from compass_portfolio_risk import compute_portfolio_risk
+
 # Optional imports (graceful if missing)
 try:
     import yfinance as yf
@@ -182,6 +184,10 @@ _engine_status = {
     'last_git_pull': None,
     'state_recovery': None,
 }
+
+_risk_cache = None
+_risk_cache_time = None
+RISK_CACHE_SECONDS = 300
 
 # ============================================================================
 # DATA PRELOAD (at import time — shared across gunicorn workers via --preload)
@@ -967,6 +973,44 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'timestamp': state.get('timestamp', ''),
         'uptime_minutes': state.get('stats', {}).get('uptime_minutes', 0),
     }
+
+
+def _fetch_risk_histories(symbols):
+    if not _HAS_YFINANCE or not symbols:
+        return {}
+
+    unique_symbols = sorted({symbol for symbol in symbols if symbol})
+    if not unique_symbols:
+        return {}
+
+    try:
+        history = yf.download(
+            unique_symbols,
+            period='3mo',
+            progress=False,
+            auto_adjust=False,
+            group_by='ticker',
+            threads=False,
+        )
+    except Exception as e:
+        logger.warning(f"Risk history download failed: {e}")
+        return {}
+
+    if history is None or len(history) == 0:
+        return {}
+
+    result = {}
+    if isinstance(history.columns, pd.MultiIndex):
+        level_zero = set(history.columns.get_level_values(0))
+        for symbol in unique_symbols:
+            if symbol not in level_zero:
+                continue
+            df = history[symbol].dropna(how='all')
+            if len(df) > 1:
+                result[symbol] = df
+    elif len(unique_symbols) == 1:
+        result[unique_symbols[0]] = history.dropna(how='all')
+    return result
 
 
 # ============================================================================
@@ -2033,6 +2077,46 @@ def api_news():
 # ============================================================================
 # ANALYTICS ENDPOINTS (lazy import — compute once, cache forever)
 # ============================================================================
+
+@app.route('/api/risk')
+def api_risk():
+    """Return portfolio risk metrics (cached for 5 minutes)."""
+    global _risk_cache, _risk_cache_time
+
+    now = datetime.now()
+    if _risk_cache is not None and _risk_cache_time is not None:
+        if (now - _risk_cache_time).total_seconds() < RISK_CACHE_SECONDS:
+            return jsonify(_risk_cache)
+
+    state = read_state()
+    if not state:
+        payload = {
+            'error': 'No state file found',
+            'risk_score': 0.0,
+            'risk_label': 'LOW',
+            'num_positions': 0,
+        }
+        _risk_cache = payload
+        _risk_cache_time = now
+        return jsonify(payload)
+
+    symbols = list(state.get('positions', {}).keys())
+    price_symbols = list(symbols)
+    hist_symbols = list(symbols)
+    if symbols:
+        price_symbols.append('SPY')
+        hist_symbols.append('SPY')
+
+    prices = fetch_live_prices(price_symbols)
+    if 'SPY' not in prices and '^GSPC' in prices:
+        prices['SPY'] = prices['^GSPC']
+
+    hist_data = _fetch_risk_histories(hist_symbols)
+    payload = compute_portfolio_risk(state, prices, hist_data)
+    _risk_cache = payload
+    _risk_cache_time = now
+    return jsonify(payload)
+
 
 @app.route('/api/montecarlo')
 def api_montecarlo():

@@ -149,6 +149,18 @@ var TRANSLATIONS = {
 
     // Trade Analytics
     'ta-title': 'Análisis de Trades — Backtest',
+    'risk-title': 'Monitor de Riesgo',
+    'risk-concentration': 'Riesgo de Concentración',
+    'risk-sector': 'Concentración Sectorial',
+    'risk-correlation': 'Correlación Promedio',
+    'risk-var': 'VaR 95%',
+    'risk-maxpos': 'Posición Máxima',
+    'risk-beta': 'Beta vs S&P',
+    'risk-low-label': 'BAJO',
+    'risk-moderate-label': 'MODERADO',
+    'risk-high-label': 'ALTO',
+    'risk-extreme-label': 'EXTREMO',
+    'risk-positions-label': 'posiciones',
 
     // Social Feed
     'sf-title':          'Noticias del Portfolio',
@@ -440,6 +452,18 @@ var TRANSLATIONS = {
 
     // Trade Analytics
     'ta-title': 'Trade Analysis — Backtest',
+    'risk-title': 'Risk Monitor',
+    'risk-concentration': 'Concentration Risk',
+    'risk-sector': 'Sector Concentration',
+    'risk-correlation': 'Average Correlation',
+    'risk-var': 'VaR 95%',
+    'risk-maxpos': 'Max Position',
+    'risk-beta': 'Beta vs S&P',
+    'risk-low-label': 'LOW',
+    'risk-moderate-label': 'MODERATE',
+    'risk-high-label': 'HIGH',
+    'risk-extreme-label': 'EXTREME',
+    'risk-positions-label': 'positions',
 
     // Social Feed
     'sf-title':          'Portfolio News',
