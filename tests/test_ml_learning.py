@@ -61,6 +61,19 @@ class StubStopOptimizer:
         return self.result
 
 
+def make_feature_matrix(n_rows):
+    idx = np.arange(n_rows)
+    target_return = np.where(idx % 2 == 0, 0.02, -0.015) + (idx * 0.0001)
+
+    return pd.DataFrame({
+        'feat_momentum_score': np.linspace(0.2, 0.9, n_rows),
+        'feat_regime_score': np.where(idx % 3 == 0, 0.7, 0.45),
+        'feat_entry_daily_vol': np.linspace(0.01, 0.03, n_rows),
+        'feat_spy_vs_sma200': np.where(idx % 2 == 0, 0.015, -0.01),
+        'target_return': target_return,
+    })
+
+
 @pytest.fixture(autouse=True)
 def isolate_ml_paths(monkeypatch, tmp_path):
     ml_dir = tmp_path / 'state' / 'ml_learning'
@@ -453,3 +466,48 @@ def test_learning_engine_phase1_handles_empty_outcomes(isolate_ml_paths):
     result = engine.run()
 
     assert result['phase1']['status'] == 'no_completed_trades_yet'
+
+
+def test_learning_engine_enters_phase2_at_63_days(isolate_ml_paths, monkeypatch):
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+    monkeypatch.setattr(
+        feature_store,
+        'build_entry_feature_matrix',
+        lambda: make_feature_matrix(20),
+    )
+    engine = ml.LearningEngine(feature_store, trading_days_available=63)
+
+    result = engine.run()
+
+    assert result['phase'] == 2
+    assert result['phase2']['n_samples'] == 20
+    assert 'top_features_by_coef' in result['phase2']
+    assert Path(ml.MODELS_DIR, 'phase2_ridge_meta.json').exists()
+
+
+def test_learning_engine_phase2_insufficient_data(isolate_ml_paths):
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+    engine = ml.LearningEngine(feature_store, trading_days_available=63)
+
+    result = engine.run()
+
+    assert result['phase'] == 2
+    assert result['phase2']['status'] == 'insufficient_data'
+    assert result['phase2']['required'] == 20
+
+
+def test_learning_engine_enters_phase3_at_252_days(isolate_ml_paths, monkeypatch):
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+    monkeypatch.setattr(
+        feature_store,
+        'build_entry_feature_matrix',
+        lambda: make_feature_matrix(100),
+    )
+    engine = ml.LearningEngine(feature_store, trading_days_available=252)
+
+    result = engine.run()
+
+    assert result['phase'] == 3
+    assert result['phase2']['n_samples'] == 100
+    assert result['phase3']['n_samples'] == 100
+    assert result['phase3']['model_type'] in {'RandomForest', 'LightGBM'}
