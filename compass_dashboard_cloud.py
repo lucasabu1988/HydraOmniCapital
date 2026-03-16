@@ -76,7 +76,7 @@ def handle_500(e):
     logger.error(f"500 error (worker {os.getpid()}): {e}", exc_info=True)
     return jsonify({
         'status': 'offline',
-        'error': f'Internal server error',
+        'error': 'Internal server error',
         'server_time': datetime.now().isoformat(),
     }), 200
 
@@ -86,7 +86,7 @@ def handle_exception(e):
     logger.error(f"Unhandled exception (worker {os.getpid()}): {e}", exc_info=True)
     return jsonify({
         'status': 'offline',
-        'error': f'Internal server error',
+        'error': 'Internal server error',
         'server_time': datetime.now().isoformat(),
     }), 200
 
@@ -318,7 +318,7 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
             params = {'range': '1d', 'interval': '1d'}
             r = http_requests.get(url, params=params, headers=_YF_HEADERS, timeout=10)
             if r.status_code == 429:
-                logger.warning(f'Yahoo Finance rate-limited (429), stopping batch')
+                logger.warning('Yahoo Finance rate-limited (429), stopping batch')
                 break
             if r.status_code != 200:
                 logger.warning(f'Yahoo Finance {sym} returned {r.status_code}')

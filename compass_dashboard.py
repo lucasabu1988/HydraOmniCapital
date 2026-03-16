@@ -211,7 +211,7 @@ def _backtest_scheduler_loop():
                     )
                     if result.returncode == 0:
                         _backtest_status['last_result'] = 'success'
-                        print(f"[Backtest Scheduler] Daily update completed successfully.")
+                        print("[Backtest Scheduler] Daily update completed successfully.")
                     else:
                         _backtest_status['last_result'] = f'exit code {result.returncode}'
                         print(f"[Backtest Scheduler] Backtest failed: exit code {result.returncode}")
@@ -2686,19 +2686,19 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
 
     # Build markdown
     lines = []
-    lines.append(f'### System Status\n')
+    lines.append('### System Status\n')
     lines.append(f'COMPASS ML Learning is in **Phase {phase}** (data collection). {trading_days} trading days logged.')
     if phase < 2:
         lines.append(f' ML models activate at Phase 2 (~{days_to_phase2} trading days remaining).\n')
     else:
         lines.append('\n')
 
-    lines.append(f'### Data Summary\n')
+    lines.append('### Data Summary\n')
     lines.append(f'- **{n_decisions} decisions** logged: {n_entries} entries, {n_exits} exits, {n_skips} skips')
     lines.append(f'- **{n_snapshots} daily snapshots** tracking portfolio evolution')
     lines.append(f'- **{n_outcomes} completed trades** with full outcome data\n')
 
-    lines.append(f'### Portfolio Performance\n')
+    lines.append('### Portfolio Performance\n')
     if current_value:
         lines.append(f'- Current value: **${current_value:,.0f}**')
         lines.append(f'- Total return: **{total_return * 100:+.2f}%**')
@@ -2706,10 +2706,10 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
         if daily_sharpe is not None:
             lines.append(f'- Daily Sharpe (annualized): **{daily_sharpe:.2f}**')
     else:
-        lines.append(f'- Insufficient data')
+        lines.append('- Insufficient data')
     lines.append('')
 
-    lines.append(f'### Trade Analysis\n')
+    lines.append('### Trade Analysis\n')
     if n_trades > 0:
         lines.append(f'- Completed trades: **{n_trades}**')
         if win_rate is not None:
@@ -2735,21 +2735,21 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
                 loss_str = ', '.join(f"{o['symbol']} {o['gross_return']*100:+.1f}%" for o in losses)
                 lines.append(f'- Losers: {loss_str}')
     else:
-        lines.append(f'- No completed trades yet')
+        lines.append('- No completed trades yet')
     lines.append('')
 
-    lines.append(f'### Regime Observations\n')
+    lines.append('### Regime Observations\n')
     if regime_counts:
         total_snaps = sum(regime_counts.values())
         for bucket, count in sorted(regime_counts.items(), key=lambda x: -x[1]):
             pct = count / total_snaps * 100
             lines.append(f'- **{bucket}**: {count} days ({pct:.0f}%)')
     else:
-        lines.append(f'- No regime data yet')
+        lines.append('- No regime data yet')
     lines.append('')
 
     if by_exit:
-        lines.append(f'### Exit Reason Breakdown\n')
+        lines.append('### Exit Reason Breakdown\n')
         for reason, stats in by_exit.items():
             n = stats.get('n', 0)
             mr = stats.get('mean_return')
@@ -2760,7 +2760,7 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
             lines.append(f'- **{reason_label}** ({n} trades): avg return {mr_str}, win rate {wr_str}')
         lines.append('')
 
-    lines.append(f'### Recent Activity\n')
+    lines.append('### Recent Activity\n')
     if recent:
         for r in recent:
             ts = (r.get('timestamp') or r.get('date', ''))[:16]
@@ -2776,10 +2776,10 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
             else:
                 lines.append(f'- `{ts}` **{dtype}** {sym}')
     else:
-        lines.append(f'- No recent decisions')
+        lines.append('- No recent decisions')
     lines.append('')
 
-    lines.append(f'### Next Milestone\n')
+    lines.append('### Next Milestone\n')
     if phase < 2:
         lines.append(f'Phase 2 ML begins in ~{days_to_phase2} trading days. Continue collecting entry/exit decisions and completed trade outcomes.')
     else:
@@ -2788,7 +2788,7 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
 
     # Backtest context
     if bt_stats:
-        lines.append(f'### Backtest Reference (HYDRA + EFA/MSCI World)\n')
+        lines.append('### Backtest Reference (HYDRA + EFA/MSCI World)\n')
         lines.append(f'- Period: **{bt_stats.get("start_date", "?")}** to **{bt_stats.get("end_date", "?")}** ({bt_stats.get("years", "?")} years)')
         bt_cagr = bt_stats.get('cagr', 0)
         lines.append(f'- CAGR: **{bt_cagr * 100:.1f}%**')
@@ -2800,15 +2800,15 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
         lines.append(f'- Trading Days: **{bt_stats.get("trading_days", 0):,}**')
         lines.append('')
         if trading_days > 0 and total_return:
-            lines.append(f'### Live vs Backtest\n')
+            lines.append('### Live vs Backtest\n')
             live_ann = ((1 + total_return) ** (252 / max(1, trading_days))) - 1 if trading_days > 0 else 0
             lines.append(f'- Live annualized return: **{live_ann * 100:+.1f}%** vs backtest CAGR **{bt_cagr * 100:.1f}%**')
             if live_ann < bt_cagr * 0.5:
-                lines.append(f'- **Warning**: Live performance significantly below backtest expectations. Normal for early days with small sample size.')
+                lines.append('- **Warning**: Live performance significantly below backtest expectations. Normal for early days with small sample size.')
             elif live_ann > bt_cagr * 1.5:
-                lines.append(f'- Live performance above backtest — may indicate favorable market conditions.')
+                lines.append('- Live performance above backtest — may indicate favorable market conditions.')
             else:
-                lines.append(f'- Live performance tracking within expected range of backtest.')
+                lines.append('- Live performance tracking within expected range of backtest.')
             lines.append('')
 
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -3059,13 +3059,13 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"State file: {os.path.abspath(STATE_FILE)}")
     print(f"Log dir:    {os.path.abspath(LOG_DIR)}")
-    print(f"Dashboard:  http://localhost:5000")
-    print(f"Engine:     Controlled via dashboard UI")
+    print("Dashboard:  http://localhost:5000")
+    print("Engine:     Controlled via dashboard UI")
     print(f"Stops:      Adaptive {COMPASS_CONFIG['STOP_FLOOR']:.0%} to {COMPASS_CONFIG['STOP_CEILING']:.0%} (vol-scaled)")
     print(f"Bull:       SPY > SMA200*{1+COMPASS_CONFIG['BULL_OVERRIDE_THRESHOLD']:.0%} -> +1 pos")
     print(f"Sectors:    Max {COMPASS_CONFIG['MAX_PER_SECTOR']} positions per sector")
     print(f"Leverage:   Max {COMPASS_CONFIG['LEVERAGE_MAX']:.1f}x (no leverage -- broker margin destroys value)")
-    print(f"Execution:  Pre-close signal @ 15:30 ET -> same-day MOC (+0.79% CAGR)")
+    print("Execution:  Pre-close signal @ 15:30 ET -> same-day MOC (+0.79% CAGR)")
     print(f"Chassis:    async fetch | fill breaker {COMPASS_CONFIG['MAX_FILL_DEVIATION']:.0%} | "
           f"order timeout {COMPASS_CONFIG['ORDER_TIMEOUT_SECONDS']}s | data validation")
     print("=" * 60)

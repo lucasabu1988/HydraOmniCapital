@@ -1963,12 +1963,12 @@ if __name__ == "__main__":
         decisions = fs.load_decisions()
         outcomes  = fs.load_outcomes()
         snapshots = fs.load_snapshots()
-        print(f"\n=== COMPASS ML Learning System — Data Status ===")
+        print("\n=== COMPASS ML Learning System — Data Status ===")
         print(f"Decisions logged   : {len(decisions)}")
         print(f"Completed outcomes : {len(outcomes)}")
         print(f"Daily snapshots    : {len(snapshots)}")
         if not decisions.empty and "decision_type" in decisions.columns:
-            print(f"\nDecision breakdown:")
+            print("\nDecision breakdown:")
             for dt, count in decisions["decision_type"].value_counts().items():
                 print(f"  {dt:20s}: {count}")
         if not snapshots.empty and "trading_day" in snapshots.columns:

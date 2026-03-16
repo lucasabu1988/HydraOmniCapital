@@ -1899,7 +1899,7 @@ class COMPASSLive:
         ) if self._spy_hist is not None else {'entries_allowed': True, 'max_positions': R_MAX_POSITIONS}
 
         if not regime_info['entries_allowed']:
-            logger.info(f"Rattlesnake entries blocked: VIX panic")
+            logger.info("Rattlesnake entries blocked: VIX panic")
             return
 
         max_r_pos = regime_info['max_positions']
@@ -2637,7 +2637,7 @@ class COMPASSLive:
 
         self._preclose_entries_done = True
         self.save_state()
-        logger.info(f"[PRE-CLOSE] Entry signal complete")
+        logger.info("[PRE-CLOSE] Entry signal complete")
 
     # ------------------------------------------------------------------
     # Entry price reconciliation (close-price alignment)
