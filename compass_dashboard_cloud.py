@@ -2185,6 +2185,7 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
         _interp_lock.release()
 
 
+@app.route('/api/ml')
 @app.route('/api/ml-learning')
 def api_ml_learning():
     try:
