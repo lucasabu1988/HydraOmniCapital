@@ -152,6 +152,17 @@ def test_api_state_returns_enriched_payload_when_state_exists(client, monkeypatc
     assert 'SPY' in captured['symbols']
 
 
+def test_compute_portfolio_metrics_exposes_dd_leverage_top_level():
+    state = make_state()
+    state['dd_leverage'] = 0.6
+    state['crash_cooldown'] = 3
+
+    metrics = dashboard.compute_portfolio_metrics(state, prices={'AAPL': 110.0})
+
+    assert metrics['dd_leverage'] == 0.6
+    assert metrics['recovery']['dd_leverage'] == 0.6
+
+
 def test_api_state_handles_invalid_json_state_file(client):
     state_path = Path('state/compass_state_latest.json')
     state_path.parent.mkdir(parents=True, exist_ok=True)

@@ -672,6 +672,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         'regime_consecutive': state.get('regime_consecutive', 0),
         'in_protection': dd_leverage < HYDRA_CONFIG['LEV_FULL'],
         'regime_score': round(regime_score, 3),
+        'dd_leverage': round(dd_leverage, 3) if dd_leverage is not None else None,
         'leverage': leverage,
         'recovery': recovery,
         'trading_day': live_days,

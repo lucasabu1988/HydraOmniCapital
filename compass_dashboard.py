@@ -821,6 +821,8 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         # Normal RISK_ON: vol-targeting capped at 1.0x
         leverage = 1.0
 
+    dd_leverage = state.get('dd_leverage', leverage)
+
     # v8.4: Positions from regime score (smooth, with bull override potential)
     regime_score = state.get('current_regime_score', 1.0 if state.get('current_regime', True) else 0.0)
     if regime_score >= 0.65:
@@ -880,6 +882,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
         'regime_consecutive': state.get('regime_consecutive', 0),
         'in_protection': state.get('in_protection', False),
         'protection_stage': state.get('protection_stage', 0),
+        'dd_leverage': round(dd_leverage, 3) if dd_leverage is not None else None,
         'leverage': leverage,
         'recovery': recovery,
         'trading_day': trading_days_elapsed,
