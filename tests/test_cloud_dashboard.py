@@ -351,6 +351,97 @@ def test_api_risk_uses_cache_until_ttl_expires(client, monkeypatch):
     assert call_count['prices'] == 1
 
 
+def test_api_montecarlo_returns_expected_shape(client, monkeypatch):
+    payload = {
+        'fan_chart': {
+            'days': [0, 5],
+            'p5': [100000.0, 98000.0],
+            'p50': [100000.0, 101000.0],
+            'p95': [100000.0, 104000.0],
+        },
+        'summary': {'median_outcome': 101000.0},
+        'seed': 666,
+        'source': 'live_cycle_log',
+    }
+
+    class FakeMonteCarlo:
+        def run_all(self):
+            return payload
+
+    monkeypatch.setattr(dashboard, '_montecarlo_signature', lambda: ('stable',))
+    monkeypatch.setitem(
+        sys.modules,
+        'compass_montecarlo',
+        types.SimpleNamespace(COMPASSMonteCarlo=FakeMonteCarlo),
+    )
+
+    response = client.get('/api/montecarlo')
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['fan_chart'] == payload['fan_chart']
+    assert data['summary'] == payload['summary']
+    assert data['seed'] == 666
+    assert data['source'] == 'live_cycle_log'
+
+
+def test_api_montecarlo_returns_error_on_failure(client, monkeypatch):
+    class BrokenMonteCarlo:
+        def run_all(self):
+            raise RuntimeError('sim failure')
+
+    monkeypatch.setattr(dashboard, '_montecarlo_signature', lambda: ('stable',))
+    monkeypatch.setitem(
+        sys.modules,
+        'compass_montecarlo',
+        types.SimpleNamespace(COMPASSMonteCarlo=BrokenMonteCarlo),
+    )
+
+    response = client.get('/api/montecarlo')
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'error' in data
+    assert 'sim failure' in data['error']
+
+
+def test_api_montecarlo_uses_cache_on_second_call(client, monkeypatch):
+    calls = {'count': 0}
+    payload = {
+        'fan_chart': {
+            'days': [0, 5],
+            'p5': [100000.0, 99000.0],
+            'p50': [100000.0, 101500.0],
+            'p95': [100000.0, 104500.0],
+        },
+        'summary': {'median_outcome': 101500.0},
+        'seed': 666,
+        'source': 'backtest_fallback',
+    }
+
+    class FakeMonteCarlo:
+        def __init__(self):
+            calls['count'] += 1
+
+        def run_all(self):
+            return payload
+
+    monkeypatch.setattr(dashboard, '_montecarlo_signature', lambda: ('stable',))
+    monkeypatch.setitem(
+        sys.modules,
+        'compass_montecarlo',
+        types.SimpleNamespace(COMPASSMonteCarlo=FakeMonteCarlo),
+    )
+
+    first = client.get('/api/montecarlo')
+    second = client.get('/api/montecarlo')
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.get_json() == second.get_json()
+    assert calls['count'] == 1
+
+
 def test_api_social_feed_uses_open_positions(client, monkeypatch):
     write_json(Path('state/compass_state_latest.json'), make_state())
     captured = {}
