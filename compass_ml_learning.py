@@ -23,15 +23,17 @@ Author: COMPASS ML Learning System
 """
 
 import json
+import logging
+import math
 import os
+import warnings
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, date
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, date
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass, field, asdict
-from pathlib import Path
-import logging
-import warnings
 
 warnings.filterwarnings('ignore', category=FutureWarning)
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -67,6 +69,36 @@ REGIME_BEAR      = "bear"         # score < 0.35
 VOL_LOW    = "low_vol"    # < 1.5% daily
 VOL_MEDIUM = "med_vol"    # 1.5-3.0%
 VOL_HIGH   = "high_vol"   # > 3.0%
+
+
+def _sanitize_for_json(obj):
+    if isinstance(obj, dict):
+        return {key: _sanitize_for_json(value) for key, value in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_for_json(value) for value in obj]
+    if isinstance(obj, tuple):
+        return [_sanitize_for_json(value) for value in obj]
+    if isinstance(obj, np.ndarray):
+        return [_sanitize_for_json(value) for value in obj.tolist()]
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, (float, np.floating)):
+        value = float(obj)
+        if not math.isfinite(value):
+            return None
+        return value
+    return obj
+
+
+def _write_json_file(path, payload, default=str):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(_sanitize_for_json(payload), f, indent=2, default=default)
+    os.replace(tmp_path, path)
 
 
 # ===========================================================================
@@ -282,8 +314,7 @@ class DecisionLogger:
 
     def _save_open_entries(self):
         try:
-            with open(self._open_entries_path, 'w') as f:
-                json.dump(self._open_entries, f)
+            _write_json_file(self._open_entries_path, self._open_entries)
         except Exception as e:
             logger.warning(f"Could not save open_entries.json: {e}")
 
@@ -294,7 +325,7 @@ class DecisionLogger:
     def _append_jsonl(self, path: Path, record: dict):
         """Append one JSON line to a .jsonl file (fail-safe)."""
         try:
-            line = json.dumps(record, default=str) + "\n"
+            line = json.dumps(_sanitize_for_json(record), default=str) + "\n"
             with open(path, "a", encoding="utf-8") as f:
                 f.write(line)
         except Exception as e:
@@ -1217,8 +1248,7 @@ class LearningEngine:
             "logistic_auc_cv": lr_auc,
             "trained_at": datetime.now().isoformat(),
         }
-        with open(self.models_dir / "phase2_ridge_meta.json", "w") as f:
-            json.dump(model_meta, f, indent=2)
+        _write_json_file(self.models_dir / "phase2_ridge_meta.json", model_meta)
 
         return {
             "n_samples": len(fm),
@@ -1451,9 +1481,8 @@ class InsightReporter:
             "next_milestone": self._next_milestone(phase),
         }
 
-        Path(INSIGHTS_FILE).parent.mkdir(parents=True, exist_ok=True)
-        with open(INSIGHTS_FILE, "w") as f:
-            json.dump(report, f, indent=2, default=str)
+        report = _sanitize_for_json(report)
+        _write_json_file(INSIGHTS_FILE, report)
 
         logger.info(f"Insights written to {INSIGHTS_FILE}")
         return report
@@ -1867,7 +1896,7 @@ if __name__ == "__main__":
     if args.command == "backfill":
         print("Backfilling ML learning database from existing state files...")
         result = backfill_from_state_files("state")
-        print(json.dumps(result, indent=2))
+        print(json.dumps(_sanitize_for_json(result), indent=2))
         print("\nRun 'python compass_ml_learning.py report' to generate insights.")
 
     elif args.command == "report":
@@ -1883,7 +1912,7 @@ if __name__ == "__main__":
         stop_opt  = StopParameterOptimizer(fs)
         reporter  = InsightReporter(engine, stop_opt, fs, n_days)
         report    = reporter.generate()
-        print(json.dumps(report, indent=2, default=str))
+        print(json.dumps(_sanitize_for_json(report), indent=2, default=str))
 
     elif args.command == "status":
         fs        = FeatureStore()

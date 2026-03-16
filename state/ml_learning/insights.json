@@ -99,7 +99,7 @@
       "total_stops": 1,
       "overall_stop_rate": 0.25,
       "avg_return_when_stopped": -0.0825,
-      "avg_return_when_not_stopped": NaN,
+      "avg_return_when_not_stopped": null,
       "stop_by_vol_bucket": {
         "low_vol": {
           "n": 2,

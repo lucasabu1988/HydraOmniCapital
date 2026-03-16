@@ -57,6 +57,11 @@ app = Flask(__name__)
 logger = logging.getLogger(__name__)
 
 
+def _load_json_with_invalid_constants(path):
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.loads(f.read(), parse_constant=lambda _constant: None)
+
+
 @app.errorhandler(500)
 def handle_500(e):
     logger.error(f"500 error (worker {os.getpid()}): {e}", exc_info=True)
@@ -2212,8 +2217,7 @@ def _api_ml_learning_impl():
     insights_path = os.path.join(ml_dir, 'insights.json')
     if os.path.exists(insights_path):
         try:
-            with open(insights_path, 'r') as f:
-                insights = json.load(f)
+            insights = _load_json_with_invalid_constants(insights_path)
         except Exception:
             pass
     # Load backtest daily data (HYDRA + EFA/MSCI World)
