@@ -1240,6 +1240,35 @@ async function fetchCycleLog() {
 let _fetchRetries = 0;
 const MAX_RETRIES = 5;
 const RETRY_DELAYS = [3000, 5000, 8000, 12000, 20000];
+const STARTING_RETRY_MS = 5000;
+let _startupRetryTimer = null;
+
+function showStartupLoading(message) {
+    const loading = document.getElementById('startup-loading');
+    const messageEl = document.getElementById('startup-loading-message');
+    if (!loading || !messageEl) return;
+    messageEl.textContent = (message || 'HYDRA iniciando...') + ' Reintentando en 5s.';
+    loading.hidden = false;
+}
+
+function hideStartupLoading() {
+    const loading = document.getElementById('startup-loading');
+    if (loading) loading.hidden = true;
+}
+
+function scheduleStartupRetry() {
+    if (_startupRetryTimer) return;
+    _startupRetryTimer = setTimeout(function() {
+        _startupRetryTimer = null;
+        fetchAll();
+    }, STARTING_RETRY_MS);
+}
+
+function clearStartupRetry() {
+    if (!_startupRetryTimer) return;
+    clearTimeout(_startupRetryTimer);
+    _startupRetryTimer = null;
+}
 
 /* SPY & Futures live price tracker */
 function _applyPriceChg(priceEl, chgEl, currentPrice, prevClose) {
@@ -1354,7 +1383,19 @@ async function fetchAll() {
         if (!stateRes.ok) throw new Error('HTTP ' + stateRes.status);
         const stateData = await stateRes.json();
 
+        if (stateData.status === 'starting') {
+            _fetchRetries = 0;
+            clearStartupRetry();
+            document.getElementById('offline-banner').style.display = 'none';
+            showStartupLoading(stateData.message || 'HYDRA iniciando...');
+            countdownSec = Math.ceil(STARTING_RETRY_MS / 1000);
+            scheduleStartupRetry();
+            return;
+        }
+
         if (stateData.status === 'offline') {
+            hideStartupLoading();
+            clearStartupRetry();
             const banner = document.getElementById('offline-banner');
             banner.style.display = 'block';
             banner.textContent = _fetchRetries > 0
@@ -1365,6 +1406,8 @@ async function fetchAll() {
                 _fetchRetries++;
             }
         } else {
+            hideStartupLoading();
+            clearStartupRetry();
             _fetchRetries = 0;
             document.getElementById('offline-banner').style.display = 'none';
             lastSuccessTime = new Date().toISOString();
@@ -1447,6 +1490,8 @@ async function fetchAll() {
         }
     } catch (err) {
         console.error('Fetch error:', err);
+        hideStartupLoading();
+        clearStartupRetry();
         const banner = document.getElementById('offline-banner');
         if (banner) {
             banner.style.display = 'block';
