@@ -17,7 +17,6 @@ import threading
 
 # Fill price circuit breaker: max deviation from reference price
 MAX_FILL_DEVIATION = 0.02  # 2%
-MAX_PRICE_STALENESS_SECONDS = 300  # 5 minutes
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +38,6 @@ class Order:
     submitted_at: Optional[datetime] = None  # When order was submitted to broker
     decision_price: Optional[float] = None   # Price when signal was generated (for IS tracking)
     is_bps: Optional[float] = None           # Implementation Shortfall in basis points
-    price_timestamp: Optional[datetime] = None
-    price_age_seconds: Optional[float] = None
-    is_stale_price: bool = False
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -606,28 +602,6 @@ class PaperBroker(Broker):
                 return price
         return None
 
-    def _get_price_timestamp(self, symbol: str) -> Optional[datetime]:
-        if not self.price_feed or not hasattr(self.price_feed, 'get_price_timestamp'):
-            return None
-
-        try:
-            price_timestamp = self.price_feed.get_price_timestamp(symbol)
-        except Exception as e:
-            logger.warning(f"Could not fetch price timestamp for {symbol}: {e}")
-            return None
-
-        if isinstance(price_timestamp, str):
-            try:
-                price_timestamp = datetime.fromisoformat(price_timestamp)
-            except ValueError:
-                logger.warning(f"Invalid price timestamp for {symbol}: {price_timestamp}")
-                return None
-
-        if isinstance(price_timestamp, datetime):
-            return price_timestamp
-
-        return None
-
     def validate_fill_price(self, symbol: str, fill_price: float,
                             reference_price: float,
                             max_deviation: float = None) -> bool:
@@ -673,21 +647,6 @@ class PaperBroker(Broker):
             order.status = 'ERROR'
             logger.error(f"No se pudo obtener precio para {order.symbol}")
             return order
-
-        order.price_timestamp = self._get_price_timestamp(order.symbol)
-        if order.price_timestamp is not None:
-            now = (datetime.now(order.price_timestamp.tzinfo)
-                   if order.price_timestamp.tzinfo
-                   else datetime.now())
-            order.price_age_seconds = max(
-                0.0, (now - order.price_timestamp).total_seconds()
-            )
-            if order.price_age_seconds > MAX_PRICE_STALENESS_SECONDS:
-                order.is_stale_price = True
-                logger.warning(
-                    f"Stale price used for {order.symbol}: "
-                    f"{order.price_age_seconds:.1f}s old"
-                )
 
         # Circuit breaker: validate fill price vs reference
         reference_price = self.price_feed.get_price(order.symbol) if self.price_feed else None
