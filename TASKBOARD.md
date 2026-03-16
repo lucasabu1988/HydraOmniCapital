@@ -147,6 +147,12 @@ Verify required keys exist and types are correct.
 - `TASK-004` (`d0f8db7`) Added restart resilience coverage to verify mid-cycle flags and positions survive `save_state()` / `load_state()` without double-trading on restart.
 - `TASK-005` (`10ced35`) Added parametrized adaptive-stop audit coverage and invalid-input fallbacks for `compute_adaptive_stop()`.
 - `TASK-006` (`f9d26b9`) Added Flask API contract tests for `/api/state`, `/api/cycle-log`, `/api/risk`, `/api/montecarlo`, and `/api/health`.
+- `TASK-007` (`366aef8`) Removed unused imports in production files while preserving optional dependency probes inside `try/except` availability gates.
+- `TASK-008` (`1605a24`) Applied Ruff's safe `F541` autofix so placeholder-free f-strings are now plain strings with no behavior changes.
+- `TASK-009` (`7364db1`) Added edge-case coverage for portfolio risk, Monte Carlo, and trade analytics, plus hardened empty and degenerate trade-analytics paths.
+- `TASK-010` (`7b95981`) Added cycle-log entry validation on write so NaN/Inf returns or invalid ISO dates are rejected before they can corrupt `state/cycle_log.json`.
+- `TASK-011` (`5c94898`) Added SMTP-mocked notification smoke tests covering daily summaries, error alerts, and disabled no-op behavior.
+- `TASK-012` (`880fc97`) Added `ruff.toml` to scope `ruff check .` to production files only, reducing legacy lint noise to a small actionable production set.
 
 ---
 
@@ -160,7 +166,7 @@ Verify required keys exist and types are correct.
 ## Queue — Batch 2
 
 ### TASK-007: Clean up unused imports in production files [PRIORITY: LOW]
-**Status:** [ ] Open
+**Status:** [x] Done (`366aef8`)
 **Assigned:** Codex
 
 Ruff found 15 unused imports across production files. Clean them up.
@@ -175,7 +181,7 @@ Ruff found 15 unused imports across production files. Clean them up.
 ---
 
 ### TASK-008: Ruff autofix f-string and style issues [PRIORITY: LOW]
-**Status:** [ ] Open
+**Status:** [x] Done (`1605a24`)
 **Assigned:** Codex
 
 28 f-strings without placeholders in production code. Safe to autofix.
@@ -189,7 +195,7 @@ Ruff found 15 unused imports across production files. Clean them up.
 ---
 
 ### TASK-009: Edge case tests for portfolio risk, Monte Carlo, and trade analytics [PRIORITY: MEDIUM]
-**Status:** [ ] Open
+**Status:** [x] Done (`7364db1`)
 **Assigned:** Codex
 
 Coverage audit flagged these 3 modules as lacking edge case tests.
@@ -206,7 +212,7 @@ Coverage audit flagged these 3 modules as lacking edge case tests.
 ---
 
 ### TASK-010: Cycle log entry validation on write [PRIORITY: MEDIUM]
-**Status:** [ ] Open
+**Status:** [x] Done (`7b95981`)
 **Assigned:** Codex
 
 The cycle log is the primary performance record. Add validation when writing a new entry to prevent bad data.
@@ -223,7 +229,7 @@ The cycle log is the primary performance record. Add validation when writing a n
 ---
 
 ### TASK-011: Notification system smoke test [PRIORITY: MEDIUM]
-**Status:** [ ] Open
+**Status:** [x] Done (`5c94898`)
 **Assigned:** Codex
 
 The email notifier exists but has never been tested end-to-end in a realistic scenario.
@@ -241,7 +247,7 @@ The email notifier exists but has never been tested end-to-end in a realistic sc
 ---
 
 ### TASK-012: Add `--production` flag to ruff config [PRIORITY: LOW]
-**Status:** [ ] Open
+**Status:** [x] Done (`880fc97`)
 **Assigned:** Codex
 
 Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lints production files (excludes archive, scripts, backtests, old analysis files). This way `ruff check .` only scans what matters.
