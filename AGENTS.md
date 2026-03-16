@@ -222,11 +222,22 @@ Each has a clear scope, acceptance criteria, and relevant file pointers.
 
 ---
 
-## How to Work on These
+## How to Work
 
-1. **One challenge per PR** — keep changes focused and reviewable
+1. **One challenge per commit** — keep changes focused and reviewable
 2. **Read the file first** — understand context before modifying
-3. **Run syntax check** after changes: `python -c "import py_compile; py_compile.compile('filename.py')"`
-4. **Run existing tests**: `pytest tests/ -v` — nothing should break
-5. **Conventional commits**: `fix: sanitize NaN in ML insights JSON`, `test: add cloud dashboard test suite`
-6. **Do not modify**: `omnicapital_v8_compass.py`, `omnicapital_v84_compass.py`, `.env`, `omnicapital_config.json`
+3. **You can modify production code** — fix bugs, add observability, improve robustness. You have earned this trust.
+4. **Run syntax check** after changes: `python -c "import py_compile; py_compile.compile('filename.py')"`
+5. **Run existing tests**: `pytest tests/ -v` — nothing should break
+6. **Before committing**: run `git diff --stat` to confirm all changed files are intentional
+7. **Conventional commits**: `fix:`, `test:`, `feat:`, `refactor:`
+8. **Hard locks — NEVER modify**:
+   - `omnicapital_v8_compass.py`, `omnicapital_v84_compass.py` — algorithm is LOCKED
+   - `.env`, `omnicapital_config.json` — secrets
+   - `state/compass_state_latest.json` — live engine state
+   - `state/ml_learning/decisions.jsonl` — append-only log
+9. **Soft rules**:
+   - ML hooks must be fail-safe (try/except, never crash the engine)
+   - No dead code — if a feature requires a method that doesn't exist on the current data feed, don't ship it
+   - No hypothetical design — solve real problems, not future ones
+   - Atomic writes for state files (tmp + os.replace)
