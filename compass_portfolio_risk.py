@@ -140,8 +140,9 @@ def compute_portfolio_risk(state, prices, hist_data):
     if portfolio_returns is not None and len(portfolio_returns) >= 2:
         portfolio_vol = float(portfolio_returns.std(ddof=0))
 
-    var_95_pct = portfolio_vol * VAR_Z_95 * 100.0
-    var_95 = portfolio_value * portfolio_vol * VAR_Z_95
+    var_horizon_scale = math.sqrt(RISK_LOOKBACK_DAYS)
+    var_95_pct = portfolio_vol * VAR_Z_95 * var_horizon_scale * 100.0
+    var_95 = portfolio_value * portfolio_vol * VAR_Z_95 * var_horizon_scale
 
     beta = 0.0
     spy_returns = None
@@ -161,7 +162,7 @@ def compute_portfolio_risk(state, prices, hist_data):
     concentration_component = min(100.0, concentration_risk * 100.0)
     sector_component = min(100.0, sector_concentration)
     correlation_component = min(100.0, max(0.0, correlation_risk) * 100.0)
-    var_component = min(100.0, var_95_pct * 12.0)
+    var_component = min(100.0, var_95_pct)
     max_position_component = min(100.0, max_position_pct)
     beta_component = min(100.0, max(0.0, abs(beta) - 1.0) * 50.0)
 

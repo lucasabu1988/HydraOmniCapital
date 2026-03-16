@@ -1,7 +1,13 @@
+import math
+
 import pandas as pd
 import pytest
 
-from compass_portfolio_risk import compute_portfolio_risk
+from compass_portfolio_risk import (
+    RISK_LOOKBACK_DAYS,
+    VAR_Z_95,
+    compute_portfolio_risk,
+)
 
 
 def make_history(start, daily_returns):
@@ -126,3 +132,22 @@ def test_missing_history_gracefully_falls_back_to_static_metrics():
     assert risk['var_95'] == 0.0
     assert risk['beta'] == 0.0
     assert risk['risk_score'] >= 0.0
+
+
+def test_var_95_scales_to_30_day_horizon():
+    state, prices = make_state(
+        {'AAPL': (100, 100.0)},
+        cash=0.0,
+        sectors={'AAPL': 'Tech'},
+    )
+    aapl_hist = make_history(100.0, [0.01, -0.02, 0.015, -0.005, 0.012, 0.008, -0.011, 0.006])
+
+    risk = compute_portfolio_risk(state, prices, {'AAPL': aapl_hist})
+
+    daily_returns = aapl_hist['Close'].pct_change().dropna()
+    one_day_vol = float(daily_returns.std(ddof=0))
+    expected_pct = one_day_vol * VAR_Z_95 * math.sqrt(RISK_LOOKBACK_DAYS) * 100.0
+    expected_value = state['portfolio_value'] * one_day_vol * VAR_Z_95 * math.sqrt(RISK_LOOKBACK_DAYS)
+
+    assert risk['var_95_pct'] == pytest.approx(expected_pct, abs=0.01)
+    assert risk['var_95'] == pytest.approx(expected_value, abs=0.01)
