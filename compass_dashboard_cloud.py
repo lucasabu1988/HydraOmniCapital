@@ -408,7 +408,9 @@ def _engine_is_starting():
         return False
     if _cloud_engine:
         return False
-    return _engine_thread_is_alive() or _cloud_engine_started
+    # Only "starting" if the thread is actually alive; _cloud_engine_started alone
+    # is not enough — the thread may have died without setting an error
+    return _engine_thread_is_alive()
 
 
 def _engine_snapshot():
@@ -648,7 +650,9 @@ def _recover_cloud_state(git_pull_result=None):
         source = local_state.get('_recovered_from') or 'git_pull'
         if _validate_recovered_state(local_state, source):
             recovered = _prepare_recovered_state(local_state, source)
-            _atomic_write_json(STATE_FILE, recovered)
+            # Only rewrite if we actually tagged it (avoid unnecessary state file churn)
+            if local_state.get('_recovered_from') != recovered.get('_recovered_from'):
+                _atomic_write_json(STATE_FILE, recovered)
             logger.info('Cloud state recovery ready from %s', recovered['_recovered_from'])
             return recovered
         logger.error('State file present but failed validation, attempting fallback recovery')
@@ -2699,63 +2703,65 @@ def _run_cloud_engine():
         logger.warning('HYDRA engine not available — cloud trading disabled: %s', detail)
         return
 
-    try:
-        _engine_status['running'] = False
-        _engine_status['error'] = None
-        _engine_status['startup_started_at'] = datetime.now().isoformat()
-        logger.info('Cloud HYDRA engine startup beginning (worker %s)', os.getpid())
+    while True:
+        try:
+            _cloud_engine = None
+            _engine_status['running'] = False
+            _engine_status['error'] = None
+            _engine_status['startup_started_at'] = datetime.now().isoformat()
+            logger.info('Cloud HYDRA engine startup beginning (worker %s)', os.getpid())
 
-        # Pull latest state from GitHub (picks up local changes)
-        _engine_status['last_git_pull'] = _git_pull_latest()
-        if not _engine_status['last_git_pull']['ok']:
-            logger.warning(
-                'Cloud engine startup continuing after git pull issue: %s',
-                _engine_status['last_git_pull']['message'],
-            )
-        recovered_state = _recover_cloud_state(_engine_status['last_git_pull'])
-        _engine_status['state_recovery'] = recovered_state.get('_recovered_from')
+            # Pull latest state from GitHub (picks up local changes)
+            _engine_status['last_git_pull'] = _git_pull_latest()
+            if not _engine_status['last_git_pull']['ok']:
+                logger.warning(
+                    'Cloud engine startup continuing after git pull issue: %s',
+                    _engine_status['last_git_pull']['message'],
+                )
+            recovered_state = _recover_cloud_state(_engine_status['last_git_pull'])
+            _engine_status['state_recovery'] = recovered_state.get('_recovered_from')
 
-        # Enable git sync on cloud if GIT_TOKEN is set
-        import omnicapital_live as _engine_mod
-        if os.environ.get('GIT_TOKEN'):
-            _engine_mod._git_sync_available = True
-            logger.info("Cloud git sync ENABLED (GIT_TOKEN set)")
-        else:
-            _engine_mod._git_sync_available = False
-            logger.warning("Cloud git sync DISABLED (no GIT_TOKEN — state won't persist across deploys)")
+            # Enable git sync on cloud if GIT_TOKEN is set
+            import omnicapital_live as _engine_mod
+            if os.environ.get('GIT_TOKEN'):
+                _engine_mod._git_sync_available = True
+                os.environ.pop('DISABLE_GIT_SYNC', None)
+                logger.info("Cloud git sync ENABLED (GIT_TOKEN set)")
+            else:
+                _engine_mod._git_sync_available = False
+                logger.warning("Cloud git sync DISABLED (no GIT_TOKEN — state won't persist across deploys)")
 
-        cloud_config = dict(ENGINE_CONFIG)
-        cloud_config['PAPER_INITIAL_CASH'] = HYDRA_CONFIG['INITIAL_CAPITAL']
+            cloud_config = dict(ENGINE_CONFIG)
+            cloud_config['PAPER_INITIAL_CASH'] = HYDRA_CONFIG['INITIAL_CAPITAL']
 
-        _cloud_engine = COMPASSLive(cloud_config)
-        # Replace engine's own YahooDataFeed with shared feed
-        # so engine + dashboard share one Yahoo session and cache
-        shared_feed = SharedYahooDataFeed()
-        _cloud_engine.data_feed = shared_feed
-        _cloud_engine.broker.set_price_feed(shared_feed)
-        logger.info('Cloud engine created, loading state from %s', STATE_FILE)
-        _cloud_engine.load_state()
-        logger.info('Cloud engine load_state completed (state exists=%s)', os.path.exists(STATE_FILE))
+            _cloud_engine = COMPASSLive(cloud_config)
+            # Replace engine's own YahooDataFeed with shared feed
+            # so engine + dashboard share one Yahoo session and cache
+            shared_feed = SharedYahooDataFeed()
+            _cloud_engine.data_feed = shared_feed
+            _cloud_engine.broker.set_price_feed(shared_feed)
+            logger.info('Cloud engine created, loading state from %s', STATE_FILE)
+            _cloud_engine.load_state()
+            logger.info('Cloud engine load_state completed (state exists=%s)', os.path.exists(STATE_FILE))
 
-        _engine_status['running'] = True
-        _engine_status['started_at'] = datetime.now().isoformat()
-        _engine_status['error'] = None
+            _engine_status['running'] = True
+            _engine_status['started_at'] = datetime.now().isoformat()
+            _engine_status['error'] = None
 
-        logger.info("Cloud HYDRA engine started (SharedYahooDataFeed — no duplicate requests)")
-        logger.info(f"  Positions: {list(_cloud_engine.broker.positions.keys())}")
-        logger.info(f"  Cash: ${_cloud_engine.broker.cash:,.2f}")
+            logger.info("Cloud HYDRA engine started (SharedYahooDataFeed — no duplicate requests)")
+            logger.info(f"  Positions: {list(_cloud_engine.broker.positions.keys())}")
+            logger.info(f"  Cash: ${_cloud_engine.broker.cash:,.2f}")
 
-        # run() is a blocking loop: 60s interval, sleeps when market closed
-        _cloud_engine.run(interval=60)
+            # run() is a blocking loop: 60s interval, sleeps when market closed
+            _cloud_engine.run(interval=60)
 
-    except Exception as e:
-        _cloud_engine = None
-        _engine_status['running'] = False
-        _engine_status['error'] = f'Engine crashed: {e}'
-        logger.error(f"Cloud engine crashed: {e}", exc_info=True)
-        # Sleep and retry after 5 minutes
-        time_module.sleep(300)
-        _run_cloud_engine()
+        except Exception as e:
+            _cloud_engine = None
+            _engine_status['running'] = False
+            _engine_status['error'] = f'Engine crashed: {e}'
+            logger.error(f"Cloud engine crashed: {e}", exc_info=True)
+            # Sleep and retry after 5 minutes (loop, not recursion)
+            time_module.sleep(300)
 
 
 def _ensure_cloud_engine():

@@ -2475,7 +2475,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchTradeAnalytics();
     fetchFundComparison();
     setInterval(fetchSocialFeed, 300000);
-    setInterval(function() { fetchAll(); fetchCycleLog(); countdownSec = 30; }, REFRESH_MS);
+    setInterval(function() { fetchAll(); fetchCycleLog(); if (!_startupRetryTimer) countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
         countdownSec = Math.max(0, countdownSec - 1);
         document.getElementById('countdown').textContent = countdownSec;
