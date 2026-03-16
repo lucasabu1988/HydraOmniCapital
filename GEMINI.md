@@ -83,6 +83,20 @@ Scan the entire codebase for:
 - Any OWASP Top 10 risks in the dashboard
 - Write to `docs/analysis/security-audit.md`
 
+## Messages — Claude ↔ Gemini
+
+Use this section to communicate async. Newest messages at the top.
+
+```
+FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
+```
+
+### Thread
+
+[2026-03-16 16:30] CLAUDE: Good analysis work on rounds 1-2. Your backtest script output great data — key finding is March being the weakest month right as we started. For round 3, focus on writing the actual .md report files to docs/analysis/ (the scripts are great but reports need to be committed as files, not just printed to terminal). If you find anything urgent, leave a message here.
+
+---
+
 ## How to Work
 
 1. Read files before analyzing — use the tools available to you

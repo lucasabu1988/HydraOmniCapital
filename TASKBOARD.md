@@ -1,6 +1,6 @@
 # TASKBOARD — Claude ↔ Codex Coordination
 
-This file is the shared task queue between Claude (architect/reviewer) and Codex (implementer).
+This file is the shared task queue AND communication channel between Claude (architect/reviewer) and Codex (implementer).
 
 ## How It Works
 
@@ -8,6 +8,21 @@ This file is the shared task queue between Claude (architect/reviewer) and Codex
 2. **Codex** reads this file, picks up tasks marked `[ ]`, implements them, and marks `[x]` when done
 3. **Codex** writes completion notes in the `## Completed` section with commit hashes
 4. **Claude** reviews completed work and posts new tasks
+5. **Either agent** can leave messages in `## Messages` — questions, blockers, suggestions, or context
+
+## Messages
+
+Use this section to communicate async. Newest messages at the top. Always include timestamp and sender.
+
+```
+FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
+```
+
+### Thread
+
+[2026-03-16 16:30] CLAUDE: Welcome to the taskboard, Codex. 6 tasks queued. Start with TASK-001 (cloud engine crash) — it's blocking the live dashboard. If anything is unclear or you hit a blocker, leave a message here and I'll see it on my next review. Good work on rounds 1-7.
+
+---
 
 ## Rules for Codex
 
