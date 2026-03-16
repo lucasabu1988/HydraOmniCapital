@@ -5,6 +5,7 @@ Incluye order timeout, fill circuit breaker y retry logic.
 """
 
 from abc import ABC, abstractmethod
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, time
 from enum import Enum
@@ -14,6 +15,7 @@ import json
 import logging
 import os
 import threading
+import time as time_module
 
 # Fill price circuit breaker: max deviation from reference price
 MAX_FILL_DEVIATION = 0.02  # 2%
@@ -424,6 +426,7 @@ class ConnectionState(Enum):
     CONNECTING = 'CONNECTING'
     CONNECTED = 'CONNECTED'
     RECONNECTING = 'RECONNECTING'
+    DEGRADED = 'DEGRADED'
     FAILED = 'FAILED'
 
 
@@ -830,6 +833,20 @@ class IBKRBroker(Broker):
 
         # Audit log
         self._audit_log: List[dict] = []
+        self._broker_state = 'disconnected'
+        self._last_successful_call_at = None
+        self._last_latency_seconds = None
+        self._last_error = None
+        self._last_positions_snapshot: Optional[Dict[str, Position]] = None
+        self._last_portfolio_snapshot = None
+        self._recovery_attempts = 3
+        self._recovery_backoff_seconds = 1.0
+        self._recovery_backoff_cap = 30.0
+        self._recoverable_errors = (
+            ConnectionError,
+            TimeoutError,
+            asyncio.TimeoutError,
+        )
 
     # ---- COMPASSLive compatibility properties ----
     # COMPASSLive accesses self.broker.cash and self.broker.positions directly
@@ -857,24 +874,241 @@ class IBKRBroker(Broker):
         if self.mock:
             self._mock_positions = value
 
+    def _set_broker_state(self, new_state: str, reason: str = None):
+        new_state = (new_state or 'disconnected').lower()
+        old_state = self._broker_state
+        self._broker_state = new_state
+        if self.mock:
+            mapped_state = {
+                'connected': ConnectionState.CONNECTED,
+                'reconnecting': ConnectionState.RECONNECTING,
+                'degraded': ConnectionState.DEGRADED,
+                'disconnected': ConnectionState.DISCONNECTED,
+            }.get(new_state)
+            if mapped_state is not None:
+                self.connection.state = mapped_state
+        if old_state != new_state:
+            extra = f" ({reason})" if reason else ""
+            logger.info(
+                f"IBKR broker state transition: {old_state.upper()} -> {new_state.upper()}{extra}"
+            )
+
+    def _sleep_backoff(self, seconds: float):
+        time_module.sleep(seconds)
+
+    def _mark_call_success(self, latency_seconds: float):
+        self._last_latency_seconds = latency_seconds
+        self._last_successful_call_at = datetime.now()
+        self._last_error = None
+        if not self.mock and self._broker_state != 'connected':
+            self._set_broker_state('connected', 'live call succeeded')
+
+    def _require_live_ib(self):
+        ib = self.connection.ib
+        if ib is None or not self.connection.is_connected():
+            raise ConnectionError("IBKR connection unavailable")
+        return ib
+
+    def _cache_positions_snapshot(self, positions: Dict[str, Position]) -> Dict[str, Position]:
+        snapshot = {
+            symbol: Position(
+                symbol=pos.symbol,
+                shares=pos.shares,
+                avg_cost=pos.avg_cost,
+                market_price=pos.market_price,
+                market_value=pos.market_value,
+                unrealized_pnl=pos.unrealized_pnl,
+                realized_pnl=pos.realized_pnl,
+                entry_time=pos.entry_time,
+                high_price=pos.high_price,
+            )
+            for symbol, pos in positions.items()
+        }
+        self._last_positions_snapshot = snapshot
+        return {
+            symbol: Position(
+                symbol=pos.symbol,
+                shares=pos.shares,
+                avg_cost=pos.avg_cost,
+                market_price=pos.market_price,
+                market_value=pos.market_value,
+                unrealized_pnl=pos.unrealized_pnl,
+                realized_pnl=pos.realized_pnl,
+                entry_time=pos.entry_time,
+                high_price=pos.high_price,
+            )
+            for symbol, pos in snapshot.items()
+        }
+
+    def _get_cached_positions(self) -> Optional[Dict[str, Position]]:
+        if self._last_positions_snapshot is None:
+            return None
+        return {
+            symbol: Position(
+                symbol=pos.symbol,
+                shares=pos.shares,
+                avg_cost=pos.avg_cost,
+                market_price=pos.market_price,
+                market_value=pos.market_value,
+                unrealized_pnl=pos.unrealized_pnl,
+                realized_pnl=pos.realized_pnl,
+                entry_time=pos.entry_time,
+                high_price=pos.high_price,
+            )
+            for symbol, pos in self._last_positions_snapshot.items()
+        }
+
+    def _cache_portfolio_snapshot(self, portfolio: Portfolio) -> Portfolio:
+        cached_positions = self._cache_positions_snapshot(portfolio.positions)
+        self._last_portfolio_snapshot = Portfolio(
+            cash=portfolio.cash,
+            positions=cached_positions,
+            total_value=portfolio.total_value,
+            buying_power=portfolio.buying_power,
+        )
+        return Portfolio(
+            cash=self._last_portfolio_snapshot.cash,
+            positions=self._get_cached_positions(),
+            total_value=self._last_portfolio_snapshot.total_value,
+            buying_power=self._last_portfolio_snapshot.buying_power,
+        )
+
+    def _get_cached_portfolio(self):
+        if self._last_portfolio_snapshot is None:
+            return None
+        return Portfolio(
+            cash=self._last_portfolio_snapshot.cash,
+            positions=self._get_cached_positions(),
+            total_value=self._last_portfolio_snapshot.total_value,
+            buying_power=self._last_portfolio_snapshot.buying_power,
+        )
+
+    def _recover_connection(self, operation: str, error: Exception) -> bool:
+        self._last_error = str(error)
+        for attempt in range(1, self._recovery_attempts + 1):
+            delay = min(
+                self._recovery_backoff_seconds * (2 ** (attempt - 1)),
+                self._recovery_backoff_cap,
+            )
+            self._set_broker_state(
+                'reconnecting',
+                f"{operation} failed ({type(error).__name__}); retry {attempt}/{self._recovery_attempts}",
+            )
+            logger.warning(
+                f"IBKR recoverable error during {operation}: {error}. "
+                f"Reconnect attempt {attempt}/{self._recovery_attempts} in {delay:.1f}s"
+            )
+            self._sleep_backoff(delay)
+            try:
+                self.connection.disconnect()
+            except Exception as disconnect_err:
+                logger.debug(f"IBKR reconnect pre-disconnect failed: {disconnect_err}")
+            try:
+                if self.connection.connect():
+                    self._set_broker_state('connected', f"{operation} recovered on attempt {attempt}")
+                    return True
+            except Exception as reconnect_err:
+                self._last_error = str(reconnect_err)
+                logger.warning(f"IBKR reconnect attempt {attempt} failed: {reconnect_err}")
+        self._set_broker_state('degraded', f"{operation} unavailable after recovery attempts")
+        logger.error(f"IBKR entering DEGRADED mode after {operation} recovery failed")
+        return False
+
+    def _call_with_recovery(self, operation: str, func,
+                            read_only: bool = False,
+                            allow_cached: bool = False,
+                            cache_getter=None):
+        if self.mock:
+            start = time_module.perf_counter()
+            result = func()
+            self._mark_call_success(time_module.perf_counter() - start)
+            return result
+
+        if self._broker_state == 'degraded' and not read_only:
+            raise RuntimeError("IBKR broker is in degraded mode (read-only)")
+
+        last_error = None
+        for attempt in range(self._recovery_attempts + 1):
+            start = time_module.perf_counter()
+            try:
+                result = func()
+                self._mark_call_success(time_module.perf_counter() - start)
+                return result
+            except self._recoverable_errors as err:
+                last_error = err
+                self._last_error = str(err)
+                if attempt >= self._recovery_attempts:
+                    break
+                if not self._recover_connection(operation, err):
+                    break
+
+        if allow_cached and cache_getter is not None:
+            cached = cache_getter()
+            if cached is not None:
+                logger.warning(f"IBKR returning cached result for {operation} while degraded")
+                return cached
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError(f"IBKR {operation} failed without a recoverable error")
+
+    def _live_fetch_positions(self) -> Dict[str, Position]:
+        ib = self._require_live_ib()
+        positions = {}
+        for pos in ib.positions():
+            positions[pos.contract.symbol] = Position(
+                symbol=pos.contract.symbol,
+                shares=pos.position,
+                avg_cost=pos.avgCost
+            )
+        return positions
+
+    def _live_fetch_portfolio(self) -> Portfolio:
+        ib = self._require_live_ib()
+        account = ib.accountSummary()
+        cash = 0
+        buying_power = 0
+        for item in account:
+            if item.tag == 'AvailableFunds':
+                cash = float(item.value)
+            elif item.tag == 'BuyingPower':
+                buying_power = float(item.value)
+
+        positions = self._live_fetch_positions()
+        total = cash + sum(
+            p.shares * (p.market_price or p.avg_cost)
+            for p in positions.values()
+        )
+        return Portfolio(
+            cash=cash,
+            positions=positions,
+            total_value=total,
+            buying_power=buying_power,
+        )
+
     # ---- Connection Methods ----
 
     def connect(self) -> bool:
         """Connect to IBKR. Verifies paper trading account."""
         if not self.connection.verify_paper_trading():
             logger.error("IBKR connect aborted: paper trading verification failed")
+            self._set_broker_state('disconnected', 'paper trading verification failed')
             return False
 
         result = self.connection.connect()
         if result:
             mode = 'MOCK' if self.mock else 'LIVE (PAPER TRADING)'
+            self._set_broker_state('connected', 'connect succeeded')
             logger.info(f"IBKR broker connected: {mode} | "
                         f"Port {self.port} | Max order ${self.max_order_value:,.0f}")
+        else:
+            self._set_broker_state('disconnected', 'connect failed')
         return result
 
     def disconnect(self):
         """Disconnect from IBKR."""
         self.connection.disconnect()
+        self._set_broker_state('disconnected', 'disconnect requested')
 
     def is_connected(self) -> bool:
         return self.connection.is_connected()
@@ -923,7 +1157,12 @@ class IBKRBroker(Broker):
         4. Log to audit trail
         """
         # Pre-submission guards
-        if not self.is_connected():
+        if not self.mock and self._broker_state == 'degraded':
+            order.status = 'ERROR'
+            self._audit('submit_rejected', order, reason='degraded_mode')
+            raise RuntimeError("IBKR broker is in degraded mode (read-only)")
+
+        if self.mock and not self.is_connected():
             order.status = 'ERROR'
             self._audit('submit_rejected', order, reason='not_connected')
             raise ConnectionError("IBKR not connected")
@@ -1047,6 +1286,13 @@ class IBKRBroker(Broker):
         return order
 
     def _submit_live(self, order: Order) -> Order:
+        return self._call_with_recovery(
+            'submit_order',
+            lambda: self._submit_live_once(order),
+            read_only=False,
+        )
+
+    def _submit_live_once(self, order: Order) -> Order:
         """Submit to real IBKR via ib_async.
 
         Supports MARKET, LIMIT, and MOC order types.
@@ -1055,7 +1301,7 @@ class IBKRBroker(Broker):
         from ib_async import Stock, MarketOrder, LimitOrder
         from ib_async import Order as IBOrder
 
-        ib = self.connection.ib
+        ib = self._require_live_ib()
         contract = Stock(order.symbol, 'SMART', 'USD')
 
         if order.order_type == 'MARKET':
@@ -1166,14 +1412,21 @@ class IBKRBroker(Broker):
                 return True
             return False
         else:
-            ib = self.connection.ib
-            for trade in ib.trades():
-                if str(trade.order.orderId) == order_id:
-                    ib.cancelOrder(trade.order)
-                    self._audit('order_cancelled',
-                                self.orders.get(order_id))
-                    return True
-            return False
+            def cancel_live():
+                ib = self._require_live_ib()
+                for trade in ib.trades():
+                    if str(trade.order.orderId) == order_id:
+                        ib.cancelOrder(trade.order)
+                        self._audit('order_cancelled',
+                                    self.orders.get(order_id))
+                        return True
+                return False
+
+            return self._call_with_recovery(
+                'cancel_order',
+                cancel_live,
+                read_only=False,
+            )
 
     def get_order_status(self, order_id: str) -> Optional[Order]:
         """Get order status."""
@@ -1204,15 +1457,14 @@ class IBKRBroker(Broker):
                         pos.update_market_data(price)
             return self._mock_positions.copy()
         else:
-            ib = self.connection.ib
-            positions = {}
-            for pos in ib.positions():
-                positions[pos.contract.symbol] = Position(
-                    symbol=pos.contract.symbol,
-                    shares=pos.position,
-                    avg_cost=pos.avgCost
-                )
-            return positions
+            positions = self._call_with_recovery(
+                'get_positions',
+                self._live_fetch_positions,
+                read_only=True,
+                allow_cached=True,
+                cache_getter=self._get_cached_positions,
+            )
+            return self._cache_positions_snapshot(positions)
 
     def get_portfolio(self) -> Portfolio:
         """Get portfolio state."""
@@ -1228,25 +1480,14 @@ class IBKRBroker(Broker):
                 buying_power=self._mock_cash  # No margin (LEVERAGE_MAX=1.0)
             )
         else:
-            ib = self.connection.ib
-            account = ib.accountSummary()
-            cash = 0
-            buying_power = 0
-            for item in account:
-                if item.tag == 'AvailableFunds':
-                    cash = float(item.value)
-                elif item.tag == 'BuyingPower':
-                    buying_power = float(item.value)
-
-            positions = self.get_positions()
-            total = cash + sum(
-                p.shares * (p.market_price or p.avg_cost)
-                for p in positions.values()
+            portfolio = self._call_with_recovery(
+                'get_portfolio',
+                self._live_fetch_portfolio,
+                read_only=True,
+                allow_cached=True,
+                cache_getter=self._get_cached_portfolio,
             )
-            return Portfolio(
-                cash=cash, positions=positions,
-                total_value=total, buying_power=buying_power
-            )
+            return self._cache_portfolio_snapshot(portfolio)
 
     def get_account_info(self) -> Dict:
         """Get account information."""
@@ -1258,7 +1499,22 @@ class IBKRBroker(Broker):
             'num_positions': len(portfolio.positions),
             'broker_type': 'IBKR',
             'mock_mode': self.mock,
-            'connection_state': self.connection.state.value,
+            'connection_state': self._broker_state.upper(),
+        }
+
+    def health_check(self) -> Dict:
+        latency_ms = None
+        if self._last_latency_seconds is not None:
+            latency_ms = round(self._last_latency_seconds * 1000, 2)
+        return {
+            'state': self._broker_state,
+            'connected': self.is_connected(),
+            'latency_ms': latency_ms,
+            'last_successful_call_at': (
+                self._last_successful_call_at.isoformat()
+                if self._last_successful_call_at else None
+            ),
+            'last_error': self._last_error,
         }
 
     # ---- Position Reconciliation ----
