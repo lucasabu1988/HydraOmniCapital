@@ -1243,7 +1243,7 @@ class COMPASSLive:
                 continue
 
             # Skip EFA position — managed by _manage_efa_position
-            if symbol == EFA_SYMBOL:
+            if symbol == EFA_SYMBOL or meta.get('_efa'):
                 continue
 
             exit_reason = None
@@ -1998,6 +1998,74 @@ class COMPASSLive:
         efa_sma = float(self._efa_hist['Close'].iloc[-EFA_SMA_PERIOD:].mean())
         return efa_close > efa_sma
 
+    def _sync_efa_runtime_state(self, prices: Dict[str, float] = None, reason: str = ''):
+        if not self._hydra_available or not self.hydra_capital:
+            return 0.0
+
+        prices = prices or {}
+        efa_pos = self.broker.get_positions().get(EFA_SYMBOL)
+        efa_price = self._coerce_float(prices.get(EFA_SYMBOL), 0.0)
+        if efa_price <= 0 and self._efa_hist is not None and len(self._efa_hist) > 0:
+            efa_price = self._coerce_float(self._efa_hist['Close'].iloc[-1], 0.0)
+
+        if efa_pos and getattr(efa_pos, 'shares', 0) > 0:
+            if efa_price <= 0:
+                efa_price = self._coerce_float(getattr(efa_pos, 'market_price', None), 0.0)
+            if efa_price <= 0:
+                efa_price = self._coerce_float(getattr(efa_pos, 'avg_cost', None), 0.0)
+            target_value = self._coerce_float(efa_pos.shares, 0.0) * max(efa_price, 0.0)
+        else:
+            target_value = 0.0
+
+        current_value = self._coerce_float(getattr(self.hydra_capital, 'efa_value', 0.0), 0.0)
+        delta = target_value - current_value
+        if abs(delta) > 0.01:
+            self.hydra_capital.efa_value = target_value
+            self.hydra_capital.rattle_account = self._coerce_float(
+                getattr(self.hydra_capital, 'rattle_account', 0.0),
+                0.0,
+            ) - delta
+            if target_value <= 0:
+                logger.warning(
+                    "EFA sync%s: cleared stale allocation $%.2f with no broker position",
+                    f" ({reason})" if reason else "",
+                    current_value,
+                )
+            else:
+                logger.info(
+                    "EFA sync%s: aligned allocation to broker market value $%.2f",
+                    f" ({reason})" if reason else "",
+                    target_value,
+                )
+
+        if target_value > 0 and efa_pos:
+            meta = copy.deepcopy(self.position_meta.get(EFA_SYMBOL, {}))
+            meta['entry_price'] = self._coerce_float(
+                meta.get('entry_price'),
+                self._coerce_float(getattr(efa_pos, 'avg_cost', None), efa_price),
+            ) or max(efa_price, 0.0)
+            meta['entry_date'] = meta.get('entry_date') or self.get_et_now().date().isoformat()
+            meta['entry_day_index'] = self._coerce_int(meta.get('entry_day_index'), self.trading_day_counter)
+            meta['original_entry_day_index'] = self._coerce_int(
+                meta.get('original_entry_day_index'),
+                meta['entry_day_index'],
+            )
+            meta['high_price'] = max(
+                self._coerce_float(meta.get('high_price'), meta['entry_price']),
+                max(efa_price, 0.0),
+                meta['entry_price'],
+            )
+            meta['entry_vol'] = self._coerce_float(meta.get('entry_vol'), 0.15)
+            meta['entry_daily_vol'] = self._coerce_float(meta.get('entry_daily_vol'), 0.0095)
+            meta['sector'] = 'International Equity'
+            meta['_efa'] = True
+            meta['_entry_reconciled'] = bool(meta.get('_entry_reconciled', False))
+            self.position_meta[EFA_SYMBOL] = meta
+        else:
+            self.position_meta.pop(EFA_SYMBOL, None)
+
+        return target_value
+
     def _manage_efa_position(self, prices: Dict[str, float]):
         """Manage EFA third pillar: buy with idle cash, sell when needed.
 
@@ -2008,11 +2076,13 @@ class COMPASSLive:
         if not self._hydra_available or not self.hydra_capital:
             return
 
+        self._sync_efa_runtime_state(prices, reason='pre_manage')
         efa_price = prices.get(EFA_SYMBOL)
         if not efa_price or efa_price <= 0:
             if self._efa_hist is not None and len(self._efa_hist) > 0:
                 efa_price = float(self._efa_hist['Close'].iloc[-1])
             else:
+                logger.info("EFA: skipped (no live price and no historical fallback)")
                 return
 
         # Current EFA position from broker
@@ -2020,12 +2090,20 @@ class COMPASSLive:
         efa_pos = positions.get(EFA_SYMBOL)
         efa_shares = efa_pos.shares if efa_pos else 0
 
-        # Update hydra capital manager with current EFA value
-        if efa_shares > 0 and self.hydra_capital:
-            self.hydra_capital.efa_value = efa_shares * efa_price
+        efa_sma = None
+        if self._efa_hist is not None and len(self._efa_hist) >= EFA_SMA_PERIOD:
+            efa_sma = float(self._efa_hist['Close'].iloc[-EFA_SMA_PERIOD:].mean())
+        efa_above_sma = bool(efa_sma is not None and efa_price > efa_sma)
+        logger.info(
+            "EFA decision: price=$%.2f | SMA200=%s | shares=%s | above_sma=%s",
+            efa_price,
+            f"${efa_sma:.2f}" if efa_sma is not None else "n/a",
+            int(efa_shares) if efa_shares else 0,
+            efa_above_sma,
+        )
 
         # Check if we should sell (EFA below SMA200)
-        if efa_shares > 0 and not self._efa_above_sma200():
+        if efa_shares > 0 and not efa_above_sma:
             order = Order(symbol=EFA_SYMBOL, action='SELL',
                           quantity=efa_shares, order_type='MARKET',
                           decision_price=efa_price)
@@ -2033,14 +2111,12 @@ class COMPASSLive:
             if result.status == 'FILLED':
                 proceeds = result.filled_price * efa_shares
                 logger.info(f"EFA SELL (below SMA200): {efa_shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f}")
-                self.position_meta.pop(EFA_SYMBOL, None)
-                if self.hydra_capital:
-                    self.hydra_capital.sell_efa(proceeds)
+                self._sync_efa_runtime_state(prices, reason='sell_fill')
             return
 
         # Check if we should buy (idle cash available and EFA above SMA200)
-        if not self._efa_above_sma200():
-            logger.debug("EFA: skipped (below SMA200)")
+        if not efa_above_sma:
+            logger.info("EFA: skipped (below SMA200)")
             return
 
         # Use capital manager to determine truly idle cash (after recycling)
@@ -2052,6 +2128,12 @@ class COMPASSLive:
         # efa_idle = remaining Rattlesnake idle cash after recycling to COMPASS
         # Cap by actual broker cash to avoid over-allocation
         idle_cash = min(alloc['efa_idle'], portfolio.cash) * 0.90
+        logger.info(
+            "EFA budget: idle=$%.2f | portfolio_cash=$%.2f | efa_alloc=$%.2f",
+            idle_cash,
+            portfolio.cash,
+            alloc.get('efa_idle', 0.0),
+        )
 
         if idle_cash < EFA_MIN_BUY:
             logger.info(f"EFA: skipped (idle=${idle_cash:,.0f} < min=${EFA_MIN_BUY})")
@@ -2077,10 +2159,10 @@ class COMPASSLive:
                 'entry_vol': 0.15,
                 'entry_daily_vol': 0.0095,
                 'sector': 'International Equity',
+                '_efa': True,
                 '_entry_reconciled': True,  # MARKET order fill = real price, no reconciliation needed
             }
-            if self.hydra_capital:
-                self.hydra_capital.buy_efa(cost)
+            self._sync_efa_runtime_state(prices, reason='buy_fill')
 
     def _liquidate_efa_for_capital(self, prices: Dict[str, float]):
         """Sell EFA to free capital for active strategies. Called BEFORE entries."""
@@ -2319,6 +2401,8 @@ class COMPASSLive:
                     if len(efa_prices) >= 2:
                         efa_ret = float(efa_prices.iloc[-1] / efa_prices.iloc[-2] - 1)
                         self.hydra_capital.update_efa_value(efa_ret)
+
+                self._sync_efa_runtime_state(prices, reason='daily_open')
 
                 logger.info(f"HYDRA accounts synced: C=${self.hydra_capital.compass_account:,.0f} | "
                            f"R=${self.hydra_capital.rattle_account:,.0f} | "
@@ -3247,6 +3331,7 @@ class COMPASSLive:
 
         if symbol == EFA_SYMBOL:
             merged['sector'] = 'International Equity'
+            merged['_efa'] = True
         elif merged.get('_catalyst'):
             merged['sector'] = merged.get('sector', defaults['sector'])
         else:
@@ -3371,6 +3456,7 @@ class COMPASSLive:
             for pos in self.catalyst_positions
             if pos.get('symbol') in broker_positions
         ]
+        self._sync_efa_runtime_state(reason='reconciliation')
 
         self._state_positions_snapshot = broker_snapshot
         self._state_cash_snapshot = broker_cash
@@ -3643,6 +3729,7 @@ class COMPASSLive:
                            f"C_acct=${self.hydra_capital.compass_account:,.0f} | "
                            f"R_acct=${self.hydra_capital.rattle_account:,.0f} | "
                            f"Cat_acct=${self.hydra_capital.catalyst_account:,.0f}")
+                self._sync_efa_runtime_state(reason='load_state')
 
         # Restore pre-rotation snapshot (survives restart between rotation and cycle log update)
         saved_pre_rot = state.get('_pre_rotation_positions_data')

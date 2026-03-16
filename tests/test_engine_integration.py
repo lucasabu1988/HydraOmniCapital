@@ -278,6 +278,41 @@ def test_ml_exit_fail_safe_counter_increments(trader):
     assert live._ml_error_counts['exit'] == 1
 
 
+def test_manage_efa_position_buys_when_above_sma_and_idle_cash(monkeypatch, temp_runtime):
+    efa_history = make_hist(80.0, 0.12, periods=260)
+    efa_price = float(efa_history['Close'].iloc[-1])
+    feed = StubPriceFeed({
+        'EFA': efa_price,
+        'SPY': 505.0,
+    })
+    monkeypatch.setattr(live, 'YahooDataFeed', lambda cache_duration: feed)
+    monkeypatch.setattr(live, '_git_sync_available', False, raising=False)
+
+    config = live.CONFIG.copy()
+    config['BROKER_TYPE'] = 'PAPER'
+    config['PAPER_INITIAL_CASH'] = 100000
+
+    trader = live.COMPASSLive(config)
+    trader.broker.connect()
+    trader.broker.fill_delay = 0
+    trader.validator.validate_batch = lambda raw_prices: raw_prices
+    trader._hydra_available = True
+    trader.hydra_capital = live.HydraCapitalManager(config['PAPER_INITIAL_CASH'])
+    trader._efa_hist = efa_history
+    trader.hydra_capital.buy_efa(9000.0)
+
+    trader._manage_efa_position({'EFA': efa_price, 'SPY': 505.0})
+
+    efa_pos = trader.broker.get_positions().get(live.EFA_SYMBOL)
+
+    assert efa_pos is not None
+    assert efa_pos.shares > 0
+    assert live.EFA_SYMBOL in trader.position_meta
+    assert trader.position_meta[live.EFA_SYMBOL]['sector'] == 'International Equity'
+    assert trader.position_meta[live.EFA_SYMBOL]['_efa'] is True
+    assert trader.hydra_capital.efa_value == pytest.approx(efa_pos.shares * efa_price)
+
+
 def test_multi_day_cycle_with_stop_exit(monkeypatch, temp_runtime):
     trading_days = [
         datetime(2026, 3, 10, 15, 35),
