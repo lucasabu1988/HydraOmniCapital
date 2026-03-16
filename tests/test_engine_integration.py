@@ -1,4 +1,5 @@
 import json
+import logging
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,12 +15,16 @@ import omnicapital_live as live
 class StubPriceFeed:
     def __init__(self, prices):
         self.prices = dict(prices)
+        self.cache_age_seconds = 0
 
     def get_prices(self, symbols):
         return {symbol: self.prices[symbol] for symbol in symbols if symbol in self.prices}
 
     def get_price(self, symbol):
         return self.prices.get(symbol)
+
+    def get_cache_age_seconds(self):
+        return self.cache_age_seconds
 
 
 class MultiDayPriceFeed:
@@ -37,6 +42,9 @@ class MultiDayPriceFeed:
 
     def get_price(self, symbol):
         return self._current_prices().get(symbol)
+
+    def get_cache_age_seconds(self):
+        return 0
 
 
 class FrozenDateTime(datetime):
@@ -196,6 +204,42 @@ def test_run_once_returns_false_without_crashing_on_sparse_market_data(trader):
 
     assert result is False
     assert trader.broker.positions == {}
+
+
+def test_run_once_skips_when_market_data_is_stale(trader, caplog):
+    trader.data_feed.cache_age_seconds = 180
+
+    with caplog.at_level(logging.WARNING):
+        result = trader.run_once()
+
+    assert result is False
+    assert trader.broker.positions == {}
+    assert any('Skipping trading cycle due to stale market data' in record.message
+               for record in caplog.records)
+
+
+def test_run_once_logs_error_when_market_data_is_critically_stale(trader, caplog):
+    trader.data_feed.cache_age_seconds = 360
+
+    with caplog.at_level(logging.ERROR):
+        result = trader.run_once()
+
+    assert result is False
+    assert any(record.levelno >= logging.ERROR
+               and 'Skipping trading cycle due to stale market data' in record.message
+               for record in caplog.records)
+
+
+def test_run_once_ignores_stale_guard_when_market_is_closed(trader, caplog, monkeypatch):
+    trader.data_feed.cache_age_seconds = 360
+    monkeypatch.setattr(trader, 'is_market_open', lambda: False)
+
+    with caplog.at_level(logging.WARNING):
+        result = trader.run_once()
+
+    assert result is False
+    assert not any('Skipping trading cycle due to stale market data' in record.message
+                   for record in caplog.records)
 
 
 @pytest.mark.parametrize('fail_on', ['entry', 'hold', 'skip', 'snapshot'])

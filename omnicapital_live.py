@@ -200,6 +200,8 @@ CONFIG = {
     'DATA_FEED': 'YAHOO',
     'PRICE_UPDATE_INTERVAL': 60,
     'DATA_CACHE_DURATION': 60,
+    'PRICE_STALE_WARN_SECONDS': 120,
+    'PRICE_STALE_SKIP_SECONDS': 300,
     'MAX_PRICE_AGE_SECONDS': 300,
 
     # Data validation
@@ -905,6 +907,38 @@ class COMPASSLive:
         """Check if this is a new trading day"""
         today = self.get_et_now().date()
         return self.last_trading_date is None or today > self.last_trading_date
+
+    def _get_price_cache_age_seconds(self):
+        getter = getattr(self.data_feed, 'get_cache_age_seconds', None)
+        if not callable(getter):
+            return None
+        try:
+            return getter()
+        except Exception as e:
+            logger.warning(f"Could not determine data cache age: {e}")
+            return None
+
+    def _stale_price_guard_triggered(self, cache_age_seconds: Optional[float]) -> bool:
+        if cache_age_seconds is None:
+            return False
+
+        warn_age = float(self.config.get('PRICE_STALE_WARN_SECONDS', 120) or 120)
+        skip_age = float(self.config.get('PRICE_STALE_SKIP_SECONDS', 300) or 300)
+        if skip_age < warn_age:
+            skip_age = warn_age
+
+        if cache_age_seconds <= warn_age:
+            return False
+
+        message = (
+            f"Skipping trading cycle due to stale market data: cache age "
+            f"{cache_age_seconds:.1f}s (warn>{warn_age:.0f}s, critical>{skip_age:.0f}s)"
+        )
+        if cache_age_seconds > skip_age:
+            logger.error(message)
+        else:
+            logger.warning(message)
+        return True
 
     # ------------------------------------------------------------------
     # Data refresh (called once per trading day)
@@ -3085,6 +3119,9 @@ class COMPASSLive:
                 return False
 
             self._consecutive_errors = 0
+            cache_age_seconds = self._get_price_cache_age_seconds()
+            if self._stale_price_guard_triggered(cache_age_seconds):
+                return False
 
             # Update broker positions with current prices
             for symbol, price in prices.items():
@@ -3221,6 +3258,7 @@ def main():
                 'BROKER_TYPE', 'IBKR_HOST', 'IBKR_PORT', 'IBKR_CLIENT_ID',
                 'IBKR_MOCK', 'PRICE_UPDATE_INTERVAL', 'PAPER_INITIAL_CASH',
                 'LOG_LEVEL', 'STATE_DIR',
+                'PRICE_STALE_WARN_SECONDS', 'PRICE_STALE_SKIP_SECONDS',
             }
             for k, v in ext_config.items():
                 if k in safe_keys:

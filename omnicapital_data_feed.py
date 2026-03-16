@@ -33,6 +33,9 @@ class DataFeed:
     def is_connected(self) -> bool:
         raise NotImplementedError
 
+    def get_cache_age_seconds(self) -> Optional[float]:
+        return None
+
 
 class YahooDataFeed(DataFeed):
     """Data feed usando Yahoo Finance (gratuito, delay 15min)"""
@@ -52,6 +55,7 @@ class YahooDataFeed(DataFeed):
         if symbol in self._cache:
             cache_age = (now - self._cache_time[symbol]).total_seconds()
             if cache_age < self.cache_duration:
+                self.last_update = self._cache_time[symbol]
                 return self._cache[symbol]
 
         # Obtener nuevo dato
@@ -77,6 +81,7 @@ class YahooDataFeed(DataFeed):
             if price and price > 0:
                 self._cache[symbol] = price
                 self._cache_time[symbol] = now
+                self.last_update = now
                 return price
 
         except Exception as e:
@@ -106,6 +111,10 @@ class YahooDataFeed(DataFeed):
                     logger.warning(f"Async price fetch failed for {symbol}: {e}")
 
         elapsed = time.time() - t0
+        if prices:
+            cache_times = [self._cache_time[symbol] for symbol in prices if symbol in self._cache_time]
+            if cache_times:
+                self.last_update = min(cache_times)
         logger.debug(f"Fetched {len(prices)}/{len(symbols)} prices in {elapsed:.1f}s "
                      f"({workers} workers)")
         return prices
@@ -125,6 +134,11 @@ class YahooDataFeed(DataFeed):
             return len(hist) > 0
         except:
             return False
+
+    def get_cache_age_seconds(self) -> Optional[float]:
+        if self.last_update is None:
+            return None
+        return (datetime.now() - self.last_update).total_seconds()
 
 
 class IBKRDataFeed(DataFeed):
@@ -161,10 +175,14 @@ class IBKRDataFeed(DataFeed):
             # Esperar hasta 5 segundos por datos
             for _ in range(50):
                 if ticker.last:
+                    self.last_update = datetime.now()
                     return ticker.last
                 time.sleep(0.1)
             
-            return ticker.close if ticker.close else None
+            if ticker.close:
+                self.last_update = datetime.now()
+                return ticker.close
+            return None
             
         except Exception as e:
             logger.warning(f"Error obteniendo {symbol}: {e}")
@@ -184,12 +202,20 @@ class IBKRDataFeed(DataFeed):
                 prices[ticker.contract.symbol] = ticker.last
             elif ticker.close:
                 prices[ticker.contract.symbol] = ticker.close
+
+        if prices:
+            self.last_update = datetime.now()
         
         return prices
     
     def is_connected(self) -> bool:
         """Verifica conexion"""
         return self.ib is not None and self.ib.isConnected()
+
+    def get_cache_age_seconds(self) -> Optional[float]:
+        if self.last_update is None:
+            return None
+        return (datetime.now() - self.last_update).total_seconds()
 
 
 class AlpacaDataFeed(DataFeed):
@@ -221,7 +247,10 @@ class AlpacaDataFeed(DataFeed):
         
         try:
             bar = self.api.get_latest_bar(symbol)
-            return bar.c if bar else None
+            if bar:
+                self.last_update = datetime.now()
+                return bar.c
+            return None
         except Exception as e:
             logger.warning(f"Error obteniendo {symbol}: {e}")
             return None
@@ -236,6 +265,8 @@ class AlpacaDataFeed(DataFeed):
             bars = self.api.get_latest_bars(symbols)
             for symbol, bar in bars.items():
                 prices[symbol] = bar.c
+            if prices:
+                self.last_update = datetime.now()
         except Exception as e:
             logger.error(f"Error obteniendo precios: {e}")
         
@@ -244,6 +275,11 @@ class AlpacaDataFeed(DataFeed):
     def is_connected(self) -> bool:
         """Verifica conexion"""
         return self.api is not None
+
+    def get_cache_age_seconds(self) -> Optional[float]:
+        if self.last_update is None:
+            return None
+        return (datetime.now() - self.last_update).total_seconds()
 
 
 class HistoricalDataLoader:
