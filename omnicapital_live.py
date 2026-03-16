@@ -3505,9 +3505,9 @@ class COMPASSLive:
                 if not written:
                     logger.error(f"STATE SAVE FAILED for {target} after 2 attempts")
 
+            self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
+            self._state_cash_snapshot = self._coerce_float(state.get('cash'), self.broker.cash)
             logger.info(f"State saved: {filename}")
-        self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
-        self._state_cash_snapshot = self._coerce_float(state.get('cash'), self.broker.cash)
 
         # Auto git sync (non-blocking, never crashes engine)
         if _git_sync_available:
