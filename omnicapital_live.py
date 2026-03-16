@@ -1138,6 +1138,24 @@ class COMPASSLive:
 
         return max_pos
 
+    def _get_ml_spy_context(self):
+        spy_price = None
+        spy_sma200 = None
+        try:
+            if self._spy_hist is not None and len(self._spy_hist) >= 200:
+                close = self._spy_hist['Close']
+                spy_price = float(close.iloc[-1])
+                spy_sma200 = float(close.iloc[-200:].mean())
+        except Exception:
+            spy_price = None
+            spy_sma200 = None
+
+        return {
+            'spy_price': spy_price,
+            'spy_sma200': spy_sma200,
+            'spy_regime_score': self.current_regime_score,
+        }
+
     # ------------------------------------------------------------------
     # Position exit logic (5 conditions from backtest)
     # ------------------------------------------------------------------
@@ -1151,6 +1169,7 @@ class COMPASSLive:
         positions = self.broker.get_positions()
         max_positions = self.get_max_positions()
         self._regime_reduce_done = False  # Only allow one regime-reduce sell per call
+        ml_spy_ctx = self._get_ml_spy_context() if self.ml else None
 
         for symbol in list(positions.keys()):
             price = prices.get(symbol)
@@ -1224,6 +1243,36 @@ class COMPASSLive:
                     if symbol == worst:
                         exit_reason = 'regime_reduce'
                         self._regime_reduce_done = True
+
+            if exit_reason is None and self.ml:
+                try:
+                    portfolio_now = self.broker.get_portfolio()
+                    drawdown = (
+                        (portfolio_now.total_value - self.peak_value) / self.peak_value
+                        if self.peak_value > 0 else 0
+                    )
+                    drawdown_from_high = (
+                        (price - meta['high_price']) / meta['high_price']
+                        if meta['high_price'] > 0 else 0.0
+                    )
+                    self.ml.on_hold(
+                        symbol=symbol,
+                        sector=SECTOR_MAP.get(symbol, meta.get('sector', 'Unknown')),
+                        days_held=days_held,
+                        current_return=pos_return,
+                        drawdown_from_high=drawdown_from_high,
+                        entry_daily_vol=meta.get('entry_daily_vol', 0.016),
+                        adaptive_stop_pct=adaptive_stop,
+                        regime_score=self.current_regime_score,
+                        trading_day=self.trading_day_counter,
+                        portfolio_value=portfolio_now.total_value,
+                        portfolio_drawdown=drawdown,
+                        spy_price=ml_spy_ctx['spy_price'],
+                        spy_sma200=ml_spy_ctx['spy_sma200'],
+                        spy_regime_score=ml_spy_ctx['spy_regime_score'],
+                    )
+                except Exception as e:
+                    logger.warning(f"ML hold logging failed for {symbol}: {e}")
 
             # Execute exit
             if exit_reason:
@@ -1409,6 +1458,7 @@ class COMPASSLive:
                 selected_set = set(selected)
                 drawdown = (portfolio.total_value - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
                 sector_filtered_set = set(sector_filtered)
+                ml_spy_ctx = self._get_ml_spy_context()
                 for rank_idx, (sym, sc) in enumerate(ranked[:20]):
                     if sym in selected_set:
                         continue
@@ -1425,6 +1475,9 @@ class COMPASSLive:
                         portfolio_drawdown=drawdown,
                         current_n_positions=len(positions),
                         max_positions_target=max_positions,
+                        spy_price=ml_spy_ctx['spy_price'],
+                        spy_sma200=ml_spy_ctx['spy_sma200'],
+                        spy_regime_score=ml_spy_ctx['spy_regime_score'],
                     )
             except Exception as e:
                 logger.warning(f"ML skip logging failed: {e}")

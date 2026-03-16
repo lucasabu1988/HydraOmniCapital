@@ -181,6 +181,9 @@ def test_log_skip_writes_skip_record(logger):
         portfolio_drawdown=-0.02,
         current_n_positions=5,
         max_positions_target=5,
+        spy_price=505.0,
+        spy_sma200=500.0,
+        spy_regime_score=0.61,
     )
 
     records = read_jsonl(Path(ml.DECISIONS_FILE))
@@ -189,6 +192,10 @@ def test_log_skip_writes_skip_record(logger):
     assert records[0]['decision_type'] == 'skip'
     assert records[0]['skip_reason'] == 'not_top_n'
     assert records[0]['skip_universe_rank'] == 7
+    assert records[0]['spy_price'] == 505.0
+    assert records[0]['spy_sma200'] == 500.0
+    assert records[0]['spy_vs_sma200_pct'] == pytest.approx(0.01)
+    assert records[0]['regime_score'] == 0.61
 
 
 def test_log_hold_writes_hold_record(logger):
@@ -204,6 +211,9 @@ def test_log_hold_writes_hold_record(logger):
         trading_day=14,
         portfolio_value=103000.0,
         portfolio_drawdown=-0.01,
+        spy_price=498.0,
+        spy_sma200=500.0,
+        spy_regime_score=0.57,
     )
 
     records = read_jsonl(Path(ml.DECISIONS_FILE))
@@ -212,6 +222,10 @@ def test_log_hold_writes_hold_record(logger):
     assert records[0]['decision_type'] == 'hold'
     assert records[0]['days_held'] == 3
     assert records[0]['current_return'] == 0.045
+    assert records[0]['spy_price'] == 498.0
+    assert records[0]['spy_sma200'] == 500.0
+    assert records[0]['spy_vs_sma200_pct'] == pytest.approx(-0.004)
+    assert records[0]['regime_score'] == 0.57
 
 
 def test_jsonl_lines_are_independently_valid_json(logger):

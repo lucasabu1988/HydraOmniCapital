@@ -580,9 +580,18 @@ class DecisionLogger:
         portfolio_drawdown: float,
         current_n_positions: int,
         max_positions_target: int,
+        spy_price: Optional[float] = None,
+        spy_sma200: Optional[float] = None,
+        spy_regime_score: Optional[float] = None,
     ):
         """Log a stock that was considered but not selected."""
         dec_id = self._make_id()
+        effective_regime_score = (
+            spy_regime_score if spy_regime_score is not None else regime_score
+        )
+        spy_vs_sma200_pct = None
+        if spy_price is not None and spy_sma200 not in (None, 0):
+            spy_vs_sma200_pct = (spy_price / spy_sma200) - 1
         record = DecisionRecord(
             decision_id=dec_id,
             decision_type="skip",
@@ -591,15 +600,15 @@ class DecisionLogger:
             date=date.today().isoformat(),
             symbol=symbol,
             sector=sector,
-            regime_score=regime_score,
-            regime_bucket=self._regime_bucket(regime_score),
+            regime_score=effective_regime_score,
+            regime_bucket=self._regime_bucket(effective_regime_score),
             max_positions_target=max_positions_target,
             current_n_positions=current_n_positions,
             portfolio_value=portfolio_value,
             portfolio_drawdown=portfolio_drawdown,
             current_leverage=1.0,
             crash_cooldown=0,
-            spy_price=None, spy_sma200=None, spy_vs_sma200_pct=None,
+            spy_price=spy_price, spy_sma200=spy_sma200, spy_vs_sma200_pct=spy_vs_sma200_pct,
             spy_sma50=None, spy_10d_vol=None, spy_20d_return=None,
             momentum_score=momentum_score,
             momentum_rank=None,
@@ -631,9 +640,18 @@ class DecisionLogger:
         trading_day: int,
         portfolio_value: float,
         portfolio_drawdown: float,
+        spy_price: Optional[float] = None,
+        spy_sma200: Optional[float] = None,
+        spy_regime_score: Optional[float] = None,
     ):
         """Log an intraday hold decision (stop checked but not triggered)."""
         dec_id = self._make_id()
+        effective_regime_score = (
+            spy_regime_score if spy_regime_score is not None else regime_score
+        )
+        spy_vs_sma200_pct = None
+        if spy_price is not None and spy_sma200 not in (None, 0):
+            spy_vs_sma200_pct = (spy_price / spy_sma200) - 1
         record = DecisionRecord(
             decision_id=dec_id,
             decision_type="hold",
@@ -642,15 +660,15 @@ class DecisionLogger:
             date=date.today().isoformat(),
             symbol=symbol,
             sector=sector,
-            regime_score=regime_score,
-            regime_bucket=self._regime_bucket(regime_score),
+            regime_score=effective_regime_score,
+            regime_bucket=self._regime_bucket(effective_regime_score),
             max_positions_target=0,
             current_n_positions=0,
             portfolio_value=portfolio_value,
             portfolio_drawdown=portfolio_drawdown,
             current_leverage=1.0,
             crash_cooldown=0,
-            spy_price=None, spy_sma200=None, spy_vs_sma200_pct=None,
+            spy_price=spy_price, spy_sma200=spy_sma200, spy_vs_sma200_pct=spy_vs_sma200_pct,
             spy_sma50=None, spy_10d_vol=None, spy_20d_return=None,
             momentum_score=None,
             momentum_rank=None,
@@ -1659,7 +1677,9 @@ class COMPASSMLOrchestrator:
                 universe_rank: Optional[int], momentum_score: Optional[float],
                 regime_score: float, trading_day: int, portfolio_value: float,
                 portfolio_drawdown: float, current_n_positions: int,
-                max_positions_target: int):
+                max_positions_target: int, spy_price: Optional[float] = None,
+                spy_sma200: Optional[float] = None,
+                spy_regime_score: Optional[float] = None):
         try:
             self.logger.log_skip(
                 symbol=symbol, sector=sector, skip_reason=skip_reason,
@@ -1668,9 +1688,33 @@ class COMPASSMLOrchestrator:
                 portfolio_value=portfolio_value, portfolio_drawdown=portfolio_drawdown,
                 current_n_positions=current_n_positions,
                 max_positions_target=max_positions_target,
+                spy_price=spy_price, spy_sma200=spy_sma200,
+                spy_regime_score=spy_regime_score,
             )
         except Exception as e:
             logger.error(f"ML on_skip failed for {symbol}: {e}")
+
+    def on_hold(self, symbol: str, sector: str, days_held: int,
+                current_return: float, drawdown_from_high: float,
+                entry_daily_vol: float, adaptive_stop_pct: float,
+                regime_score: float, trading_day: int, portfolio_value: float,
+                portfolio_drawdown: float, spy_price: Optional[float] = None,
+                spy_sma200: Optional[float] = None,
+                spy_regime_score: Optional[float] = None):
+        try:
+            self.logger.log_hold(
+                symbol=symbol, sector=sector, days_held=days_held,
+                current_return=current_return, drawdown_from_high=drawdown_from_high,
+                entry_daily_vol=entry_daily_vol,
+                adaptive_stop_pct=adaptive_stop_pct,
+                regime_score=regime_score, trading_day=trading_day,
+                portfolio_value=portfolio_value,
+                portfolio_drawdown=portfolio_drawdown,
+                spy_price=spy_price, spy_sma200=spy_sma200,
+                spy_regime_score=spy_regime_score,
+            )
+        except Exception as e:
+            logger.error(f"ML on_hold failed for {symbol}: {e}")
 
     def on_end_of_day(self, trading_day: int, portfolio_value: float, cash: float,
                       peak_value: float, n_positions: int, leverage: float,
