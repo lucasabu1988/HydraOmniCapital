@@ -130,6 +130,11 @@ def logger(isolate_ml_paths):
     return ml.DecisionLogger(str(isolate_ml_paths))
 
 
+@pytest.fixture
+def orchestrator(isolate_ml_paths):
+    return ml.COMPASSMLOrchestrator(str(isolate_ml_paths))
+
+
 def test_log_entry_writes_valid_jsonl_record(logger, isolate_ml_paths):
     decision_id = logger.log_entry(
         symbol='AAPL',
@@ -270,6 +275,163 @@ def test_log_exit_without_open_entry_logs_warning_and_uses_fallback_context(logg
     assert outcome_records[0]['entry_spy_vs_sma200'] == 0.0
     assert outcome_records[0]['gross_return'] == pytest.approx(-0.05)
     assert outcome_records[0]['outcome_label'] == 'weak_loss'
+
+
+def test_compass_ml_orchestrator_runs_full_lifecycle(orchestrator):
+    entry_id = orchestrator.on_entry(
+        symbol='AAPL',
+        sector='Technology',
+        momentum_score=0.92,
+        momentum_rank=0.97,
+        entry_vol_ann=0.21,
+        entry_daily_vol=0.013,
+        adaptive_stop_pct=-0.08,
+        trailing_stop_pct=0.03,
+        regime_score=0.69,
+        max_positions_target=5,
+        current_n_positions=2,
+        portfolio_value=100000.0,
+        portfolio_drawdown=-0.01,
+        current_leverage=0.95,
+        crash_cooldown=0,
+        trading_day=1,
+    )
+
+    orchestrator.on_hold(
+        symbol='AAPL',
+        sector='Technology',
+        days_held=1,
+        current_return=0.01,
+        drawdown_from_high=-0.005,
+        entry_daily_vol=0.013,
+        adaptive_stop_pct=-0.08,
+        regime_score=0.69,
+        trading_day=2,
+        portfolio_value=101000.0,
+        portfolio_drawdown=-0.009,
+        spy_price=502.0,
+        spy_sma200=500.0,
+        spy_regime_score=0.66,
+    )
+    orchestrator.on_hold(
+        symbol='AAPL',
+        sector='Technology',
+        days_held=2,
+        current_return=0.025,
+        drawdown_from_high=-0.007,
+        entry_daily_vol=0.013,
+        adaptive_stop_pct=-0.08,
+        regime_score=0.69,
+        trading_day=3,
+        portfolio_value=102500.0,
+        portfolio_drawdown=-0.008,
+        spy_price=503.0,
+        spy_sma200=500.0,
+        spy_regime_score=0.67,
+    )
+    orchestrator.on_hold(
+        symbol='AAPL',
+        sector='Technology',
+        days_held=3,
+        current_return=0.04,
+        drawdown_from_high=-0.01,
+        entry_daily_vol=0.013,
+        adaptive_stop_pct=-0.08,
+        regime_score=0.69,
+        trading_day=4,
+        portfolio_value=104000.0,
+        portfolio_drawdown=-0.006,
+        spy_price=504.0,
+        spy_sma200=500.0,
+        spy_regime_score=0.68,
+    )
+    orchestrator.on_exit(
+        symbol='AAPL',
+        sector='Technology',
+        exit_reason='hold_expired',
+        entry_price=100.0,
+        exit_price=105.0,
+        pnl_usd=500.0,
+        days_held=4,
+        high_price=106.0,
+        entry_vol_ann=0.21,
+        entry_daily_vol=0.013,
+        adaptive_stop_pct=-0.08,
+        entry_momentum_score=0.92,
+        entry_momentum_rank=0.97,
+        regime_score=0.69,
+        max_positions_target=5,
+        current_n_positions=1,
+        portfolio_value=105000.0,
+        portfolio_drawdown=-0.005,
+        current_leverage=0.9,
+        crash_cooldown=0,
+        trading_day=5,
+        spy_return_during_hold=0.02,
+    )
+    orchestrator.on_skip(
+        symbol='MSFT',
+        sector='Technology',
+        skip_reason='sector_limit',
+        universe_rank=6,
+        momentum_score=0.74,
+        regime_score=0.69,
+        trading_day=5,
+        portfolio_value=105000.0,
+        portfolio_drawdown=-0.005,
+        current_n_positions=1,
+        max_positions_target=5,
+        spy_price=505.0,
+        spy_sma200=500.0,
+        spy_regime_score=0.68,
+    )
+    orchestrator.on_end_of_day(
+        trading_day=5,
+        portfolio_value=105000.0,
+        cash=105000.0,
+        peak_value=105000.0,
+        n_positions=0,
+        leverage=0.0,
+        crash_cooldown=0,
+        regime_score=0.69,
+        max_positions_target=5,
+        positions=[],
+        position_meta={},
+        prev_portfolio_value=100000.0,
+    )
+
+    report = orchestrator.run_learning()
+    decision_records = read_jsonl(Path(ml.DECISIONS_FILE))
+    outcome_records = read_jsonl(Path(ml.OUTCOMES_FILE))
+    snapshot_records = read_jsonl(Path(ml.SNAPSHOTS_FILE))
+    saved_insights = json.loads(Path(ml.INSIGHTS_FILE).read_text(encoding='utf-8'))
+
+    assert entry_id
+    assert len(decision_records) == 6
+    assert [record['decision_type'] for record in decision_records] == [
+        'entry', 'hold', 'hold', 'hold', 'exit', 'skip',
+    ]
+    assert len(outcome_records) == 1
+    assert len(snapshot_records) == 1
+    assert outcome_records[0]['entry_decision_id'] == entry_id
+    assert outcome_records[0]['gross_return'] == pytest.approx(0.05)
+    assert outcome_records[0]['alpha_vs_spy'] == pytest.approx(0.03)
+    assert snapshot_records[0]['portfolio_value'] == 105000.0
+    assert snapshot_records[0]['daily_pnl_pct'] == pytest.approx(0.05)
+    assert report['learning_phase'] == 1
+    assert report['trading_days'] == 5
+    assert report['data_summary']['total_decisions'] == 6
+    assert report['data_summary']['completed_trades'] == 1
+    assert report['data_summary']['daily_snapshots'] == 1
+    assert report['data_summary']['decisions_by_type'] == {
+        'hold': 3, 'entry': 1, 'exit': 1, 'skip': 1,
+    }
+    assert report['trade_analytics']['n_completed_trades'] == 1
+    assert report['trade_analytics']['overall']['n'] == 1
+    assert report['trade_analytics']['overall']['mean_return'] == pytest.approx(0.05)
+    assert report['stop_analysis']['status'] == 'insufficient_data'
+    assert saved_insights['data_summary']['total_decisions'] == 6
+    assert saved_insights['learning_phase'] == 1
 
 
 def test_log_skip_writes_skip_record(logger):
