@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 import types
 from datetime import datetime, timedelta
@@ -95,6 +96,7 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._equity_df = None
     dashboard._spy_df = None
     dashboard._cloud_engine = None
+    dashboard._cloud_engine_thread = None
     dashboard._cloud_engine_started = False
     dashboard._self_ping_started = False
     dashboard._engine_status = {
@@ -102,6 +104,8 @@ def isolate_dashboard(monkeypatch, tmp_path):
         'started_at': None,
         'error': None,
         'cycles': 0,
+        'startup_started_at': None,
+        'last_git_pull': None,
     }
 
     yield tmp_path
@@ -122,6 +126,23 @@ def test_api_state_returns_offline_when_state_missing(client):
     assert payload['status'] == 'offline'
     assert payload['error'] == 'No state file found'
     assert payload['engine']['running'] is False
+
+
+def test_api_state_returns_starting_when_engine_thread_alive_and_state_missing(client):
+    class AliveThread:
+        def is_alive(self):
+            return True
+
+    dashboard._cloud_engine_started = True
+    dashboard._cloud_engine_thread = AliveThread()
+
+    response = client.get('/api/state')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'starting'
+    assert payload['message'] == 'Engine initializing...'
+    assert payload['engine']['thread_alive'] is True
 
 
 def test_api_state_returns_enriched_payload_when_state_exists(client, monkeypatch):
@@ -404,19 +425,49 @@ def test_yf_fetch_batch_resets_session_after_auth_failure(monkeypatch):
 
 def test_run_cloud_engine_sets_error_when_engine_unavailable(monkeypatch):
     monkeypatch.setattr(dashboard, '_HAS_ENGINE', False)
+    monkeypatch.setattr(dashboard, '_ENGINE_IMPORT_ERROR', 'ImportError: missing dependency')
 
     dashboard._run_cloud_engine()
 
     assert 'omnicapital_live import failed' in dashboard._engine_status['error']
+    assert 'missing dependency' in dashboard._engine_status['error']
+
+
+def test_git_pull_latest_marks_auth_failures(monkeypatch):
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[:3] == ['git', 'remote', 'set-url']:
+            return types.SimpleNamespace(returncode=0, stdout='', stderr='')
+        if cmd[:2] == ['git', 'pull']:
+            return types.SimpleNamespace(
+                returncode=1,
+                stdout='',
+                stderr='fatal: Authentication failed for https://github.com/lucasabu1988/NuevoProyecto.git',
+            )
+        raise AssertionError(f'unexpected git command: {cmd}')
+
+    monkeypatch.setenv('GIT_TOKEN', 'secret-token')
+    monkeypatch.setattr(subprocess, 'run', fake_run)
+
+    result = dashboard._git_pull_latest()
+
+    assert result['ok'] is False
+    assert result['auth_failed'] is True
+    assert 'Authentication failed' in result['message']
+    assert 'secret-token' not in result['message']
+    assert any(cmd[:2] == ['git', 'pull'] for cmd in calls)
 
 
 def test_ensure_cloud_engine_acquires_lock_and_starts_thread(monkeypatch):
     started = {}
 
     class FakeThread:
-        def __init__(self, target=None, daemon=None):
+        def __init__(self, target=None, daemon=None, name=None):
             started['target'] = target
             started['daemon'] = daemon
+            started['name'] = name
 
         def start(self):
             started['started'] = True
@@ -429,8 +480,28 @@ def test_ensure_cloud_engine_acquires_lock_and_starts_thread(monkeypatch):
     dashboard._ensure_cloud_engine()
 
     assert started['daemon'] is True
+    assert started['name'] == 'CloudHydraEngine'
     assert started['started'] is True
     assert Path('state/.cloud_engine.lock').exists()
+
+
+def test_ensure_cloud_engine_sets_error_when_thread_launch_fails(monkeypatch):
+    class BrokenThread:
+        def __init__(self, target=None, daemon=None, name=None):
+            pass
+
+        def start(self):
+            raise RuntimeError('thread boom')
+
+    monkeypatch.setattr(dashboard, 'AGENT_MODE', False)
+    monkeypatch.setattr(dashboard, 'SHOWCASE_MODE', False)
+    monkeypatch.setattr(dashboard.threading, 'Thread', BrokenThread)
+
+    dashboard._ensure_cloud_engine()
+
+    assert dashboard._cloud_engine_started is False
+    assert 'Engine thread launch failed' in dashboard._engine_status['error']
+    assert not Path('state/.cloud_engine.lock').exists()
 
 
 def test_ensure_cloud_engine_skips_when_lock_already_exists(monkeypatch):

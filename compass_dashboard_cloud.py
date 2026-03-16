@@ -47,11 +47,17 @@ except ImportError:
     _HAS_ANTHROPIC = False
 
 # HYDRA engine (cloud paper trading — runs when local is offline)
+_ENGINE_IMPORT_ERROR = None
 try:
     from omnicapital_live import COMPASSLive, CONFIG as ENGINE_CONFIG
     _HAS_ENGINE = True
-except ImportError:
+except ImportError as e:
     _HAS_ENGINE = False
+    _ENGINE_IMPORT_ERROR = f'{type(e).__name__}: {e}'
+    logging.getLogger(__name__).error(
+        'Failed to import omnicapital_live for cloud engine startup',
+        exc_info=True,
+    )
 
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
@@ -170,6 +176,8 @@ _engine_status = {
     'started_at': None,
     'error': 'Showcase mode — set HYDRA_MODE=live to enable engine' if SHOWCASE_MODE else None,
     'cycles': 0,
+    'startup_started_at': None,
+    'last_git_pull': None,
 }
 
 # ============================================================================
@@ -380,9 +388,34 @@ def read_state() -> Optional[dict]:
                 if attempt == 0:
                     time_module.sleep(0.1)
                     continue
+                logger.warning('State file exists but contains invalid JSON after retry: %s', STATE_FILE)
             except IOError:
                 break
     return None
+
+
+def _engine_thread_is_alive():
+    return bool(_cloud_engine_thread and _cloud_engine_thread.is_alive())
+
+
+def _engine_is_starting():
+    if AGENT_MODE or SHOWCASE_MODE:
+        return False
+    if _engine_status.get('error'):
+        return False
+    if _cloud_engine:
+        return False
+    return _engine_thread_is_alive() or _cloud_engine_started
+
+
+def _engine_snapshot():
+    snapshot = dict(_engine_status)
+    snapshot['thread_alive'] = _engine_thread_is_alive()
+    snapshot['cycles'] = (
+        getattr(_cloud_engine, 'stats', {}).get('cycles_completed', 0)
+        if _cloud_engine else _engine_status['cycles']
+    )
+    return snapshot
 
 
 # ============================================================================
@@ -1183,13 +1216,21 @@ def api_state():
     """Return enriched state data with live prices."""
     try:
         state = read_state()
+        engine = _engine_snapshot()
 
         if not state:
+            if _engine_is_starting():
+                return jsonify({
+                    'status': 'starting',
+                    'message': 'Engine initializing...',
+                    'server_time': datetime.now().isoformat(),
+                    'engine': engine,
+                })
             return jsonify({
                 'status': 'offline',
-                'error': 'No state file found',
+                'error': engine.get('error') or 'No state file found',
                 'server_time': datetime.now().isoformat(),
-                'engine': dict(_engine_status),
+                'engine': engine,
             })
 
         # Fetch live prices for positions + SPY + ES Futures + VIX + Rattlesnake + Catalyst held
@@ -1241,10 +1282,7 @@ def api_state():
             'hydra': hydra_data,
             'implementation_shortfall': {'available': False},
             'server_time': datetime.now().isoformat(),
-            'engine': {
-                **_engine_status,
-                'cycles': getattr(_cloud_engine, 'stats', {}).get('cycles_completed', 0) if _cloud_engine else _engine_status['cycles'],
-            },
+            'engine': engine,
         })
     except Exception as e:
         import traceback
@@ -1254,7 +1292,7 @@ def api_state():
             'error': f'Worker {os.getpid()} crashed: {type(e).__name__}: {e}',
             'traceback': traceback.format_exc(),
             'server_time': datetime.now().isoformat(),
-            'engine': dict(_engine_status),
+            'engine': _engine_snapshot(),
         }), 200  # Return 200 so frontend can display the error
 
 
@@ -2442,6 +2480,7 @@ AGENT_MODE = False
 # ============================================================================
 
 _cloud_engine: Optional['COMPASSLive'] = None
+_cloud_engine_thread = None
 _cloud_engine_started = False
 
 # Clean up stale lock file from previous deploy
@@ -2459,24 +2498,67 @@ def _git_pull_latest():
     import subprocess
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     git_token = os.environ.get('GIT_TOKEN', '')
+    pull_result = {
+        'ok': False,
+        'auth_failed': False,
+        'message': None,
+    }
+
+    def _redact_git_output(text):
+        if not text:
+            return ''
+        if git_token:
+            text = text.replace(git_token, '***')
+        return text.strip()
 
     if git_token:
         # Configure HTTPS auth for push/pull
         repo_url = f'https://x-access-token:{git_token}@github.com/lucasabu1988/NuevoProyecto.git'
-        subprocess.run(['git', 'remote', 'set-url', 'origin', repo_url],
-                       cwd=repo_dir, capture_output=True, timeout=10)
+        try:
+            remote_result = subprocess.run(
+                ['git', 'remote', 'set-url', 'origin', repo_url],
+                cwd=repo_dir,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if remote_result.returncode != 0:
+                logger.warning(
+                    'git remote set-url failed before pull: %s',
+                    _redact_git_output(remote_result.stderr or remote_result.stdout)[:300],
+                )
+        except Exception as e:
+            logger.warning('git remote set-url failed before pull: %s: %s', type(e).__name__, e)
 
     try:
         result = subprocess.run(
             ['git', 'pull', '--ff-only', 'origin', 'main'],
             cwd=repo_dir, capture_output=True, text=True, timeout=60
         )
+        stdout = _redact_git_output(result.stdout)
+        stderr = _redact_git_output(result.stderr)
+        combined = ' '.join(part for part in [stdout, stderr] if part).lower()
         if result.returncode == 0:
-            logger.info(f"git pull: {result.stdout.strip()}")
+            pull_result['ok'] = True
+            pull_result['message'] = stdout or 'Already up to date.'
+            logger.info('git pull succeeded: %s', pull_result['message'])
         else:
-            logger.warning(f"git pull failed: {result.stderr.strip()[:200]}")
+            pull_result['message'] = (stderr or stdout or f'git pull failed with exit code {result.returncode}')[:300]
+            pull_result['auth_failed'] = any(marker in combined for marker in [
+                'authentication failed',
+                'could not read username',
+                'could not read password',
+                'permission denied',
+                'repository not found',
+            ])
+            if pull_result['auth_failed']:
+                logger.warning('git pull authentication failed: %s', pull_result['message'])
+            else:
+                logger.warning('git pull failed: %s', pull_result['message'])
     except Exception as e:
-        logger.warning(f"git pull error: {e}")
+        pull_result['message'] = f'{type(e).__name__}: {e}'
+        logger.warning('git pull error: %s', pull_result['message'], exc_info=True)
+    return pull_result
 
 
 def _run_cloud_engine():
@@ -2487,13 +2569,25 @@ def _run_cloud_engine():
     global _cloud_engine
 
     if not _HAS_ENGINE:
-        _engine_status['error'] = 'HYDRA engine not available — omnicapital_live import failed'
-        logger.warning("HYDRA engine not available — cloud trading disabled")
+        detail = _ENGINE_IMPORT_ERROR or 'ImportError during omnicapital_live import'
+        _engine_status['running'] = False
+        _engine_status['error'] = f'HYDRA engine not available — omnicapital_live import failed: {detail}'
+        logger.warning('HYDRA engine not available — cloud trading disabled: %s', detail)
         return
 
     try:
+        _engine_status['running'] = False
+        _engine_status['error'] = None
+        _engine_status['startup_started_at'] = datetime.now().isoformat()
+        logger.info('Cloud HYDRA engine startup beginning (worker %s)', os.getpid())
+
         # Pull latest state from GitHub (picks up local changes)
-        _git_pull_latest()
+        _engine_status['last_git_pull'] = _git_pull_latest()
+        if not _engine_status['last_git_pull']['ok']:
+            logger.warning(
+                'Cloud engine startup continuing after git pull issue: %s',
+                _engine_status['last_git_pull']['message'],
+            )
 
         # Enable git sync on cloud if GIT_TOKEN is set
         import omnicapital_live as _engine_mod
@@ -2513,7 +2607,9 @@ def _run_cloud_engine():
         shared_feed = SharedYahooDataFeed()
         _cloud_engine.data_feed = shared_feed
         _cloud_engine.broker.set_price_feed(shared_feed)
+        logger.info('Cloud engine created, loading state from %s', STATE_FILE)
         _cloud_engine.load_state()
+        logger.info('Cloud engine load_state completed (state exists=%s)', os.path.exists(STATE_FILE))
 
         _engine_status['running'] = True
         _engine_status['started_at'] = datetime.now().isoformat()
@@ -2527,6 +2623,7 @@ def _run_cloud_engine():
         _cloud_engine.run(interval=60)
 
     except Exception as e:
+        _cloud_engine = None
         _engine_status['running'] = False
         _engine_status['error'] = f'Engine crashed: {e}'
         logger.error(f"Cloud engine crashed: {e}", exc_info=True)
@@ -2538,16 +2635,17 @@ def _run_cloud_engine():
 def _ensure_cloud_engine():
     """Start the cloud engine thread once. Uses a file lock so only one
     gunicorn worker runs the engine (avoids duplicate trades)."""
-    global _cloud_engine_started
+    global _cloud_engine_started, _cloud_engine_thread
     if _cloud_engine_started:
         return
-    _cloud_engine_started = True
 
     if AGENT_MODE:
+        _cloud_engine_started = True
         logger.info("AGENT_MODE=true — cloud engine disabled (Worker is sole state writer)")
         return
 
     if SHOWCASE_MODE:
+        _cloud_engine_started = True
         logger.info("Showcase mode — engine disabled (set HYDRA_MODE=live to enable)")
         return
 
@@ -2558,14 +2656,34 @@ def _ensure_cloud_engine():
         fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.write(fd, str(os.getpid()).encode())
         os.close(fd)
+        _cloud_engine_started = True
     except FileExistsError:
         # Another worker already claimed the engine
+        _cloud_engine_started = True
         logger.info("Cloud engine already running in another worker, skipping")
         return
+    except OSError as e:
+        _engine_status['error'] = f'Engine lock acquisition failed: {e}'
+        logger.error('Cloud engine lock acquisition failed: %s', e, exc_info=True)
+        return
 
-    t = threading.Thread(target=_run_cloud_engine, daemon=True)
-    t.start()
-    logger.info("Cloud HYDRA engine thread launched")
+    try:
+        _cloud_engine_thread = threading.Thread(
+            target=_run_cloud_engine,
+            daemon=True,
+            name='CloudHydraEngine',
+        )
+        _cloud_engine_thread.start()
+        logger.info("Cloud HYDRA engine thread launched")
+    except Exception as e:
+        _cloud_engine_thread = None
+        _cloud_engine_started = False
+        _engine_status['error'] = f'Engine thread launch failed: {e}'
+        logger.error('Cloud engine thread launch failed: %s', e, exc_info=True)
+        try:
+            os.unlink(lock_file)
+        except OSError:
+            pass
 
 
 @app.before_request
