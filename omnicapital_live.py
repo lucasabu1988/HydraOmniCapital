@@ -3264,6 +3264,17 @@ class COMPASSLive:
             )
             peak_value = peak_cap
 
+        early_peak_cap = initial_capital * 1.20
+        if (
+            source == 'load'
+            and trading_day_counter <= 5
+            and peak_value >= early_peak_cap
+        ):
+            violations.append(
+                f"peak_value={peak_value:.2f} unreasonably high for early day {trading_day_counter}; capping to portfolio_value={portfolio_value:.2f}"
+            )
+            peak_value = portfolio_value
+
         if trading_day_counter <= 1 and not positions and abs(peak_value - initial_capital) > 0.01:
             violations.append(
                 f"peak_value={peak_value:.2f} invalid for day {trading_day_counter} with no positions; resetting to initial capital"
