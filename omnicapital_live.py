@@ -3382,7 +3382,7 @@ class COMPASSLive:
         if (
             source == 'load'
             and trading_day_counter <= 5
-            and peak_value >= early_peak_cap
+            and peak_value > early_peak_cap
         ):
             violations.append(
                 f"peak_value={peak_value:.2f} unreasonably high for early day {trading_day_counter}; capping to portfolio_value={portfolio_value:.2f}"
@@ -3708,7 +3708,7 @@ class COMPASSLive:
             original_state = copy.deepcopy(state)
             previous_state = {
                 'trading_day_counter': self._last_persisted_trading_day_counter,
-                'stats': {'cycles_completed': self._last_persisted_cycles_completed},
+                'stats': {'engine_iterations': self._last_persisted_cycles_completed},
             }
             state, violations = self._validate_state(
                 state,

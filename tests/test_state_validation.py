@@ -254,7 +254,7 @@ def test_load_state_caps_unreasonably_high_peak_in_early_days(trader, tmp_path):
     latest_state = make_state(
         trading_day_counter=1,
         portfolio_value=100000.0,
-        peak_value=120000.0,
+        peak_value=125000.0,
         positions={'AAPL': {'shares': 10, 'avg_cost': 150.0}},
         position_meta={
             'AAPL': {
