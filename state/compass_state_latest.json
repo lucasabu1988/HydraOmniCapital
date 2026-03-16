@@ -1,7 +1,7 @@
 {
   "version": "8.4",
   "timestamp": "2026-03-16T14:56:59.768511",
-  "cash": 52147.544293823244,
+  "cash": 44201.444293823244,
   "peak_value": 120000,
   "portfolio_value": 100077.07481384277,
   "crash_cooldown": 0,
@@ -31,6 +31,10 @@
     "DBC": {
       "shares": 117,
       "avg_cost": 28.31
+    },
+    "EFA": {
+      "shares": 81,
+      "avg_cost": 98.10
     }
   },
   "position_meta": {
@@ -84,6 +88,17 @@
       "high_price": 28.31,
       "_catalyst": true,
       "sector": "Commodities"
+    },
+    "EFA": {
+      "entry_price": 98.10,
+      "entry_date": "2026-03-16",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 98.10,
+      "entry_vol": 0.15,
+      "entry_daily_vol": 0.0095,
+      "sector": "International Equity",
+      "_entry_reconciled": true
     }
   },
   "current_universe": [

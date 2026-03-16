@@ -1242,6 +1242,10 @@ class COMPASSLive:
             if meta.get('_catalyst'):
                 continue
 
+            # Skip EFA position — managed by _manage_efa_position
+            if symbol == EFA_SYMBOL:
+                continue
+
             exit_reason = None
 
             # 1. Hold time expired (entry day counts as day 1)
@@ -1288,13 +1292,14 @@ class COMPASSLive:
             #    Only sell one per check_position_exits call to prevent double-sell
             #    Exclude Catalyst positions from count and worst-performer search
             compass_count = sum(1 for s in positions if s in self.position_meta
-                                and not self.position_meta.get(s, {}).get('_catalyst'))
+                                and not self.position_meta.get(s, {}).get('_catalyst')
+                                and s != EFA_SYMBOL)
             if exit_reason is None and compass_count > max_positions and not self._regime_reduce_done:
                 pos_returns = {}
                 for s, p in positions.items():
                     pr = prices.get(s)
                     m = self.position_meta.get(s)
-                    if pr and m and not m.get('_catalyst'):
+                    if pr and m and not m.get('_catalyst') and s != EFA_SYMBOL:
                         pos_returns[s] = (pr - m['entry_price']) / m['entry_price']
                 if pos_returns:
                     worst = min(pos_returns, key=pos_returns.get)
