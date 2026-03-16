@@ -24,6 +24,7 @@ import sys
 import glob
 import tempfile
 import copy
+import threading
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 import warnings
@@ -809,6 +810,7 @@ class COMPASSLive:
         self._last_state_save = datetime.now()
         self._last_persisted_cycles_completed = None
         self._last_persisted_trading_day_counter = None
+        self._state_save_lock = threading.RLock()
         self._state_positions_snapshot = {}
         self._state_cash_snapshot = float(config['PAPER_INITIAL_CASH'])
         self._daily_open_done = False
@@ -3365,135 +3367,136 @@ class COMPASSLive:
 
     def save_state(self):
         """Save full system state to JSON"""
-        portfolio = self.broker.get_portfolio()
-        state = {
-            'version': '8.4',
-            'timestamp': datetime.now().isoformat(),
+        with self._state_save_lock:
+            portfolio = self.broker.get_portfolio()
+            state = {
+                'version': '8.4',
+                'timestamp': datetime.now().isoformat(),
 
-            # Portfolio
-            'cash': self.broker.cash,
-            'peak_value': self.peak_value,
-            'portfolio_value': portfolio.total_value,
+                # Portfolio
+                'cash': self.broker.cash,
+                'peak_value': self.peak_value,
+                'portfolio_value': portfolio.total_value,
 
-            # Drawdown / Crash state
-            'crash_cooldown': self.crash_cooldown,
-            'portfolio_values_history': self.portfolio_values_history[-30:],  # Keep last 30 days
+                # Drawdown / Crash state
+                'crash_cooldown': self.crash_cooldown,
+                'portfolio_values_history': self.portfolio_values_history[-30:],  # Keep last 30 days
 
-            # Regime
-            'current_regime_score': self.current_regime_score,
+                # Regime
+                'current_regime_score': self.current_regime_score,
 
-            # Counters
-            'trading_day_counter': self.trading_day_counter,
-            'last_trading_date': self.last_trading_date.isoformat() if self.last_trading_date else None,
+                # Counters
+                'trading_day_counter': self.trading_day_counter,
+                'last_trading_date': self.last_trading_date.isoformat() if self.last_trading_date else None,
 
-            # Positions (broker)
-            'positions': {
-                s: {
-                    'shares': p.shares,
-                    'avg_cost': p.avg_cost,
-                }
-                for s, p in self.broker.positions.items()
-            },
+                # Positions (broker)
+                'positions': {
+                    s: {
+                        'shares': p.shares,
+                        'avg_cost': p.avg_cost,
+                    }
+                    for s, p in self.broker.positions.items()
+                },
 
-            # Position metadata (COMPASS)
-            'position_meta': self.position_meta,
+                # Position metadata (COMPASS)
+                'position_meta': self.position_meta,
 
-            # Universe
-            'current_universe': self.current_universe,
-            'universe_year': self.universe_year,
-            '_universe_source': getattr(self, '_universe_source', ''),
+                # Universe
+                'current_universe': self.current_universe,
+                'universe_year': self.universe_year,
+                '_universe_source': getattr(self, '_universe_source', ''),
 
-            # Intraday flags (prevents duplicate trades after mid-day restart)
-            '_daily_open_done': getattr(self, '_daily_open_done', False),
-            '_preclose_entries_done': getattr(self, '_preclose_entries_done', False),
+                # Intraday flags (prevents duplicate trades after mid-day restart)
+                '_daily_open_done': getattr(self, '_daily_open_done', False),
+                '_preclose_entries_done': getattr(self, '_preclose_entries_done', False),
 
-            # Overlay diagnostics
-            'overlay': {
-                'available': self._overlay_available,
-                'capital_scalar': self._overlay_result.get('capital_scalar', 1.0) if self._overlay_result else 1.0,
-                'per_overlay': self._overlay_result.get('per_overlay_scalars', {}) if self._overlay_result else {},
-                'position_floor': self._overlay_result.get('position_floor') if self._overlay_result else None,
-                'diagnostics': self._overlay_result.get('diagnostics', {}) if self._overlay_result else {},
-            },
+                # Overlay diagnostics
+                'overlay': {
+                    'available': self._overlay_available,
+                    'capital_scalar': self._overlay_result.get('capital_scalar', 1.0) if self._overlay_result else 1.0,
+                    'per_overlay': self._overlay_result.get('per_overlay_scalars', {}) if self._overlay_result else {},
+                    'position_floor': self._overlay_result.get('position_floor') if self._overlay_result else None,
+                    'diagnostics': self._overlay_result.get('diagnostics', {}) if self._overlay_result else {},
+                },
 
-            # HYDRA state
-            'hydra': {
-                'available': self._hydra_available,
-                'rattle_positions': self.rattle_positions,
-                'rattle_regime': self.rattle_regime,
-                'vix_current': self._vix_current,
-                'efa_position': None,  # deprecated: EFA now tracked in broker.positions
-                'catalyst_positions': self.catalyst_positions,
-                'catalyst_day_counter': self._catalyst_day_counter,
-                'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
-            },
+                # HYDRA state
+                'hydra': {
+                    'available': self._hydra_available,
+                    'rattle_positions': self.rattle_positions,
+                    'rattle_regime': self.rattle_regime,
+                    'vix_current': self._vix_current,
+                    'efa_position': None,  # deprecated: EFA now tracked in broker.positions
+                    'catalyst_positions': self.catalyst_positions,
+                    'catalyst_day_counter': self._catalyst_day_counter,
+                    'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
+                },
 
-            # Pre-rotation snapshot (survives restart between execute_new_day and _update_cycle_log)
-            '_pre_rotation_positions_data': getattr(self, '_pre_rotation_positions_data', {}),
-            '_pre_rotation_cash': getattr(self, '_pre_rotation_cash', None),
-            '_pre_rotation_value': getattr(self, '_pre_rotation_value', None),
+                # Pre-rotation snapshot (survives restart between execute_new_day and _update_cycle_log)
+                '_pre_rotation_positions_data': getattr(self, '_pre_rotation_positions_data', {}),
+                '_pre_rotation_cash': getattr(self, '_pre_rotation_cash', None),
+                '_pre_rotation_value': getattr(self, '_pre_rotation_value', None),
 
-            # Stats
-            'stats': {
-                'cycles_completed': self._cycles_completed,
-                'uptime_minutes': (datetime.now() - self._start_time).total_seconds() / 60
-            },
+                # Stats
+                'stats': {
+                    'cycles_completed': self._cycles_completed,
+                    'uptime_minutes': (datetime.now() - self._start_time).total_seconds() / 60
+                },
 
-            # ML fail-safe observability
-            'ml_error_counts': dict(_ml_error_counts),
-        }
+                # ML fail-safe observability
+                'ml_error_counts': dict(_ml_error_counts),
+            }
 
-        original_state = copy.deepcopy(state)
-        previous_state = {
-            'trading_day_counter': self._last_persisted_trading_day_counter,
-            'stats': {'cycles_completed': self._last_persisted_cycles_completed},
-        }
-        state, violations = self._validate_state(
-            state,
-            source='save',
-            previous_state=previous_state if self._last_persisted_trading_day_counter is not None
-            or self._last_persisted_cycles_completed is not None else None,
-        )
-        if violations:
-            backup_path = self._write_corrupted_state_backup(original_state, violations)
-            logger.critical(
-                "STATE VALIDATION FAILED before save: %s%s",
-                "; ".join(violations),
-                f" | backup={backup_path}" if backup_path else "",
+            original_state = copy.deepcopy(state)
+            previous_state = {
+                'trading_day_counter': self._last_persisted_trading_day_counter,
+                'stats': {'cycles_completed': self._last_persisted_cycles_completed},
+            }
+            state, violations = self._validate_state(
+                state,
+                source='save',
+                previous_state=previous_state if self._last_persisted_trading_day_counter is not None
+                or self._last_persisted_cycles_completed is not None else None,
             )
-            self.peak_value = state['peak_value']
-            self.trading_day_counter = state['trading_day_counter']
-            self.position_meta = state['position_meta']
-            try:
-                self.broker.cash = state['cash']
-            except Exception:
-                pass
-
-        os.makedirs('state', exist_ok=True)
-        filename = f'state/compass_state_{datetime.now().strftime("%Y%m%d")}.json'
-        latest = 'state/compass_state_latest.json'
-
-        # Atomic write: temp file + rename (prevents corruption on crash)
-        for target in [filename, latest]:
-            written = False
-            for attempt in range(2):
+            if violations:
+                backup_path = self._write_corrupted_state_backup(original_state, violations)
+                logger.critical(
+                    "STATE VALIDATION FAILED before save: %s%s",
+                    "; ".join(violations),
+                    f" | backup={backup_path}" if backup_path else "",
+                )
+                self.peak_value = state['peak_value']
+                self.trading_day_counter = state['trading_day_counter']
+                self.position_meta = state['position_meta']
                 try:
-                    fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
-                    with os.fdopen(fd, 'w') as fp:
-                        json.dump(state, fp, indent=2, default=str)
-                    os.replace(tmp_path, target)
-                    written = True
-                    break
-                except Exception as write_err:
-                    logger.error(f"Atomic write failed for {target} (attempt {attempt+1}): {write_err}")
-                    try:
-                        os.unlink(tmp_path)
-                    except OSError:
-                        pass
-            if not written:
-                logger.error(f"STATE SAVE FAILED for {target} after 2 attempts")
+                    self.broker.cash = state['cash']
+                except Exception:
+                    pass
 
-        logger.info(f"State saved: {filename}")
+            os.makedirs('state', exist_ok=True)
+            filename = f'state/compass_state_{datetime.now().strftime("%Y%m%d")}.json'
+            latest = 'state/compass_state_latest.json'
+
+            # Atomic write: temp file + rename (prevents corruption on crash)
+            for target in [filename, latest]:
+                written = False
+                for attempt in range(2):
+                    try:
+                        fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+                        with os.fdopen(fd, 'w') as fp:
+                            json.dump(state, fp, indent=2, default=str)
+                        os.replace(tmp_path, target)
+                        written = True
+                        break
+                    except Exception as write_err:
+                        logger.error(f"Atomic write failed for {target} (attempt {attempt+1}): {write_err}")
+                        try:
+                            os.unlink(tmp_path)
+                        except OSError:
+                            pass
+                if not written:
+                    logger.error(f"STATE SAVE FAILED for {target} after 2 attempts")
+
+            logger.info(f"State saved: {filename}")
         self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
         self._state_cash_snapshot = self._coerce_float(state.get('cash'), self.broker.cash)
 

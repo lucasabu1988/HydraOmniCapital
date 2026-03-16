@@ -1,5 +1,6 @@
 import json
 import sys
+import threading
 from datetime import date
 from pathlib import Path
 
@@ -242,3 +243,40 @@ def test_load_state_resets_non_dict_sections(trader, tmp_path):
     assert trader.position_meta == {}
     assert trader.broker.positions == {}
     assert trader._last_persisted_cycles_completed == 0
+
+
+def test_save_state_is_thread_safe_under_concurrent_calls(trader, tmp_path):
+    trader.trading_day_counter = 7
+    trader._cycles_completed = 3
+    trader.broker.positions['AAPL'] = Position('AAPL', 10, 150.0)
+    trader.position_meta['AAPL'] = {
+        'entry_price': 150.0,
+        'entry_date': '2026-03-16',
+        'entry_day_index': 7,
+        'original_entry_day_index': 7,
+        'high_price': 150.0,
+        'sector': 'Technology',
+    }
+
+    errors = []
+
+    def worker():
+        try:
+            for _ in range(10):
+                trader.save_state()
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    state = read_json(tmp_path / 'state' / 'compass_state_latest.json')
+
+    assert errors == []
+    assert trader._last_persisted_trading_day_counter == 7
+    assert trader._last_persisted_cycles_completed == 3
+    assert state['trading_day_counter'] == 7
+    assert state['stats']['cycles_completed'] == 3
