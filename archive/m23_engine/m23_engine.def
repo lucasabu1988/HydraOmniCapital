@@ -1,0 +1,17 @@
+LIBRARY m23_engine.dll
+
+EXPORTS
+DllMain
+__fini_array_end
+__fini_array_start
+__init_array_end
+__init_array_start
+__preinit_array_end
+__preinit_array_start
+_dllstart
+_edata
+_end
+_etext
+check_m23
+search_binomial_k
+search_trinomials

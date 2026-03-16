@@ -55,3 +55,10 @@ awesome-systematic-trading/
 # Runtime PID files
 state/watchdog.pid
 crucix/
+
+# Runtime state (auto-generated)
+state/agent_heartbeat.json
+state/intelligence/
+
+# Playwright MCP cache
+.playwright-mcp/
