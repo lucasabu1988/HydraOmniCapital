@@ -159,6 +159,11 @@ class TestCOMPASSLive(unittest.TestCase):
         self.config = CONFIG.copy()
         self.config['PAPER_INITIAL_CASH'] = 100_000
 
+    def _make_spy_hist(self, last_close, base_close=100.0, days=200):
+        dates = pd.date_range('2024-01-01', periods=days, freq='B')
+        closes = [base_close] * (days - 1) + [last_close]
+        return pd.DataFrame({'Close': closes}, index=dates)
+
     @patch('omnicapital_live.YahooDataFeed')
     def test_initialization(self, mock_feed):
         mock_feed.return_value = MagicMock()
@@ -183,6 +188,45 @@ class TestCOMPASSLive(unittest.TestCase):
         trader.current_regime_score = 0.1
         max_pos = trader.get_max_positions()
         self.assertLessEqual(max_pos, 3)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_get_max_positions_applies_bull_override_when_spy_confirmed(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        trader.current_regime_score = 0.55
+        trader._spy_hist = self._make_spy_hist(last_close=104.0)
+
+        max_pos = trader.get_max_positions()
+
+        self.assertEqual(max_pos, 5)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_get_max_positions_skips_bull_override_below_spy_threshold(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        trader.current_regime_score = 0.55
+        trader._spy_hist = self._make_spy_hist(last_close=102.5)
+
+        max_pos = trader.get_max_positions()
+
+        self.assertEqual(max_pos, 4)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_get_max_positions_bull_override_score_boundaries(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        expected_positions = {
+            0.39: 3,
+            0.40: 3,
+            0.41: 4,
+        }
+
+        for regime_score, expected in expected_positions.items():
+            with self.subTest(regime_score=regime_score):
+                trader = COMPASSLive(self.config)
+                trader.current_regime_score = regime_score
+                trader._spy_hist = self._make_spy_hist(last_close=104.0)
+
+                self.assertEqual(trader.get_max_positions(), expected)
 
 
 class TestPaperBroker(unittest.TestCase):
