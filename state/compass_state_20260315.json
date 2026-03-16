@@ -1,21 +1,18 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-15T20:29:15.324788",
+  "timestamp": "2026-03-15T22:27:59.652328",
   "cash": 100000,
-  "peak_value": 95000,
+  "peak_value": 120000,
   "portfolio_value": 100000,
   "crash_cooldown": 0,
   "portfolio_values_history": [],
-  "current_regime_score": 0.35,
-  "trading_day_counter": 42,
-  "last_trading_date": "2026-02-19",
+  "current_regime_score": 0.65,
+  "trading_day_counter": 0,
+  "last_trading_date": null,
   "positions": {},
   "position_meta": {},
-  "current_universe": [
-    "AAPL",
-    "MSFT"
-  ],
-  "universe_year": 2026,
+  "current_universe": [],
+  "universe_year": null,
   "_universe_source": "",
   "_daily_open_done": false,
   "_preclose_entries_done": false,
@@ -52,6 +49,6 @@
   "_pre_rotation_value": null,
   "stats": {
     "cycles_completed": 0,
-    "uptime_minutes": 0.0007741499999999999
+    "uptime_minutes": 0.03877498333333333
   }
 }
