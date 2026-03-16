@@ -983,34 +983,33 @@ class IBKRBroker(Broker):
             buying_power=self._last_portfolio_snapshot.buying_power,
         )
 
-    def _recover_connection(self, operation: str, error: Exception) -> bool:
+    def _recover_connection(self, operation: str, error: Exception, attempt: int) -> bool:
         self._last_error = str(error)
-        for attempt in range(1, self._recovery_attempts + 1):
-            delay = min(
-                self._recovery_backoff_seconds * (2 ** (attempt - 1)),
-                self._recovery_backoff_cap,
-            )
-            self._set_broker_state(
-                'reconnecting',
-                f"{operation} failed ({type(error).__name__}); retry {attempt}/{self._recovery_attempts}",
-            )
-            logger.warning(
-                f"IBKR recoverable error during {operation}: {error}. "
-                f"Reconnect attempt {attempt}/{self._recovery_attempts} in {delay:.1f}s"
-            )
-            self._sleep_backoff(delay)
-            try:
-                self.connection.disconnect()
-            except Exception as disconnect_err:
-                logger.debug(f"IBKR reconnect pre-disconnect failed: {disconnect_err}")
-            try:
-                if self.connection.connect():
-                    self._set_broker_state('connected', f"{operation} recovered on attempt {attempt}")
-                    return True
-            except Exception as reconnect_err:
-                self._last_error = str(reconnect_err)
-                logger.warning(f"IBKR reconnect attempt {attempt} failed: {reconnect_err}")
-        self._set_broker_state('degraded', f"{operation} unavailable after recovery attempts")
+        delay = min(
+            self._recovery_backoff_seconds * (2 ** (max(1, attempt) - 1)),
+            self._recovery_backoff_cap,
+        )
+        self._set_broker_state(
+            'reconnecting',
+            f"{operation} failed ({type(error).__name__}); retry {attempt}/{self._recovery_attempts}",
+        )
+        logger.warning(
+            f"IBKR recoverable error during {operation}: {error}. "
+            f"Reconnect attempt {attempt}/{self._recovery_attempts} in {delay:.1f}s"
+        )
+        self._sleep_backoff(delay)
+        try:
+            self.connection.disconnect()
+        except Exception as disconnect_err:
+            logger.debug(f"IBKR reconnect pre-disconnect failed: {disconnect_err}")
+        try:
+            if self.connection.connect():
+                self._set_broker_state('connected', f"{operation} recovered on attempt {attempt}")
+                return True
+        except Exception as reconnect_err:
+            self._last_error = str(reconnect_err)
+            logger.warning(f"IBKR reconnect attempt {attempt} failed: {reconnect_err}")
+        self._set_broker_state('degraded', f"{operation} unavailable after reconnect failure")
         logger.error(f"IBKR entering DEGRADED mode after {operation} recovery failed")
         return False
 
@@ -1028,7 +1027,7 @@ class IBKRBroker(Broker):
             raise RuntimeError("IBKR broker is in degraded mode (read-only)")
 
         last_error = None
-        for attempt in range(self._recovery_attempts + 1):
+        for attempt in range(1, self._recovery_attempts + 1):
             start = time_module.perf_counter()
             try:
                 result = func()
@@ -1037,10 +1036,14 @@ class IBKRBroker(Broker):
             except self._recoverable_errors as err:
                 last_error = err
                 self._last_error = str(err)
-                if attempt >= self._recovery_attempts:
+                if not self._recover_connection(operation, err, attempt):
                     break
-                if not self._recover_connection(operation, err):
-                    break
+
+        if last_error is not None and self._broker_state != 'degraded':
+            self._set_broker_state(
+                'degraded',
+                f"{operation} failed after {self._recovery_attempts} attempts",
+            )
 
         if allow_cached and cache_getter is not None:
             cached = cache_getter()

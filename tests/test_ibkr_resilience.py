@@ -89,7 +89,7 @@ def test_get_positions_enters_degraded_after_repeated_failures(live_broker):
 
     health = live_broker.health_check()
     assert health['state'] == 'degraded'
-    assert live_broker.connection.connect.call_count == 3
+    assert live_broker.connection.connect.call_count == 1
 
 
 def test_get_positions_returns_cached_snapshot_when_degraded(live_broker):
@@ -203,3 +203,18 @@ def test_health_check_preserves_last_error_when_degraded(live_broker):
     health = live_broker.health_check()
     assert health['state'] == 'degraded'
     assert 'fatal disconnect' in health['last_error']
+
+
+def test_recovery_calls_single_connect_per_outer_attempt(live_broker):
+    live_broker.connection.ib.positions.side_effect = [
+        ConnectionError('attempt 1'),
+        ConnectionError('attempt 2'),
+        ConnectionError('attempt 3'),
+    ]
+    live_broker.connection.connect.return_value = True
+
+    with pytest.raises(ConnectionError):
+        live_broker.get_positions()
+
+    assert live_broker.connection.connect.call_count == 3
+    assert live_broker.health_check()['state'] == 'degraded'
