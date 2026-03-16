@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-16T14:41:08.449814",
-  "cash": 57684.10548822021,
+  "timestamp": "2026-03-16T14:56:59.768511",
+  "cash": 66601.10429382324,
   "peak_value": 120000,
-  "portfolio_value": 99959.43597070311,
+  "portfolio_value": 100077.07481384277,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000
@@ -19,10 +19,6 @@
     "GEV": {
       "shares": 9,
       "avg_cost": 824.1900024414062
-    },
-    "EFA": {
-      "shares": 91,
-      "avg_cost": 98.04000091552734
     }
   },
   "position_meta": {
@@ -31,7 +27,7 @@
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 242.50999450683594,
+      "high_price": 243.07000732421875,
       "entry_vol": 0.15986035968629964,
       "entry_daily_vol": 0.010070256100649625,
       "sector": "Healthcare",
@@ -43,23 +39,12 @@
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 826.1500244140625,
+      "high_price": 829.719970703125,
       "entry_vol": 0.4165747650252211,
       "entry_daily_vol": 0.026241743588616726,
       "sector": "Unknown",
       "entry_momentum_score": 0.9331994416779369,
       "entry_momentum_rank": 0.9393939393939394
-    },
-    "EFA": {
-      "entry_price": 98.04000091552734,
-      "entry_date": "2026-03-16",
-      "entry_day_index": 1,
-      "original_entry_day_index": 1,
-      "high_price": 98.06500244140625,
-      "entry_vol": 0.15,
-      "entry_daily_vol": 0.0095,
-      "sector": "International Equity",
-      "_entry_reconciled": true
     }
   },
   "current_universe": [
@@ -146,7 +131,7 @@
     "catalyst_positions": [],
     "catalyst_day_counter": 0,
     "capital_manager": {
-      "compass_account": 42499.899,
+      "compass_account": 42499.808,
       "rattle_account": 33578.35991668701,
       "catalyst_account": 15000.0,
       "base_compass_alloc": 0.425,
@@ -162,7 +147,7 @@
   "_pre_rotation_cash": 100000,
   "_pre_rotation_value": 100000,
   "stats": {
-    "cycles_completed": 369,
-    "uptime_minutes": 973.1854004666667
+    "cycles_completed": 384,
+    "uptime_minutes": 989.0407122333332
   }
 }
