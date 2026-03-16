@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from omnicapital_live import (
     COMPASSLive, CONFIG, BROAD_POOL,
     compute_momentum_scores, compute_volatility_weights,
-    compute_dynamic_leverage, compute_live_regime_score
+    compute_dynamic_leverage, compute_live_regime_score,
+    filter_by_sector_concentration,
 )
 from omnicapital_broker import PaperBroker, Order, Position
 from omnicapital_notifications import EmailNotifier
@@ -150,6 +151,64 @@ class TestRegimeDetection(unittest.TestCase):
         spy = pd.DataFrame({'Close': np.linspace(400, 410, 50)}, index=dates)
         score = compute_live_regime_score(spy)
         self.assertEqual(score, 0.5)
+
+
+class TestSectorConcentrationFiltering(unittest.TestCase):
+    """Test v8.4 sector concentration guard."""
+
+    def test_existing_two_positions_allow_only_one_more_from_same_sector(self):
+        ranked_candidates = [
+            ('NVDA', 0.95),
+            ('GOOGL', 0.93),
+            ('META', 0.91),
+            ('AMD', 0.89),
+            ('ORCL', 0.87),
+        ]
+        current_positions = {'AAPL': {}, 'MSFT': {}}
+
+        selected = filter_by_sector_concentration(ranked_candidates, current_positions)
+
+        self.assertEqual(selected, ['NVDA'])
+
+    def test_different_sectors_all_pass_in_original_order(self):
+        ranked_candidates = [
+            ('AAPL', 0.95),
+            ('JPM', 0.90),
+            ('XOM', 0.85),
+        ]
+
+        selected = filter_by_sector_concentration(ranked_candidates, {})
+
+        self.assertEqual(selected, ['AAPL', 'JPM', 'XOM'])
+
+    def test_same_sector_without_existing_positions_keeps_top_three_only(self):
+        ranked_candidates = [
+            ('AAPL', 0.98),
+            ('MSFT', 0.96),
+            ('NVDA', 0.94),
+            ('GOOGL', 0.92),
+        ]
+
+        selected = filter_by_sector_concentration(ranked_candidates, {})
+
+        self.assertEqual(selected, ['AAPL', 'MSFT', 'NVDA'])
+
+    def test_empty_candidates_returns_empty_list(self):
+        selected = filter_by_sector_concentration([], {'AAPL': {}})
+
+        self.assertEqual(selected, [])
+
+    def test_unknown_sector_positions_are_counted_and_order_is_preserved(self):
+        ranked_candidates = [
+            ('UNK3', 0.95),
+            ('UNK4', 0.90),
+            ('AAPL', 0.85),
+        ]
+        current_positions = {'UNK1': {}, 'UNK2': {}}
+
+        selected = filter_by_sector_concentration(ranked_candidates, current_positions)
+
+        self.assertEqual(selected, ['UNK3', 'AAPL'])
 
 
 class TestCOMPASSLive(unittest.TestCase):
