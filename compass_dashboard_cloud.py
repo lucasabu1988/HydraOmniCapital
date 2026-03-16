@@ -188,6 +188,8 @@ _engine_status = {
 _risk_cache = None
 _risk_cache_time = None
 RISK_CACHE_SECONDS = 300
+_risk_cache_lock = threading.Lock()
+_montecarlo_lock = threading.Lock()
 
 # ============================================================================
 # DATA PRELOAD (at import time — shared across gunicorn workers via --preload)
@@ -1305,7 +1307,7 @@ def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
     if not _HAS_REQUESTS:
         return []
     items = []
-    headers = {'User-Agent': os.environ.get('SEC_USER_AGENT', 'HYDRA-Dashboard contact@omnicapital.com')}
+    headers = {'User-Agent': os.environ.get('SEC_USER_AGENT', 'HYDRA-Dashboard lucas@omnicapital.com')}
     start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
     for symbol in symbols:
@@ -2097,9 +2099,10 @@ def api_risk():
     global _risk_cache, _risk_cache_time
 
     now = datetime.now()
-    if _risk_cache is not None and _risk_cache_time is not None:
-        if (now - _risk_cache_time).total_seconds() < RISK_CACHE_SECONDS:
-            return jsonify(_risk_cache)
+    with _risk_cache_lock:
+        if _risk_cache is not None and _risk_cache_time is not None:
+            if (now - _risk_cache_time).total_seconds() < RISK_CACHE_SECONDS:
+                return jsonify(_risk_cache)
 
     state = read_state()
     if not state:
@@ -2109,8 +2112,9 @@ def api_risk():
             'risk_label': 'LOW',
             'num_positions': 0,
         }
-        _risk_cache = payload
-        _risk_cache_time = now
+        with _risk_cache_lock:
+            _risk_cache = payload
+            _risk_cache_time = now
         return jsonify(payload)
 
     symbols = list(state.get('positions', {}).keys())
@@ -2126,8 +2130,9 @@ def api_risk():
 
     hist_data = _fetch_risk_histories(hist_symbols)
     payload = compute_portfolio_risk(state, prices, hist_data)
-    _risk_cache = payload
-    _risk_cache_time = now
+    with _risk_cache_lock:
+        _risk_cache = payload
+        _risk_cache_time = now
     return jsonify(payload)
 
 
@@ -2136,14 +2141,17 @@ def api_montecarlo():
     """Return Monte Carlo simulation results."""
     global _montecarlo_cache, _montecarlo_cache_signature
     signature = _montecarlo_signature()
-    if _montecarlo_cache is not None and _montecarlo_cache_signature == signature:
-        return jsonify(_montecarlo_cache)
+    with _montecarlo_lock:
+        if _montecarlo_cache is not None and _montecarlo_cache_signature == signature:
+            return jsonify(_montecarlo_cache)
     try:
         from compass_montecarlo import COMPASSMonteCarlo
         mc = COMPASSMonteCarlo()
-        _montecarlo_cache = mc.run_all()
-        _montecarlo_cache_signature = signature
-        return jsonify(_montecarlo_cache)
+        results = mc.run_all()
+        with _montecarlo_lock:
+            _montecarlo_cache = results
+            _montecarlo_cache_signature = signature
+        return jsonify(results)
     except Exception as e:
         return jsonify({'error': f'Monte Carlo unavailable: {str(e)}'})
 

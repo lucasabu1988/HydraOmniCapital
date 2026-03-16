@@ -128,36 +128,55 @@ class COMPASSMonteCarlo:
         self.source = 'backtest_fallback'
         self.cycle_returns = self.load_backtest_cycle_returns()
 
-    def _simulate_single_path(self, sampled_returns):
-        values = np.empty(len(sampled_returns) + 1, dtype=float)
-        values[0] = self.initial_value
-        peak_value = self.initial_value
-        crash_cooldown = 0
-        realized_cycle_returns = []
+    def _simulate_paths_vectorized(self, sampled):
+        n_sims, n_cycles = sampled.shape
+        values = np.empty((n_sims, n_cycles + 1), dtype=float)
+        values[:, 0] = self.initial_value
+        peaks = np.full(n_sims, self.initial_value)
+        crash_cooldowns = np.zeros(n_sims, dtype=int)
+        prev_eff_return = np.zeros(n_sims)
+        prev2_eff_return = np.zeros(n_sims)
 
-        for idx, sampled_return in enumerate(sampled_returns, start=1):
-            drawdown = (values[idx - 1] - peak_value) / peak_value if peak_value > 0 else 0.0
-            leverage = _dd_leverage(drawdown, V84_CONFIG)
+        t1 = V84_CONFIG['DD_SCALE_TIER1']
+        t2 = V84_CONFIG['DD_SCALE_TIER2']
+        t3 = V84_CONFIG['DD_SCALE_TIER3']
+        lf = V84_CONFIG['LEV_FULL']
+        lm = V84_CONFIG['LEV_MID']
+        lfl = V84_CONFIG['LEV_FLOOR']
+        crash_lev = V84_CONFIG['CRASH_LEVERAGE']
+        crash_vel_5d = V84_CONFIG['CRASH_VEL_5D']
+        crash_vel_10d = V84_CONFIG['CRASH_VEL_10D']
+        crash_cd = V84_CONFIG['CRASH_COOLDOWN']
 
-            recent_10d = None
-            if len(realized_cycle_returns) >= 2:
-                recent_10d = (1 + realized_cycle_returns[-2]) * (1 + realized_cycle_returns[-1]) - 1
+        for col in range(n_cycles):
+            dd = np.where(peaks > 0, (values[:, col] - peaks) / peaks, 0.0)
 
-            if crash_cooldown > 0:
-                leverage = min(leverage, V84_CONFIG['CRASH_LEVERAGE'])
-                crash_cooldown -= 1
-            elif realized_cycle_returns:
-                if realized_cycle_returns[-1] <= V84_CONFIG['CRASH_VEL_5D']:
-                    leverage = min(leverage, V84_CONFIG['CRASH_LEVERAGE'])
-                    crash_cooldown = V84_CONFIG['CRASH_COOLDOWN'] - 1
-                elif recent_10d is not None and recent_10d <= V84_CONFIG['CRASH_VEL_10D']:
-                    leverage = min(leverage, V84_CONFIG['CRASH_LEVERAGE'])
-                    crash_cooldown = V84_CONFIG['CRASH_COOLDOWN'] - 1
+            leverage = np.where(dd >= t1, lf,
+                      np.where(dd >= t2, lf + (dd - t1) / (t2 - t1) * (lm - lf),
+                      np.where(dd >= t3, lm + (dd - t2) / (t3 - t2) * (lfl - lm),
+                      lfl)))
 
-            effective_return = sampled_return * leverage
-            realized_cycle_returns.append(effective_return)
-            values[idx] = values[idx - 1] * (1 + effective_return)
-            peak_value = max(peak_value, values[idx])
+            if col >= 2:
+                recent_10d = (1 + prev2_eff_return) * (1 + prev_eff_return) - 1
+            else:
+                recent_10d = np.zeros(n_sims)
+
+            in_cooldown = crash_cooldowns > 0
+            leverage = np.where(in_cooldown, np.minimum(leverage, crash_lev), leverage)
+            crash_cooldowns = np.where(in_cooldown, crash_cooldowns - 1, crash_cooldowns)
+
+            if col >= 1:
+                trigger_5d = (~in_cooldown) & (prev_eff_return <= crash_vel_5d)
+                trigger_10d = (~in_cooldown) & (~trigger_5d) & (col >= 2) & (recent_10d <= crash_vel_10d)
+                new_crash = trigger_5d | trigger_10d
+                leverage = np.where(new_crash, np.minimum(leverage, crash_lev), leverage)
+                crash_cooldowns = np.where(new_crash, crash_cd - 1, crash_cooldowns)
+
+            eff_return = sampled[:, col] * leverage
+            prev2_eff_return = prev_eff_return.copy()
+            prev_eff_return = eff_return
+            values[:, col + 1] = values[:, col] * (1 + eff_return)
+            peaks = np.maximum(peaks, values[:, col + 1])
 
         return values
 
@@ -165,10 +184,10 @@ class COMPASSMonteCarlo:
         if len(self.cycle_returns) == 0:
             self.load_input_returns()
 
-        n_cycles = int(np.ceil(self.horizon_days / self.cycle_days))
+        n_cycles = self.horizon_days // self.cycle_days
         rng = np.random.default_rng(self.seed)
         sampled = rng.choice(self.cycle_returns, size=(self.n_simulations, n_cycles), replace=True)
-        self.paths = np.vstack([self._simulate_single_path(path) for path in sampled])
+        self.paths = self._simulate_paths_vectorized(sampled)
 
     def _historical_stats(self):
         cycle_returns = self.cycle_returns
@@ -177,7 +196,7 @@ class COMPASSMonteCarlo:
             'sample_size': int(len(cycle_returns)),
             'avg_cycle_return_pct': round(float(cycle_returns.mean() * 100), 3),
             'median_cycle_return_pct': round(float(np.median(cycle_returns) * 100), 3),
-            'cycle_vol_pct': round(float(cycle_returns.std(ddof=0) * 100), 3),
+            'cycle_vol_pct': round(float(cycle_returns.std(ddof=1) * 100), 3),
             'win_rate_pct': round(float(np.mean(cycle_returns > 0) * 100), 2),
         }
 
