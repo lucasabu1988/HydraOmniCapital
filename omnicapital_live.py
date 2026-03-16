@@ -261,13 +261,14 @@ SECTOR_MAP = {
     'TXN': 'Technology', 'QCOM': 'Technology', 'ORCL': 'Technology', 'ACN': 'Technology',
     'NOW': 'Technology', 'INTU': 'Technology', 'AMAT': 'Technology', 'MU': 'Technology',
     'LRCX': 'Technology', 'SNPS': 'Technology', 'CDNS': 'Technology', 'KLAC': 'Technology',
-    'MRVL': 'Technology',
+    'MRVL': 'Technology', 'GOOG': 'Technology', 'PLTR': 'Technology', 'APP': 'Technology',
+    'SMCI': 'Technology', 'CRWD': 'Technology',
     # Financials
     'BRK-B': 'Financials', 'JPM': 'Financials', 'V': 'Financials', 'MA': 'Financials',
     'BAC': 'Financials', 'WFC': 'Financials', 'GS': 'Financials', 'MS': 'Financials',
     'AXP': 'Financials', 'BLK': 'Financials', 'SCHW': 'Financials', 'C': 'Financials',
     'USB': 'Financials', 'PNC': 'Financials', 'TFC': 'Financials', 'CB': 'Financials',
-    'MMC': 'Financials', 'AIG': 'Financials',
+    'MMC': 'Financials', 'AIG': 'Financials', 'HOOD': 'Financials', 'COIN': 'Financials',
     # Healthcare
     'UNH': 'Healthcare', 'JNJ': 'Healthcare', 'LLY': 'Healthcare', 'ABBV': 'Healthcare',
     'MRK': 'Healthcare', 'PFE': 'Healthcare', 'TMO': 'Healthcare', 'ABT': 'Healthcare',
@@ -280,6 +281,7 @@ SECTOR_MAP = {
     'NKE': 'Consumer', 'MCD': 'Consumer', 'DIS': 'Consumer', 'SBUX': 'Consumer',
     'TGT': 'Consumer', 'LOW': 'Consumer', 'CL': 'Consumer', 'KMB': 'Consumer',
     'GIS': 'Consumer', 'EL': 'Consumer', 'MO': 'Consumer', 'PM': 'Consumer',
+    'NFLX': 'Consumer', 'UBER': 'Consumer',
     # Energy
     'XOM': 'Energy', 'CVX': 'Energy', 'COP': 'Energy', 'SLB': 'Energy',
     'EOG': 'Energy', 'OXY': 'Energy', 'MPC': 'Energy', 'PSX': 'Energy', 'VLO': 'Energy',
@@ -287,7 +289,7 @@ SECTOR_MAP = {
     'GE': 'Industrials', 'CAT': 'Industrials', 'BA': 'Industrials', 'HON': 'Industrials',
     'UNP': 'Industrials', 'RTX': 'Industrials', 'LMT': 'Industrials', 'DE': 'Industrials',
     'UPS': 'Industrials', 'FDX': 'Industrials', 'MMM': 'Industrials', 'GD': 'Industrials',
-    'NOC': 'Industrials', 'EMR': 'Industrials',
+    'NOC': 'Industrials', 'EMR': 'Industrials', 'GEV': 'Industrials',
     # Utilities
     'NEE': 'Utilities', 'DUK': 'Utilities', 'SO': 'Utilities', 'D': 'Utilities', 'AEP': 'Utilities',
     # Telecom
