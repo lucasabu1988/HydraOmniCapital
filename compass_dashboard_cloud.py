@@ -208,6 +208,7 @@ _price_cache: Dict[str, float] = {}
 _prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
 _price_cache_lock = threading.Lock()
+_yf_session_lock = threading.Lock()
 _yf_consecutive_failures: int = 0
 
 PRICE_CACHE_SECONDS_NORMAL = 60   # 1 min default
@@ -222,26 +223,34 @@ _yf_session: Optional['http_requests.Session'] = None
 _yf_crumb: Optional[str] = None
 
 
+def _yf_reset_session():
+    global _yf_session, _yf_crumb
+    with _yf_session_lock:
+        _yf_session = None
+        _yf_crumb = None
+
+
 def _yf_get_session():
     """Get or create a Yahoo Finance session with valid crumb."""
     global _yf_session, _yf_crumb
-    if _yf_session and _yf_crumb:
-        return _yf_session, _yf_crumb
-    try:
-        s = http_requests.Session()
-        s.headers.update(_YF_HEADERS)
-        # Get cookie
-        s.get('https://fc.yahoo.com', timeout=5)
-        # Get crumb
-        r = s.get('https://query2.finance.yahoo.com/v1/test/getcrumb', timeout=5)
-        if r.status_code == 200 and r.text:
-            _yf_session = s
-            _yf_crumb = r.text
-            logger.info('Yahoo Finance session established (crumb obtained)')
+    with _yf_session_lock:
+        if _yf_session and _yf_crumb:
             return _yf_session, _yf_crumb
-    except Exception as e:
-        logger.warning(f'Failed to get Yahoo Finance crumb: {e}')
-    return None, None
+        try:
+            s = http_requests.Session()
+            s.headers.update(_YF_HEADERS)
+            # Get cookie
+            s.get('https://fc.yahoo.com', timeout=5)
+            # Get crumb
+            r = s.get('https://query2.finance.yahoo.com/v1/test/getcrumb', timeout=5)
+            if r.status_code == 200 and r.text:
+                _yf_session = s
+                _yf_crumb = r.text
+                logger.info('Yahoo Finance session established (crumb obtained)')
+                return _yf_session, _yf_crumb
+        except Exception as e:
+            logger.warning(f'Failed to get Yahoo Finance crumb: {e}')
+        return None, None
 
 
 def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
@@ -278,9 +287,7 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
                     return results
             elif r.status_code in (401, 403):
                 # Crumb expired, reset session for next call
-                global _yf_session, _yf_crumb
-                _yf_session = None
-                _yf_crumb = None
+                _yf_reset_session()
                 logger.info('Yahoo Finance crumb expired, will refresh next call')
         except Exception as e:
             logger.warning(f'Yahoo Finance v7 batch failed: {e}')
