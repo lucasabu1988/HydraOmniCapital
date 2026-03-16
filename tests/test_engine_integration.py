@@ -22,6 +22,34 @@ class StubPriceFeed:
         return self.prices.get(symbol)
 
 
+class FailingML:
+    def __init__(self, fail_on):
+        self.fail_on = fail_on
+
+    def on_entry(self, **kwargs):
+        if self.fail_on == 'entry':
+            raise RuntimeError('entry failed')
+
+    def on_exit(self, **kwargs):
+        if self.fail_on == 'exit':
+            raise RuntimeError('exit failed')
+
+    def on_hold(self, **kwargs):
+        if self.fail_on == 'hold':
+            raise RuntimeError('hold failed')
+
+    def on_skip(self, **kwargs):
+        if self.fail_on == 'skip':
+            raise RuntimeError('skip failed')
+
+    def on_end_of_day(self, **kwargs):
+        if self.fail_on == 'snapshot':
+            raise RuntimeError('snapshot failed')
+
+    def run_learning(self):
+        return {'phase': 1}
+
+
 def make_hist(start_price, step, periods=220):
     dates = pd.date_range('2025-01-01', periods=periods, freq='B')
     prices = [start_price + (idx * step) for idx in range(periods)]
@@ -32,6 +60,13 @@ def make_hist(start_price, step, periods=220):
 def temp_runtime(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(live, '_git_sync_available', False, raising=False)
+    live._ml_error_counts = {
+        'entry': 0,
+        'exit': 0,
+        'hold': 0,
+        'skip': 0,
+        'snapshot': 0,
+    }
     return tmp_path
 
 
@@ -121,3 +156,39 @@ def test_run_once_returns_false_without_crashing_on_sparse_market_data(trader):
 
     assert result is False
     assert trader.broker.positions == {}
+
+
+@pytest.mark.parametrize('fail_on', ['entry', 'hold', 'skip', 'snapshot'])
+def test_ml_fail_safe_counters_increment_without_crashing(trader, temp_runtime, fail_on):
+    trader.ml = FailingML(fail_on)
+
+    result = trader.run_once()
+
+    assert result is True
+    assert live._ml_error_counts[fail_on] == 1
+
+    latest_state = temp_runtime / 'state' / 'compass_state_latest.json'
+    state = json.loads(latest_state.read_text(encoding='utf-8'))
+    assert state['ml_error_counts'][fail_on] == 1
+
+
+def test_ml_exit_fail_safe_counter_increments(trader):
+    trader.current_universe = []
+    trader.ml = FailingML('exit')
+
+    buy_order = live.Order(symbol='AAPL', action='BUY', quantity=5, order_type='MARKET')
+    buy_result = trader.broker.submit_order(buy_order)
+    trader.position_meta['AAPL'] = {
+        'entry_price': buy_result.filled_price,
+        'entry_date': trader.get_et_now().date().isoformat(),
+        'entry_day_index': 1,
+        'original_entry_day_index': 1,
+        'high_price': buy_result.filled_price,
+        'entry_vol': 0.25,
+        'entry_daily_vol': 0.016,
+        'sector': 'Technology',
+    }
+
+    trader.check_position_exits({'AAPL': 125.0})
+
+    assert live._ml_error_counts['exit'] == 1

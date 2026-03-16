@@ -53,6 +53,14 @@ try:
 except ImportError:
     _ml_available = False
 
+_ml_error_counts = {
+    'entry': 0,
+    'exit': 0,
+    'hold': 0,
+    'skip': 0,
+    'snapshot': 0,
+}
+
 # HYDRA: Rattlesnake + Cash Recycling (non-blocking, optional)
 try:
     from rattlesnake_signals import (
@@ -1272,6 +1280,7 @@ class COMPASSLive:
                         spy_regime_score=ml_spy_ctx['spy_regime_score'] if ml_spy_ctx else None,
                     )
                 except Exception as e:
+                    _ml_error_counts['hold'] += 1
                     logger.warning(f"ML hold logging failed for {symbol}: {e}")
 
             # Execute exit
@@ -1324,6 +1333,7 @@ class COMPASSLive:
                                 spy_hist=self._spy_hist,
                             )
                         except Exception as e:
+                            _ml_error_counts['exit'] += 1
                             logger.warning(f"ML exit logging failed for {symbol}: {e}")
 
                     # Only remove metadata if position is fully closed
@@ -1480,6 +1490,7 @@ class COMPASSLive:
                         spy_regime_score=ml_spy_ctx['spy_regime_score'] if ml_spy_ctx else None,
                     )
             except Exception as e:
+                _ml_error_counts['skip'] += 1
                 logger.warning(f"ML skip logging failed: {e}")
 
         # Compute inverse-vol weights
@@ -1637,6 +1648,7 @@ class COMPASSLive:
                             spy_hist=self._spy_hist,
                         )
                     except Exception as e:
+                        _ml_error_counts['entry'] += 1
                         logger.warning(f"ML entry logging failed for {symbol}: {e}")
 
                 # Cycle log: link this entry as replacement for a pending stop exit
@@ -2265,6 +2277,7 @@ class COMPASSLive:
                     prev_portfolio_value=prev_pv,
                 )
             except Exception as e:
+                _ml_error_counts['snapshot'] += 1
                 logger.warning(f"ML daily snapshot failed: {e}")
 
         # ML: weekly learning run (every 5 trading days)
@@ -2822,7 +2835,10 @@ class COMPASSLive:
             'stats': {
                 'cycles_completed': self._cycles_completed,
                 'uptime_minutes': (datetime.now() - self._start_time).total_seconds() / 60
-            }
+            },
+
+            # ML fail-safe observability
+            'ml_error_counts': dict(_ml_error_counts),
         }
 
         os.makedirs('state', exist_ok=True)
