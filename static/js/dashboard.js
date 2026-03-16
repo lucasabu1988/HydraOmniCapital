@@ -1619,7 +1619,10 @@ function renderMonteCarloPanel(data) {
     const historical = data.historical_stats || {};
     if (badge) {
         const liveSource = data.source === 'live_cycle_log';
-        badge.textContent = liveSource ? t('mc-source-live') : t('mc-source-backtest');
+        const sampleSize = (data.historical_stats || {}).sample_size || 0;
+        const sampleSuffix = liveSource && sampleSize > 0 && sampleSize < 30
+            ? ' (' + sampleSize + ' ciclos)' : '';
+        badge.textContent = (liveSource ? t('mc-source-live') : t('mc-source-backtest')) + sampleSuffix;
         badge.style.color = liveSource ? 'var(--green)' : 'var(--yellow)';
         badge.style.background = liveSource ? 'var(--green-dim)' : 'var(--yellow-dim)';
     }
@@ -1798,7 +1801,7 @@ function renderRiskPanel(data) {
         (data.num_positions || 0) + ' ' + t('risk-positions-label') +
         ' · ' + (data.lookback_days || 30) + 'd';
 
-    setRiskMetric('risk-concentration', (data.concentration_risk || 0).toFixed(2), tone.cls);
+    setRiskMetric('risk-concentration', fmtPct((data.concentration_risk || 0) * 100), tone.cls);
     setRiskMetric('risk-sector', fmtPct(data.sector_concentration || 0), tone.cls);
     setRiskMetric('risk-correlation', (data.correlation_risk || 0).toFixed(2), tone.cls);
     setRiskMetric(
