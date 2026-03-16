@@ -44,7 +44,7 @@ FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
 ## Queue
 
 ### TASK-001: Fix cloud engine crash on startup [PRIORITY: HIGH]
-**Status:** [ ] Open
+**Status:** [x] Done (`dc10305`)
 **Assigned:** Codex
 
 The cloud engine at Render shows `running: false` with `engine_iterations: 0` — it crashed before completing a single iteration after the latest deploy. The `_startup_self_test()` from commit 75333c9 likely calls `refresh_daily_data()` which fails on Render (no historical data cache on cold start).
@@ -64,7 +64,7 @@ The cloud engine at Render shows `running: false` with `engine_iterations: 0` �
 ---
 
 ### TASK-002: Fix peak_value and trading_day_counter in live state [PRIORITY: HIGH]
-**Status:** [ ] Open
+**Status:** [x] Done (`bde9acd`)
 **Assigned:** Codex
 
 The live state has `peak_value: 120000` (should be ~100000) and the cloud has `trading_day_counter: 8` (should be 1). The peak_value guard caps at >120% on early days, but the current peak is EXACTLY 120% so it slips through with `>` (we just changed from `>=`).
@@ -78,10 +78,12 @@ The live state has `peak_value: 120000` (should be ~100000) and the cloud has `t
 
 **Commit:** `fix: correct peak_value and trading_day_counter in live state`
 
+**Note:** Resolved via load-time state validation so the corrupted peak self-heals on the next load/save. `trading_day_counter` in the local state was already `1`, and `state/compass_state_latest.json` was left untouched per hard lock.
+
 ---
 
 ### TASK-003: Multi-strategy coexistence test [PRIORITY: MEDIUM]
-**Status:** [ ] Open
+**Status:** [x] Done (`adde8fd`)
 **Assigned:** Codex
 
 (From Round 8 Challenge 1 — still needed)
@@ -97,7 +99,7 @@ Create `tests/test_multi_strategy.py` with a test that:
 ---
 
 ### TASK-004: Restart resilience test [PRIORITY: MEDIUM]
-**Status:** [ ] Open
+**Status:** [x] Done (`d0f8db7`)
 **Assigned:** Codex
 
 Create `tests/test_restart_resilience.py`:
@@ -110,7 +112,7 @@ Create `tests/test_restart_resilience.py`:
 ---
 
 ### TASK-005: Adaptive stop parametrized tests [PRIORITY: MEDIUM]
-**Status:** [ ] Open
+**Status:** [x] Done (`10ced35`)
 **Assigned:** Codex
 
 Parametrized tests for `compute_adaptive_stop()`:
@@ -125,7 +127,7 @@ Parametrized tests for `compute_adaptive_stop()`:
 ---
 
 ### TASK-006: Dashboard API contract tests [PRIORITY: MEDIUM]
-**Status:** [ ] Open
+**Status:** [x] Done (`f9d26b9`)
 **Assigned:** Codex
 
 Test response shapes for `/api/state`, `/api/cycle-log`, `/api/risk`, `/api/montecarlo`, `/api/health`.
@@ -137,7 +139,12 @@ Verify required keys exist and types are correct.
 
 ## Completed
 
-_No completed tasks yet._
+- `TASK-001` (`dc10305`) Removed the `refresh_daily_data()` side effect from startup self-test and added regression coverage so Render cold starts do not crash the engine before the first loop.
+- `TASK-002` (`bde9acd`) Tightened early-day `peak_value` validation from `>` to `>=` and added an exact-120% regression; local `trading_day_counter` was already `1`, so no sacred state file edit was needed.
+- `TASK-003` (`adde8fd`) Added a multi-strategy coexistence test covering COMPASS, Catalyst, and EFA positions so cross-pillar exit logic cannot liquidate the wrong holdings.
+- `TASK-004` (`d0f8db7`) Added restart resilience coverage to verify mid-cycle flags and positions survive `save_state()` / `load_state()` without double-trading on restart.
+- `TASK-005` (`10ced35`) Added parametrized adaptive-stop audit coverage and invalid-input fallbacks for `compute_adaptive_stop()`.
+- `TASK-006` (`f9d26b9`) Added Flask API contract tests for `/api/state`, `/api/cycle-log`, `/api/risk`, `/api/montecarlo`, and `/api/health`.
 
 ---
 
