@@ -655,6 +655,11 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     else:
         daily_return = None
 
+    # Don't show SPY benchmark until HYDRA has actual positions
+    if not positions and state.get('trading_day_counter', 0) == 0:
+        spy_cumulative = None
+        spy_daily = None
+
     return {
         'portfolio_value': round(portfolio_value, 2),
         'cash': round(cash, 2),
