@@ -173,6 +173,77 @@ def test_run_simulation_is_reproducible_with_same_seed(tmp_path, monkeypatch):
     assert np.array_equal(first.paths, second.paths)
 
 
+def test_montecarlo_historical_stats_reports_distribution_metrics(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    mc = COMPASSMonteCarlo(n_simulations=8)
+    mc.source = 'live_cycle_log'
+    mc.cycle_returns = np.array([0.02, 0.01, 0.03, 0.0], dtype=float)
+
+    stats = mc._historical_stats()
+
+    assert stats['source'] == 'live_cycle_log'
+    assert stats['sample_size'] == 4
+    assert stats['avg_cycle_return_pct'] == pytest.approx(1.5)
+    assert stats['median_cycle_return_pct'] == pytest.approx(1.5)
+    assert stats['cycle_vol_pct'] > 0
+    assert stats['win_rate_pct'] == pytest.approx(75.0)
+
+
+def test_montecarlo_fan_chart_returns_expected_percentile_arrays(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    mc = COMPASSMonteCarlo(n_simulations=4, horizon_days=CYCLE_DAYS * 2)
+    mc.paths = np.array([
+        [100000.0, 110000.0, 120000.0],
+        [100000.0, 100000.0, 100000.0],
+        [100000.0, 90000.0, 80000.0],
+        [100000.0, 105000.0, 115000.0],
+    ])
+
+    fan = mc._fan_chart()
+
+    assert set(fan) == {'days', 'p5', 'p25', 'p50', 'p75', 'p95'}
+    assert fan['days'] == [0, 5, 10]
+    assert fan['p50'][0] == 100000.0
+    assert len(fan['p5']) == 3
+    assert fan['p95'][-1] > fan['p5'][-1]
+
+
+def test_montecarlo_summary_is_positive_for_winning_paths(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    mc = COMPASSMonteCarlo(n_simulations=3)
+    mc.initial_value = 100000.0
+    mc.paths = np.array([
+        [100000.0, 105000.0, 110250.0],
+        [100000.0, 102000.0, 104040.0],
+        [100000.0, 98000.0, 100940.0],
+    ])
+
+    summary = mc._summary()
+
+    assert summary['median_outcome'] > mc.initial_value
+    assert summary['median_return_pct'] > 0
+    assert summary['prob_drawdown_better_than_20_pct'] == pytest.approx(100.0)
+    assert summary['median_max_drawdown_pct'] <= 0
+
+
+def test_montecarlo_summary_is_negative_for_losing_paths(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    mc = COMPASSMonteCarlo(n_simulations=3)
+    mc.initial_value = 100000.0
+    mc.paths = np.array([
+        [100000.0, 95000.0, 90000.0],
+        [100000.0, 97000.0, 93000.0],
+        [100000.0, 96000.0, 92000.0],
+    ])
+
+    summary = mc._summary()
+
+    assert summary['median_outcome'] < mc.initial_value
+    assert summary['median_return_pct'] < 0
+    assert summary['p95_outcome'] < mc.initial_value
+    assert summary['median_max_drawdown_pct'] < 0
+
+
 def test_montecarlo_raises_when_no_cycle_returns_are_available(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     write_cycle_log(tmp_path / 'state' / 'cycle_log.json', [])
