@@ -3,15 +3,15 @@ Unit tests for COMPASS v8.4 monetary overlays.
 Tests against known historical dates to validate overlay behavior.
 """
 
-import pytest
-import pandas as pd
-import numpy as np
-import sys
 import os
+import sys
+
+import numpy as np
+import pandas as pd
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from compass_fred_data import download_all_overlay_data, download_fred_series
 from compass_overlays import (
     BankingStressOverlay, M2MomentumIndicator, FOMCSurpriseSignal,
     FedEmergencySignal, CashOptimization, CreditSectorPreFilter,
@@ -19,10 +19,120 @@ from compass_overlays import (
 )
 
 
+def _make_daily_series(anchor_points):
+    series = pd.Series(anchor_points, dtype=float)
+    series.index = pd.to_datetime(series.index)
+    series = series.sort_index()
+    daily_index = pd.date_range(series.index.min(), series.index.max(), freq='D')
+    return series.reindex(daily_index).interpolate(method='time').ffill().bfill()
+
+
 @pytest.fixture(scope='module')
 def fred_data():
-    """Download FRED data once for all tests (cached to disk)."""
-    return download_all_overlay_data()
+    """Deterministic FRED-like overlay data for CI and local tests."""
+    return {
+        'NFCI': _make_daily_series({
+            '2000-01-01': -0.20,
+            '2008-01-01': -0.10,
+            '2008-10-15': 3.20,
+            '2010-01-15': 0.10,
+            '2017-06-15': -0.30,
+            '2020-03-23': 1.30,
+            '2021-05-15': 0.00,
+            '2023-03-15': 0.70,
+            '2024-01-15': 0.20,
+        }),
+        'STLFSI4': _make_daily_series({
+            '2000-01-01': 0.10,
+            '2008-01-01': 0.20,
+            '2008-10-15': 3.80,
+            '2010-01-15': 0.40,
+            '2017-06-15': 0.10,
+            '2020-03-23': 2.00,
+            '2021-05-15': 0.30,
+            '2023-03-15': 1.10,
+            '2024-01-15': 0.40,
+        }),
+        'BAMLH0A0HYM2': _make_daily_series({
+            '2000-01-01': 5.00,
+            '2008-01-01': 5.50,
+            '2008-10-15': 18.00,
+            '2010-01-15': 8.00,
+            '2017-06-15': 3.50,
+            '2020-03-23': 11.00,
+            '2021-05-15': 4.00,
+            '2023-03-15': 5.50,
+            '2024-01-15': 4.20,
+        }),
+        'M2SL': _make_daily_series({
+            '2000-01-01': 4700,
+            '2008-01-01': 7600,
+            '2010-01-15': 8500,
+            '2012-06-15': 10000,
+            '2017-06-15': 13500,
+            '2019-06-15': 15000,
+            '2020-06-15': 18000,
+            '2020-09-15': 19000,
+            '2021-05-15': 20500,
+            '2021-12-15': 20000,
+            '2022-03-15': 21800,
+            '2022-12-15': 22000,
+            '2023-03-15': 20600,
+            '2024-01-15': 20800,
+        }),
+        'DFF': _make_daily_series({
+            '2000-01-01': 5.50,
+            '2008-01-20': 4.25,
+            '2008-01-23': 3.50,
+            '2008-10-15': 1.50,
+            '2010-01-15': 0.12,
+            '2017-06-15': 1.25,
+            '2020-03-15': 0.10,
+            '2021-05-15': 0.08,
+            '2023-03-15': 4.75,
+            '2024-01-15': 5.25,
+        }),
+        'FEDFUNDS': _make_daily_series({
+            '2000-01-01': 5.50,
+            '2008-01-23': 3.50,
+            '2008-10-15': 1.50,
+            '2010-01-15': 0.12,
+            '2017-06-15': 1.25,
+            '2020-03-15': 0.10,
+            '2021-05-15': 0.08,
+            '2023-03-15': 4.75,
+            '2024-01-15': 5.25,
+        }),
+        'WALCL': _make_daily_series({
+            '2000-01-01': 650000,
+            '2008-10-15': 900000,
+            '2017-06-15': 4300000,
+            '2020-03-01': 4200000,
+            '2020-03-15': 4300000,
+            '2020-04-15': 5000000,
+            '2021-05-15': 7800000,
+            '2023-03-15': 8600000,
+            '2024-01-15': 7600000,
+        }),
+        'DTB3': _make_daily_series({
+            '2000-01-01': 5.80,
+            '2008-10-15': 1.50,
+            '2010-01-15': 0.15,
+            '2012-06-15': 0.08,
+            '2017-06-15': 1.00,
+            '2020-03-15': 0.05,
+            '2021-05-15': 0.04,
+            '2023-03-15': 4.60,
+            '2024-01-15': 5.10,
+        }),
+        'AAA': _make_daily_series({
+            '2000-01-01': 7.00,
+            '2008-10-15': 6.50,
+            '2012-06-15': 3.80,
+            '2017-06-15': 3.60,
+            '2024-01-15': 5.40,
+        }),
+    }
 
 
 # ============================================================================
