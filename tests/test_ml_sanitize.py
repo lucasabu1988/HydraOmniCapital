@@ -1,3 +1,5 @@
+import builtins
+import json
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -80,3 +82,72 @@ def test_sanitize_for_json_preserves_empty_values():
     assert ml._sanitize_for_json({}) == {}
     assert ml._sanitize_for_json([]) == []
     assert ml._sanitize_for_json(None) is None
+
+
+class StableStringObject:
+    def __str__(self):
+        return "stable-object"
+
+
+def test_write_json_file_happy_path_writes_expected_content(tmp_path):
+    target = tmp_path / 'payload.json'
+    payload = {'alpha': 1, 'beta': [1, 2, 3]}
+
+    ml._write_json_file(target, payload)
+
+    assert json.loads(target.read_text(encoding='utf-8')) == payload
+
+
+def test_write_json_file_uses_default_serializer_without_corrupting_output(tmp_path):
+    target = tmp_path / 'payload.json'
+    payload = {'custom': StableStringObject()}
+
+    ml._write_json_file(target, payload)
+
+    assert json.loads(target.read_text(encoding='utf-8')) == {'custom': 'stable-object'}
+
+
+def test_write_json_file_preserves_original_file_when_replace_fails(monkeypatch, tmp_path):
+    target = tmp_path / 'payload.json'
+    original = {'status': 'original'}
+    target.write_text(json.dumps(original), encoding='utf-8')
+
+    monkeypatch.setattr(ml.os, 'replace', lambda *args, **kwargs: (_ for _ in ()).throw(OSError('replace failed')))
+
+    with pytest.raises(OSError, match='replace failed'):
+        ml._write_json_file(target, {'status': 'new'})
+
+    assert json.loads(target.read_text(encoding='utf-8')) == original
+    assert not target.with_suffix('.json.tmp').exists()
+
+
+def test_write_json_file_cleans_partial_tmp_file_when_serializer_fails(tmp_path):
+    target = tmp_path / 'payload.json'
+    payload = {'custom': StableStringObject()}
+
+    def failing_default(obj):
+        raise TypeError('cannot serialize')
+
+    with pytest.raises(TypeError, match='cannot serialize'):
+        ml._write_json_file(target, payload, default=failing_default)
+
+    assert not target.exists()
+    assert not target.with_suffix('.json.tmp').exists()
+
+
+def test_write_json_file_raises_permission_error_without_leaving_tmp(monkeypatch, tmp_path):
+    target = tmp_path / 'payload.json'
+    real_open = builtins.open
+
+    def guarded_open(path, *args, **kwargs):
+        if Path(path) == target.with_suffix('.json.tmp'):
+            raise PermissionError('read-only directory')
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr('builtins.open', guarded_open)
+
+    with pytest.raises(PermissionError, match='read-only directory'):
+        ml._write_json_file(target, {'alpha': 1})
+
+    assert not target.exists()
+    assert not target.with_suffix('.json.tmp').exists()

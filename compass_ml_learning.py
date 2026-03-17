@@ -138,9 +138,17 @@ def _write_json_file(path, payload, default=str):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = path.with_suffix(path.suffix + ".tmp")
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(_sanitize_for_json(payload), f, indent=2, default=default)
-        os.replace(tmp_path, path)
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(_sanitize_for_json(payload), f, indent=2, default=default)
+            os.replace(tmp_path, path)
+        except Exception:
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
+            raise
 
 
 # ===========================================================================
