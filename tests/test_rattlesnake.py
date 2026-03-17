@@ -270,3 +270,26 @@ class TestRattlesnakeSignals:
         )
 
         assert candidates == []
+
+    # ------------------------------------------------------------------
+    # compute_rsi bounds checking and NaN guard (TASK-054)
+    # ------------------------------------------------------------------
+
+    def test_compute_rsi_all_up_clamped_at_100(self):
+        prices = pd.Series([100 + i for i in range(20)])
+        rsi = rattlesnake.compute_rsi(prices, period=5)
+        assert 99.0 <= rsi <= 100.0
+
+    def test_compute_rsi_all_down_clamped_at_0(self):
+        prices = pd.Series([100 - i for i in range(20)])
+        rsi = rattlesnake.compute_rsi(prices, period=5)
+        assert 0.0 <= rsi <= 1.0
+
+    def test_compute_rsi_empty_series_returns_neutral(self):
+        rsi = rattlesnake.compute_rsi(pd.Series([], dtype=float), period=5)
+        assert rsi == 50.0
+
+    def test_compute_rsi_nan_in_series_returns_sensible(self):
+        prices = pd.Series([100.0, float('nan'), 102.0, 103.0, 104.0, 105.0, 106.0])
+        rsi = rattlesnake.compute_rsi(prices, period=5)
+        assert 0.0 <= rsi <= 100.0

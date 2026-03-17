@@ -10,6 +10,7 @@ Regime: SPY SMA200 + VIX panic filter.
 Universe: S&P 100 (OEX) — most liquid large-caps.
 """
 
+import math
 import pandas as pd
 from typing import Dict, List, Optional
 import logging
@@ -51,6 +52,7 @@ R_UNIVERSE = [
 def compute_rsi(prices: pd.Series, period: int = 5) -> float:
     """Compute current RSI value for a price series."""
     if len(prices) < period + 1:
+        logger.warning("compute_rsi: series too short (%d < %d), returning neutral 50.0", len(prices), period + 1)
         return 50.0  # neutral default
     delta = prices.diff()
     gain = delta.clip(lower=0)
@@ -59,7 +61,12 @@ def compute_rsi(prices: pd.Series, period: int = 5) -> float:
     avg_loss = loss.rolling(window=period, min_periods=period).mean()
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
-    return float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0
+    result = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0
+    if math.isnan(result):
+        logger.warning("compute_rsi: result is NaN, returning neutral 50.0")
+        return 50.0
+    result = max(0.0, min(100.0, result))
+    return result
 
 
 def check_rattlesnake_regime(spy_hist: pd.DataFrame, vix_current: float) -> dict:
