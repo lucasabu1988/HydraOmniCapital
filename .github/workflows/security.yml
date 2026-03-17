@@ -1,0 +1,33 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install security tools
+        run: pip install bandit pip-audit
+
+      - name: Bandit security scan
+        run: bandit -r . -ll --exclude ./tests,./archive,./docs,./data_cache_parquet,./backtests,./_tmp_mc,./_tmp_ta
+        continue-on-error: true
+
+      - name: pip-audit dependency scan
+        run: pip-audit
+        continue-on-error: true

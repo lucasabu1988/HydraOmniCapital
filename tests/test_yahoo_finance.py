@@ -218,3 +218,171 @@ def test_fetch_live_prices_returns_empty_dict_for_empty_symbols():
 
 def test_yf_fetch_batch_returns_empty_dict_for_empty_symbols():
     assert dashboard._yf_fetch_batch([]) == {}
+
+
+# ============================================================================
+# DATA FEED RESILIENCE — Circuit Breaker Tests (TASK-046)
+# ============================================================================
+
+
+def test_circuit_breaker_opens_after_5_consecutive_failures(monkeypatch):
+    monkeypatch.setattr(dashboard, '_yf_get_session', lambda: (None, None))
+    monkeypatch.setattr(dashboard.http_requests, 'get',
+                        lambda *a, **kw: FakeResponse(500))
+
+    for i in range(5):
+        result = dashboard._yf_fetch_batch(['AAPL'])
+        assert result == {}
+
+    assert dashboard._yf_fail_count == 5
+    assert dashboard._yf_circuit_open_until > 0
+
+
+def test_circuit_breaker_auto_closes_after_5_minutes(monkeypatch):
+    now = 1000000.0
+    mock_time = [now]
+    monkeypatch.setattr(dashboard.time_module, 'time', lambda: mock_time[0])
+
+    # Open the circuit breaker
+    dashboard._yf_fail_count = 5
+    dashboard._yf_circuit_open_until = now + 300
+
+    # While circuit is open, fetch returns empty
+    monkeypatch.setattr(dashboard, '_yf_get_session', lambda: (None, None))
+    monkeypatch.setattr(dashboard.http_requests, 'get',
+                        lambda *a, **kw: FakeResponse(500))
+
+    result = dashboard._yf_fetch_batch(['AAPL'])
+    assert result == {}
+
+    # Advance time past the 5-minute window
+    mock_time[0] = now + 301
+
+    session = FakeSession([
+        FakeResponse(200, {
+            'quoteResponse': {
+                'result': [{
+                    'symbol': 'AAPL',
+                    'regularMarketPrice': 190.0,
+                    'regularMarketPreviousClose': 188.0,
+                }]
+            }
+        })
+    ])
+    monkeypatch.setattr(dashboard, '_yf_get_session', lambda: (session, 'crumb'))
+
+    result = dashboard._yf_fetch_batch(['AAPL'])
+    assert result == {'AAPL': {'price': 190.0, 'prev_close': 188.0}}
+
+
+def test_stale_cache_served_during_circuit_open(monkeypatch):
+    now = 1000000.0
+    monkeypatch.setattr(dashboard.time_module, 'time', lambda: now)
+
+    # Seed the cache with stale data
+    dashboard._price_cache = {'AAPL': 175.0, 'MSFT': 410.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=120)
+
+    # Open the circuit breaker
+    dashboard._yf_fail_count = 5
+    dashboard._yf_circuit_open_until = now + 300
+
+    # _yf_fetch_batch returns {} because circuit is open
+    # fetch_live_prices should fall back to stale cache
+    prices = dashboard.fetch_live_prices(['AAPL', 'MSFT'])
+
+    assert prices == {'AAPL': 175.0, 'MSFT': 410.0}
+
+
+def test_partial_batch_failure_returns_successful_symbols(monkeypatch):
+    call_count = [0]
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        call_count[0] += 1
+        # First symbol succeeds, second fails
+        if '/AAPL' in url:
+            return FakeResponse(200, {
+                'chart': {
+                    'result': [{
+                        'meta': {
+                            'regularMarketPrice': 195.0,
+                            'chartPreviousClose': 193.0,
+                        }
+                    }]
+                }
+            })
+        return FakeResponse(500)
+
+    monkeypatch.setattr(dashboard, '_yf_get_session', lambda: (None, None))
+    monkeypatch.setattr(dashboard.http_requests, 'get', fake_get)
+    monkeypatch.setattr(dashboard.time_module, 'sleep', lambda s: None)
+
+    result = dashboard._yf_fetch_batch(['AAPL', 'MSFT'])
+
+    assert 'AAPL' in result
+    assert result['AAPL'] == {'price': 195.0, 'prev_close': 193.0}
+    # MSFT failed but AAPL succeeded, so fail_count resets
+    assert dashboard._yf_fail_count == 0
+
+
+def test_recovery_after_circuit_close_returns_fresh_data(monkeypatch):
+    now = 1000000.0
+    mock_time = [now]
+    monkeypatch.setattr(dashboard.time_module, 'time', lambda: mock_time[0])
+
+    # Seed stale cache
+    dashboard._price_cache = {'AAPL': 170.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=120)
+
+    # Circuit was open, now expired
+    dashboard._yf_fail_count = 5
+    dashboard._yf_circuit_open_until = now - 1  # already expired
+
+    # Use v8 fallback path (no session) so the full function runs
+    # including the circuit breaker reset logic at the end
+    monkeypatch.setattr(dashboard, '_yf_get_session', lambda: (None, None))
+    monkeypatch.setattr(dashboard.http_requests, 'get',
+                        lambda *a, **kw: FakeResponse(200, {
+                            'chart': {
+                                'result': [{
+                                    'meta': {
+                                        'regularMarketPrice': 200.0,
+                                        'chartPreviousClose': 198.0,
+                                    }
+                                }]
+                            }
+                        }))
+    monkeypatch.setattr(dashboard.time_module, 'sleep', lambda s: None)
+
+    prices = dashboard.fetch_live_prices(['AAPL'])
+
+    # Fresh data should overwrite stale cache
+    assert prices == {'AAPL': 200.0}
+    assert dashboard._yf_fail_count == 0
+    assert dashboard._yf_consecutive_failures == 0
+
+
+def test_circuit_breaker_counter_resets_on_successful_fetch(monkeypatch):
+    # Simulate 4 prior failures (one short of opening circuit)
+    dashboard._yf_fail_count = 4
+
+    # Use v8 fallback path so the full function runs including reset logic
+    monkeypatch.setattr(dashboard, '_yf_get_session', lambda: (None, None))
+    monkeypatch.setattr(dashboard.http_requests, 'get',
+                        lambda *a, **kw: FakeResponse(200, {
+                            'chart': {
+                                'result': [{
+                                    'meta': {
+                                        'regularMarketPrice': 185.0,
+                                        'chartPreviousClose': 183.0,
+                                    }
+                                }]
+                            }
+                        }))
+    monkeypatch.setattr(dashboard.time_module, 'sleep', lambda s: None)
+
+    result = dashboard._yf_fetch_batch(['AAPL'])
+
+    assert result == {'AAPL': {'price': 185.0, 'prev_close': 183.0}}
+    assert dashboard._yf_fail_count == 0
+    assert dashboard._yf_circuit_open_until == 0
