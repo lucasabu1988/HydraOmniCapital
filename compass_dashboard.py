@@ -430,6 +430,7 @@ def stop_engine():
 _price_cache: Dict[str, float] = {}
 _prev_close_cache: Dict[str, float] = {}
 _price_cache_time: Optional[datetime] = None
+_price_fetch_timestamp = 0
 
 
 def _fetch_single_price(symbol: str) -> tuple:
@@ -465,7 +466,7 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     """Fetch current prices via yfinance with 30-second cache (async).
     Returns {symbol: price_float} for backward compatibility.
     Previous close data stored in _prev_close_cache."""
-    global _price_cache, _prev_close_cache, _price_cache_time
+    global _price_cache, _prev_close_cache, _price_cache_time, _price_fetch_timestamp
 
     now = datetime.now()
     if _price_cache_time and (now - _price_cache_time).total_seconds() < PRICE_CACHE_SECONDS:
@@ -492,6 +493,7 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
                     logger.warning(f"fetch_live_prices failed: {e}")
 
     _price_cache_time = now
+    _price_fetch_timestamp = time_module.time()
     return {s: _price_cache[s] for s in symbols if s in _price_cache}
 
 
@@ -1307,6 +1309,7 @@ def api_state():
         'preclose': preclose_status,
         'implementation_shortfall': is_metrics,
         'hydra': hydra_status,
+        'price_data_age_seconds': int(time_module.time() - _price_fetch_timestamp),
         'server_time': datetime.now().isoformat(),
         'engine': _engine_status,
     })

@@ -474,6 +474,13 @@ body.dark::after { opacity: 0.03; }
     50% { box-shadow: 0 0 6px currentColor; opacity: 0.65; }
 }
 
+.stale-data {
+    color: #f0ad4e;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
 /* ---- REGIME MICRO STATS (Lev, Day) ---- */
 .hdr-stat {
     display: flex;

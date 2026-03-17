@@ -149,6 +149,19 @@ function updateStatusBar(p) {
         t('tooltip-last-update') + ': ' + ts + '<br>' + t('tooltip-next-in') + ': ' + countdownSec + 's';
 }
 
+function updateStalePriceWarning(ageSeconds) {
+    var el = document.getElementById('stale-price-warning');
+    if (!el) return;
+    if (ageSeconds != null && ageSeconds > 300) {
+        var mins = Math.floor(ageSeconds / 60);
+        el.textContent = 'Prices ' + mins + 'm old';
+        el.className = 'stale-data';
+        el.style.display = 'inline';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
 function updatePreclose(preclose) {
     if (!preclose) return;
     const dot = document.getElementById('preclose-dot');
@@ -1504,6 +1517,7 @@ async function fetchAll() {
             lastPortfolioData = stateData;
             const p = stateData.portfolio;
             updateStatusBar(p);
+            updateStalePriceWarning(stateData.price_data_age_seconds);
             updateCards(p);
             updateRegimeBand(p);
             updatePerfBanner(p);
@@ -3527,6 +3541,7 @@ function refreshDashboard() {
         var d = lastPortfolioData;
         var p = d.portfolio;
         updateStatusBar(p);
+        updateStalePriceWarning(d.price_data_age_seconds);
         updateCards(p);
         updateRegimeBand(p);
         updatePerfBanner(p);
