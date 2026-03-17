@@ -20,6 +20,8 @@ FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
 
 ### Thread
 
+[2026-03-17 09:30] CLAUDE: CRITICAL — TASK-101 added. The cloud engine thread died and the dashboard served stale data for 17+ hours without any warning. I pushed a quick fix in `857f9d1` (thread-alive check + stale lock recovery in `_ensure_cloud_engine`), but we need proper health monitoring and crash resilience. TASK-101 has 5 sub-tasks (a-e) — do them in order. This takes priority over remaining Batch 4 tasks. The engine is restarting now after the deploy, but without 101 we'll be blind again next time it crashes.
+
 [2026-03-17 00:00] CLAUDE: Batch 4 is live — 28 new tasks (TASK-073 to TASK-100). All Batch 3 tasks are complete (72/72, 710 tests). This batch covers: (A) test coverage for 5 untested modules (portfolio_risk, broker, catalyst, rattlesnake, trade_analytics — target 120+ new tests), (B) cloud/local endpoint sync, (C) frontend error feedback, (D) performance caching (portfolio metrics, risk history, backtest CSVs), (E) security (hardcoded password, date validation), (F) CI/CD pipeline (GitHub Actions, pytest-cov, pre-commit), (G) documentation (API reference, ML architecture). Priority order: TASK-074 (broker tests, CRITICAL), TASK-089 (CI pipeline), TASK-095 (engine integration test), then work through the rest. Your Ultimate Risk News feature is solid — I committed it in `e338b56`. Great work on Batch 3. Execute freely.
 
 [2026-03-16 19:40] CLAUDE: Wave 3 done. Completed TASK-046 (yfinance circuit breaker), TASK-050 (cycle log thread lock), TASK-053 (stale orders in main loop), TASK-060 (CSP header), TASK-067 (ML diagnostics endpoint) — all in `25d9147`/`96f19f0`/`eb45912`. Touched: `compass_dashboard_cloud.py`, `omnicapital_live.py`, `tests/test_cloud_dashboard.py`, `tests/test_yahoo_finance.py`. 570+ tests. TASK-064 (input validation) still in progress. Pull before editing cloud dashboard.
@@ -467,6 +469,83 @@ Verify required keys exist and types are correct.
 **Where:** `tests/test_yahoo_finance.py` (extend)
 **How:** Test: (1) circuit breaker opens after 5 consecutive failures, (2) circuit breaker auto-closes after 5 min, (3) stale cache served during circuit open, (4) partial batch failure (some symbols succeed, some fail), (5) recovery after circuit close returns fresh data.
 **Test:** `pytest tests/test_yahoo_finance.py -v -k circuit` — target 6+ new tests.
+
+---
+
+### TASK-101: Engine lifecycle robustness & health monitoring [PRIORITY: CRITICAL]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Context:** The cloud engine thread (`_run_cloud_engine`) dies silently and the dashboard serves stale data for hours/days without any warning. A recent fix (`857f9d1`) added basic thread-alive checks and stale lock recovery to `_ensure_cloud_engine()`, but the system needs proper observability and resilience.
+
+**Sub-tasks (do in order):**
+
+**101a. Health check endpoint**
+Add `GET /api/health` to `compass_dashboard_cloud.py`:
+```json
+{
+  "status": "healthy|degraded|down",
+  "engine_alive": true,
+  "last_price_update": "ISO timestamp",
+  "price_age_seconds": 45,
+  "last_cycle_close": "ISO timestamp",
+  "uptime_seconds": 12345,
+  "positions_count": 6,
+  "portfolio_value": 100069,
+  "crash_count": 0,
+  "last_crash_at": null,
+  "last_crash_error": null
+}
+```
+Rules: `healthy` = engine alive + prices < 5min old. `degraded` = engine alive but prices > 5min, OR engine dead but market closed. `down` = engine dead during market hours.
+
+**101b. Stale data warning in `/api/state`**
+Add `_data_freshness` to the `/api/state` response:
+```json
+{
+  "_data_freshness": {
+    "status": "live|stale|offline",
+    "price_age_seconds": 45,
+    "engine_alive": true
+  }
+}
+```
+Then in `static/js/dashboard.js`, read `_data_freshness` and show a visible warning banner at the top of the dashboard when `status != "live"`. Style it as a yellow/red bar with a message like "⚠ Datos desactualizados — engine inactivo" or "⚠ Precios con X minutos de retraso".
+
+**101c. Engine crash history tracking**
+In `_engine_status` dict (module-level in `compass_dashboard_cloud.py`), track:
+- `crash_count` (int) — incremented each time `_run_cloud_engine` catches an exception
+- `last_crash_at` (ISO string) — timestamp of most recent crash
+- `last_crash_error` (string) — str(exception) of most recent crash
+- `restarts` (list) — last 5 restart timestamps
+
+Update `_run_cloud_engine()` except block (~line 3662) to populate these fields before sleeping 5 min.
+
+**101d. Lock file race condition fix**
+Current `_ensure_cloud_engine()` has a TOCTOU race: two workers can simultaneously read the lock PID, both see it dead, both try `unlink+recreate`. Fix by wrapping the reclaim in a retry with `O_CREAT|O_EXCL` — if the second worker's `os.open` fails with `FileExistsError`, it means the first worker won the race, so just return.
+
+**101e. Tests**
+Add to `tests/test_cloud_dashboard.py` (create if not exists):
+1. Test: engine thread dies → next `_ensure_cloud_engine()` call restarts it
+2. Test: stale lock file with dead PID → reclaimed successfully
+3. Test: `/api/health` returns `healthy` when engine is alive with fresh prices
+4. Test: `/api/health` returns `down` when engine thread is dead during market hours
+5. Test: `/api/state` includes `_data_freshness` with correct status
+6. Test: crash_count increments on engine exception
+
+**Where:**
+- `compass_dashboard_cloud.py` — `_ensure_cloud_engine()` (~L3671), `_run_cloud_engine()` (~L3596), `_engine_status` (~L3510), new `/api/health` route
+- `static/js/dashboard.js` — stale data banner (near `updateStatusBar` function)
+- `tests/test_cloud_dashboard.py` — new/extended test file
+
+**Acceptance:**
+- `GET /api/health` works and returns correct status
+- `/api/state` has `_data_freshness` field
+- Dashboard shows visible banner when data is stale or engine is offline
+- Crash history is tracked in `_engine_status` and exposed in `/api/health`
+- Lock reclaim is race-safe (no double-start possible)
+- `pytest tests/ -v` passes
+- `python -c "import py_compile; py_compile.compile('compass_dashboard_cloud.py')"` passes
 
 ---
 
