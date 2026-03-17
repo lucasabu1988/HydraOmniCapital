@@ -10,6 +10,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import compass_dashboard
 import omnicapital_live as live
 from omnicapital_broker import Position
 
@@ -443,6 +444,75 @@ def test_save_state_is_thread_safe_under_concurrent_calls(trader, tmp_path):
     assert state['stats']['engine_iterations'] == 3
 
 
+def test_state_file_remains_valid_during_concurrent_save_and_read(trader, tmp_path, monkeypatch):
+    state_dir = tmp_path / 'state'
+    latest_path = state_dir / 'compass_state_latest.json'
+
+    monkeypatch.setattr(compass_dashboard, 'STATE_DIR', str(state_dir))
+    monkeypatch.setattr(compass_dashboard, 'STATE_FILE', str(latest_path))
+    monkeypatch.setattr(compass_dashboard.time_module, 'sleep', lambda _: None)
+
+    trader.trading_day_counter = 7
+    trader.current_universe = ['AAPL']
+    trader.save_state()
+
+    errors = []
+    read_results = []
+    barrier = threading.Barrier(10)
+
+    def writer(writer_idx):
+        base_cash = 100000 + (writer_idx * 1000)
+        try:
+            for iteration in range(10):
+                barrier.wait(timeout=5)
+                trader.broker.cash = base_cash + iteration
+                trader.peak_value = max(trader.peak_value, trader.broker.cash)
+                trader.save_state()
+        except Exception as exc:
+            errors.append(exc)
+
+    def dashboard_reader():
+        try:
+            for _ in range(10):
+                barrier.wait(timeout=5)
+                state = compass_dashboard.read_state()
+                if not isinstance(state, dict):
+                    errors.append(RuntimeError('dashboard reader returned non-dict state'))
+                    continue
+                read_results.append(state.get('cash'))
+        except Exception as exc:
+            errors.append(exc)
+
+    def engine_reader():
+        try:
+            for _ in range(10):
+                barrier.wait(timeout=5)
+                state = trader._try_load_json(latest_path)
+                if not isinstance(state, dict):
+                    errors.append(RuntimeError('engine reader returned non-dict state'))
+                    continue
+                read_results.append(state.get('cash'))
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=writer, args=(idx,)) for idx in range(5)]
+    threads.extend(threading.Thread(target=dashboard_reader) for _ in range(3))
+    threads.extend(threading.Thread(target=engine_reader) for _ in range(2))
+
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    final_state = read_json(latest_path)
+
+    assert errors == []
+    assert len(read_results) == 50
+    assert isinstance(final_state, dict)
+    assert 'cash' in final_state
+    assert 'positions' in final_state
+
+
 def test_write_corrupted_state_backup_prunes_old_files(trader, tmp_path):
     state_dir = tmp_path / 'state'
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -511,6 +581,66 @@ def test_cleanup_corrupted_backups_keeps_max_files(trader, tmp_path):
     remaining = sorted(state_dir.glob('compass_state_CORRUPTED_*.json'))
     assert len(remaining) == 10
     assert remaining[0].name == 'compass_state_CORRUPTED_20260316_120000_000005.json'
+
+
+def test_cycle_log_write_is_thread_safe(trader, tmp_path):
+    state_dir = tmp_path / 'state'
+    state_dir.mkdir(parents=True, exist_ok=True)
+    log_file = state_dir / 'cycle_log.json'
+    # Seed with one active cycle
+    initial_cycle = [{
+        'cycle': 1,
+        'start_date': '2026-03-10',
+        'end_date': None,
+        'status': 'active',
+        'portfolio_start': 100000.0,
+        'portfolio_end': None,
+        'spy_start': 5000.0,
+        'spy_end': None,
+        'positions': ['AAPL'],
+        'positions_current': ['AAPL'],
+        'hydra_return': None,
+        'spy_return': None,
+        'alpha': None,
+        'stop_events': [],
+        'positions_detail': [],
+        'sector_breakdown': {},
+        'exits_by_reason': {},
+        'cycle_return_pct': None,
+        'spy_return_pct': None,
+        'alpha_pct': None,
+    }]
+    log_file.write_text(json.dumps(initial_cycle, indent=2), encoding='utf-8')
+
+    errors = []
+
+    def worker(idx):
+        try:
+            trader._update_cycle_log_stop(
+                stopped_symbol=f'SYM{idx}',
+                replacement_symbol=f'REP{idx}',
+                exit_reason='position_stop',
+                stop_return=-0.05,
+                stop_details={'exit_price': 95.0, 'entry_price': 100.0,
+                              'sector': 'Technology', 'days_held': 3},
+            )
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == []
+    # File must be valid JSON after all concurrent writes
+    data = json.loads(log_file.read_text(encoding='utf-8'))
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]['status'] == 'active'
+    # All 5 stop events should be recorded
+    assert len(data[0]['stop_events']) == 5
 
 
 def test_cleanup_corrupted_backups_deletes_old_files_first(trader, tmp_path):

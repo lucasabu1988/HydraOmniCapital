@@ -41,6 +41,8 @@ def isolate_yahoo(monkeypatch, tmp_path):
     dashboard._prev_close_cache = {}
     dashboard._price_cache_time = None
     dashboard._yf_consecutive_failures = 0
+    dashboard._yf_fail_count = 0
+    dashboard._yf_circuit_open_until = 0
     dashboard._yf_session = None
     dashboard._yf_crumb = None
     monkeypatch.setattr(dashboard, '_HAS_REQUESTS', True)
