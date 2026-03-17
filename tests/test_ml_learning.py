@@ -23,6 +23,16 @@ def read_jsonl(path):
     return records
 
 
+def write_jsonl_lines(path, lines):
+    rendered = []
+    for line in lines:
+        if isinstance(line, str):
+            rendered.append(line)
+        else:
+            rendered.append(json.dumps(line))
+    path.write_text('\n'.join(rendered) + '\n', encoding='utf-8')
+
+
 def assert_uuid4_hex(value):
     parsed = uuid.UUID(value)
 
@@ -694,6 +704,150 @@ def test_build_entry_feature_matrix_populated_from_logged_trade(logger, isolate_
     assert matrix.iloc[0]['feat_momentum_score'] == 0.88
     assert matrix.iloc[0]['feat_spy_vs_sma200'] == 0.0
     assert entry_id in read_jsonl(Path(ml.OUTCOMES_FILE))[0]['entry_decision_id']
+
+
+def test_feature_store_load_decisions_reads_all_rows_and_filters_by_type(isolate_ml_paths):
+    decision_rows = [
+        {'decision_id': 'd1', 'decision_type': 'entry', 'symbol': 'AAPL', 'trading_day': 1},
+        {'decision_id': 'd2', 'decision_type': 'skip', 'symbol': 'MSFT', 'trading_day': 1},
+        {'decision_id': 'd3', 'decision_type': 'entry', 'symbol': 'NVDA', 'trading_day': 2},
+        {'decision_id': 'd4', 'decision_type': 'hold', 'symbol': 'AMD', 'trading_day': 2},
+        {'decision_id': 'd5', 'decision_type': 'entry', 'symbol': 'LLY', 'trading_day': 3},
+    ]
+    write_jsonl_lines(Path(ml.DECISIONS_FILE), decision_rows)
+
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+    decisions = feature_store.load_decisions()
+    entries = feature_store.load_decisions('entry')
+
+    assert len(decisions) == 5
+    assert list(entries['decision_id']) == ['d1', 'd3', 'd5']
+    assert set(entries['decision_type']) == {'entry'}
+    assert {'decision_id', 'decision_type', 'symbol', 'trading_day'}.issubset(decisions.columns)
+
+
+def test_feature_store_load_outcomes_reads_rows_and_preserves_labels(isolate_ml_paths):
+    outcome_rows = [
+        {'outcome_id': 'o1', 'entry_decision_id': 'd1', 'outcome_label': 'strong_win', 'beat_spy': True},
+        {'outcome_id': 'o2', 'entry_decision_id': 'd2', 'outcome_label': 'weak_win', 'beat_spy': True},
+        {'outcome_id': 'o3', 'entry_decision_id': 'd3', 'outcome_label': 'flat', 'beat_spy': False},
+        {'outcome_id': 'o4', 'entry_decision_id': 'd4', 'outcome_label': 'weak_loss', 'beat_spy': False},
+        {'outcome_id': 'o5', 'entry_decision_id': 'd5', 'outcome_label': 'stop_loss', 'beat_spy': False},
+    ]
+    write_jsonl_lines(Path(ml.OUTCOMES_FILE), outcome_rows)
+
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+    outcomes = feature_store.load_outcomes()
+
+    assert len(outcomes) == 5
+    assert list(outcomes['outcome_id']) == ['o1', 'o2', 'o3', 'o4', 'o5']
+    assert set(outcomes['outcome_label']) == {
+        'strong_win', 'weak_win', 'flat', 'weak_loss', 'stop_loss'
+    }
+    assert int(outcomes['beat_spy'].sum()) == 2
+
+
+def test_feature_store_skips_corrupted_jsonl_lines(isolate_ml_paths):
+    write_jsonl_lines(
+        Path(ml.DECISIONS_FILE),
+        [
+            {'decision_id': 'd1', 'decision_type': 'entry', 'symbol': 'AAPL'},
+            '{"decision_id": "broken"',
+            {'decision_id': 'd2', 'decision_type': 'entry', 'symbol': 'MSFT'},
+        ],
+    )
+    write_jsonl_lines(
+        Path(ml.OUTCOMES_FILE),
+        [
+            {'outcome_id': 'o1', 'entry_decision_id': 'd1', 'gross_return': 0.04},
+            '{"outcome_id": "broken"',
+            {'outcome_id': 'o2', 'entry_decision_id': 'd2', 'gross_return': -0.01},
+        ],
+    )
+
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+    decisions = feature_store.load_decisions('entry')
+    outcomes = feature_store.load_outcomes()
+
+    assert len(decisions) == 2
+    assert list(decisions['decision_id']) == ['d1', 'd2']
+    assert len(outcomes) == 2
+    assert list(outcomes['outcome_id']) == ['o1', 'o2']
+
+
+def test_feature_store_returns_empty_dataframes_for_empty_files(isolate_ml_paths):
+    Path(ml.DECISIONS_FILE).write_text('', encoding='utf-8')
+    Path(ml.OUTCOMES_FILE).write_text('', encoding='utf-8')
+
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+
+    assert feature_store.load_decisions().empty
+    assert feature_store.load_outcomes().empty
+    assert feature_store.build_entry_feature_matrix().empty
+
+
+def test_build_entry_feature_matrix_merges_manual_jsonl_records(isolate_ml_paths):
+    sectors = ['Technology', 'Healthcare', 'Energy', 'Utilities', 'Telecom']
+    regime_buckets = ['bull', 'mild_bull', 'mild_bear', 'bear', 'bull']
+    decision_rows = []
+    outcome_rows = []
+
+    for idx in range(5):
+        decision_rows.append({
+            'decision_id': f'entry-{idx}',
+            'decision_type': 'entry',
+            'spy_10d_vol': 0.01 + (idx * 0.001),
+            'spy_vs_sma200_pct': 0.02 - (idx * 0.005),
+            'spy_20d_return': 0.03 - (idx * 0.004),
+            'portfolio_drawdown': -0.01 * idx,
+            'current_leverage': 1.0 - (idx * 0.1),
+            'crash_cooldown': idx % 2,
+        })
+        outcome_rows.append({
+            'outcome_id': f'outcome-{idx}',
+            'entry_decision_id': f'entry-{idx}',
+            'symbol': f'SYM{idx}',
+            'sector': sectors[idx],
+            'gross_return': 0.05 - (idx * 0.02),
+            'outcome_label': 'strong_win' if idx == 0 else 'weak_loss',
+            'beat_spy': idx < 2,
+            'exit_reason': 'hold_expired' if idx % 2 == 0 else 'position_stop',
+            'trading_days_held': 5 + idx,
+            'entry_date': f'2026-03-0{idx + 1}',
+            'exit_date': f'2026-03-1{idx + 1}',
+            'entry_momentum_score': 0.5 + (idx * 0.1),
+            'entry_momentum_rank': 0.9 - (idx * 0.1),
+            'entry_daily_vol': 0.01 + (idx * 0.01),
+            'entry_vol_ann': 0.2 + (idx * 0.02),
+            'entry_adaptive_stop': -0.06 - (idx * 0.01),
+            'entry_regime_score': 0.7 - (idx * 0.1),
+            'entry_spy_vs_sma200': 0.015 - (idx * 0.01),
+            'entry_regime_bucket': regime_buckets[idx],
+            'entry_portfolio_drawdown': -0.01 * idx,
+        })
+
+    write_jsonl_lines(Path(ml.DECISIONS_FILE), decision_rows)
+    write_jsonl_lines(Path(ml.OUTCOMES_FILE), outcome_rows)
+
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+    matrix = feature_store.build_entry_feature_matrix()
+
+    assert len(matrix) == 5
+    assert {
+        'feat_momentum_score',
+        'feat_spy_10d_vol',
+        'feat_leverage',
+        'feat_sector_technology',
+        'target_return',
+        'target_label',
+    }.issubset(matrix.columns)
+    assert matrix.iloc[0]['symbol'] == 'SYM0'
+    assert matrix.iloc[0]['feat_spy_10d_vol'] == pytest.approx(0.01)
+    assert matrix.iloc[0]['feat_leverage'] == pytest.approx(1.0)
+    assert matrix.iloc[0]['feat_sector_technology'] == 1
+    assert matrix.iloc[1]['feat_sector_healthcare'] == 1
+    assert matrix.iloc[0]['target_return'] == pytest.approx(0.05)
+    assert matrix.iloc[0]['target_label'] == 'strong_win'
 
 
 def test_sanitize_for_json_recursively_handles_nested_nan_and_inf():
