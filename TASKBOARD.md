@@ -843,7 +843,7 @@ When `compass_state_latest.json` is corrupted, the system should recover gracefu
 ---
 
 ### TASK-039: Test concurrent state read+write [PRIORITY: HIGH]
-**Status:** [ ]
+**Status:** [x] Done (`25d9147`)
 **Assigned:** Codex
 
 Dashboard reads state while engine writes it. Race condition possible but never tested.
@@ -863,7 +863,7 @@ Dashboard reads state while engine writes it. Race condition possible but never 
 ---
 
 ### TASK-040: Test dashboard `compute_position_details` edge cases [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`1ab265f`)
 **Assigned:** Codex
 
 `compute_position_details()` builds rich position data for the UI. Missing edge case tests.
@@ -883,7 +883,7 @@ Dashboard reads state while engine writes it. Race condition possible but never 
 ---
 
 ### TASK-041: Test cloud dashboard state recovery [PRIORITY: HIGH]
-**Status:** [ ]
+**Status:** [x] Done (`ec12259`)
 **Assigned:** Codex
 
 `compass_dashboard_cloud.py` has `_recover_cloud_state()`, `_fetch_state_from_github()`, `_validate_recovered_state()`. Critical path, limited tests.
@@ -904,7 +904,7 @@ Dashboard reads state while engine writes it. Race condition possible but never 
 ---
 
 ### TASK-042: Test PriceValidator [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`2471d5e`)
 **Assigned:** Codex
 
 `PriceValidator` in `omnicapital_live.py` validates price data from feeds. Never directly tested.
@@ -1033,8 +1033,8 @@ If the engine process is killed (SIGTERM from Render), state is not saved and or
 ---
 
 ### TASK-048: Validate broker fill prices [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`91d650e`)
+**Assigned:** Claude
 
 `PaperBroker.validate_fill_price()` exists but is not enforced consistently.
 
@@ -1095,8 +1095,8 @@ If the engine process is killed (SIGTERM from Render), state is not saved and or
 ---
 
 ### TASK-051: Add thread lock for ML learning writes [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`cc84706`)
+**Assigned:** Claude
 
 ML learning writes to JSONL files from the main engine thread, but background threads could read them.
 
@@ -1113,8 +1113,8 @@ ML learning writes to JSONL files from the main engine thread, but background th
 ---
 
 ### TASK-052: Add `_classify_outcome` edge case handling [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`cc84706`)
+**Assigned:** Claude
 
 `DecisionLogger._classify_outcome()` classifies trade outcomes but may not handle edge cases.
 
@@ -1237,8 +1237,8 @@ ENGINE_CONFIG/COMPASS_CONFIG parameters are never validated. Typos or bad values
 ---
 
 ### TASK-057: Add position metadata validation on load [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`6dae70d`)
+**Assigned:** Claude
 
 `position_meta` loaded from state has no field validation. Invalid data causes wrong stops/sectors.
 
@@ -1373,8 +1373,8 @@ Cloud dashboard sets some security headers but no Content-Security-Policy.
 ---
 
 ### TASK-063: Add NaN/Infinity handling to JS formatting functions [PRIORITY: LOW]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`5b0cace`)
+**Assigned:** Claude
 
 `fmt$()` and `fmtPct()` in dashboard.js don't handle Infinity or -Infinity.
 
@@ -1391,8 +1391,8 @@ Cloud dashboard sets some security headers but no Content-Security-Policy.
 ---
 
 ### TASK-064: Add request.args input validation to cloud dashboard [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`25d9147`)
+**Assigned:** Claude
 
 API endpoints accept user input via `request.args` without validation.
 
@@ -1490,8 +1490,8 @@ ML errors are tracked internally but never exposed to the UI. User can't see if 
 ---
 
 ### TASK-068: Add state audit trail [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`f5888a4`)
+**Assigned:** Claude
 
 State changes are not tracked. Can't trace when positions changed or why.
 
