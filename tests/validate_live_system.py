@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 from omnicapital_data_feed import YahooDataFeed, MarketDataManager
 from omnicapital_broker import PaperBroker, Order
-from omnicapital_live import OmniCapitalLive, CONFIG, UNIVERSE, DataValidator
+from omnicapital_live import COMPASSLive, CONFIG, DataValidator
 
 
 def test_data_feed():
@@ -159,165 +159,145 @@ def test_data_validator():
         status = "✅" if result == expected else "❌"
         logger.info(f"  {status} {symbol} @ ${price:.2f} -> {result} (expected: {expected})")
     
-    # Test tendencias
-    logger.info("Detectando tendencias...")
+    # Test price recording & stats
+    logger.info("Registrando precios y verificando stats...")
     for i in range(5):
-        validator.record_price('TEST', 100 + i * 5)  # Tendencia alcista
-    
-    trend = validator.get_price_trend('TEST')
-    logger.info(f"  Tendencia TEST: {trend}")
+        validator.record_price('TEST', 100 + i * 5)
+
+    stats = validator.get_stats()
+    logger.info(f"  Validated: {stats['total_validated']}, Rejected: {stats['total_rejected']}")
     
     logger.info("✅ Data Validator OK")
     return True
 
 
 def test_trading_system():
-    """Test del sistema de trading integrado"""
+    """Test del sistema de trading integrado (COMPASSLive)"""
     logger.info("")
     logger.info("=" * 60)
     logger.info("TEST 4: Trading System Integration")
     logger.info("=" * 60)
-    
+
     config = CONFIG.copy()
     config['PAPER_INITIAL_CASH'] = 100000
-    
-    trader = OmniCapitalLive(config)
-    
+
+    trader = COMPASSLive(config)
+
     # Test inicialización
     logger.info("Inicialización...")
     logger.info(f"  Peak value: ${trader.peak_value:,.2f}")
-    logger.info(f"  Leverage: {trader.current_leverage}x")
-    logger.info(f"  In protection: {trader.in_protection}")
-    
+    logger.info(f"  Crash cooldown: {trader.crash_cooldown}")
+    logger.info(f"  Regime score: {trader.current_regime_score}")
+
+    if trader.peak_value != 100000:
+        logger.error(f"❌ Peak value incorrecto: {trader.peak_value}")
+        return False
+
     # Test horario de mercado
     logger.info("Verificando horario de mercado...")
     is_open = trader.is_market_open()
     logger.info(f"  Mercado abierto: {is_open}")
-    
-    # Test cálculo de position sizing
-    logger.info("Calculando tamaño de posición...")
-    size = trader.calculate_position_size(100000, 100000, 5)
-    logger.info(f"  Position size: ${size:,.2f}")
-    
-    # Validar rango
-    # Con portfolio = 100000, leverage = 2, effective = 200000
-    # Con buffer = 5%, investable = 190000, /5 = 38000
-    # Pero max_position = 25% de portfolio = 25000
-    # Entonces resultado = 25000 (limitado por max_position)
-    expected = 100000 * 0.25  # MAX_POSITION_SIZE_PCT
-    if abs(size - expected) > 1:
-        logger.error(f"❌ Cálculo incorrecto. Got: ${size:,.2f}, Expected: ${expected:,.2f}")
+
+    # Test max positions (regime-based)
+    logger.info("Calculando max positions por régimen...")
+    trader.current_regime_score = 0.8  # Risk-on
+    trader._spy_hist = None  # No SPY data, skip bull override
+    max_pos_on = trader.get_max_positions()
+    logger.info(f"  Risk-on (score=0.8): {max_pos_on} positions")
+
+    trader.current_regime_score = 0.2  # Risk-off
+    max_pos_off = trader.get_max_positions()
+    logger.info(f"  Risk-off (score=0.2): {max_pos_off} positions")
+
+    if max_pos_on < max_pos_off:
+        logger.error(f"❌ Risk-on should have >= positions than risk-off")
         return False
-    
-    # Test selección de símbolos
-    logger.info("Seleccionando símbolos...")
-    available = list(UNIVERSE.keys())[:20]
-    selected = trader.select_symbols(available, set(), 5)
-    logger.info(f"  Seleccionados: {selected}")
-    
-    if len(selected) != 5:
-        logger.error(f"❌ Selección incorrecta: {len(selected)} != 5")
-        return False
-    
+
     # Test guardar/cargar estado
     logger.info("Test guardar/cargar estado...")
     trader.peak_value = 120000
-    trader.in_protection = True
+    trader.current_regime_score = 0.65
     trader.save_state()
-    
-    # Buscar archivo guardado
-    import glob
-    files = glob.glob('omnicapital_state_*.json')
-    if files:
-        logger.info(f"  Estado guardado: {files[0]}")
-        
-        # Cargar en nuevo trader
-        new_trader = OmniCapitalLive(config)
-        new_trader.load_state(files[0])
-        
-        logger.info(f"  Peak cargado: ${new_trader.peak_value:,.2f}")
-        logger.info(f"  Protection: {new_trader.in_protection}")
-        
-        if new_trader.peak_value != 120000:
-            logger.error("❌ Estado no cargado correctamente")
-            return False
-    
+
+    # Cargar en nuevo trader
+    new_trader = COMPASSLive(config)
+    new_trader.load_state()
+
+    logger.info(f"  Peak cargado: ${new_trader.peak_value:,.2f}")
+    logger.info(f"  Regime cargado: {new_trader.current_regime_score}")
+
+    if new_trader.peak_value != 120000:
+        logger.error("❌ Peak value no cargado correctamente")
+        return False
+
     logger.info("✅ Trading System OK")
     return True
 
 
-def test_stop_loss_logic():
-    """Test lógica de stop loss"""
+def test_drawdown_leverage():
+    """Test lógica de drawdown-tiered leverage scaling"""
     logger.info("")
     logger.info("=" * 60)
-    logger.info("TEST 5: Stop Loss Logic")
+    logger.info("TEST 5: Drawdown Leverage Scaling")
     logger.info("=" * 60)
-    
+
     config = CONFIG.copy()
-    trader = OmniCapitalLive(config)
+    config['PAPER_INITIAL_CASH'] = 100000
+    trader = COMPASSLive(config)
     trader.broker.connect()
-    
+    trader._spy_hist = None  # Skip vol targeting
+
     # Establecer peak
     trader.peak_value = 100000
     logger.info(f"Peak value: ${trader.peak_value:,.2f}")
-    
-    # Test 1: Sin stop loss
-    logger.info("Test 1: Portfolio en +10% (no debe activar)...")
-    
+
     from unittest.mock import MagicMock, patch
+
+    # Test 1: No drawdown → full leverage
+    logger.info("Test 1: Portfolio at peak (full leverage)...")
     with patch.object(trader.broker, 'get_portfolio') as mock_pf:
-        mock_pf.return_value = MagicMock(total_value=110000)
-        result = trader.check_stop_loss({'AAPL': 150.0})
-        logger.info(f"  Stop activado: {result}")
-        logger.info(f"  In protection: {trader.in_protection}")
-        
-        if result:
-            logger.error("❌ Stop se activó cuando no debía")
+        mock_pf.return_value = MagicMock(total_value=100000)
+        lev = trader.get_current_leverage()
+        logger.info(f"  Leverage: {lev}")
+        if lev != config['LEV_FULL']:
+            logger.error(f"❌ Expected {config['LEV_FULL']}, got {lev}")
             return False
-    
-    # Test 2: Con stop loss (-25% drawdown)
-    logger.info("Test 2: Portfolio en -25% (debe activar)...")
-    
+
+    # Test 2: Moderate drawdown (-15%) → reduced leverage
+    logger.info("Test 2: Portfolio at -15% DD (reduced leverage)...")
     with patch.object(trader.broker, 'get_portfolio') as mock_pf:
-        with patch.object(trader.broker, 'get_positions') as mock_pos:
-            mock_pf.return_value = MagicMock(total_value=75000)
-            mock_pos.return_value = {}
-            
-            result = trader.check_stop_loss({'AAPL': 150.0})
-            logger.info(f"  Stop activado: {result}")
-            logger.info(f"  In protection: {trader.in_protection}")
-            logger.info(f"  Leverage: {trader.current_leverage}x")
-            
-            if not result:
-                logger.error("❌ Stop no se activó cuando debía")
-                return False
-            
-            if not trader.in_protection:
-                logger.error("❌ Protección no se activó")
-                return False
-    
-    # Test 3: Recuperación
-    # Nota: El peak se actualizó a $110,000 en Test 1
-    # Para recuperar necesitamos >= $110,000 * 0.95 = $104,500
-    logger.info("Test 3: Recuperación (debe restaurar leverage)...")
-    logger.info(f"  Peak actual: ${trader.peak_value:,.2f}")
-    logger.info(f"  Threshold: {trader.config['RECOVERY_THRESHOLD']}")
-    logger.info(f"  Necesario para recuperar: ${trader.peak_value * trader.config['RECOVERY_THRESHOLD']:,.2f}")
-    
-    with patch.object(trader.broker, 'get_portfolio') as mock_pf:
-        # Usar valor que supere el threshold
-        recovery_value = int(trader.peak_value * trader.config['RECOVERY_THRESHOLD'] * 1.01)
-        mock_pf.return_value = MagicMock(total_value=recovery_value)
-        result = trader.check_stop_loss({'AAPL': 150.0})
-        logger.info(f"  Portfolio test: ${recovery_value:,}")
-        logger.info(f"  In protection: {trader.in_protection}")
-        logger.info(f"  Leverage: {trader.current_leverage}x")
-        
-        if trader.in_protection:
-            logger.error("❌ Protección no se desactivó tras recuperación")
+        mock_pf.return_value = MagicMock(total_value=85000)
+        lev = trader.get_current_leverage()
+        logger.info(f"  Leverage: {lev}")
+        if lev >= config['LEV_FULL']:
+            logger.error(f"❌ Leverage should be reduced at -15% DD, got {lev}")
             return False
-    
-    logger.info("✅ Stop Loss Logic OK")
+
+    # Test 3: Severe drawdown (-30%) → further reduced
+    logger.info("Test 3: Portfolio at -30% DD (low leverage)...")
+    with patch.object(trader.broker, 'get_portfolio') as mock_pf:
+        mock_pf.return_value = MagicMock(total_value=70000)
+        lev = trader.get_current_leverage()
+        logger.info(f"  Leverage: {lev}")
+        if lev >= config['LEV_MID']:
+            logger.error(f"❌ Leverage should be below LEV_MID at -30% DD, got {lev}")
+            return False
+
+    # Test 4: Recovery → peak updates, full leverage restored
+    logger.info("Test 4: Recovery past peak (leverage restored)...")
+    with patch.object(trader.broker, 'get_portfolio') as mock_pf:
+        mock_pf.return_value = MagicMock(total_value=105000)
+        lev = trader.get_current_leverage()
+        logger.info(f"  Leverage: {lev}")
+        logger.info(f"  New peak: ${trader.peak_value:,.2f}")
+        if lev != config['LEV_FULL']:
+            logger.error(f"❌ Leverage should be full after recovery, got {lev}")
+            return False
+        if trader.peak_value != 105000:
+            logger.error(f"❌ Peak should update to 105000, got {trader.peak_value}")
+            return False
+
+    logger.info("✅ Drawdown Leverage Scaling OK")
     return True
 
 
@@ -334,7 +314,7 @@ def run_all_tests():
         ("Paper Broker", test_broker),
         ("Data Validator", test_data_validator),
         ("Trading System", test_trading_system),
-        ("Stop Loss Logic", test_stop_loss_logic),
+        ("Drawdown Leverage", test_drawdown_leverage),
     ]
     
     results = []

@@ -101,6 +101,8 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._yf_crumb = None
     dashboard._social_cache = {}
     dashboard._social_cache_time = None
+    dashboard._ultimate_risk_cache = None
+    dashboard._ultimate_risk_cache_time = None
     dashboard._trade_analytics_cache = None
     dashboard._montecarlo_cache = None
     dashboard._montecarlo_cache_signature = None
@@ -476,6 +478,104 @@ def test_api_social_feed_falls_back_to_universe_when_no_positions(client, monkey
     payload = response.get_json()
     assert payload['symbols'] == ['MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL']
     assert payload['messages'][0]['count'] == 5
+
+
+def test_classify_ultimate_risk_text_rejects_benign_headlines():
+    qualifies, matched, score = dashboard._classify_ultimate_risk_text(
+        'Apple earnings beat estimates as iPhone sales recover'
+    )
+
+    assert qualifies is False
+    assert matched == []
+    assert score == 0
+
+
+def test_classify_ultimate_risk_text_accepts_systemic_market_stress():
+    qualifies, matched, score = dashboard._classify_ultimate_risk_text(
+        'Stock market crash fears rise as liquidity crisis hits funding markets'
+    )
+
+    assert qualifies is True
+    assert 'liquidity crisis' in matched
+    assert score >= 4
+
+
+def test_fetch_ultimate_risk_news_deduplicates_and_limits_results(monkeypatch):
+    dashboard._ultimate_risk_cache = None
+    dashboard._ultimate_risk_cache_time = None
+
+    duplicate = {
+        'body': 'Credit crisis spreads across funding markets',
+        'url': 'https://example.com/credit-crisis',
+        'time': '2026-03-16T12:00:00Z',
+        'user': 'Google News',
+        'source': 'google',
+        'matched_keywords': ['credit crisis'],
+        'risk_score': 6,
+    }
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_google_ultimate_risk_news',
+        lambda max_per_query=3: [
+            duplicate,
+            {
+                'body': 'Systemic risk builds after bank run headlines',
+                'url': 'https://example.com/bank-run',
+                'time': '2026-03-16T13:00:00Z',
+                'user': 'Reuters',
+                'source': 'google',
+                'matched_keywords': ['bank run', 'systemic risk'],
+                'risk_score': 8,
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_marketwatch_ultimate_risk_news',
+        lambda max_items=8: [
+            duplicate,
+            {
+                'body': 'Oil shock threatens equities as selloff deepens',
+                'url': 'https://example.com/oil-shock',
+                'time': '2026-03-16T11:00:00Z',
+                'user': 'MarketWatch',
+                'source': 'marketwatch',
+                'matched_keywords': ['oil shock', 'selloff'],
+                'risk_score': 5,
+            },
+        ],
+    )
+
+    messages = dashboard.fetch_ultimate_risk_news()
+
+    assert len(messages) == 3
+    assert messages[0]['body'] == 'Systemic risk builds after bank run headlines'
+    assert [item['url'] for item in messages].count('https://example.com/credit-crisis') == 1
+
+
+def test_api_ultimate_risk_news_returns_alert_payload(client, monkeypatch):
+    monkeypatch.setattr(
+        dashboard,
+        'fetch_ultimate_risk_news',
+        lambda: [{
+            'body': 'Stock market crash fears intensify as contagion spreads',
+            'url': 'https://example.com/crash',
+            'time': '2026-03-16T14:00:00Z',
+            'user': 'Reuters',
+            'source': 'google',
+            'matched_keywords': ['stock market crash', 'contagion'],
+            'risk_score': 9,
+        }],
+    )
+    dashboard._ultimate_risk_cache_time = datetime(2026, 3, 16, 14, 5, 0)
+
+    response = client.get('/api/ultimate-risk-news')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'alert'
+    assert payload['count'] == 1
+    assert payload['messages'][0]['matched_keywords'] == ['stock market crash', 'contagion']
 
 
 @pytest.mark.parametrize('route', ['/api/ml', '/api/ml-learning'])

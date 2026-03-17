@@ -32,7 +32,7 @@ warnings.filterwarnings('ignore')
 # TIINGO CONFIGURATION
 # =============================================================================
 
-TIINGO_API_KEY = '2b4b5626b2849123c9dac0769e418f9b0ccd2a56'
+TIINGO_API_KEY = os.environ.get('TIINGO_API_KEY', '')
 TIINGO_BASE_URL = 'https://api.tiingo.com/tiingo/daily'
 
 # =============================================================================

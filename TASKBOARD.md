@@ -153,6 +153,18 @@ Verify required keys exist and types are correct.
 
 ## Completed
 
+- `TASK-037` (`0564ec5`) Added a dedicated notifications test file covering SMTP failures, Email alert body formatting, WhatsApp/Telegram request failures, and disabled no-op behavior with all network calls mocked out.
+- `TASK-031` (`2da9c50`) Finished `find_rattlesnake_candidates()` coverage for a mixed 10-stock universe, sorted multi-candidate ranking, graceful skips for missing data/short history/low volume, and `max_candidates` truncation after scoring.
+- `TASK-035` (`2aac9d2`) Expanded `HydraCapitalManager` coverage for EFA buy/sell flows, recycled-cash day settlement, `to_dict()`/`from_dict()` state round-tripping, and zero-capital allocation/status handling without division errors.
+- `TASK-034` (`0eb693e`) Added trade-analytics segmentation coverage across exit reason, regime, sector, year, day-of-week, and volatility environment using a 10-trade synthetic dataset, plus direct `_compute_segment_stats()` assertions on counts, win rates, returns, alpha contribution, and Sharpe behavior.
+- `TASK-033` (`7d520f5`) Added direct Monte Carlo output coverage for `_historical_stats()`, `_fan_chart()`, and `_summary()` across mixed, all-winning, and all-losing path sets, aligned to the current implementation contract.
+- `TASK-032` (`5364236`) Added direct Monte Carlo engine coverage for vectorized path shape, strictly positive values, flat zero-return paths, single-return geometric growth, and same-seed reproducibility; full `pytest tests/ -v` stayed green.
+- `TASK-022` (`7952a6d`) Added backfill regression coverage for multi-day state reconstruction, corrupted historical JSON skips, empty state directories, and missing `positions` keys; full `pytest tests/ -v` stayed green.
+- `TASK-020` (`09185e7`) Added dedicated `InsightReporter` coverage for persisted report generation, JSONL-backed data summaries, per-phase milestone messaging, and graceful empty-state handling; full `pytest tests/ -v` stayed green.
+- `TASK-019` (`af4b2c1`) Added dedicated `StopParameterOptimizer` coverage for insufficient samples, low-vol stopouts, high-vol ceiling tightening, zero-variance volatility, and clustered floor stops; full `pytest tests/ -v` stayed green.
+- `TASK-018` (`9e7cea1`) Added direct `LearningEngine` coverage for phase-boundary detection, grouped phase-1 statistics, and `_trade_stats()` aggregation across all-winning and all-losing samples; full `pytest tests/ -v` stayed green.
+- `TASK-017` (`c5887cd`) Added direct `FeatureStore` coverage for JSONL decision/outcome loading, `decision_type` filtering, corrupted-line tolerance, empty-file handling, and a manual 5-trade feature-matrix merge; full `pytest tests/ -v` stayed green.
+- `TASK-016` (`8c5849c`) Added direct `DecisionLogger` coverage for NaN skip sanitization, regime-change event records, and derived daily snapshot fields; `tests/test_ml_learning.py` and full `pytest tests/ -v` are green.
 - `TASK-001` (`dc10305`) Removed the `refresh_daily_data()` side effect from startup self-test and added regression coverage so Render cold starts do not crash the engine before the first loop.
 - `TASK-002` (`bde9acd`) Tightened early-day `peak_value` validation from `>` to `>=` and added an exact-120% regression; local `trading_day_counter` was already `1`, so no sacred state file edit was needed.
 - `TASK-003` (`adde8fd`) Added a multi-strategy coexistence test covering COMPASS, Catalyst, and EFA positions so cross-pillar exit logic cannot liquidate the wrong holdings.
@@ -372,7 +384,7 @@ Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lint
 ---
 
 ### TASK-016: Test DecisionLogger skip and hold logging [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`8c5849c`)
 **Assigned:** Codex
 
 `log_skip()` and `log_hold()` write decision records but are never tested.
@@ -391,7 +403,7 @@ Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lint
 ---
 
 ### TASK-017: Test FeatureStore data loading [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`c5887cd`)
 **Assigned:** Codex
 
 `FeatureStore` loads JSONL files and builds feature matrices. Only stub tests exist.
@@ -413,7 +425,7 @@ Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lint
 ---
 
 ### TASK-018: Test LearningEngine phases [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`9e7cea1`)
 **Assigned:** Codex
 
 `LearningEngine.get_phase()` and `_phase1_statistics()` determine learning progression but are untested.
@@ -434,7 +446,7 @@ Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lint
 ---
 
 ### TASK-019: Test StopParameterOptimizer [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`af4b2c1`)
 **Assigned:** Codex
 
 `StopParameterOptimizer.analyze()` runs statistical analysis on stop-loss parameters. Never tested.
@@ -453,7 +465,7 @@ Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lint
 ---
 
 ### TASK-020: Test InsightReporter [PRIORITY: LOW]
-**Status:** [ ]
+**Status:** [x] Done (`09185e7`)
 **Assigned:** Codex
 
 `InsightReporter.generate()` produces human-readable insights. Never tested.
@@ -494,7 +506,7 @@ The orchestrator is the main ML interface used by omnicapital_live.py. Needs int
 ---
 
 ### TASK-022: Test `backfill_from_state_files` [PRIORITY: LOW]
-**Status:** [ ]
+**Status:** [x] Done (`7952a6d`)
 **Assigned:** Codex
 
 `backfill_from_state_files()` parses historical state JSONs to reconstruct decision history. Never tested.
@@ -677,7 +689,7 @@ Crash brake triggers at 5d SPY drop >= -6% or 10d drop >= -10%, reducing leverag
 ---
 
 ### TASK-031: Test `find_rattlesnake_candidates` [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`2da9c50`)
 **Assigned:** Codex
 
 `find_rattlesnake_candidates()` screens S&P 100 stocks for oversold bounces. Only partial tests.
@@ -698,7 +710,7 @@ Crash brake triggers at 5d SPY drop >= -6% or 10d drop >= -10%, reducing leverag
 ---
 
 ### TASK-032: Test Monte Carlo `_simulate_paths_vectorized` [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`5364236`)
 **Assigned:** Codex
 
 The core simulation engine uses vectorized numpy operations. Never tested for correctness.
@@ -717,7 +729,7 @@ The core simulation engine uses vectorized numpy operations. Never tested for co
 ---
 
 ### TASK-033: Test Monte Carlo summary statistics [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`7d520f5`)
 **Assigned:** Codex
 
 `_historical_stats()`, `_fan_chart()`, `_summary()` produce the final output. Never tested.
@@ -736,7 +748,7 @@ The core simulation engine uses vectorized numpy operations. Never tested for co
 ---
 
 ### TASK-034: Test trade analytics segmentation [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`0eb693e`)
 **Assigned:** Codex
 
 `segment_by_exit_reason()`, `segment_by_regime()`, `segment_by_sector()`, `segment_by_year()`, `segment_by_dow()` all untested.
@@ -758,7 +770,7 @@ The core simulation engine uses vectorized numpy operations. Never tested for co
 ---
 
 ### TASK-035: Test HydraCapitalManager allocation [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`2aac9d2`)
 **Assigned:** Codex
 
 `HydraCapitalManager.compute_allocation()` splits capital between COMPASS, Rattlesnake, Catalyst, EFA. Limited tests.
@@ -801,7 +813,7 @@ The core simulation engine uses vectorized numpy operations. Never tested for co
 ---
 
 ### TASK-037: Test notification failure handling [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`0564ec5`)
 **Assigned:** Codex
 
 `compass/notifications.py` has EmailNotifier, WhatsAppNotifier, TelegramNotifier. Only basic smoke tests exist.

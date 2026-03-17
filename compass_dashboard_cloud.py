@@ -27,6 +27,7 @@ from datetime import datetime, date, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from compass_portfolio_risk import compute_portfolio_risk
 
@@ -1275,6 +1276,249 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
 
 _social_cache: Dict[str, list] = {}
 _social_cache_time: Optional[datetime] = None
+_ultimate_risk_cache: Optional[List[dict]] = None
+_ultimate_risk_cache_time: Optional[datetime] = None
+ULTIMATE_RISK_CACHE_SECONDS = 300
+_ultimate_risk_cache_lock = threading.Lock()
+
+ULTIMATE_RISK_NEWS_QUERIES = [
+    '"stock market" (crash OR selloff OR rout OR panic OR liquidation)',
+    '("credit crisis" OR "liquidity crisis" OR "bank run" OR contagion) markets',
+    '("systemic risk" OR "hard landing" OR recession OR stagflation) stocks',
+    '("geopolitical escalation" OR "oil shock" OR "tariff escalation") markets',
+]
+ULTIMATE_RISK_ALWAYS_INCLUDE = (
+    'stock market crash',
+    'market crash',
+    'liquidity crisis',
+    'credit crisis',
+    'bank run',
+    'banking crisis',
+    'systemic risk',
+    'forced liquidation',
+    'contagion',
+)
+ULTIMATE_RISK_MARKET_TERMS = (
+    'market',
+    'markets',
+    'stocks',
+    'equity',
+    'equities',
+    's&p',
+    'wall street',
+    'treasury',
+    'fed',
+    'economy',
+    'economic',
+)
+ULTIMATE_RISK_RULES = (
+    ('stock market crash', 5),
+    ('market crash', 4),
+    ('crash', 3),
+    ('selloff', 2),
+    ('rout', 2),
+    ('panic', 2),
+    ('liquidity crisis', 4),
+    ('credit crisis', 4),
+    ('credit event', 3),
+    ('funding stress', 3),
+    ('bank run', 4),
+    ('banking crisis', 4),
+    ('contagion', 4),
+    ('systemic risk', 4),
+    ('forced liquidation', 4),
+    ('margin call', 3),
+    ('default', 3),
+    ('bankruptcy', 2),
+    ('recession', 2),
+    ('hard landing', 3),
+    ('stagflation', 3),
+    ('downgrade', 1),
+    ('geopolitical escalation', 2),
+    ('oil shock', 3),
+    ('tariff escalation', 2),
+    ('volatility spike', 2),
+)
+
+
+def _trim_feed_text(text, max_len=150):
+    text = (text or '').strip()
+    if len(text) <= max_len:
+        return text
+    return text[:max_len].rsplit(' ', 1)[0] + '...'
+
+
+def _coerce_rss_pubdate(pub_date_raw):
+    if not pub_date_raw:
+        return ''
+    try:
+        from email.utils import parsedate_to_datetime
+        dt = parsedate_to_datetime(pub_date_raw)
+        return dt.isoformat()
+    except Exception as e:
+        logger.warning(f"_coerce_rss_pubdate failed: {e}")
+        return pub_date_raw
+
+
+def _classify_ultimate_risk_text(text):
+    normalized = ' '.join((text or '').lower().split())
+    matched = []
+    score = 0
+    for phrase, weight in ULTIMATE_RISK_RULES:
+        if phrase in normalized:
+            matched.append(phrase)
+            score += weight
+    has_market_context = any(term in normalized for term in ULTIMATE_RISK_MARKET_TERMS)
+    if has_market_context:
+        score += 1
+    qualifies = any(phrase in normalized for phrase in ULTIMATE_RISK_ALWAYS_INCLUDE)
+    if not qualifies and has_market_context and score >= 4:
+        qualifies = True
+    return qualifies, sorted(set(matched))[:3], score
+
+
+def _build_ultimate_risk_item(title, link, pub_iso, source, user, detail=''):
+    qualifies, matched_keywords, risk_score = _classify_ultimate_risk_text(f'{title} {detail}')
+    if not qualifies:
+        return None
+    return {
+        'symbol': 'MKT',
+        'body': _trim_feed_text(title),
+        'detail': _trim_feed_text(detail, max_len=120),
+        'user': user,
+        'time': pub_iso,
+        'url': link,
+        'source': source,
+        'sentiment': 'bearish',
+        'matched_keywords': matched_keywords,
+        'risk_score': risk_score,
+    }
+
+
+def _fetch_google_ultimate_risk_news(max_per_query: int = 3) -> List[dict]:
+    if not _HAS_REQUESTS:
+        return []
+    items = []
+    headers = {'User-Agent': 'HYDRA-Dashboard/1.0'}
+    for query in ULTIMATE_RISK_NEWS_QUERIES:
+        try:
+            r = http_requests.get(
+                'https://news.google.com/rss/search',
+                params={'q': query, 'hl': 'en-US', 'gl': 'US', 'ceid': 'US:en'},
+                headers=headers,
+                timeout=8
+            )
+            if r.status_code != 200:
+                continue
+            root = XmlET.fromstring(r.content)
+            count = 0
+            for item_el in root.iter('item'):
+                if count >= max_per_query:
+                    break
+                title = item_el.findtext('title', '').strip()
+                if not title:
+                    continue
+                source_name = item_el.findtext('source', '').strip()
+                if ' - ' in title and source_name:
+                    title = title.rsplit(' - ', 1)[0].strip()
+                item = _build_ultimate_risk_item(
+                    title=title,
+                    link=item_el.findtext('link', '').strip(),
+                    pub_iso=_coerce_rss_pubdate(item_el.findtext('pubDate', '').strip()),
+                    source='google',
+                    user=source_name or 'Google News',
+                    detail=source_name or 'Google News',
+                )
+                if item is None:
+                    continue
+                items.append(item)
+                count += 1
+        except Exception as e:
+            logger.warning(f"_fetch_google_ultimate_risk_news failed: {e}")
+    return items
+
+
+def _fetch_marketwatch_ultimate_risk_news(max_items: int = 8) -> List[dict]:
+    if not _HAS_REQUESTS:
+        return []
+    items = []
+    headers = {'User-Agent': 'HYDRA-Dashboard/1.0'}
+    try:
+        r = http_requests.get(
+            'https://feeds.marketwatch.com/marketwatch/topstories/',
+            headers=headers,
+            timeout=8
+        )
+        if r.status_code != 200:
+            return items
+        root = XmlET.fromstring(r.content)
+        count = 0
+        for item_el in root.iter('item'):
+            if count >= max_items:
+                break
+            title = item_el.findtext('title', '').strip()
+            if not title:
+                continue
+            item = _build_ultimate_risk_item(
+                title=title,
+                link=item_el.findtext('link', '').strip(),
+                pub_iso=_coerce_rss_pubdate(item_el.findtext('pubDate', '').strip()),
+                source='marketwatch',
+                user='MarketWatch',
+                detail='MarketWatch',
+            )
+            if item is None:
+                continue
+            items.append(item)
+            count += 1
+    except Exception as e:
+        logger.warning(f"_fetch_marketwatch_ultimate_risk_news failed: {e}")
+    return items
+
+
+def fetch_ultimate_risk_news() -> List[dict]:
+    global _ultimate_risk_cache, _ultimate_risk_cache_time
+
+    now = datetime.now()
+    with _ultimate_risk_cache_lock:
+        if (
+            _ultimate_risk_cache is not None and
+            _ultimate_risk_cache_time is not None and
+            (now - _ultimate_risk_cache_time).total_seconds() < ULTIMATE_RISK_CACHE_SECONDS
+        ):
+            return list(_ultimate_risk_cache)
+
+    fetchers = [
+        lambda: _fetch_google_ultimate_risk_news(max_per_query=3),
+        lambda: _fetch_marketwatch_ultimate_risk_news(max_items=8),
+    ]
+    all_items = []
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(fn) for fn in fetchers]
+        for future in as_completed(futures):
+            try:
+                all_items.extend(future.result())
+            except Exception as e:
+                logger.warning(f"Ultimate risk source failed: {e}")
+
+    deduped = []
+    seen = set()
+    for item in sorted(
+        all_items,
+        key=lambda entry: (entry.get('risk_score', 0), entry.get('time', '')),
+        reverse=True,
+    ):
+        key = (item.get('url') or item.get('body') or '').strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+
+    result = deduped[:6]
+    with _ultimate_risk_cache_lock:
+        _ultimate_risk_cache = result
+        _ultimate_risk_cache_time = now
+    return result
 
 
 def _fetch_yfinance_news(symbols: List[str], max_per: int = 3) -> List[dict]:
@@ -2232,6 +2476,19 @@ def api_social_feed():
 def api_news():
     """Legacy news endpoint."""
     return api_social_feed()
+
+
+@app.route('/api/ultimate-risk-news')
+def api_ultimate_risk_news():
+    messages = fetch_ultimate_risk_news()
+    with _ultimate_risk_cache_lock:
+        updated_at = _ultimate_risk_cache_time.isoformat() if _ultimate_risk_cache_time else datetime.now().isoformat()
+    return jsonify({
+        'status': 'alert' if messages else 'clear',
+        'count': len(messages),
+        'updated_at': updated_at,
+        'messages': messages,
+    })
 
 
 # ============================================================================
