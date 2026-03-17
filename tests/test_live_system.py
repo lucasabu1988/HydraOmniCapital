@@ -20,6 +20,7 @@ from omnicapital_live import (
     compute_momentum_scores, compute_volatility_weights,
     compute_dynamic_leverage, compute_live_regime_score,
     filter_by_sector_concentration, _dd_leverage,
+    validate_universe,
 )
 from omnicapital_broker import PaperBroker, Order, Position
 from omnicapital_notifications import EmailNotifier
@@ -663,6 +664,35 @@ class TestStatePersistence(unittest.TestCase):
             if had_backup and backup_data:
                 with open(latest, 'w') as f:
                     f.write(backup_data)
+
+
+class TestUniverseValidation(unittest.TestCase):
+
+    def test_valid_symbols_all_pass(self):
+        symbols = ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'META']
+        result = validate_universe(symbols)
+        self.assertEqual(result, ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'META'])
+
+    def test_duplicates_removed(self):
+        symbols = ['AAPL', 'MSFT', 'AAPL', 'GOOG', 'MSFT']
+        result = validate_universe(symbols)
+        self.assertEqual(result, ['AAPL', 'MSFT', 'GOOG'])
+
+    def test_catalyst_efa_tickers_excluded(self):
+        symbols = ['AAPL', 'TLT', 'MSFT', 'GLD', 'DBC', 'EFA', 'GOOG']
+        with self.assertLogs('omnicapital_live', level='WARNING') as cm:
+            result = validate_universe(symbols)
+        self.assertEqual(result, ['AAPL', 'MSFT', 'GOOG'])
+        excluded_warnings = [m for m in cm.output if 'Catalyst/EFA ticker' in m]
+        self.assertEqual(len(excluded_warnings), 4)
+
+    def test_invalid_symbols_rejected(self):
+        symbols = ['AAPL', 'spy', '123', 'TOOLONG', 'A1B', 'MSFT']
+        with self.assertLogs('omnicapital_live', level='WARNING') as cm:
+            result = validate_universe(symbols)
+        self.assertEqual(result, ['AAPL', 'MSFT'])
+        rejected_warnings = [m for m in cm.output if 'rejecting invalid' in m]
+        self.assertEqual(len(rejected_warnings), 4)
 
 
 if __name__ == '__main__':

@@ -14,6 +14,7 @@ Results (backtest 2000-2026):
 """
 
 import math
+import re
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -446,6 +447,28 @@ def compute_annual_top40(broad_pool: List[str], top_n: int = 40) -> List[str]:
     top_n_symbols = [s for s, _ in ranked[:top_n]]
     logger.info(f"Universe: {len(top_n_symbols)} stocks selected from {len(scores)} with data")
     return top_n_symbols
+
+
+_VALID_SYMBOL_RE = re.compile(r'^[A-Z]{1,5}$')
+_CATALYST_EFA_TICKERS = {'TLT', 'GLD', 'DBC', 'EFA'}
+
+
+def validate_universe(symbols):
+    seen = set()
+    validated = []
+    for sym in symbols:
+        if sym in seen:
+            logger.warning(f"Universe validation: removing duplicate '{sym}'")
+            continue
+        seen.add(sym)
+        if not _VALID_SYMBOL_RE.match(sym):
+            logger.warning(f"Universe validation: rejecting invalid symbol '{sym}'")
+            continue
+        if sym in _CATALYST_EFA_TICKERS:
+            logger.warning(f"Universe validation: excluding Catalyst/EFA ticker '{sym}' from COMPASS universe")
+            continue
+        validated.append(sym)
+    return validated
 
 
 def _sigmoid(x: float, k: float = 15.0) -> float:
@@ -1270,9 +1293,10 @@ class COMPASSLive:
             from compass.sp500_universe import refresh_constituents
             broad_pool, source = refresh_constituents(fallback_pool=BROAD_POOL)
             self._universe_source = source if source in ('github', 'wikipedia') else 'fallback'
-            self.current_universe = compute_annual_top40(
+            raw_universe = compute_annual_top40(
                 broad_pool, self.config['TOP_N']
             )
+            self.current_universe = validate_universe(raw_universe)
             self.universe_year = current_year
             logger.info(f"Universe updated: {len(self.current_universe)} stocks from {len(broad_pool)} constituents (source: {source})")
 
