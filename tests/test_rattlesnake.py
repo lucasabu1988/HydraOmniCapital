@@ -19,6 +19,46 @@ def make_history(recent_closes, trend_start, trend_end=None, volume=1_000_000):
 
 class TestRattlesnakeSignals:
 
+    def test_compute_rsi_matches_hand_calculation_for_known_series(self):
+        prices = pd.Series([100.0, 102.0, 101.0, 103.0, 102.0, 104.0])
+
+        rsi = rattlesnake.compute_rsi(prices, period=5)
+
+        assert rsi == pytest.approx(75.0)
+
+    def test_compute_rsi_returns_neutral_for_flat_prices(self):
+        prices = pd.Series([100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
+
+        rsi = rattlesnake.compute_rsi(prices, period=5)
+
+        assert rsi == pytest.approx(50.0)
+
+    def test_compute_rsi_approaches_one_hundred_for_all_up_days(self):
+        prices = pd.Series([100.0, 101.0, 102.0, 103.0, 104.0, 105.0])
+
+        rsi = rattlesnake.compute_rsi(prices, period=5)
+
+        assert rsi > 99.9
+
+    def test_compute_rsi_approaches_zero_for_all_down_days(self):
+        prices = pd.Series([105.0, 104.0, 103.0, 102.0, 101.0, 100.0])
+
+        rsi = rattlesnake.compute_rsi(prices, period=5)
+
+        assert rsi < 0.1
+
+    @pytest.mark.parametrize(
+        'prices',
+        [
+            pd.Series(dtype=float),
+            pd.Series([100.0, 101.0, 102.0]),
+        ],
+    )
+    def test_compute_rsi_returns_neutral_for_empty_or_short_series(self, prices):
+        rsi = rattlesnake.compute_rsi(prices, period=5)
+
+        assert rsi == pytest.approx(50.0)
+
     def test_buy_signal_fires_for_oversold_stock_above_sma200(self, monkeypatch):
         monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL'])
         history = make_history([140, 137, 134, 131, 128, 126], trend_start=100)
@@ -118,6 +158,27 @@ class TestRattlesnakeSignals:
         )
 
         assert reason == 'TIME'
+
+    def test_rattlesnake_exposure_sums_position_market_values(self):
+        positions = [
+            {'symbol': 'AAPL', 'shares': 100},
+            {'symbol': 'MSFT', 'shares': 50},
+            {'symbol': 'GOOG', 'shares': 10},
+        ]
+        current_prices = {'AAPL': 100.0, 'MSFT': 200.0, 'GOOG': 300.0}
+
+        exposure = rattlesnake.compute_rattlesnake_exposure(
+            positions, current_prices, account_value=50_000.0
+        )
+
+        assert exposure == pytest.approx(0.46)
+
+    def test_rattlesnake_exposure_is_zero_for_empty_positions(self):
+        exposure = rattlesnake.compute_rattlesnake_exposure(
+            [], {'AAPL': 100.0}, account_value=50_000.0
+        )
+
+        assert exposure == 0.0
 
     def test_multiple_candidates_are_ranked_by_largest_drop_first(self, monkeypatch):
         monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL', 'MSFT', 'GOOG'])
