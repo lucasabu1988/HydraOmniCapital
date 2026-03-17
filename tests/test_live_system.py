@@ -231,6 +231,11 @@ class TestCOMPASSLive(unittest.TestCase):
             'XOM': 0.50,
         }
 
+    def _set_portfolio_value(self, trader, total_value):
+        trader.broker.get_portfolio = MagicMock(
+            return_value=MagicMock(total_value=total_value)
+        )
+
     @patch('omnicapital_live.YahooDataFeed')
     def test_initialization(self, mock_feed):
         mock_feed.return_value = MagicMock()
@@ -366,6 +371,99 @@ class TestCOMPASSLive(unittest.TestCase):
         )
 
         self.assertTrue(should_renew)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_crash_brake_triggers_on_five_day_drop_below_threshold(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        trader.peak_value = 100.0
+        trader.portfolio_values_history = [100.0, 99.5, 99.0, 98.5, 98.0]
+        trader._spy_hist = None
+        self._set_portfolio_value(trader, 93.0)
+
+        leverage = trader.get_current_leverage()
+
+        self.assertEqual(leverage, self.config['CRASH_LEVERAGE'])
+        self.assertEqual(trader.crash_cooldown, self.config['CRASH_COOLDOWN'] - 1)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_crash_brake_triggers_on_ten_day_drop_below_threshold(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        trader.peak_value = 100.0
+        trader.portfolio_values_history = [
+            100.0, 99.0, 98.0, 97.0, 96.0,
+            94.0, 93.0, 92.0, 91.0, 90.0,
+        ]
+        trader._spy_hist = None
+        self._set_portfolio_value(trader, 89.0)
+
+        leverage = trader.get_current_leverage()
+
+        self.assertEqual(leverage, self.config['CRASH_LEVERAGE'])
+        self.assertEqual(trader.crash_cooldown, self.config['CRASH_COOLDOWN'] - 1)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_crash_brake_does_not_trigger_on_five_day_drop_above_threshold(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        trader.peak_value = 100.0
+        trader.portfolio_values_history = [100.0, 99.5, 99.0, 98.5, 98.0]
+        trader._spy_hist = None
+        self._set_portfolio_value(trader, 95.0)
+
+        leverage = trader.get_current_leverage()
+
+        self.assertEqual(leverage, 1.0)
+        self.assertEqual(trader.crash_cooldown, 0)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_crash_brake_does_not_trigger_on_ten_day_drop_above_threshold(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        trader.peak_value = 100.0
+        trader.portfolio_values_history = [
+            100.0, 99.0, 98.0, 97.0, 96.0,
+            95.5, 95.0, 94.5, 94.0, 93.5,
+        ]
+        trader._spy_hist = None
+        self._set_portfolio_value(trader, 91.0)
+
+        leverage = trader.get_current_leverage()
+
+        self.assertEqual(leverage, 1.0)
+        self.assertEqual(trader.crash_cooldown, 0)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_crash_brake_triggers_on_exact_five_day_boundary(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        trader.peak_value = 100.0
+        trader.portfolio_values_history = [100.0, 99.5, 99.0, 98.5, 98.0]
+        trader._spy_hist = None
+        self._set_portfolio_value(trader, 94.0)
+
+        leverage = trader.get_current_leverage()
+
+        self.assertEqual(leverage, self.config['CRASH_LEVERAGE'])
+        self.assertEqual(trader.crash_cooldown, self.config['CRASH_COOLDOWN'] - 1)
+
+    @patch('omnicapital_live.YahooDataFeed')
+    def test_crash_brake_overrides_drawdown_tier_leverage(self, mock_feed):
+        mock_feed.return_value = MagicMock()
+        trader = COMPASSLive(self.config)
+        trader.peak_value = 120.0
+        trader.portfolio_values_history = [
+            112.0, 110.0, 108.0, 106.0, 104.0,
+            103.0, 102.0, 101.0, 100.5, 100.0,
+        ]
+        trader._spy_hist = None
+        self._set_portfolio_value(trader, 100.0)
+
+        leverage = trader.get_current_leverage()
+
+        self.assertLess(self.config['CRASH_LEVERAGE'], 1.0)
+        self.assertEqual(leverage, self.config['CRASH_LEVERAGE'])
 
 
 class TestPaperBroker(unittest.TestCase):
