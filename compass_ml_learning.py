@@ -74,15 +74,53 @@ VOL_MEDIUM = "med_vol"    # 1.5-3.0%
 VOL_HIGH   = "high_vol"   # > 3.0%
 
 
-def _sanitize_for_json(obj):
+def _sanitize_for_json(obj, _seen=None):
+    if _seen is None:
+        _seen = set()
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+
     if isinstance(obj, dict):
-        return {key: _sanitize_for_json(value) for key, value in obj.items()}
+        obj_id = id(obj)
+        if obj_id in _seen:
+            raise ValueError("Circular reference detected during JSON sanitization")
+        _seen.add(obj_id)
+        try:
+            return {key: _sanitize_for_json(value, _seen) for key, value in obj.items()}
+        finally:
+            _seen.remove(obj_id)
+
     if isinstance(obj, list):
-        return [_sanitize_for_json(value) for value in obj]
+        obj_id = id(obj)
+        if obj_id in _seen:
+            raise ValueError("Circular reference detected during JSON sanitization")
+        _seen.add(obj_id)
+        try:
+            return [_sanitize_for_json(value, _seen) for value in obj]
+        finally:
+            _seen.remove(obj_id)
+
     if isinstance(obj, tuple):
-        return [_sanitize_for_json(value) for value in obj]
+        obj_id = id(obj)
+        if obj_id in _seen:
+            raise ValueError("Circular reference detected during JSON sanitization")
+        _seen.add(obj_id)
+        try:
+            return [_sanitize_for_json(value, _seen) for value in obj]
+        finally:
+            _seen.remove(obj_id)
+
     if isinstance(obj, np.ndarray):
-        return [_sanitize_for_json(value) for value in obj.tolist()]
+        obj_id = id(obj)
+        if obj_id in _seen:
+            raise ValueError("Circular reference detected during JSON sanitization")
+        _seen.add(obj_id)
+        try:
+            return [_sanitize_for_json(value, _seen) for value in obj.tolist()]
+        finally:
+            _seen.remove(obj_id)
+
     if isinstance(obj, np.integer):
         return int(obj)
     if isinstance(obj, np.bool_):
