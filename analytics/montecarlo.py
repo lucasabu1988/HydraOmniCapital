@@ -80,7 +80,7 @@ class COMPASSMonteCarlo:
 
             # Percentile bands
             percentiles = {}
-            for p in [5, 25, 50, 75, 95]:
+            for p in [5, 10, 25, 50, 75, 90, 95]:
                 percentiles[p] = np.percentile(paths, p, axis=0)
 
             # Final values
@@ -153,8 +153,9 @@ class COMPASSMonteCarlo:
         years = [round(i / TRADING_DAYS_PER_YEAR, 2) for i in indices]
 
         chart_data = {'years': years}
-        for p in [5, 25, 50, 75, 95]:
-            chart_data[f'p{p}'] = [round(float(res['percentiles'][p][i]), 2) for i in indices]
+        for p in [5, 10, 25, 50, 75, 90, 95]:
+            if p in res['percentiles']:
+                chart_data[f'p{p}'] = [round(float(res['percentiles'][p][i]), 2) for i in indices]
 
         return chart_data
 

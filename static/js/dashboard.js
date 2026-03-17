@@ -51,6 +51,7 @@ let countdownSec = 30;
 let currentPositions = {};
 let lastSuccessTime = null;
 var lastPortfolioData = null;
+var lastUltimateRiskData = null;
 /* Social feed state */
 let sfMessages = [];
 let sfActiveSource = 'all';
@@ -1677,91 +1678,209 @@ function renderMonteCarloChart(fan) {
         _mcChart = null;
     }
 
-    const ctx = canvas.getContext('2d');
+    var initialVal = fan.p50[0] || 100000;
+    var finalP50 = fan.p50[fan.p50.length - 1];
+    var finalP5 = fan.p5[fan.p5.length - 1];
+    var finalP95 = fan.p95[fan.p95.length - 1];
+    var p10 = fan.p10 || fan.p25;
+    var p90 = fan.p90 || fan.p75;
+
+    /* Compact dollar format for annotations: $115.3K */
+    var fmtCompact = function(v) {
+        if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+        if (v >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'K';
+        return '$' + Math.round(v);
+    };
+
+    var ctx = canvas.getContext('2d');
+
+    /* Gradient for the P25-P75 core band */
+    var coreGrad = ctx.createLinearGradient(0, 0, 0, canvas.parentElement.clientHeight || 280);
+    coreGrad.addColorStop(0, 'rgba(34, 197, 94, 0.28)');
+    coreGrad.addColorStop(1, 'rgba(34, 197, 94, 0.04)');
+
+    /* Gradient for the P10-P90 mid band */
+    var midGrad = ctx.createLinearGradient(0, 0, 0, canvas.parentElement.clientHeight || 280);
+    midGrad.addColorStop(0, 'rgba(34, 197, 94, 0.14)');
+    midGrad.addColorStop(1, 'rgba(34, 197, 94, 0.02)');
+
+    /* Build month labels from day numbers */
+    var dayToMonth = function(day) {
+        var m = Math.round(day / 21);
+        if (m === 0) return t('mc-start-label') || 'Inicio';
+        return m + (m === 1 ? ' mes' : ' meses');
+    };
+
+    /* Annotation lines */
+    var annotations = {
+        breakeven: {
+            type: 'line', yMin: initialVal, yMax: initialVal,
+            borderColor: 'rgba(255, 255, 255, 0.2)', borderWidth: 1,
+            borderDash: [6, 4],
+            label: {
+                display: true, content: 'Break-even',
+                position: 'start', color: 'rgba(255,255,255,0.4)',
+                backgroundColor: 'transparent', font: { size: 10 },
+            },
+        },
+        target10: {
+            type: 'line', yMin: initialVal * 1.10, yMax: initialVal * 1.10,
+            borderColor: 'rgba(34, 197, 94, 0.2)', borderWidth: 1,
+            borderDash: [4, 6],
+            label: {
+                display: true, content: '+10%',
+                position: 'start', color: 'rgba(34, 197, 94, 0.5)',
+                backgroundColor: 'transparent', font: { size: 10 },
+            },
+        },
+        target20: {
+            type: 'line', yMin: initialVal * 1.20, yMax: initialVal * 1.20,
+            borderColor: 'rgba(34, 197, 94, 0.15)', borderWidth: 1,
+            borderDash: [4, 6],
+            label: {
+                display: true, content: '+20%',
+                position: 'start', color: 'rgba(34, 197, 94, 0.4)',
+                backgroundColor: 'transparent', font: { size: 10 },
+            },
+        },
+        finalP50: {
+            type: 'label',
+            xValue: fan.days.length - 1, yValue: finalP50,
+            content: fmtCompact(finalP50), color: '#22c55e',
+            backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 4,
+            font: { size: 11, weight: 'bold', family: "'JetBrains Mono', monospace" },
+            padding: { top: 3, bottom: 3, left: 6, right: 6 },
+            position: { x: 'end' },
+        },
+        finalP95: {
+            type: 'label',
+            xValue: fan.days.length - 1, yValue: finalP95,
+            content: fmtCompact(finalP95), color: 'rgba(34, 197, 94, 0.6)',
+            backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
+            font: { size: 9, family: "'JetBrains Mono', monospace" },
+            padding: { top: 2, bottom: 2, left: 4, right: 4 },
+            position: { x: 'end' },
+        },
+        finalP5: {
+            type: 'label',
+            xValue: fan.days.length - 1, yValue: finalP5,
+            content: fmtCompact(finalP5), color: 'rgba(239, 68, 68, 0.7)',
+            backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
+            font: { size: 9, family: "'JetBrains Mono', monospace" },
+            padding: { top: 2, bottom: 2, left: 4, right: 4 },
+            position: { x: 'end' },
+        },
+    };
+
     _mcChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: fan.days,
             datasets: [
+                /* Outer band: P95 (top boundary) */
                 {
-                    label: 'P95',
-                    data: fan.p95,
-                    borderColor: 'rgba(34, 197, 94, 0)',
-                    pointRadius: 0,
-                    fill: false,
+                    label: 'P95', data: fan.p95,
+                    borderColor: 'rgba(34, 197, 94, 0.25)', borderWidth: 1,
+                    borderDash: [3, 3], pointRadius: 0, fill: false,
                 },
+                /* P90 fills down to P95 → outermost top band */
                 {
-                    label: 'P5',
-                    data: fan.p5,
-                    borderColor: 'rgba(34, 197, 94, 0)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
-                    pointRadius: 0,
-                    fill: '-1',
+                    label: 'P90', data: p90,
+                    borderColor: 'rgba(34, 197, 94, 0)', pointRadius: 0,
+                    backgroundColor: 'rgba(34, 197, 94, 0.05)', fill: '-1',
                 },
+                /* P75 fills down to P90 → mid-upper band */
                 {
-                    label: 'P75',
-                    data: fan.p75,
-                    borderColor: 'rgba(34, 197, 94, 0)',
-                    pointRadius: 0,
-                    fill: false,
+                    label: 'P75', data: fan.p75,
+                    borderColor: 'rgba(34, 197, 94, 0)', pointRadius: 0,
+                    backgroundColor: midGrad, fill: '-1',
                 },
+                /* P25 fills up to P75 → core band */
                 {
-                    label: 'P25',
-                    data: fan.p25,
-                    borderColor: 'rgba(34, 197, 94, 0)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.18)',
-                    pointRadius: 0,
-                    fill: '-1',
+                    label: 'P25', data: fan.p25,
+                    borderColor: 'rgba(34, 197, 94, 0)', pointRadius: 0,
+                    backgroundColor: coreGrad, fill: '-1',
                 },
+                /* P10 fills down to P25 → mid-lower band */
                 {
-                    label: 'P50',
-                    data: fan.p50,
-                    borderColor: '#22c55e',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2.4,
-                    pointRadius: 0,
-                    tension: 0.18,
-                    fill: false,
+                    label: 'P10', data: p10,
+                    borderColor: 'rgba(34, 197, 94, 0)', pointRadius: 0,
+                    backgroundColor: midGrad, fill: '-1',
+                },
+                /* P5 fills down to P10 → outermost bottom band */
+                {
+                    label: 'P5', data: fan.p5,
+                    borderColor: 'rgba(34, 197, 94, 0.25)', borderWidth: 1,
+                    borderDash: [3, 3], pointRadius: 0,
+                    backgroundColor: 'rgba(34, 197, 94, 0.05)', fill: '-1',
+                },
+                /* Median line (on top) */
+                {
+                    label: 'P50 (Mediana)', data: fan.p50,
+                    borderColor: '#22c55e', backgroundColor: 'transparent',
+                    borderWidth: 2.5, pointRadius: 0, tension: 0.2, fill: false,
                 },
             ],
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
+            layout: { padding: { right: 80 } },
+            interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: { display: false },
+                annotation: { annotations: annotations },
                 tooltip: {
+                    backgroundColor: 'rgba(15, 18, 30, 0.92)',
+                    borderColor: 'rgba(34, 197, 94, 0.3)',
+                    borderWidth: 1,
+                    titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+                    padding: 10,
+                    displayColors: false,
+                    filter: function(item) {
+                        return ['P5', 'P25', 'P50 (Mediana)', 'P75', 'P95'].indexOf(item.dataset.label) !== -1;
+                    },
                     callbacks: {
-                        title: items => t('mc-day-prefix') + ' ' + items[0].label,
-                        label: item => item.dataset.label + ': ' + fmt$(item.raw),
+                        title: function(items) {
+                            var day = items[0].label;
+                            return dayToMonth(day) + '  (' + t('mc-day-prefix') + ' ' + day + ')';
+                        },
+                        label: function(item) {
+                            var pctChange = ((item.raw - initialVal) / initialVal * 100).toFixed(1);
+                            var sign = pctChange >= 0 ? '+' : '';
+                            return item.dataset.label + ':  ' + fmt$(item.raw) + '  (' + sign + pctChange + '%)';
+                        },
                     },
                 },
             },
             scales: {
                 x: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
                     ticks: {
                         color: '#8f96ad',
-                        callback: (value, index) => {
-                            const day = fan.days[index];
-                            return day % 25 === 0 || day === 0 ? day : '';
+                        maxRotation: 0,
+                        autoSkip: false,
+                        callback: function(value, index) {
+                            var day = fan.days[index];
+                            if (index === 0) return t('mc-start-label') || 'Hoy';
+                            /* Show label at ~month boundaries (21 trading days/month).
+                               With 5-day steps, closest points to month N are day 20,25,40,45...
+                               Accept if within half a step of a month boundary. */
+                            var step = fan.days.length > 1 ? fan.days[1] - fan.days[0] : 5;
+                            var monthDay = Math.round(day / 21);
+                            var remainder = Math.abs(day - monthDay * 21);
+                            if (monthDay > 0 && monthDay <= 12 && remainder <= step / 2) return 'M' + monthDay;
+                            return '';
                         },
                     },
-                    title: {
-                        display: true,
-                        text: t('mc-days-axis'),
-                        color: '#8f96ad',
-                    },
+                    title: { display: false },
                 },
                 y: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
                     ticks: {
                         color: '#8f96ad',
-                        callback: value => fmt$(value),
+                        callback: function(value) { return fmt$(value); },
                     },
                 },
             },
@@ -1854,6 +1973,81 @@ async function fetchRiskData() {
         renderRiskPanel(data);
     } catch (e) {
         console.error('Risk fetch failed:', e);
+    }
+}
+
+function ultimateRiskBadgeText(status, count) {
+    if (status === 'alert') return count + ' ' + t('ultimate-risk-alerts');
+    if (status === 'clear') return t('ultimate-risk-clear-badge');
+    if (status === 'error') return t('ultimate-risk-error-badge');
+    return t('ultimate-risk-loading');
+}
+
+function renderUltimateRiskItem(item) {
+    var safeUrl = '';
+    if (item.url) {
+        try {
+            var parsed = new URL(item.url);
+            if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeUrl = item.url;
+        } catch (e) {}
+    }
+    var titleHtml = safeUrl
+        ? '<a class="ultimate-risk-link" href="' + escHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer">'
+            + escHtml(item.body || '--') + '</a>'
+        : '<span class="ultimate-risk-link">' + escHtml(item.body || '--') + '</span>';
+    var detailHtml = item.detail
+        ? '<div class="ultimate-risk-detail">' + escHtml(item.detail) + '</div>'
+        : '';
+    var keywords = Array.isArray(item.matched_keywords) ? item.matched_keywords : [];
+    var keywordsHtml = keywords.length
+        ? '<div class="ultimate-risk-keywords">' + keywords.map(function(keyword) {
+            return '<span class="ultimate-risk-keyword">' + escHtml(keyword) + '</span>';
+        }).join('') + '</div>'
+        : '';
+    return '<div class="ultimate-risk-item">'
+        + '<div class="ultimate-risk-item-head">'
+        + '<span class="ultimate-risk-source"><span class="ultimate-risk-source-dot"></span>' + escHtml(item.user || item.source || 'News') + '</span>'
+        + '<span class="ultimate-risk-time">' + escHtml(timeAgo(item.time)) + '</span>'
+        + '</div>'
+        + titleHtml
+        + detailHtml
+        + keywordsHtml
+        + '</div>';
+}
+
+function renderUltimateRiskFeed(data) {
+    lastUltimateRiskData = data || { status: 'clear', count: 0, messages: [] };
+    var listEl = document.getElementById('ultimate-risk-list');
+    var badgeEl = document.getElementById('ultimate-risk-badge');
+    if (!listEl || !badgeEl) return;
+
+    var status = lastUltimateRiskData.status || 'clear';
+    var messages = Array.isArray(lastUltimateRiskData.messages) ? lastUltimateRiskData.messages : [];
+    badgeEl.textContent = ultimateRiskBadgeText(status, messages.length);
+    badgeEl.className = 'ultimate-risk-badge ' + (
+        status === 'alert' ? 'alert' :
+        status === 'error' ? 'error' :
+        status === 'clear' ? 'clear' : 'loading'
+    );
+
+    if (!messages.length) {
+        var emptyKey = status === 'error' ? 'ultimate-risk-error-text' : 'ultimate-risk-clear-text';
+        listEl.innerHTML = '<div class="ultimate-risk-empty">' + escHtml(t(emptyKey)) + '</div>';
+        return;
+    }
+
+    listEl.innerHTML = messages.map(renderUltimateRiskItem).join('');
+}
+
+async function fetchUltimateRiskNews() {
+    try {
+        var res = await fetch('/api/ultimate-risk-news');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var data = await res.json();
+        renderUltimateRiskFeed(data);
+    } catch (e) {
+        console.error('Ultimate risk fetch failed:', e);
+        renderUltimateRiskFeed({ status: 'error', count: 0, messages: [] });
     }
 }
 
@@ -2819,6 +3013,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchAll();
     fetchCycleLog();
     fetchRiskData();
+    fetchUltimateRiskNews();
     fetchMonteCarlo();
 
     sfInitFilters();
@@ -2827,6 +3022,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchFundComparison();
     setInterval(fetchSocialFeed, 300000);
     setInterval(fetchRiskData, 300000);
+    setInterval(fetchUltimateRiskNews, 300000);
     setInterval(fetchMonteCarlo, 300000);
     setInterval(function() { fetchAll(); fetchCycleLog(); if (!_startupRetryTimer) countdownSec = 30; }, REFRESH_MS);
     setInterval(function() {
@@ -3554,6 +3750,9 @@ function refreshDashboard() {
         }
         updateUniverse(d.universe, posDict);
         sfRender();
+    }
+    if (lastUltimateRiskData) {
+        renderUltimateRiskFeed(lastUltimateRiskData);
     }
 }
 

@@ -161,6 +161,13 @@ var TRANSLATIONS = {
     'risk-high-label': 'ALTO',
     'risk-extreme-label': 'EXTREMO',
     'risk-positions-label': 'posiciones',
+    'ultimate-risk-subtitle': 'Solo titulares que apuntan a riesgo extremo o sistémico para los mercados',
+    'ultimate-risk-loading': 'Escaneando...',
+    'ultimate-risk-alerts': 'alertas',
+    'ultimate-risk-clear-badge': 'Sin alertas',
+    'ultimate-risk-clear-text': 'No se detectan titulares recientes de riesgo sistémico extremo.',
+    'ultimate-risk-error-badge': 'Sin feed',
+    'ultimate-risk-error-text': 'No pude cargar el feed de riesgo extremo en este momento.',
     'mc-title': 'Proyección 1 Año',
     'mc-median-return': 'Retorno Mediano',
     'mc-outcome-range': 'Rango 5-95%',
@@ -170,6 +177,7 @@ var TRANSLATIONS = {
     'mc-source-backtest': 'BACKTEST',
     'mc-day-prefix': 'Día',
     'mc-days-axis': 'Días',
+    'mc-start-label': 'Hoy',
 
     // Social Feed
     'sf-title':          'Noticias del Portfolio',
@@ -473,6 +481,13 @@ var TRANSLATIONS = {
     'risk-high-label': 'HIGH',
     'risk-extreme-label': 'EXTREME',
     'risk-positions-label': 'positions',
+    'ultimate-risk-subtitle': 'Only headlines pointing to extreme or systemic market risk',
+    'ultimate-risk-loading': 'Scanning...',
+    'ultimate-risk-alerts': 'alerts',
+    'ultimate-risk-clear-badge': 'No alerts',
+    'ultimate-risk-clear-text': 'No recent headlines suggest extreme systemic market stress.',
+    'ultimate-risk-error-badge': 'Feed offline',
+    'ultimate-risk-error-text': 'The extreme-risk feed is unavailable right now.',
     'mc-title': '1-Year Projection',
     'mc-median-return': 'Median Return',
     'mc-outcome-range': '5-95% Range',
@@ -482,6 +497,7 @@ var TRANSLATIONS = {
     'mc-source-backtest': 'BACKTEST',
     'mc-day-prefix': 'Day',
     'mc-days-axis': 'Days',
+    'mc-start-label': 'Today',
 
     // Social Feed
     'sf-title':          'Portfolio News',

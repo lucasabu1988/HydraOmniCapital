@@ -201,15 +201,17 @@ class COMPASSMonteCarlo:
         }
 
     def _fan_chart(self):
-        percentiles = np.percentile(self.paths, [5, 25, 50, 75, 95], axis=0)
+        percentiles = np.percentile(self.paths, [5, 10, 25, 50, 75, 90, 95], axis=0)
         days = [idx * self.cycle_days for idx in range(self.paths.shape[1])]
         return {
             'days': days,
             'p5': [round(float(value), 2) for value in percentiles[0]],
-            'p25': [round(float(value), 2) for value in percentiles[1]],
-            'p50': [round(float(value), 2) for value in percentiles[2]],
-            'p75': [round(float(value), 2) for value in percentiles[3]],
-            'p95': [round(float(value), 2) for value in percentiles[4]],
+            'p10': [round(float(value), 2) for value in percentiles[1]],
+            'p25': [round(float(value), 2) for value in percentiles[2]],
+            'p50': [round(float(value), 2) for value in percentiles[3]],
+            'p75': [round(float(value), 2) for value in percentiles[4]],
+            'p90': [round(float(value), 2) for value in percentiles[5]],
+            'p95': [round(float(value), 2) for value in percentiles[6]],
         }
 
     def _summary(self):

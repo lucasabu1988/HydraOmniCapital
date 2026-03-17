@@ -99,7 +99,7 @@ def test_montecarlo_run_all_returns_expected_summary_shape(tmp_path, monkeypatch
 
     assert summary['seed'] == 666
     assert summary['source'] == 'live_cycle_log'
-    assert set(summary['fan_chart'].keys()) == {'days', 'p5', 'p25', 'p50', 'p75', 'p95'}
+    assert set(summary['fan_chart'].keys()) == {'days', 'p5', 'p10', 'p25', 'p50', 'p75', 'p90', 'p95'}
     assert len(summary['fan_chart']['days']) == len(summary['fan_chart']['p50'])
     assert 'median_outcome' in summary['summary']
     assert 'prob_gain_10_pct' in summary['summary']
@@ -201,7 +201,7 @@ def test_montecarlo_fan_chart_returns_expected_percentile_arrays(tmp_path, monke
 
     fan = mc._fan_chart()
 
-    assert set(fan) == {'days', 'p5', 'p25', 'p50', 'p75', 'p95'}
+    assert set(fan) == {'days', 'p5', 'p10', 'p25', 'p50', 'p75', 'p90', 'p95'}
     assert fan['days'] == [0, 5, 10]
     assert fan['p50'][0] == 100000.0
     assert len(fan['p5']) == 3

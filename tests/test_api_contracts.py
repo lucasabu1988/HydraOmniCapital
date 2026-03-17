@@ -67,6 +67,8 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._montecarlo_cache_signature = None
     dashboard._risk_cache = None
     dashboard._risk_cache_time = None
+    dashboard._ultimate_risk_cache = None
+    dashboard._ultimate_risk_cache_time = None
     dashboard._cloud_engine = None
     dashboard._cloud_engine_thread = None
     dashboard._cloud_engine_started = False
@@ -160,9 +162,11 @@ def test_api_montecarlo_contract_shape(client, monkeypatch):
         'fan_chart': {
             'days': [0, 5],
             'p5': [100000.0, 98000.0],
+            'p10': [100000.0, 98800.0],
             'p25': [100000.0, 99500.0],
             'p50': [100000.0, 101000.0],
             'p75': [100000.0, 102500.0],
+            'p90': [100000.0, 103500.0],
             'p95': [100000.0, 104000.0],
         },
         'summary': {'median_outcome': 101000.0},
@@ -185,7 +189,7 @@ def test_api_montecarlo_contract_shape(client, monkeypatch):
 
     assert response.status_code == 200
     data = response.get_json()
-    assert set(data['fan_chart']) == {'days', 'p5', 'p25', 'p50', 'p75', 'p95'}
+    assert set(data['fan_chart']) == {'days', 'p5', 'p10', 'p25', 'p50', 'p75', 'p90', 'p95'}
     assert isinstance(data['summary'], dict)
     assert data['seed'] == 666
 
@@ -210,3 +214,29 @@ def test_api_health_contract_exposes_top_level_aliases(client):
     assert isinstance(payload['price_freshness'], float)
     assert payload['engine_running'] is True
     assert payload['price_freshness'] < 60
+
+
+def test_api_ultimate_risk_news_contract_shape(client, monkeypatch):
+    monkeypatch.setattr(
+        dashboard,
+        'fetch_ultimate_risk_news',
+        lambda: [{
+            'body': 'Liquidity crisis spreads through funding markets',
+            'url': 'https://example.com/liquidity',
+            'time': '2026-03-16T12:00:00Z',
+            'user': 'Reuters',
+            'source': 'google',
+            'matched_keywords': ['liquidity crisis'],
+            'risk_score': 7,
+        }],
+    )
+    dashboard._ultimate_risk_cache_time = datetime.now()
+
+    response = client.get('/api/ultimate-risk-news')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload['status'], str)
+    assert isinstance(payload['count'], int)
+    assert isinstance(payload['messages'], list)
+    assert isinstance(payload['messages'][0]['matched_keywords'], list)
