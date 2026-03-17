@@ -12,6 +12,24 @@ def make_history(last_close, base_close=100.0):
 
 class TestCatalystSignals:
 
+    def test_all_trend_assets_above_sma200_are_returned_in_config_order(self):
+        holdings = catalyst.compute_trend_holdings({
+            'TLT': make_history(110.0),
+            'GLD': make_history(110.0),
+            'DBC': make_history(110.0),
+        })
+
+        assert holdings == catalyst.CATALYST_TREND_ASSETS
+
+    def test_one_trend_asset_below_sma200_returns_only_remaining_assets(self):
+        holdings = catalyst.compute_trend_holdings({
+            'TLT': make_history(110.0),
+            'GLD': make_history(90.0),
+            'DBC': make_history(110.0),
+        })
+
+        assert holdings == ['TLT', 'DBC']
+
     def test_tlt_signal_includes_only_when_above_sma200(self):
         above = catalyst.compute_trend_holdings({
             'TLT': make_history(110.0),
@@ -92,6 +110,14 @@ class TestCatalystSignals:
         assert holdings == []
         assert [target['symbol'] for target in targets] == ['GLD']
 
+    def test_missing_historical_data_is_skipped_gracefully(self):
+        holdings = catalyst.compute_trend_holdings({
+            'TLT': make_history(110.0),
+            'GLD': make_history(110.0),
+        })
+
+        assert holdings == ['TLT', 'GLD']
+
     def test_capital_is_allocated_across_active_signals_using_catalyst_weights(self):
         budget = 30_000.0
         hist_data = {
@@ -112,6 +138,20 @@ class TestCatalystSignals:
         assert values['TLT'] / budget == pytest.approx(0.22233333333333333)
         assert values['DBC'] / budget == pytest.approx(0.22233333333333333)
         assert values['GLD'] / budget == pytest.approx(0.5553333333333333)
+
+    def test_target_allocations_sum_to_budget_with_round_friendly_prices(self):
+        budget = 30_000.0
+        hist_data = {
+            'TLT': make_history(110.0),
+            'GLD': make_history(110.0),
+            'DBC': make_history(110.0),
+        }
+        current_prices = {'TLT': 10.0, 'GLD': 10.0, 'DBC': 10.0}
+
+        targets = catalyst.compute_catalyst_targets(hist_data, budget, current_prices)
+        total_allocated = sum(target['target_value'] for target in targets)
+
+        assert total_allocated / budget == pytest.approx(1.0)
 
     def test_zero_price_ticker_is_skipped(self):
         """TLT with price=0 should be skipped; GLD and DBC allocated normally."""
@@ -146,3 +186,15 @@ class TestCatalystSignals:
         targets = catalyst.compute_catalyst_targets(hist_data, budget, current_prices)
         # Only gold allocation, no trend positions
         assert all(t['sub_strategy'] == 'gold' for t in targets)
+
+    def test_zero_budget_returns_no_non_zero_targets(self):
+        hist_data = {
+            'TLT': make_history(110.0),
+            'GLD': make_history(110.0),
+            'DBC': make_history(110.0),
+        }
+        current_prices = {'TLT': 10.0, 'GLD': 10.0, 'DBC': 10.0}
+
+        targets = catalyst.compute_catalyst_targets(hist_data, 0.0, current_prices)
+
+        assert targets == []
