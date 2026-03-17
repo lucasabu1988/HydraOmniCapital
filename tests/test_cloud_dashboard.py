@@ -14,6 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import compass_dashboard as local_dashboard
 import compass_dashboard_cloud as dashboard
 
 
@@ -112,6 +113,14 @@ def _except_audit(path):
     return bare, missing_logs
 
 
+def _route_paths(app):
+    return {
+        rule.rule
+        for rule in app.url_map.iter_rules()
+        if rule.endpoint != 'static'
+    }
+
+
 class FakeResponse:
     def __init__(self, status_code, payload=None, text=''):
         self.status_code = status_code
@@ -184,6 +193,11 @@ def isolate_dashboard(monkeypatch, tmp_path):
 @pytest.fixture
 def client():
     return dashboard.app.test_client()
+
+
+@pytest.mark.parametrize('route', sorted(_route_paths(dashboard.app)))
+def test_local_dashboard_exposes_all_cloud_routes(route):
+    assert route in _route_paths(local_dashboard.app)
 
 
 def test_api_state_returns_offline_when_state_missing(client):

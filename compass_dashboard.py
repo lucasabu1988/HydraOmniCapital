@@ -3363,6 +3363,7 @@ def api_ml_diagnostics():
         return jsonify({'phase': 0, 'error': str(e)}), 200
 
 
+@app.route('/api/ml')
 @app.route('/api/ml-learning')
 def api_ml_learning():
     """Return ML learning log entries, insights, and interpretation."""
@@ -3520,6 +3521,7 @@ def api_ml_learning():
 
 
 @app.route('/api/agent-scratchpad')
+@app.route('/api/agent/scratchpad')
 def api_agent_scratchpad():
     """Return today's HYDRA agent scratchpad entries."""
     sp_dir = os.path.join('state', 'agent_scratchpad')
