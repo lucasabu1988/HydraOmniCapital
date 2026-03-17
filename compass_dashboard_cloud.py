@@ -3670,20 +3670,34 @@ def _run_cloud_engine():
 
 def _ensure_cloud_engine():
     """Start the cloud engine thread once. Uses a file lock so only one
-    gunicorn worker runs the engine (avoids duplicate trades)."""
+    gunicorn worker runs the engine (avoids duplicate trades).
+    Also recovers from dead threads by reclaiming the lock."""
     global _cloud_engine_started, _cloud_engine_thread
-    if _cloud_engine_started:
-        return
 
     if AGENT_MODE:
         _cloud_engine_started = True
-        logger.info("AGENT_MODE=true — cloud engine disabled (Worker is sole state writer)")
         return
 
     if SHOWCASE_MODE:
         _cloud_engine_started = True
-        logger.info("Showcase mode — engine disabled (set HYDRA_MODE=live to enable)")
         return
+
+    # If we already started the thread, check if it's still alive
+    if _cloud_engine_started:
+        if _cloud_engine_thread and _cloud_engine_thread.is_alive():
+            return  # Thread is healthy, nothing to do
+        # Thread died — reset and try to reclaim
+        if _cloud_engine_thread and not _cloud_engine_thread.is_alive():
+            logger.warning("Cloud engine thread died — attempting restart")
+            _cloud_engine_started = False
+            _cloud_engine_thread = None
+            lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
+            try:
+                os.unlink(lock_file)
+            except OSError:
+                pass
+        else:
+            return  # This worker doesn't own the engine
 
     # File-based lock: first worker to create the file wins
     lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
@@ -3694,10 +3708,28 @@ def _ensure_cloud_engine():
         os.close(fd)
         _cloud_engine_started = True
     except FileExistsError:
-        # Another worker already claimed the engine
-        _cloud_engine_started = True
-        logger.info("Cloud engine already running in another worker, skipping")
-        return
+        # Check if the owning PID is still alive
+        try:
+            with open(lock_file, 'r') as f:
+                owner_pid = int(f.read().strip())
+            # On Linux/Render, check if PID exists
+            os.kill(owner_pid, 0)
+            # PID is alive — another worker owns the engine
+            _cloud_engine_started = True
+            logger.info("Cloud engine running in worker %s, skipping", owner_pid)
+            return
+        except (ValueError, OSError, ProcessLookupError):
+            # Stale lock — owner PID is dead, reclaim
+            logger.warning("Stale engine lock (dead PID) — reclaiming")
+            try:
+                os.unlink(lock_file)
+                fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, str(os.getpid()).encode())
+                os.close(fd)
+                _cloud_engine_started = True
+            except OSError:
+                _cloud_engine_started = True
+                return
     except OSError as e:
         _engine_status['error'] = f'Engine lock acquisition failed: {e}'
         logger.error('Cloud engine lock acquisition failed: %s', e, exc_info=True)
