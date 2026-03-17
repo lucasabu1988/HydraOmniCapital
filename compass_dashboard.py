@@ -125,6 +125,11 @@ MARKET_CLOSE = dtime(16, 0)
 # SPY benchmark: cached start price for live test period return
 _spy_start_price = None
 
+# Portfolio metrics memoization cache (30s TTL + state file mtime invalidation)
+_metrics_cache = None
+_metrics_cache_time = None
+_metrics_cache_mtime = None
+
 
 # Broad pool (must match omnicapital_live.py)
 BROAD_POOL = [
@@ -943,7 +948,31 @@ def _compute_real_trading_day(state: dict) -> int:
 
 
 def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
-    """Compute portfolio-level dashboard metrics."""
+    global _metrics_cache, _metrics_cache_time, _metrics_cache_mtime
+
+    now = time_module.time()
+    try:
+        current_mtime = os.path.getmtime(STATE_FILE)
+    except OSError:
+        current_mtime = None
+
+    if (_metrics_cache is not None
+            and _metrics_cache_time is not None
+            and now - _metrics_cache_time < 30
+            and current_mtime is not None
+            and _metrics_cache_mtime == current_mtime):
+        return _metrics_cache
+
+    result = _compute_portfolio_metrics_impl(state, prices)
+
+    _metrics_cache = result
+    _metrics_cache_time = now
+    _metrics_cache_mtime = current_mtime
+
+    return result
+
+
+def _compute_portfolio_metrics_impl(state: dict, prices: Dict[str, float]) -> dict:
     portfolio_value = state.get('portfolio_value', 0)
     peak_value = state.get('peak_value', 0)
     cash = state.get('cash', 0)
@@ -3416,6 +3445,9 @@ def api_agent_scratchpad():
     sp_dir = os.path.join('state', 'agent_scratchpad')
     today = datetime.now().strftime('%Y-%m-%d')
     day = request.args.get('date', today)
+    err = _validate_param(day, r'^\d{4}-\d{2}-\d{2}$', 'date')
+    if err:
+        return err
     entries = []
     path = os.path.join(sp_dir, f'{day}.jsonl')
     if os.path.exists(path):

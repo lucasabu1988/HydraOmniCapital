@@ -3408,6 +3408,9 @@ def api_agent_scratchpad():
     """Return HYDRA agent scratchpad entries."""
     today = datetime.now().strftime('%Y-%m-%d')
     day = request.args.get('date', today)
+    err = _validate_param(day, r'^\d{4}-\d{2}-\d{2}$', 'date')
+    if err:
+        return err
     sp_dir = os.path.join(STATE_DIR, 'agent_scratchpad')
     sp_path = os.path.join(sp_dir, f'{day}.jsonl')
     entries = []

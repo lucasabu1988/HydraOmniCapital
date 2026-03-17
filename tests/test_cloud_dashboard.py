@@ -108,12 +108,15 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._montecarlo_cache_signature = None
     dashboard._risk_cache = None
     dashboard._risk_cache_time = None
+    dashboard._data_quality_cache = None
+    dashboard._data_quality_cache_time = None
     dashboard._equity_df = None
     dashboard._spy_df = None
     dashboard._cloud_engine = None
     dashboard._cloud_engine_thread = None
     dashboard._cloud_engine_started = False
     dashboard._self_ping_started = False
+    dashboard.LOG_DIR = 'logs'
     dashboard._engine_status = {
         'running': False,
         'started_at': None,
@@ -248,6 +251,26 @@ def test_api_cycle_log_returns_closed_cycles(client):
     assert response.get_json()[0]['status'] == 'closed'
 
 
+def test_api_logs_returns_filtered_recent_entries(client):
+    log_path = Path('logs') / f"compass_live_{datetime.now().strftime('%Y%m%d')}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text(
+        "\n".join([
+            '2026-03-16 09:30:00 - INFO - Engine started',
+            '2026-03-16 09:31:00 - INFO - \"GET /api/state HTTP/1.1\" 200 -',
+            '2026-03-16 09:32:00 - WARNING - Risk spike detected',
+        ]) + "\n",
+        encoding='utf-8',
+    )
+
+    response = client.get('/api/logs')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert [item['message'] for item in payload['logs']] == ['Engine started', 'Risk spike detected']
+    assert payload['logs'][1]['level'] == 'WARNING'
+
+
 def test_api_equity_returns_error_without_backtest_data(client):
     response = client.get('/api/equity')
 
@@ -279,6 +302,49 @@ def test_api_trade_analytics_returns_cached_payload(client):
 
     assert response.status_code == 200
     assert response.get_json()['profit_factor'] == 1.8
+
+
+def test_api_data_quality_runs_pipeline_and_caches_result(client, monkeypatch):
+    calls = {'count': 0}
+
+    class FakeDataPipeline:
+        def __init__(self):
+            calls['count'] += 1
+
+        def run_all(self):
+            return {'score': 97, 'checks': {'prices': 'ok'}}
+
+    monkeypatch.setitem(
+        sys.modules,
+        'compass_data_pipeline',
+        types.SimpleNamespace(COMPASSDataPipeline=FakeDataPipeline),
+    )
+
+    first = client.get('/api/data-quality')
+    second = client.get('/api/data-quality')
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.get_json() == {'score': 97, 'checks': {'prices': 'ok'}}
+    assert second.get_json() == {'score': 97, 'checks': {'prices': 'ok'}}
+    assert calls['count'] == 1
+
+
+def test_api_data_quality_returns_error_when_pipeline_fails(client, monkeypatch):
+    class BrokenDataPipeline:
+        def run_all(self):
+            raise RuntimeError('pipeline boom')
+
+    monkeypatch.setitem(
+        sys.modules,
+        'compass_data_pipeline',
+        types.SimpleNamespace(COMPASSDataPipeline=BrokenDataPipeline),
+    )
+
+    response = client.get('/api/data-quality')
+
+    assert response.status_code == 200
+    assert response.get_json() == {'error': 'pipeline boom'}
 
 
 def test_api_trade_analytics_returns_error_on_failure(client, monkeypatch):
@@ -814,6 +880,69 @@ def test_api_health_reports_healthy_when_engine_running_and_prices_fresh(client)
     assert payload['portfolio']['num_positions'] == 1
 
 
+def test_api_overlay_status_prefers_live_cloud_engine_over_state_file(client):
+    write_json(Path('state/compass_state_latest.json'), {
+        'overlay': {
+            'available': True,
+            'capital_scalar': 0.95,
+            'per_overlay': {'bso': 0.95, 'm2': 0.95, 'fomc': 0.95},
+            'diagnostics': {'credit_filter': {'hy_bps': 350, 'excluded': ['Energy']}},
+        }
+    })
+    dashboard._cloud_engine = types.SimpleNamespace(
+        _overlay_available=True,
+        _overlay_result={
+            'capital_scalar': 0.55,
+            'per_overlay_scalars': {'bso': 0.5, 'm2': 0.7, 'fomc': 1.0},
+            'position_floor': 1,
+            'diagnostics': {'credit_filter': {'hy_bps': 610, 'excluded': ['Financials']}},
+        },
+    )
+
+    response = client.get('/api/overlay-status')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['capital_scalar'] == 0.55
+    assert payload['scalar_label'] == 'Stressed'
+    assert payload['per_overlay']['bso'] == 0.5
+    assert payload['credit_filter']['hy_bps'] == 610
+    assert payload['credit_filter']['excluded_sectors'] == ['Financials']
+
+
+def test_api_agent_scratchpad_supports_alias_and_date_query(client):
+    scratchpad_dir = Path('state/agent_scratchpad')
+    scratchpad_dir.mkdir(parents=True, exist_ok=True)
+    write_jsonl(scratchpad_dir / '2026-03-15.jsonl', [{'note': 'older'}])
+    write_jsonl(scratchpad_dir / '2026-03-16.jsonl', [{'note': 'latest'}])
+
+    response = client.get('/api/agent-scratchpad?date=2026-03-15')
+    alias_response = client.get('/api/agent/scratchpad?date=2026-03-15')
+
+    assert response.status_code == 200
+    assert alias_response.status_code == 200
+    assert response.get_json() == alias_response.get_json()
+    payload = response.get_json()
+    assert payload['date'] == '2026-03-15'
+    assert payload['entries'] == [{'note': 'older'}]
+    assert payload['available_dates'][:2] == ['2026-03-16', '2026-03-15']
+
+
+def test_api_agent_heartbeat_reports_alive_status(client):
+    write_json(Path('state/agent_heartbeat.json'), {
+        'ts': datetime.now().isoformat(),
+        'agent': 'hydra',
+    })
+
+    response = client.get('/api/agent-heartbeat')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['alive'] is True
+    assert payload['agent'] == 'hydra'
+    assert payload['age_seconds'] <= 1
+
+
 def test_api_health_degrades_when_price_cache_is_stale(client):
     state = make_state()
     write_json(Path('state/compass_state_latest.json'), state)
@@ -1111,3 +1240,263 @@ def test_execution_stats_returns_200_with_expected_keys(client, tmp_path):
     assert 'stale_orders_cancelled' in data
     assert data['total_orders'] == 0
     assert data['fill_rate'] == 0.0
+
+
+# ============================================================================
+# Ultimate Risk News — expanded coverage
+# ============================================================================
+
+
+def test_ultimate_risk_dedup_same_headline_different_sources(monkeypatch):
+    dashboard._ultimate_risk_cache = None
+    dashboard._ultimate_risk_cache_time = None
+
+    shared_item_google = {
+        'body': 'Stock market crash sends S&P down 7%',
+        'url': 'https://example.com/crash-story',
+        'time': '2026-03-16T10:00:00Z',
+        'user': 'Reuters',
+        'source': 'google',
+        'matched_keywords': ['stock market crash'],
+        'risk_score': 6,
+    }
+    shared_item_mw = {
+        'body': 'Stock market crash sends S&P down 7%',
+        'url': 'https://example.com/crash-story',
+        'time': '2026-03-16T10:00:00Z',
+        'user': 'MarketWatch',
+        'source': 'marketwatch',
+        'matched_keywords': ['stock market crash'],
+        'risk_score': 6,
+    }
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_google_ultimate_risk_news',
+        lambda max_per_query=3: [shared_item_google],
+    )
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_marketwatch_ultimate_risk_news',
+        lambda max_items=8: [shared_item_mw],
+    )
+
+    messages = dashboard.fetch_ultimate_risk_news()
+
+    urls = [m['url'] for m in messages]
+    assert urls.count('https://example.com/crash-story') == 1
+
+
+def test_ultimate_risk_partial_failure_google_errors(monkeypatch):
+    dashboard._ultimate_risk_cache = None
+    dashboard._ultimate_risk_cache_time = None
+
+    def google_explodes(max_per_query=3):
+        raise RuntimeError('Google RSS unreachable')
+
+    mw_item = {
+        'body': 'Banking crisis deepens across markets',
+        'url': 'https://mw.com/banking-crisis',
+        'time': '2026-03-16T09:00:00Z',
+        'user': 'MarketWatch',
+        'source': 'marketwatch',
+        'matched_keywords': ['banking crisis'],
+        'risk_score': 5,
+    }
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_google_ultimate_risk_news',
+        google_explodes,
+    )
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_marketwatch_ultimate_risk_news',
+        lambda max_items=8: [mw_item],
+    )
+
+    messages = dashboard.fetch_ultimate_risk_news()
+
+    assert len(messages) == 1
+    assert messages[0]['body'] == 'Banking crisis deepens across markets'
+
+
+def test_ultimate_risk_partial_failure_marketwatch_errors(monkeypatch):
+    dashboard._ultimate_risk_cache = None
+    dashboard._ultimate_risk_cache_time = None
+
+    def mw_explodes(max_items=8):
+        raise RuntimeError('MarketWatch feed down')
+
+    google_item = {
+        'body': 'Contagion fears grip wall street',
+        'url': 'https://news.google.com/contagion',
+        'time': '2026-03-16T11:00:00Z',
+        'user': 'CNBC',
+        'source': 'google',
+        'matched_keywords': ['contagion'],
+        'risk_score': 5,
+    }
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_google_ultimate_risk_news',
+        lambda max_per_query=3: [google_item],
+    )
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_marketwatch_ultimate_risk_news',
+        mw_explodes,
+    )
+
+    messages = dashboard.fetch_ultimate_risk_news()
+
+    assert len(messages) == 1
+    assert messages[0]['source'] == 'google'
+
+
+@pytest.mark.parametrize('headline', [
+    'Stock market crash sends S&P down 7%',
+    'Liquidity crisis hits funding markets overnight',
+    'Credit crisis spreads as banks face contagion',
+    'Banking crisis deepens with forced liquidation of hedge fund',
+    'Systemic risk warning issued by Fed after bank run fears',
+])
+def test_classify_ultimate_risk_true_positives(headline):
+    qualifies, matched, score = dashboard._classify_ultimate_risk_text(headline)
+    assert qualifies is True
+    assert score >= 4
+    assert len(matched) > 0
+
+
+@pytest.mark.parametrize('headline', [
+    'Apple releases new iPhone model',
+    'Tesla reports quarterly delivery numbers',
+    'Google announces new AI research paper',
+    'Netflix adds 10 million subscribers in Q4',
+    'Microsoft teams up with OpenAI on cloud services',
+])
+def test_classify_ultimate_risk_true_negatives(headline):
+    qualifies, matched, score = dashboard._classify_ultimate_risk_text(headline)
+    assert qualifies is False
+
+
+def test_ultimate_risk_cache_ttl_returns_cached(monkeypatch):
+    cached_messages = [
+        {
+            'body': 'Cached crash headline',
+            'url': 'https://example.com/cached',
+            'time': '2026-03-16T08:00:00Z',
+            'user': 'Reuters',
+            'source': 'google',
+            'matched_keywords': ['crash'],
+            'risk_score': 5,
+        }
+    ]
+    dashboard._ultimate_risk_cache = cached_messages
+    dashboard._ultimate_risk_cache_time = datetime.now()
+
+    fetch_called = []
+
+    def spy_google(max_per_query=3):
+        fetch_called.append('google')
+        return []
+
+    def spy_mw(max_items=8):
+        fetch_called.append('mw')
+        return []
+
+    monkeypatch.setattr(dashboard, '_fetch_google_ultimate_risk_news', spy_google)
+    monkeypatch.setattr(dashboard, '_fetch_marketwatch_ultimate_risk_news', spy_mw)
+
+    result = dashboard.fetch_ultimate_risk_news()
+
+    assert result == cached_messages
+    assert fetch_called == []
+
+
+def test_ultimate_risk_cache_expired_refetches(monkeypatch):
+    dashboard._ultimate_risk_cache = [{'body': 'old', 'url': 'https://old.com'}]
+    dashboard._ultimate_risk_cache_time = datetime.now() - timedelta(seconds=dashboard.ULTIMATE_RISK_CACHE_SECONDS + 10)
+
+    fresh_item = {
+        'body': 'Market crash fears escalate',
+        'url': 'https://example.com/fresh',
+        'time': '2026-03-16T12:00:00Z',
+        'user': 'Reuters',
+        'source': 'google',
+        'matched_keywords': ['market crash'],
+        'risk_score': 5,
+    }
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_google_ultimate_risk_news',
+        lambda max_per_query=3: [fresh_item],
+    )
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_marketwatch_ultimate_risk_news',
+        lambda max_items=8: [],
+    )
+
+    result = dashboard.fetch_ultimate_risk_news()
+
+    assert len(result) == 1
+    assert result[0]['body'] == 'Market crash fears escalate'
+
+
+def test_ultimate_risk_empty_results_api(client, monkeypatch):
+    monkeypatch.setattr(dashboard, 'fetch_ultimate_risk_news', lambda: [])
+    dashboard._ultimate_risk_cache_time = datetime(2026, 3, 16, 14, 0, 0)
+
+    response = client.get('/api/ultimate-risk-news')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'clear'
+    assert payload['count'] == 0
+    assert payload['messages'] == []
+
+
+def test_classify_ultimate_risk_score_threshold_filters():
+    qualifies, matched, score = dashboard._classify_ultimate_risk_text(
+        'downgrade warning for equities'
+    )
+    assert score < 4
+    assert qualifies is False
+
+
+def test_classify_ultimate_risk_keyword_without_market_context():
+    qualifies, matched, score = dashboard._classify_ultimate_risk_text(
+        'recession fears grow among economists'
+    )
+    assert qualifies is False
+
+
+def test_ultimate_risk_result_limit_cap(monkeypatch):
+    dashboard._ultimate_risk_cache = None
+    dashboard._ultimate_risk_cache_time = None
+
+    items = []
+    for i in range(12):
+        items.append({
+            'body': f'Systemic risk event number {i}',
+            'url': f'https://example.com/event-{i}',
+            'time': f'2026-03-16T{10 + i % 12:02d}:00:00Z',
+            'user': 'Reuters',
+            'source': 'google',
+            'matched_keywords': ['systemic risk'],
+            'risk_score': 10 + i,
+        })
+
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_google_ultimate_risk_news',
+        lambda max_per_query=3: items[:6],
+    )
+    monkeypatch.setattr(
+        dashboard,
+        '_fetch_marketwatch_ultimate_risk_news',
+        lambda max_items=8: items[6:],
+    )
+
+    messages = dashboard.fetch_ultimate_risk_news()
+
+    assert len(messages) <= 6

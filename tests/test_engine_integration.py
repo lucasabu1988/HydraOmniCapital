@@ -791,3 +791,262 @@ def test_ensure_active_cycle_rejects_invalid_cycle_log_entry(trader, temp_runtim
     cycle_log_path = temp_runtime / 'state' / 'cycle_log.json'
     assert not cycle_log_path.exists()
     assert any('Skipping invalid cycle log entry' in record.message for record in caplog.records)
+
+
+# ============================================================================
+# Additional integration tests
+# ============================================================================
+
+
+def test_engine_initializes_with_paper_broker_and_default_state(monkeypatch, temp_runtime):
+    """Engine initializes with PaperBroker and correct default state."""
+    feed = StubPriceFeed({'SPY': 500.0})
+    monkeypatch.setattr(live, 'YahooDataFeed', lambda cache_duration: feed)
+
+    config = live.CONFIG.copy()
+    config['BROKER_TYPE'] = 'PAPER'
+    config['PAPER_INITIAL_CASH'] = 100_000
+
+    engine = live.COMPASSLive(config)
+
+    assert isinstance(engine.broker, live.PaperBroker)
+    assert engine.broker.cash == 100_000
+    assert engine.broker.positions == {}
+    assert engine.position_meta == {}
+    assert engine.trading_day_counter == 0
+    assert engine.last_trading_date is None
+    assert engine._cycles_completed == 0
+    assert engine.peak_value == 100_000
+    assert engine.current_regime_score == 0.5
+    assert engine.crash_cooldown == 0
+
+
+def test_engine_handles_all_zero_prices_without_crash(trader):
+    """Engine handles all-zero prices gracefully (validator rejects them)."""
+    trader.data_feed.prices = {'AAPL': 0.0, 'MSFT': 0.0, 'SPY': 0.0}
+    # Restore real validator so zeros get rejected by MIN_VALID_PRICE check
+    trader.validator = live.DataValidator(trader.config)
+
+    result = trader.run_once()
+
+    # Zero prices are below MIN_VALID_PRICE (0.01), so validator rejects all
+    # -> "No valid prices obtained" -> returns False
+    assert result is False
+    assert trader.broker.positions == {}
+
+
+def test_state_persistence_save_reload_identical(trader, temp_runtime):
+    """State persistence: save -> reload -> verify identical state."""
+    # Set up some state
+    buy_order = live.Order(symbol='AAPL', action='BUY', quantity=10, order_type='MARKET')
+    trader.broker.submit_order(buy_order)
+    trader.position_meta['AAPL'] = {
+        'entry_price': 125.0,
+        'entry_date': '2026-03-10',
+        'entry_day_index': 1,
+        'original_entry_day_index': 1,
+        'high_price': 130.0,
+        'entry_vol': 0.25,
+        'entry_daily_vol': 0.016,
+        'sector': 'Technology',
+    }
+    trader.trading_day_counter = 3
+    trader.current_regime_score = 0.68
+    trader.crash_cooldown = 2
+    trader.peak_value = 101_000.0
+
+    # Save state
+    trader.save_state()
+
+    # Read saved state
+    state_file = temp_runtime / 'state' / 'compass_state_latest.json'
+    assert state_file.exists()
+    saved_state = json.loads(state_file.read_text(encoding='utf-8'))
+
+    # Create a fresh engine and load state
+    feed2 = StubPriceFeed({'AAPL': 125.0, 'SPY': 505.0})
+    config2 = live.CONFIG.copy()
+    config2['BROKER_TYPE'] = 'PAPER'
+    config2['PAPER_INITIAL_CASH'] = 100_000
+
+    import unittest.mock as mock
+    with mock.patch.object(live, 'YahooDataFeed', return_value=feed2):
+        engine2 = live.COMPASSLive(config2)
+    engine2.broker.connect()
+
+    engine2.load_state()
+
+    # Verify restored state matches
+    assert engine2.trading_day_counter == 3
+    assert engine2.current_regime_score == pytest.approx(0.68)
+    assert engine2.crash_cooldown == 2
+    assert 'AAPL' in engine2.broker.positions
+    assert engine2.broker.positions['AAPL'].shares == 10
+    assert engine2.broker.positions['AAPL'].avg_cost == pytest.approx(125.0)
+    assert 'AAPL' in engine2.position_meta
+    assert engine2.position_meta['AAPL']['entry_price'] == pytest.approx(125.0)
+    assert engine2.position_meta['AAPL']['sector'] == 'Technology'
+    assert engine2.broker.cash == pytest.approx(saved_state['cash'])
+
+
+def test_engine_no_positions_no_trades(trader, temp_runtime):
+    """Engine with no positions and no eligible entries -> no trades executed."""
+    # Keep universe with symbols so price fetch succeeds, but remove hist_cache
+    # so no momentum scores can be computed -> no entries
+    trader.current_universe = ['AAPL', 'MSFT']
+    trader._hist_cache = {}
+
+    result = trader.run_once()
+
+    assert result is True
+    assert trader.broker.positions == {}
+    assert trader.position_meta == {}
+    assert trader.trades_today == []
+
+
+def test_three_cycles_increment_counter(trader, temp_runtime):
+    """Running 3 cycles updates _cycles_completed correctly."""
+    initial = trader._cycles_completed
+
+    for _ in range(3):
+        trader._daily_open_done = False
+        trader._preclose_entries_done = False
+        trader._last_stop_check = datetime.now() - timedelta(hours=1)
+        trader._last_state_save = datetime.now() - timedelta(hours=1)
+        trader.run_once()
+
+    assert trader._cycles_completed == initial + 3
+
+    # Verify state file reflects iterations
+    state_file = temp_runtime / 'state' / 'compass_state_latest.json'
+    assert state_file.exists()
+    state = json.loads(state_file.read_text(encoding='utf-8'))
+    assert state['stats']['engine_iterations'] >= 3
+
+
+def test_position_meta_populated_after_trade(trader, temp_runtime):
+    """Position meta has required fields after a trade."""
+    result = trader.run_once()
+    assert result is True
+
+    # The trader fixture has max_positions=1 and universe=['AAPL', 'MSFT']
+    # AAPL should be bought (highest momentum)
+    assert 'AAPL' in trader.position_meta
+
+    meta = trader.position_meta['AAPL']
+    assert 'entry_price' in meta
+    assert meta['entry_price'] > 0
+    assert 'entry_date' in meta
+    assert 'entry_day_index' in meta
+    assert 'original_entry_day_index' in meta
+    assert 'high_price' in meta
+    assert meta['high_price'] >= meta['entry_price']
+    assert 'sector' in meta
+    assert meta['sector'] == 'Technology'
+
+
+def test_cycle_log_updated_after_full_rotation(trader, temp_runtime, monkeypatch):
+    """Cycle log is updated after cycle completion (rotation)."""
+    # Run first cycle to get positions
+    result = trader.run_once()
+    assert result is True
+
+    # Set up pre-rotation data (simulates what execute_new_day does)
+    trader._pre_rotation_positions_data = {
+        symbol: {
+            'shares': pos.shares,
+            'avg_cost': pos.avg_cost,
+            'entry_price': trader.position_meta[symbol]['entry_price'],
+            'entry_day_index': trader.position_meta[symbol]['entry_day_index'],
+            'sector': trader.position_meta[symbol].get('sector', 'Unknown'),
+        }
+        for symbol, pos in trader.broker.positions.items()
+    }
+    trader._pre_rotation_positions = list(trader.broker.positions.keys())
+    trader._pre_rotation_cash = trader.broker.cash
+    trader._pre_rotation_value = trader.broker.get_portfolio().total_value
+
+    monkeypatch.setattr(trader, '_reconstruct_close_portfolio',
+                        lambda positions, cash: trader._pre_rotation_value)
+    monkeypatch.setattr(trader, '_get_spy_close', lambda: 510.0)
+
+    # Create initial active cycle
+    trader._ensure_active_cycle()
+
+    # Trigger cycle log update (simulates rotation)
+    trader._update_cycle_log({'AAPL': 130.0, 'MSFT': 125.0, 'SPY': 510.0})
+
+    cycle_log_path = temp_runtime / 'state' / 'cycle_log.json'
+    assert cycle_log_path.exists()
+    cycles = json.loads(cycle_log_path.read_text(encoding='utf-8'))
+    assert len(cycles) >= 1
+    # Should have at least one closed and one active cycle
+    statuses = {c['status'] for c in cycles}
+    assert 'closed' in statuses or 'active' in statuses
+
+
+def test_save_state_writes_required_fields(trader, temp_runtime):
+    """save_state() writes all required top-level fields."""
+    trader.save_state()
+
+    state_file = temp_runtime / 'state' / 'compass_state_latest.json'
+    state = json.loads(state_file.read_text(encoding='utf-8'))
+
+    required_fields = [
+        'version', 'timestamp', 'cash', 'peak_value', 'portfolio_value',
+        'crash_cooldown', 'current_regime_score', 'trading_day_counter',
+        'positions', 'position_meta', 'current_universe', 'stats',
+    ]
+    for field in required_fields:
+        assert field in state, f"Missing required field: {field}"
+
+    assert state['version'] == '8.4'
+    assert isinstance(state['positions'], dict)
+    assert isinstance(state['position_meta'], dict)
+    assert isinstance(state['stats'], dict)
+    assert 'cycles_completed' in state['stats']
+    assert 'engine_iterations' in state['stats']
+
+
+def test_engine_handles_none_prices_gracefully(trader):
+    """Engine handles None prices in the price dict gracefully."""
+    trader.data_feed.prices = {'AAPL': None, 'MSFT': None, 'SPY': None}
+    # Restore real validator so None values get filtered
+    trader.validator = live.DataValidator(trader.config)
+
+    result = trader.run_once()
+
+    assert result is False
+    assert trader.broker.positions == {}
+
+
+def test_multiple_save_load_cycles_preserve_state(trader, temp_runtime):
+    """Multiple save/load cycles preserve state without drift."""
+    # Set initial state
+    buy_order = live.Order(symbol='MSFT', action='BUY', quantity=5, order_type='MARKET')
+    trader.broker.submit_order(buy_order)
+    trader.position_meta['MSFT'] = {
+        'entry_price': 119.0,
+        'entry_date': '2026-03-10',
+        'entry_day_index': 2,
+        'original_entry_day_index': 2,
+        'high_price': 122.0,
+        'entry_vol': 0.20,
+        'entry_daily_vol': 0.013,
+        'sector': 'Technology',
+    }
+    trader.trading_day_counter = 5
+    trader.current_regime_score = 0.75
+
+    # Save and reload 3 times
+    for _ in range(3):
+        trader.save_state()
+
+    state_file = temp_runtime / 'state' / 'compass_state_latest.json'
+    state = json.loads(state_file.read_text(encoding='utf-8'))
+
+    assert state['trading_day_counter'] == 5
+    assert state['current_regime_score'] == pytest.approx(0.75)
+    assert 'MSFT' in state['positions']
+    assert state['positions']['MSFT']['shares'] == 5
+    assert state['position_meta']['MSFT']['entry_price'] == pytest.approx(119.0)

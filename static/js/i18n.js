@@ -323,7 +323,17 @@ var TRANSLATIONS = {
     'sf-now':              'ahora',
     'ml-waiting-analysis': 'Esperando analisis...',
     'p2p-axis-return':     'RETORNO %',
-    'p2p-axis-days':       'DÍAS EN POSICIÓN'
+    'p2p-axis-days':       'DÍAS EN POSICIÓN',
+
+    // Error badges
+    'sf-error-badge':      'Error',
+    'cl-error-text':       'Error al cargar ciclos',
+    'mc-error-badge':      'ERROR',
+    'risk-error-badge':    'ERROR',
+    'ta-error-badge':      'ERROR',
+    'eq-error-badge':      'ERROR',
+    'ar-error-badge':      'ERROR',
+    'fc-error-text':       'Error al cargar comparativa de fondos'
   },
 
   en: {
@@ -643,7 +653,17 @@ var TRANSLATIONS = {
     'sf-now':              'now',
     'ml-waiting-analysis': 'Waiting for analysis...',
     'p2p-axis-return':     'RETURN %',
-    'p2p-axis-days':       'DAYS IN POSITION'
+    'p2p-axis-days':       'DAYS IN POSITION',
+
+    // Error badges
+    'sf-error-badge':      'Error',
+    'cl-error-text':       'Failed to load cycles',
+    'mc-error-badge':      'ERROR',
+    'risk-error-badge':    'ERROR',
+    'ta-error-badge':      'ERROR',
+    'eq-error-badge':      'ERROR',
+    'ar-error-badge':      'ERROR',
+    'fc-error-text':       'Failed to load fund comparison'
   }
 };
 

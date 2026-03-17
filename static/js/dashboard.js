@@ -1178,7 +1178,14 @@ async function fetchSocialFeed() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         updateSocialFeed(data);
-    } catch(e) { console.error('Social feed error:', e); }
+    } catch(e) {
+        console.error('Social feed error:', e);
+        var totalEl = document.getElementById('sf-stat-total');
+        if (totalEl) {
+            totalEl.textContent = t('sf-error-badge');
+            totalEl.style.color = 'var(--red)';
+        }
+    }
 }
 
 
@@ -1337,6 +1344,8 @@ async function fetchCycleLog() {
         tbody.innerHTML = html;
     } catch (e) {
         console.error('Cycle log error:', e);
+        const tbody = document.getElementById('cycle-log-body');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--red);text-align:center;">' + t('cl-error-text') + '</td></tr>';
     }
 }
 
@@ -1624,7 +1633,7 @@ async function fetchMonteCarlo() {
         console.error('Monte Carlo fetch failed:', e);
         const badge = document.getElementById('mc-badge');
         if (badge) {
-            badge.textContent = 'ERROR';
+            badge.textContent = t('mc-error-badge');
             badge.style.color = 'var(--red)';
             badge.style.background = 'var(--red-dim)';
         }
@@ -1973,6 +1982,12 @@ async function fetchRiskData() {
         renderRiskPanel(data);
     } catch (e) {
         console.error('Risk fetch failed:', e);
+        var badge = document.getElementById('risk-badge');
+        if (badge) {
+            badge.textContent = t('risk-error-badge');
+            badge.style.color = 'var(--red)';
+            badge.style.background = 'var(--red-dim)';
+        }
     }
 }
 
@@ -2082,6 +2097,12 @@ async function fetchTradeAnalytics() {
         renderTATable(taActiveSeg);
     } catch(e) {
         console.error('TA error:', e);
+        var badge = document.getElementById('ta-badge');
+        if (badge) {
+            badge.textContent = t('ta-error-badge');
+            badge.style.color = 'var(--red)';
+            badge.style.background = 'var(--red-dim)';
+        }
         document.getElementById('ta-table-container').innerHTML =
             '<div style="color:var(--red);font-size:12px;">Failed to load: ' + escHtml(e.message) + '</div>';
     }
@@ -2185,6 +2206,12 @@ async function fetchEquityData() {
         renderEquityAndDrawdown(data.equity, data.milestones || []);
     } catch (e) {
         console.error('Equity fetch error:', e);
+        var badge = document.getElementById('eq-badge');
+        if (badge) {
+            badge.textContent = t('eq-error-badge');
+            badge.style.color = 'var(--red)';
+            badge.style.background = 'var(--red-dim)';
+        }
     }
 }
 
@@ -2703,6 +2730,12 @@ async function fetchAnnualReturns() {
         renderAnnualReturns(data.data, data.positive_years, data.total_years);
     } catch (e) {
         console.error('Annual returns fetch error:', e);
+        var badge = document.getElementById('ar-badge');
+        if (badge) {
+            badge.textContent = t('ar-error-badge');
+            badge.style.color = 'var(--red)';
+            badge.style.background = 'var(--red-dim)';
+        }
     }
 }
 
@@ -3460,6 +3493,8 @@ async function fetchFundComparison() {
         renderFCNotes(data);
     } catch (e) {
         console.error('Fund comparison fetch failed:', e);
+        var body = document.getElementById('fc-metrics-body');
+        if (body) body.innerHTML = '<tr><td colspan="10" style="color:var(--red);text-align:center;">' + t('fc-error-text') + '</td></tr>';
     }
 }
 

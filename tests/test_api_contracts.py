@@ -10,11 +10,22 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import compass_dashboard_cloud as dashboard
+import compass_dashboard as local_dashboard
 
 
 def write_json(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding='utf-8')
+
+
+class FakeResponse:
+    def __init__(self, status_code, payload=None, text=''):
+        self.status_code = status_code
+        self._payload = payload or {}
+        self.text = text
+
+    def json(self):
+        return self._payload
 
 
 def make_state():
@@ -91,6 +102,34 @@ def isolate_dashboard(monkeypatch, tmp_path):
 @pytest.fixture
 def client():
     return dashboard.app.test_client()
+
+
+@pytest.fixture
+def local_isolate(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / 'state' / 'ml_learning').mkdir(parents=True, exist_ok=True)
+
+    local_dashboard.STATE_FILE = str(tmp_path / 'state' / 'compass_state_latest.json')
+    local_dashboard.STATE_DIR = 'state'
+    local_dashboard.LOG_DIR = 'logs'
+    local_dashboard._price_cache = {}
+    local_dashboard._prev_close_cache = {}
+    local_dashboard._price_cache_time = None
+    local_dashboard._price_fetch_timestamp = 0
+    local_dashboard._live_engine = None
+    local_dashboard._engine_status = {
+        'running': False,
+        'started_at': None,
+        'error': None,
+        'cycles': 0,
+    }
+
+    yield tmp_path
+
+
+@pytest.fixture
+def local_client():
+    return local_dashboard.app.test_client()
 
 
 def test_api_state_contract_exposes_required_top_level_fields(client, monkeypatch):
@@ -240,3 +279,115 @@ def test_api_ultimate_risk_news_contract_shape(client, monkeypatch):
     assert isinstance(payload['count'], int)
     assert isinstance(payload['messages'], list)
     assert isinstance(payload['messages'][0]['matched_keywords'], list)
+
+
+def test_local_price_debug_contract_shape(local_client, local_isolate, monkeypatch):
+    class FakeTicker:
+        def __init__(self, symbol):
+            self.fast_info = {'last_price': 123.45}
+
+    monkeypatch.setattr(local_dashboard.yf, 'Ticker', FakeTicker)
+    monkeypatch.setattr(
+        local_dashboard.http_requests,
+        'get',
+        lambda *args, **kwargs: FakeResponse(
+            200,
+            payload={'chart': {'result': [{'meta': {'regularMarketPrice': 123.45}}]}},
+        ),
+    )
+
+    response = local_client.get('/api/price-debug?symbol=AAPL')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload['server_time'], str)
+    assert isinstance(payload['has_requests'], bool)
+    assert isinstance(payload['cached_symbols'], list)
+    assert payload['showcase_mode'] is False
+    assert payload['tests']['v7_status'] == 200
+    assert payload['tests']['v8_status'] == 200
+
+
+def test_local_execution_stats_contract_shape(local_client, local_isolate):
+    write_json(Path('state/compass_state_latest.json'), {
+        **make_state(),
+        'order_history': [
+            {
+                'status': 'filled',
+                'expected_price': 100.0,
+                'fill_price': 101.0,
+            },
+            {
+                'status': 'cancelled',
+                'reason': 'stale',
+            },
+        ],
+    })
+
+    response = local_client.get('/api/execution-stats')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['total_orders'] == 2
+    assert isinstance(payload['fill_rate'], float)
+    assert isinstance(payload['avg_fill_deviation_pct'], float)
+    assert payload['stale_orders_cancelled'] == 1
+
+
+def test_local_ml_diagnostics_contract_shape(local_client, local_isolate):
+    ml_dir = Path('state/ml_learning')
+    (ml_dir / 'decisions.jsonl').write_text(
+        json.dumps({'timestamp': '2026-03-16T10:00:00', 'action': 'entry'}) + "\n",
+        encoding='utf-8',
+    )
+    (ml_dir / 'outcomes.jsonl').write_text(
+        json.dumps({'date': '2026-03-16', 'pnl': 120.0}) + "\n",
+        encoding='utf-8',
+    )
+
+    response = local_client.get('/api/ml-diagnostics')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['phase'] == 1
+    assert payload['total_decisions'] == 1
+    assert payload['total_outcomes'] == 1
+    assert payload['last_decision_date'] == '2026-03-16'
+    assert payload['files_ok'] is True
+
+
+@pytest.mark.parametrize('malicious_date', [
+    '../../../etc/passwd',
+    '2026-03-16; rm -rf /',
+    '2026-03-16\x00.evil',
+    '....//....//etc/passwd',
+    '20260316',
+    '',
+    'not-a-date',
+])
+def test_agent_scratchpad_rejects_malicious_date(client, malicious_date):
+    response = client.get(f'/api/agent-scratchpad?date={malicious_date}')
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert 'error' in payload
+
+
+@pytest.mark.parametrize('malicious_date', [
+    '../../../etc/passwd',
+    '2026-03-16; rm -rf /',
+    '2026-03-16\x00.evil',
+    '....//....//etc/passwd',
+    '20260316',
+    '',
+    'not-a-date',
+])
+def test_local_agent_scratchpad_rejects_malicious_date(local_client, local_isolate, malicious_date):
+    response = local_client.get(f'/api/agent-scratchpad?date={malicious_date}')
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert 'error' in payload
+
+
+def test_agent_scratchpad_accepts_valid_date(client):
+    response = client.get('/api/agent-scratchpad?date=2026-03-16')
+    assert response.status_code == 200
