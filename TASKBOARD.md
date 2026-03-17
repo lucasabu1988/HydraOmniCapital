@@ -805,7 +805,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 ---
 
 ### TASK-110: Pin dependency versions [PRIORITY: LOW]
-**Status:** [ ]
+**Status:** [x] Done (`e8139f5`)
 **Assigned:** Codex
 
 **Problem:** `requirements.txt` and `requirements-cloud.txt` use `>=` version specifiers allowing major version drift. `yfinance` is especially volatile — breaking changes in minor versions have caused outages before.
@@ -831,6 +831,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 
 ## Completed
 
+- `TASK-110` (`e8139f5`) Pinned the production/runtime dependencies in `requirements.txt` and `requirements-cloud.txt` to exact patch versions and added the requested `# Pinned 2026-03-17. Run pip list to verify.` header. I kept dev-only tooling (`pytest`, `pytest-cov`, `pytest-timeout`, `pre-commit`) on `>=` as requested, and resolved the two packages missing from the local interpreter by pinning them to the repo’s current working floor (`gunicorn==21.2.0`, `ib_insync==0.9.86`) instead of inventing a newer value. Verified with `python -m pip install --dry-run -r requirements-cloud.txt` and `python -m pip install --dry-run -r requirements.txt`.
 - `TASK-109` (`ef2d494`) Cleaned the runtime `state/` directory by removing all `compass_state_CORRUPTED_*.json` files present at the time of work, pruning dated backups down to the 3 most recent snapshots (`20260315`, `20260316`, `20260317`), and updating `.gitignore` to ignore future `state/compass_state_CORRUPTED_*.json` quarantines. I intentionally left `state/compass_state_latest.json` and the live/modified recent backups untouched while staging only the intended deletions so the active engine state stayed out of the commit.
 - `TASK-108` (`6e1c8b0`) Added a dependency-free toast notification system to the dashboard frontend with a fixed bottom-right container, type styling (`error`/`warning`/`info`), auto-dismiss after 5 seconds, dedupe within 10 seconds, and a hard cap of 3 visible toasts. Wired the fetch error paths in `static/js/dashboard.js` to call `showToast(...)` instead of failing silently, including the previously silent ML fetch path, and bumped the asset version strings in `dashboard.html` so the new JS/CSS actually refresh in browsers. Verified with `node --check static/js/dashboard.js` plus a local Playwright sanity check that confirmed dedupe (`1` toast for duplicate messages) and the max-visible rule (`3` toasts after firing four unique messages). Local screenshot saved to `output/playwright/task-108-toast-ui.png`.
 - `TASK-106` (`2b8c88e`) Added startup cleanup routines in `compass_dashboard_cloud.py` for legacy `data_cache/` files older than 90 days, log rotation/compaction in `logs/` (gzip after 3 days, prune compressed logs after 14 days, trim active logs above 50MB), and state hygiene that removes stale `compass_state_CORRUPTED_*.json` files while keeping only the 3 most recent dated backups. Hooked all three cleanups into `_run_cloud_engine()` before the startup sync path, and added focused tests for cache deletion, log compression/trimming, corrupted-state pruning, and startup invocation. Verified with `py_compile` and `pytest tests/test_cloud_dashboard.py -k "cleanup or run_cloud_engine" -v --no-cov`.
