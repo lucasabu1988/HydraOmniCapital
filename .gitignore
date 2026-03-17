@@ -19,6 +19,7 @@ logs/
 
 # State backups
 state/compass_state_*_backup*.json
+state/compass_state_CORRUPTED_*.json
 
 # Secrets
 omnicapital_config.json
