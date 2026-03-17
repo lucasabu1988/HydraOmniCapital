@@ -1491,21 +1491,33 @@ class COMPASSLive:
                     exit_reason = 'trailing_stop'
 
             # 4. Universe rotation (only if no stop already triggered)
-            if exit_reason is None and symbol not in self.current_universe:
+            #    Never rotate out EFA or Catalyst — they're managed by their own pillars
+            is_pillar = (symbol == EFA_SYMBOL
+                         or meta.get('_efa')
+                         or meta.get('_catalyst')
+                         or (_catalyst_available and symbol in CATALYST_TREND_ASSETS)
+                         or (_catalyst_available and symbol == CATALYST_GOLD_SYMBOL))
+            if exit_reason is None and symbol not in self.current_universe and not is_pillar:
                 exit_reason = 'universe_rotation'
 
             # 5. Regime reduce (excess COMPASS positions)
             #    Only sell one per check_position_exits call to prevent double-sell
-            #    Exclude Catalyst positions from count and worst-performer search
-            compass_count = sum(1 for s in positions if s in self.position_meta
-                                and not self.position_meta.get(s, {}).get('_catalyst')
-                                and s != EFA_SYMBOL)
+            #    Exclude Catalyst, EFA, and Rattlesnake positions from count
+            def _is_compass_position(sym):
+                m = self.position_meta.get(sym, {})
+                return (sym in self.position_meta
+                        and not m.get('_catalyst')
+                        and not m.get('_efa')
+                        and sym != EFA_SYMBOL
+                        and not any(rp['symbol'] == sym for rp in self.rattle_positions))
+
+            compass_count = sum(1 for s in positions if _is_compass_position(s))
             if exit_reason is None and compass_count > max_positions and not self._regime_reduce_done:
                 pos_returns = {}
                 for s, p in positions.items():
                     pr = prices.get(s)
-                    m = self.position_meta.get(s)
-                    if pr and m and not m.get('_catalyst') and s != EFA_SYMBOL:
+                    if pr and _is_compass_position(s):
+                        m = self.position_meta[s]
                         pos_returns[s] = (pr - m['entry_price']) / m['entry_price']
                 if pos_returns:
                     worst = min(pos_returns, key=pos_returns.get)
@@ -1669,8 +1681,15 @@ class COMPASSLive:
             logger.warning("New entries blocked (no SPY data for regime)")
             return
         positions = self.broker.get_positions()
-        # HYDRA: Only count COMPASS positions (those with position_meta)
-        compass_positions = {s: p for s, p in positions.items() if s in self.position_meta}
+        # HYDRA: Only count COMPASS positions (exclude EFA, Catalyst, Rattlesnake)
+        compass_positions = {
+            s: p for s, p in positions.items()
+            if s in self.position_meta
+            and not self.position_meta.get(s, {}).get('_catalyst')
+            and not self.position_meta.get(s, {}).get('_efa')
+            and s != EFA_SYMBOL
+            and not any(rp['symbol'] == s for rp in self.rattle_positions)
+        }
         max_positions = self.get_max_positions()
         needed = max_positions - len(compass_positions)
 
@@ -2115,11 +2134,23 @@ class COMPASSLive:
 
         self._catalyst_day_counter = 0
 
+        # Augment prices with historical close for Catalyst assets
+        # (live feed may not include TLT/GLD/DBC in validated batch)
+        catalyst_prices = dict(prices)
+        for cat_sym in CATALYST_TREND_ASSETS + [CATALYST_GOLD_SYMBOL]:
+            if cat_sym not in catalyst_prices or catalyst_prices[cat_sym] <= 0:
+                hist = self._catalyst_hist.get(cat_sym)
+                if hist is not None and len(hist) > 0:
+                    fallback = float(hist['Close'].iloc[-1])
+                    if fallback > 0:
+                        catalyst_prices[cat_sym] = fallback
+                        logger.info(f"Catalyst: using historical close for {cat_sym}: ${fallback:.2f}")
+
         # Compute targets
         targets = compute_catalyst_targets(
             self._catalyst_hist,
             self.hydra_capital.catalyst_account,
-            prices,
+            catalyst_prices,
         )
         target_map = {t['symbol']: t for t in targets}
 
@@ -2137,8 +2168,8 @@ class COMPASSLive:
                 # Sell all shares of this catalyst position
                 order = Order(symbol=sym, action='SELL',
                               quantity=cp['shares'], order_type='MARKET',
-                              decision_price=prices.get(sym, pos.avg_cost))
-                result = self._submit_order(order, prices)
+                              decision_price=catalyst_prices.get(sym, pos.avg_cost))
+                result = self._submit_order(order, catalyst_prices)
                 if result.status == 'FILLED':
                     pnl = (result.filled_price - cp['entry_price']) * cp['shares']
                     logger.info(f"CATALYST SELL {sym}: {cp['shares']} shares @ ${result.filled_price:.2f} (PnL: ${pnl:+,.0f})")
@@ -2162,8 +2193,9 @@ class COMPASSLive:
             if needed <= 0:
                 continue
 
-            price = prices.get(sym, 0)
+            price = catalyst_prices.get(sym, 0)
             if price <= 0:
+                logger.warning(f"Catalyst: cannot buy {sym} — no price available")
                 continue
 
             available_cash = self.broker.get_portfolio().cash
@@ -2176,7 +2208,7 @@ class COMPASSLive:
             order = Order(symbol=sym, action='BUY',
                           quantity=needed, order_type='MARKET',
                           decision_price=price)
-            result = self._submit_order(order, prices)
+            result = self._submit_order(order, catalyst_prices)
             if result.status == 'FILLED':
                 fill_price = result.filled_price
                 logger.info(f"CATALYST BUY {sym}: {needed} shares @ ${fill_price:.2f} ({target['sub_strategy']})")
@@ -2399,10 +2431,16 @@ class COMPASSLive:
             else:
                 return
 
-        # Check if COMPASS needs capital
+        # Check if COMPASS needs capital (exclude EFA, Catalyst, Rattlesnake)
         max_positions = self.get_max_positions()
-        compass_positions = {s: p for s, p in positions.items()
-                             if s in self.position_meta and s != EFA_SYMBOL}
+        compass_positions = {
+            s: p for s, p in positions.items()
+            if s in self.position_meta
+            and not self.position_meta.get(s, {}).get('_catalyst')
+            and not self.position_meta.get(s, {}).get('_efa')
+            and s != EFA_SYMBOL
+            and not any(rp['symbol'] == s for rp in self.rattle_positions)
+        }
         compass_needed = max_positions - len(compass_positions)
 
         # Check if Rattlesnake needs capital (has signals pending)
