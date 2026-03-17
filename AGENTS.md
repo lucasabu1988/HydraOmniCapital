@@ -222,6 +222,82 @@ Each has a clear scope, acceptance criteria, and relevant file pointers.
 
 ---
 
+## Challenge 7: Engine Lifecycle Robustness & Health Monitoring (HIGH)
+
+**Problem**: The cloud engine thread (`_run_cloud_engine`) dies silently and the dashboard serves stale data indefinitely. The recent fix in `_ensure_cloud_engine()` adds thread-alive checks and stale lock recovery, but the system still lacks:
+1. **No health endpoint** — there's no way to externally verify if the engine is alive and processing cycles
+2. **No alerting** — nobody knows the engine died until someone manually checks the dashboard
+3. **Silent data staleness** — the dashboard happily serves hours/days-old prices with no visible warning
+4. **No engine death logging** — when the `while True` loop in `_run_cloud_engine` catches an exception and sleeps 5 min, it logs locally but this is lost on Render free tier (logs rotate fast)
+5. **Race condition on lock reclaim** — two workers could simultaneously detect a stale lock and both try to reclaim it
+
+**Files**:
+- `compass_dashboard_cloud.py` — `_ensure_cloud_engine()` (~line 3671), `_run_cloud_engine()` (~line 3596), `_engine_status` dict (~line 3510)
+- `tests/test_cloud_dashboard.py` — add tests for engine lifecycle (if Challenge 2 completed, extend; otherwise create)
+
+**Scope**:
+
+### 7a. Health check endpoint
+Add `GET /api/health` that returns:
+```json
+{
+  "status": "healthy" | "degraded" | "down",
+  "engine_alive": true/false,
+  "last_price_update": "ISO timestamp",
+  "price_age_seconds": 45,
+  "last_cycle_close": "ISO timestamp",
+  "uptime_seconds": 12345,
+  "positions_count": 6,
+  "portfolio_value": 100069
+}
+```
+- `healthy`: engine alive + prices < 5 min old
+- `degraded`: engine alive but prices > 5 min old, OR engine dead but market closed
+- `down`: engine dead during market hours
+
+### 7b. Stale data warning in API responses
+Add a `_data_freshness` field to `/api/state` response:
+```json
+{
+  "_data_freshness": {
+    "status": "live" | "stale" | "offline",
+    "price_age_seconds": 45,
+    "engine_alive": true
+  }
+}
+```
+The frontend (`dashboard.js`) should show a visible warning banner when `status != "live"`.
+
+### 7c. Engine death counter and crash history
+Track in `_engine_status`:
+- `crash_count`: number of times the engine crashed and restarted
+- `last_crash_at`: ISO timestamp of last crash
+- `last_crash_error`: string of last exception
+- `restarts`: list of last 5 restart timestamps
+
+Expose this in `/api/health` so we can see if the engine is crash-looping.
+
+### 7d. Lock file race condition fix
+The current lock reclaim in `_ensure_cloud_engine()` has a TOCTOU race: two workers read the PID, both see it dead, both try to unlink+recreate. Fix with a retry loop or use `fcntl.flock()` (Linux) as a secondary lock during reclaim.
+
+### 7e. Tests
+Write tests for:
+- Engine thread dies → next request restarts it
+- Stale lock file with dead PID → reclaimed successfully
+- `/api/health` returns correct status for each scenario
+- `_data_freshness` reflects actual data age
+
+**Acceptance**:
+- `GET /api/health` returns correct status based on engine state
+- `/api/state` includes `_data_freshness`
+- Dashboard shows visible warning when data is stale (>5 min old prices or engine dead)
+- Engine crash history is tracked and exposed
+- Lock reclaim is race-safe
+- All tests pass: `pytest tests/ -v`
+- Syntax check passes on all modified files
+
+---
+
 ## Task Board
 
 **Check `TASKBOARD.md` first.** It contains the live task queue managed by Claude. Tasks there take priority over the challenges below. Pick up any task marked `[ ] Open` and `Assigned: Codex`.
