@@ -89,8 +89,8 @@ def _validate_environment():
     compass_mode = os.environ.get('COMPASS_MODE')
     port = os.environ.get('PORT')
 
-    if hydra_mode is not None and hydra_mode not in ('live', 'paper', 'backtest'):
-        logger.warning("HYDRA_MODE='%s' is not a recognized value (expected live|paper|backtest)", hydra_mode)
+    if hydra_mode is not None and hydra_mode not in ('live', 'paper', 'backtest', 'showcase'):
+        logger.warning("HYDRA_MODE='%s' is not a recognized value (expected live|paper|backtest|showcase)", hydra_mode)
 
     if compass_mode is not None and compass_mode not in ('live', 'cloud'):
         logger.warning("COMPASS_MODE='%s' is not a recognized value (expected live|cloud)", compass_mode)
@@ -232,6 +232,7 @@ LIVE_TEST_START_DATE = '2026-03-17'
 LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
+# Showcase mode keeps the dashboard online with static/read-only data and the engine disabled.
 SHOWCASE_MODE = os.environ.get('HYDRA_MODE', 'live') == 'showcase'
 
 # Real engine status tracking

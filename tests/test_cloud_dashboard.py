@@ -1448,8 +1448,9 @@ def test_validate_environment_warns_on_invalid_hydra_mode(monkeypatch, caplog):
     assert any("HYDRA_MODE='invalid'" in msg for msg in caplog.messages)
 
 
-def test_validate_environment_no_warning_on_valid_hydra_mode(monkeypatch, caplog):
-    monkeypatch.setenv('HYDRA_MODE', 'live')
+@pytest.mark.parametrize('hydra_mode', ['live', 'paper', 'backtest', 'showcase'])
+def test_validate_environment_no_warning_on_valid_hydra_mode(monkeypatch, caplog, hydra_mode):
+    monkeypatch.setenv('HYDRA_MODE', hydra_mode)
     monkeypatch.delenv('COMPASS_MODE', raising=False)
     monkeypatch.delenv('PORT', raising=False)
 
