@@ -65,6 +65,42 @@ except ImportError as e:
 app = Flask(__name__)
 logger = logging.getLogger(__name__)
 
+# Env vars whose values must be masked in logs
+_SECRET_ENV_VARS = {'ANTHROPIC_API_KEY', 'GIT_TOKEN', 'SECRET_KEY', 'API_KEY'}
+
+
+def _validate_environment():
+    hydra_mode = os.environ.get('HYDRA_MODE')
+    compass_mode = os.environ.get('COMPASS_MODE')
+    port = os.environ.get('PORT')
+
+    if hydra_mode is not None and hydra_mode not in ('live', 'paper', 'backtest'):
+        logger.warning("HYDRA_MODE='%s' is not a recognized value (expected live|paper|backtest)", hydra_mode)
+
+    if compass_mode is not None and compass_mode not in ('live', 'cloud'):
+        logger.warning("COMPASS_MODE='%s' is not a recognized value (expected live|cloud)", compass_mode)
+
+    if port is not None:
+        if not port.isdigit():
+            logger.warning("PORT='%s' is not numeric", port)
+
+    env_vars_to_log = ['HYDRA_MODE', 'COMPASS_MODE', 'PORT', 'STATE_DIR',
+                       'ANTHROPIC_API_KEY', 'GIT_TOKEN', 'RENDER_EXTERNAL_URL',
+                       'SEC_USER_AGENT']
+    parts = []
+    for name in env_vars_to_log:
+        val = os.environ.get(name)
+        if val is None:
+            parts.append(f"{name}=<unset>")
+        elif name in _SECRET_ENV_VARS:
+            parts.append(f"{name}=****")
+        else:
+            parts.append(f"{name}={val}")
+    logger.info("Cloud dashboard env: %s", ', '.join(parts))
+
+
+_validate_environment()
+
 
 def _load_json_with_invalid_constants(path):
     with open(path, 'r', encoding='utf-8') as f:

@@ -1,4 +1,5 @@
 import json
+import logging
 import subprocess
 import sys
 import types
@@ -877,3 +878,25 @@ def test_ensure_cloud_engine_skips_when_lock_already_exists(monkeypatch):
     dashboard._ensure_cloud_engine()
 
     assert dashboard._cloud_engine_started is True
+
+
+def test_validate_environment_warns_on_invalid_hydra_mode(monkeypatch, caplog):
+    monkeypatch.setenv('HYDRA_MODE', 'invalid')
+    monkeypatch.delenv('COMPASS_MODE', raising=False)
+    monkeypatch.delenv('PORT', raising=False)
+
+    with caplog.at_level(logging.WARNING, logger='compass_dashboard_cloud'):
+        dashboard._validate_environment()
+
+    assert any("HYDRA_MODE='invalid'" in msg for msg in caplog.messages)
+
+
+def test_validate_environment_no_warning_on_valid_hydra_mode(monkeypatch, caplog):
+    monkeypatch.setenv('HYDRA_MODE', 'live')
+    monkeypatch.delenv('COMPASS_MODE', raising=False)
+    monkeypatch.delenv('PORT', raising=False)
+
+    with caplog.at_level(logging.WARNING, logger='compass_dashboard_cloud'):
+        dashboard._validate_environment()
+
+    assert not any("HYDRA_MODE" in msg and "not a recognized" in msg for msg in caplog.messages)
