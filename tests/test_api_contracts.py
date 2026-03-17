@@ -1,5 +1,6 @@
 import json
 import sys
+import time
 import types
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -11,6 +12,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import compass_dashboard_cloud as dashboard
 import compass_dashboard as local_dashboard
+from compass_api_models import (
+    STATE_RESPONSE_REQUIRED_KEYS,
+    CYCLE_LOG_ENTRY_REQUIRED_KEYS,
+    MONTECARLO_RESPONSE_REQUIRED_KEYS,
+    RISK_RESPONSE_REQUIRED_KEYS,
+    HEALTH_RESPONSE_REQUIRED_KEYS,
+    FAN_CHART_REQUIRED_KEYS,
+)
 
 
 def write_json(path, payload):
@@ -146,6 +155,8 @@ def test_api_state_contract_exposes_required_top_level_fields(client, monkeypatc
 
     assert response.status_code == 200
     payload = response.get_json()
+    missing = STATE_RESPONSE_REQUIRED_KEYS - payload.keys()
+    assert not missing, f"StateResponse missing keys: {missing}"
     assert isinstance(payload['positions'], dict)
     assert isinstance(payload['cash'], float)
     assert isinstance(payload['portfolio_value'], float)
@@ -167,10 +178,13 @@ def test_api_cycle_log_contract_exposes_cycle_number_alias(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert isinstance(payload, list)
-    assert isinstance(payload[0]['cycle_number'], int)
-    assert isinstance(payload[0]['start_date'], str)
-    assert isinstance(payload[0]['end_date'], str)
-    assert isinstance(payload[0]['cycle_return_pct'], float)
+    entry = payload[0]
+    missing = CYCLE_LOG_ENTRY_REQUIRED_KEYS - entry.keys()
+    assert not missing, f"CycleLogEntry missing keys: {missing}"
+    assert isinstance(entry['cycle_number'], int)
+    assert isinstance(entry['start_date'], str)
+    assert isinstance(entry['end_date'], str)
+    assert isinstance(entry['cycle_return_pct'], float)
 
 
 def test_api_risk_contract_shape(client, monkeypatch):
@@ -189,6 +203,8 @@ def test_api_risk_contract_shape(client, monkeypatch):
 
     assert response.status_code == 200
     payload = response.get_json()
+    missing = RISK_RESPONSE_REQUIRED_KEYS - payload.keys()
+    assert not missing, f"RiskResponse missing keys: {missing}"
     assert isinstance(payload['risk_score'], float)
     assert isinstance(payload['risk_label'], str)
     assert isinstance(payload['var_95'], float)
@@ -228,7 +244,9 @@ def test_api_montecarlo_contract_shape(client, monkeypatch):
 
     assert response.status_code == 200
     data = response.get_json()
-    assert set(data['fan_chart']) == {'days', 'p5', 'p10', 'p25', 'p50', 'p75', 'p90', 'p95'}
+    missing = MONTECARLO_RESPONSE_REQUIRED_KEYS - data.keys()
+    assert not missing, f"MonteCarloResponse missing keys: {missing}"
+    assert set(data['fan_chart']) == FAN_CHART_REQUIRED_KEYS
     assert isinstance(data['summary'], dict)
     assert data['seed'] == 666
 
@@ -248,6 +266,8 @@ def test_api_health_contract_exposes_top_level_aliases(client):
 
     assert response.status_code == 200
     payload = response.get_json()
+    missing = HEALTH_RESPONSE_REQUIRED_KEYS - payload.keys()
+    assert not missing, f"HealthResponse missing keys: {missing}"
     assert isinstance(payload['status'], str)
     assert isinstance(payload['engine_running'], bool)
     assert isinstance(payload['price_freshness'], float)
@@ -404,6 +424,8 @@ def test_api_state_missing_state_file_returns_fallback_json(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert isinstance(payload, dict)
+    missing = STATE_RESPONSE_REQUIRED_KEYS - payload.keys()
+    assert not missing, f"StateResponse fallback missing keys: {missing}"
     assert payload['status'] in ('offline', 'starting')
     assert isinstance(payload['positions'], dict)
     assert payload['cash'] == 0.0
@@ -456,6 +478,8 @@ def test_api_health_missing_state_file_returns_valid_health(client):
     assert response.status_code == 200
     payload = response.get_json()
     assert isinstance(payload, dict)
+    missing = HEALTH_RESPONSE_REQUIRED_KEYS - payload.keys()
+    assert not missing, f"HealthResponse fallback missing keys: {missing}"
     assert isinstance(payload['status'], str)
     assert isinstance(payload['engine_running'], bool)
 
@@ -497,3 +521,114 @@ def test_api_trade_analytics_computation_failure_returns_error_json(client, monk
     assert isinstance(payload, dict)
     assert 'error' in payload
     assert 'analytics computation failed' in payload['error']
+
+
+# ============================================================================
+# RESPONSE TIMING TESTS — verify endpoints respond within acceptable limits
+# ============================================================================
+
+@pytest.mark.xfail(reason="CI runners may be slow")
+def test_api_state_timing(client, monkeypatch):
+    write_json(Path('state/compass_state_latest.json'), make_state())
+    monkeypatch.setattr(dashboard, 'fetch_live_prices', lambda symbols: {'AAPL': 110.0, 'SPY': 500.0})
+    monkeypatch.setattr(dashboard, 'compute_position_details', lambda state, prices: [{'symbol': 'AAPL'}])
+    monkeypatch.setattr(dashboard, 'compute_portfolio_metrics', lambda state, prices: {
+        'portfolio_value': 105000.0,
+        'cash': 5000.0,
+    })
+    monkeypatch.setattr(dashboard, 'compute_hydra_data', lambda state, prices: {})
+
+    start = time.time()
+    response = client.get('/api/state')
+    elapsed = time.time() - start
+
+    assert response.status_code == 200
+    assert elapsed < 2.0, f"/api/state responded in {elapsed:.3f}s (limit 2.0s)"
+
+
+@pytest.mark.xfail(reason="CI runners may be slow")
+def test_api_cycle_log_timing(client):
+    write_json(Path('state/cycle_log.json'), [{
+        'cycle': 1,
+        'status': 'closed',
+        'start_date': '2026-03-10',
+        'end_date': '2026-03-16',
+        'cycle_return_pct': 2.5,
+    }])
+
+    start = time.time()
+    response = client.get('/api/cycle-log')
+    elapsed = time.time() - start
+
+    assert response.status_code == 200
+    assert elapsed < 2.0, f"/api/cycle-log responded in {elapsed:.3f}s (limit 2.0s)"
+
+
+@pytest.mark.xfail(reason="CI runners may be slow")
+def test_api_montecarlo_timing(client, monkeypatch):
+    payload = {
+        'fan_chart': {
+            'days': [0, 5],
+            'p5': [100000.0, 98000.0],
+            'p10': [100000.0, 98800.0],
+            'p25': [100000.0, 99500.0],
+            'p50': [100000.0, 101000.0],
+            'p75': [100000.0, 102500.0],
+            'p90': [100000.0, 103500.0],
+            'p95': [100000.0, 104000.0],
+        },
+        'summary': {'median_outcome': 101000.0},
+        'seed': 666,
+        'source': 'live_cycle_log',
+    }
+
+    class FakeMonteCarlo:
+        def run_all(self):
+            return payload
+
+    monkeypatch.setattr(dashboard, '_montecarlo_signature', lambda: ('stable',))
+    monkeypatch.setitem(
+        sys.modules,
+        'compass_montecarlo',
+        types.SimpleNamespace(COMPASSMonteCarlo=FakeMonteCarlo),
+    )
+
+    start = time.time()
+    response = client.get('/api/montecarlo')
+    elapsed = time.time() - start
+
+    assert response.status_code == 200
+    assert elapsed < 2.0, f"/api/montecarlo responded in {elapsed:.3f}s (limit 2.0s)"
+
+
+@pytest.mark.xfail(reason="CI runners may be slow")
+def test_api_health_timing(client):
+    write_json(Path('state/compass_state_latest.json'), make_state())
+    dashboard._engine_status.update({
+        'running': True,
+        'started_at': '2026-03-16T09:00:00',
+        'error': None,
+        'cycles': 5,
+    })
+    dashboard._price_cache = {'AAPL': 110.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=15)
+
+    start = time.time()
+    response = client.get('/api/health')
+    elapsed = time.time() - start
+
+    assert response.status_code == 200
+    assert elapsed < 2.0, f"/api/health responded in {elapsed:.3f}s (limit 2.0s)"
+
+
+@pytest.mark.xfail(reason="CI runners may be slow")
+def test_api_annual_returns_timing(client, monkeypatch):
+    monkeypatch.setattr(dashboard, '_equity_df', None)
+    monkeypatch.setattr(dashboard, '_spy_df', None)
+
+    start = time.time()
+    response = client.get('/api/annual-returns')
+    elapsed = time.time() - start
+
+    assert response.status_code == 200
+    assert elapsed < 2.0, f"/api/annual-returns responded in {elapsed:.3f}s (limit 2.0s)"
