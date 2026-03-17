@@ -207,14 +207,14 @@ def _preload_data():
     if os.path.exists(csv_path):
         try:
             _equity_df = pd.read_csv(csv_path, parse_dates=['date'])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_preload_data failed: {e}")
     spy_path = SPY_BENCHMARK_CSV
     if os.path.exists(spy_path):
         try:
             _spy_df = pd.read_csv(spy_path, parse_dates=['date'])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_preload_data failed: {e}")
 
 
 _preload_data()
@@ -479,7 +479,8 @@ def _closed_cycle_count_from_log():
         if not isinstance(cycles, list):
             return 0
         return sum(1 for cycle in cycles if isinstance(cycle, dict) and cycle.get('status') == 'closed')
-    except Exception:
+    except Exception as e:
+        logger.warning(f"_closed_cycle_count_from_log failed: {e}")
         return 0
 
 
@@ -619,8 +620,8 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
                 today_et = datetime.now(ZoneInfo('America/New_York')).date()
                 if date.fromisoformat(entry_date) == today_et:
                     current_price = entry_price
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"compute_position_details failed: {e}")
 
         if current_price and entry_price and entry_price > 0:
             pnl_pct = (current_price - entry_price) / entry_price
@@ -644,7 +645,8 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
                 total_days = (today - entry_dt).days
                 days_held = sum(1 for d in range(1, total_days + 1)
                                 if (entry_dt + timedelta(days=d)).weekday() < 5)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"compute_position_details failed: {e}")
                 days_held = trading_day - entry_day_index
         else:
             days_held = trading_day - entry_day_index
@@ -719,8 +721,8 @@ def get_spy_start_price() -> Optional[float]:
                 if first_spy and first_spy > 0:
                     _spy_start_price = float(first_spy)
                     return _spy_start_price
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"get_spy_start_price failed: {e}")
 
     return None
 
@@ -858,7 +860,8 @@ def _compute_real_trading_day(state: dict) -> int:
         extra = sum(1 for d in range(1, (today - last_dt).days + 1)
                     if (last_dt + timedelta(days=d)).weekday() < 5)
         return saved_day + extra
-    except Exception:
+    except Exception as e:
+        logger.warning(f"_compute_real_trading_day failed: {e}")
         return saved_day
 
 
@@ -886,7 +889,8 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
                     price = entry_price
                 else:
                     price = prices.get(sym, entry_price)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"compute_portfolio_metrics failed: {e}")
                 price = prices.get(sym, entry_price)
         else:
             price = prices.get(sym, pos.get('avg_cost', 0))
@@ -1069,8 +1073,8 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
             vix_hist = yf.Ticker('^VIX').history(period='5d')
             if len(vix_hist) > 0:
                 vix_current = float(vix_hist['Close'].iloc[-1])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"compute_hydra_data failed: {e}")
 
     # --- Rattlesnake regime: SPY vs SMA(200) ---
     rattle_regime = 'RISK_ON'
@@ -1081,8 +1085,8 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
             spy_sma200 = float(spy_hist['Close'].iloc[-200:].mean())
             if spy_close < spy_sma200:
                 rattle_regime = 'RISK_OFF'
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"compute_hydra_data failed: {e}")
 
     vix_panic = vix_current > R_VIX_PANIC if vix_current else False
 
@@ -1231,8 +1235,8 @@ def _fetch_yfinance_news(symbols: List[str], max_per: int = 3) -> List[dict]:
                     'source': 'news',
                     'sentiment': None,
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_yfinance_news failed: {e}")
     return items
 
 
@@ -1277,8 +1281,8 @@ def _fetch_reddit_posts(symbols: List[str], max_per: int = 2) -> List[dict]:
                     'source': 'reddit',
                     'sentiment': sentiment,
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_reddit_posts failed: {e}")
     return items
 
 
@@ -1315,7 +1319,8 @@ def _fetch_seekingalpha_news(symbols: List[str], max_per: int = 2) -> List[dict]
                         from email.utils import parsedate_to_datetime
                         dt = parsedate_to_datetime(pub_date_raw)
                         pub_iso = dt.isoformat()
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(f"_fetch_seekingalpha_news failed: {e}")
                         pub_iso = pub_date_raw
                 if len(title) > 150:
                     title = title[:150].rsplit(' ', 1)[0] + '...'
@@ -1330,8 +1335,8 @@ def _fetch_seekingalpha_news(symbols: List[str], max_per: int = 2) -> List[dict]
                     'sentiment': None,
                 })
                 count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_seekingalpha_news failed: {e}")
     return items
 
 
@@ -1378,7 +1383,8 @@ def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
                 if file_date:
                     try:
                         pub_iso = datetime.strptime(file_date, '%Y-%m-%d').isoformat()
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(f"_fetch_sec_filings failed: {e}")
                         pub_iso = file_date
                 if len(title) > 150:
                     title = title[:150].rsplit(' ', 1)[0] + '...'
@@ -1393,8 +1399,8 @@ def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
                     'sentiment': None,
                 })
                 count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_sec_filings failed: {e}")
     return items
 
 
@@ -1428,7 +1434,8 @@ def _fetch_google_news(symbols: List[str], max_per: int = 2) -> List[dict]:
                         from email.utils import parsedate_to_datetime
                         dt = parsedate_to_datetime(pub_date_raw)
                         pub_iso = dt.isoformat()
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(f"_fetch_google_news failed: {e}")
                         pub_iso = pub_date_raw
                 if ' - ' in title and source_name:
                     title = title.rsplit(' - ', 1)[0].strip()
@@ -1445,8 +1452,8 @@ def _fetch_google_news(symbols: List[str], max_per: int = 2) -> List[dict]:
                     'sentiment': None,
                 })
                 count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_google_news failed: {e}")
     return items
 
 
@@ -1477,7 +1484,8 @@ def _fetch_marketwatch_news(max_items: int = 5) -> List[dict]:
                     from email.utils import parsedate_to_datetime
                     dt = parsedate_to_datetime(pub_date_raw)
                     pub_iso = dt.isoformat()
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"_fetch_marketwatch_news failed: {e}")
                     pub_iso = pub_date_raw
             if len(title) > 150:
                 title = title[:150].rsplit(' ', 1)[0] + '...'
@@ -1492,8 +1500,8 @@ def _fetch_marketwatch_news(max_items: int = 5) -> List[dict]:
                 'sentiment': None,
             })
             count += 1
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"_fetch_marketwatch_news failed: {e}")
     return items
 
 
@@ -1675,7 +1683,8 @@ def api_cycle_log():
     try:
         with open(log_file, 'r') as f:
             cycles = json.load(f)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"api_cycle_log failed: {e}")
         return jsonify([])
 
     # Enrich active cycles with live metrics
@@ -1740,8 +1749,8 @@ def api_cycle_log():
             # Alpha: holdings return vs SPY
             if c.get('hydra_return') is not None and c.get('spy_return') is not None:
                 c['alpha'] = round(c['hydra_return'] - c['spy_return'], 2)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_cycle_log failed: {e}")
 
     return jsonify(cycles)
 
@@ -1774,7 +1783,8 @@ def api_live_chart():
                 hydra_data[dt] = val
                 if first_value is None:
                     first_value = val
-        except Exception:
+        except Exception as e:
+            logger.warning(f"api_live_chart failed: {e}")
             continue
 
     if not hydra_data or first_value is None:
@@ -1800,8 +1810,8 @@ def api_live_chart():
                     today_val = state.get('portfolio_value')
                 if today_val:
                     hydra_data[today_str] = today_val
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"api_live_chart failed: {e}")
 
     dates = sorted(hydra_data.keys())
     start_date = dates[0]
@@ -1819,7 +1829,8 @@ def api_live_chart():
                                      progress=False, auto_adjust=True)
                     if len(hist) > 0:
                         break
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"api_live_chart failed: {e}")
                     continue
             if hist is not None and len(hist) > 0:
                 # Flatten multi-level columns (yfinance returns MultiIndex)
@@ -1828,8 +1839,8 @@ def api_live_chart():
                 for idx, row in hist.iterrows():
                     dt_str = idx.strftime('%Y-%m-%d')
                     spy_data[dt_str] = float(row['Close'])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_live_chart failed: {e}")
 
     # Use live S&P 500 index price for today (from TradingView)
     today_str = date.today().strftime('%Y-%m-%d')
@@ -1838,8 +1849,8 @@ def api_live_chart():
             live_spy = fetch_live_prices(['^GSPC'])
             if '^GSPC' in live_spy:
                 spy_data[today_str] = live_spy['^GSPC']
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_live_chart failed: {e}")
 
     # 3. Build aligned series indexed to 100
     spy_first = spy_data.get(start_date)
@@ -1879,7 +1890,8 @@ def api_equity():
             return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
         try:
             df = pd.read_csv(csv_path, parse_dates=['date'])
-        except Exception:
+        except Exception as e:
+            logger.warning(f"api_equity failed: {e}")
             return jsonify({'equity': [], 'milestones': [], 'error': 'Failed to read CSV'})
 
     val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
@@ -2067,7 +2079,8 @@ def api_annual_returns():
             return jsonify({'error': 'No backtest data'})
         try:
             df = pd.read_csv(csv_path, parse_dates=['date'])
-        except Exception:
+        except Exception as e:
+            logger.warning(f"api_annual_returns failed: {e}")
             return jsonify({'error': 'Failed to read CSV'})
 
     val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
@@ -2464,7 +2477,8 @@ def _get_last_closed_cycle_num():
             cycles = json.load(f)
         closed = [c['cycle'] for c in cycles if c.get('status') == 'closed']
         return max(closed) if closed else None
-    except Exception:
+    except Exception as e:
+        logger.warning(f"_get_last_closed_cycle_num failed: {e}")
         return None
 
 
@@ -2612,8 +2626,8 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
             try:
                 with open(log_file, 'r') as f:
                     cycle_data = json.load(f)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"_maybe_regenerate_interpretation failed: {e}")
 
         # 1) Backtest analysis — regenerate weekly or if missing
         if bt_stats and (not os.path.exists(bt_path) or
@@ -2685,16 +2699,16 @@ def _api_ml_learning_impl():
                             rec = json.loads(line)
                             rec['_type'] = etype
                             entries.append(rec)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"_api_ml_learning_impl failed: {e}")
     entries.sort(key=lambda r: r.get('timestamp', r.get('date', '')))
     insights = {}
     insights_path = os.path.join(ml_dir, 'insights.json')
     if os.path.exists(insights_path):
         try:
             insights = _load_json_with_invalid_constants(insights_path)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_api_ml_learning_impl failed: {e}")
     # Load backtest daily data (HYDRA + EFA/MSCI World)
     backtest_entries = []
     bt_stats = {}
@@ -2742,8 +2756,8 @@ def _api_ml_learning_impl():
                     'sharpe': round(sharpe, 3),
                     'max_drawdown': round(max_dd, 4),
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_api_ml_learning_impl failed: {e}")
 
     # Merge backtest + live entries, sorted by date
     all_entries = backtest_entries + entries
@@ -2892,7 +2906,8 @@ class SharedYahooDataFeed:
         try:
             prices = fetch_live_prices(['^GSPC'])
             return bool(prices)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"is_connected failed: {e}")
             return False
 
 
