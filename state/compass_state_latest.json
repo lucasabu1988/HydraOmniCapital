@@ -1,15 +1,16 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-17T11:28:44.637871",
-  "cash": 44201.44429382324,
+  "timestamp": "2026-03-17T11:44:37.763029",
+  "cash": 66601.10429382324,
   "peak_value": 120000,
-  "portfolio_value": 99798.55453491211,
+  "portfolio_value": 99824.1912689209,
   "crash_cooldown": 0,
   "portfolio_values_history": [
-    100068.7645111084
+    100000,
+    99999.67457580566
   ],
   "current_regime_score": 0.4873041989251161,
-  "trading_day_counter": 1,
+  "trading_day_counter": 2,
   "last_trading_date": "2026-03-17",
   "positions": {
     "JNJ": {
@@ -19,22 +20,6 @@
     "GEV": {
       "shares": 9,
       "avg_cost": 827.3699951171875
-    },
-    "TLT": {
-      "shares": 38,
-      "avg_cost": 87.21
-    },
-    "GLD": {
-      "shares": 17,
-      "avg_cost": 460.43
-    },
-    "DBC": {
-      "shares": 117,
-      "avg_cost": 28.31
-    },
-    "EFA": {
-      "shares": 81,
-      "avg_cost": 98.1
     }
   },
   "position_meta": {
@@ -174,7 +159,7 @@
   "_pre_rotation_cash": 66601.10429382324,
   "_pre_rotation_value": 99999.67457580566,
   "stats": {
-    "cycles_completed": 645,
-    "uptime_minutes": 2220.78853475
+    "cycles_completed": 660,
+    "uptime_minutes": 2236.673954416666
   }
 }
