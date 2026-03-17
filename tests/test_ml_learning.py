@@ -494,6 +494,89 @@ def test_log_hold_writes_hold_record(logger):
     assert records[0]['regime_score'] == 0.57
 
 
+def test_log_skip_sanitizes_nan_momentum_score(logger):
+    logger.log_skip(
+        symbol='AMD',
+        sector='Technology',
+        skip_reason='nan_momentum',
+        universe_rank=11,
+        momentum_score=float('nan'),
+        regime_score=0.55,
+        trading_day=15,
+        portfolio_value=102500.0,
+        portfolio_drawdown=-0.03,
+        current_n_positions=4,
+        max_positions_target=5,
+    )
+
+    records = read_jsonl(Path(ml.DECISIONS_FILE))
+
+    assert len(records) == 1
+    assert records[0]['decision_type'] == 'skip'
+    assert records[0]['momentum_score'] is None
+
+
+def test_log_regime_change_records_transition_event(logger):
+    logger.log_regime_change(
+        old_score=0.32,
+        new_score=0.67,
+        old_regime='bear',
+        new_regime='bull',
+        trading_day=16,
+        portfolio_value=104000.0,
+    )
+
+    records = read_jsonl(Path(ml.DECISIONS_FILE))
+
+    assert len(records) == 1
+    assert records[0]['decision_type'] == 'regime_change'
+    assert records[0]['symbol'] == ''
+    assert records[0]['sector'] == ''
+    assert records[0]['regime_score'] == pytest.approx(0.67)
+    assert records[0]['regime_bucket'] == 'bull'
+    assert records[0]['portfolio_value'] == 104000.0
+    assert records[0]['skip_reason'] is None
+    assert records[0]['current_return'] is None
+
+
+def test_log_daily_snapshot_records_portfolio_state(logger):
+    position_meta = {
+        'AAPL': {'sector': 'Technology', 'entry_daily_vol': 0.02, 'entry_day_index': 15},
+        'MSFT': {'sector': 'Technology', 'entry_daily_vol': 0.01, 'entry_day_index': 14},
+        'NVDA': {'sector': 'Semiconductors', 'entry_daily_vol': 0.03, 'entry_day_index': 16},
+    }
+    logger.log_daily_snapshot(
+        trading_day=17,
+        portfolio_value=105500.0,
+        cash=12500.0,
+        peak_value=108000.0,
+        n_positions=3,
+        leverage=0.9,
+        positions=['AAPL', 'MSFT', 'NVDA'],
+        position_meta=position_meta,
+        regime_score=0.63,
+        crash_cooldown=1,
+        max_positions_target=5,
+        prev_portfolio_value=104250.0,
+    )
+
+    snapshots = read_jsonl(Path(ml.SNAPSHOTS_FILE))
+
+    assert len(snapshots) == 1
+    assert snapshots[0]['trading_day'] == 17
+    assert snapshots[0]['portfolio_value'] == 105500.0
+    assert snapshots[0]['cash'] == 12500.0
+    assert snapshots[0]['positions'] == ['AAPL', 'MSFT', 'NVDA']
+    assert snapshots[0]['n_positions'] == 3
+    assert snapshots[0]['leverage'] == 0.9
+    assert snapshots[0]['drawdown'] == pytest.approx((105500.0 - 108000.0) / 108000.0)
+    assert snapshots[0]['regime_score'] == 0.63
+    assert set(snapshots[0]['sectors_held']) == {'Technology', 'Semiconductors'}
+    assert snapshots[0]['avg_entry_vol'] == pytest.approx(0.02)
+    assert snapshots[0]['avg_days_held'] == pytest.approx(3.0)
+    assert snapshots[0]['daily_pnl_pct'] == pytest.approx((105500.0 / 104250.0) - 1.0)
+
+
 def test_jsonl_lines_are_independently_valid_json(logger):
     logger.log_skip(
         symbol='MSFT',
