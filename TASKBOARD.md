@@ -20,6 +20,8 @@ FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
 
 ### Thread
 
+[2026-03-16 19:40] CLAUDE: Wave 3 done. Completed TASK-046 (yfinance circuit breaker), TASK-050 (cycle log thread lock), TASK-053 (stale orders in main loop), TASK-060 (CSP header), TASK-067 (ML diagnostics endpoint) — all in `25d9147`/`96f19f0`/`eb45912`. Touched: `compass_dashboard_cloud.py`, `omnicapital_live.py`, `tests/test_cloud_dashboard.py`, `tests/test_yahoo_finance.py`. 570+ tests. TASK-064 (input validation) still in progress. Pull before editing cloud dashboard.
+
 [2026-03-16 19:25] CLAUDE: Wave 2 done. Completed TASK-049 (`4cef69d`), TASK-054 (`97db95d`), TASK-056 (`555b1d8`), TASK-059 (`e411d01`), TASK-070 (`4cef69d`). Touched: `omnicapital_live.py` (corrupted state cleanup + config validation + startup report), `rattlesnake_signals.py` (RSI bounds), `compass_dashboard_cloud.py` (env var validation). 557 tests passing. Pull before editing these files.
 
 [2026-03-16 19:15] CLAUDE: TASK-044 done (`118c699`) — 35 silent exception handlers in `compass_dashboard_cloud.py` now have logging. File is safe to edit again. 522 tests passing. Launching next batch of tasks from Groups B/C/D now.
@@ -174,6 +176,7 @@ Verify required keys exist and types are correct.
 - `TASK-029` (`da44ab5`) Added deterministic RSI coverage, neutral-default edge cases, exit-threshold checks, and exposure aggregation tests for the Rattlesnake pillar.
 - `TASK-030` (`2631408`) Added Rattlesnake regime tests for SMA200-based risk state, VIX panic entry blocking, short-history defaults, and NaN VIX handling against the current implementation contract.
 - `TASK-036` (`5410829`) Added git-sync failure-path coverage for invalid commands, timeouts, disabled mode short-circuiting, push failures, identity setup failures, repeated worker failures, and queued request ordering.
+- `TASK-038` (`df06a7d`) Added state-corruption recovery tests for invalid JSON, partial state objects, NaN sanitization on load, negative-cash validation, and fallback loading that still reaches a successful `run_once()`.
 - `TASK-043` (`9f0581a`) [Claude] Added `logger.warning()` to 36 silent exception handlers in `compass_dashboard.py`. No control flow changes.
 - `TASK-045` (`fe7a4b3`) [Claude] Added zero-price guard and warning log in `compute_catalyst_targets()`. Added 2 tests for zero-price skip and empty trend_holdings.
 - `TASK-047` (`b577eb3`) [Claude] Added SIGTERM/SIGINT graceful shutdown handler to live engine. Engine saves state before exiting. 3 new tests.
@@ -820,7 +823,7 @@ The core simulation engine uses vectorized numpy operations. Never tested for co
 ---
 
 ### TASK-038: Test state file recovery from corruption [PRIORITY: HIGH]
-**Status:** [ ]
+**Status:** [x] Done (`df06a7d`)
 **Assigned:** Codex
 
 When `compass_state_latest.json` is corrupted, the system should recover gracefully. Not tested.
@@ -985,8 +988,8 @@ Same issue as TASK-043 but for `compass_dashboard_cloud.py`.
 ---
 
 ### TASK-046: Add circuit breaker for yfinance in cloud dashboard [PRIORITY: HIGH]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`25d9147`)
+**Assigned:** Claude
 
 If yfinance is down, the cloud dashboard hammers it repeatedly. Need a circuit breaker.
 
@@ -1073,8 +1076,8 @@ If the engine process is killed (SIGTERM from Render), state is not saved and or
 ---
 
 ### TASK-050: Add thread lock for cycle log writes [PRIORITY: HIGH]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`25d9147`)
+**Assigned:** Claude
 
 `_update_cycle_log()` can be called from the main thread while git_sync reads the file in background.
 
@@ -1131,8 +1134,8 @@ ML learning writes to JSONL files from the main engine thread, but background th
 ---
 
 ### TASK-053: Fix `check_stale_orders` not called in main loop [PRIORITY: HIGH]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`96f19f0`)
+**Assigned:** Claude
 
 `PaperBroker.check_stale_orders()` exists (line 624) but is never called from the trading loop.
 
@@ -1302,8 +1305,8 @@ Cloud dashboard reads env vars but doesn't validate them. Typos in HYDRA_MODE si
 ---
 
 ### TASK-060: Add Content-Security-Policy header to cloud dashboard [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`25d9147`)
+**Assigned:** Claude
 
 Cloud dashboard sets some security headers but no Content-Security-Policy.
 
@@ -1434,8 +1437,8 @@ Render doesn't know when the app is actually healthy. It just assumes success af
 ---
 
 ### TASK-066: Add log rotation with RotatingFileHandler [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`81f9de2`)
+**Assigned:** Claude
 
 Log files grow unbounded. No rotation policy exists.
 
@@ -1458,8 +1461,8 @@ Log files grow unbounded. No rotation policy exists.
 ---
 
 ### TASK-067: Add `/api/ml-diagnostics` endpoint to cloud dashboard [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`eb45912`)
+**Assigned:** Claude
 
 ML errors are tracked internally but never exposed to the UI. User can't see if ML is broken.
 
