@@ -19,6 +19,7 @@ import numpy as np
 import yfinance as yf
 from datetime import datetime, time, date
 import logging
+from logging.handlers import RotatingFileHandler
 import json
 import os
 import sys
@@ -103,13 +104,24 @@ except ImportError:
 # ============================================================================
 
 os.makedirs('logs', exist_ok=True)
+_log_format = '%(asctime)s - %(levelname)s - %(message)s'
+_log_formatter = logging.Formatter(_log_format)
+
+_file_handler = RotatingFileHandler(
+    f'logs/compass_live_{datetime.now().strftime("%Y%m%d")}.log',
+    maxBytes=50 * 1024 * 1024,  # 50 MB
+    backupCount=5,
+    encoding='utf-8',
+)
+_file_handler.setFormatter(_log_formatter)
+
+_stream_handler = logging.StreamHandler(sys.stdout)
+_stream_handler.setFormatter(_log_formatter)
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(f'logs/compass_live_{datetime.now().strftime("%Y%m%d")}.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    format=_log_format,
+    handlers=[_file_handler, _stream_handler]
 )
 logger = logging.getLogger(__name__)
 
@@ -893,6 +905,9 @@ class COMPASSLive:
             except Exception as e:
                 logger.warning(f"Overlay system failed to init (degrading to scalar=1.0): {e}")
 
+        # Validate config parameters (fail fast on startup)
+        self._validate_config()
+
         logger.info("=" * 70)
         if self._hydra_available:
             logger.info("OMNICAPITAL HYDRA - LIVE TRADING (COMPASS + Rattlesnake)")
@@ -919,6 +934,61 @@ class COMPASSLive:
             logger.info(f"Overlays: BSO + M2 + FOMC + FedEmergency + CreditFilter (damping={self._overlay_damping})")
         else:
             logger.info("Overlays: DISABLED (FRED data unavailable)")
+
+        self._log_startup_report()
+
+    def _log_startup_report(self):
+        logger.info("=== HYDRA Engine Startup Report ===")
+        logger.info(f"  Positions: {self.config.get('NUM_POSITIONS', '?')}")
+        logger.info(f"  Hold days: {self.config.get('HOLD_DAYS', '?')}")
+        logger.info(f"  Leverage max: {self.config.get('LEVERAGE_MAX', '?')}")
+        logger.info(f"  Stop range: [{self.config.get('STOP_FLOOR', '?')}, {self.config.get('STOP_CEILING', '?')}]")
+        logger.info(f"  State file: {getattr(self, 'state_file', '?')}")
+        logger.info(f"  ML available: {getattr(self, '_ml_available', '?')}")
+        logger.info(f"  Python: {sys.version.split()[0]}")
+        logger.info("=================================")
+
+    # ------------------------------------------------------------------
+    # Config validation
+    # ------------------------------------------------------------------
+
+    def _validate_config(self):
+        c = self.config
+        errors = []
+
+        # HOLD_DAYS: int >= 1
+        if not isinstance(c.get('HOLD_DAYS'), int) or c['HOLD_DAYS'] < 1:
+            errors.append(f"HOLD_DAYS must be int >= 1, got {c.get('HOLD_DAYS')!r}")
+
+        # NUM_POSITIONS: int in [1, 20]
+        if not isinstance(c.get('NUM_POSITIONS'), int) or not (1 <= c['NUM_POSITIONS'] <= 20):
+            errors.append(f"NUM_POSITIONS must be int in [1, 20], got {c.get('NUM_POSITIONS')!r}")
+
+        # LEVERAGE_MAX: float in (0, 1.0]
+        lev = c.get('LEVERAGE_MAX')
+        if not isinstance(lev, (int, float)) or lev <= 0 or lev > 1.0:
+            errors.append(f"LEVERAGE_MAX must be float in (0, 1.0], got {lev!r}")
+
+        # STOP_FLOOR: float in [-0.20, 0]
+        sf = c.get('STOP_FLOOR')
+        if not isinstance(sf, (int, float)) or sf < -0.20 or sf > 0:
+            errors.append(f"STOP_FLOOR must be float in [-0.20, 0], got {sf!r}")
+
+        # STOP_CEILING: float in [-0.30, STOP_FLOOR]
+        sc = c.get('STOP_CEILING')
+        sf_val = sf if isinstance(sf, (int, float)) else 0
+        if not isinstance(sc, (int, float)) or sc < -0.30 or sc > sf_val:
+            errors.append(f"STOP_CEILING must be float in [-0.30, {sf_val}], got {sc!r}")
+
+        # TRAILING_ACTIVATION: float > 0
+        ta = c.get('TRAILING_ACTIVATION')
+        if not isinstance(ta, (int, float)) or ta <= 0:
+            errors.append(f"TRAILING_ACTIVATION must be float > 0, got {ta!r}")
+
+        if errors:
+            for err in errors:
+                logger.error(f"Config validation failed: {err}")
+            raise ValueError(f"Invalid config: {'; '.join(errors)}")
 
     # ------------------------------------------------------------------
     # Market hours
@@ -3324,6 +3394,32 @@ class COMPASSLive:
                     pass
         return None
 
+    def _cleanup_old_corrupted_backups(self, max_age_days=7, max_files=10):
+        pattern = os.path.join('state', 'compass_state_CORRUPTED_*.json')
+        files = sorted(glob.glob(pattern), key=os.path.getmtime)
+        now = time_module.time()
+        max_age_seconds = max_age_days * 86400
+        remaining = []
+        for fpath in files:
+            try:
+                age = now - os.path.getmtime(fpath)
+                if age > max_age_seconds:
+                    os.unlink(fpath)
+                    logger.info(f"Deleted old corrupted backup (age={age / 86400:.1f}d): {fpath}")
+                else:
+                    remaining.append(fpath)
+            except OSError as e:
+                logger.warning(f"Failed to delete corrupted backup {fpath}: {e}")
+                remaining.append(fpath)
+        if len(remaining) > max_files:
+            to_delete = remaining[:len(remaining) - max_files]
+            for fpath in to_delete:
+                try:
+                    os.unlink(fpath)
+                    logger.info(f"Deleted excess corrupted backup: {fpath}")
+                except OSError as e:
+                    logger.warning(f"Failed to delete corrupted backup {fpath}: {e}")
+
     def _validate_state(self, state, source='save', previous_state=None):
         state = copy.deepcopy(state or {})
         violations = []
@@ -4042,6 +4138,12 @@ class COMPASSLive:
 
         # Ensure cycle log has an active cycle if we have positions
         self._ensure_active_cycle()
+
+        # Cleanup old corrupted state backups
+        try:
+            self._cleanup_old_corrupted_backups()
+        except Exception as e:
+            logger.warning(f"Corrupted backup cleanup failed (non-fatal): {e}")
 
     # ------------------------------------------------------------------
     # Status logging

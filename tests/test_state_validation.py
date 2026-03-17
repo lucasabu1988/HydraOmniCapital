@@ -1,6 +1,8 @@
 import json
+import os
 import sys
 import threading
+import time
 from datetime import date
 from pathlib import Path
 
@@ -404,3 +406,41 @@ def test_validate_state_schema_nan_portfolio_value(trader):
     violations = trader._validate_state_schema(state)
     assert len(violations) == 1
     assert "'portfolio_value' must be finite" in violations[0]
+
+
+def test_cleanup_corrupted_backups_keeps_max_files(trader, tmp_path):
+    state_dir = tmp_path / 'state'
+    state_dir.mkdir(parents=True, exist_ok=True)
+    for idx in range(15):
+        fpath = state_dir / f'compass_state_CORRUPTED_20260316_120000_{idx:06d}.json'
+        fpath.write_text('{}', encoding='utf-8')
+
+    trader._cleanup_old_corrupted_backups(max_age_days=365, max_files=10)
+
+    remaining = sorted(state_dir.glob('compass_state_CORRUPTED_*.json'))
+    assert len(remaining) == 10
+    assert remaining[0].name == 'compass_state_CORRUPTED_20260316_120000_000005.json'
+
+
+def test_cleanup_corrupted_backups_deletes_old_files_first(trader, tmp_path):
+    state_dir = tmp_path / 'state'
+    state_dir.mkdir(parents=True, exist_ok=True)
+    old_time = time.time() - (8 * 86400)
+    recent_time = time.time()
+
+    for idx in range(5):
+        fpath = state_dir / f'compass_state_CORRUPTED_20260301_120000_{idx:06d}.json'
+        fpath.write_text('{}', encoding='utf-8')
+        os.utime(str(fpath), (old_time, old_time))
+
+    for idx in range(5):
+        fpath = state_dir / f'compass_state_CORRUPTED_20260316_120000_{idx:06d}.json'
+        fpath.write_text('{}', encoding='utf-8')
+        os.utime(str(fpath), (recent_time, recent_time))
+
+    trader._cleanup_old_corrupted_backups(max_age_days=7, max_files=10)
+
+    remaining = sorted(state_dir.glob('compass_state_CORRUPTED_*.json'))
+    assert len(remaining) == 5
+    for f in remaining:
+        assert '20260316' in f.name
