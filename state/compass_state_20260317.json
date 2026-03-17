@@ -1,14 +1,15 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-17T08:31:34.857522",
+  "timestamp": "2026-03-17T08:47:47.220290",
   "cash": 66601.10429382324,
   "peak_value": 120000,
-  "portfolio_value": 99999.67457580566,
+  "portfolio_value": 99960.87435913086,
   "crash_cooldown": 0,
   "portfolio_values_history": [
-    100000
+    100000,
+    99999.67457580566
   ],
-  "current_regime_score": 0.48326506712266426,
+  "current_regime_score": 0.4873041989251161,
   "trading_day_counter": 2,
   "last_trading_date": "2026-03-17",
   "positions": {
@@ -40,7 +41,7 @@
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 829.719970703125,
+      "high_price": 829.8150024414062,
       "entry_vol": 0.4165747650252211,
       "entry_daily_vol": 0.026241743588616726,
       "sector": "Unknown",
@@ -93,7 +94,7 @@
   ],
   "universe_year": 2026,
   "_universe_source": "github",
-  "_daily_open_done": false,
+  "_daily_open_done": true,
   "_preclose_entries_done": false,
   "overlay": {
     "available": true,
@@ -133,16 +134,16 @@
     "catalyst_positions": [],
     "catalyst_day_counter": 0,
     "capital_manager": {
-      "compass_account": 42499.808,
-      "rattle_account": 33578.35991668701,
+      "compass_account": 42412.072288389594,
+      "rattle_account": 33511.26749973651,
       "catalyst_account": 15000.0,
       "base_compass_alloc": 0.425,
       "base_rattle_alloc": 0.425,
       "base_catalyst_alloc": 0.15,
       "max_compass_alloc": 0.75,
-      "total_recycled_days": 5,
-      "total_days": 5,
-      "efa_value": 8921.640083312988
+      "total_recycled_days": 6,
+      "total_days": 6,
+      "efa_value": 8982.572627785816
     }
   },
   "_pre_rotation_positions_data": {
@@ -158,7 +159,7 @@
   "_pre_rotation_cash": 66601.10429382324,
   "_pre_rotation_value": 99999.67457580566,
   "stats": {
-    "cycles_completed": 489,
-    "uptime_minutes": 2043.6255283166668
+    "cycles_completed": 504,
+    "uptime_minutes": 2059.8315751666664
   }
 }
