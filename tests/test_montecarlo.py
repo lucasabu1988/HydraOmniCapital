@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -123,6 +124,53 @@ def test_montecarlo_is_reproducible_with_seed_666(tmp_path, monkeypatch):
 
     assert first['summary'] == second['summary']
     assert first['fan_chart']['p50'] == second['fan_chart']['p50']
+
+
+def test_simulate_paths_vectorized_returns_expected_shape_and_positive_values(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    mc = COMPASSMonteCarlo(n_simulations=4, horizon_days=CYCLE_DAYS * 3)
+    sampled = np.tile(np.array([[0.01, -0.01, 0.02]]), (4, 1))
+
+    paths = mc._simulate_paths_vectorized(sampled)
+
+    assert paths.shape == (4, 4)
+    assert np.all(paths > 0)
+    assert paths[0] == pytest.approx([100000.0, 101000.0, 99990.0, 101989.8])
+
+
+def test_simulate_paths_vectorized_stays_flat_with_zero_returns(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    mc = COMPASSMonteCarlo(n_simulations=3, horizon_days=CYCLE_DAYS * 4)
+    sampled = np.zeros((3, 4), dtype=float)
+
+    paths = mc._simulate_paths_vectorized(sampled)
+
+    assert np.all(paths == 100000.0)
+
+
+def test_run_simulation_with_single_positive_return_grows_geometrically(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    mc = COMPASSMonteCarlo(n_simulations=3, horizon_days=CYCLE_DAYS * 3, seed=666)
+    mc.cycle_returns = np.array([0.10], dtype=float)
+
+    mc.run_simulation()
+
+    expected_path = np.array([100000.0, 110000.0, 121000.0, 133100.0])
+    assert mc.paths.shape == (3, 4)
+    assert np.allclose(mc.paths, expected_path)
+
+
+def test_run_simulation_is_reproducible_with_same_seed(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    first = COMPASSMonteCarlo(n_simulations=16, horizon_days=CYCLE_DAYS * 5, seed=666)
+    second = COMPASSMonteCarlo(n_simulations=16, horizon_days=CYCLE_DAYS * 5, seed=666)
+    first.cycle_returns = np.array([0.01, -0.01, 0.02], dtype=float)
+    second.cycle_returns = np.array([0.01, -0.01, 0.02], dtype=float)
+
+    first.run_simulation()
+    second.run_simulation()
+
+    assert np.array_equal(first.paths, second.paths)
 
 
 def test_montecarlo_raises_when_no_cycle_returns_are_available(tmp_path, monkeypatch):
