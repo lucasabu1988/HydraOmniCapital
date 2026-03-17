@@ -230,8 +230,8 @@ R_MAX_HYDRA_ALLOC = 0.75
 PRICE_CACHE_SECONDS = 60  # legacy ref (use PRICE_CACHE_SECONDS_NORMAL)
 SOCIAL_CACHE_SECONDS = 300  # 5 minutes
 
-# Live test reset Mar 17, 2026 — fresh start after engine recovery
-LIVE_TEST_START_DATE = '2026-03-17'
+# Live test — positions entered at close on Mar 16, 2026
+LIVE_TEST_START_DATE = '2026-03-16'
 LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
@@ -1281,14 +1281,15 @@ def get_spy_start_price() -> Optional[float]:
         except Exception as e:
             logger.warning("get_spy_start_price cycle_log failed: %s", e, exc_info=True)
 
-    # Fallback: use current ^GSPC price as baseline for fresh start
+    # Fallback: use prev_close as baseline (= close of previous trading day)
+    # This matches position entries which happen at close
     try:
         batch = _yf_fetch_batch(['^GSPC'])
         gspc = batch.get('^GSPC', {})
-        price = gspc.get('price') or gspc.get('prev_close')
+        price = gspc.get('prev_close') or gspc.get('price')
         if price and price > 0:
             _spy_start_price = float(price)
-            logger.info("SPY start price set from live quote: %.2f", _spy_start_price)
+            logger.info("SPY start price set from prev_close: %.2f", _spy_start_price)
             return _spy_start_price
     except Exception as e:
         logger.warning("get_spy_start_price live fallback failed: %s", e, exc_info=True)

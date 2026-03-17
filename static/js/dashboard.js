@@ -600,7 +600,7 @@ function updatePerfBanner(p) {
     if (p.last_trading_date) {
         var days = p.trading_day || '?';
         document.getElementById('perf-period').textContent =
-            t('live-test-prefix') + ' \u00B7 ' + t('day-label') + ' ' + days + ' \u00B7 ' + t('start-label') + ' Mar 17, 2026';
+            t('live-test-prefix') + ' \u00B7 ' + t('day-label') + ' ' + days + ' \u00B7 ' + t('start-label') + ' Mar 16, 2026';
     }
 }
 
