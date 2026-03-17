@@ -4455,6 +4455,26 @@ class COMPASSLive:
             self._vix_current = hydra_state.get('vix_current')
             self.catalyst_positions = hydra_state.get('catalyst_positions', [])
             self._catalyst_day_counter = hydra_state.get('catalyst_day_counter', 0)
+
+            # Reconcile: if broker has positions marked _catalyst in position_meta
+            # but catalyst_positions list is empty, restore them
+            raw_meta = state.get('position_meta', {})
+            cat_syms_in_list = {cp['symbol'] for cp in self.catalyst_positions}
+            for sym, meta in raw_meta.items():
+                if meta.get('_catalyst') and sym not in cat_syms_in_list:
+                    pos_data = state.get('positions', {}).get(sym)
+                    if pos_data:
+                        self.catalyst_positions.append({
+                            'symbol': sym,
+                            'shares': pos_data['shares'],
+                            'entry_price': meta.get('entry_price', pos_data['avg_cost']),
+                            'sub_strategy': 'trend',
+                        })
+                        logger.warning(f"Reconciled orphan catalyst position: {sym} "
+                                      f"({pos_data['shares']}sh @ ${meta.get('entry_price', 0):.2f})")
+            if self.catalyst_positions and self._catalyst_day_counter == 0:
+                self._catalyst_day_counter = max(1, self.trading_day_counter)
+
             cap_state = hydra_state.get('capital_manager')
             if cap_state:
                 self.hydra_capital = HydraCapitalManager.from_dict(cap_state)
