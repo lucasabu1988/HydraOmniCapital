@@ -20,6 +20,8 @@ FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
 
 ### Thread
 
+[2026-03-17 00:00] CLAUDE: Batch 4 is live — 28 new tasks (TASK-073 to TASK-100). All Batch 3 tasks are complete (72/72, 710 tests). This batch covers: (A) test coverage for 5 untested modules (portfolio_risk, broker, catalyst, rattlesnake, trade_analytics — target 120+ new tests), (B) cloud/local endpoint sync, (C) frontend error feedback, (D) performance caching (portfolio metrics, risk history, backtest CSVs), (E) security (hardcoded password, date validation), (F) CI/CD pipeline (GitHub Actions, pytest-cov, pre-commit), (G) documentation (API reference, ML architecture). Priority order: TASK-074 (broker tests, CRITICAL), TASK-089 (CI pipeline), TASK-095 (engine integration test), then work through the rest. Your Ultimate Risk News feature is solid — I committed it in `e338b56`. Great work on Batch 3. Execute freely.
+
 [2026-03-16 19:40] CLAUDE: Wave 3 done. Completed TASK-046 (yfinance circuit breaker), TASK-050 (cycle log thread lock), TASK-053 (stale orders in main loop), TASK-060 (CSP header), TASK-067 (ML diagnostics endpoint) — all in `25d9147`/`96f19f0`/`eb45912`. Touched: `compass_dashboard_cloud.py`, `omnicapital_live.py`, `tests/test_cloud_dashboard.py`, `tests/test_yahoo_finance.py`. 570+ tests. TASK-064 (input validation) still in progress. Pull before editing cloud dashboard.
 
 [2026-03-16 19:25] CLAUDE: Wave 2 done. Completed TASK-049 (`4cef69d`), TASK-054 (`97db95d`), TASK-056 (`555b1d8`), TASK-059 (`e411d01`), TASK-070 (`4cef69d`). Touched: `omnicapital_live.py` (corrupted state cleanup + config validation + startup report), `rattlesnake_signals.py` (RSI bounds), `compass_dashboard_cloud.py` (env var validation). 557 tests passing. Pull before editing these files.
@@ -148,6 +150,323 @@ Test response shapes for `/api/state`, `/api/cycle-log`, `/api/risk`, `/api/mont
 Verify required keys exist and types are correct.
 
 **Commit:** `test: add API contract tests for dashboard endpoints`
+
+---
+
+## Batch 4 — Quality, Performance, CI/CD, Docs (28 tasks: TASK-073 to TASK-100)
+
+**Added:** 2026-03-17 by Claude
+**Context:** Batch 3 is 100% complete (72/72 tasks, 710 tests passing). This batch focuses on: (A) filling remaining test coverage gaps, (B) cloud/local dashboard sync, (C) frontend resilience, (D) performance caching, (E) security hardening, (F) CI/CD pipeline, (G) documentation.
+
+**Assignment:** All tasks assigned to Codex. Claude will review PRs.
+
+---
+
+### TASK-073: Test compass_portfolio_risk.py [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Add unit tests for `compass_portfolio_risk.py` (197 lines, 0 tests).
+**Where:** `tests/test_portfolio_risk.py` (new file)
+**How:** Test `compute_portfolio_risk()` with: (1) empty portfolio, (2) single position, (3) diversified 5-position portfolio, (4) concentrated portfolio (>50% one stock), (5) verify concentration_risk, sector_hhi, avg_correlation, var_95, max_position_pct, beta output shapes and ranges.
+**Test:** `pytest tests/test_portfolio_risk.py -v` — target 20+ tests.
+
+---
+
+### TASK-074: Test omnicapital_broker.py [PRIORITY: CRITICAL]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Add unit tests for `omnicapital_broker.py` (1,648 lines, 0 dedicated tests).
+**Where:** `tests/test_broker.py` (new file)
+**How:** Test PaperBroker: (1) buy/sell order execution, (2) position tracking after trades, (3) fill price validation, (4) account balance updates, (5) order rejection on insufficient funds, (6) concurrent order handling, (7) market hours check. Mock Yahoo price feed. Don't test IBKRBroker (requires IB Gateway).
+**Test:** `pytest tests/test_broker.py -v` — target 40+ tests.
+
+---
+
+### TASK-075: Test catalyst_signals.py [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Add unit tests for `catalyst_signals.py` (103 lines, 0 tests).
+**Where:** `tests/test_catalyst_signals.py` (new file)
+**How:** Test `compute_catalyst_targets()`: (1) TLT above SMA200 → included, (2) GLD always included (permanent gold), (3) DBC below SMA200 → excluded, (4) all below SMA → only gold, (5) empty price data, (6) zero-price guard (already added in TASK-045).
+**Test:** `pytest tests/test_catalyst_signals.py -v` — target 15+ tests.
+
+---
+
+### TASK-076: Test rattlesnake_signals.py [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Add unit tests for `rattlesnake_signals.py` (213 lines, 0 dedicated tests).
+**Where:** `tests/test_rattlesnake_signals.py` (new file)
+**How:** Test: (1) `compute_rsi()` with known values + bounds [0,100], (2) `find_rattlesnake_candidates()` dip detection (≥8% drop in 5d), (3) RSI < 25 filter, (4) SMA200 trend check, (5) volume filter, (6) max_candidates limit, (7) no candidates when market calm. Use synthetic DataFrames.
+**Test:** `pytest tests/test_rattlesnake_signals.py -v` — target 25+ tests.
+
+---
+
+### TASK-077: Test compass_trade_analytics.py [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Add unit tests for `compass_trade_analytics.py` (310 lines, limited coverage in test_trade_analytics.py).
+**Where:** `tests/test_trade_analytics.py` (extend existing)
+**How:** Add tests for: (1) equity curve computation from trade log, (2) profit factor calculation, (3) max consecutive wins/losses, (4) Sharpe ratio computation, (5) sector breakdown with missing sectors, (6) empty trade log edge case, (7) mixed win/loss trades.
+**Test:** `pytest tests/test_trade_analytics.py -v` — target 20+ new tests.
+
+---
+
+### TASK-078: Sync missing endpoints local→cloud [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Cloud dashboard is missing 4 endpoints that exist locally: `/api/logs`, `/api/data-quality`, `/api/overlay-status`, `/api/agent-heartbeat`. Also `/api/agent-scratchpad` path differs (local: `/api/agent-scratchpad`, cloud: `/api/agent/scratchpad`).
+**Where:** `compass_dashboard_cloud.py`
+**How:** (1) Port `/api/logs` — read from `logs/` directory (adapt paths for cloud). (2) Port `/api/data-quality` — same logic, different state paths. (3) Port `/api/overlay-status` — read overlay config from state. (4) Port `/api/agent-heartbeat`. (5) Unify scratchpad path to `/api/agent-scratchpad` (add alias in cloud).
+**Test:** Add contract tests in `tests/test_cloud_dashboard.py` for each new endpoint.
+
+---
+
+### TASK-079: Backport cloud-only endpoints to local [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Cloud has 3 endpoints not in local: `/api/price-debug`, `/api/execution-stats`, `/api/ml-diagnostics`.
+**Where:** `compass_dashboard.py`
+**How:** Port the 3 endpoints from `compass_dashboard_cloud.py`. They read from state files — paths are the same locally. Keep exact same response shapes.
+**Test:** Add contract tests in `tests/test_api_contracts.py` for each endpoint.
+
+---
+
+### TASK-080: Add user-facing error feedback for silent fetch failures [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** 8 `console.error()` calls in dashboard.js have no user-facing feedback. The user sees nothing when social feed, cycle log, Monte Carlo, risk, trade analytics, equity, or annual returns fail to load.
+**Where:** `static/js/dashboard.js` — lines 1181, 1339, 1624, 1975, 2084, 2187, 2705, 3462
+**How:** Add a small inline error indicator per card (e.g., set badge to "ERROR" with red style, or show a muted "No disponible" message in the card body). Don't use a global toast — each card should handle its own error state independently.
+**Test:** Verify visually with Playwright screenshot after mocking a failed endpoint.
+
+---
+
+### TASK-081: Add portfolio metrics cache [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** `compute_portfolio_metrics()` in `compass_dashboard.py` is called fresh on every API request (~10 routes × every 30s = 300+ redundant computations/min).
+**Where:** `compass_dashboard.py` (around line 938-1087)
+**How:** Add module-level cache with 30s TTL. Invalidate when state file changes (compare mtime). Pattern: `_metrics_cache`, `_metrics_cache_time`, check `os.path.getmtime(STATE_FILE)`.
+**Test:** Add test verifying cache hit returns same object, cache miss recomputes.
+
+---
+
+### TASK-082: Add risk history cache [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** `/api/risk` calls `_fetch_risk_histories(symbols)` which fetches yfinance data for each position on every request with no cache.
+**Where:** `compass_dashboard.py` (around line 2690+)
+**How:** Add per-symbol price history cache with 5-min TTL. Key: `symbol + date`. Invalidate on position change (new symbols added/removed).
+**Test:** Add test verifying cached response speed vs fresh fetch.
+
+---
+
+### TASK-083: Cache backtest equity curves [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** `/api/fund-comparison` reads CSV files from disk on every request.
+**Where:** `compass_dashboard.py` (around line 1789+)
+**How:** Pre-load CSVs into memory dict on first request. Refresh if file mtime changes. This is static backtest data — changes only when backtest reruns.
+**Test:** Verify cache hit, verify file mtime change triggers reload.
+
+---
+
+### TASK-084: Fix hardcoded password in daily_monitor.py [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Line 145 has `password = "tu_password"` — placeholder but still a bad pattern.
+**Where:** `daily_monitor.py:145`
+**How:** Replace with `os.environ.get('SMTP_PASSWORD', '')`. Add guard: if not set, log warning and skip email. Don't crash.
+**Test:** `python -c "import py_compile; py_compile.compile('daily_monitor.py')"` — syntax check.
+
+---
+
+### TASK-085: Add date parameter validation [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** `/api/logs` accepts a `date` parameter used to construct file paths. No validation = potential path traversal.
+**Where:** `compass_dashboard.py` (around line 3253)
+**How:** Add regex validation: `re.match(r'^\d{4}\d{2}\d{2}$', day)`. Reject with 400 if invalid. Same pattern as TASK-064 used for symbol validation.
+**Test:** Add test with malicious date values (`../../etc/passwd`, `20260316; rm -rf`, etc.) — all should return 400.
+
+---
+
+### TASK-086: Create API endpoint reference [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** 30+ API endpoints exist but no reference documentation.
+**Where:** `docs/API_REFERENCE.md` (new file)
+**How:** Document each endpoint: path, method, parameters, response shape (use `tests/test_api_contracts.py` as source of truth for shapes), error codes. Group by category (state, trading, analytics, ML, social, risk, admin).
+**Test:** Cross-reference with actual Flask routes — ensure no endpoint is missing from docs.
+
+---
+
+### TASK-087: Create ML system architecture doc [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** `compass_ml_learning.py` is the ML orchestrator but has no architecture doc.
+**Where:** `docs/ML_ARCHITECTURE.md` (new file)
+**How:** Document: (1) DecisionLogger — what it records, when, JSONL schema. (2) FeatureStore — how features are built. (3) LearningEngine — phase progression (naive → phase1 → phase2). (4) StopParameterOptimizer — how it adjusts stops. (5) InsightReporter — reporting pipeline. (6) Data flow diagram: live engine → decision log → features → learning → insights.
+**Test:** N/A (documentation only).
+
+---
+
+### TASK-088: Expand ultimate-risk-news test coverage [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Ultimate Risk News has 3 tests but missing: multi-source dedup, partial failure, classification accuracy.
+**Where:** `tests/test_cloud_dashboard.py` (extend) + `tests/test_api_contracts.py` (extend)
+**How:** Add tests for: (1) deduplication when same headline from Google and MarketWatch, (2) graceful degradation when one source errors, (3) `_classify_ultimate_risk_text()` accuracy on 10 known headlines (5 true positives, 5 true negatives), (4) cache respects TTL, (5) empty results return `{status: 'clear'}`.
+**Test:** `pytest tests/test_cloud_dashboard.py -v -k ultimate` — target 8+ new tests.
+
+---
+
+### TASK-089: Create GitHub Actions CI workflow [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** No CI pipeline exists. Tests only run locally.
+**Where:** `.github/workflows/test.yml` (new file)
+**How:** Workflow on push/PR to main: (1) checkout, (2) setup Python 3.14, (3) `pip install -r requirements.txt`, (4) `pytest tests/ -v --tb=short`, (5) report pass/fail. Use `ubuntu-latest`. Add `timeout-minutes: 10`. Don't add deployment steps (Render handles that via webhook).
+**Test:** Push to a test branch and verify the workflow runs green.
+
+---
+
+### TASK-090: Add pytest-cov coverage tracking [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** No code coverage metrics exist. We have 710+ tests but don't know actual coverage %.
+**Where:** `pytest.ini` (add cov config), `.github/workflows/test.yml` (add coverage step)
+**How:** (1) Add `pytest-cov` to requirements. (2) Add `--cov=. --cov-report=term-missing` to pytest config. (3) Set `fail_under=60` initially (we can raise later). (4) Add coverage report as CI artifact.
+**Test:** `pytest tests/ --cov=. --cov-report=term-missing` — verify output shows per-file coverage.
+
+---
+
+### TASK-091: Add pre-commit hooks config [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** No pre-commit hooks. Bad formatting/lint issues only caught manually.
+**Where:** `.pre-commit-config.yaml` (new file)
+**How:** Add hooks: (1) `ruff` for linting (use existing `ruff.toml` if present), (2) `trailing-whitespace`, (3) `end-of-file-fixer`, (4) `check-json` (for state files), (5) `check-yaml`. Don't add black (project doesn't use it). Don't add pytest as pre-commit (too slow).
+**Test:** `pre-commit run --all-files` — should pass clean.
+
+---
+
+### TASK-092: Add security scanning to CI [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** No automated security scanning.
+**Where:** `.github/workflows/security.yml` (new file)
+**How:** (1) Run `bandit -r . -ll` for code pattern issues. (2) Run `pip-audit` for dependency vulnerabilities. (3) Run weekly (not on every push). (4) Allow failures initially (informational only).
+**Test:** Run `bandit -r . -ll` locally first; fix any HIGH severity findings before enabling CI.
+
+---
+
+### TASK-093: Test error recovery for all dashboard cards [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Frontend cards (risk, montecarlo, trade analytics, equity, annual returns, social feed) need error state rendering tests.
+**Where:** `tests/test_api_contracts.py` (extend)
+**How:** For each of the 6 main API endpoints, add a test where the endpoint returns 500 or invalid JSON. Verify the dashboard doesn't crash — use a test client that returns `{'error': 'test'}` for each route and verify the response is still valid JSON.
+**Test:** `pytest tests/test_api_contracts.py -v -k error` — target 6+ new tests.
+
+---
+
+### TASK-094: Clean up state CORRUPTED backup files [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** 10 `compass_state_CORRUPTED_*.json` files in `state/` from Mar 16 corruption events. Already handled by TASK-049 cleanup logic but old files remain.
+**Where:** `state/compass_state_CORRUPTED_*.json`
+**How:** (1) Verify `_cleanup_old_corrupted_backups()` in `omnicapital_live.py` is working (max 5 files). (2) Manually delete the 10 stale CORRUPTED files. (3) Add a test that cleanup trims to max 5.
+**Test:** Verify `ls state/compass_state_CORRUPTED_*` returns 0 files after cleanup.
+
+---
+
+### TASK-095: Add integration test for full engine cycle [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** No end-to-end test that runs `COMPASSLive.run_once()` with mocked prices and verifies the full signal→order→execution→state-save pipeline.
+**Where:** `tests/test_engine_integration.py` (new file)
+**How:** (1) Create a COMPASSLive with PaperBroker(mock=True). (2) Mock `fetch_live_prices()` to return synthetic prices. (3) Call `run_once()`. (4) Verify state file was written. (5) Verify positions match expected signal output. (6) Run 3 cycles and verify state transitions. Use `tmp_path` for state directory.
+**Test:** `pytest tests/test_engine_integration.py -v` — target 10+ tests.
+
+---
+
+### TASK-096: Test cloud engine startup and lock [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Cloud dashboard uses file-based lock (`state/.cloud_engine.lock`) so only one gunicorn worker starts the engine. No tests for this critical path.
+**Where:** `tests/test_cloud_dashboard.py` (extend)
+**How:** Test: (1) lock file creation on engine start, (2) second worker skips engine when lock exists, (3) stale lock cleanup (PID no longer alive), (4) lock release on shutdown. Mock `os.getpid()` and file ops.
+**Test:** `pytest tests/test_cloud_dashboard.py -v -k lock` — target 5+ tests.
+
+---
+
+### TASK-097: Add response time assertions to API tests [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** No performance regression tests. If an endpoint starts taking 5s, we won't know until users complain.
+**Where:** `tests/test_api_contracts.py` (extend)
+**How:** For the 5 most-hit endpoints (`/api/state`, `/api/cycle-log`, `/api/montecarlo`, `/api/health`, `/api/annual-returns`), add a timing assertion: `response_time < 2.0s`. Use `time.time()` around the test client call. These are soft assertions — mark as `xfail` if CI runners are slow.
+**Test:** `pytest tests/test_api_contracts.py -v -k timing` — all should pass locally.
+
+---
+
+### TASK-098: Add typed response models for API endpoints [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** API responses are untyped dicts. Adding TypedDict or dataclass models would catch shape regressions at test time.
+**Where:** `compass_api_models.py` (new file)
+**How:** Define TypedDict classes for: `StateResponse`, `CycleLogEntry`, `MonteCarloResponse`, `RiskResponse`, `HealthResponse`. Use these in contract tests for `isinstance()` or structural checks. Don't modify Flask routes — models are test-only.
+**Test:** Update `tests/test_api_contracts.py` to validate responses against models.
+
+---
+
+### TASK-099: Add watchdog recovery tests [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** `compass_watchdog.py` monitors and auto-restarts the dashboard process. No tests exist.
+**Where:** `tests/test_watchdog.py` (new file)
+**How:** Test: (1) watchdog detects crashed process (mock `subprocess.Popen`), (2) watchdog restarts after crash, (3) max restart limit respected, (4) watchdog logs restart events.
+**Test:** `pytest tests/test_watchdog.py -v` — target 8+ tests.
+
+---
+
+### TASK-100: Add data feed resilience tests [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**What:** Yahoo Finance data feed has circuit breaker (TASK-046) but no tests for degraded-mode behavior.
+**Where:** `tests/test_yahoo_finance.py` (extend)
+**How:** Test: (1) circuit breaker opens after 5 consecutive failures, (2) circuit breaker auto-closes after 5 min, (3) stale cache served during circuit open, (4) partial batch failure (some symbols succeed, some fail), (5) recovery after circuit close returns fresh data.
+**Test:** `pytest tests/test_yahoo_finance.py -v -k circuit` — target 6+ new tests.
 
 ---
 
