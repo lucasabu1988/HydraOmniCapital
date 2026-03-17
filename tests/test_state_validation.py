@@ -363,3 +363,44 @@ def test_write_corrupted_state_backup_prunes_old_files(trader, tmp_path):
     assert backup_path is not None
     assert len(backups) == 20
     assert backups[0].name == 'compass_state_CORRUPTED_20260316_120000_000006.json'
+
+
+# --- State schema validation tests ---
+
+def _valid_schema_state():
+    return {
+        'cash': 50000.0,
+        'positions': {'AAPL': {'shares': 10, 'avg_cost': 150.0}},
+        'portfolio_value': 51500.0,
+        'peak_value': 52000.0,
+        'trading_day_counter': 5,
+    }
+
+
+def test_validate_state_schema_valid_state(trader):
+    violations = trader._validate_state_schema(_valid_schema_state())
+    assert violations == []
+
+
+def test_validate_state_schema_negative_cash(trader):
+    state = _valid_schema_state()
+    state['cash'] = -500.0
+    violations = trader._validate_state_schema(state)
+    assert len(violations) == 1
+    assert "'cash' must be >= 0" in violations[0]
+
+
+def test_validate_state_schema_missing_positions(trader):
+    state = _valid_schema_state()
+    del state['positions']
+    violations = trader._validate_state_schema(state)
+    assert len(violations) == 1
+    assert "missing required field 'positions'" in violations[0]
+
+
+def test_validate_state_schema_nan_portfolio_value(trader):
+    state = _valid_schema_state()
+    state['portfolio_value'] = float('nan')
+    violations = trader._validate_state_schema(state)
+    assert len(violations) == 1
+    assert "'portfolio_value' must be finite" in violations[0]

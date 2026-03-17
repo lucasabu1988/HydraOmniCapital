@@ -25,6 +25,7 @@ import sys
 import glob
 import tempfile
 import copy
+import signal
 import threading
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
@@ -830,6 +831,7 @@ class COMPASSLive:
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
         self._startup_self_test_done = False
+        self._shutdown_requested = False
 
         # Cycle log tracking
         self._pre_rotation_value = None   # portfolio value before exits
@@ -1239,10 +1241,12 @@ class COMPASSLive:
 
         # DD scaling
         dd_lev = _dd_leverage(drawdown, self.config)
+        crash_brake_active = False
 
         # Crash velocity check
         if self.crash_cooldown > 0:
             dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
+            crash_brake_active = True
         elif len(self.portfolio_values_history) >= 5:
             current_val = pv
             val_5d = self.portfolio_values_history[-5]
@@ -1251,13 +1255,16 @@ class COMPASSLive:
                 if ret_5d <= self.config['CRASH_VEL_5D']:
                     dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
                     self.crash_cooldown = self.config['CRASH_COOLDOWN'] - 1
-            if self.crash_cooldown == 0 and len(self.portfolio_values_history) >= 10:
+                    crash_brake_active = True
+            if (not crash_brake_active and self.crash_cooldown == 0
+                    and len(self.portfolio_values_history) >= 10):
                 val_10d = self.portfolio_values_history[-10]
                 if val_10d > 0:
                     ret_10d = (current_val / val_10d) - 1.0
                     if ret_10d <= self.config['CRASH_VEL_10D']:
                         dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
                         self.crash_cooldown = self.config['CRASH_COOLDOWN'] - 1
+                        crash_brake_active = True
 
         # Vol targeting
         vol_lev = 1.0
@@ -1268,7 +1275,10 @@ class COMPASSLive:
                 self.config['LEV_FLOOR'], self.config['LEVERAGE_MAX']
             )
 
-        return max(min(dd_lev, vol_lev), self.config['LEV_FLOOR'])
+        target_lev = min(dd_lev, vol_lev)
+        if crash_brake_active:
+            return target_lev
+        return max(target_lev, self.config['LEV_FLOOR'])
 
     def get_max_positions(self) -> int:
         """Determine max positions from regime score (v8.4: with bull override)"""
@@ -3467,6 +3477,64 @@ class COMPASSLive:
         self._last_persisted_trading_day_counter = trading_day_counter
         return state, violations
 
+    def _validate_state_schema(self, state):
+        violations = []
+        import math
+
+        # cash: must exist, finite float >= 0
+        if 'cash' not in state:
+            violations.append("missing required field 'cash'")
+        else:
+            cash = state['cash']
+            if not isinstance(cash, (int, float)):
+                violations.append(f"'cash' must be a number, got {type(cash).__name__}")
+            elif not math.isfinite(cash):
+                violations.append(f"'cash' must be finite, got {cash}")
+            elif cash < 0:
+                violations.append(f"'cash' must be >= 0, got {cash}")
+
+        # positions: must exist and be dict
+        if 'positions' not in state:
+            violations.append("missing required field 'positions'")
+        elif not isinstance(state['positions'], dict):
+            violations.append(f"'positions' must be a dict, got {type(state['positions']).__name__}")
+
+        # portfolio_value: must exist, finite float > 0
+        if 'portfolio_value' not in state:
+            violations.append("missing required field 'portfolio_value'")
+        else:
+            pv = state['portfolio_value']
+            if not isinstance(pv, (int, float)):
+                violations.append(f"'portfolio_value' must be a number, got {type(pv).__name__}")
+            elif not math.isfinite(pv):
+                violations.append(f"'portfolio_value' must be finite, got {pv}")
+            elif pv <= 0:
+                violations.append(f"'portfolio_value' must be > 0, got {pv}")
+
+        # peak_value: must exist, finite float
+        if 'peak_value' not in state:
+            violations.append("missing required field 'peak_value'")
+        else:
+            pk = state['peak_value']
+            if not isinstance(pk, (int, float)):
+                violations.append(f"'peak_value' must be a number, got {type(pk).__name__}")
+            elif not math.isfinite(pk):
+                violations.append(f"'peak_value' must be finite, got {pk}")
+
+        # trading_day_counter: int >= 0
+        if 'trading_day_counter' in state:
+            tdc = state['trading_day_counter']
+            if not isinstance(tdc, int):
+                violations.append(f"'trading_day_counter' must be an int, got {type(tdc).__name__}")
+            elif tdc < 0:
+                violations.append(f"'trading_day_counter' must be >= 0, got {tdc}")
+
+        # regime: if present, must be str
+        if 'regime' in state and not isinstance(state['regime'], str):
+            violations.append(f"'regime' must be a str, got {type(state['regime']).__name__}")
+
+        return violations
+
     def _snapshot_positions(self, positions=None):
         if positions is None:
             positions = self.broker.get_positions()
@@ -3873,6 +3941,10 @@ class COMPASSLive:
         for violation in violations:
             logger.warning(f"State validation repaired on load: {violation}")
 
+        schema_violations = self._validate_state_schema(state)
+        for sv in schema_violations:
+            logger.warning(f"State schema violation on load: {sv}")
+
         # Restore portfolio state
         self.peak_value = state.get('peak_value', self.config['PAPER_INITIAL_CASH'])
 
@@ -4130,11 +4202,23 @@ class COMPASSLive:
         logger.info("Starting COMPASS v8.4 live trading loop...")
         self._run_startup_self_test_once()
 
+        # Register graceful shutdown handlers
+        def _graceful_shutdown(signum, frame):
+            logger.info(f"Received signal {signum}, saving state and shutting down...")
+            self._shutdown_requested = True
+        signal.signal(signal.SIGTERM, _graceful_shutdown)
+        signal.signal(signal.SIGINT, _graceful_shutdown)
+
         # Kill switch check
         kill_file = 'STOP_TRADING'
 
         try:
             while True:
+                # Graceful shutdown
+                if self._shutdown_requested:
+                    logger.info("Graceful shutdown requested, exiting loop...")
+                    break
+
                 # Kill switch
                 if os.path.exists(kill_file):
                     logger.warning("KILL SWITCH activated (STOP_TRADING file found)")
