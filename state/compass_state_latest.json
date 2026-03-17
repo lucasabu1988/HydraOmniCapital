@@ -1,16 +1,15 @@
 {
   "version": "8.4",
   "timestamp": "2026-03-17T11:28:44.637871",
-  "cash": 66601.10429382324,
+  "cash": 44201.44429382324,
   "peak_value": 120000,
   "portfolio_value": 99798.55453491211,
   "crash_cooldown": 0,
   "portfolio_values_history": [
-    100000,
-    99999.67457580566
+    100068.7645111084
   ],
   "current_regime_score": 0.4873041989251161,
-  "trading_day_counter": 2,
+  "trading_day_counter": 1,
   "last_trading_date": "2026-03-17",
   "positions": {
     "JNJ": {
@@ -20,6 +19,22 @@
     "GEV": {
       "shares": 9,
       "avg_cost": 827.3699951171875
+    },
+    "TLT": {
+      "shares": 38,
+      "avg_cost": 87.21
+    },
+    "GLD": {
+      "shares": 17,
+      "avg_cost": 460.43
+    },
+    "DBC": {
+      "shares": 117,
+      "avg_cost": 28.31
+    },
+    "EFA": {
+      "shares": 81,
+      "avg_cost": 98.1
     }
   },
   "position_meta": {

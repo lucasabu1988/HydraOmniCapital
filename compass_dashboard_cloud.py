@@ -227,8 +227,8 @@ R_MAX_HYDRA_ALLOC = 0.75
 PRICE_CACHE_SECONDS = 60  # legacy ref (use PRICE_CACHE_SECONDS_NORMAL)
 SOCIAL_CACHE_SECONDS = 300  # 5 minutes
 
-# Live test started Mar 6, 2026 — ^GSPC prev close on that date
-LIVE_TEST_START_DATE = '2026-03-05'
+# Live test reset Mar 17, 2026 — fresh start after engine recovery
+LIVE_TEST_START_DATE = '2026-03-17'
 LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
@@ -986,12 +986,13 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
 
 
 def get_spy_start_price() -> Optional[float]:
-    """Get SPY price at live test start from cycle_log first cycle.
-    Returns None if no cycles exist yet (fresh start)."""
+    """Get SPY price at live test start. Tries cycle_log first cycle,
+    then falls back to current ^GSPC price (for fresh start / reset)."""
     global _spy_start_price
     if _spy_start_price is not None:
         return _spy_start_price
 
+    # Try cycle_log first
     log_file = os.path.join(STATE_DIR, 'cycle_log.json')
     if os.path.exists(log_file):
         try:
@@ -1003,7 +1004,19 @@ def get_spy_start_price() -> Optional[float]:
                     _spy_start_price = float(first_spy)
                     return _spy_start_price
         except Exception as e:
-            logger.warning(f"get_spy_start_price failed: {e}")
+            logger.warning("get_spy_start_price cycle_log failed: %s", e, exc_info=True)
+
+    # Fallback: use current ^GSPC price as baseline for fresh start
+    try:
+        batch = _yf_fetch_batch(['^GSPC'])
+        gspc = batch.get('^GSPC', {})
+        price = gspc.get('price') or gspc.get('prev_close')
+        if price and price > 0:
+            _spy_start_price = float(price)
+            logger.info("SPY start price set from live quote: %.2f", _spy_start_price)
+            return _spy_start_price
+    except Exception as e:
+        logger.warning("get_spy_start_price live fallback failed: %s", e, exc_info=True)
 
     return None
 
