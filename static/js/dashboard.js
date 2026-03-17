@@ -70,6 +70,7 @@ function switchPage(page) {
 /* ============ HELPERS ============ */
 function fmt$(v) {
     if (v == null || isNaN(v)) return '$--';
+    if (!isFinite(v)) return '\u2014';
     const neg = v < 0;
     const abs = Math.abs(v);
     let s;
@@ -80,17 +81,19 @@ function fmt$(v) {
 
 function fmtPct(v) {
     if (v == null || isNaN(v)) return '--';
+    if (!isFinite(v)) return '\u2014';
     return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
 }
 
 function colorCls(v) {
+    if (v == null || isNaN(v) || !isFinite(v)) return 'c-dim';
     if (v > 0) return 'c-green';
     if (v < 0) return 'c-red';
     return 'c-dim';
 }
 
 function timeAgo(isoStr) {
-    if (!isoStr) return '--';
+    if (!isoStr || isNaN(new Date(isoStr).getTime())) return '\u2014';
     const d = new Date(isoStr);
     const diff = (Date.now() - d.getTime()) / 1000;
     if (diff < 60) return Math.floor(diff) + 's ago';
