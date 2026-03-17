@@ -976,6 +976,120 @@ def test_learning_engine_phase1_handles_empty_outcomes(isolate_ml_paths):
     assert result['phase1']['status'] == 'no_completed_trades_yet'
 
 
+@pytest.mark.parametrize(
+    'trading_days_available,expected_phase',
+    [
+        (10, 1),
+        (62, 1),
+        (63, 2),
+        (251, 2),
+        (252, 3),
+    ],
+)
+def test_learning_engine_get_phase_boundaries(
+    isolate_ml_paths,
+    trading_days_available,
+    expected_phase,
+):
+    feature_store = ml.FeatureStore(str(isolate_ml_paths))
+    engine = ml.LearningEngine(feature_store, trading_days_available=trading_days_available)
+
+    assert engine.get_phase() == expected_phase
+
+
+def test_learning_engine_phase1_statistics_groups_outcomes():
+    outcomes = [
+        {
+            'gross_return': 0.05,
+            'entry_regime_bucket': ml.REGIME_BULL,
+            'sector': 'Technology',
+            'exit_reason': 'hold_expired',
+            'entry_daily_vol': 0.01,
+            'was_stopped': False,
+            'trading_days_held': 5,
+        },
+        {
+            'gross_return': 0.01,
+            'entry_regime_bucket': ml.REGIME_BULL,
+            'sector': 'Technology',
+            'exit_reason': 'hold_expired',
+            'entry_daily_vol': 0.014,
+            'was_stopped': False,
+            'trading_days_held': 4,
+        },
+        {
+            'gross_return': -0.02,
+            'entry_regime_bucket': ml.REGIME_BEAR,
+            'sector': 'Healthcare',
+            'exit_reason': 'position_stop',
+            'entry_daily_vol': 0.02,
+            'was_stopped': True,
+            'trading_days_held': 3,
+        },
+        {
+            'gross_return': -0.03,
+            'entry_regime_bucket': ml.REGIME_BEAR,
+            'sector': 'Healthcare',
+            'exit_reason': 'hold_expired',
+            'entry_daily_vol': 0.025,
+            'was_stopped': False,
+            'trading_days_held': 6,
+        },
+    ]
+    engine = ml.LearningEngine(StubFeatureStore(outcomes=outcomes), trading_days_available=40)
+
+    stats = engine._phase1_statistics()
+
+    assert stats['n_completed_trades'] == 4
+    assert stats['overall']['mean_return'] == pytest.approx(0.0025)
+    assert stats['overall']['win_rate'] == pytest.approx(0.5)
+    assert stats['by_regime'][ml.REGIME_BULL]['n'] == 2
+    assert stats['by_regime'][ml.REGIME_BEAR]['n'] == 2
+    assert stats['by_sector']['Technology']['mean_return'] == pytest.approx(0.03)
+    assert stats['by_sector']['Healthcare']['mean_return'] == pytest.approx(-0.025)
+    assert stats['by_sector']['Technology']['mean_return'] > stats['by_sector']['Healthcare']['mean_return']
+    assert stats['by_exit_reason']['hold_expired']['n'] == 3
+    assert stats['by_vol_bucket'][ml.VOL_LOW]['n'] == 2
+    assert stats['by_vol_bucket'][ml.VOL_MEDIUM]['n'] == 2
+    assert stats['stop_analysis']['total_stops'] == 1
+    assert stats['stop_analysis']['overall_stop_rate'] == pytest.approx(0.25)
+    assert stats['stop_analysis']['avg_return_when_stopped'] == pytest.approx(-0.02)
+    assert stats['stop_analysis']['avg_return_when_not_stopped'] == pytest.approx(0.01)
+
+
+def test_trade_stats_reports_all_winning_trades():
+    stats = ml.LearningEngine._trade_stats(pd.DataFrame({
+        'gross_return': [0.01, 0.03, 0.05],
+        'was_stopped': [False, False, False],
+        'trading_days_held': [3, 4, 5],
+    }))
+
+    assert stats['n'] == 3
+    assert stats['mean_return'] == pytest.approx(0.03)
+    assert stats['win_rate'] == 1.0
+    assert stats['stop_rate'] == 0.0
+    assert stats['avg_days_held'] == pytest.approx(4.0)
+    assert stats['best'] == pytest.approx(0.05)
+    assert stats['worst'] == pytest.approx(0.01)
+    assert stats['sharpe_approx'] is not None
+
+
+def test_trade_stats_reports_all_losing_trades():
+    stats = ml.LearningEngine._trade_stats(pd.DataFrame({
+        'gross_return': [-0.01, -0.02, -0.04],
+        'was_stopped': [False, True, True],
+        'trading_days_held': [2, 3, 4],
+    }))
+
+    assert stats['n'] == 3
+    assert stats['mean_return'] == pytest.approx(-0.0233, abs=1e-4)
+    assert stats['win_rate'] == 0.0
+    assert stats['stop_rate'] == pytest.approx(0.667, abs=1e-3)
+    assert stats['avg_days_held'] == pytest.approx(3.0)
+    assert stats['best'] == pytest.approx(-0.01)
+    assert stats['worst'] == pytest.approx(-0.04)
+
+
 def test_learning_engine_enters_phase2_at_63_days(isolate_ml_paths, monkeypatch):
     pytest.importorskip('sklearn')
     feature_store = ml.FeatureStore(str(isolate_ml_paths))
