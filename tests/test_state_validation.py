@@ -115,7 +115,7 @@ def trader(monkeypatch, tmp_path):
 
     trader = live.COMPASSLive(config)
     trader.broker.connect()
-    trader.last_trading_date = date(2026, 3, 16)
+    trader.last_trading_date = date.today()
     return trader
 
 
@@ -129,14 +129,18 @@ def test_save_state_raises_peak_to_current_portfolio(trader, tmp_path):
     assert state['peak_value'] == pytest.approx(100000.0)
 
 
-def test_save_state_caps_peak_to_sanity_limit(trader, tmp_path):
+def test_save_state_skips_write_when_peak_exceeds_prewrite_cap(trader, tmp_path):
     trader.trading_day_counter = 5
     trader.peak_value = 700000
 
     trader.save_state()
 
-    state = read_json(tmp_path / 'state' / 'compass_state_latest.json')
-    assert state['peak_value'] == pytest.approx(500000.0)
+    latest_path = tmp_path / 'state' / 'compass_state_latest.json'
+    backups = list((tmp_path / 'state').glob('compass_state_CORRUPTED_*.json'))
+
+    assert not latest_path.exists()
+    assert backups == []
+    assert trader._last_persisted_trading_day_counter is None
 
 
 def test_save_state_resets_early_peak_without_positions(trader, tmp_path):
@@ -149,17 +153,18 @@ def test_save_state_resets_early_peak_without_positions(trader, tmp_path):
     assert state['peak_value'] == pytest.approx(100000.0)
 
 
-def test_save_state_clamps_negative_cash_and_writes_backup(trader, tmp_path):
+def test_save_state_skips_write_for_negative_cash(trader, tmp_path):
     trader.trading_day_counter = 5
     trader.broker.cash = -50
 
     trader.save_state()
 
-    state = read_json(tmp_path / 'state' / 'compass_state_latest.json')
+    latest_path = tmp_path / 'state' / 'compass_state_latest.json'
     backups = list((tmp_path / 'state').glob('compass_state_CORRUPTED_*.json'))
 
-    assert state['cash'] == 0.0
-    assert backups
+    assert not latest_path.exists()
+    assert backups == []
+    assert trader._last_persisted_trading_day_counter is None
 
 
 def test_save_state_repairs_non_positive_portfolio_value(trader, tmp_path):
@@ -215,17 +220,48 @@ def test_save_state_prevents_trading_day_counter_decrease(trader, tmp_path):
     assert trader.trading_day_counter == 3
 
 
-def test_save_state_creates_missing_position_meta(trader, tmp_path):
+def test_save_state_skips_write_for_mismatched_position_meta_keys(trader, tmp_path):
     trader.trading_day_counter = 5
     trader.broker.positions['AAPL'] = Position('AAPL', 10, 150.0)
     trader.position_meta = {}
 
     trader.save_state()
 
+    latest_path = tmp_path / 'state' / 'compass_state_latest.json'
+
+    assert not latest_path.exists()
+    assert trader.position_meta == {}
+
+
+def test_save_state_skips_write_for_excessive_trading_day_counter(trader, tmp_path):
+    trader.trading_day_counter = 500
+
+    trader.save_state()
+
+    latest_path = tmp_path / 'state' / 'compass_state_latest.json'
+
+    assert not latest_path.exists()
+    assert trader._last_persisted_trading_day_counter is None
+
+
+def test_save_state_writes_valid_state(trader, tmp_path):
+    trader.trading_day_counter = 5
+    trader.broker.positions['AAPL'] = Position('AAPL', 10, 150.0)
+    trader.position_meta['AAPL'] = {
+        'entry_price': 150.0,
+        'entry_date': '2026-03-16',
+        'entry_day_index': 5,
+        'original_entry_day_index': 5,
+        'high_price': 150.0,
+        'sector': 'Technology',
+    }
+
+    trader.save_state()
+
     state = read_json(tmp_path / 'state' / 'compass_state_latest.json')
-    assert 'AAPL' in state['position_meta']
-    assert state['position_meta']['AAPL']['entry_price'] == pytest.approx(150.0)
-    assert state['position_meta']['AAPL']['sector'] == 'Technology'
+    assert state['cash'] == pytest.approx(100000.0)
+    assert state['positions']['AAPL']['shares'] == pytest.approx(10.0)
+    assert trader._last_persisted_trading_day_counter == 5
 
 
 def test_load_state_repairs_invalid_fields_from_disk(trader, tmp_path):
@@ -279,6 +315,30 @@ def test_load_state_caps_unreasonably_high_peak_in_early_days(trader, tmp_path):
                 'entry_date': '2026-03-16',
                 'entry_day_index': 1,
                 'original_entry_day_index': 1,
+                'high_price': 150.0,
+                'sector': 'Technology',
+            }
+        },
+    )
+    write_json(tmp_path / 'state' / 'compass_state_latest.json', latest_state)
+
+    trader.load_state()
+
+    assert trader.peak_value == pytest.approx(100000.0)
+
+
+def test_load_state_auto_heals_peak_at_day_two_threshold(trader, tmp_path):
+    latest_state = make_state(
+        trading_day_counter=2,
+        portfolio_value=100000.0,
+        peak_value=120000.0,
+        positions={'AAPL': {'shares': 10, 'avg_cost': 150.0}},
+        position_meta={
+            'AAPL': {
+                'entry_price': 150.0,
+                'entry_date': '2026-03-16',
+                'entry_day_index': 2,
+                'original_entry_day_index': 2,
                 'high_price': 150.0,
                 'sector': 'Technology',
             }
@@ -382,6 +442,17 @@ def test_validate_state_flags_negative_cash(trader):
 
     assert repaired_state['cash'] == 0.0
     assert any('cash=-25.00 cannot be negative' in violation for violation in violations)
+
+
+def test_validate_state_before_write_flags_mismatched_position_keys(trader):
+    violations = trader._validate_state_before_write(
+        make_state(
+            positions={'AAPL': {'shares': 10, 'avg_cost': 150.0}},
+            position_meta={},
+        )
+    )
+
+    assert any('positions keys must exactly match position_meta keys before write' in violation for violation in violations)
 
 
 def test_load_state_recovers_from_corrupt_latest_and_run_once_succeeds(trader, tmp_path, monkeypatch):

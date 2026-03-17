@@ -3389,6 +3389,19 @@ class COMPASSLive:
                 total += shares * avg_cost
         return total
 
+    def _get_state_reference_date(self, state) -> date:
+        if isinstance(state, dict):
+            timestamp = state.get('timestamp')
+            if isinstance(timestamp, str) and timestamp:
+                normalized = timestamp.strip()
+                if normalized.endswith('Z'):
+                    normalized = f"{normalized[:-1]}+00:00"
+                try:
+                    return datetime.fromisoformat(normalized).date()
+                except ValueError:
+                    pass
+        return date.today()
+
     def _validate_position_meta(self, meta, positions):
         cleaned = {}
         today_str = date.today().isoformat()
@@ -3535,10 +3548,49 @@ class COMPASSLive:
             position_meta = {}
         state['position_meta'] = position_meta
 
+        if source == 'load':
+            cleaned_positions = {}
+            invalid_position_symbols = []
+            for symbol, data in positions.items():
+                if not isinstance(data, dict):
+                    violations.append(f"positions[{symbol}] must be a dict; removing invalid position")
+                    invalid_position_symbols.append(symbol)
+                    continue
+
+                shares = self._coerce_float(data.get('shares'), 0.0)
+                avg_cost = self._coerce_float(data.get('avg_cost'), 0.0)
+                if shares <= 0 or avg_cost <= 0:
+                    violations.append(
+                        f"positions[{symbol}] has invalid shares/avg_cost ({shares}, {avg_cost}); removing invalid position"
+                    )
+                    invalid_position_symbols.append(symbol)
+                    continue
+
+                cleaned_positions[symbol] = {
+                    'shares': shares,
+                    'avg_cost': avg_cost,
+                }
+
+            if invalid_position_symbols:
+                for symbol in invalid_position_symbols:
+                    if symbol in position_meta:
+                        violations.append(
+                            f"position_meta[{symbol}] removed because the position payload was invalid"
+                        )
+                        position_meta.pop(symbol, None)
+
+            positions = cleaned_positions
+            state['positions'] = positions
+
         trading_day_counter = self._coerce_int(state.get('trading_day_counter'), 0)
         if trading_day_counter < 0:
-            violations.append(f"trading_day_counter={trading_day_counter} cannot be negative; resetting to 0")
-            trading_day_counter = 0
+            violations.append(f"trading_day_counter={trading_day_counter} cannot be negative")
+            if source == 'load':
+                trading_day_counter = 0
+        if trading_day_counter > 365:
+            violations.append(f"trading_day_counter={trading_day_counter} exceeds max supported value 365")
+            if source == 'load':
+                trading_day_counter = 365
 
         prev_trading_day = None
         if previous_state is not None:
@@ -3596,8 +3648,9 @@ class COMPASSLive:
 
         cash = self._coerce_float(state.get('cash'), initial_capital)
         if cash < 0:
-            violations.append(f"cash={cash:.2f} cannot be negative; resetting to 0")
-            cash = 0.0
+            violations.append(f"cash={cash:.2f} cannot be negative")
+            if source == 'load':
+                cash = 0.0
         state['cash'] = cash
 
         estimated_positions_value = self._estimate_state_positions_value(positions)
@@ -3653,20 +3706,175 @@ class COMPASSLive:
             peak_value = portfolio_value
         state['peak_value'] = peak_value
 
-        entry_date = state.get('last_trading_date')
-        for symbol, data in positions.items():
-            if symbol not in position_meta:
-                violations.append(f"position_meta missing {symbol}; creating default metadata")
-                position_meta[symbol] = self._build_position_meta_defaults(
-                    symbol,
-                    data if isinstance(data, dict) else {},
-                    trading_day_counter,
-                    entry_date,
+        reference_date = self._get_state_reference_date(state)
+        reference_date_str = reference_date.isoformat()
+        last_trading_date = state.get('last_trading_date')
+        allow_missing_last_trading_date = trading_day_counter == 0 and not positions
+        if last_trading_date in (None, ''):
+            if not allow_missing_last_trading_date:
+                if source == 'save':
+                    violations.append(
+                        f"last_trading_date missing; resetting to {reference_date_str}"
+                    )
+                    state['last_trading_date'] = reference_date_str
+                elif source == 'load':
+                    violations.append("last_trading_date missing; resetting to None")
+                    state['last_trading_date'] = None
+        else:
+            try:
+                parsed_last_trading_date = date.fromisoformat(str(last_trading_date))
+            except (TypeError, ValueError):
+                if source == 'save':
+                    violations.append(
+                        f"last_trading_date={last_trading_date!r} is invalid; resetting to {reference_date_str}"
+                    )
+                    state['last_trading_date'] = reference_date_str
+                else:
+                    violations.append(f"last_trading_date={last_trading_date!r} is invalid")
+                    state['last_trading_date'] = None
+            else:
+                stale_days = (reference_date - parsed_last_trading_date).days
+                if stale_days > 7:
+                    if source == 'save':
+                        violations.append(
+                            f"last_trading_date={parsed_last_trading_date.isoformat()} is stale by {stale_days} days; resetting to {reference_date_str}"
+                        )
+                        state['last_trading_date'] = reference_date_str
+                    else:
+                        violations.append(
+                            f"last_trading_date={parsed_last_trading_date.isoformat()} is stale by {stale_days} days"
+                        )
+                        state['last_trading_date'] = None
+                else:
+                    state['last_trading_date'] = parsed_last_trading_date.isoformat()
+
+        if source == 'load':
+            entry_date = state.get('last_trading_date')
+            for symbol, data in positions.items():
+                if symbol not in position_meta:
+                    violations.append(f"position_meta missing {symbol}; creating default metadata")
+                    position_meta[symbol] = self._build_position_meta_defaults(
+                        symbol,
+                        data if isinstance(data, dict) else {},
+                        trading_day_counter,
+                        entry_date,
+                    )
+
+        return state, violations
+
+    def _validate_state_before_write(self, state):
+        violations = []
+        if not isinstance(state, dict):
+            return ["state payload must be a dict"]
+
+        initial_capital = self._coerce_float(
+            self.config.get('PAPER_INITIAL_CASH', self.config.get('INITIAL_CAPITAL', 100_000)),
+            100_000.0,
+        )
+        reference_date = self._get_state_reference_date(state)
+
+        def parse_finite_number(field_name):
+            value = state.get(field_name)
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                violations.append(f"{field_name} must be numeric, got {value!r}")
+                return None
+            if not math.isfinite(number):
+                violations.append(f"{field_name} must be finite, got {value!r}")
+                return None
+            return number
+
+        cash = parse_finite_number('cash')
+        if cash is not None and cash < 0:
+            violations.append(f"cash must be >= 0, got {cash:.2f}")
+
+        portfolio_value = parse_finite_number('portfolio_value')
+        if portfolio_value is not None:
+            if portfolio_value <= 0:
+                violations.append(f"portfolio_value must be > 0, got {portfolio_value:.2f}")
+            if portfolio_value >= initial_capital * 5:
+                violations.append(
+                    f"portfolio_value={portfolio_value:.2f} exceeds sanity bound {(initial_capital * 5):.2f}"
                 )
 
-        self._last_persisted_cycles_completed = engine_iterations
-        self._last_persisted_trading_day_counter = trading_day_counter
-        return state, violations
+        peak_value = parse_finite_number('peak_value')
+        if peak_value is not None and portfolio_value is not None:
+            if peak_value < portfolio_value:
+                violations.append(
+                    f"peak_value={peak_value:.2f} must be >= portfolio_value={portfolio_value:.2f}"
+                )
+        if peak_value is not None and peak_value > initial_capital * 3:
+            violations.append(
+                f"peak_value={peak_value:.2f} exceeds sanity bound {(initial_capital * 3):.2f}"
+            )
+
+        try:
+            trading_day_counter = int(state.get('trading_day_counter'))
+        except (TypeError, ValueError):
+            trading_day_counter = None
+            violations.append(
+                f"trading_day_counter must be an integer, got {state.get('trading_day_counter')!r}"
+            )
+        if trading_day_counter is not None and not (0 <= trading_day_counter <= 365):
+            violations.append(
+                f"trading_day_counter must be between 0 and 365, got {trading_day_counter}"
+            )
+
+        positions = state.get('positions')
+        if not isinstance(positions, dict):
+            violations.append(f"positions must be a dict, got {type(positions).__name__}")
+            positions = {}
+
+        position_meta = state.get('position_meta')
+        if not isinstance(position_meta, dict):
+            violations.append(f"position_meta must be a dict, got {type(position_meta).__name__}")
+            position_meta = {}
+
+        allow_missing_last_trading_date = trading_day_counter == 0 and not positions
+        last_trading_date = state.get('last_trading_date')
+        if last_trading_date in (None, ''):
+            if not allow_missing_last_trading_date:
+                violations.append("last_trading_date must be a valid ISO date string")
+        else:
+            try:
+                parsed_last_trading_date = date.fromisoformat(str(last_trading_date))
+            except (TypeError, ValueError):
+                violations.append(f"last_trading_date must be a valid ISO date string, got {last_trading_date!r}")
+            else:
+                stale_days = (reference_date - parsed_last_trading_date).days
+                if stale_days > 7:
+                    violations.append(
+                        f"last_trading_date={parsed_last_trading_date.isoformat()} is stale by {stale_days} days"
+                    )
+
+        if set(positions.keys()) != set(position_meta.keys()):
+            violations.append("positions keys must exactly match position_meta keys before write")
+
+        for symbol, data in positions.items():
+            if not isinstance(data, dict):
+                violations.append(f"positions[{symbol}] must be a dict")
+                continue
+
+            try:
+                shares = float(data.get('shares'))
+            except (TypeError, ValueError):
+                shares = None
+                violations.append(f"positions[{symbol}].shares must be numeric, got {data.get('shares')!r}")
+            if shares is not None:
+                if not math.isfinite(shares) or shares <= 0:
+                    violations.append(f"positions[{symbol}].shares must be > 0, got {shares!r}")
+
+            try:
+                avg_cost = float(data.get('avg_cost'))
+            except (TypeError, ValueError):
+                avg_cost = None
+                violations.append(f"positions[{symbol}].avg_cost must be numeric, got {data.get('avg_cost')!r}")
+            if avg_cost is not None:
+                if not math.isfinite(avg_cost) or avg_cost <= 0:
+                    violations.append(f"positions[{symbol}].avg_cost must be > 0, got {avg_cost!r}")
+
+        return violations
 
     def _validate_state_schema(self, state):
         violations = []
@@ -4045,8 +4253,6 @@ class COMPASSLive:
                 # ML fail-safe observability
                 'ml_error_counts': dict(_ml_error_counts),
             }
-
-            original_state = copy.deepcopy(state)
             previous_state = {
                 'trading_day_counter': self._last_persisted_trading_day_counter,
                 'stats': {'engine_iterations': self._last_persisted_cycles_completed},
@@ -4057,26 +4263,33 @@ class COMPASSLive:
                 previous_state=previous_state if self._last_persisted_trading_day_counter is not None
                 or self._last_persisted_cycles_completed is not None else None,
             )
+            blocking_violations = self._validate_state_before_write(state)
+            if blocking_violations:
+                logger.error(
+                    "STATE SAVE SKIPPED due to validation blockers: %s",
+                    "; ".join(violations + blocking_violations),
+                )
+                return
             if violations:
-                backup_path = self._write_corrupted_state_backup(original_state, violations)
-                logger.critical(
-                    "STATE VALIDATION FAILED before save: %s%s",
+                logger.warning(
+                    "State repaired before save: %s",
                     "; ".join(violations),
-                    f" | backup={backup_path}" if backup_path else "",
                 )
                 self.peak_value = state['peak_value']
                 self.trading_day_counter = state['trading_day_counter']
-                self.position_meta = state['position_meta']
-                try:
-                    self.broker.cash = state['cash']
-                except Exception:
-                    pass
+                self.position_meta = copy.deepcopy(state['position_meta'])
+                if state.get('cash', 0) >= 0:
+                    try:
+                        self.broker.cash = state['cash']
+                    except Exception:
+                        pass
 
             os.makedirs('state', exist_ok=True)
             filename = f'state/compass_state_{datetime.now().strftime("%Y%m%d")}.json'
             latest = 'state/compass_state_latest.json'
 
             # Atomic write: temp file + rename (prevents corruption on crash)
+            write_results = {}
             for target in [filename, latest]:
                 written = False
                 for attempt in range(2):
@@ -4095,10 +4308,20 @@ class COMPASSLive:
                             pass
                 if not written:
                     logger.error(f"STATE SAVE FAILED for {target} after 2 attempts")
+                write_results[target] = written
 
-            self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
-            self._state_cash_snapshot = self._coerce_float(state.get('cash'), self.broker.cash)
-            logger.info(f"State saved: {filename}")
+            if any(write_results.values()):
+                self._last_persisted_cycles_completed = self._coerce_int(
+                    (state.get('stats') or {}).get('engine_iterations'),
+                    self._cycles_completed,
+                )
+                self._last_persisted_trading_day_counter = self._coerce_int(
+                    state.get('trading_day_counter'),
+                    self.trading_day_counter,
+                )
+                self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
+                self._state_cash_snapshot = self._coerce_float(state.get('cash'), self.broker.cash)
+                logger.info(f"State saved: {filename}")
 
         # Auto git sync (non-blocking, never crashes engine)
         if _git_sync_available:
@@ -4151,6 +4374,10 @@ class COMPASSLive:
             logger.error("ALL state files corrupted or invalid — HALTING to prevent wrong trades")
             raise RuntimeError("Cannot load any valid state file. Manual intervention required.")
 
+        pre_repair_violations = self._validate_state_before_write(state)
+        for violation in pre_repair_violations:
+            logger.warning(f"State validation issue detected on load: {violation}")
+
         previous_state = None
         if len(candidates) > 1 and loaded_from == candidates[0]:
             for fallback_candidate in candidates[1:]:
@@ -4165,6 +4392,10 @@ class COMPASSLive:
         )
         for violation in violations:
             logger.warning(f"State validation repaired on load: {violation}")
+
+        post_repair_violations = self._validate_state_before_write(state)
+        for violation in post_repair_violations:
+            logger.warning(f"State validation warning after load repair: {violation}")
 
         schema_violations = self._validate_state_schema(state)
         for sv in schema_violations:
@@ -4256,6 +4487,14 @@ class COMPASSLive:
         self._state_cash_snapshot = self._coerce_float(
             state.get('cash'),
             getattr(self.broker, 'cash', self.config['PAPER_INITIAL_CASH']),
+        )
+        self._last_persisted_cycles_completed = self._coerce_int(
+            (state.get('stats') or {}).get('engine_iterations'),
+            self._cycles_completed,
+        )
+        self._last_persisted_trading_day_counter = self._coerce_int(
+            state.get('trading_day_counter'),
+            self.trading_day_counter,
         )
 
         # Position reconciliation (logs discrepancies vs broker)
