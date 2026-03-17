@@ -1120,6 +1120,11 @@ def _compute_portfolio_metrics_impl(state: dict, prices: Dict[str, float]) -> di
     }
 
 
+_risk_history_cache = {}
+_risk_history_cache_time = {}
+_RISK_HISTORY_TTL = 300
+
+
 def _fetch_risk_histories(symbols):
     if not symbols:
         return {}
@@ -1128,33 +1133,56 @@ def _fetch_risk_histories(symbols):
     if not unique_symbols:
         return {}
 
-    try:
-        history = yf.download(
-            unique_symbols,
-            period='3mo',
-            progress=False,
-            auto_adjust=False,
-            group_by='ticker',
-            threads=False,
-        )
-    except Exception as e:
-        logger.warning(f"Risk history download failed: {e}")
-        return {}
+    # Invalidate cache entries for symbols no longer in the portfolio
+    stale_keys = set(_risk_history_cache.keys()) - set(unique_symbols)
+    for key in stale_keys:
+        _risk_history_cache.pop(key, None)
+        _risk_history_cache_time.pop(key, None)
 
-    if history is None or len(history) == 0:
-        return {}
+    # Determine which symbols need a fresh fetch
+    now = time_module.time()
+    symbols_to_fetch = []
+    for sym in unique_symbols:
+        cached_at = _risk_history_cache_time.get(sym)
+        if cached_at is None or (now - cached_at) >= _RISK_HISTORY_TTL:
+            symbols_to_fetch.append(sym)
 
+    # Fetch only stale/missing symbols
+    if symbols_to_fetch:
+        try:
+            history = yf.download(
+                symbols_to_fetch,
+                period='3mo',
+                progress=False,
+                auto_adjust=False,
+                group_by='ticker',
+                threads=False,
+            )
+        except Exception as e:
+            logger.warning(f"Risk history download failed: {e}")
+            history = None
+
+        if history is not None and len(history) > 0:
+            if isinstance(history.columns, pd.MultiIndex):
+                level_zero = set(history.columns.get_level_values(0))
+                for symbol in symbols_to_fetch:
+                    if symbol not in level_zero:
+                        continue
+                    df = history[symbol].dropna(how='all')
+                    if len(df) > 1:
+                        _risk_history_cache[symbol] = df
+                        _risk_history_cache_time[symbol] = now
+            elif len(symbols_to_fetch) == 1:
+                df = history.dropna(how='all')
+                if len(df) > 1:
+                    _risk_history_cache[symbols_to_fetch[0]] = df
+                    _risk_history_cache_time[symbols_to_fetch[0]] = now
+
+    # Build result from cache
     result = {}
-    if isinstance(history.columns, pd.MultiIndex):
-        level_zero = set(history.columns.get_level_values(0))
-        for symbol in unique_symbols:
-            if symbol not in level_zero:
-                continue
-            df = history[symbol].dropna(how='all')
-            if len(df) > 1:
-                result[symbol] = df
-    elif len(unique_symbols) == 1:
-        result[unique_symbols[0]] = history.dropna(how='all')
+    for sym in unique_symbols:
+        if sym in _risk_history_cache:
+            result[sym] = _risk_history_cache[sym]
     return result
 
 
@@ -1618,6 +1646,27 @@ def api_live_chart():
     return jsonify(result)
 
 
+# ---------- Backtest CSV cache (static data, rarely changes) ----------
+_backtest_csv_cache = {}      # {filepath: DataFrame}
+_backtest_csv_mtimes = {}     # {filepath: last mtime}
+
+
+def _read_backtest_csv(csv_path):
+    global _backtest_csv_cache, _backtest_csv_mtimes
+    try:
+        current_mtime = os.path.getmtime(csv_path)
+    except OSError:
+        return _backtest_csv_cache.get(csv_path)
+
+    if csv_path in _backtest_csv_cache and _backtest_csv_mtimes.get(csv_path) == current_mtime:
+        return _backtest_csv_cache[csv_path].copy()
+
+    df = pd.read_csv(csv_path, parse_dates=['date'])
+    _backtest_csv_cache[csv_path] = df
+    _backtest_csv_mtimes[csv_path] = current_mtime
+    return df.copy()
+
+
 @app.route('/api/equity')
 def api_equity():
     """Return HYDRA equity curve data."""
@@ -1629,7 +1678,7 @@ def api_equity():
         return jsonify({'equity': [], 'milestones': [], 'error': 'No backtest data'})
 
     try:
-        df = pd.read_csv(csv_path, parse_dates=['date'])
+        df = _read_backtest_csv(csv_path)
     except Exception as e:
         logger.warning(f"api_equity failed: {e}")
         return jsonify({'equity': [], 'milestones': [], 'error': 'Failed to read CSV'})
@@ -1729,8 +1778,8 @@ def api_equity_comparison():
         return jsonify({'error': 'No SPY benchmark data (backtests/spy_benchmark.csv)'})
 
     try:
-        df = pd.read_csv(csv_path, parse_dates=['date'])
-        spy_df = pd.read_csv(SPY_BENCHMARK_CSV, parse_dates=['date'])
+        df = _read_backtest_csv(csv_path)
+        spy_df = _read_backtest_csv(SPY_BENCHMARK_CSV)
     except Exception as e:
         return jsonify({'error': f'Failed to read CSV: {str(e)}'})
 
@@ -1822,7 +1871,7 @@ def api_annual_returns():
         return jsonify({'error': 'No backtest data'})
 
     try:
-        df = pd.read_csv(csv_path, parse_dates=['date'])
+        df = _read_backtest_csv(csv_path)
     except Exception as e:
         logger.warning(f"api_annual_returns failed: {e}")
         return jsonify({'error': 'Failed to read CSV'})
@@ -1843,7 +1892,7 @@ def api_annual_returns():
     spy_csv = os.path.join('backtests', 'spy_benchmark.csv')
     if os.path.exists(spy_csv):
         try:
-            spy_df = pd.read_csv(spy_csv, parse_dates=['date'])
+            spy_df = _read_backtest_csv(spy_csv)
             spy_df['year'] = spy_df['date'].dt.year
             for year, grp in spy_df.groupby('year'):
                 start_val = float(grp['close'].iloc[0])

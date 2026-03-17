@@ -391,3 +391,109 @@ def test_local_agent_scratchpad_rejects_malicious_date(local_client, local_isola
 def test_agent_scratchpad_accepts_valid_date(client):
     response = client.get('/api/agent-scratchpad?date=2026-03-16')
     assert response.status_code == 200
+
+
+# ============================================================================
+# ERROR RECOVERY TESTS — verify endpoints return valid JSON on data failures
+# ============================================================================
+
+def test_api_state_missing_state_file_returns_fallback_json(client):
+    # No state file written — read_state() returns None
+    response = client.get('/api/state')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload, dict)
+    assert payload['status'] in ('offline', 'starting')
+    assert isinstance(payload['positions'], dict)
+    assert payload['cash'] == 0.0
+    assert payload['portfolio_value'] == 0.0
+    assert payload['trading_day_counter'] == 0
+
+
+def test_api_cycle_log_corrupted_file_returns_empty_list(client, isolate_dashboard):
+    log_path = isolate_dashboard / 'state' / 'cycle_log.json'
+    log_path.write_text('NOT VALID JSON {{{{', encoding='utf-8')
+
+    response = client.get('/api/cycle-log')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload, list)
+    assert payload == []
+
+
+def test_api_montecarlo_import_failure_returns_error_json(client, monkeypatch):
+    monkeypatch.setattr(dashboard, '_montecarlo_signature', lambda: ('sig',))
+
+    # Remove compass_montecarlo from sys.modules so import fails
+    monkeypatch.delitem(sys.modules, 'compass_montecarlo', raising=False)
+
+    # Inject a module whose COMPASSMonteCarlo raises on run_all
+    class BrokenMonteCarlo:
+        def run_all(self):
+            raise RuntimeError('simulation exploded')
+
+    monkeypatch.setitem(
+        sys.modules,
+        'compass_montecarlo',
+        types.SimpleNamespace(COMPASSMonteCarlo=BrokenMonteCarlo),
+    )
+
+    response = client.get('/api/montecarlo')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload, dict)
+    assert 'error' in payload
+    assert 'simulation exploded' in payload['error']
+
+
+def test_api_health_missing_state_file_returns_valid_health(client):
+    # No state file — health should still return valid JSON
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload['status'], str)
+    assert isinstance(payload['engine_running'], bool)
+
+
+def test_api_annual_returns_missing_backtest_csv_returns_error_json(client, monkeypatch):
+    # Ensure no cached equity_df and no CSV file exists
+    monkeypatch.setattr(dashboard, '_equity_df', None)
+    monkeypatch.setattr(dashboard, '_spy_df', None)
+
+    response = client.get('/api/annual-returns')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload, dict)
+    assert 'error' in payload
+
+
+def test_api_trade_analytics_computation_failure_returns_error_json(client, monkeypatch):
+    # Clear cache so endpoint attempts fresh computation
+    monkeypatch.setattr(dashboard, '_trade_analytics_cache', None)
+
+    # Remove compass_trade_analytics from sys.modules so import fails
+    monkeypatch.delitem(sys.modules, 'compass_trade_analytics', raising=False)
+
+    class BrokenAnalytics:
+        def run_all(self):
+            raise ValueError('analytics computation failed')
+
+    monkeypatch.setitem(
+        sys.modules,
+        'compass_trade_analytics',
+        types.SimpleNamespace(COMPASSTradeAnalytics=BrokenAnalytics),
+    )
+
+    response = client.get('/api/trade-analytics')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload, dict)
+    assert 'error' in payload
+    assert 'analytics computation failed' in payload['error']

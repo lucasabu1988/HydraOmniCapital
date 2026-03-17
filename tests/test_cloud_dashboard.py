@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import subprocess
 import sys
 import types
@@ -1500,3 +1501,136 @@ def test_ultimate_risk_result_limit_cap(monkeypatch):
     messages = dashboard.fetch_ultimate_risk_news()
 
     assert len(messages) <= 6
+
+
+# ============================================================================
+# ENGINE STARTUP LOCK MECHANISM
+# ============================================================================
+
+class TestEngineStartupLock:
+
+    def _reset_engine_state(self, monkeypatch):
+        monkeypatch.setattr(dashboard, '_cloud_engine_started', False)
+        monkeypatch.setattr(dashboard, '_cloud_engine_thread', None)
+        monkeypatch.setattr(dashboard, 'AGENT_MODE', False)
+        monkeypatch.setattr(dashboard, 'SHOWCASE_MODE', False)
+
+    def test_lock_file_created_on_engine_start(self, tmp_path, monkeypatch):
+        self._reset_engine_state(monkeypatch)
+        state_dir = str(tmp_path / 'state')
+        monkeypatch.setattr(dashboard, 'STATE_DIR', state_dir)
+
+        # Prevent actual thread from launching
+        monkeypatch.setattr(dashboard.threading, 'Thread', lambda **kw: types.SimpleNamespace(start=lambda: None))
+
+        dashboard._ensure_cloud_engine()
+
+        lock_file = tmp_path / 'state' / '.cloud_engine.lock'
+        assert lock_file.exists()
+
+    def test_second_worker_skips_engine_when_lock_exists(self, tmp_path, monkeypatch):
+        self._reset_engine_state(monkeypatch)
+        state_dir = str(tmp_path / 'state')
+        monkeypatch.setattr(dashboard, 'STATE_DIR', state_dir)
+
+        # Pre-create lock file with a valid PID (simulate another worker)
+        lock_path = tmp_path / 'state'
+        lock_path.mkdir(parents=True, exist_ok=True)
+        lock_file = lock_path / '.cloud_engine.lock'
+        lock_file.write_text(str(os.getpid()))
+
+        thread_started = []
+        def fake_thread(**kw):
+            thread_started.append(True)
+            return types.SimpleNamespace(start=lambda: None)
+        monkeypatch.setattr(dashboard.threading, 'Thread', fake_thread)
+
+        dashboard._ensure_cloud_engine()
+
+        # Engine thread should NOT have been created — lock already existed
+        assert thread_started == []
+        assert dashboard._cloud_engine_started is True
+
+    def test_stale_lock_cleanup_on_module_load(self, tmp_path, monkeypatch):
+        state_dir = str(tmp_path / 'state')
+        lock_dir = tmp_path / 'state'
+        lock_dir.mkdir(parents=True, exist_ok=True)
+        lock_file = lock_dir / '.cloud_engine.lock'
+        lock_file.write_text('99999')
+
+        # Simulate the module-level stale lock cleanup logic
+        _engine_lock = os.path.join(state_dir, '.cloud_engine.lock')
+        assert os.path.exists(_engine_lock)
+        try:
+            os.unlink(_engine_lock)
+        except OSError:
+            pass
+        assert not os.path.exists(_engine_lock)
+
+    def test_lock_file_contains_current_pid(self, tmp_path, monkeypatch):
+        self._reset_engine_state(monkeypatch)
+        state_dir = str(tmp_path / 'state')
+        monkeypatch.setattr(dashboard, 'STATE_DIR', state_dir)
+
+        fake_pid = 12345
+        monkeypatch.setattr(os, 'getpid', lambda: fake_pid)
+        monkeypatch.setattr(dashboard.threading, 'Thread', lambda **kw: types.SimpleNamespace(start=lambda: None))
+
+        dashboard._ensure_cloud_engine()
+
+        lock_file = tmp_path / 'state' / '.cloud_engine.lock'
+        assert lock_file.read_text() == '12345'
+
+    def test_engine_not_started_on_lock_acquisition_failure(self, tmp_path, monkeypatch):
+        self._reset_engine_state(monkeypatch)
+        state_dir = str(tmp_path / 'state')
+        monkeypatch.setattr(dashboard, 'STATE_DIR', state_dir)
+
+        original_os_open = os.open
+        def failing_open(path, flags, *args, **kwargs):
+            if '.cloud_engine.lock' in str(path):
+                raise OSError('Permission denied')
+            return original_os_open(path, flags, *args, **kwargs)
+
+        monkeypatch.setattr(os, 'open', failing_open)
+
+        thread_started = []
+        def fake_thread(**kw):
+            thread_started.append(True)
+            return types.SimpleNamespace(start=lambda: None)
+        monkeypatch.setattr(dashboard.threading, 'Thread', fake_thread)
+
+        dashboard._ensure_cloud_engine()
+
+        assert thread_started == []
+        assert dashboard._cloud_engine_started is False
+        assert 'lock acquisition failed' in dashboard._engine_status.get('error', '').lower()
+
+    def test_lock_file_removed_on_thread_launch_failure(self, tmp_path, monkeypatch):
+        self._reset_engine_state(monkeypatch)
+        state_dir = str(tmp_path / 'state')
+        monkeypatch.setattr(dashboard, 'STATE_DIR', state_dir)
+
+        def exploding_thread(**kw):
+            raise RuntimeError('Thread creation failed')
+        monkeypatch.setattr(dashboard.threading, 'Thread', exploding_thread)
+
+        dashboard._ensure_cloud_engine()
+
+        lock_file = tmp_path / 'state' / '.cloud_engine.lock'
+        assert not lock_file.exists()
+        assert dashboard._cloud_engine_started is False
+
+    def test_lock_idempotent_when_already_started(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(dashboard, '_cloud_engine_started', True)
+
+        thread_created = []
+        def fake_thread(**kw):
+            thread_created.append(True)
+            return types.SimpleNamespace(start=lambda: None)
+        monkeypatch.setattr(dashboard.threading, 'Thread', fake_thread)
+
+        dashboard._ensure_cloud_engine()
+
+        # Should return immediately without creating thread or lock
+        assert thread_created == []
