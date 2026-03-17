@@ -1,4 +1,5 @@
 import ast
+import gzip
 import json
 import logging
 import os
@@ -27,6 +28,11 @@ def write_jsonl(path, records):
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [json.dumps(record) for record in records]
     path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding='utf-8')
+
+
+def set_file_mtime(path, when):
+    ts = when.timestamp()
+    os.utime(path, (ts, ts))
 
 
 def make_state(positions=None, universe=None):
@@ -909,6 +915,107 @@ def test_run_cloud_engine_sets_error_when_engine_unavailable(monkeypatch):
     assert 'missing dependency' in dashboard._engine_status['error']
 
 
+def test_cleanup_data_cache_deletes_only_old_legacy_files(isolate_dashboard):
+    now = datetime(2026, 3, 17, 12, 0, 0)
+    cache_dir = isolate_dashboard / 'data_cache'
+    parquet_dir = isolate_dashboard / 'data_cache_parquet'
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    parquet_dir.mkdir(parents=True, exist_ok=True)
+
+    old_csv = cache_dir / 'old_prices.csv'
+    old_pkl = cache_dir / 'old_prices.pkl'
+    recent_csv = cache_dir / 'recent_prices.csv'
+    active_parquet = parquet_dir / 'active.parquet'
+    for path in (old_csv, old_pkl, recent_csv, active_parquet):
+        path.write_text('cached', encoding='utf-8')
+
+    set_file_mtime(old_csv, now - timedelta(days=91))
+    set_file_mtime(old_pkl, now - timedelta(days=120))
+    set_file_mtime(recent_csv, now - timedelta(days=10))
+    set_file_mtime(active_parquet, now - timedelta(days=200))
+
+    deleted = dashboard._cleanup_data_cache(now=now)
+    old_csv_rel = str(Path('data_cache/old_prices.csv'))
+    old_pkl_rel = str(Path('data_cache/old_prices.pkl'))
+
+    assert old_csv_rel in deleted
+    assert old_pkl_rel in deleted
+    assert not old_csv.exists()
+    assert not old_pkl.exists()
+    assert recent_csv.exists()
+    assert active_parquet.exists()
+
+
+def test_cleanup_logs_compresses_prunes_and_trims(isolate_dashboard):
+    now = datetime(2026, 3, 17, 12, 0, 0)
+    log_dir = isolate_dashboard / 'logs'
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    old_log = log_dir / 'compass_live_20260310.log'
+    old_log.write_text('old-line\n' * 5, encoding='utf-8')
+    set_file_mtime(old_log, now - timedelta(days=5))
+
+    recent_log = log_dir / 'compass_live_20260317.log'
+    recent_log.write_text('fresh-line\n', encoding='utf-8')
+    set_file_mtime(recent_log, now - timedelta(days=1))
+
+    oversized_log = log_dir / 'oversized.log'
+    oversized_log.write_text('line-1\nline-2\nline-3\nline-4\nline-5\n', encoding='utf-8')
+    set_file_mtime(oversized_log, now - timedelta(hours=1))
+
+    expired_gz = log_dir / 'expired.log.gz'
+    with gzip.open(expired_gz, 'wt', encoding='utf-8') as handle:
+        handle.write('expired\n')
+    set_file_mtime(expired_gz, now - timedelta(days=20))
+
+    result = dashboard._cleanup_logs(now=now, max_bytes=18)
+    compressed_old_log = Path(str(old_log) + '.gz')
+    compressed_old_log_rel = str(Path('logs/compass_live_20260310.log.gz'))
+    expired_gz_rel = str(Path('logs/expired.log.gz'))
+    oversized_log_rel = str(Path('logs/oversized.log'))
+
+    assert compressed_old_log_rel in result['compressed']
+    assert compressed_old_log.exists()
+    assert not old_log.exists()
+    assert recent_log.exists()
+    assert expired_gz_rel in result['deleted']
+    assert not expired_gz.exists()
+    assert oversized_log_rel in result['trimmed']
+    assert oversized_log.stat().st_size <= 18
+    assert 'line-5' in oversized_log.read_text(encoding='utf-8')
+
+
+def test_cleanup_corrupted_states_prunes_old_files_and_backups(isolate_dashboard):
+    now = datetime(2026, 3, 17, 12, 0, 0)
+    state_dir = isolate_dashboard / 'state'
+
+    old_corrupted = state_dir / 'compass_state_CORRUPTED_old.json'
+    recent_corrupted = state_dir / 'compass_state_CORRUPTED_recent.json'
+    old_corrupted.write_text('{}', encoding='utf-8')
+    recent_corrupted.write_text('{}', encoding='utf-8')
+    set_file_mtime(old_corrupted, now - timedelta(days=8))
+    set_file_mtime(recent_corrupted, now - timedelta(days=2))
+
+    backups = []
+    for date_str in ('20260310', '20260311', '20260312', '20260313'):
+        backup = state_dir / f'compass_state_{date_str}.json'
+        backup.write_text('{}', encoding='utf-8')
+        backups.append(backup)
+
+    result = dashboard._cleanup_corrupted_states(now=now)
+    old_corrupted_rel = str(Path('state/compass_state_CORRUPTED_old.json'))
+    oldest_backup_rel = str(Path('state/compass_state_20260310.json'))
+
+    assert old_corrupted_rel in result['deleted_corrupted']
+    assert not old_corrupted.exists()
+    assert recent_corrupted.exists()
+    assert oldest_backup_rel in result['deleted_backups']
+    assert not backups[0].exists()
+    assert backups[1].exists()
+    assert backups[2].exists()
+    assert backups[3].exists()
+
+
 def test_run_cloud_engine_increments_crash_count_on_exception(monkeypatch):
     class FakeBroker:
         def __init__(self):
@@ -945,6 +1052,25 @@ def test_run_cloud_engine_increments_crash_count_on_exception(monkeypatch):
     assert dashboard._engine_status['crash_count'] == 1
     assert dashboard._engine_status['last_crash_error'] == 'loop exploded'
     assert dashboard._engine_status['last_crash_at'] is not None
+
+
+def test_run_cloud_engine_runs_cleanup_once_on_startup(monkeypatch):
+    calls = []
+
+    class StopLoop(Exception):
+        pass
+
+    monkeypatch.setattr(dashboard, '_HAS_ENGINE', True)
+    monkeypatch.setattr(dashboard, '_cleanup_data_cache', lambda: calls.append('cache'))
+    monkeypatch.setattr(dashboard, '_cleanup_logs', lambda: calls.append('logs'))
+    monkeypatch.setattr(dashboard, '_cleanup_corrupted_states', lambda: calls.append('states'))
+    monkeypatch.setattr(dashboard, '_git_pull_latest', lambda: (_ for _ in ()).throw(RuntimeError('stop after cleanup')))
+    monkeypatch.setattr(dashboard.time_module, 'sleep', lambda seconds: (_ for _ in ()).throw(StopLoop()))
+
+    with pytest.raises(StopLoop):
+        dashboard._run_cloud_engine()
+
+    assert calls == ['cache', 'logs', 'states']
 
 
 def test_git_pull_latest_marks_auth_failures(monkeypatch):

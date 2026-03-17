@@ -13,6 +13,7 @@ Deploy: git push to GitHub → auto-deploy on Render.
 """
 
 from flask import Flask, jsonify, render_template, request
+import gzip
 import json
 import os
 import glob
@@ -23,6 +24,7 @@ import pandas as pd
 import logging
 import time as time_module
 import tempfile
+import shutil
 from datetime import datetime, date, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
@@ -214,6 +216,7 @@ HYDRA_CONFIG = {
 STATE_FILE = 'state/compass_state_latest.json'
 STATE_DIR = os.environ.get('STATE_DIR', 'state')
 LOG_DIR = os.environ.get('LOG_DIR', 'logs')
+DATA_CACHE_DIR = os.environ.get('DATA_CACHE_DIR', 'data_cache')
 SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
 GITHUB_STATE_URL = 'https://raw.githubusercontent.com/lucasabu1988/NuevoProyecto/main/state/compass_state_latest.json'
 
@@ -906,6 +909,182 @@ def _claim_engine_lock(lock_file):
         os.write(fd, str(os.getpid()).encode())
     finally:
         os.close(fd)
+
+
+# ============================================================================
+# CLEANUP
+# ============================================================================
+
+def _cleanup_data_cache(now=None, cache_dir=None, max_age_days=90):
+    now = now or datetime.now()
+    cache_dir = cache_dir or DATA_CACHE_DIR
+    if not os.path.isdir(cache_dir):
+        return []
+
+    cutoff = now - timedelta(days=max_age_days)
+    deleted = []
+    for pattern in ('*.csv', '*.pkl'):
+        for path in glob.glob(os.path.join(cache_dir, pattern)):
+            try:
+                modified = datetime.fromtimestamp(os.path.getmtime(path))
+            except OSError:
+                logger.warning('Failed to inspect cache file %s', path, exc_info=True)
+                continue
+            if modified >= cutoff:
+                continue
+            try:
+                os.unlink(path)
+                deleted.append(path)
+                logger.info('Deleted stale cache file %s', path)
+            except OSError:
+                logger.warning('Failed to delete stale cache file %s', path, exc_info=True)
+    return deleted
+
+
+def _trim_log_file(path, max_bytes):
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        logger.warning('Failed to inspect log file size for %s', path, exc_info=True)
+        return False
+
+    if size <= max_bytes:
+        return False
+
+    try:
+        with open(path, 'rb') as handle:
+            handle.seek(-max_bytes, os.SEEK_END)
+            data = handle.read()
+        newline_idx = data.find(b'\n')
+        if newline_idx >= 0 and newline_idx + 1 < len(data):
+            data = data[newline_idx + 1:]
+        tmp_path = path + '.tmp'
+        with open(tmp_path, 'wb') as handle:
+            handle.write(data)
+        os.replace(tmp_path, path)
+        logger.info('Trimmed oversized log file %s to %s bytes', path, len(data))
+        return True
+    except OSError:
+        logger.warning('Failed to trim oversized log file %s', path, exc_info=True)
+        return False
+
+
+def _compress_log_file(path):
+    gz_path = path + '.gz'
+    try:
+        modified = os.path.getmtime(path)
+        with open(path, 'rb') as src, gzip.open(gz_path, 'wb') as dst:
+            shutil.copyfileobj(src, dst)
+        os.utime(gz_path, (modified, modified))
+        os.unlink(path)
+        logger.info('Compressed old log file %s -> %s', path, gz_path)
+        return gz_path
+    except OSError:
+        logger.warning('Failed to compress old log file %s', path, exc_info=True)
+        try:
+            if os.path.exists(gz_path):
+                os.unlink(gz_path)
+        except OSError:
+            logger.warning('Failed to remove partial compressed log %s', gz_path, exc_info=True)
+        return None
+
+
+def _cleanup_logs(now=None, log_dir=None, compress_after_days=3, delete_after_days=14,
+                  max_bytes=50 * 1024 * 1024):
+    now = now or datetime.now()
+    log_dir = log_dir or LOG_DIR
+    if not os.path.isdir(log_dir):
+        return {'compressed': [], 'deleted': [], 'trimmed': []}
+
+    compress_cutoff = now - timedelta(days=compress_after_days)
+    delete_cutoff = now - timedelta(days=delete_after_days)
+    compressed = []
+    deleted = []
+    trimmed = []
+
+    for path in glob.glob(os.path.join(log_dir, '*.log')):
+        try:
+            modified = datetime.fromtimestamp(os.path.getmtime(path))
+        except OSError:
+            logger.warning('Failed to inspect log file %s', path, exc_info=True)
+            continue
+
+        if modified < compress_cutoff:
+            gz_path = _compress_log_file(path)
+            if gz_path:
+                compressed.append(gz_path)
+            continue
+
+        if _trim_log_file(path, max_bytes):
+            trimmed.append(path)
+
+    for path in glob.glob(os.path.join(log_dir, '*.gz')):
+        try:
+            modified = datetime.fromtimestamp(os.path.getmtime(path))
+        except OSError:
+            logger.warning('Failed to inspect compressed log %s', path, exc_info=True)
+            continue
+        if modified >= delete_cutoff:
+            continue
+        try:
+            os.unlink(path)
+            deleted.append(path)
+            logger.info('Deleted expired compressed log %s', path)
+        except OSError:
+            logger.warning('Failed to delete expired compressed log %s', path, exc_info=True)
+
+    return {
+        'compressed': compressed,
+        'deleted': deleted,
+        'trimmed': trimmed,
+    }
+
+
+def _cleanup_corrupted_states(now=None, state_dir=None, corrupted_max_age_days=7, keep_backups=3):
+    now = now or datetime.now()
+    state_dir = state_dir or STATE_DIR
+    if not os.path.isdir(state_dir):
+        return {'deleted_corrupted': [], 'deleted_backups': []}
+
+    corrupted_cutoff = now - timedelta(days=corrupted_max_age_days)
+    deleted_corrupted = []
+    deleted_backups = []
+
+    for path in glob.glob(os.path.join(state_dir, 'compass_state_CORRUPTED_*.json')):
+        try:
+            modified = datetime.fromtimestamp(os.path.getmtime(path))
+        except OSError:
+            logger.warning('Failed to inspect corrupted state file %s', path, exc_info=True)
+            continue
+        if modified >= corrupted_cutoff:
+            continue
+        try:
+            os.unlink(path)
+            deleted_corrupted.append(path)
+            logger.info('Deleted stale corrupted state file %s', path)
+        except OSError:
+            logger.warning('Failed to delete stale corrupted state file %s', path, exc_info=True)
+
+    backups = []
+    for path in glob.glob(os.path.join(state_dir, 'compass_state_*.json')):
+        name = os.path.basename(path)
+        match = re.fullmatch(r'compass_state_(\d{8})\.json', name)
+        if match:
+            backups.append((match.group(1), path))
+
+    backups.sort(key=lambda item: item[0], reverse=True)
+    for _, path in backups[keep_backups:]:
+        try:
+            os.unlink(path)
+            deleted_backups.append(path)
+            logger.info('Deleted old state backup %s', path)
+        except OSError:
+            logger.warning('Failed to delete old state backup %s', path, exc_info=True)
+
+    return {
+        'deleted_corrupted': deleted_corrupted,
+        'deleted_backups': deleted_backups,
+    }
 
 
 # ============================================================================
@@ -3903,6 +4082,9 @@ def _run_cloud_engine():
             restarts.append(restart_at)
             _engine_status['restarts'] = restarts[-5:]
             logger.info('Cloud HYDRA engine startup beginning (worker %s)', os.getpid())
+            _cleanup_data_cache()
+            _cleanup_logs()
+            _cleanup_corrupted_states()
 
             # Pull latest state from GitHub (picks up local changes)
             _engine_status['last_git_pull'] = _git_pull_latest()
