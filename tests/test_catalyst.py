@@ -112,3 +112,37 @@ class TestCatalystSignals:
         assert values['TLT'] / budget == pytest.approx(0.22233333333333333)
         assert values['DBC'] / budget == pytest.approx(0.22233333333333333)
         assert values['GLD'] / budget == pytest.approx(0.5553333333333333)
+
+    def test_zero_price_ticker_is_skipped(self):
+        """TLT with price=0 should be skipped; GLD and DBC allocated normally."""
+        budget = 30_000.0
+        hist_data = {
+            'TLT': make_history(110.0),
+            'GLD': make_history(110.0),
+            'DBC': make_history(110.0),
+        }
+        current_prices = {'TLT': 0, 'GLD': 100.0, 'DBC': 50.0}
+
+        targets = catalyst.compute_catalyst_targets(hist_data, budget, current_prices)
+        symbols = [t['symbol'] for t in targets]
+
+        assert 'TLT' not in symbols
+        assert 'GLD' in symbols
+        assert 'DBC' in symbols
+
+    def test_empty_trend_holdings_returns_gold_only(self):
+        """When no assets are above SMA200, trend portion is empty."""
+        budget = 30_000.0
+        hist_data = {
+            'TLT': make_history(90.0),
+            'GLD': make_history(90.0),
+            'DBC': make_history(90.0),
+        }
+        current_prices = {'TLT': 10.0, 'GLD': 10.0, 'DBC': 10.0}
+
+        holdings = catalyst.compute_trend_holdings(hist_data)
+        assert len(holdings) == 0
+
+        targets = catalyst.compute_catalyst_targets(hist_data, budget, current_prices)
+        # Only gold allocation, no trend positions
+        assert all(t['sub_strategy'] == 'gold' for t in targets)

@@ -66,6 +66,9 @@ def compute_catalyst_targets(hist_data: Dict[str, pd.DataFrame],
         per_asset = trend_budget / len(trend_holdings)
         for ticker in trend_holdings:
             price = current_prices.get(ticker, 0)
+            if price <= 0:
+                logger.warning(f"Catalyst: skipping {ticker} — zero/negative price ({price})")
+                continue
             if price > 0:
                 shares = int(per_asset / price)
                 if shares > 0:
