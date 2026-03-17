@@ -3,6 +3,74 @@ document.body.classList.add('dark');
 
 /* ============ COMPANY INFO MAP (for ticker tooltips) ============ */
 const COMPANY_INFO = {
+    'AAPL': {name:'Apple',sector:'Technology',cap:'$3.4T',desc:'Consumer electronics (iPhone, Mac), services (App Store, iCloud), and wearables'},
+    'NVDA': {name:'NVIDIA',sector:'Semiconductors',cap:'$2.8T',desc:'GPU chips for AI training/inference, gaming, data centers, and autonomous vehicles'},
+    'NFLX': {name:'Netflix',sector:'Entertainment',cap:'$400B',desc:'Global streaming platform for movies, TV series, and original content'},
+    'AMD':  {name:'AMD',sector:'Semiconductors',cap:'$200B',desc:'CPUs and GPUs for gaming, data centers, and embedded systems'},
+    'ABT':  {name:'Abbott Laboratories',sector:'Healthcare',cap:'$200B',desc:'Medical devices, diagnostics, nutrition products, and branded generics'},
+    'ACN':  {name:'Accenture',sector:'IT Services',cap:'$210B',desc:'Global IT consulting, technology services, and outsourcing'},
+    'AIG':  {name:'AIG',sector:'Insurance',cap:'$50B',desc:'Global insurance and financial services for commercial and personal lines'},
+    'AMGN': {name:'Amgen',sector:'Biotechnology',cap:'$160B',desc:'Biotechnology company focused on oncology, cardiovascular, and bone health'},
+    'AMT':  {name:'American Tower',sector:'REITs',cap:'$95B',desc:'Real estate investment trust owning cell towers and wireless infrastructure'},
+    'AXP':  {name:'American Express',sector:'Financial Services',cap:'$190B',desc:'Credit cards, charge cards, and travel-related services'},
+    'BK':   {name:'BNY Mellon',sector:'Banking',cap:'$55B',desc:'Global investment services and management, custody, and treasury services'},
+    'BKNG': {name:'Booking Holdings',sector:'Travel',cap:'$160B',desc:'Online travel reservations (Booking.com, Priceline, Kayak)'},
+    'BLK':  {name:'BlackRock',sector:'Asset Management',cap:'$145B',desc:'Largest asset manager globally with iShares ETFs and Aladdin platform'},
+    'BMY':  {name:'Bristol-Myers Squibb',sector:'Pharmaceuticals',cap:'$110B',desc:'Pharmaceuticals in oncology, cardiovascular, and immunology'},
+    'CAT':  {name:'Caterpillar',sector:'Industrials',cap:'$180B',desc:'Construction and mining equipment, diesel engines, and industrial turbines'},
+    'CHTR': {name:'Charter Communications',sector:'Telecom',cap:'$55B',desc:'Cable TV, internet, and phone services under the Spectrum brand'},
+    'CL':   {name:'Colgate-Palmolive',sector:'Consumer Staples',cap:'$80B',desc:'Oral care (Colgate), home care, and personal care products globally'},
+    'CMCSA':{name:'Comcast',sector:'Media / Telecom',cap:'$160B',desc:'Cable TV (Xfinity), NBCUniversal media, and Peacock streaming'},
+    'COF':  {name:'Capital One',sector:'Banking',cap:'$70B',desc:'Consumer and commercial banking focused on credit cards and auto loans'},
+    'COP':  {name:'ConocoPhillips',sector:'Energy',cap:'$130B',desc:'Independent oil and gas exploration and production company'},
+    'CSCO': {name:'Cisco Systems',sector:'Networking',cap:'$230B',desc:'Networking hardware, software, and cybersecurity for enterprises'},
+    'CVS':  {name:'CVS Health',sector:'Healthcare',cap:'$80B',desc:'Pharmacy retail chain, health insurance (Aetna), and pharmacy benefits'},
+    'DE':   {name:'Deere & Company',sector:'Industrials',cap:'$120B',desc:'Agricultural, construction, and forestry machinery manufacturer'},
+    'DHR':  {name:'Danaher',sector:'Healthcare',cap:'$170B',desc:'Life sciences, diagnostics, and environmental solutions instruments'},
+    'DIS':  {name:'Walt Disney',sector:'Entertainment',cap:'$200B',desc:'Theme parks, Disney+, ESPN, Marvel, Pixar, and Star Wars franchises'},
+    'DOW':  {name:'Dow Inc',sector:'Chemicals',cap:'$30B',desc:'Commodity chemicals, plastics, and agricultural products'},
+    'DUK':  {name:'Duke Energy',sector:'Utilities',cap:'$85B',desc:'Electric and gas utility serving the southeastern and midwestern US'},
+    'EMR':  {name:'Emerson Electric',sector:'Industrials',cap:'$70B',desc:'Automation solutions, climate technologies, and industrial tools'},
+    'EXC':  {name:'Exelon',sector:'Utilities',cap:'$45B',desc:'Largest US regulated electric utility serving 10M customers'},
+    'F':    {name:'Ford Motor',sector:'Automotive',cap:'$40B',desc:'Automobiles and trucks including F-150, Mustang, and electric vehicles'},
+    'FDX':  {name:'FedEx',sector:'Logistics',cap:'$60B',desc:'Global courier delivery, package shipping, and freight services'},
+    'GD':   {name:'General Dynamics',sector:'Defense',cap:'$80B',desc:'Aerospace, combat vehicles, weapons systems, and IT services for defense'},
+    'GILD': {name:'Gilead Sciences',sector:'Biotechnology',cap:'$120B',desc:'Antiviral therapies for HIV, hepatitis, and oncology treatments'},
+    'GM':   {name:'General Motors',sector:'Automotive',cap:'$45B',desc:'Automobiles including Chevrolet, GMC, Cadillac, and electric vehicles'},
+    'GOOG': {name:'Alphabet (C)',sector:'Internet / AI',cap:'$2.2T',desc:'Google Search, YouTube, Google Cloud, and Waymo (Class C shares)'},
+    'HON':  {name:'Honeywell',sector:'Industrials',cap:'$145B',desc:'Aerospace, building technologies, performance materials, and safety solutions'},
+    'INTU': {name:'Intuit',sector:'Software',cap:'$180B',desc:'TurboTax, QuickBooks, Credit Karma, and Mailchimp financial software'},
+    'KHC':  {name:'Kraft Heinz',sector:'Consumer Staples',cap:'$40B',desc:'Packaged foods and beverages (Heinz ketchup, Kraft cheese, Oscar Mayer)'},
+    'KO':   {name:'Coca-Cola',sector:'Beverages',cap:'$270B',desc:'Global beverage company with Coke, Sprite, Fanta, and Minute Maid'},
+    'LIN':  {name:'Linde',sector:'Chemicals',cap:'$220B',desc:'Industrial gases and engineering for healthcare, manufacturing, and energy'},
+    'LMT':  {name:'Lockheed Martin',sector:'Defense',cap:'$120B',desc:'F-35 fighter jets, missiles, space systems, and defense technology'},
+    'LOW':  {name:'Lowes',sector:'Retail',cap:'$140B',desc:'Home improvement retail chain competing with Home Depot'},
+    'MCD':  {name:'McDonalds',sector:'Restaurants',cap:'$210B',desc:'Global fast-food chain with 40K+ restaurants in 100+ countries'},
+    'MDLZ': {name:'Mondelez',sector:'Consumer Staples',cap:'$90B',desc:'Snack foods (Oreo, Cadbury, Toblerone, Ritz) sold globally'},
+    'MDT':  {name:'Medtronic',sector:'Medical Devices',cap:'$110B',desc:'Medical devices for cardiac, neurological, diabetes, and surgical care'},
+    'MET':  {name:'MetLife',sector:'Insurance',cap:'$55B',desc:'Life insurance, annuities, employee benefits, and retirement solutions'},
+    'MMM':  {name:'3M',sector:'Industrials',cap:'$70B',desc:'Diversified manufacturer of adhesives, abrasives, and healthcare products'},
+    'MO':   {name:'Altria Group',sector:'Tobacco',cap:'$90B',desc:'Tobacco and nicotine products (Marlboro cigarettes, IQOS, on! pouches)'},
+    'MS':   {name:'Morgan Stanley',sector:'Investment Banking',cap:'$190B',desc:'Investment banking, wealth management, trading, and institutional securities'},
+    'NEE':  {name:'NextEra Energy',sector:'Utilities',cap:'$150B',desc:'Largest US renewable energy generator with wind and solar assets'},
+    'NKE':  {name:'Nike',sector:'Consumer Discretionary',cap:'$100B',desc:'Athletic footwear, apparel, and equipment sold globally'},
+    'PEP':  {name:'PepsiCo',sector:'Beverages / Snacks',cap:'$200B',desc:'Beverages (Pepsi, Gatorade) and snacks (Lays, Doritos, Quaker)'},
+    'PM':   {name:'Philip Morris',sector:'Tobacco',cap:'$200B',desc:'International tobacco and reduced-risk products (IQOS heated tobacco)'},
+    'PYPL': {name:'PayPal',sector:'Fintech',cap:'$70B',desc:'Digital payments platform for online transactions, Venmo, and Braintree'},
+    'RTX':  {name:'RTX Corporation',sector:'Aerospace / Defense',cap:'$160B',desc:'Pratt & Whitney engines, Collins Aerospace, and Raytheon missile systems'},
+    'SBUX': {name:'Starbucks',sector:'Restaurants',cap:'$100B',desc:'Global coffeehouse chain with 35K+ stores worldwide'},
+    'SCHW': {name:'Charles Schwab',sector:'Financial Services',cap:'$130B',desc:'Brokerage, banking, and financial advisory services for retail investors'},
+    'SO':   {name:'Southern Company',sector:'Utilities',cap:'$95B',desc:'Electric and gas utility serving southeastern US including Georgia Power'},
+    'SPG':  {name:'Simon Property Group',sector:'REITs',cap:'$55B',desc:'Largest US shopping mall and premium outlet REIT'},
+    'T':    {name:'AT&T',sector:'Telecom',cap:'$160B',desc:'Telecommunications providing wireless, broadband, and fiber services'},
+    'TGT':  {name:'Target',sector:'Retail',cap:'$55B',desc:'General merchandise retail chain with grocery, apparel, and home goods'},
+    'TMO':  {name:'Thermo Fisher Scientific',sector:'Life Sciences',cap:'$190B',desc:'Analytical instruments, reagents, and lab equipment for life sciences'},
+    'TMUS': {name:'T-Mobile US',sector:'Telecom',cap:'$260B',desc:'Wireless carrier with nationwide 5G network and ~100M customers'},
+    'UNP':  {name:'Union Pacific',sector:'Railroads',cap:'$150B',desc:'Largest US railroad operating 32K miles of track in western US'},
+    'UPS':  {name:'UPS',sector:'Logistics',cap:'$100B',desc:'Global package delivery, freight, and supply chain management services'},
+    'USB':  {name:'US Bancorp',sector:'Banking',cap:'$70B',desc:'Regional bank with consumer banking, wealth management, and payments'},
+    'VZ':   {name:'Verizon',sector:'Telecom',cap:'$170B',desc:'Wireless telecommunications, broadband, and fiber optic services'},
+    'WBA':  {name:'Walgreens Boots',sector:'Pharmacy',cap:'$10B',desc:'Pharmacy-led retail chain with healthcare clinics and wholesale distribution'},
     'TSLA': {name:'Tesla',sector:'Electric Vehicles',cap:'$1.1T',desc:'Electric vehicles, energy storage, and solar products manufacturer'},
     'MSFT': {name:'Microsoft',sector:'Software',cap:'$3.1T',desc:'Cloud computing (Azure), Windows OS, Office 365, and AI platforms'},
     'META': {name:'Meta Platforms',sector:'Social Media',cap:'$1.6T',desc:'Facebook, Instagram, WhatsApp, and metaverse/VR technologies'},
@@ -44,6 +112,51 @@ const COMPANY_INFO = {
     'PFE':  {name:'Pfizer',sector:'Pharmaceuticals',cap:'$140B',desc:'Global pharmaceutical company with vaccines, oncology, and rare disease drugs'},
     'LRCX': {name:'Lam Research',sector:'Semiconductors',cap:'$100B',desc:'Semiconductor wafer fabrication equipment for etch, deposition, and clean'},
 };
+
+/* ============ TOOLTIP HELPER ============ */
+function buildTickerTipWrap(symbol, innerEl) {
+    var ci = COMPANY_INFO[symbol];
+    if (!ci) return innerEl;
+    var wrap = document.createElement('span');
+    wrap.className = 'ticker-tip-wrap';
+    wrap.appendChild(innerEl);
+    var tip = document.createElement('div');
+    tip.className = 'ticker-tip';
+    tip.innerHTML = '<div class="ticker-tip-name">' + ci.name + '</div>' +
+        '<span class="ticker-tip-sector">' + ci.sector + '</span>' +
+        '<div class="ticker-tip-cap">Market Cap: <b>' + ci.cap + '</b></div>' +
+        '<div class="ticker-tip-desc">' + ci.desc + '</div>';
+    wrap.appendChild(tip);
+    return wrap;
+}
+
+function attachTickerTips(container) {
+    container.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
+        var tip = wrap.querySelector('.ticker-tip');
+        if (!tip) return;
+        document.body.appendChild(tip);
+        wrap.addEventListener('mouseenter', function() {
+            var rect = wrap.getBoundingClientRect();
+            tip.style.display = 'block';
+            tip.style.visibility = 'hidden';
+            var tipW = 240;
+            var tipH = tip.offsetHeight;
+            tip.style.visibility = '';
+            var left = rect.left;
+            if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
+            if (left < 12) left = 12;
+            var top = rect.top - tipH - 8;
+            if (top < 4) { top = rect.bottom + 8; tip.classList.add('tip-below'); }
+            else { tip.classList.remove('tip-below'); }
+            tip.style.left = left + 'px';
+            tip.style.top = top + 'px';
+            var arrowLeft = (rect.left + rect.width / 2) - left;
+            arrowLeft = Math.max(14, Math.min(arrowLeft, tipW - 14));
+            tip.style.setProperty('--arrow-left', arrowLeft + 'px');
+        });
+        wrap.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+    });
+}
 
 /* ============ GLOBALS ============ */
 const REFRESH_MS = 30000;
@@ -516,31 +629,7 @@ function updatePositions(details) {
 
     /* --- Tooltip positioning (appended to body to escape overflow:hidden) --- */
     document.querySelectorAll('body > .ticker-tip').forEach(function(el) { el.remove(); });
-    grid.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
-        var tip = wrap.querySelector('.ticker-tip');
-        if (!tip) return;
-        document.body.appendChild(tip);
-        wrap.addEventListener('mouseenter', function(e) {
-            var rect = wrap.getBoundingClientRect();
-            tip.style.display = 'block';
-            tip.style.visibility = 'hidden';
-            var tipW = 240;
-            var tipH = tip.offsetHeight;
-            tip.style.visibility = '';
-            var left = rect.left;
-            if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
-            if (left < 12) left = 12;
-            var top = rect.top - tipH - 8;
-            if (top < 4) { top = rect.bottom + 8; tip.classList.add('tip-below'); }
-            else { tip.classList.remove('tip-below'); }
-            tip.style.left = left + 'px';
-            tip.style.top = top + 'px';
-            var arrowLeft = (rect.left + rect.width / 2) - left;
-            arrowLeft = Math.max(14, Math.min(arrowLeft, tipW - 14));
-            tip.style.setProperty('--arrow-left', arrowLeft + 'px');
-        });
-        wrap.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
-    });
+    attachTickerTips(grid);
 
     fetchExpAnalysis();
 
@@ -652,7 +741,7 @@ function updateHydra(hydra) {
                 var symSpan = document.createElement('span');
                 symSpan.className = 'pos-symbol';
                 symSpan.textContent = rp.symbol;
-                top.appendChild(symSpan);
+                top.appendChild(buildTickerTipWrap(rp.symbol, symSpan));
                 var rTag = document.createElement('span');
                 rTag.style.cssText = 'font-size:11px;color:var(--yellow);font-weight:600;margin-left:4px;';
                 rTag.textContent = 'R';
@@ -729,6 +818,7 @@ function updateHydra(hydra) {
                 rGrid.appendChild(card);
             }
             rGrid.style.setProperty('--pos-cols', Math.min(rPositions.length, 5));
+            attachTickerTips(rGrid);
         }
     }
 
@@ -825,7 +915,7 @@ function updateHydra(hydra) {
                     var sym = document.createElement('span');
                     sym.className = 'pos-symbol';
                     sym.textContent = cp.symbol;
-                    top.appendChild(sym);
+                    top.appendChild(buildTickerTipWrap(cp.symbol, sym));
                     var tag = document.createElement('span');
                     tag.style.cssText = 'font-size:10px;color:var(--green);font-weight:600;margin-left:4px;padding:1px 4px;border-radius:3px;background:rgba(21,128,61,0.12);';
                     tag.textContent = (cp.sub_strategy || 'T').charAt(0).toUpperCase();
@@ -841,6 +931,7 @@ function updateHydra(hydra) {
                     card.appendChild(top);
                     catGrid.appendChild(card);
                 }
+                attachTickerTips(catGrid);
             }
         }
     }
@@ -889,31 +980,7 @@ function updateUniverse(universe, positions) {
     grid.innerHTML = html;
 
     document.querySelectorAll('body > .ticker-tip').forEach(function(el) { el.remove(); });
-    grid.querySelectorAll('.ticker-tip-wrap').forEach(function(wrap) {
-        var tip = wrap.querySelector('.ticker-tip');
-        if (!tip) return;
-        document.body.appendChild(tip);
-        wrap.addEventListener('mouseenter', function() {
-            var rect = wrap.getBoundingClientRect();
-            tip.style.display = 'block';
-            tip.style.visibility = 'hidden';
-            var tipW = 240;
-            var tipH = tip.offsetHeight;
-            tip.style.visibility = '';
-            var left = rect.left;
-            if (left + tipW > window.innerWidth - 12) left = window.innerWidth - tipW - 12;
-            if (left < 12) left = 12;
-            var top = rect.top - tipH - 8;
-            if (top < 4) { top = rect.bottom + 8; tip.classList.add('tip-below'); }
-            else { tip.classList.remove('tip-below'); }
-            tip.style.left = left + 'px';
-            tip.style.top = top + 'px';
-            var arrowLeft = (rect.left + rect.width / 2) - left;
-            arrowLeft = Math.max(14, Math.min(arrowLeft, tipW - 14));
-            tip.style.setProperty('--arrow-left', arrowLeft + 'px');
-        });
-        wrap.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
-    });
+    attachTickerTips(grid);
 }
 
 /* ============ SOCIAL FEED ============ */
