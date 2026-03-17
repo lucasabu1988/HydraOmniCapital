@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-17T12:00:55.679417",
+  "timestamp": "2026-03-17T12:36:13.805770",
   "cash": 66601.10429382324,
   "peak_value": 120000,
-  "portfolio_value": 99731.60885620117,
+  "portfolio_value": 99737.01950073242,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000,
@@ -41,7 +41,7 @@
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 833.0,
+      "high_price": 833.9039916992188,
       "entry_vol": 0.4165747650252211,
       "entry_daily_vol": 0.026241743588616726,
       "sector": "Unknown",
@@ -159,7 +159,7 @@
   "_pre_rotation_cash": 66601.10429382324,
   "_pre_rotation_value": 99999.67457580566,
   "stats": {
-    "cycles_completed": 675,
-    "uptime_minutes": 2252.9725613666665
+    "cycles_completed": 689,
+    "uptime_minutes": 2288.27466635
   }
 }
