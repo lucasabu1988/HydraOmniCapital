@@ -632,7 +632,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 ---
 
 ### TASK-104: Sync cloud and local dashboard endpoints [PRIORITY: HIGH]
-**Status:** [ ]
+**Status:** [x] Done (`7db2916`)
 **Assigned:** Codex
 
 **Problem:** Cloud has `/api/ml` and `/api/agent/scratchpad` endpoints that don't exist in local dashboard. Frontend code may call these and fail on local. Also, cloud has `localhost:5051` debug references.
@@ -831,6 +831,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 
 ## Completed
 
+- `TASK-104` (`7db2916`) Synced the remaining local/cloud route mismatch by adding the local `/api/ml` alias and the `/api/agent/scratchpad` alias, and added a parametrized Flask route audit in `tests/test_cloud_dashboard.py` that fails if any cloud route disappears from the local dashboard. Also verified there are no `localhost:5051` references in either dashboard file.
 - `TASK-103` (`d224c97`) Audited exception handlers across both dashboards and added contextual logging with stack traces to the silent fallback paths in `compass_dashboard_cloud.py` and `compass_dashboard.py` without changing response/control flow. Added `caplog` regression tests for Yahoo and state-read failures plus an AST audit that fails if either dashboard reintroduces `except:` or an `except` block without logging.
 - `TASK-102` (`352595f`) Added `_validate_state_before_write()` plus stricter save/load state validation so invalid cash, trading-day overflow, mismatched `positions`/`position_meta`, bad position payloads, and stale/invalid trading dates no longer hit disk unchecked; `save_state()` now skips blocked writes without generating new `CORRUPTED_*` files during normal operation, and `load_state()` logs both detected issues and auto-heals. Expanded `tests/test_state_validation.py` with new blocker/autocorrect coverage, and verified with `py_compile`, `pytest tests/test_state_validation.py -v --no-cov`, and a 120-test engine/state regression slice.
 
