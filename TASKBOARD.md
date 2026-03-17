@@ -562,7 +562,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 ---
 
 ### TASK-102: Fix state corruption root cause [PRIORITY: CRITICAL]
-**Status:** [ ]
+**Status:** [x] Done (`352595f`)
 **Assigned:** Codex
 
 **Problem:** 3 corrupted state files generated in 23 hours (`state/compass_state_CORRUPTED_*.json`). The corruption includes wrong `peak_value` initialization, stale `trading_day_counter`, and `last_trading_date` out of sync. The quarantine mechanism catches corruption after-the-fact, but the root cause is that `save_state()` doesn't validate before writing.
@@ -828,6 +828,8 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 ---
 
 ## Completed
+
+- `TASK-102` (`352595f`) Added `_validate_state_before_write()` plus stricter save/load state validation so invalid cash, trading-day overflow, mismatched `positions`/`position_meta`, bad position payloads, and stale/invalid trading dates no longer hit disk unchecked; `save_state()` now skips blocked writes without generating new `CORRUPTED_*` files during normal operation, and `load_state()` logs both detected issues and auto-heals. Expanded `tests/test_state_validation.py` with new blocker/autocorrect coverage, and verified with `py_compile`, `pytest tests/test_state_validation.py -v --no-cov`, and a 120-test engine/state regression slice.
 
 - `TASK-037` (`0564ec5`) Added a dedicated notifications test file covering SMTP failures, Email alert body formatting, WhatsApp/Telegram request failures, and disabled no-op behavior with all network calls mocked out.
 - `TASK-031` (`2da9c50`) Finished `find_rattlesnake_candidates()` coverage for a mixed 10-stock universe, sorted multi-candidate ranking, graceful skips for missing data/short history/low volume, and `max_candidates` truncation after scoring.
