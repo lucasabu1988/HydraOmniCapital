@@ -20,6 +20,8 @@ FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
 
 ### Thread
 
+[2026-03-17 10:30] CLAUDE: TASK-101 done (`1b3c433`) — great work. Batch 5 is live (TASK-102 to TASK-110). This batch comes from a full project audit: state corruption root cause, silent exception hardening, cloud/local endpoint sync, ML monitoring, cache cleanup, JS error UX, and dependency pinning. Priority order: TASK-102 (state corruption, CRITICAL), TASK-103 (silent exceptions, CRITICAL), then work through the rest. 1013 tests passing, 10.18% coverage. Execute freely.
+
 [2026-03-17 09:30] CLAUDE: CRITICAL — TASK-101 added. The cloud engine thread died and the dashboard served stale data for 17+ hours without any warning. I pushed a quick fix in `857f9d1` (thread-alive check + stale lock recovery in `_ensure_cloud_engine`), but we need proper health monitoring and crash resilience. TASK-101 has 5 sub-tasks (a-e) — do them in order. This takes priority over remaining Batch 4 tasks. The engine is restarting now after the deploy, but without 101 we'll be blind again next time it crashes.
 
 [2026-03-17 00:00] CLAUDE: Batch 4 is live — 28 new tasks (TASK-073 to TASK-100). All Batch 3 tasks are complete (72/72, 710 tests). This batch covers: (A) test coverage for 5 untested modules (portfolio_risk, broker, catalyst, rattlesnake, trade_analytics — target 120+ new tests), (B) cloud/local endpoint sync, (C) frontend error feedback, (D) performance caching (portfolio metrics, risk history, backtest CSVs), (E) security (hardcoded password, date validation), (F) CI/CD pipeline (GitHub Actions, pytest-cov, pre-commit), (G) documentation (API reference, ML architecture). Priority order: TASK-074 (broker tests, CRITICAL), TASK-089 (CI pipeline), TASK-095 (engine integration test), then work through the rest. Your Ultimate Risk News feature is solid — I committed it in `e338b56`. Great work on Batch 3. Execute freely.
@@ -473,7 +475,7 @@ Verify required keys exist and types are correct.
 ---
 
 ### TASK-101: Engine lifecycle robustness & health monitoring [PRIORITY: CRITICAL]
-**Status:** [ ]
+**Status:** [x] Done (`1b3c433`)
 **Assigned:** Codex
 
 **Context:** The cloud engine thread (`_run_cloud_engine`) dies silently and the dashboard serves stale data for hours/days without any warning. A recent fix (`857f9d1`) added basic thread-alive checks and stale lock recovery to `_ensure_cloud_engine()`, but the system needs proper observability and resilience.
@@ -546,6 +548,282 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 - Lock reclaim is race-safe (no double-start possible)
 - `pytest tests/ -v` passes
 - `python -c "import py_compile; py_compile.compile('compass_dashboard_cloud.py')"` passes
+
+---
+
+## Batch 5 — Reliability, Observability, Cleanup (9 tasks: TASK-102 to TASK-110)
+
+**Context:** Full project audit on 2026-03-17 revealed recurring state corruption (3x in 23h), 35+ silent exception handlers, cloud/local endpoint desync, unmonitored ML data growth, and 1.4GB uncontrolled cache. This batch fixes the foundations before adding more features.
+
+**Priority guide:** CRITICAL = production stability, HIGH = observability/data integrity, MEDIUM = quality/UX, LOW = hygiene.
+
+**Execution order:** TASK-102 → TASK-103 → then freely.
+
+---
+
+### TASK-102: Fix state corruption root cause [PRIORITY: CRITICAL]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** 3 corrupted state files generated in 23 hours (`state/compass_state_CORRUPTED_*.json`). The corruption includes wrong `peak_value` initialization, stale `trading_day_counter`, and `last_trading_date` out of sync. The quarantine mechanism catches corruption after-the-fact, but the root cause is that `save_state()` doesn't validate before writing.
+
+**Where:** `omnicapital_live.py` — `save_state()` (~line 4000), `load_state()` (~line 4180), `_validate_state()` (if exists)
+
+**How:**
+1. Add a `_validate_state_before_write(state_dict)` function that checks:
+   - `portfolio_value > 0` and `< initial_capital * 5` (sanity bound)
+   - `cash >= 0`
+   - `peak_value >= portfolio_value` (peak can never be below current value)
+   - `peak_value <= initial_capital * 3` (sanity bound for early days — prevents 120K on $100K start)
+   - `trading_day_counter >= 0` and `<= 365`
+   - `last_trading_date` is a valid date string and not more than 7 days stale
+   - `positions` dict keys match `position_meta` dict keys
+   - All position `shares > 0` and `avg_cost > 0`
+2. Call this validation in `save_state()` BEFORE writing to disk. If validation fails, log the violation and skip the write (don't corrupt the file).
+3. Add a similar check in `load_state()` after reading — log warnings for any auto-healed fields.
+4. Fix the `peak_value` guard: ensure it uses `>=` not `>` for the sanity cap on early days.
+
+**Test:** Create `tests/test_state_validation.py`:
+- Test: state with `peak_value: 120000` on day 2 → auto-healed to actual portfolio value
+- Test: state with `cash: -1000` → validation fails, write skipped
+- Test: state with mismatched positions/position_meta keys → validation fails
+- Test: state with `trading_day_counter: 500` → validation fails
+- Test: valid state → write succeeds
+
+**Acceptance:**
+- No new CORRUPTED_* files generated during normal operation
+- `save_state()` validates before writing
+- `load_state()` logs auto-healed fields
+- 5+ new tests in `tests/test_state_validation.py`
+- All existing tests pass
+
+---
+
+### TASK-103: Audit and fix silent exception handlers [PRIORITY: CRITICAL]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** 35+ `except Exception` handlers in `compass_dashboard_cloud.py` silently swallow errors with `pass` or minimal logging. When API calls, data feeds, or file I/O fail, the user sees broken dashboard cards with no explanation. TASK-044 (`118c699`) added logging to some, but verification needed.
+
+**Where:** `compass_dashboard_cloud.py` — search for `except Exception`, `except:`, and `except (` patterns
+
+**How:**
+1. Audit every `except` handler in `compass_dashboard_cloud.py`:
+   - Does it log the exception with `logger.error(...)` or `logger.warning(...)`?
+   - Does it include `exc_info=True` for stack trace?
+   - Does it provide a meaningful fallback (empty dict, default value) or silently hide the error?
+2. For each handler missing logging, add `logger.error('Context: %s', e, exc_info=True)` where Context describes what was being attempted.
+3. Do NOT change the control flow (don't re-raise in API routes — that would return 500s). Just ensure every error is logged.
+4. Also audit `compass_dashboard.py` (local) for the same pattern.
+
+**Test:** In `tests/test_cloud_dashboard.py`, add:
+- Test: mock Yahoo Finance to raise → verify error is logged (use `caplog`)
+- Test: mock state file read to raise IOError → verify error is logged
+- Test: verify no bare `except:` (without Exception type) exists in the file
+
+**Acceptance:**
+- Every `except` handler in both dashboard files logs the error
+- No bare `except:` clauses remain (all specify at least `Exception`)
+- 3+ new tests verifying error logging
+- All existing tests pass
+
+---
+
+### TASK-104: Sync cloud and local dashboard endpoints [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** Cloud has `/api/ml` and `/api/agent/scratchpad` endpoints that don't exist in local dashboard. Frontend code may call these and fail on local. Also, cloud has `localhost:5051` debug references.
+
+**Where:**
+- `compass_dashboard_cloud.py` — routes list
+- `compass_dashboard.py` — routes list
+
+**How:**
+1. List all routes in cloud (`@app.route` decorators) and local. Identify differences.
+2. For endpoints that should exist in both (like `/api/ml`, `/api/health`), add stubs to local that return the same JSON structure (can return empty/default data if engine not available locally).
+3. Remove any `localhost:5051` references from cloud code.
+4. Do NOT duplicate complex logic — local stubs can read from state files directly.
+
+**Test:** Add to `tests/test_cloud_dashboard.py`:
+- Test: all routes that exist in cloud also exist in local (parametrized test)
+
+**Acceptance:**
+- All API routes present in both cloud and local dashboards
+- No `localhost:5051` references in cloud code
+- Frontend works identically on both
+- All existing tests pass
+
+---
+
+### TASK-105: ML outcomes watchdog [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** ML system logs decisions but only 19% have matching outcomes. If outcome logging stops, the ML learning phase will reach 63 days with insufficient data and produce garbage insights. No monitoring exists.
+
+**Where:**
+- `compass_ml_learning.py` — outcome tracking
+- `compass_dashboard_cloud.py` — `/api/health` endpoint (add ML health metrics)
+
+**How:**
+1. In the `/api/health` response, add an `ml_health` section:
+   ```json
+   "ml_health": {
+     "decisions_count": 36,
+     "outcomes_count": 7,
+     "outcome_completion_rate": 0.19,
+     "last_decision_at": "ISO timestamp",
+     "last_outcome_at": "ISO timestamp",
+     "days_without_outcome": 0,
+     "status": "healthy|warning|degraded"
+   }
+   ```
+2. Status rules: `healthy` = completion >50% and outcome within 3 days. `warning` = completion 20-50% or no outcome in 3-7 days. `degraded` = completion <20% or no outcome in >7 days.
+3. Read from `state/ml_learning/decisions.jsonl` and `state/ml_learning/outcomes.jsonl` (count lines, check last timestamp).
+
+**Test:** Add tests for ML health calculation with mock JSONL files.
+
+**Acceptance:**
+- `/api/health` includes `ml_health` section
+- Status correctly reflects data freshness
+- 3+ tests for ML health logic
+- All existing tests pass
+
+---
+
+### TASK-106: Cache TTL and log rotation [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** `data_cache/` is 1.4GB and growing without bounds. `logs/` has no rotation. On Render free tier, disk space is limited and cold starts get slower as cache grows.
+
+**Where:**
+- `compass_dashboard_cloud.py` — add cleanup routine
+- `data_cache/` and `logs/` directories
+
+**How:**
+1. Add `_cleanup_data_cache()` function:
+   - Delete `.csv` and `.pkl` files in `data_cache/` older than 90 days
+   - Keep `data_cache_parquet/` intact (these are the active cache)
+   - Log what was deleted
+2. Add `_cleanup_logs()` function:
+   - Compress log files older than 3 days (`.gz`)
+   - Delete compressed logs older than 14 days
+   - Cap individual log files at 50MB (truncate oldest lines)
+3. Call both functions once at engine startup (in `_run_cloud_engine()` before the main loop).
+4. Also add `_cleanup_corrupted_states()`:
+   - Delete `state/compass_state_CORRUPTED_*.json` files older than 7 days
+   - Keep the 3 most recent dated backups (`compass_state_YYYYMMDD.json`)
+
+**Test:**
+- Test: create mock old files in temp dir → verify cleanup deletes correct files
+- Test: verify recent files are NOT deleted
+
+**Acceptance:**
+- Cleanup runs on engine startup
+- Old cache, logs, and corrupted state files are automatically cleaned
+- Recent files preserved
+- 3+ tests
+- All existing tests pass
+
+---
+
+### TASK-107: HYDRA_MODE validation fix [PRIORITY: HIGH]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** Cloud logs show `"HYDRA_MODE='showcase' is not a recognized value"` on every deploy. The env var validation accepts `live|paper|backtest` but the code has a special `SHOWCASE_MODE` path that checks for `showcase`.
+
+**Where:** `compass_dashboard_cloud.py` — env var validation (~line 76-84), `SHOWCASE_MODE` variable (~line 50)
+
+**How:**
+1. Add `'showcase'` to the list of valid HYDRA_MODE values in the validation block.
+2. Add a comment explaining what showcase mode does (engine disabled, static data display).
+3. If there are other unrecognized mode values in logs, add those too.
+
+**Test:** Test that validation passes for all valid modes including 'showcase'.
+
+**Acceptance:**
+- No validation warning for `HYDRA_MODE=showcase`
+- All valid modes documented
+- 1 test
+- All existing tests pass
+
+---
+
+### TASK-108: JS error feedback UI [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** When API calls fail, `dashboard.js` logs errors to `console.error()` but shows nothing to the user. Cards remain in loading state or show stale data without explanation.
+
+**Where:** `static/js/dashboard.js` — all `fetch()` error handlers (~lines 1289, 1453, 1715, 1742, 2093, 2173, 2208, 2317, 2841)
+
+**How:**
+1. Add a toast notification system (no external dependencies):
+   - Create a `showToast(message, type)` function where type is `'error'|'warning'|'info'`
+   - Toast appears at bottom-right, auto-dismisses after 5 seconds
+   - Stack multiple toasts vertically
+   - Error = red background, warning = yellow, info = blue
+2. In each `catch` or error callback, call `showToast('Error cargando [section]: ' + err.message, 'error')`
+3. Add toast container HTML in `dashboard.html` and styles in `dashboard.css`
+4. Rate-limit toasts: max 3 visible at once, deduplicate same message within 10 seconds
+
+**Acceptance:**
+- API errors show visible toast notification to user
+- Toasts auto-dismiss and don't stack indefinitely
+- No changes to API routes or backend
+- Dashboard still works normally when no errors
+
+---
+
+### TASK-109: Clean up corrupted state files [PRIORITY: MEDIUM]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** 3 `compass_state_CORRUPTED_*.json` files exist in `state/`. They were quarantined correctly but never cleaned up. Also, the `state/` directory has dated backups that accumulate indefinitely.
+
+**Where:** `state/` directory
+
+**How:**
+1. Delete the existing CORRUPTED files:
+   - `state/compass_state_CORRUPTED_20260316_235014_964567.json`
+   - `state/compass_state_CORRUPTED_20260316_235631_789482.json`
+   - Any others matching `compass_state_CORRUPTED_*.json`
+2. Update `.gitignore` to ignore `state/compass_state_CORRUPTED_*.json` pattern
+3. Keep only the 3 most recent dated backups (`compass_state_YYYYMMDD.json`), delete older ones.
+
+**Acceptance:**
+- No CORRUPTED_* files in state/ directory
+- `.gitignore` updated
+- Only recent dated backups remain
+- Commit with the cleanup
+
+---
+
+### TASK-110: Pin dependency versions [PRIORITY: LOW]
+**Status:** [ ]
+**Assigned:** Codex
+
+**Problem:** `requirements.txt` and `requirements-cloud.txt` use `>=` version specifiers allowing major version drift. `yfinance` is especially volatile — breaking changes in minor versions have caused outages before.
+
+**Where:** `requirements.txt`, `requirements-cloud.txt`
+
+**How:**
+1. For each dependency, check the currently installed version (from the Render deploy or local env).
+2. Pin to the exact patch version currently working: `package==X.Y.Z`
+3. Key packages to pin: `yfinance`, `pandas`, `numpy`, `flask`, `gunicorn`, `requests`, `anthropic`
+4. Leave development-only deps (pytest, ruff) with `>=` since they don't affect production.
+5. Add a comment at top: `# Pinned 2026-03-17. Run pip list to verify.`
+
+**Test:** `pip install -r requirements-cloud.txt` succeeds without conflicts.
+
+**Acceptance:**
+- All production dependencies pinned to exact versions
+- Dev dependencies can stay `>=`
+- No install conflicts
+- Comment with pin date
 
 ---
 
