@@ -3,6 +3,7 @@ OmniCapital v8.2 COMPASS - Daily Monitor
 Script de monitoreo diario para trading live
 """
 
+import logging
 import pandas as pd
 import json
 import os
@@ -10,6 +11,8 @@ from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+logger = logging.getLogger(__name__)
 
 
 class DailyMonitor:
@@ -142,15 +145,19 @@ class DailyMonitor:
         smtp_server = "smtp.gmail.com"
         smtp_port = 587
         from_email = "tu_email@gmail.com"
-        password = "tu_password"
-        
+        password = os.environ.get('SMTP_PASSWORD', '')
+
+        if not password:
+            logger.warning("SMTP_PASSWORD not set — skipping email send")
+            return
+
         msg = MIMEMultipart()
         msg['From'] = from_email
         msg['To'] = to_email
         msg['Subject'] = subject
-        
+
         msg.attach(MIMEText(body, 'plain'))
-        
+
         try:
             server = smtplib.SMTP(smtp_server, smtp_port)
             server.starttls()
