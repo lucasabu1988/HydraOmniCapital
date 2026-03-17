@@ -16,6 +16,7 @@ from flask import Flask, jsonify, render_template, request
 import json
 import os
 import glob
+import math
 import re
 import numpy as np
 import pandas as pd
@@ -819,11 +820,23 @@ def _validate_recovered_state(state, source):
         logger.error('Recovered state from %s is missing a valid positions map', source)
         return None
     cash = state.get('cash')
-    if not isinstance(cash, (int, float)) or isinstance(cash, bool):
+    if (not isinstance(cash, (int, float)) or isinstance(cash, bool)
+            or not math.isfinite(float(cash))):
         logger.error('Recovered state from %s is missing numeric cash', source)
         return None
+    portfolio_value = state.get('portfolio_value')
+    if (not isinstance(portfolio_value, (int, float)) or isinstance(portfolio_value, bool)
+            or not math.isfinite(float(portfolio_value))):
+        logger.error('Recovered state from %s is missing finite portfolio_value', source)
+        return None
+    peak_value = state.get('peak_value')
+    if (not isinstance(peak_value, (int, float)) or isinstance(peak_value, bool)
+            or not math.isfinite(float(peak_value))):
+        logger.error('Recovered state from %s is missing finite peak_value', source)
+        return None
     trading_day_counter = state.get('trading_day_counter')
-    if not isinstance(trading_day_counter, int) or isinstance(trading_day_counter, bool):
+    if (not isinstance(trading_day_counter, int) or isinstance(trading_day_counter, bool)
+            or trading_day_counter < 0):
         logger.error('Recovered state from %s is missing integer trading_day_counter', source)
         return None
     return state
