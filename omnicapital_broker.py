@@ -611,6 +611,10 @@ class PaperBroker(Broker):
         Circuit breaker: rejects fills that deviate too much from expected price."""
         if max_deviation is None:
             max_deviation = self.max_fill_deviation
+        if fill_price <= 0:
+            logger.error(f"Fill price circuit breaker: {symbol} "
+                        f"fill=${fill_price} is non-positive")
+            return False
         if reference_price <= 0:
             return False
         deviation = abs(fill_price - reference_price) / reference_price

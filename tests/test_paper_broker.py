@@ -309,3 +309,81 @@ def test_check_stale_orders_ignores_recent_orders():
 
     assert len(stale) == 0
     assert order.status == 'SUBMITTED'
+
+
+# --- Fill price validation tests ---
+
+
+def test_fill_price_within_2pct_of_market_accepted():
+    """Fill price within 2% of reference → order fills successfully."""
+    broker = DivergentFillPaperBroker(
+        fill_price=101.5,  # 1.5% above reference of 100
+        initial_cash=10_000,
+        commission_per_share=0.0,
+        fill_delay=0,
+        max_fill_deviation=0.02,
+    )
+    broker.set_price_feed(StaticPriceFeed({'AAPL': 100.0}))
+    broker.connect()
+
+    result = broker.submit_order(Order(symbol='AAPL', action='BUY', quantity=1))
+
+    assert result.status == 'FILLED'
+    assert result.filled_price == pytest.approx(101.5)
+
+
+def test_fill_price_5pct_from_market_rejected():
+    """Fill price 5% away from reference → rejected by circuit breaker."""
+    broker = DivergentFillPaperBroker(
+        fill_price=105.0,  # 5% above reference of 100
+        initial_cash=10_000,
+        commission_per_share=0.0,
+        fill_delay=0,
+        max_fill_deviation=0.02,
+    )
+    broker.set_price_feed(StaticPriceFeed({'AAPL': 100.0}))
+    broker.connect()
+
+    result = broker.submit_order(Order(symbol='AAPL', action='BUY', quantity=1))
+
+    assert result.status == 'ERROR'
+    assert broker.cash == 10_000
+    assert broker.positions == {}
+
+
+def test_fill_price_zero_rejected():
+    """Fill price of 0 → rejected."""
+    broker = DivergentFillPaperBroker(
+        fill_price=0.0,
+        initial_cash=10_000,
+        commission_per_share=0.0,
+        fill_delay=0,
+        max_fill_deviation=0.02,
+    )
+    broker.set_price_feed(StaticPriceFeed({'AAPL': 100.0}))
+    broker.connect()
+
+    result = broker.submit_order(Order(symbol='AAPL', action='BUY', quantity=1))
+
+    assert result.status == 'ERROR'
+    assert broker.cash == 10_000
+    assert broker.positions == {}
+
+
+def test_fill_price_negative_rejected():
+    """Negative fill price → rejected."""
+    broker = DivergentFillPaperBroker(
+        fill_price=-5.0,
+        initial_cash=10_000,
+        commission_per_share=0.0,
+        fill_delay=0,
+        max_fill_deviation=0.02,
+    )
+    broker.set_price_feed(StaticPriceFeed({'AAPL': 100.0}))
+    broker.connect()
+
+    result = broker.submit_order(Order(symbol='AAPL', action='BUY', quantity=1))
+
+    assert result.status == 'ERROR'
+    assert broker.cash == 10_000
+    assert broker.positions == {}
