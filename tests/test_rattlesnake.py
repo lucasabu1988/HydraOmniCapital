@@ -17,6 +17,13 @@ def make_history(recent_closes, trend_start, trend_end=None, volume=1_000_000):
     }, index=index)
 
 
+def make_spy_history(last_close, base_close=100.0, days=None):
+    days = rattlesnake.R_TREND_SMA if days is None else days
+    closes = [base_close] * (days - 1) + [last_close]
+    index = pd.date_range('2025-01-01', periods=len(closes), freq='D')
+    return pd.DataFrame({'Close': closes}, index=index)
+
+
 class TestRattlesnakeSignals:
 
     def test_compute_rsi_matches_hand_calculation_for_known_series(self):
@@ -58,6 +65,60 @@ class TestRattlesnakeSignals:
         rsi = rattlesnake.compute_rsi(prices, period=5)
 
         assert rsi == pytest.approx(50.0)
+
+    def test_regime_is_risk_on_above_sma_without_vix_panic(self):
+        regime = rattlesnake.check_rattlesnake_regime(
+            make_spy_history(110.0),
+            vix_current=20.0,
+        )
+
+        assert regime == {
+            'regime': 'RISK_ON',
+            'vix_panic': False,
+            'entries_allowed': True,
+            'max_positions': rattlesnake.R_MAX_POSITIONS,
+        }
+
+    def test_regime_is_risk_off_below_sma_and_uses_risk_off_position_cap(self):
+        regime = rattlesnake.check_rattlesnake_regime(
+            make_spy_history(90.0),
+            vix_current=20.0,
+        )
+
+        assert regime['regime'] == 'RISK_OFF'
+        assert regime['vix_panic'] is False
+        assert regime['entries_allowed'] is True
+        assert regime['max_positions'] == rattlesnake.R_MAX_POS_RISK_OFF
+
+    def test_vix_panic_blocks_entries_even_when_spy_is_above_sma(self):
+        regime = rattlesnake.check_rattlesnake_regime(
+            make_spy_history(110.0),
+            vix_current=rattlesnake.R_VIX_PANIC + 1,
+        )
+
+        assert regime['regime'] == 'RISK_ON'
+        assert regime['vix_panic'] is True
+        assert regime['entries_allowed'] is False
+        assert regime['max_positions'] == rattlesnake.R_MAX_POSITIONS
+
+    def test_short_spy_history_defaults_to_risk_on(self):
+        regime = rattlesnake.check_rattlesnake_regime(
+            make_spy_history(90.0, days=50),
+            vix_current=20.0,
+        )
+
+        assert regime['regime'] == 'RISK_ON'
+        assert regime['entries_allowed'] is True
+        assert regime['max_positions'] == rattlesnake.R_MAX_POSITIONS
+
+    def test_nan_vix_is_treated_as_non_panic(self):
+        regime = rattlesnake.check_rattlesnake_regime(
+            make_spy_history(110.0),
+            vix_current=float('nan'),
+        )
+
+        assert regime['vix_panic'] is False
+        assert regime['entries_allowed'] is True
 
     def test_buy_signal_fires_for_oversold_stock_above_sma200(self, monkeypatch):
         monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL'])
