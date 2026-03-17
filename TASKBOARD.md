@@ -314,7 +314,7 @@ Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lint
 ---
 
 ### TASK-013: Test `_sanitize_for_json` edge cases [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`76a7ab2`)
 **Assigned:** Codex
 
 `_sanitize_for_json()` recursively sanitizes objects for JSON serialization but has zero tests.
@@ -334,7 +334,7 @@ Create a `ruff.toml` or `[tool.ruff]` section in `pyproject.toml` that only lint
 ---
 
 ### TASK-014: Test `_write_json_file` atomicity [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`a32307a`)
 **Assigned:** Codex
 
 `_write_json_file()` writes to a temp file then replaces. Never tested for failure modes.
@@ -1261,8 +1261,8 @@ ENGINE_CONFIG/COMPASS_CONFIG parameters are never validated. Typos or bad values
 ---
 
 ### TASK-058: Add universe symbol validation [PRIORITY: LOW]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`5393aee`)
+**Assigned:** Claude
 
 Universe symbols from yfinance are used without validation. Invalid symbols could slip through.
 
@@ -1333,8 +1333,8 @@ Cloud dashboard sets some security headers but no Content-Security-Policy.
 ---
 
 ### TASK-061: Add SRI integrity attributes to CDN scripts [PRIORITY: LOW]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`71959e8`)
+**Assigned:** Claude
 
 `templates/dashboard.html` loads Chart.js and plugins from jsdelivr without integrity checks.
 
@@ -1353,8 +1353,8 @@ Cloud dashboard sets some security headers but no Content-Security-Policy.
 ---
 
 ### TASK-062: Fix innerHTML usage in dashboard.js where textContent suffices [PRIORITY: LOW]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] N/A — all innerHTML usages legitimately need HTML tags. No changes needed.
+**Assigned:** Claude
 
 `static/js/dashboard.js` uses `innerHTML` in places where plain text would suffice (XSS surface).
 
@@ -1512,8 +1512,8 @@ State changes are not tracked. Can't trace when positions changed or why.
 ---
 
 ### TASK-069: Add `/api/execution-stats` endpoint [PRIORITY: LOW]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`379a15a`)
+**Assigned:** Claude
 
 No visibility into order execution quality (fill deviation, latency, slippage).
 
@@ -1567,8 +1567,8 @@ When the engine starts, there's no single log block summarizing the configuratio
 ---
 
 ### TASK-071: Add stale price cache warning to dashboard [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`0bcdc64`)
+**Assigned:** Claude
 
 If price data is stale (>5 min old), the dashboard shows stale data silently.
 
@@ -1588,8 +1588,8 @@ If price data is stale (>5 min old), the dashboard shows stale data silently.
 ---
 
 ### TASK-072: Add `_dd_leverage` cross-module consistency test [PRIORITY: MEDIUM]
-**Status:** [ ]
-**Assigned:** Codex
+**Status:** [x] Done (`ff3a116`)
+**Assigned:** Claude
 
 `_dd_leverage()` in `omnicapital_live.py:729` and `compass_montecarlo.py:33` are separate implementations. Need to verify they agree.
 
