@@ -19,7 +19,7 @@ from omnicapital_live import (
     COMPASSLive, CONFIG, BROAD_POOL,
     compute_momentum_scores, compute_volatility_weights,
     compute_dynamic_leverage, compute_live_regime_score,
-    filter_by_sector_concentration,
+    filter_by_sector_concentration, _dd_leverage,
 )
 from omnicapital_broker import PaperBroker, Order, Position
 from omnicapital_notifications import EmailNotifier
@@ -209,6 +209,35 @@ class TestSectorConcentrationFiltering(unittest.TestCase):
         selected = filter_by_sector_concentration(ranked_candidates, current_positions)
 
         self.assertEqual(selected, ['UNK3', 'AAPL'])
+
+
+class TestDrawdownLeverageScaling(unittest.TestCase):
+    """Test piecewise drawdown-based leverage scaling."""
+
+    def setUp(self):
+        self.config = CONFIG.copy()
+
+    def test_drawdown_tier_edges_match_config_levels(self):
+        self.assertEqual(_dd_leverage(0.0, self.config), self.config['LEV_FULL'])
+        self.assertEqual(_dd_leverage(-0.10, self.config), self.config['LEV_FULL'])
+        self.assertEqual(_dd_leverage(-0.20, self.config), self.config['LEV_MID'])
+        self.assertEqual(_dd_leverage(-0.35, self.config), self.config['LEV_FLOOR'])
+
+    def test_drawdown_tier_scaling_matches_expected_curve(self):
+        cases = [
+            (-0.05, 1.0),
+            (-0.10, 1.0),
+            (-0.15, 0.80),
+            (-0.20, 0.60),
+            (-0.25, 0.50),
+            (-0.35, 0.30),
+            (-0.50, 0.30),
+        ]
+
+        for drawdown, expected in cases:
+            with self.subTest(drawdown=drawdown):
+                leverage = _dd_leverage(drawdown, self.config)
+                self.assertAlmostEqual(leverage, expected, places=6)
 
 
 class TestCOMPASSLive(unittest.TestCase):
