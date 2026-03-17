@@ -26,6 +26,7 @@ import json
 import logging
 import math
 import os
+import threading
 import warnings
 from dataclasses import dataclass, asdict
 from datetime import datetime, date
@@ -42,6 +43,8 @@ warnings.filterwarnings('ignore', category=DeprecationWarning)
 # Logging
 # ---------------------------------------------------------------------------
 logger = logging.getLogger("compass.ml")
+
+_ml_write_lock = threading.Lock()
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -93,12 +96,13 @@ def _sanitize_for_json(obj):
 
 
 def _write_json_file(path, payload, default=str):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(_sanitize_for_json(payload), f, indent=2, default=default)
-    os.replace(tmp_path, path)
+    with _ml_write_lock:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(_sanitize_for_json(payload), f, indent=2, default=default)
+        os.replace(tmp_path, path)
 
 
 # ===========================================================================
@@ -325,9 +329,10 @@ class DecisionLogger:
     def _append_jsonl(self, path: Path, record: dict):
         """Append one JSON line to a .jsonl file (fail-safe)."""
         try:
-            line = json.dumps(_sanitize_for_json(record), default=str) + "\n"
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(line)
+            with _ml_write_lock:
+                line = json.dumps(_sanitize_for_json(record), default=str) + "\n"
+                with open(path, "a", encoding="utf-8") as f:
+                    f.write(line)
         except Exception as e:
             logger.error(f"Failed to append to {path}: {e}")
 
@@ -828,6 +833,10 @@ class DecisionLogger:
           weak_loss  : -6% < return < -1%
           stop_loss  : hit adaptive stop (return <= -6%)
         """
+        if gross_return is None or not isinstance(gross_return, (int, float)) or math.isnan(gross_return) or math.isinf(gross_return):
+            return "unknown"
+        if not exit_reason:
+            exit_reason = ""
         if exit_reason in ("position_stop_adaptive", "position_stop"):
             return "stop_loss"
         if gross_return > 0.04:

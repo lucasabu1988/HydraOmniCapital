@@ -701,6 +701,24 @@ def test_classify_outcome_boundaries(gross_return, exit_reason, expected):
     assert ml.DecisionLogger._classify_outcome(gross_return, exit_reason) == expected
 
 
+@pytest.mark.parametrize(
+    'gross_return,exit_reason,expected',
+    [
+        (0.0, 'hold_expired', 'flat'),
+        (float('nan'), 'hold_expired', 'unknown'),
+        (float('inf'), 'hold_expired', 'unknown'),
+        (float('-inf'), 'hold_expired', 'unknown'),
+        (0.05, None, 'strong_win'),
+        (0.05, '', 'strong_win'),
+        (-0.02, None, 'weak_loss'),
+        (-0.02, '', 'weak_loss'),
+        (None, 'hold_expired', 'unknown'),
+    ],
+)
+def test_classify_outcome_edge_cases(gross_return, exit_reason, expected):
+    assert ml.DecisionLogger._classify_outcome(gross_return, exit_reason) == expected
+
+
 def test_learning_engine_run_stays_in_phase1_below_63_days(isolate_ml_paths):
     feature_store = ml.FeatureStore(str(isolate_ml_paths))
     engine = ml.LearningEngine(feature_store, trading_days_available=62)
@@ -766,3 +784,25 @@ def test_learning_engine_enters_phase3_at_252_days(isolate_ml_paths, monkeypatch
     assert result['phase2']['n_samples'] == 100
     assert result['phase3']['n_samples'] == 100
     assert result['phase3']['model_type'] in {'RandomForest', 'LightGBM'}
+
+
+def test_append_jsonl_thread_safety(logger, tmp_path):
+    import threading
+
+    target_file = tmp_path / "thread_test.jsonl"
+    threads = []
+    for i in range(10):
+        record = {"thread_id": i, "value": f"record_{i}"}
+        t = threading.Thread(target=logger._append_jsonl, args=(target_file, record))
+        threads.append(t)
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    lines = target_file.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 10
+    parsed = [json.loads(line) for line in lines]
+    thread_ids = sorted(r["thread_id"] for r in parsed)
+    assert thread_ids == list(range(10))
