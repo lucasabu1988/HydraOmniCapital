@@ -3,7 +3,7 @@ import os
 import sys
 import threading
 import time
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -82,6 +82,20 @@ def make_state(**overrides):
     }
     payload.update(overrides)
     return payload
+
+
+def configure_run_once_after_recovery(monkeypatch, trader):
+    monkeypatch.setattr(trader, 'is_market_open', lambda: True)
+    monkeypatch.setattr(trader, 'is_new_trading_day', lambda: False)
+    monkeypatch.setattr(trader, 'is_preclose_window', lambda: False)
+    monkeypatch.setattr(trader, 'execute_trading_logic', lambda prices: None)
+    monkeypatch.setattr(trader, 'log_status', lambda prices: None)
+
+    trader.current_universe = ['AAPL']
+    trader.config['STATE_SAVE_INTERVAL'] = 0
+    trader.validator.validate_batch = lambda raw_prices: raw_prices
+    trader.data_feed.get_prices = lambda symbols: {'AAPL': 150.0} if 'AAPL' in symbols else {}
+    trader._last_state_save = datetime.now() - timedelta(seconds=5)
 
 
 @pytest.fixture
@@ -313,6 +327,83 @@ def test_load_state_resets_non_dict_sections(trader, tmp_path):
     assert trader.position_meta == {}
     assert trader.broker.positions == {}
     assert trader._last_persisted_cycles_completed == 0
+
+
+def test_try_load_json_returns_none_for_invalid_json(trader, tmp_path):
+    state_path = tmp_path / 'state' / 'compass_state_latest.json'
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text('{"cash": ', encoding='utf-8')
+
+    assert trader._try_load_json(state_path) is None
+
+
+def test_load_state_repairs_missing_cash_with_default_balance(trader, tmp_path):
+    latest_state = make_state()
+    del latest_state['cash']
+    write_json(tmp_path / 'state' / 'compass_state_latest.json', latest_state)
+
+    trader.load_state()
+
+    assert trader.broker.cash == pytest.approx(trader.config['PAPER_INITIAL_CASH'])
+    assert trader._state_cash_snapshot == pytest.approx(trader.config['PAPER_INITIAL_CASH'])
+
+
+def test_load_state_repairs_missing_positions_with_empty_dict(trader, tmp_path):
+    latest_state = make_state(cash=76543.21)
+    del latest_state['positions']
+    write_json(tmp_path / 'state' / 'compass_state_latest.json', latest_state)
+
+    trader.load_state()
+
+    assert trader.broker.cash == pytest.approx(76543.21)
+    assert trader.broker.positions == {}
+    assert trader._state_positions_snapshot == {}
+
+
+def test_load_state_sanitizes_nan_portfolio_values(trader, tmp_path):
+    latest_state = make_state(
+        portfolio_value=float('nan'),
+        peak_value=float('nan'),
+    )
+    write_json(tmp_path / 'state' / 'compass_state_latest.json', latest_state)
+
+    trader.load_state()
+
+    assert trader.peak_value == pytest.approx(trader.config['PAPER_INITIAL_CASH'])
+    assert trader.broker.cash == pytest.approx(trader.config['PAPER_INITIAL_CASH'])
+
+
+def test_validate_state_flags_negative_cash(trader):
+    repaired_state, violations = trader._validate_state(
+        make_state(cash=-25.0),
+        source='load',
+    )
+
+    assert repaired_state['cash'] == 0.0
+    assert any('cash=-25.00 cannot be negative' in violation for violation in violations)
+
+
+def test_load_state_recovers_from_corrupt_latest_and_run_once_succeeds(trader, tmp_path, monkeypatch):
+    dated_state = make_state(
+        cash=54321.0,
+        current_universe=['AAPL'],
+    )
+    write_json(tmp_path / 'state' / 'compass_state_20260315.json', dated_state)
+
+    latest_path = tmp_path / 'state' / 'compass_state_latest.json'
+    latest_path.write_text('{"cash": ', encoding='utf-8')
+
+    trader.load_state()
+
+    assert trader.broker.cash == pytest.approx(54321.0)
+
+    configure_run_once_after_recovery(monkeypatch, trader)
+    result = trader.run_once()
+
+    assert result is True
+    latest_state = read_json(latest_path)
+    assert latest_state['cash'] == pytest.approx(54321.0)
+    assert latest_state['positions'] == {}
 
 
 def test_save_state_is_thread_safe_under_concurrent_calls(trader, tmp_path):
