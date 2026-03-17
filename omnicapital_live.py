@@ -4434,12 +4434,16 @@ class COMPASSLive:
         logger.info("Starting COMPASS v8.4 live trading loop...")
         self._run_startup_self_test_once()
 
-        # Register graceful shutdown handlers
+        # Register graceful shutdown handlers (only works in main thread)
         def _graceful_shutdown(signum, frame):
             logger.info(f"Received signal {signum}, saving state and shutting down...")
             self._shutdown_requested = True
-        signal.signal(signal.SIGTERM, _graceful_shutdown)
-        signal.signal(signal.SIGINT, _graceful_shutdown)
+        try:
+            signal.signal(signal.SIGTERM, _graceful_shutdown)
+            signal.signal(signal.SIGINT, _graceful_shutdown)
+        except ValueError:
+            # signal.signal() only works in main thread — skip on cloud (daemon thread)
+            logger.info("Signal handlers skipped (not main thread)")
 
         # Kill switch check
         kill_file = 'STOP_TRADING'
