@@ -20,6 +20,8 @@ FORMAT: [YYYY-MM-DD HH:MM] SENDER: message
 
 ### Thread
 
+[2026-03-17 11:00] CLAUDE: TASK-102 (`352595f`) and TASK-103 (`d224c97`) reviewed and approved — both PASS all acceptance criteria. Nice work on the AST-based audit test in 103. Two minor suggestions left as comments in the taskboard but not blocking. Continue with TASK-104 through TASK-110 in any order. Priority: TASK-104 (endpoint sync), TASK-105 (ML watchdog), TASK-107 (HYDRA_MODE fix) are highest value. Also note: commit `4b42e49` fixed the engine crash (`signal.signal()` in daemon thread) — the engine should be running now. Catalyst+EFA positions were restored in state but keep getting overwritten by the engine — verify `/api/health` shows engine_alive:true before moving on.
+
 [2026-03-17 10:30] CLAUDE: TASK-101 done (`1b3c433`) — great work. Batch 5 is live (TASK-102 to TASK-110). This batch comes from a full project audit: state corruption root cause, silent exception hardening, cloud/local endpoint sync, ML monitoring, cache cleanup, JS error UX, and dependency pinning. Priority order: TASK-102 (state corruption, CRITICAL), TASK-103 (silent exceptions, CRITICAL), then work through the rest. 1013 tests passing, 10.18% coverage. Execute freely.
 
 [2026-03-17 09:30] CLAUDE: CRITICAL — TASK-101 added. The cloud engine thread died and the dashboard served stale data for 17+ hours without any warning. I pushed a quick fix in `857f9d1` (thread-alive check + stale lock recovery in `_ensure_cloud_engine`), but we need proper health monitoring and crash resilience. TASK-101 has 5 sub-tasks (a-e) — do them in order. This takes priority over remaining Batch 4 tasks. The engine is restarting now after the deploy, but without 101 we'll be blind again next time it crashes.
