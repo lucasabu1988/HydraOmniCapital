@@ -41,6 +41,11 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 
 
+def _load_json_with_invalid_constants(path):
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.loads(f.read(), parse_constant=lambda _constant: None)
+
+
 def _configure_local_git_sync():
     disabled = os.environ.get('DISABLE_GIT_SYNC')
     if disabled is None:
@@ -330,8 +335,8 @@ def _run_live_engine():
             try:
                 test = yf.download('SPY', period='5d', progress=False)
                 feed_ok = len(test) > 0
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"_run_live_engine failed: {e}")
         if not feed_ok:
             _engine_status['error'] = 'Data feed not connected'
             _engine_status['running'] = False
@@ -437,8 +442,8 @@ def _fetch_single_price(symbol: str) -> tuple:
             fi = ticker.fast_info
             price = fi.last_price
             prev_close = fi.previous_close
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_single_price failed: {e}")
         if not price or price <= 0:
             hist = ticker.history(period='5d')
             if len(hist) > 0:
@@ -450,8 +455,8 @@ def _fetch_single_price(symbol: str) -> tuple:
             if prev_close and prev_close > 0:
                 result['prev_close'] = float(prev_close)
             return (symbol, result)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"_fetch_single_price failed: {e}")
     return (symbol, None)
 
 
@@ -482,8 +487,8 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
                         _price_cache[sym] = result['price']
                         if 'prev_close' in result:
                             _prev_close_cache[sym] = result['prev_close']
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"fetch_live_prices failed: {e}")
 
     _price_cache_time = now
     return {s: _price_cache[s] for s in symbols if s in _price_cache}
@@ -573,7 +578,8 @@ def _closed_cycle_count_from_log():
         if not isinstance(cycles, list):
             return 0
         return sum(1 for cycle in cycles if isinstance(cycle, dict) and cycle.get('status') == 'closed')
-    except Exception:
+    except Exception as e:
+        logger.warning(f"_closed_cycle_count_from_log failed: {e}")
         return 0
 
 
@@ -791,8 +797,8 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
                 today_et = datetime.now(ZoneInfo('America/New_York')).date()
                 if date.fromisoformat(entry_date) == today_et:
                     current_price = entry_price
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"compute_position_details failed: {e}")
 
         if current_price and entry_price and entry_price > 0:
             pnl_pct = (current_price - entry_price) / entry_price
@@ -901,8 +907,8 @@ def get_spy_start_price() -> Optional[float]:
                 if first_spy and first_spy > 0:
                     _spy_start_price = float(first_spy)
                     return _spy_start_price
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"get_spy_start_price failed: {e}")
 
     return None
 
@@ -921,7 +927,8 @@ def _compute_real_trading_day(state: dict) -> int:
         extra = sum(1 for d in range(1, (today - last_dt).days + 1)
                     if (last_dt + timedelta(days=d)).weekday() < 5)
         return saved_day + extra
-    except Exception:
+    except Exception as e:
+        logger.warning(f"_compute_real_trading_day failed: {e}")
         return saved_day
 
 
@@ -1164,8 +1171,8 @@ def api_state():
     if engine and hasattr(engine, 'validator'):
         try:
             chassis_status['validator_stats'] = engine.validator.get_stats()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_state failed: {e}")
 
     if engine and hasattr(engine, 'broker'):
         try:
@@ -1173,7 +1180,8 @@ def api_state():
                 COMPASS_CONFIG['ORDER_TIMEOUT_SECONDS']
             )
             chassis_status['stale_orders'] = len(stale)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"api_state failed: {e}")
             chassis_status['stale_orders'] = 0
 
     # Pre-close window status
@@ -1239,8 +1247,8 @@ def api_state():
                 if today_is:
                     is_metrics['today_avg_is_bps'] = round(sum(today_is) / len(today_is), 2)
                     is_metrics['today_fills'] = len(today_is)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_state failed: {e}")
 
     # HYDRA status (Rattlesnake, Catalyst, EFA, cash recycling)
     hydra_status = state.get('hydra', {})
@@ -1275,8 +1283,8 @@ def api_state():
                 'efa_pct': round(hc['efa_pct'], 4),
                 'recycled_pct': round(hc['recycled_pct'], 4),
             }
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_state failed: {e}")
 
     return jsonify({
         'status': 'online',
@@ -1329,7 +1337,8 @@ def api_cycle_log():
     try:
         with open(log_file, 'r') as f:
             cycles = json.load(f)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"api_cycle_log failed: {e}")
         return jsonify([])
 
     # Enrich active cycles with live metrics (today-only return)
@@ -1397,8 +1406,8 @@ def api_cycle_log():
             # Alpha: holdings return vs SPY
             if c.get('hydra_return') is not None and c.get('spy_return') is not None:
                 c['alpha'] = round(c['hydra_return'] - c['spy_return'], 2)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_cycle_log failed: {e}")
 
     return jsonify(cycles)
 
@@ -1433,7 +1442,8 @@ def api_live_chart():
                 compass_data[dt] = val
                 if first_value is None:
                     first_value = val
-        except Exception:
+        except Exception as e:
+            logger.warning(f"api_live_chart failed: {e}")
             continue
 
     if not compass_data or first_value is None:
@@ -1458,8 +1468,8 @@ def api_live_chart():
                     today_val = state.get('portfolio_value')
                 if today_val:
                     compass_data[today_str] = today_val
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"api_live_chart failed: {e}")
 
     dates = sorted(compass_data.keys())
     start_date = dates[0]
@@ -1477,8 +1487,8 @@ def api_live_chart():
             for idx, row in hist.iterrows():
                 dt_str = idx.strftime('%Y-%m-%d')
                 spy_data[dt_str] = float(row['Close'])
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"api_live_chart failed: {e}")
 
     # Use live SPY price for today (matches banner real-time value)
     today_str = date.today().strftime('%Y-%m-%d')
@@ -1487,8 +1497,8 @@ def api_live_chart():
             live_spy = fetch_live_prices(['SPY'])
             if 'SPY' in live_spy:
                 spy_data[today_str] = live_spy['SPY']
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_live_chart failed: {e}")
 
     spy_first = spy_data.get(start_date)
     result_dates = []
@@ -1529,7 +1539,8 @@ def api_equity():
 
     try:
         df = pd.read_csv(csv_path, parse_dates=['date'])
-    except Exception:
+    except Exception as e:
+        logger.warning(f"api_equity failed: {e}")
         return jsonify({'equity': [], 'milestones': [], 'error': 'Failed to read CSV'})
 
     val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
@@ -1721,7 +1732,8 @@ def api_annual_returns():
 
     try:
         df = pd.read_csv(csv_path, parse_dates=['date'])
-    except Exception:
+    except Exception as e:
+        logger.warning(f"api_annual_returns failed: {e}")
         return jsonify({'error': 'Failed to read CSV'})
 
     val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
@@ -1747,8 +1759,8 @@ def api_annual_returns():
                 end_val = float(grp['close'].iloc[-1])
                 ret = ((end_val / start_val) - 1) * 100 if start_val > 0 else 0
                 spy_annual[int(year)] = round(ret, 2)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_annual_returns failed: {e}")
 
     result = []
     positive_years = 0
@@ -1911,8 +1923,8 @@ def api_preflight():
     try:
         prices = fetch_live_prices(['SPY'])
         spy_price = prices.get('SPY')
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"api_preflight failed: {e}")
     data_ok = spy_price is not None and spy_price > 0
 
     checks['data_feed'] = {
@@ -1951,8 +1963,8 @@ def api_preflight():
                 'vol_20d': round(vol_20d * 100, 1),
                 'est_leverage': round(est_leverage, 2),
             }
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"api_preflight failed: {e}")
 
     checks['regime'] = regime_data
 
@@ -1977,8 +1989,8 @@ def api_preflight():
             if rejection_rate > 0.10:
                 chassis_info['data_validation_warning'] = 'High rejection rate'
                 chassis_ok = False
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_preflight failed: {e}")
     checks['chassis'] = {
         'ok': chassis_ok,
         **chassis_info,
@@ -2043,8 +2055,8 @@ def _fetch_yfinance_news(symbols: List[str], max_per: int = 3) -> List[dict]:
                     'source': 'news',
                     'sentiment': None,
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_yfinance_news failed: {e}")
     return items
 
 
@@ -2091,8 +2103,8 @@ def _fetch_reddit_posts(symbols: List[str], max_per: int = 2) -> List[dict]:
                     'source': 'reddit',
                     'sentiment': sentiment,
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_reddit_posts failed: {e}")
     return items
 
 
@@ -2145,8 +2157,8 @@ def _fetch_seekingalpha_news(symbols: List[str], max_per: int = 2) -> List[dict]
                     'sentiment': None,
                 })
                 count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_seekingalpha_news failed: {e}")
     return items
 
 
@@ -2210,8 +2222,8 @@ def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
                     'sentiment': None,
                 })
                 count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_sec_filings failed: {e}")
     return items
 
 
@@ -2266,8 +2278,8 @@ def _fetch_google_news(symbols: List[str], max_per: int = 2) -> List[dict]:
                     'sentiment': None,
                 })
                 count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"_fetch_google_news failed: {e}")
     return items
 
 
@@ -2314,8 +2326,8 @@ def _fetch_marketwatch_news(max_items: int = 5) -> List[dict]:
                 'sentiment': None,
             })
             count += 1
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"_fetch_marketwatch_news failed: {e}")
     return items
 
 
@@ -2818,8 +2830,8 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
     try:
         with open(interp_path, 'w', encoding='utf-8') as f:
             f.write(md)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"_maybe_regenerate_interpretation failed: {e}")
 
 
 @app.route('/api/ml-learning')
@@ -2840,8 +2852,8 @@ def api_ml_learning():
                             rec = json.loads(line)
                             rec['_type'] = etype
                             entries.append(rec)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"api_ml_learning failed: {e}")
 
     # Sort by timestamp/date
     def sort_key(r):
@@ -2853,11 +2865,9 @@ def api_ml_learning():
     insights_path = os.path.join(ml_dir, 'insights.json')
     if os.path.exists(insights_path):
         try:
-            with open(insights_path, 'r') as f:
-                raw = f.read().replace('NaN', 'null').replace('Infinity', 'null').replace('-Infinity', 'null')
-                insights = json.loads(raw)
-        except Exception:
-            pass
+            insights = _load_json_with_invalid_constants(insights_path)
+        except Exception as e:
+            logger.warning(f"api_ml_learning failed: {e}")
 
     # Load backtest daily data (HYDRA + EFA/MSCI World)
     backtest_entries = []
@@ -2912,8 +2922,8 @@ def api_ml_learning():
                     'sharpe': round(sharpe, 3),
                     'max_drawdown': round(max_dd, 4),
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_ml_learning failed: {e}")
 
     all_entries = backtest_entries + entries
     all_entries.sort(key=lambda r: r.get('timestamp', r.get('date', '')))
@@ -2928,8 +2938,8 @@ def api_ml_learning():
         try:
             with open(interp_path, 'r') as f:
                 interpretation = f.read()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_ml_learning failed: {e}")
 
     # Compute KPIs from loaded data
     outcomes = [r for r in entries if r.get('_type') == 'outcome']
@@ -2995,8 +3005,8 @@ def api_agent_scratchpad():
                     line = line.strip()
                     if line:
                         entries.append(json.loads(line))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"api_agent_scratchpad failed: {e}")
     # List available days
     available = []
     if os.path.isdir(sp_dir):
