@@ -74,6 +74,20 @@ def make_state(positions=None, universe=None):
     }
 
 
+def prime_health_endpoint(state=None):
+    write_json(Path('state/compass_state_latest.json'), state or make_state())
+    dashboard._cloud_engine_thread = types.SimpleNamespace(is_alive=lambda: True)
+    dashboard._engine_status.update({
+        'running': True,
+        'started_at': '2026-03-16T09:00:00',
+        'error': None,
+        'cycles': 5,
+    })
+    dashboard._price_cache = {'AAPL': 110.0, 'SPY': 505.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=15)
+    dashboard._yf_consecutive_failures = 0
+
+
 def _handler_has_logging(handler):
     module = ast.Module(body=handler.body, type_ignores=[])
     for node in ast.walk(module):
@@ -1230,6 +1244,76 @@ def test_api_health_reports_state_recovery_and_git_sync_metadata(client, monkeyp
     assert payload['crash_count'] == 2
     assert payload['last_crash_error'] == 'boom'
     assert payload['restarts'][-1] == '2026-03-16T09:00:00'
+
+
+def test_api_health_reports_healthy_ml_watchdog_status(client):
+    now = datetime.now()
+    prime_health_endpoint()
+    write_jsonl(Path('state/ml_learning/decisions.jsonl'), [
+        {'timestamp': (now - timedelta(days=4)).isoformat(), 'symbol': 'AAPL'},
+        {'timestamp': (now - timedelta(days=3)).isoformat(), 'symbol': 'MSFT'},
+        {'timestamp': (now - timedelta(days=2)).isoformat(), 'symbol': 'NVDA'},
+        {'timestamp': (now - timedelta(days=1)).isoformat(), 'symbol': 'AMZN'},
+    ])
+    write_jsonl(Path('state/ml_learning/outcomes.jsonl'), [
+        {'exit_date': (now - timedelta(days=2)).date().isoformat(), 'symbol': 'AAPL'},
+        {'exit_date': (now - timedelta(days=1)).date().isoformat(), 'symbol': 'MSFT'},
+        {'exit_date': now.date().isoformat(), 'symbol': 'NVDA'},
+    ])
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['ml_health']['decisions_count'] == 4
+    assert payload['ml_health']['outcomes_count'] == 3
+    assert payload['ml_health']['outcome_completion_rate'] == pytest.approx(0.75)
+    assert payload['ml_health']['days_without_outcome'] == 0
+    assert payload['ml_health']['status'] == 'healthy'
+
+
+def test_api_health_reports_warning_ml_watchdog_status_for_partial_coverage(client):
+    now = datetime.now()
+    prime_health_endpoint()
+    write_jsonl(Path('state/ml_learning/decisions.jsonl'), [
+        {'timestamp': (now - timedelta(hours=12 * idx)).isoformat(), 'symbol': f'SYM{idx}'}
+        for idx in range(10)
+    ])
+    write_jsonl(Path('state/ml_learning/outcomes.jsonl'), [
+        {'exit_date': (now - timedelta(days=idx)).date().isoformat(), 'symbol': f'SYM{idx}'}
+        for idx in range(3)
+    ])
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['ml_health']['outcome_completion_rate'] == pytest.approx(0.3)
+    assert payload['ml_health']['status'] == 'warning'
+    assert payload['ml_health']['last_decision_at'] is not None
+    assert payload['ml_health']['last_outcome_at'] is not None
+
+
+def test_api_health_reports_degraded_ml_watchdog_status_for_stale_outcomes(client):
+    now = datetime.now()
+    prime_health_endpoint()
+    write_jsonl(Path('state/ml_learning/decisions.jsonl'), [
+        {'timestamp': (now - timedelta(days=12)).isoformat(), 'symbol': 'AAPL'},
+        {'timestamp': (now - timedelta(days=11)).isoformat(), 'symbol': 'MSFT'},
+        {'timestamp': (now - timedelta(days=10)).isoformat(), 'symbol': 'NVDA'},
+    ])
+    write_jsonl(Path('state/ml_learning/outcomes.jsonl'), [
+        {'exit_date': (now - timedelta(days=10)).date().isoformat(), 'symbol': 'AAPL'},
+        {'exit_date': (now - timedelta(days=9)).date().isoformat(), 'symbol': 'MSFT'},
+    ])
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['ml_health']['outcome_completion_rate'] == pytest.approx(2 / 3, rel=1e-3)
+    assert payload['ml_health']['days_without_outcome'] == 9
+    assert payload['ml_health']['status'] == 'degraded'
 
 
 def test_ensure_cloud_engine_acquires_lock_and_starts_thread(monkeypatch):

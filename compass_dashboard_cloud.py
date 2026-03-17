@@ -551,21 +551,114 @@ def _engine_snapshot():
 def _coerce_health_timestamp(value):
     if not value:
         return None
+    parsed = _parse_health_datetime(value)
+    if parsed is not None:
+        return parsed.isoformat()
+    return str(value)
+
+
+def _parse_health_datetime(value):
+    if not value:
+        return None
     if isinstance(value, datetime):
-        return value.isoformat()
+        return value
     if isinstance(value, date):
-        return datetime.combine(value, dtime.min).isoformat()
+        return datetime.combine(value, dtime.min)
     if isinstance(value, str):
         try:
-            return datetime.fromisoformat(value).isoformat()
+            return datetime.fromisoformat(value)
         except ValueError:
             logger.warning('Failed to parse datetime value=%r', value, exc_info=True)
             try:
-                return datetime.combine(date.fromisoformat(value), dtime.min).isoformat()
+                return datetime.combine(date.fromisoformat(value), dtime.min)
             except ValueError:
                 logger.warning('Failed to parse date value=%r', value, exc_info=True)
-                return value
-    return str(value)
+                return None
+    return None
+
+
+def _read_health_jsonl_stats(path, timestamp_keys):
+    count = 0
+    last_timestamp = None
+    last_dt = None
+    if not os.path.exists(path):
+        return count, last_timestamp, last_dt
+
+    try:
+        with open(path, 'r', encoding='utf-8') as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                count += 1
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.warning('Skipping malformed ML health line from %s', path, exc_info=True)
+                    continue
+                if not isinstance(record, dict):
+                    continue
+                for key in timestamp_keys:
+                    if not record.get(key):
+                        continue
+                    parsed = _parse_health_datetime(record.get(key))
+                    if parsed is not None and (last_dt is None or parsed >= last_dt):
+                        last_dt = parsed
+                        last_timestamp = parsed.isoformat()
+                    break
+    except OSError:
+        logger.warning('Failed to read ML health file %s', path, exc_info=True)
+
+    return count, last_timestamp, last_dt
+
+
+def _build_ml_health_snapshot(now=None):
+    now = now or datetime.now()
+    ml_dir = os.path.join(STATE_DIR, 'ml_learning')
+    decisions_path = os.path.join(ml_dir, 'decisions.jsonl')
+    outcomes_path = os.path.join(ml_dir, 'outcomes.jsonl')
+
+    decisions_count, last_decision_at, last_decision_dt = _read_health_jsonl_stats(
+        decisions_path,
+        ('timestamp', 'date'),
+    )
+    outcomes_count, last_outcome_at, last_outcome_dt = _read_health_jsonl_stats(
+        outcomes_path,
+        ('timestamp', 'date', 'exit_date', 'entry_date'),
+    )
+
+    outcome_completion_rate = (
+        round(outcomes_count / decisions_count, 4)
+        if decisions_count > 0 else 0.0
+    )
+
+    reference_dt = last_outcome_dt or last_decision_dt
+    days_without_outcome = None
+    if reference_dt is not None:
+        days_without_outcome = max(0, (now.date() - reference_dt.date()).days)
+
+    if decisions_count == 0:
+        status = 'healthy'
+    elif outcome_completion_rate < 0.2 or (
+        days_without_outcome is not None and days_without_outcome > 7
+    ):
+        status = 'degraded'
+    elif outcome_completion_rate <= 0.5 or (
+        days_without_outcome is not None and days_without_outcome >= 3
+    ):
+        status = 'warning'
+    else:
+        status = 'healthy'
+
+    return {
+        'decisions_count': decisions_count,
+        'outcomes_count': outcomes_count,
+        'outcome_completion_rate': outcome_completion_rate,
+        'last_decision_at': last_decision_at,
+        'last_outcome_at': last_outcome_at,
+        'days_without_outcome': days_without_outcome,
+        'status': status,
+    }
 
 
 def _health_uptime_seconds(engine, state):
@@ -728,6 +821,7 @@ def _build_health_payload(engine, state):
     last_crash_error = engine.get('last_crash_error')
     restarts = list(engine.get('restarts') or [])
     last_cycle_close = _last_cycle_close_timestamp(state)
+    ml_health = _build_ml_health_snapshot()
 
     payload = {
         'status': overall_status,
@@ -743,6 +837,7 @@ def _build_health_payload(engine, state):
         'last_crash_at': last_crash_at,
         'last_crash_error': last_crash_error,
         'restarts': restarts,
+        'ml_health': ml_health,
         'engine_running': engine_alive,
         'price_freshness': price_age_seconds,
         'engine': {
