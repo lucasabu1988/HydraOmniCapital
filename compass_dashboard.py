@@ -25,6 +25,7 @@ import yfinance as yf
 import numpy as np
 import pandas as pd
 import logging
+from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests as http_requests  # for external APIs
 import xml.etree.ElementTree as XmlET
@@ -3062,6 +3063,24 @@ if __name__ == '__main__':
     # Ensure directories exist
     os.makedirs('state', exist_ok=True)
     os.makedirs('logs', exist_ok=True)
+
+    # Configure rotating log handler for dashboard
+    _dash_log_format = '%(asctime)s - %(levelname)s - %(message)s'
+    _dash_formatter = logging.Formatter(_dash_log_format)
+    _dash_file_handler = RotatingFileHandler(
+        os.path.join(LOG_DIR, f'dashboard_{datetime.now().strftime("%Y%m%d")}.log'),
+        maxBytes=50 * 1024 * 1024,  # 50 MB
+        backupCount=5,
+        encoding='utf-8',
+    )
+    _dash_file_handler.setFormatter(_dash_formatter)
+    _dash_stream_handler = logging.StreamHandler(sys.stdout)
+    _dash_stream_handler.setFormatter(_dash_formatter)
+    logging.basicConfig(
+        level=logging.INFO,
+        format=_dash_log_format,
+        handlers=[_dash_file_handler, _dash_stream_handler]
+    )
 
     print("=" * 60)
     print("COMPASS v8.4 — Live Trading Dashboard")

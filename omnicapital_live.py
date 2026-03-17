@@ -3982,9 +3982,8 @@ class COMPASSLive:
         try:
             with open(filepath, 'r') as f:
                 state = json.load(f)
-            # Sanity check: must have critical fields
-            if 'cash' not in state or 'positions' not in state:
-                logger.warning(f"State file {filepath} missing critical fields")
+            if not isinstance(state, dict):
+                logger.warning(f"State file {filepath} did not contain a JSON object")
                 return None
             return state
         except (json.JSONDecodeError, IOError, OSError) as e:
