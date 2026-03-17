@@ -600,7 +600,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 ---
 
 ### TASK-103: Audit and fix silent exception handlers [PRIORITY: CRITICAL]
-**Status:** [ ]
+**Status:** [x] Done (`d224c97`)
 **Assigned:** Codex
 
 **Problem:** 35+ `except Exception` handlers in `compass_dashboard_cloud.py` silently swallow errors with `pass` or minimal logging. When API calls, data feeds, or file I/O fail, the user sees broken dashboard cards with no explanation. TASK-044 (`118c699`) added logging to some, but verification needed.
@@ -829,6 +829,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 
 ## Completed
 
+- `TASK-103` (`d224c97`) Audited exception handlers across both dashboards and added contextual logging with stack traces to the silent fallback paths in `compass_dashboard_cloud.py` and `compass_dashboard.py` without changing response/control flow. Added `caplog` regression tests for Yahoo and state-read failures plus an AST audit that fails if either dashboard reintroduces `except:` or an `except` block without logging.
 - `TASK-102` (`352595f`) Added `_validate_state_before_write()` plus stricter save/load state validation so invalid cash, trading-day overflow, mismatched `positions`/`position_meta`, bad position payloads, and stale/invalid trading dates no longer hit disk unchecked; `save_state()` now skips blocked writes without generating new `CORRUPTED_*` files during normal operation, and `load_state()` logs both detected issues and auto-heals. Expanded `tests/test_state_validation.py` with new blocker/autocorrect coverage, and verified with `py_compile`, `pytest tests/test_state_validation.py -v --no-cov`, and a 120-test engine/state regression slice.
 
 - `TASK-037` (`0564ec5`) Added a dedicated notifications test file covering SMTP failures, Email alert body formatting, WhatsApp/Telegram request failures, and disabled no-op behavior with all network calls mocked out.
