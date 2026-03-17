@@ -186,6 +186,7 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._cloud_engine = None
     dashboard._cloud_engine_thread = None
     dashboard._cloud_engine_started = False
+    dashboard._engine_heartbeat_thread = None
     dashboard._self_ping_started = False
     dashboard.STATE_DIR = 'state'
     dashboard.STATE_FILE = os.path.join('state', 'compass_state_latest.json')
@@ -1043,6 +1044,7 @@ def test_run_cloud_engine_increments_crash_count_on_exception(monkeypatch):
     monkeypatch.setattr(dashboard, 'COMPASSLive', FakeEngine)
     monkeypatch.setattr(dashboard, '_git_pull_latest', lambda: {'ok': True, 'message': 'ok', 'auth_failed': False})
     monkeypatch.setattr(dashboard, '_recover_cloud_state', lambda pull: {'_recovered_from': 'git_pull'})
+    monkeypatch.setattr(dashboard, '_ensure_engine_runtime_heartbeat', lambda: None)
     monkeypatch.setenv('GIT_TOKEN', '')
     monkeypatch.setattr(dashboard.time_module, 'sleep', lambda seconds: (_ for _ in ()).throw(StopLoop()))
 
@@ -1061,6 +1063,7 @@ def test_run_cloud_engine_runs_cleanup_once_on_startup(monkeypatch):
         pass
 
     monkeypatch.setattr(dashboard, '_HAS_ENGINE', True)
+    monkeypatch.setattr(dashboard, '_ensure_engine_runtime_heartbeat', lambda: None)
     monkeypatch.setattr(dashboard, '_cleanup_data_cache', lambda: calls.append('cache'))
     monkeypatch.setattr(dashboard, '_cleanup_logs', lambda: calls.append('logs'))
     monkeypatch.setattr(dashboard, '_cleanup_corrupted_states', lambda: calls.append('states'))
@@ -1370,6 +1373,79 @@ def test_api_health_reports_state_recovery_and_git_sync_metadata(client, monkeyp
     assert payload['crash_count'] == 2
     assert payload['last_crash_error'] == 'boom'
     assert payload['restarts'][-1] == '2026-03-16T09:00:00'
+
+
+def test_api_health_uses_shared_runtime_status_from_owner_worker(client, monkeypatch):
+    state = make_state()
+    write_json(Path('state/compass_state_latest.json'), state)
+    write_json(Path('state/cloud_engine_runtime.json'), {
+        'pid': 4242,
+        'running': True,
+        'thread_alive': True,
+        'started_at': '2026-03-17T09:00:00',
+        'startup_started_at': '2026-03-17T09:00:00',
+        'cycles': 11,
+        'crash_count': 0,
+        'last_crash_at': None,
+        'last_crash_error': None,
+        'restarts': ['2026-03-17T09:00:00'],
+        'heartbeat_at': datetime.now().isoformat(),
+    })
+    dashboard._engine_status.update({
+        'running': False,
+        'started_at': None,
+        'error': 'not my worker',
+        'cycles': 0,
+    })
+    dashboard._price_cache = {'AAPL': 110.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=10)
+    monkeypatch.setattr(dashboard, '_engine_lock_owner_is_alive', lambda pid: True)
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'healthy'
+    assert payload['engine_alive'] is True
+    assert payload['engine']['running'] is True
+    assert payload['engine']['owner_pid'] == 4242
+    assert payload['engine']['heartbeat_age_seconds'] is not None
+
+
+def test_api_health_reports_down_when_shared_runtime_status_is_stale(client, monkeypatch):
+    state = make_state()
+    write_json(Path('state/compass_state_latest.json'), state)
+    write_json(Path('state/cloud_engine_runtime.json'), {
+        'pid': 4242,
+        'running': True,
+        'thread_alive': True,
+        'started_at': '2026-03-17T09:00:00',
+        'startup_started_at': '2026-03-17T09:00:00',
+        'cycles': 11,
+        'crash_count': 0,
+        'last_crash_at': None,
+        'last_crash_error': None,
+        'restarts': ['2026-03-17T09:00:00'],
+        'heartbeat_at': (datetime.now() - timedelta(seconds=dashboard.ENGINE_HEARTBEAT_STALE_SECONDS + 30)).isoformat(),
+    })
+    dashboard._engine_status.update({
+        'running': False,
+        'started_at': None,
+        'error': 'not my worker',
+        'cycles': 0,
+    })
+    dashboard._price_cache = {'AAPL': 110.0}
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=10)
+    monkeypatch.setattr(dashboard, '_engine_lock_owner_is_alive', lambda pid: True)
+    monkeypatch.setattr(dashboard, '_market_is_open', lambda now_et=None: True)
+
+    response = client.get('/api/health')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['status'] == 'down'
+    assert payload['engine_alive'] is False
+    assert payload['engine']['running'] is False
 
 
 def test_api_health_reports_healthy_ml_watchdog_status(client):

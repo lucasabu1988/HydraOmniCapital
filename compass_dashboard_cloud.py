@@ -217,6 +217,9 @@ STATE_FILE = 'state/compass_state_latest.json'
 STATE_DIR = os.environ.get('STATE_DIR', 'state')
 LOG_DIR = os.environ.get('LOG_DIR', 'logs')
 DATA_CACHE_DIR = os.environ.get('DATA_CACHE_DIR', 'data_cache')
+ENGINE_RUNTIME_STATUS_BASENAME = 'cloud_engine_runtime.json'
+ENGINE_HEARTBEAT_INTERVAL_SECONDS = 15
+ENGINE_HEARTBEAT_STALE_SECONDS = 45
 SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
 GITHUB_STATE_URL = 'https://raw.githubusercontent.com/lucasabu1988/NuevoProyecto/main/state/compass_state_latest.json'
 
@@ -252,6 +255,7 @@ _engine_status = {
     'last_crash_error': None,
     'restarts': [],
 }
+_engine_heartbeat_thread = None
 
 _risk_cache = None
 _risk_cache_time = None
@@ -506,6 +510,110 @@ def _engine_is_operational(engine=None):
     return bool(snapshot.get('running') and snapshot.get('thread_alive'))
 
 
+def _engine_runtime_status_path():
+    return os.path.join(STATE_DIR, ENGINE_RUNTIME_STATUS_BASENAME)
+
+
+def _write_engine_runtime_status(engine=None, heartbeat_at=None):
+    snapshot = engine or _engine_status
+    thread_alive = _engine_thread_is_alive()
+    payload = {
+        'pid': os.getpid(),
+        'running': bool(snapshot.get('running') and thread_alive),
+        'thread_alive': thread_alive,
+        'started_at': _coerce_health_timestamp(snapshot.get('started_at')),
+        'startup_started_at': _coerce_health_timestamp(snapshot.get('startup_started_at')),
+        'error': snapshot.get('error'),
+        'cycles': int(
+            getattr(_cloud_engine, '_cycles_completed', 0)
+            if _cloud_engine else snapshot.get('cycles', 0)
+        ),
+        'crash_count': int(snapshot.get('crash_count') or 0),
+        'last_crash_at': _coerce_health_timestamp(snapshot.get('last_crash_at')),
+        'last_crash_error': snapshot.get('last_crash_error'),
+        'restarts': list(snapshot.get('restarts') or []),
+        'heartbeat_at': _coerce_health_timestamp(heartbeat_at or datetime.now()),
+    }
+    try:
+        _atomic_write_json(_engine_runtime_status_path(), payload)
+    except OSError:
+        logger.warning('Failed to write shared engine runtime status', exc_info=True)
+    return payload
+
+
+def _read_engine_runtime_status(now=None):
+    now = now or datetime.now()
+    status_path = _engine_runtime_status_path()
+    if not os.path.exists(status_path):
+        return None
+
+    try:
+        with open(status_path, 'r', encoding='utf-8') as status_file:
+            payload = json.load(status_file)
+    except Exception:
+        logger.warning('Failed to read shared engine runtime status from %s', status_path, exc_info=True)
+        return None
+
+    if not isinstance(payload, dict):
+        logger.warning('Ignoring malformed shared engine runtime status from %s', status_path)
+        return None
+
+    owner_pid = payload.get('pid')
+    try:
+        owner_pid = int(owner_pid) if owner_pid is not None else None
+    except (TypeError, ValueError):
+        logger.warning('Shared engine runtime status has invalid pid=%r', owner_pid, exc_info=True)
+        owner_pid = None
+
+    heartbeat_dt = _parse_health_datetime(payload.get('heartbeat_at'))
+    heartbeat_age_seconds = None
+    if heartbeat_dt is not None:
+        heartbeat_age_seconds = round((now - heartbeat_dt).total_seconds(), 1)
+
+    owner_alive = bool(owner_pid is not None and _engine_lock_owner_is_alive(owner_pid))
+    heartbeat_fresh = bool(
+        heartbeat_age_seconds is not None and heartbeat_age_seconds <= ENGINE_HEARTBEAT_STALE_SECONDS
+    )
+    thread_alive = bool(payload.get('thread_alive')) and owner_alive and heartbeat_fresh
+    running = bool(payload.get('running')) and thread_alive
+
+    payload['pid'] = owner_pid
+    payload['owner_alive'] = owner_alive
+    payload['heartbeat_at'] = heartbeat_dt.isoformat() if heartbeat_dt is not None else None
+    payload['heartbeat_age_seconds'] = heartbeat_age_seconds
+    payload['thread_alive'] = thread_alive
+    payload['running'] = running
+    payload['engine_alive'] = running
+    payload['cycles'] = int(payload.get('cycles') or 0)
+    payload['crash_count'] = int(payload.get('crash_count') or 0)
+    return payload
+
+
+def _ensure_engine_runtime_heartbeat():
+    global _engine_heartbeat_thread
+    if _engine_heartbeat_thread and _engine_heartbeat_thread.is_alive():
+        return
+    _engine_heartbeat_thread = threading.Thread(
+        target=_engine_runtime_heartbeat_loop,
+        daemon=True,
+        name='CloudEngineHeartbeat',
+    )
+    _engine_heartbeat_thread.start()
+
+
+def _engine_runtime_heartbeat_loop():
+    while True:
+        try:
+            snapshot = _write_engine_runtime_status()
+        except Exception:
+            logger.warning('Shared engine heartbeat loop failed to persist status', exc_info=True)
+            snapshot = {'running': False}
+
+        if not _engine_thread_is_alive() and not snapshot.get('running'):
+            return
+        time_module.sleep(ENGINE_HEARTBEAT_INTERVAL_SECONDS)
+
+
 def _market_is_open(now_et=None):
     ET = ZoneInfo('America/New_York')
     now_et = now_et or datetime.now(ET)
@@ -544,11 +652,33 @@ def _engine_is_starting():
 def _engine_snapshot():
     snapshot = dict(_engine_status)
     snapshot['thread_alive'] = _engine_thread_is_alive()
-    snapshot['engine_alive'] = _engine_is_operational(snapshot)
     snapshot['cycles'] = (
         getattr(_cloud_engine, '_cycles_completed', 0)
         if _cloud_engine else _engine_status['cycles']
     )
+    shared = _read_engine_runtime_status()
+    if (not snapshot.get('running') or not snapshot.get('thread_alive')) and shared and shared.get('engine_alive'):
+        snapshot['running'] = True
+        snapshot['thread_alive'] = True
+        snapshot['error'] = None
+        snapshot['started_at'] = shared.get('started_at') or snapshot.get('started_at')
+        snapshot['startup_started_at'] = shared.get('startup_started_at') or snapshot.get('startup_started_at')
+        snapshot['cycles'] = max(int(snapshot.get('cycles') or 0), int(shared.get('cycles') or 0))
+        snapshot['crash_count'] = max(int(snapshot.get('crash_count') or 0), int(shared.get('crash_count') or 0))
+        snapshot['last_crash_at'] = shared.get('last_crash_at') or snapshot.get('last_crash_at')
+        snapshot['last_crash_error'] = shared.get('last_crash_error') or snapshot.get('last_crash_error')
+        if shared.get('restarts'):
+            snapshot['restarts'] = list(shared.get('restarts') or [])
+        snapshot['owner_pid'] = shared.get('pid')
+        snapshot['heartbeat_at'] = shared.get('heartbeat_at')
+        snapshot['heartbeat_age_seconds'] = shared.get('heartbeat_age_seconds')
+        snapshot['owner_alive'] = shared.get('owner_alive')
+    else:
+        snapshot['owner_pid'] = shared.get('pid') if shared else None
+        snapshot['heartbeat_at'] = shared.get('heartbeat_at') if shared else None
+        snapshot['heartbeat_age_seconds'] = shared.get('heartbeat_age_seconds') if shared else None
+        snapshot['owner_alive'] = shared.get('owner_alive') if shared else None
+    snapshot['engine_alive'] = _engine_is_operational(snapshot)
     return snapshot
 
 
@@ -825,6 +955,9 @@ def _build_health_payload(engine, state):
     last_crash_error = engine.get('last_crash_error')
     restarts = list(engine.get('restarts') or [])
     last_cycle_close = _last_cycle_close_timestamp(state)
+    owner_pid = engine.get('owner_pid')
+    heartbeat_at = _coerce_health_timestamp(engine.get('heartbeat_at'))
+    heartbeat_age_seconds = engine.get('heartbeat_age_seconds')
     ml_health = _build_ml_health_snapshot()
 
     payload = {
@@ -841,6 +974,9 @@ def _build_health_payload(engine, state):
         'last_crash_at': last_crash_at,
         'last_crash_error': last_crash_error,
         'restarts': restarts,
+        'engine_owner_pid': owner_pid,
+        'engine_heartbeat_at': heartbeat_at,
+        'engine_heartbeat_age_seconds': heartbeat_age_seconds,
         'ml_health': ml_health,
         'engine_running': engine_alive,
         'price_freshness': price_age_seconds,
@@ -855,6 +991,9 @@ def _build_health_payload(engine, state):
             'last_crash_at': last_crash_at,
             'last_crash_error': last_crash_error,
             'restarts': restarts,
+            'owner_pid': owner_pid,
+            'heartbeat_at': heartbeat_at,
+            'heartbeat_age_seconds': heartbeat_age_seconds,
         },
         'data_feed': {
             'last_price_update': last_price_update,
@@ -4069,6 +4208,7 @@ def _run_cloud_engine():
         detail = _ENGINE_IMPORT_ERROR or 'ImportError during omnicapital_live import'
         _engine_status['running'] = False
         _engine_status['error'] = f'HYDRA engine not available — omnicapital_live import failed: {detail}'
+        _write_engine_runtime_status()
         logger.warning('HYDRA engine not available — cloud trading disabled: %s', detail)
         return
 
@@ -4083,6 +4223,7 @@ def _run_cloud_engine():
             restarts.append(restart_at)
             _engine_status['restarts'] = restarts[-5:]
             logger.info('Cloud HYDRA engine startup beginning (worker %s)', os.getpid())
+            _ensure_engine_runtime_heartbeat()
             _cleanup_data_cache()
             _cleanup_logs()
             _cleanup_corrupted_states()
@@ -4123,6 +4264,7 @@ def _run_cloud_engine():
             _engine_status['running'] = True
             _engine_status['started_at'] = restart_at
             _engine_status['error'] = None
+            _write_engine_runtime_status()
 
             logger.info("Cloud HYDRA engine started (SharedYahooDataFeed — no duplicate requests)")
             logger.info(f"  Positions: {list(_cloud_engine.broker.positions.keys())}")
@@ -4139,6 +4281,7 @@ def _run_cloud_engine():
             _engine_status['crash_count'] = int(_engine_status.get('crash_count') or 0) + 1
             _engine_status['last_crash_at'] = crash_at
             _engine_status['last_crash_error'] = str(e)
+            _write_engine_runtime_status()
             logger.error(f"Cloud engine crashed: {e}", exc_info=True)
             # Sleep and retry after 5 minutes (loop, not recursion)
             time_module.sleep(300)
