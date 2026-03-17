@@ -2503,6 +2503,60 @@ def api_execution_microstructure():
     })
 
 
+@app.route('/api/execution-stats')
+def api_execution_stats():
+    try:
+        state = read_state()
+        order_history = state.get('order_history', []) if state else []
+
+        # Try audit logs if state has no order data
+        if not order_history:
+            audit_pattern = os.path.join(STATE_DIR, '..', 'logs', 'ibkr_audit_*.json')
+            audit_files = sorted(glob.glob(audit_pattern))
+            for af in audit_files[-5:]:
+                try:
+                    with open(af, 'r') as f:
+                        data = json.load(f)
+                    if isinstance(data, list):
+                        order_history.extend(data)
+                    elif isinstance(data, dict) and 'orders' in data:
+                        order_history.extend(data['orders'])
+                except (json.JSONDecodeError, IOError):
+                    continue
+
+        total_orders = len(order_history)
+        filled = [o for o in order_history if o.get('status') == 'filled']
+        fill_rate = len(filled) / total_orders if total_orders > 0 else 0.0
+
+        deviations = []
+        for o in filled:
+            expected = o.get('expected_price')
+            actual = o.get('fill_price')
+            if expected and actual and expected != 0:
+                deviations.append(abs(actual - expected) / expected * 100)
+        avg_deviation = sum(deviations) / len(deviations) if deviations else 0.0
+
+        stale_cancelled = sum(
+            1 for o in order_history
+            if o.get('status') == 'cancelled' and o.get('reason') == 'stale'
+        )
+
+        return jsonify({
+            'total_orders': total_orders,
+            'fill_rate': round(fill_rate, 4),
+            'avg_fill_deviation_pct': round(avg_deviation, 4),
+            'stale_orders_cancelled': stale_cancelled,
+        })
+    except Exception as e:
+        logger.error('Error in /api/execution-stats: %s', e)
+        return jsonify({
+            'total_orders': 0,
+            'fill_rate': 0.0,
+            'avg_fill_deviation_pct': 0.0,
+            'stale_orders_cancelled': 0,
+        })
+
+
 @app.route('/api/overlay-status')
 def api_overlay_status():
     """Return current overlay signals and diagnostics."""

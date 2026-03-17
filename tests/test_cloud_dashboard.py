@@ -996,3 +996,18 @@ def test_security_headers_include_content_security_policy(client):
     assert "img-src 'self' data:" in csp
     assert "connect-src 'self'" in csp
     assert 'unsafe-eval' not in csp
+
+
+def test_execution_stats_returns_200_with_expected_keys(client, tmp_path):
+    write_json(tmp_path / 'state' / 'compass_state_latest.json', make_state())
+    dashboard.STATE_FILE = str(tmp_path / 'state' / 'compass_state_latest.json')
+
+    response = client.get('/api/execution-stats')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'total_orders' in data
+    assert 'fill_rate' in data
+    assert 'avg_fill_deviation_pct' in data
+    assert 'stale_orders_cancelled' in data
+    assert data['total_orders'] == 0
+    assert data['fill_rate'] == 0.0
