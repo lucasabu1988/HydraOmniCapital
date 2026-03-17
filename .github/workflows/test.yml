@@ -25,7 +25,17 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run tests with coverage
-        run: pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=50
+        run: >
+          pytest tests/ -v --tb=short
+          --cov-config=.coveragerc
+          --cov=compass_api_models
+          --cov=compass_dashboard
+          --cov=compass_dashboard_cloud
+          --cov=compass_ml_learning
+          --cov=omnicapital_broker
+          --cov=omnicapital_live
+          --cov-report=term-missing
+          --cov-fail-under=50
 
       - name: Coverage report
         if: always()

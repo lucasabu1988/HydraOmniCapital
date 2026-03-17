@@ -1271,16 +1271,16 @@ class LearningEngine:
     # ------------------------------------------------------------------
 
     def _phase2_lightweight_models(self) -> dict:
+        fm = self.fs.build_entry_feature_matrix()
+        if fm.empty or len(fm) < 20:
+            return {"status": "insufficient_data", "n": len(fm), "required": 20}
+
         try:
             from sklearn.linear_model import Ridge, LogisticRegression
             from sklearn.preprocessing import StandardScaler
             from sklearn.model_selection import cross_val_score, TimeSeriesSplit
         except ImportError:
             return {"status": "sklearn_not_available"}
-
-        fm = self.fs.build_entry_feature_matrix()
-        if fm.empty or len(fm) < 20:
-            return {"status": "insufficient_data", "n": len(fm), "required": 20}
 
         feat_cols = [c for c in fm.columns if c.startswith("feat_")]
         X = fm[feat_cols].fillna(0).values

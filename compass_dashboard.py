@@ -824,8 +824,13 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
                 today_et = datetime.now(ZoneInfo('America/New_York')).date()
                 if date.fromisoformat(entry_date) == today_et:
                     current_price = entry_price
-            except Exception as e:
-                logger.warning(f"compute_position_details failed: {e}")
+            except Exception:
+                logger.warning(
+                    'Failed to inspect entry_date=%r for position %s',
+                    entry_date,
+                    symbol,
+                    exc_info=True,
+                )
 
         if current_price and entry_price and entry_price > 0:
             pnl_pct = (current_price - entry_price) / entry_price
@@ -847,7 +852,12 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
                 days_held = 1 + sum(1 for d in range(1, total_days + 1)
                                     if (entry_dt + timedelta(days=d)).weekday() < 5)
             except Exception:
-                logger.warning('Failed to parse entry_date=%r for position %s', entry_date, sym, exc_info=True)
+                logger.warning(
+                    'Failed to parse entry_date=%r for position %s',
+                    entry_date,
+                    symbol,
+                    exc_info=True,
+                )
                 days_held = trading_day - entry_day_index + 1
         else:
             days_held = trading_day - entry_day_index + 1
