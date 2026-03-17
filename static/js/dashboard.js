@@ -111,6 +111,21 @@ const COMPANY_INFO = {
     'ABBV': {name:'AbbVie',sector:'Pharmaceuticals',cap:'$310B',desc:'Biopharmaceuticals with Humira/Skyrizi (immunology) and Botox (aesthetics)'},
     'PFE':  {name:'Pfizer',sector:'Pharmaceuticals',cap:'$140B',desc:'Global pharmaceutical company with vaccines, oncology, and rare disease drugs'},
     'LRCX': {name:'Lam Research',sector:'Semiconductors',cap:'$100B',desc:'Semiconductor wafer fabrication equipment for etch, deposition, and clean'},
+    /* --- ETFs used by Catalyst + EFA strategies --- */
+    'TLT':  {name:'iShares 20+ Year Treasury',sector:'Fixed Income ETF',cap:'ETF',desc:'Long-term US Treasury bond ETF tracking the ICE U.S. Treasury 20+ Year Bond Index'},
+    'GLD':  {name:'SPDR Gold Shares',sector:'Commodities ETF',cap:'ETF',desc:'Gold bullion ETF backed by physical gold held in London vaults'},
+    'DBC':  {name:'Invesco DB Commodity',sector:'Commodities ETF',cap:'ETF',desc:'Broad commodity ETF tracking energy, agriculture, precious and industrial metals'},
+    'EFA':  {name:'iShares MSCI EAFE',sector:'International ETF',cap:'ETF',desc:'International developed markets ETF covering Europe, Australasia, and Far East'},
+    'SPY':  {name:'SPDR S&P 500',sector:'Index ETF',cap:'ETF',desc:'Largest S&P 500 index ETF tracking the 500 largest US companies'},
+    /* --- Newer top-40 universe stocks --- */
+    'PLTR': {name:'Palantir Technologies',sector:'Software / AI',cap:'$250B',desc:'Data analytics and AI platforms for government intelligence and commercial enterprises'},
+    'HOOD': {name:'Robinhood Markets',sector:'Fintech',cap:'$45B',desc:'Commission-free trading platform for stocks, crypto, and options'},
+    'COIN': {name:'Coinbase Global',sector:'Crypto',cap:'$65B',desc:'Largest US cryptocurrency exchange for trading, staking, and custody'},
+    'APP':  {name:'AppLovin',sector:'Ad Tech',cap:'$120B',desc:'Mobile app monetization and marketing platform powered by AI'},
+    'SMCI': {name:'Super Micro Computer',sector:'IT Hardware',cap:'$30B',desc:'High-performance server and storage solutions for AI, cloud, and data centers'},
+    'UBER': {name:'Uber Technologies',sector:'Ride-Hailing',cap:'$170B',desc:'Ride-sharing, food delivery (Uber Eats), and freight logistics platform'},
+    'GEV':  {name:'GE Vernova',sector:'Energy / Power',cap:'$90B',desc:'Power generation, wind turbines, and grid electrification solutions (GE spin-off)'},
+    'CRWD': {name:'CrowdStrike',sector:'Cybersecurity',cap:'$90B',desc:'Cloud-native endpoint security and threat intelligence platform (Falcon)'},
 };
 
 /* ============ TOOLTIP HELPER ============ */
