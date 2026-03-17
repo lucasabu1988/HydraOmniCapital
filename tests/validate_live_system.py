@@ -5,9 +5,9 @@ Verifica conectividad, cálculos y componentes.
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from datetime import datetime, time
+from datetime import datetime, date, time
 import logging
 
 # Configurar logging
@@ -215,7 +215,9 @@ def test_trading_system():
 
     # Test guardar/cargar estado
     logger.info("Test guardar/cargar estado...")
-    trader.peak_value = 120000
+    trader.trading_day_counter = 6
+    trader.last_trading_date = date.today()
+    trader.peak_value = 110000
     trader.current_regime_score = 0.65
     trader.save_state()
 
@@ -226,7 +228,7 @@ def test_trading_system():
     logger.info(f"  Peak cargado: ${new_trader.peak_value:,.2f}")
     logger.info(f"  Regime cargado: {new_trader.current_regime_score}")
 
-    if new_trader.peak_value != 120000:
+    if new_trader.peak_value != 110000:
         logger.error("❌ Peak value no cargado correctamente")
         return False
 
