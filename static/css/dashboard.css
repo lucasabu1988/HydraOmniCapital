@@ -4733,3 +4733,102 @@ body:not(.dark) .intel-hero-title {
     .intel-composite-value { font-size: 1.8rem; }
 }
 
+.toast-container {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(360px, calc(100vw - 24px));
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid transparent;
+    background: linear-gradient(145deg, rgba(18, 18, 20, 0.96), rgba(27, 27, 31, 0.94));
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+    color: #f8fafc;
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: auto;
+}
+
+.toast-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.toast-hiding {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+}
+
+.toast-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.toast-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(248, 250, 252, 0.72);
+}
+
+.toast-message {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #f8fafc;
+    word-break: break-word;
+}
+
+.toast-close {
+    border: 0;
+    background: transparent;
+    color: rgba(248, 250, 252, 0.72);
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px;
+}
+
+.toast-close:hover {
+    color: #ffffff;
+}
+
+.toast-error {
+    border-color: rgba(248, 113, 113, 0.34);
+    background: linear-gradient(145deg, rgba(69, 10, 10, 0.96), rgba(127, 29, 29, 0.94));
+}
+
+.toast-warning {
+    border-color: rgba(251, 191, 36, 0.34);
+    background: linear-gradient(145deg, rgba(120, 53, 15, 0.96), rgba(161, 98, 7, 0.94));
+}
+
+.toast-info {
+    border-color: rgba(56, 189, 248, 0.34);
+    background: linear-gradient(145deg, rgba(8, 47, 73, 0.96), rgba(3, 105, 161, 0.94));
+}
+
+@media (max-width: 700px) {
+    .toast-container {
+        right: 12px;
+        left: 12px;
+        bottom: 12px;
+        width: auto;
+    }
+}
+

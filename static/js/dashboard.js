@@ -236,6 +236,82 @@ function escHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const TOAST_TIMEOUT_MS = 5000;
+const TOAST_DEDUPE_MS = 10000;
+const TOAST_MAX_VISIBLE = 3;
+const _recentToasts = new Map();
+
+function getErrorMessage(err) {
+    if (!err) return 'Error desconocido';
+    if (typeof err === 'string') return err;
+    if (err.message) return err.message;
+    return String(err);
+}
+
+function dismissToast(toast, immediate) {
+    if (!toast) return;
+    if (toast._dismissed) return;
+    toast._dismissed = true;
+    if (toast._timeoutId) clearTimeout(toast._timeoutId);
+    if (immediate) {
+        toast.remove();
+        return;
+    }
+    toast.classList.remove('toast-visible');
+    toast.classList.add('toast-hiding');
+    setTimeout(function() {
+        toast.remove();
+    }, 220);
+}
+
+function showToast(message, type) {
+    if (!message) return;
+    var now = Date.now();
+    _recentToasts.forEach(function(ts, key) {
+        if (now - ts > TOAST_DEDUPE_MS) _recentToasts.delete(key);
+    });
+    var toastType = type || 'info';
+    var dedupeKey = toastType + ':' + message;
+    var lastSeen = _recentToasts.get(dedupeKey);
+    if (lastSeen && (now - lastSeen) < TOAST_DEDUPE_MS) return;
+    _recentToasts.set(dedupeKey, now);
+
+    var container = document.getElementById('toast-container');
+    if (!container) return;
+    while (container.children.length >= TOAST_MAX_VISIBLE) {
+        dismissToast(container.firstElementChild, true);
+    }
+
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + toastType;
+    toast.setAttribute('role', toastType === 'error' ? 'alert' : 'status');
+    toast.innerHTML =
+        '<div class="toast-copy">' +
+            '<span class="toast-label">' + escHtml(toastType.toUpperCase()) + '</span>' +
+            '<span class="toast-message">' + escHtml(message) + '</span>' +
+        '</div>' +
+        '<button class="toast-close" type="button" aria-label="Cerrar notificacion">&times;</button>';
+
+    var closeBtn = toast.querySelector('.toast-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            dismissToast(toast);
+        });
+    }
+
+    container.appendChild(toast);
+    requestAnimationFrame(function() {
+        toast.classList.add('toast-visible');
+    });
+    toast._timeoutId = setTimeout(function() {
+        dismissToast(toast);
+    }, TOAST_TIMEOUT_MS);
+}
+
+function showFetchError(section, err, type) {
+    showToast('Error cargando ' + section + ': ' + getErrorMessage(err), type || 'error');
+}
+
 /* ============ UPDATE FUNCTIONS ============ */
 function updateStatusBar(p) {
     const rt = document.getElementById('regime-tag');
@@ -1287,6 +1363,7 @@ async function fetchSocialFeed() {
         updateSocialFeed(data);
     } catch(e) {
         console.error('Social feed error:', e);
+        showFetchError('noticias', e);
         var totalEl = document.getElementById('sf-stat-total');
         if (totalEl) {
             totalEl.textContent = t('sf-error-badge');
@@ -1451,6 +1528,7 @@ async function fetchCycleLog() {
         tbody.innerHTML = html;
     } catch (e) {
         console.error('Cycle log error:', e);
+        showFetchError('ciclo de rotacion', e);
         const tbody = document.getElementById('cycle-log-body');
         if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="color:var(--red);text-align:center;">' + t('cl-error-text') + '</td></tr>';
     }
@@ -1709,10 +1787,12 @@ async function fetchAll() {
                 }
             } catch (ovErr) {
                 console.warn('Overlay status fetch failed:', ovErr.message);
+                showFetchError('macro overlay', ovErr, 'warning');
             }
         }
     } catch (err) {
         console.error('Fetch error:', err);
+        showFetchError('dashboard principal', err);
         hideStartupLoading();
         clearStartupRetry();
         const banner = document.getElementById('offline-banner');
@@ -1740,6 +1820,7 @@ async function fetchMonteCarlo() {
         renderMonteCarloPanel(data);
     } catch (e) {
         console.error('Monte Carlo fetch failed:', e);
+        showFetchError('Monte Carlo', e);
         const badge = document.getElementById('mc-badge');
         if (badge) {
             badge.textContent = t('mc-error-badge');
@@ -2091,6 +2172,7 @@ async function fetchRiskData() {
         renderRiskPanel(data);
     } catch (e) {
         console.error('Risk fetch failed:', e);
+        showFetchError('riesgo', e);
         var badge = document.getElementById('risk-badge');
         if (badge) {
             badge.textContent = t('risk-error-badge');
@@ -2171,6 +2253,7 @@ async function fetchUltimateRiskNews() {
         renderUltimateRiskFeed(data);
     } catch (e) {
         console.error('Ultimate risk fetch failed:', e);
+        showFetchError('riesgo extremo', e);
         renderUltimateRiskFeed({ status: 'error', count: 0, messages: [] });
     }
 }
@@ -2195,6 +2278,7 @@ async function fetchTradeAnalytics() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (data.error) {
+            showToast('Error cargando analitica de trades: ' + data.error, 'error');
             document.getElementById('ta-table-container').innerHTML =
                 '<div style="color:var(--red);font-size:12px;">Error: ' + escHtml(data.error) + '</div>';
             return;
@@ -2206,6 +2290,7 @@ async function fetchTradeAnalytics() {
         renderTATable(taActiveSeg);
     } catch(e) {
         console.error('TA error:', e);
+        showFetchError('analitica de trades', e);
         var badge = document.getElementById('ta-badge');
         if (badge) {
             badge.textContent = t('ta-error-badge');
@@ -2315,6 +2400,7 @@ async function fetchEquityData() {
         renderEquityAndDrawdown(data.equity, data.milestones || []);
     } catch (e) {
         console.error('Equity fetch error:', e);
+        showFetchError('curva de equity', e);
         var badge = document.getElementById('eq-badge');
         if (badge) {
             badge.textContent = t('eq-error-badge');
@@ -2839,6 +2925,7 @@ async function fetchAnnualReturns() {
         renderAnnualReturns(data.data, data.positive_years, data.total_years);
     } catch (e) {
         console.error('Annual returns fetch error:', e);
+        showFetchError('retornos anuales', e);
         var badge = document.getElementById('ar-badge');
         if (badge) {
             badge.textContent = t('ar-error-badge');
@@ -3316,7 +3403,8 @@ async function fetchMLLearning() {
         renderMLInterpretation(data.interpretation_live || data.interpretation || '', 'ml-interpret-live', 'ml-interpret-live-time');
         renderMLKpis(data.kpis || {});
     } catch (e) {
-        // silent
+        console.error('ML fetch failed:', e);
+        showFetchError('ML', e);
     }
 }
 
@@ -3593,6 +3681,7 @@ var _fcEquityChart = null;
 async function fetchFundComparison() {
     try {
         var res = await fetch('/api/fund-comparison');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         _fcData = data;
         renderFCMetrics(data);
@@ -3602,6 +3691,7 @@ async function fetchFundComparison() {
         renderFCNotes(data);
     } catch (e) {
         console.error('Fund comparison fetch failed:', e);
+        showFetchError('comparativa de fondos', e);
         var body = document.getElementById('fc-metrics-body');
         if (body) body.innerHTML = '<tr><td colspan="10" style="color:var(--red);text-align:center;">' + t('fc-error-text') + '</td></tr>';
     }
