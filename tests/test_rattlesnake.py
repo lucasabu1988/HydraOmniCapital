@@ -260,6 +260,64 @@ class TestRattlesnakeSignals:
         assert [candidate['symbol'] for candidate in candidates] == ['MSFT', 'GOOG', 'AAPL']
         assert [candidate['score'] for candidate in candidates] == pytest.approx([0.12, 0.1125, 0.10])
 
+    def test_mixed_ten_stock_universe_returns_only_sorted_qualifying_candidates(self, monkeypatch):
+        monkeypatch.setattr(
+            rattlesnake,
+            'R_UNIVERSE',
+            ['AAA', 'BBB', 'CCC', 'DDD', 'EEE', 'FFF', 'GGG', 'HHH', 'III', 'JJJ'],
+        )
+        histories = {
+            'AAA': make_history([140, 137, 134, 131, 128, 126], trend_start=100),
+            'BBB': make_history([200, 195, 190, 185, 180, 176], trend_start=120),
+            'CCC': make_history([160, 156, 152, 148, 144, 142], trend_start=110),
+            'DDD': make_history([140, 139, 138, 137, 136, 133], trend_start=100),
+            'EEE': make_history([140, 132, 138, 132, 136, 128], trend_start=100),
+            'FFF': make_history([150, 147, 144, 141, 138, 135], trend_start=170),
+            'GGG': make_history([120, 116, 112, 108, 104, 100], trend_start=70).iloc[-50:],
+            'HHH': make_history([140, 137, 134, 131, 128, 126], trend_start=100, volume=100_000),
+            'III': make_history([140, 137, 134, 131, 128, 126], trend_start=100),
+        }
+        current_prices = {
+            'AAA': 126.0,
+            'BBB': 176.0,
+            'CCC': 142.0,
+            'DDD': 133.0,
+            'EEE': 128.0,
+            'FFF': 135.0,
+            'GGG': 100.0,
+            'HHH': 126.0,
+        }
+
+        candidates = rattlesnake.find_rattlesnake_candidates(
+            hist_data=histories,
+            current_prices=current_prices,
+            held_symbols=set(),
+            max_candidates=10,
+        )
+
+        assert [candidate['symbol'] for candidate in candidates] == ['BBB', 'CCC', 'AAA']
+        assert [candidate['score'] for candidate in candidates] == pytest.approx([0.12, 0.1125, 0.10])
+
+    def test_max_candidates_truncates_oversold_list_after_sorting(self, monkeypatch):
+        monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAA', 'BBB', 'CCC', 'DDD'])
+        histories = {
+            'AAA': make_history([140, 137, 134, 131, 128, 126], trend_start=100),
+            'BBB': make_history([200, 195, 190, 185, 180, 176], trend_start=120),
+            'CCC': make_history([160, 156, 152, 148, 144, 142], trend_start=110),
+            'DDD': make_history([110, 108, 106, 104, 102, 100], trend_start=70),
+        }
+        current_prices = {'AAA': 126.0, 'BBB': 176.0, 'CCC': 142.0, 'DDD': 100.0}
+
+        candidates = rattlesnake.find_rattlesnake_candidates(
+            hist_data=histories,
+            current_prices=current_prices,
+            held_symbols=set(),
+            max_candidates=2,
+        )
+
+        assert len(candidates) == 2
+        assert [candidate['symbol'] for candidate in candidates] == ['BBB', 'CCC']
+
     def test_empty_universe_returns_no_candidates(self, monkeypatch):
         monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', [])
 
