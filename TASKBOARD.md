@@ -781,7 +781,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 ---
 
 ### TASK-109: Clean up corrupted state files [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] Done (`ef2d494`)
 **Assigned:** Codex
 
 **Problem:** 3 `compass_state_CORRUPTED_*.json` files exist in `state/`. They were quarantined correctly but never cleaned up. Also, the `state/` directory has dated backups that accumulate indefinitely.
@@ -831,6 +831,7 @@ Add to `tests/test_cloud_dashboard.py` (create if not exists):
 
 ## Completed
 
+- `TASK-109` (`ef2d494`) Cleaned the runtime `state/` directory by removing all `compass_state_CORRUPTED_*.json` files present at the time of work, pruning dated backups down to the 3 most recent snapshots (`20260315`, `20260316`, `20260317`), and updating `.gitignore` to ignore future `state/compass_state_CORRUPTED_*.json` quarantines. I intentionally left `state/compass_state_latest.json` and the live/modified recent backups untouched while staging only the intended deletions so the active engine state stayed out of the commit.
 - `TASK-108` (`6e1c8b0`) Added a dependency-free toast notification system to the dashboard frontend with a fixed bottom-right container, type styling (`error`/`warning`/`info`), auto-dismiss after 5 seconds, dedupe within 10 seconds, and a hard cap of 3 visible toasts. Wired the fetch error paths in `static/js/dashboard.js` to call `showToast(...)` instead of failing silently, including the previously silent ML fetch path, and bumped the asset version strings in `dashboard.html` so the new JS/CSS actually refresh in browsers. Verified with `node --check static/js/dashboard.js` plus a local Playwright sanity check that confirmed dedupe (`1` toast for duplicate messages) and the max-visible rule (`3` toasts after firing four unique messages). Local screenshot saved to `output/playwright/task-108-toast-ui.png`.
 - `TASK-106` (`2b8c88e`) Added startup cleanup routines in `compass_dashboard_cloud.py` for legacy `data_cache/` files older than 90 days, log rotation/compaction in `logs/` (gzip after 3 days, prune compressed logs after 14 days, trim active logs above 50MB), and state hygiene that removes stale `compass_state_CORRUPTED_*.json` files while keeping only the 3 most recent dated backups. Hooked all three cleanups into `_run_cloud_engine()` before the startup sync path, and added focused tests for cache deletion, log compression/trimming, corrupted-state pruning, and startup invocation. Verified with `py_compile` and `pytest tests/test_cloud_dashboard.py -k "cleanup or run_cloud_engine" -v --no-cov`.
 - `TASK-107` (`78fa05f`) Added `showcase` to the recognized `HYDRA_MODE` values in `compass_dashboard_cloud.py`, updated the warning text to document the full valid set, and added an inline comment clarifying that showcase mode keeps the dashboard read-only with the engine disabled. Expanded the environment validation test into a parametrized check covering `live`, `paper`, `backtest`, and `showcase`, verified with `py_compile` and `pytest tests/test_cloud_dashboard.py -k "validate_environment" -v --no-cov`.
