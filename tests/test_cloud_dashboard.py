@@ -95,6 +95,8 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._prev_close_cache = {}
     dashboard._price_cache_time = None
     dashboard._yf_consecutive_failures = 0
+    dashboard._yf_fail_count = 0
+    dashboard._yf_circuit_open_until = 0
     dashboard._yf_session = None
     dashboard._yf_crumb = None
     dashboard._social_cache = {}
@@ -900,3 +902,97 @@ def test_validate_environment_no_warning_on_valid_hydra_mode(monkeypatch, caplog
         dashboard._validate_environment()
 
     assert not any("HYDRA_MODE" in msg and "not a recognized" in msg for msg in caplog.messages)
+
+
+def test_price_debug_rejects_xss_symbol(client):
+    response = client.get('/api/price-debug?symbol=<script>')
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload['error'] == 'invalid parameter: symbol'
+
+
+def test_price_debug_accepts_valid_symbol(client, monkeypatch):
+    monkeypatch.setattr(dashboard, '_HAS_REQUESTS', False)
+    monkeypatch.setattr(dashboard, '_yf_get_session', lambda: (None, None))
+
+    response = client.get('/api/price-debug?symbol=AAPL')
+
+    assert response.status_code != 400
+
+
+def test_yf_circuit_breaker_opens_after_5_failures_and_blocks_6th(monkeypatch):
+    fetch_attempts = {'count': 0}
+
+    def fake_get_session():
+        fetch_attempts['count'] += 1
+        return None, None
+
+    monkeypatch.setattr(dashboard, '_HAS_REQUESTS', True)
+    monkeypatch.setattr(dashboard, '_yf_get_session', fake_get_session)
+    monkeypatch.setattr(dashboard.http_requests, 'get',
+                        lambda *args, **kwargs: FakeResponse(500))
+
+    # First 5 calls should attempt fetch (and fail)
+    for i in range(5):
+        result = dashboard._yf_fetch_batch(['AAPL'])
+        assert result == {}
+        assert dashboard._yf_fail_count == i + 1
+
+    # After 5 failures, circuit should be open
+    assert dashboard._yf_circuit_open_until > 0
+
+    # 6th call should NOT attempt fetch at all (circuit open)
+    fetch_attempts['count'] = 0
+    result = dashboard._yf_fetch_batch(['AAPL'])
+    assert result == {}
+    assert fetch_attempts['count'] == 0
+
+
+def test_api_ml_diagnostics_with_ml_files(client, isolate_dashboard):
+    ml_dir = isolate_dashboard / 'state' / 'ml_learning'
+    decisions = [
+        {'timestamp': '2026-03-15T10:00:00', 'action': 'entry', 'symbol': 'AAPL'},
+        {'timestamp': '2026-03-16T10:00:00', 'action': 'hold', 'symbol': 'MSFT'},
+    ]
+    outcomes = [
+        {'date': '2026-03-15', 'symbol': 'AAPL', 'pnl': 120.0},
+    ]
+    write_jsonl(ml_dir / 'decisions.jsonl', decisions)
+    write_jsonl(ml_dir / 'outcomes.jsonl', outcomes)
+
+    resp = client.get('/api/ml-diagnostics')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['phase'] == 1
+    assert data['total_decisions'] == 2
+    assert data['total_outcomes'] == 1
+    assert data['last_decision_date'] == '2026-03-16'
+    assert data['files_ok'] is True
+
+
+def test_api_ml_diagnostics_no_ml_directory(client, isolate_dashboard):
+    import shutil
+    ml_dir = isolate_dashboard / 'state' / 'ml_learning'
+    shutil.rmtree(ml_dir)
+
+    resp = client.get('/api/ml-diagnostics')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['phase'] == 0
+    assert data['error'] == 'ML not initialized'
+
+
+def test_security_headers_include_content_security_policy(client):
+    response = client.get('/api/state')
+
+    assert response.status_code == 200
+    csp = response.headers.get('Content-Security-Policy')
+    assert csp is not None
+    assert "default-src 'self'" in csp
+    assert "script-src 'self' https://cdn.jsdelivr.net" in csp
+    assert "style-src 'self' https://fonts.googleapis.com" in csp
+    assert "font-src 'self' https://fonts.gstatic.com" in csp
+    assert "img-src 'self' data:" in csp
+    assert "connect-src 'self'" in csp
+    assert 'unsafe-eval' not in csp

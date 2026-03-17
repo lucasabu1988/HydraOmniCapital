@@ -16,6 +16,7 @@ from flask import Flask, jsonify, render_template, request
 import json
 import os
 import glob
+import re
 import numpy as np
 import pandas as pd
 import logging
@@ -133,6 +134,14 @@ def set_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'"
+    )
     # Prevent Cloudflare/CDN from caching API responses (stale prices)
     if request.path.startswith('/api/'):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -265,6 +274,8 @@ _price_cache_time: Optional[datetime] = None
 _price_cache_lock = threading.Lock()
 _yf_session_lock = threading.Lock()
 _yf_consecutive_failures: int = 0
+_yf_fail_count: int = 0
+_yf_circuit_open_until: float = 0
 
 PRICE_CACHE_SECONDS_NORMAL = 60   # 1 min default
 PRICE_CACHE_SECONDS_BACKOFF = 300  # 5 min after repeated failures
@@ -311,7 +322,15 @@ def _yf_get_session():
 def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
     """Fetch multiple symbols in ONE request via Yahoo Finance v7 quote API.
     Returns {symbol: {'price': float, 'prev_close': float}}."""
+    global _yf_fail_count, _yf_circuit_open_until
+
     if not _HAS_REQUESTS or not symbols:
+        return {}
+
+    # Circuit breaker: skip fetch if circuit is open
+    if time_module.time() < _yf_circuit_open_until:
+        logger.warning('yfinance circuit breaker OPEN — skipping fetch until %.0f',
+                       _yf_circuit_open_until)
         return {}
 
     results = {}
@@ -375,6 +394,16 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
             time_module.sleep(0.15)
         except Exception as e:
             logger.warning(f'Yahoo Finance {sym} fetch failed: {e}')
+
+    # Circuit breaker: track consecutive failures
+    if results:
+        _yf_fail_count = 0
+    else:
+        _yf_fail_count += 1
+        if _yf_fail_count >= 5:
+            _yf_circuit_open_until = time_module.time() + 300
+            logger.error('yfinance circuit breaker OPENED after %d consecutive failures — '
+                         'backing off for 300s', _yf_fail_count)
 
     return results
 
@@ -2312,6 +2341,16 @@ def api_fund_comparison():
 
 
 # ============================================================================
+# INPUT VALIDATION
+# ============================================================================
+
+def _validate_param(value, pattern, name):
+    if value is not None and not re.fullmatch(pattern, value):
+        return jsonify({'error': f'invalid parameter: {name}'}), 400
+    return None
+
+
+# ============================================================================
 # ENGINE CONTROL
 # ============================================================================
 
@@ -2319,6 +2358,9 @@ def api_fund_comparison():
 def api_price_debug():
     """Diagnostic endpoint — test Yahoo Finance connectivity from cloud."""
     test_sym = request.args.get('symbol', 'AAPL')
+    err = _validate_param(test_sym, r'^[A-Z]{1,5}$', 'symbol')
+    if err:
+        return err
     diag = {
         'server_time': datetime.now().isoformat(),
         'has_requests': _HAS_REQUESTS,
@@ -2707,6 +2749,60 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
         _interp_last_cycle = _get_last_closed_cycle_num() or 0
     finally:
         _interp_lock.release()
+
+
+@app.route('/api/ml-diagnostics')
+def api_ml_diagnostics():
+    ml_dir = os.path.join('state', 'ml_learning')
+    try:
+        if not os.path.isdir(ml_dir):
+            return jsonify({'phase': 0, 'error': 'ML not initialized'}), 200
+
+        decisions_path = os.path.join(ml_dir, 'decisions.jsonl')
+        outcomes_path = os.path.join(ml_dir, 'outcomes.jsonl')
+
+        total_decisions = 0
+        last_decision_date = None
+        if os.path.exists(decisions_path):
+            with open(decisions_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        total_decisions += 1
+                        try:
+                            rec = json.loads(line)
+                            ts = rec.get('timestamp', rec.get('date', ''))
+                            if ts:
+                                last_decision_date = str(ts)[:10]
+                        except Exception:
+                            pass
+
+        total_outcomes = 0
+        if os.path.exists(outcomes_path):
+            with open(outcomes_path, 'r') as f:
+                for line in f:
+                    if line.strip():
+                        total_outcomes += 1
+
+        files_ok = os.path.exists(decisions_path) and os.path.exists(outcomes_path)
+
+        if total_decisions >= 252:
+            phase = 3
+        elif total_decisions >= 63:
+            phase = 2
+        else:
+            phase = 1
+
+        return jsonify({
+            'phase': phase,
+            'total_decisions': total_decisions,
+            'total_outcomes': total_outcomes,
+            'last_decision_date': last_decision_date,
+            'files_ok': files_ok,
+        }), 200
+    except Exception as e:
+        logger.error(f"/api/ml-diagnostics error: {e}", exc_info=True)
+        return jsonify({'phase': 0, 'error': str(e)}), 200
 
 
 @app.route('/api/ml')
