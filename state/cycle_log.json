@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "cycle": 1,
+    "start_date": "2026-03-17",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 99836.03,
+    "portfolio_end": null,
+    "spy_start": 6723.56,
+    "spy_end": null,
+    "positions": [
+      "JNJ",
+      "GEV"
+    ],
+    "positions_current": [
+      "JNJ",
+      "GEV"
+    ],
+    "hydra_return": null,
+    "spy_return": null,
+    "alpha": null,
+    "stop_events": [],
+    "positions_detail": [],
+    "sector_breakdown": {},
+    "exits_by_reason": {},
+    "cycle_return_pct": null,
+    "spy_return_pct": null,
+    "alpha_pct": null
+  }
+]
