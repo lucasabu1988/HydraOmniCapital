@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import time
 import types
@@ -93,6 +94,9 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._cloud_engine_thread = None
     dashboard._cloud_engine_started = False
     dashboard._self_ping_started = False
+    dashboard.STATE_DIR = 'state'
+    dashboard.STATE_FILE = str(tmp_path / 'state' / 'compass_state_latest.json')
+    dashboard._engine_lock = os.path.join(dashboard.STATE_DIR, '.cloud_engine.lock')
     dashboard._engine_status = {
         'running': False,
         'started_at': None,
@@ -101,6 +105,10 @@ def isolate_dashboard(monkeypatch, tmp_path):
         'startup_started_at': None,
         'last_git_pull': None,
         'state_recovery': None,
+        'crash_count': 0,
+        'last_crash_at': None,
+        'last_crash_error': None,
+        'restarts': [],
     }
 
     yield tmp_path
@@ -162,6 +170,8 @@ def test_api_state_contract_exposes_required_top_level_fields(client, monkeypatc
     assert isinstance(payload['portfolio_value'], float)
     assert isinstance(payload['regime_score'], float)
     assert isinstance(payload['trading_day_counter'], int)
+    assert payload['_data_freshness']['status'] in {'live', 'stale', 'offline'}
+    assert isinstance(payload['_data_freshness']['engine_alive'], bool)
 
 
 def test_api_cycle_log_contract_exposes_cycle_number_alias(client):
@@ -253,6 +263,7 @@ def test_api_montecarlo_contract_shape(client, monkeypatch):
 
 def test_api_health_contract_exposes_top_level_aliases(client):
     write_json(Path('state/compass_state_latest.json'), make_state())
+    dashboard._cloud_engine_thread = types.SimpleNamespace(is_alive=lambda: True)
     dashboard._engine_status.update({
         'running': True,
         'started_at': '2026-03-16T09:00:00',
@@ -269,10 +280,12 @@ def test_api_health_contract_exposes_top_level_aliases(client):
     missing = HEALTH_RESPONSE_REQUIRED_KEYS - payload.keys()
     assert not missing, f"HealthResponse missing keys: {missing}"
     assert isinstance(payload['status'], str)
-    assert isinstance(payload['engine_running'], bool)
-    assert isinstance(payload['price_freshness'], float)
-    assert payload['engine_running'] is True
-    assert payload['price_freshness'] < 60
+    assert isinstance(payload['engine_alive'], bool)
+    assert isinstance(payload['price_age_seconds'], float)
+    assert payload['engine_alive'] is True
+    assert payload['price_age_seconds'] < 60
+    assert isinstance(payload['crash_count'], int)
+    assert isinstance(payload['restarts'], list)
 
 
 def test_api_ultimate_risk_news_contract_shape(client, monkeypatch):
@@ -431,6 +444,7 @@ def test_api_state_missing_state_file_returns_fallback_json(client):
     assert payload['cash'] == 0.0
     assert payload['portfolio_value'] == 0.0
     assert payload['trading_day_counter'] == 0
+    assert payload['_data_freshness']['status'] in {'stale', 'offline'}
 
 
 def test_api_cycle_log_corrupted_file_returns_empty_list(client, isolate_dashboard):
@@ -481,7 +495,7 @@ def test_api_health_missing_state_file_returns_valid_health(client):
     missing = HEALTH_RESPONSE_REQUIRED_KEYS - payload.keys()
     assert not missing, f"HealthResponse fallback missing keys: {missing}"
     assert isinstance(payload['status'], str)
-    assert isinstance(payload['engine_running'], bool)
+    assert isinstance(payload['engine_alive'], bool)
 
 
 def test_api_annual_returns_missing_backtest_csv_returns_error_json(client, monkeypatch):
@@ -604,6 +618,7 @@ def test_api_montecarlo_timing(client, monkeypatch):
 @pytest.mark.xfail(reason="CI runners may be slow")
 def test_api_health_timing(client):
     write_json(Path('state/compass_state_latest.json'), make_state())
+    dashboard._cloud_engine_thread = types.SimpleNamespace(is_alive=lambda: True)
     dashboard._engine_status.update({
         'running': True,
         'started_at': '2026-03-16T09:00:00',

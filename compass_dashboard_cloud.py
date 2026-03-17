@@ -231,6 +231,10 @@ _engine_status = {
     'startup_started_at': None,
     'last_git_pull': None,
     'state_recovery': None,
+    'crash_count': 0,
+    'last_crash_at': None,
+    'last_crash_error': None,
+    'restarts': [],
 }
 
 _risk_cache = None
@@ -480,6 +484,34 @@ def _engine_thread_is_alive():
     return bool(_cloud_engine_thread and _cloud_engine_thread.is_alive())
 
 
+def _engine_is_operational(engine=None):
+    snapshot = engine or _engine_snapshot()
+    return bool(snapshot.get('running') and snapshot.get('thread_alive'))
+
+
+def _market_is_open(now_et=None):
+    ET = ZoneInfo('America/New_York')
+    now_et = now_et or datetime.now(ET)
+    if now_et.weekday() >= 5:
+        return False
+    return dtime(9, 30) <= now_et.time() < dtime(16, 0)
+
+
+def _price_freshness_snapshot():
+    with _price_cache_lock:
+        cache_time = _price_cache_time
+        cache_size = len(_price_cache)
+    last_price_update = cache_time.isoformat() if cache_time else None
+    price_age_seconds = None
+    if cache_time:
+        price_age_seconds = round((datetime.now() - cache_time).total_seconds(), 1)
+    return {
+        'last_price_update': last_price_update,
+        'price_age_seconds': price_age_seconds,
+        'cache_size': cache_size,
+    }
+
+
 def _engine_is_starting():
     if AGENT_MODE or SHOWCASE_MODE:
         return False
@@ -495,6 +527,7 @@ def _engine_is_starting():
 def _engine_snapshot():
     snapshot = dict(_engine_status)
     snapshot['thread_alive'] = _engine_thread_is_alive()
+    snapshot['engine_alive'] = _engine_is_operational(snapshot)
     snapshot['cycles'] = (
         getattr(_cloud_engine, '_cycles_completed', 0)
         if _cloud_engine else _engine_status['cycles']
@@ -520,11 +553,11 @@ def _coerce_health_timestamp(value):
     return str(value)
 
 
-def _health_uptime_minutes(engine, state):
+def _health_uptime_seconds(engine, state):
     stats = state.get('stats', {}) if state else {}
     uptime = stats.get('uptime_minutes')
     if uptime is not None:
-        return round(float(uptime), 2)
+        return max(0, int(round(float(uptime) * 60)))
 
     started_at = None
     if engine:
@@ -534,7 +567,7 @@ def _health_uptime_minutes(engine, state):
     if started_at:
         try:
             started = datetime.fromisoformat(started_at)
-            return round((datetime.now() - started).total_seconds() / 60, 2)
+            return max(0, int(round((datetime.now() - started).total_seconds())))
         except (TypeError, ValueError):
             return None
     return None
@@ -573,13 +606,60 @@ def _health_cycle_counts(state, engine):
     return int(cycles_completed or 0), int(engine_iterations or 0)
 
 
-def _build_health_payload(engine, state):
-    price_age_seconds = None
-    last_price_update = None
-    if _price_cache_time:
-        last_price_update = _price_cache_time.isoformat()
-        price_age_seconds = round((datetime.now() - _price_cache_time).total_seconds(), 1)
+def _last_cycle_close_timestamp(state):
+    if state:
+        for key in ('last_cycle_close', 'last_cycle_close_at'):
+            if state.get(key):
+                return _coerce_health_timestamp(state.get(key))
+        stats = state.get('stats', {})
+        for key in ('last_cycle_close', 'last_cycle_close_at'):
+            if stats.get(key):
+                return _coerce_health_timestamp(stats.get(key))
 
+    cycle_log_path = os.path.join(STATE_DIR, 'cycle_log.json')
+    if not os.path.exists(cycle_log_path):
+        return None
+
+    try:
+        with open(cycle_log_path, 'r', encoding='utf-8') as cycle_file:
+            cycles = json.load(cycle_file)
+    except Exception as e:
+        logger.warning(f"_last_cycle_close_timestamp failed: {e}")
+        return None
+
+    if not isinstance(cycles, list):
+        return None
+
+    for cycle in reversed(cycles):
+        if not isinstance(cycle, dict) or cycle.get('status') != 'closed':
+            continue
+        for key in ('closed_at', 'end_timestamp', 'end_date'):
+            if cycle.get(key):
+                return _coerce_health_timestamp(cycle.get(key))
+    return None
+
+
+def _build_data_freshness(engine):
+    price_freshness = _price_freshness_snapshot()
+    engine_alive = _engine_is_operational(engine)
+    price_age_seconds = price_freshness['price_age_seconds']
+
+    if not engine_alive:
+        status = 'offline'
+    elif price_age_seconds is None or price_age_seconds > 300:
+        status = 'stale'
+    else:
+        status = 'live'
+
+    return {
+        'status': status,
+        'price_age_seconds': price_age_seconds,
+        'engine_alive': engine_alive,
+        'last_price_update': price_freshness['last_price_update'],
+    }
+
+
+def _build_health_payload(engine, state):
     ml_errors = {
         'entry': 0,
         'exit': 0,
@@ -610,38 +690,61 @@ def _build_health_payload(engine, state):
         except OSError:
             state_last_modified = None
 
-    engine_running = bool(engine.get('running'))
+    price_freshness = _price_freshness_snapshot()
+    freshness = _build_data_freshness(engine)
+    price_age_seconds = freshness['price_age_seconds']
+    last_price_update = freshness['last_price_update']
+    engine_alive = freshness['engine_alive']
+    uptime_seconds = _health_uptime_seconds(engine, state)
     ml_error_total = sum(abs(int(value or 0)) for value in ml_errors.values())
-    if not engine_running or (price_age_seconds is not None and price_age_seconds > 300):
-        overall_status = 'critical'
-    elif price_age_seconds is None or price_age_seconds > 60 or ml_error_total > 0:
-        overall_status = 'degraded'
-    else:
+    if engine_alive and price_age_seconds is not None and price_age_seconds <= 300 and ml_error_total == 0:
         overall_status = 'healthy'
+    elif not engine_alive and _market_is_open():
+        overall_status = 'down'
+    else:
+        overall_status = 'degraded'
 
     git_sync_enabled = bool(os.environ.get('GIT_TOKEN'))
     cycles_completed, engine_iterations = _health_cycle_counts(state, engine)
+    crash_count = int(engine.get('crash_count') or 0)
+    last_crash_at = _coerce_health_timestamp(engine.get('last_crash_at'))
+    last_crash_error = engine.get('last_crash_error')
+    restarts = list(engine.get('restarts') or [])
+    last_cycle_close = _last_cycle_close_timestamp(state)
 
-    return {
+    payload = {
         'status': overall_status,
         'timestamp': datetime.now().isoformat(),
-        'engine_running': engine_running,
+        'engine_alive': engine_alive,
+        'last_price_update': last_price_update,
+        'price_age_seconds': price_age_seconds,
+        'last_cycle_close': last_cycle_close,
+        'uptime_seconds': uptime_seconds,
+        'positions_count': num_positions,
+        'portfolio_value': round(portfolio_value, 2),
+        'crash_count': crash_count,
+        'last_crash_at': last_crash_at,
+        'last_crash_error': last_crash_error,
+        'restarts': restarts,
+        'engine_running': engine_alive,
         'price_freshness': price_age_seconds,
         'engine': {
-            'running': engine_running,
-            'uptime_minutes': _health_uptime_minutes(engine, state),
+            'running': engine_alive,
+            'uptime_minutes': round(uptime_seconds / 60, 2) if uptime_seconds is not None else None,
             'cycles_completed': cycles_completed,
             'engine_iterations': engine_iterations,
-            'last_cycle_at': _coerce_health_timestamp(
-                state.get('timestamp') if state else engine.get('started_at')
-            ),
+            'last_cycle_at': last_cycle_close,
             'ml_errors': ml_errors,
+            'crash_count': crash_count,
+            'last_crash_at': last_crash_at,
+            'last_crash_error': last_crash_error,
+            'restarts': restarts,
         },
         'data_feed': {
             'last_price_update': last_price_update,
             'price_age_seconds': price_age_seconds,
             'consecutive_failures': _yf_consecutive_failures,
-            'cache_size': len(_price_cache),
+            'cache_size': price_freshness['cache_size'],
         },
         'portfolio': {
             'value': round(portfolio_value, 2),
@@ -661,6 +764,33 @@ def _build_health_payload(engine, state):
             'last_push_at': None,
         },
     }
+    if ml_error_total > 0:
+        payload['engine']['ml_error_total'] = ml_error_total
+    return payload
+
+
+def _read_engine_lock_owner(lock_file):
+    with open(lock_file, 'r', encoding='utf-8') as lock_handle:
+        return int(lock_handle.read().strip())
+
+
+def _engine_lock_owner_is_alive(owner_pid):
+    try:
+        os.kill(owner_pid, 0)
+        return True
+    except PermissionError:
+        return True
+    except (OSError, ProcessLookupError):
+        return False
+
+
+def _claim_engine_lock(lock_file):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    try:
+        os.write(fd, str(os.getpid()).encode())
+    finally:
+        os.close(fd)
 
 
 # ============================================================================
@@ -1955,6 +2085,7 @@ def api_state():
     try:
         state = read_state()
         engine = _engine_snapshot()
+        freshness = _build_data_freshness(engine)
 
         if not state:
             if _engine_is_starting():
@@ -1966,6 +2097,8 @@ def api_state():
                     'portfolio_value': 0.0,
                     'regime_score': None,
                     'trading_day_counter': 0,
+                    '_data_freshness': freshness,
+                    'price_data_age_seconds': freshness['price_age_seconds'],
                     'server_time': datetime.now().isoformat(),
                     'engine': engine,
                 })
@@ -1977,6 +2110,8 @@ def api_state():
                 'portfolio_value': 0.0,
                 'regime_score': None,
                 'trading_day_counter': 0,
+                '_data_freshness': freshness,
+                'price_data_age_seconds': freshness['price_age_seconds'],
                 'server_time': datetime.now().isoformat(),
                 'engine': engine,
             })
@@ -2037,6 +2172,8 @@ def api_state():
             'hydra': hydra_data,
             'implementation_shortfall': {'available': False},
             'state_recovery': state.get('_recovered_from'),
+            '_data_freshness': freshness,
+            'price_data_age_seconds': freshness['price_age_seconds'],
             'server_time': datetime.now().isoformat(),
             'engine': {
                 **engine,
@@ -2045,11 +2182,14 @@ def api_state():
         })
     except Exception as e:
         import traceback
+        freshness = _build_data_freshness(_engine_snapshot())
         logger.error(f"/api/state crashed: {e}", exc_info=True)
         return jsonify({
             'status': 'offline',
             'error': f'Worker {os.getpid()} crashed: {type(e).__name__}: {e}',
             'traceback': traceback.format_exc(),
+            '_data_freshness': freshness,
+            'price_data_age_seconds': freshness['price_age_seconds'],
             'server_time': datetime.now().isoformat(),
             'engine': _engine_snapshot(),
         }), 200  # Return 200 so frontend can display the error
@@ -3515,13 +3655,8 @@ _cloud_engine: Optional['COMPASSLive'] = None
 _cloud_engine_thread = None
 _cloud_engine_started = False
 
-# Clean up stale lock file from previous deploy
 _engine_lock = os.path.join(STATE_DIR, '.cloud_engine.lock')
-if os.path.exists(_engine_lock):
-    try:
-        os.unlink(_engine_lock)
-    except OSError:
-        pass
+# Stale engine locks are reclaimed inside _ensure_cloud_engine() to avoid worker races.
 
 
 def _git_pull_latest():
@@ -3609,10 +3744,14 @@ def _run_cloud_engine():
 
     while True:
         try:
+            restart_at = datetime.now().isoformat()
             _cloud_engine = None
             _engine_status['running'] = False
             _engine_status['error'] = None
-            _engine_status['startup_started_at'] = datetime.now().isoformat()
+            _engine_status['startup_started_at'] = restart_at
+            restarts = list(_engine_status.get('restarts') or [])
+            restarts.append(restart_at)
+            _engine_status['restarts'] = restarts[-5:]
             logger.info('Cloud HYDRA engine startup beginning (worker %s)', os.getpid())
 
             # Pull latest state from GitHub (picks up local changes)
@@ -3649,7 +3788,7 @@ def _run_cloud_engine():
             logger.info('Cloud engine load_state completed (state exists=%s)', os.path.exists(STATE_FILE))
 
             _engine_status['running'] = True
-            _engine_status['started_at'] = datetime.now().isoformat()
+            _engine_status['started_at'] = restart_at
             _engine_status['error'] = None
 
             logger.info("Cloud HYDRA engine started (SharedYahooDataFeed — no duplicate requests)")
@@ -3660,9 +3799,13 @@ def _run_cloud_engine():
             _cloud_engine.run(interval=60)
 
         except Exception as e:
+            crash_at = datetime.now().isoformat()
             _cloud_engine = None
             _engine_status['running'] = False
             _engine_status['error'] = f'Engine crashed: {e}'
+            _engine_status['crash_count'] = int(_engine_status.get('crash_count') or 0) + 1
+            _engine_status['last_crash_at'] = crash_at
+            _engine_status['last_crash_error'] = str(e)
             logger.error(f"Cloud engine crashed: {e}", exc_info=True)
             # Sleep and retry after 5 minutes (loop, not recursion)
             time_module.sleep(300)
@@ -3697,23 +3840,27 @@ def _ensure_cloud_engine():
             except OSError:
                 pass
         else:
-            return  # This worker doesn't own the engine
+            lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
+            try:
+                owner_pid = _read_engine_lock_owner(lock_file)
+                if _engine_lock_owner_is_alive(owner_pid):
+                    return  # Another worker still owns the engine
+            except (ValueError, OSError, ProcessLookupError):
+                pass
+            logger.warning("Cloud engine lock owner missing/dead — attempting takeover")
+            _cloud_engine_started = False
 
     # File-based lock: first worker to create the file wins
     lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
     try:
-        os.makedirs(STATE_DIR, exist_ok=True)
-        fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        os.write(fd, str(os.getpid()).encode())
-        os.close(fd)
+        _claim_engine_lock(lock_file)
         _cloud_engine_started = True
     except FileExistsError:
         # Check if the owning PID is still alive
         try:
-            with open(lock_file, 'r') as f:
-                owner_pid = int(f.read().strip())
-            # On Linux/Render, check if PID exists
-            os.kill(owner_pid, 0)
+            owner_pid = _read_engine_lock_owner(lock_file)
+            if not _engine_lock_owner_is_alive(owner_pid):
+                raise ProcessLookupError(owner_pid)
             # PID is alive — another worker owns the engine
             _cloud_engine_started = True
             logger.info("Cloud engine running in worker %s, skipping", owner_pid)
@@ -3721,15 +3868,34 @@ def _ensure_cloud_engine():
         except (ValueError, OSError, ProcessLookupError):
             # Stale lock — owner PID is dead, reclaim
             logger.warning("Stale engine lock (dead PID) — reclaiming")
-            try:
-                os.unlink(lock_file)
-                fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.write(fd, str(os.getpid()).encode())
-                os.close(fd)
-                _cloud_engine_started = True
-            except OSError:
+            claimed = False
+            for _attempt in range(2):
+                try:
+                    os.unlink(lock_file)
+                except FileNotFoundError:
+                    pass
+                except OSError as e:
+                    _engine_status['error'] = f'Engine lock reclaim failed: {e}'
+                    logger.error('Cloud engine lock reclaim failed: %s', e, exc_info=True)
+                    return
+
+                try:
+                    _claim_engine_lock(lock_file)
+                    claimed = True
+                    break
+                except FileExistsError:
+                    _cloud_engine_started = True
+                    logger.info("Cloud engine lock reclaim lost race to another worker")
+                    return
+                except OSError as e:
+                    _engine_status['error'] = f'Engine lock reclaim failed: {e}'
+                    logger.error('Cloud engine lock reclaim failed: %s', e, exc_info=True)
+                    return
+
+            if not claimed:
                 _cloud_engine_started = True
                 return
+            _cloud_engine_started = True
     except OSError as e:
         _engine_status['error'] = f'Engine lock acquisition failed: {e}'
         logger.error('Cloud engine lock acquisition failed: %s', e, exc_info=True)

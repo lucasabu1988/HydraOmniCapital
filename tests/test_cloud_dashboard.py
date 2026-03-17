@@ -117,6 +117,9 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._cloud_engine_thread = None
     dashboard._cloud_engine_started = False
     dashboard._self_ping_started = False
+    dashboard.STATE_DIR = 'state'
+    dashboard.STATE_FILE = os.path.join('state', 'compass_state_latest.json')
+    dashboard._engine_lock = os.path.join(dashboard.STATE_DIR, '.cloud_engine.lock')
     dashboard.LOG_DIR = 'logs'
     dashboard._engine_status = {
         'running': False,
@@ -126,6 +129,10 @@ def isolate_dashboard(monkeypatch, tmp_path):
         'startup_started_at': None,
         'last_git_pull': None,
         'state_recovery': None,
+        'crash_count': 0,
+        'last_crash_at': None,
+        'last_crash_error': None,
+        'restarts': [],
     }
 
     yield tmp_path
@@ -168,6 +175,9 @@ def test_api_state_returns_starting_when_engine_thread_alive_and_state_missing(c
 def test_api_state_returns_enriched_payload_when_state_exists(client, monkeypatch):
     write_json(Path('state/compass_state_latest.json'), make_state())
     captured = {}
+    dashboard._cloud_engine_thread = types.SimpleNamespace(is_alive=lambda: True)
+    dashboard._engine_status.update({'running': True})
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=45)
 
     def fake_prices(symbols):
         captured['symbols'] = set(symbols)
@@ -190,8 +200,31 @@ def test_api_state_returns_enriched_payload_when_state_exists(client, monkeypatc
     assert payload['position_details'][0]['symbol'] == 'AAPL'
     assert payload['hydra']['status'] == 'ok'
     assert payload['state_recovery'] is None
+    assert payload['_data_freshness']['status'] == 'live'
+    assert payload['_data_freshness']['engine_alive'] is True
     assert 'AAPL' in captured['symbols']
     assert 'SPY' in captured['symbols']
+
+
+def test_api_state_includes_offline_data_freshness_when_engine_is_down(client, monkeypatch):
+    write_json(Path('state/compass_state_latest.json'), make_state())
+    dashboard._engine_status.update({'running': False, 'error': 'engine down'})
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=600)
+
+    monkeypatch.setattr(dashboard, 'fetch_live_prices', lambda symbols: {'AAPL': 110.0, '^GSPC': 5000.0})
+    monkeypatch.setattr(dashboard, 'compute_position_details',
+                        lambda state, prices: [{'symbol': 'AAPL', 'pnl_pct': 10.0}])
+    monkeypatch.setattr(dashboard, 'compute_portfolio_metrics',
+                        lambda state, prices: {'portfolio_value': 105000.0})
+    monkeypatch.setattr(dashboard, 'compute_hydra_data',
+                        lambda state, prices: {'status': 'ok'})
+
+    response = client.get('/api/state')
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['_data_freshness']['status'] == 'offline'
+    assert payload['_data_freshness']['engine_alive'] is False
 
 
 def test_compute_portfolio_metrics_exposes_dd_leverage_top_level():
@@ -767,6 +800,44 @@ def test_run_cloud_engine_sets_error_when_engine_unavailable(monkeypatch):
     assert 'missing dependency' in dashboard._engine_status['error']
 
 
+def test_run_cloud_engine_increments_crash_count_on_exception(monkeypatch):
+    class FakeBroker:
+        def __init__(self):
+            self.positions = {}
+            self.cash = 100000.0
+
+        def set_price_feed(self, feed):
+            self.feed = feed
+
+    class FakeEngine:
+        def __init__(self, config):
+            self.broker = FakeBroker()
+            self.data_feed = None
+
+        def load_state(self):
+            return None
+
+        def run(self, interval=60):
+            raise RuntimeError('loop exploded')
+
+    class StopLoop(Exception):
+        pass
+
+    monkeypatch.setattr(dashboard, '_HAS_ENGINE', True)
+    monkeypatch.setattr(dashboard, 'COMPASSLive', FakeEngine)
+    monkeypatch.setattr(dashboard, '_git_pull_latest', lambda: {'ok': True, 'message': 'ok', 'auth_failed': False})
+    monkeypatch.setattr(dashboard, '_recover_cloud_state', lambda pull: {'_recovered_from': 'git_pull'})
+    monkeypatch.setenv('GIT_TOKEN', '')
+    monkeypatch.setattr(dashboard.time_module, 'sleep', lambda seconds: (_ for _ in ()).throw(StopLoop()))
+
+    with pytest.raises(StopLoop):
+        dashboard._run_cloud_engine()
+
+    assert dashboard._engine_status['crash_count'] == 1
+    assert dashboard._engine_status['last_crash_error'] == 'loop exploded'
+    assert dashboard._engine_status['last_crash_at'] is not None
+
+
 def test_git_pull_latest_marks_auth_failures(monkeypatch):
     calls = []
 
@@ -859,6 +930,7 @@ def test_api_state_exposes_state_recovery_source(client, monkeypatch):
 def test_api_health_reports_healthy_when_engine_running_and_prices_fresh(client):
     state = make_state()
     write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._cloud_engine_thread = types.SimpleNamespace(is_alive=lambda: True)
     dashboard._engine_status.update({
         'running': True,
         'started_at': '2026-03-16T09:00:00',
@@ -875,10 +947,12 @@ def test_api_health_reports_healthy_when_engine_running_and_prices_fresh(client)
     assert response.status_code == 200
     payload = response.get_json()
     assert payload['status'] == 'healthy'
+    assert payload['engine_alive'] is True
     assert payload['engine']['running'] is True
     assert payload['engine']['cycles_completed'] == 5
-    assert payload['data_feed']['price_age_seconds'] < 60
-    assert payload['portfolio']['num_positions'] == 1
+    assert payload['price_age_seconds'] < 60
+    assert payload['positions_count'] == 1
+    assert payload['crash_count'] == 0
 
 
 def test_api_overlay_status_prefers_live_cloud_engine_over_state_file(client):
@@ -947,6 +1021,7 @@ def test_api_agent_heartbeat_reports_alive_status(client):
 def test_api_health_degrades_when_price_cache_is_stale(client):
     state = make_state()
     write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._cloud_engine_thread = types.SimpleNamespace(is_alive=lambda: True)
     dashboard._engine_status.update({
         'running': True,
         'started_at': '2026-03-16T09:00:00',
@@ -954,20 +1029,21 @@ def test_api_health_degrades_when_price_cache_is_stale(client):
         'cycles': 5,
     })
     dashboard._price_cache = {'AAPL': 110.0}
-    dashboard._price_cache_time = datetime.now() - timedelta(seconds=120)
+    dashboard._price_cache_time = datetime.now() - timedelta(seconds=360)
 
     response = client.get('/api/health')
 
     assert response.status_code == 200
     payload = response.get_json()
     assert payload['status'] == 'degraded'
-    assert payload['data_feed']['price_age_seconds'] > 60
+    assert payload['price_age_seconds'] > 300
 
 
 def test_api_health_degrades_when_ml_errors_are_present(client):
     state = make_state()
     state['ml_error_counts']['hold'] = 2
     write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._cloud_engine_thread = types.SimpleNamespace(is_alive=lambda: True)
     dashboard._engine_status.update({
         'running': True,
         'started_at': '2026-03-16T09:00:00',
@@ -985,7 +1061,7 @@ def test_api_health_degrades_when_ml_errors_are_present(client):
     assert payload['engine']['ml_errors']['hold'] == 2
 
 
-def test_api_health_is_critical_when_engine_is_not_running(client):
+def test_api_health_returns_down_when_engine_is_not_running_during_market_hours(client, monkeypatch):
     state = make_state()
     write_json(Path('state/compass_state_latest.json'), state)
     dashboard._engine_status.update({
@@ -996,45 +1072,53 @@ def test_api_health_is_critical_when_engine_is_not_running(client):
     })
     dashboard._price_cache = {'AAPL': 110.0}
     dashboard._price_cache_time = datetime.now() - timedelta(seconds=5)
+    monkeypatch.setattr(dashboard, '_market_is_open', lambda now_et=None: True)
 
     response = client.get('/api/health')
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload['status'] == 'critical'
-    assert payload['engine']['running'] is False
+    assert payload['status'] == 'down'
+    assert payload['engine_alive'] is False
 
 
-def test_api_health_is_critical_when_data_is_very_stale(client):
+def test_api_health_degrades_when_engine_is_not_running_outside_market_hours(client, monkeypatch):
     state = make_state()
     write_json(Path('state/compass_state_latest.json'), state)
     dashboard._engine_status.update({
-        'running': True,
-        'started_at': '2026-03-16T09:00:00',
-        'error': None,
-        'cycles': 5,
+        'running': False,
+        'started_at': None,
+        'error': 'engine down',
+        'cycles': 0,
     })
     dashboard._price_cache = {'AAPL': 110.0}
     dashboard._price_cache_time = datetime.now() - timedelta(seconds=360)
+    monkeypatch.setattr(dashboard, '_market_is_open', lambda now_et=None: False)
 
     response = client.get('/api/health')
 
     assert response.status_code == 200
     payload = response.get_json()
-    assert payload['status'] == 'critical'
-    assert payload['data_feed']['price_age_seconds'] > 300
+    assert payload['status'] == 'degraded'
+    assert payload['engine_alive'] is False
+    assert payload['price_age_seconds'] > 300
 
 
 def test_api_health_reports_state_recovery_and_git_sync_metadata(client, monkeypatch):
     state = make_state()
     state['_recovered_from'] = 'git_pull'
     write_json(Path('state/compass_state_latest.json'), state)
+    dashboard._cloud_engine_thread = types.SimpleNamespace(is_alive=lambda: True)
     dashboard._engine_status.update({
         'running': True,
         'started_at': '2026-03-16T09:00:00',
         'error': None,
         'cycles': 5,
         'state_recovery': 'git_pull',
+        'crash_count': 2,
+        'last_crash_at': '2026-03-16T08:30:00',
+        'last_crash_error': 'boom',
+        'restarts': ['2026-03-16T08:35:00', '2026-03-16T09:00:00'],
     })
     dashboard._price_cache = {'AAPL': 110.0}
     dashboard._price_cache_time = datetime.now() - timedelta(seconds=20)
@@ -1048,6 +1132,9 @@ def test_api_health_reports_state_recovery_and_git_sync_metadata(client, monkeyp
     assert payload['state']['last_modified'] is not None
     assert payload['state']['recovered_from'] == 'git_pull'
     assert payload['git_sync']['enabled'] is True
+    assert payload['crash_count'] == 2
+    assert payload['last_crash_error'] == 'boom'
+    assert payload['restarts'][-1] == '2026-03-16T09:00:00'
 
 
 def test_ensure_cloud_engine_acquires_lock_and_starts_thread(monkeypatch):
@@ -1106,10 +1193,69 @@ def test_ensure_cloud_engine_skips_when_lock_already_exists(monkeypatch):
     monkeypatch.setattr(dashboard, 'AGENT_MODE', False)
     monkeypatch.setattr(dashboard, 'SHOWCASE_MODE', False)
     monkeypatch.setattr(dashboard.threading, 'Thread', FailThread)
+    monkeypatch.setattr(dashboard, '_read_engine_lock_owner', lambda path: 1234)
+    monkeypatch.setattr(dashboard, '_engine_lock_owner_is_alive', lambda pid: True)
 
     dashboard._ensure_cloud_engine()
 
     assert dashboard._cloud_engine_started is True
+
+
+def test_ensure_cloud_engine_restarts_dead_thread_on_next_call(monkeypatch):
+    started = {'count': 0}
+    lock_path = Path('state/.cloud_engine.lock')
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(str(os.getpid()), encoding='utf-8')
+
+    class DeadThread:
+        def is_alive(self):
+            return False
+
+    class FakeThread:
+        def __init__(self, target=None, daemon=None, name=None):
+            started['target'] = target
+            started['daemon'] = daemon
+            started['name'] = name
+
+        def start(self):
+            started['count'] += 1
+
+    monkeypatch.setattr(dashboard, 'AGENT_MODE', False)
+    monkeypatch.setattr(dashboard, 'SHOWCASE_MODE', False)
+    monkeypatch.setattr(dashboard, '_cloud_engine_started', True)
+    monkeypatch.setattr(dashboard, '_cloud_engine_thread', DeadThread())
+    monkeypatch.setattr(dashboard.threading, 'Thread', FakeThread)
+
+    dashboard._ensure_cloud_engine()
+
+    assert started['count'] == 1
+    assert started['name'] == 'CloudHydraEngine'
+
+
+def test_ensure_cloud_engine_reclaims_stale_lock_with_dead_pid(monkeypatch):
+    started = {'count': 0}
+    lock_path = Path('state/.cloud_engine.lock')
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text('999999', encoding='utf-8')
+
+    class FakeThread:
+        def __init__(self, target=None, daemon=None, name=None):
+            started['target'] = target
+            started['name'] = name
+
+        def start(self):
+            started['count'] += 1
+
+    monkeypatch.setattr(dashboard, 'AGENT_MODE', False)
+    monkeypatch.setattr(dashboard, 'SHOWCASE_MODE', False)
+    monkeypatch.setattr(dashboard.threading, 'Thread', FakeThread)
+    monkeypatch.setattr(dashboard, '_read_engine_lock_owner', lambda path: 999999)
+    monkeypatch.setattr(dashboard, '_engine_lock_owner_is_alive', lambda pid: False)
+
+    dashboard._ensure_cloud_engine()
+
+    assert started['count'] == 1
+    assert lock_path.read_text(encoding='utf-8') == str(os.getpid())
 
 
 def test_validate_environment_warns_on_invalid_hydra_mode(monkeypatch, caplog):
@@ -1551,21 +1697,30 @@ class TestEngineStartupLock:
         assert thread_started == []
         assert dashboard._cloud_engine_started is True
 
-    def test_stale_lock_cleanup_on_module_load(self, tmp_path, monkeypatch):
+    def test_stale_lock_is_reclaimed_during_ensure(self, tmp_path, monkeypatch):
+        self._reset_engine_state(monkeypatch)
         state_dir = str(tmp_path / 'state')
+        monkeypatch.setattr(dashboard, 'STATE_DIR', state_dir)
+
         lock_dir = tmp_path / 'state'
         lock_dir.mkdir(parents=True, exist_ok=True)
         lock_file = lock_dir / '.cloud_engine.lock'
-        lock_file.write_text('99999')
+        lock_file.write_text('99999', encoding='utf-8')
 
-        # Simulate the module-level stale lock cleanup logic
-        _engine_lock = os.path.join(state_dir, '.cloud_engine.lock')
-        assert os.path.exists(_engine_lock)
-        try:
-            os.unlink(_engine_lock)
-        except OSError:
-            pass
-        assert not os.path.exists(_engine_lock)
+        started = []
+
+        def fake_thread(**kw):
+            started.append(True)
+            return types.SimpleNamespace(start=lambda: None)
+
+        monkeypatch.setattr(dashboard.threading, 'Thread', fake_thread)
+        monkeypatch.setattr(dashboard, '_read_engine_lock_owner', lambda path: 99999)
+        monkeypatch.setattr(dashboard, '_engine_lock_owner_is_alive', lambda pid: False)
+
+        dashboard._ensure_cloud_engine()
+
+        assert started == [True]
+        assert lock_file.read_text(encoding='utf-8') == str(os.getpid())
 
     def test_lock_file_contains_current_pid(self, tmp_path, monkeypatch):
         self._reset_engine_state(monkeypatch)
@@ -1623,6 +1778,7 @@ class TestEngineStartupLock:
 
     def test_lock_idempotent_when_already_started(self, tmp_path, monkeypatch):
         monkeypatch.setattr(dashboard, '_cloud_engine_started', True)
+        monkeypatch.setattr(dashboard, '_cloud_engine_thread', types.SimpleNamespace(is_alive=lambda: True))
 
         thread_created = []
         def fake_thread(**kw):

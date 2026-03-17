@@ -28,6 +28,7 @@ class StateResponse(TypedDict, total=False):
     hydra: Dict
     implementation_shortfall: Dict
     state_recovery: Optional[str]
+    _data_freshness: Dict
     message: str
     error: str
 
@@ -136,6 +137,17 @@ class PortfolioHealth(TypedDict, total=False):
 class HealthResponse(TypedDict, total=False):
     status: str
     timestamp: str
+    engine_alive: bool
+    last_price_update: Optional[str]
+    price_age_seconds: Optional[float]
+    last_cycle_close: Optional[str]
+    uptime_seconds: Optional[int]
+    positions_count: int
+    portfolio_value: float
+    crash_count: int
+    last_crash_at: Optional[str]
+    last_crash_error: Optional[str]
+    restarts: List[str]
     engine_running: bool
     price_freshness: Optional[float]
     engine: EngineHealth
@@ -146,5 +158,7 @@ class HealthResponse(TypedDict, total=False):
 
 
 HEALTH_RESPONSE_REQUIRED_KEYS = {
-    'status', 'engine_running', 'price_freshness',
+    'status', 'engine_alive', 'last_price_update', 'price_age_seconds',
+    'last_cycle_close', 'uptime_seconds', 'positions_count', 'portfolio_value',
+    'crash_count', 'last_crash_at', 'last_crash_error',
 }

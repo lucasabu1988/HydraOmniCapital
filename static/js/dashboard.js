@@ -278,17 +278,42 @@ function updateStatusBar(p) {
         t('tooltip-last-update') + ': ' + ts + '<br>' + t('tooltip-next-in') + ': ' + countdownSec + 's';
 }
 
-function updateStalePriceWarning(ageSeconds) {
-    var el = document.getElementById('stale-price-warning');
-    if (!el) return;
-    if (ageSeconds != null && ageSeconds > 300) {
-        var mins = Math.floor(ageSeconds / 60);
-        el.textContent = 'Prices ' + mins + 'm old';
-        el.className = 'stale-data';
-        el.style.display = 'inline';
-    } else {
-        el.style.display = 'none';
+function updateStalePriceWarning(freshness) {
+    var badge = document.getElementById('stale-price-warning');
+    var banner = document.getElementById('data-freshness-banner');
+    if (!badge || !banner) return;
+
+    var status = freshness && freshness.status ? freshness.status : 'live';
+    var ageSeconds = null;
+    if (freshness && freshness.price_age_seconds != null && !isNaN(freshness.price_age_seconds)) {
+        ageSeconds = freshness.price_age_seconds;
     }
+    var mins = ageSeconds != null ? Math.max(1, Math.round(ageSeconds / 60)) : null;
+
+    if (status === 'live') {
+        badge.style.display = 'none';
+        banner.style.display = 'none';
+        return;
+    }
+
+    if (status === 'offline') {
+        badge.textContent = 'Engine offline';
+        badge.className = 'stale-data stale-data-offline';
+        banner.className = 'data-freshness-banner data-freshness-banner-offline';
+        banner.textContent = mins != null
+            ? 'Datos desactualizados: engine inactivo. Ultima actualizacion hace ' + mins + ' min.'
+            : 'Datos desactualizados: engine inactivo.';
+    } else {
+        badge.textContent = mins != null ? 'Precios ' + mins + 'm atrasados' : 'Precios atrasados';
+        badge.className = 'stale-data';
+        banner.className = 'data-freshness-banner data-freshness-banner-stale';
+        banner.textContent = mins != null
+            ? 'Datos desactualizados: precios con ' + mins + ' min de retraso.'
+            : 'Datos desactualizados: sin confirmacion reciente de precios.';
+    }
+
+    badge.style.display = 'inline';
+    banner.style.display = 'block';
 }
 
 function updatePreclose(preclose) {
@@ -1582,6 +1607,7 @@ async function fetchAll() {
             _fetchRetries = 0;
             clearStartupRetry();
             document.getElementById('offline-banner').style.display = 'none';
+            updateStalePriceWarning(null);
             showStartupLoading(stateData.message || 'HYDRA iniciando...');
             countdownSec = Math.ceil(STARTING_RETRY_MS / 1000);
             scheduleStartupRetry();
@@ -1591,6 +1617,7 @@ async function fetchAll() {
         if (stateData.status === 'offline') {
             hideStartupLoading();
             clearStartupRetry();
+            updateStalePriceWarning(null);
             const banner = document.getElementById('offline-banner');
             banner.style.display = 'block';
             banner.textContent = _fetchRetries > 0
@@ -1609,7 +1636,7 @@ async function fetchAll() {
             lastPortfolioData = stateData;
             const p = stateData.portfolio;
             updateStatusBar(p);
-            updateStalePriceWarning(stateData.price_data_age_seconds);
+            updateStalePriceWarning(stateData._data_freshness);
             updateCards(p);
             updateRegimeBand(p);
             updatePerfBanner(p);
@@ -3854,7 +3881,7 @@ function refreshDashboard() {
         var d = lastPortfolioData;
         var p = d.portfolio;
         updateStatusBar(p);
-        updateStalePriceWarning(d.price_data_age_seconds);
+        updateStalePriceWarning(d._data_freshness);
         updateCards(p);
         updateRegimeBand(p);
         updatePerfBanner(p);
