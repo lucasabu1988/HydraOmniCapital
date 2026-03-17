@@ -841,6 +841,7 @@ class COMPASSLive:
         self._cycle_log_lock = threading.Lock()
         self._state_positions_snapshot = {}
         self._state_cash_snapshot = float(config['PAPER_INITIAL_CASH'])
+        self._last_audit_positions = set()
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
         self._startup_self_test_done = False
@@ -3364,6 +3365,59 @@ class COMPASSLive:
                 total += shares * avg_cost
         return total
 
+    def _validate_position_meta(self, meta, positions):
+        cleaned = {}
+        today_str = date.today().isoformat()
+        for symbol, entry in meta.items():
+            if symbol not in positions:
+                logger.warning(f"position_meta: removing stale symbol {symbol} (not in positions)")
+                continue
+            if not isinstance(entry, dict):
+                entry = {}
+            # entry_price
+            try:
+                ep = float(entry.get('entry_price', 0))
+                if ep <= 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                logger.warning(f"position_meta[{symbol}]: invalid entry_price={entry.get('entry_price')!r}, resetting to 0.0")
+                ep = 0.0
+            entry['entry_price'] = ep
+            # entry_date
+            ed = entry.get('entry_date')
+            try:
+                if not isinstance(ed, str) or not ed:
+                    raise ValueError
+                date.fromisoformat(ed)
+            except (TypeError, ValueError):
+                logger.warning(f"position_meta[{symbol}]: invalid entry_date={ed!r}, resetting to {today_str}")
+                entry['entry_date'] = today_str
+            # sector
+            sector = entry.get('sector')
+            if not isinstance(sector, str) or not sector.strip():
+                logger.warning(f"position_meta[{symbol}]: invalid sector={sector!r}, resetting to 'Unknown'")
+                entry['sector'] = 'Unknown'
+            # entry_vol
+            if 'entry_vol' in entry:
+                try:
+                    ev = float(entry['entry_vol'])
+                    if ev < 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    logger.warning(f"position_meta[{symbol}]: invalid entry_vol={entry['entry_vol']!r}, resetting to 0.01")
+                    entry['entry_vol'] = 0.01
+            # entry_daily_vol
+            if 'entry_daily_vol' in entry:
+                try:
+                    edv = float(entry['entry_daily_vol'])
+                    if edv < 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    logger.warning(f"position_meta[{symbol}]: invalid entry_daily_vol={entry['entry_daily_vol']!r}, resetting to 0.01")
+                    entry['entry_daily_vol'] = 0.01
+            cleaned[symbol] = entry
+        return cleaned
+
     def _build_position_meta_defaults(self, symbol: str, data: dict,
                                       trading_day_counter: int,
                                       entry_date: Optional[str]) -> dict:
@@ -3850,11 +3904,46 @@ class COMPASSLive:
         self._last_state_save = datetime.now()
         return True
 
+    def _append_audit_log(self, event_type, details):
+        try:
+            os.makedirs('state', exist_ok=True)
+            audit_path = 'state/audit_log.jsonl'
+            portfolio = self.broker.get_portfolio()
+            entry = json.dumps({
+                'timestamp': datetime.now().isoformat(),
+                'event_type': event_type,
+                'details': details,
+                'portfolio_value': portfolio.total_value,
+                'num_positions': len(self.broker.positions),
+            }, default=str)
+            with open(audit_path, 'a') as f:
+                f.write(entry + '\n')
+            # Cap at 10,000 lines
+            try:
+                with open(audit_path, 'r') as f:
+                    lines = f.readlines()
+                if len(lines) > 10_000:
+                    with open(audit_path, 'w') as f:
+                        f.writelines(lines[-10_000:])
+            except Exception:
+                pass
+        except Exception as e:
+            logger.debug(f"Audit log write failed: {e}")
+
     def save_state(self):
         """Save full system state to JSON"""
         with self._state_save_lock:
             portfolio = self.broker.get_portfolio()
             closed_cycles = self._get_closed_cycle_count()
+
+            # Audit trail: detect position changes
+            current_positions = set(self.broker.positions.keys())
+            added = sorted(current_positions - self._last_audit_positions)
+            removed = sorted(self._last_audit_positions - current_positions)
+            if added or removed:
+                self._append_audit_log('position_change', {'added': added, 'removed': removed})
+            self._last_audit_positions = set(current_positions)
+
             state = {
                 'version': '8.4',
                 'timestamp': datetime.now().isoformat(),
@@ -4089,8 +4178,10 @@ class COMPASSLive:
             if abs(broker_cash - json_cash) > 100:
                 logger.warning(f"Cash mismatch: broker=${broker_cash:,.0f} vs state=${json_cash:,.0f}")
 
-        # Restore position metadata
-        self.position_meta = state.get('position_meta', {})
+        # Restore position metadata (validated and cleaned)
+        raw_meta = state.get('position_meta', {})
+        active_positions = self.broker.get_positions() if not is_paper else self.broker.positions
+        self.position_meta = self._validate_position_meta(raw_meta, active_positions)
 
         # Restore universe
         self.current_universe = state.get('current_universe', [])
