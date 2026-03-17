@@ -838,6 +838,7 @@ class COMPASSLive:
         self._last_persisted_cycles_completed = None
         self._last_persisted_trading_day_counter = None
         self._state_save_lock = threading.RLock()
+        self._cycle_log_lock = threading.Lock()
         self._state_positions_snapshot = {}
         self._state_cash_snapshot = float(config['PAPER_INITIAL_CASH'])
         self._daily_open_done = False
@@ -3063,6 +3064,10 @@ class COMPASSLive:
         Uses close prices for all values: portfolio end = cash + sum(shares * close),
         SPY benchmark = SPY close. Cycle N+1 start = Cycle N end (no gaps).
         """
+        with self._cycle_log_lock:
+            self._update_cycle_log_inner(prices)
+
+    def _update_cycle_log_inner(self, prices: Dict[str, float]):
         log_file = os.path.join('state', 'cycle_log.json')
         today = self.get_et_now().date().isoformat()
 
@@ -3184,6 +3189,10 @@ class COMPASSLive:
 
     def _ensure_active_cycle(self):
         """On startup, ensure cycle_log.json has an active cycle if we hold positions."""
+        with self._cycle_log_lock:
+            self._ensure_active_cycle_inner()
+
+    def _ensure_active_cycle_inner(self):
         if not self.broker.positions:
             return
 
@@ -3253,6 +3262,14 @@ class COMPASSLive:
         Records the stop event and updates positions_current so the dashboard
         shows the actual current holdings, not just the cycle-start snapshot.
         """
+        with self._cycle_log_lock:
+            self._update_cycle_log_stop_inner(
+                stopped_symbol, replacement_symbol, exit_reason,
+                stop_return, stop_details)
+
+    def _update_cycle_log_stop_inner(self, stopped_symbol: str, replacement_symbol: str,
+                                      exit_reason: str, stop_return: float,
+                                      stop_details: dict = None):
         log_file = os.path.join('state', 'cycle_log.json')
         if not os.path.exists(log_file):
             return
@@ -4270,13 +4287,12 @@ class COMPASSLive:
                     self._last_stop_check = now
 
             # Check for stale orders (order timeout)
-            if hasattr(self.broker, 'check_stale_orders'):
-                stale = self.broker.check_stale_orders(
-                    self.config.get('ORDER_TIMEOUT_SECONDS', 300)
-                )
+            try:
+                stale = self.broker.check_stale_orders()
                 if stale:
-                    logger.warning(f"Cancelled {len(stale)} stale orders: "
-                                  f"{', '.join(o.symbol for o in stale)}")
+                    logger.warning(f"Cancelled {len(stale)} stale orders: {[o.symbol for o in stale]}")
+            except Exception as e:
+                logger.warning(f"check_stale_orders failed: {e}")
 
             # Periodic state save
             now = datetime.now()

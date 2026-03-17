@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -279,3 +280,32 @@ def test_order_history_tracks_each_fill_in_sequence():
 
     assert len(broker.order_history) == 2
     assert [order.action for order in broker.order_history] == ['BUY', 'SELL']
+
+
+def test_check_stale_orders_cancels_old_submitted_orders():
+    broker, _ = make_broker(initial_cash=5_000)
+    order = Order(symbol='AAPL', action='BUY', quantity=1)
+    order.order_id = 'STALE_1'
+    order.status = 'SUBMITTED'
+    order.submitted_at = datetime.now() - timedelta(seconds=400)
+    broker.orders['STALE_1'] = order
+
+    stale = broker.check_stale_orders(max_age=300)
+
+    assert len(stale) == 1
+    assert stale[0].symbol == 'AAPL'
+    assert stale[0].status == 'CANCELLED'
+
+
+def test_check_stale_orders_ignores_recent_orders():
+    broker, _ = make_broker(initial_cash=5_000)
+    order = Order(symbol='AAPL', action='BUY', quantity=1)
+    order.order_id = 'FRESH_1'
+    order.status = 'SUBMITTED'
+    order.submitted_at = datetime.now() - timedelta(seconds=10)
+    broker.orders['FRESH_1'] = order
+
+    stale = broker.check_stale_orders(max_age=300)
+
+    assert len(stale) == 0
+    assert order.status == 'SUBMITTED'
