@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import glob
+import re
 import subprocess
 import threading
 import time as time_module
@@ -58,6 +59,12 @@ def _configure_local_git_sync():
         logger.info("Local git auto-sync disabled via DISABLE_GIT_SYNC=%s", disabled)
     else:
         logger.info("Local git auto-sync enabled explicitly (DISABLE_GIT_SYNC=%s)", disabled)
+
+
+def _validate_param(value, pattern, name):
+    if not re.match(pattern, value or ''):
+        return jsonify({'error': f'invalid parameter: {name}'}), 400
+    return None
 
 # ============================================================================
 # COMPASS v8.4 PARAMETERS (read-only reference, must match omnicapital_live.py)
@@ -1319,6 +1326,57 @@ def api_state():
 def api_health():
     state = read_state()
     return jsonify(_build_health_payload(state))
+
+
+@app.route('/api/price-debug')
+def api_price_debug():
+    """Diagnostic endpoint — test Yahoo Finance connectivity locally."""
+    test_sym = request.args.get('symbol', 'AAPL')
+    err = _validate_param(test_sym, r'^[A-Z]{1,5}$', 'symbol')
+    if err:
+        return err
+
+    diag = {
+        'server_time': datetime.now().isoformat(),
+        'has_requests': True,
+        'consecutive_failures': 0,
+        'cache_age_seconds': None,
+        'cached_symbols': list(_price_cache.keys()),
+        'showcase_mode': False,
+        'tests': {},
+    }
+    if _price_cache_time:
+        diag['cache_age_seconds'] = round((datetime.now() - _price_cache_time).total_seconds(), 1)
+
+    try:
+        ticker = yf.Ticker(test_sym)
+        diag['tests']['crumb_obtained'] = False
+        try:
+            fast_info = ticker.fast_info
+            price = getattr(fast_info, 'last_price', None)
+            if price is None and isinstance(fast_info, dict):
+                price = fast_info.get('last_price')
+            diag['tests']['v7_status'] = 200 if price else None
+            diag['tests']['v7_price'] = float(price) if price else None
+        except Exception as e:
+            diag['tests']['v7_error'] = str(e)
+    except Exception as e:
+        diag['tests']['v7_error'] = str(e)
+
+    try:
+        url = f'https://query1.finance.yahoo.com/v8/finance/chart/{test_sym}'
+        r = http_requests.get(url, params={'range': '1d', 'interval': '1d'}, timeout=10)
+        diag['tests']['v8_status'] = r.status_code
+        if r.status_code == 200:
+            data = r.json()
+            meta = data.get('chart', {}).get('result', [{}])[0].get('meta', {})
+            diag['tests']['v8_price'] = meta.get('regularMarketPrice')
+        else:
+            diag['tests']['v8_body'] = r.text[:300]
+    except Exception as e:
+        diag['tests']['v8_error'] = str(e)
+
+    return jsonify(diag)
 
 
 @app.route('/api/logs')
@@ -2890,6 +2948,59 @@ def api_overlay_status():
     })
 
 
+@app.route('/api/execution-stats')
+def api_execution_stats():
+    try:
+        state = read_state()
+        order_history = state.get('order_history', []) if state else []
+
+        if not order_history:
+            audit_pattern = os.path.join(STATE_DIR, '..', 'logs', 'ibkr_audit_*.json')
+            audit_files = sorted(glob.glob(audit_pattern))
+            for af in audit_files[-5:]:
+                try:
+                    with open(af, 'r') as f:
+                        data = json.load(f)
+                    if isinstance(data, list):
+                        order_history.extend(data)
+                    elif isinstance(data, dict) and 'orders' in data:
+                        order_history.extend(data['orders'])
+                except (json.JSONDecodeError, IOError):
+                    continue
+
+        total_orders = len(order_history)
+        filled = [o for o in order_history if o.get('status') == 'filled']
+        fill_rate = len(filled) / total_orders if total_orders > 0 else 0.0
+
+        deviations = []
+        for o in filled:
+            expected = o.get('expected_price')
+            actual = o.get('fill_price')
+            if expected and actual and expected != 0:
+                deviations.append(abs(actual - expected) / expected * 100)
+        avg_deviation = sum(deviations) / len(deviations) if deviations else 0.0
+
+        stale_cancelled = sum(
+            1 for o in order_history
+            if o.get('status') == 'cancelled' and o.get('reason') == 'stale'
+        )
+
+        return jsonify({
+            'total_orders': total_orders,
+            'fill_rate': round(fill_rate, 4),
+            'avg_fill_deviation_pct': round(avg_deviation, 4),
+            'stale_orders_cancelled': stale_cancelled,
+        })
+    except Exception as e:
+        logger.error('Error in /api/execution-stats: %s', e)
+        return jsonify({
+            'total_orders': 0,
+            'fill_rate': 0.0,
+            'avg_fill_deviation_pct': 0.0,
+            'stale_orders_cancelled': 0,
+        })
+
+
 
 
 def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
@@ -3087,6 +3198,60 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
             f.write(md)
     except Exception as e:
         logger.warning(f"_maybe_regenerate_interpretation failed: {e}")
+
+
+@app.route('/api/ml-diagnostics')
+def api_ml_diagnostics():
+    ml_dir = os.path.join(STATE_DIR, 'ml_learning')
+    try:
+        if not os.path.isdir(ml_dir):
+            return jsonify({'phase': 0, 'error': 'ML not initialized'}), 200
+
+        decisions_path = os.path.join(ml_dir, 'decisions.jsonl')
+        outcomes_path = os.path.join(ml_dir, 'outcomes.jsonl')
+
+        total_decisions = 0
+        last_decision_date = None
+        if os.path.exists(decisions_path):
+            with open(decisions_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        total_decisions += 1
+                        try:
+                            rec = json.loads(line)
+                            ts = rec.get('timestamp', rec.get('date', ''))
+                            if ts:
+                                last_decision_date = str(ts)[:10]
+                        except Exception:
+                            pass
+
+        total_outcomes = 0
+        if os.path.exists(outcomes_path):
+            with open(outcomes_path, 'r') as f:
+                for line in f:
+                    if line.strip():
+                        total_outcomes += 1
+
+        files_ok = os.path.exists(decisions_path) and os.path.exists(outcomes_path)
+
+        if total_decisions >= 252:
+            phase = 3
+        elif total_decisions >= 63:
+            phase = 2
+        else:
+            phase = 1
+
+        return jsonify({
+            'phase': phase,
+            'total_decisions': total_decisions,
+            'total_outcomes': total_outcomes,
+            'last_decision_date': last_decision_date,
+            'files_ok': files_ok,
+        }), 200
+    except Exception as e:
+        logger.error(f"/api/ml-diagnostics error: {e}", exc_info=True)
+        return jsonify({'phase': 0, 'error': str(e)}), 200
 
 
 @app.route('/api/ml-learning')

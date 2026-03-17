@@ -201,6 +201,7 @@ HYDRA_CONFIG = {
 
 STATE_FILE = 'state/compass_state_latest.json'
 STATE_DIR = os.environ.get('STATE_DIR', 'state')
+LOG_DIR = os.environ.get('LOG_DIR', 'logs')
 SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
 GITHUB_STATE_URL = 'https://raw.githubusercontent.com/lucasabu1988/NuevoProyecto/main/state/compass_state_latest.json'
 
@@ -237,6 +238,9 @@ _risk_cache_time = None
 RISK_CACHE_SECONDS = 300
 _risk_cache_lock = threading.Lock()
 _montecarlo_lock = threading.Lock()
+_data_quality_cache = None
+_data_quality_cache_time = None
+DATA_QUALITY_CACHE_SECONDS = 1800
 
 # ============================================================================
 # DATA PRELOAD (at import time — shared across gunicorn workers via --preload)
@@ -657,6 +661,67 @@ def _build_health_payload(engine, state):
             'last_push_at': None,
         },
     }
+
+
+# ============================================================================
+# LOG READER
+# ============================================================================
+
+def read_recent_logs(max_lines: int = 50) -> List[dict]:
+    """Read recent log entries from today's log file."""
+    today_str = datetime.now().strftime('%Y%m%d')
+    log_file = os.path.join(LOG_DIR, f'compass_live_{today_str}.log')
+
+    if not os.path.exists(log_file):
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
+        log_file = os.path.join(LOG_DIR, f'compass_live_{yesterday}.log')
+        if not os.path.exists(log_file):
+            files = glob.glob(os.path.join(LOG_DIR, 'compass_live_*.log'))
+            if not files:
+                return []
+            log_file = max(files, key=os.path.getmtime)
+
+    try:
+        with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()
+
+        noise_patterns = (
+            '"GET /', '"POST /', '"PUT /', '"DELETE /',
+            'HTTP/1.', 'Running on', 'Press CTRL+C',
+            'WARNING: This is a development server',
+            'Use a production WSGI server',
+            'Restarting with', 'Debugger is',
+        )
+
+        entries = []
+        for line in lines[-max_lines * 3:]:
+            line = line.strip()
+            if not line:
+                continue
+
+            entry = {'raw': line, 'level': 'INFO', 'message': line, 'timestamp': ''}
+
+            parts = line.split(' - ', 2)
+            if len(parts) >= 3:
+                entry['timestamp'] = parts[0].strip()
+                entry['level'] = parts[1].strip()
+                entry['message'] = parts[2].strip()
+            elif len(parts) == 2:
+                entry['timestamp'] = parts[0].strip()
+                entry['message'] = parts[1].strip()
+
+            msg = entry['message']
+            if any(pat in line for pat in noise_patterns):
+                continue
+            if msg.startswith('/api/') or ' 200 ' in msg or ' 304 ' in msg:
+                continue
+
+            entries.append(entry)
+
+        return entries[-max_lines:]
+    except Exception as e:
+        logger.warning(f"read_recent_logs failed: {e}")
+        return []
 
 
 # ============================================================================
@@ -2740,14 +2805,30 @@ def api_health():
     return jsonify(_build_health_payload(engine, state))
 
 
+@app.route('/api/logs')
+def api_logs():
+    """Return recent log entries."""
+    logs = read_recent_logs(max_lines=80)
+    return jsonify({'logs': logs})
+
+
 @app.route('/api/data-quality')
 def api_data_quality():
-    """Data quality scorecard — stub for showcase mode."""
-    return jsonify({
-        'mode': 'showcase',
-        'message': 'Data quality monitoring available in live deployment only.',
-        'checks': {},
-    })
+    """Return data pipeline quality scorecard."""
+    global _data_quality_cache, _data_quality_cache_time
+    now = datetime.now()
+    if _data_quality_cache and _data_quality_cache_time and \
+       (now - _data_quality_cache_time).total_seconds() < DATA_QUALITY_CACHE_SECONDS:
+        return jsonify(_data_quality_cache)
+    try:
+        from compass_data_pipeline import COMPASSDataPipeline
+        dp = COMPASSDataPipeline()
+        results = dp.run_all()
+        _data_quality_cache = results
+        _data_quality_cache_time = now
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 
 @app.route('/api/execution-microstructure')
@@ -2817,11 +2898,21 @@ def api_execution_stats():
 @app.route('/api/overlay-status')
 def api_overlay_status():
     """Return current overlay signals and diagnostics."""
-    state = read_state()
-    if not state:
-        return jsonify({'available': False, 'error': 'No state file'})
-
-    overlay = state.get('overlay', {})
+    engine = _cloud_engine
+    overlay = {}
+    if engine and hasattr(engine, '_overlay_available'):
+        overlay = {
+            'available': engine._overlay_available,
+            'capital_scalar': engine._overlay_result.get('capital_scalar', 1.0) if engine._overlay_result else 1.0,
+            'per_overlay': engine._overlay_result.get('per_overlay_scalars', {}) if engine._overlay_result else {},
+            'position_floor': engine._overlay_result.get('position_floor') if engine._overlay_result else None,
+            'diagnostics': engine._overlay_result.get('diagnostics', {}) if engine._overlay_result else {},
+        }
+    else:
+        state = read_state()
+        if not state:
+            return jsonify({'available': False, 'error': 'No state file'})
+        overlay = state.get('overlay', {})
 
     # Color coding for scalar
     scalar = overlay.get('capital_scalar', 1.0)
@@ -3311,22 +3402,63 @@ def robots_txt():
     )
 
 
+@app.route('/api/agent-scratchpad')
 @app.route('/api/agent/scratchpad')
 def api_agent_scratchpad():
-    """Read today's agent scratchpad entries (read-only)."""
+    """Return HYDRA agent scratchpad entries."""
     today = datetime.now().strftime('%Y-%m-%d')
-    sp_path = os.path.join(STATE_DIR, 'agent_scratchpad', f'{today}.jsonl')
+    day = request.args.get('date', today)
+    sp_dir = os.path.join(STATE_DIR, 'agent_scratchpad')
+    sp_path = os.path.join(sp_dir, f'{day}.jsonl')
     entries = []
     if os.path.exists(sp_path):
-        with open(sp_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
+        try:
+            with open(sp_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
                         entries.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
-    return jsonify(entries)
+        except Exception as e:
+            logger.warning(f"api_agent_scratchpad failed: {e}")
+
+    available = []
+    if os.path.isdir(sp_dir):
+        available = sorted(
+            [
+                f.replace('.jsonl', '')
+                for f in os.listdir(sp_dir)
+                if f.endswith('.jsonl')
+            ],
+            reverse=True,
+        )
+
+    return jsonify({
+        'date': day,
+        'entries': entries,
+        'available_dates': available[:30],
+    })
+
+
+@app.route('/api/agent-heartbeat')
+def api_agent_heartbeat():
+    """Return HYDRA agent heartbeat status."""
+    hb_path = os.path.join(STATE_DIR, 'agent_heartbeat.json')
+    if not os.path.exists(hb_path):
+        return jsonify({'alive': False, 'message': 'No heartbeat file found'})
+    try:
+        with open(hb_path, 'r') as f:
+            data = json.load(f)
+        ts = data.get('ts', '')
+        if ts:
+            last_beat = datetime.fromisoformat(ts)
+            age_seconds = (datetime.now() - last_beat).total_seconds()
+            data['alive'] = age_seconds < 120
+            data['age_seconds'] = round(age_seconds)
+        else:
+            data['alive'] = False
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'alive': False, 'error': str(e)})
 
 
 @app.route('/sitemap.xml')
