@@ -238,15 +238,18 @@ def _backtest_scheduler_loop():
                 except subprocess.TimeoutExpired:
                     _backtest_status['last_result'] = 'timeout (1h)'
                     print("[Backtest Scheduler] Daily update timed out.")
+                    logger.error('Backtest scheduler daily update timed out', exc_info=True)
                 except Exception as e:
                     _backtest_status['last_result'] = str(e)
                     print(f"[Backtest Scheduler] Error: {e}")
+                    logger.error('Backtest scheduler daily update failed', exc_info=True)
                 finally:
                     _backtest_status['running'] = False
                     _backtest_status['completed_at'] = datetime.now().isoformat()
 
         except Exception as e:
             print(f"[Backtest Scheduler] Loop error: {e}")
+            logger.error('Backtest scheduler loop failed', exc_info=True)
 
         # Check every 5 minutes
         time_module.sleep(300)
@@ -322,6 +325,7 @@ def _run_live_engine():
                         trader.notifier = WhatsAppNotifier(**wa_cfg)
                         logger.info("WhatsApp notifications enabled")
                     except ImportError:
+                        logger.warning('Falling back to legacy WhatsApp notifier import', exc_info=True)
                         from omnicapital_notifications import WhatsAppNotifier
                         trader.notifier = WhatsAppNotifier(**wa_cfg)
 
@@ -333,10 +337,11 @@ def _run_live_engine():
                             from compass.notifications import EmailNotifier
                             trader.notifier = EmailNotifier(**email_cfg)
                         except ImportError:
+                            logger.warning('Falling back to legacy Email notifier import', exc_info=True)
                             from omnicapital_notifications import EmailNotifier
                             trader.notifier = EmailNotifier(**email_cfg)
         except Exception as e:
-            logger.warning(f"Notification setup failed: {e}")
+            logger.warning("Notification setup failed: %s", e, exc_info=True)
 
         # Connect broker
         trader.broker.connect()
@@ -389,6 +394,7 @@ def _run_live_engine():
 
             except Exception as e:
                 _engine_status['error'] = str(e)
+                logger.error('Local engine loop iteration failed: %s', e, exc_info=True)
                 time_module.sleep(10)
 
         # Final save
@@ -396,6 +402,7 @@ def _run_live_engine():
 
     except Exception as e:
         _engine_status['error'] = f'Engine crash: {str(e)}'
+        logger.error('Local engine crashed: %s', e, exc_info=True)
     finally:
         _engine_status['running'] = False
         _live_engine = None
@@ -553,9 +560,11 @@ def _coerce_health_timestamp(value):
         try:
             return datetime.fromisoformat(value).isoformat()
         except ValueError:
+            logger.warning('Failed to parse datetime value=%r', value, exc_info=True)
             try:
                 return datetime.combine(date.fromisoformat(value), dtime.min).isoformat()
             except ValueError:
+                logger.warning('Failed to parse date value=%r', value, exc_info=True)
                 return value
     return str(value)
 
@@ -579,6 +588,7 @@ def _health_uptime_minutes(state):
             started = datetime.fromisoformat(started_at)
             return round((datetime.now() - started).total_seconds() / 60, 2)
         except (TypeError, ValueError):
+            logger.warning('Failed to parse engine started_at=%r', started_at, exc_info=True)
             return None
     return None
 
@@ -651,6 +661,7 @@ def _build_health_payload(state):
         try:
             state_last_modified = datetime.fromtimestamp(os.path.getmtime(STATE_FILE)).isoformat()
         except OSError:
+            logger.warning('Failed to read state mtime for %s', STATE_FILE, exc_info=True)
             state_last_modified = None
 
     engine_running = bool(_engine_status.get('running'))
@@ -780,6 +791,7 @@ def read_recent_logs(max_lines: int = 50) -> List[dict]:
         return entries[-max_lines:]  # return only the last N after filtering
 
     except (IOError, OSError):
+        logger.error('Failed to read recent logs from %s', log_path, exc_info=True)
         return []
 
 
@@ -835,6 +847,7 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
                 days_held = 1 + sum(1 for d in range(1, total_days + 1)
                                     if (entry_dt + timedelta(days=d)).weekday() < 5)
             except Exception:
+                logger.warning('Failed to parse entry_date=%r for position %s', entry_date, sym, exc_info=True)
                 days_held = trading_day - entry_day_index + 1
         else:
             days_held = trading_day - entry_day_index + 1
@@ -954,6 +967,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float]) -> dict:
     try:
         current_mtime = os.path.getmtime(STATE_FILE)
     except OSError:
+        logger.warning('Failed to read metrics cache mtime for %s', STATE_FILE, exc_info=True)
         current_mtime = None
 
     if (_metrics_cache is not None
@@ -995,6 +1009,7 @@ def _compute_portfolio_metrics_impl(state: dict, prices: Dict[str, float]) -> di
                 else:
                     price = prices.get(sym, entry_price)
             except Exception:
+                logger.warning('Failed to parse intraday entry_date=%r for %s', entry_date, sym, exc_info=True)
                 price = prices.get(sym, entry_price)
         else:
             price = prices.get(sym, pos.get('avg_cost', 0))
@@ -1416,8 +1431,10 @@ def api_price_debug():
             diag['tests']['v7_status'] = 200 if price else None
             diag['tests']['v7_price'] = float(price) if price else None
         except Exception as e:
+            logger.warning('Yahoo v7 diagnostics request failed', exc_info=True)
             diag['tests']['v7_error'] = str(e)
     except Exception as e:
+        logger.warning('Yahoo v7 diagnostics bootstrap failed', exc_info=True)
         diag['tests']['v7_error'] = str(e)
 
     try:
@@ -1431,6 +1448,7 @@ def api_price_debug():
         else:
             diag['tests']['v8_body'] = r.text[:300]
     except Exception as e:
+        logger.warning('Yahoo v8 diagnostics request failed', exc_info=True)
         diag['tests']['v8_error'] = str(e)
 
     return jsonify(diag)
@@ -1656,6 +1674,7 @@ def _read_backtest_csv(csv_path):
     try:
         current_mtime = os.path.getmtime(csv_path)
     except OSError:
+        logger.warning('Failed to read backtest CSV mtime for %s', csv_path, exc_info=True)
         return _backtest_csv_cache.get(csv_path)
 
     if csv_path in _backtest_csv_cache and _backtest_csv_mtimes.get(csv_path) == current_mtime:
@@ -1781,6 +1800,7 @@ def api_equity_comparison():
         df = _read_backtest_csv(csv_path)
         spy_df = _read_backtest_csv(SPY_BENCHMARK_CSV)
     except Exception as e:
+        logger.error('Failed to read equity CSV inputs', exc_info=True)
         return jsonify({'error': f'Failed to read CSV: {str(e)}'})
 
     val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
@@ -1938,6 +1958,7 @@ def api_fund_comparison():
                     }
             return jsonify(data)
         except Exception as e:
+            logger.error('Failed to load fund comparison data', exc_info=True)
             return jsonify({'error': f'Failed to load fund comparison: {str(e)}'})
     return jsonify({
         'funds': [], 'crisis_periods': [], 'notes': [
@@ -2041,7 +2062,7 @@ def api_preflight():
             ts = datetime.fromisoformat(state['timestamp'])
             state_age_seconds = (datetime.now() - ts).total_seconds()
         except (ValueError, TypeError):
-            pass
+            logger.warning('Failed to parse state timestamp=%r', state.get('timestamp'), exc_info=True)
 
     checks['live_system'] = {
         'ok': live_running,
@@ -2238,6 +2259,7 @@ def _coerce_rss_pubdate(pub_date_raw):
         dt = parsedate_to_datetime(pub_date_raw)
         return dt.isoformat()
     except Exception:
+        logger.warning('Failed to parse RSS publication date %r', pub_date_raw, exc_info=True)
         return pub_date_raw
 
 
@@ -2519,6 +2541,7 @@ def _fetch_seekingalpha_news(symbols: List[str], max_per: int = 2) -> List[dict]
                         dt = parsedate_to_datetime(pub_date_raw)
                         pub_iso = dt.isoformat()
                     except Exception:
+                        logger.warning('Failed to parse Google RSS publication date %r', pub_date_raw, exc_info=True)
                         pub_iso = pub_date_raw
 
                 if len(title) > 150:
@@ -2584,6 +2607,7 @@ def _fetch_sec_filings(symbols: List[str], max_per: int = 2) -> List[dict]:
                     try:
                         pub_iso = datetime.strptime(file_date, '%Y-%m-%d').isoformat()
                     except Exception:
+                        logger.warning('Failed to parse MarketWatch file date %r', file_date, exc_info=True)
                         pub_iso = file_date
 
                 if len(title) > 150:
@@ -2636,6 +2660,7 @@ def _fetch_google_news(symbols: List[str], max_per: int = 2) -> List[dict]:
                         dt = parsedate_to_datetime(pub_date_raw)
                         pub_iso = dt.isoformat()
                     except Exception:
+                        logger.warning('Failed to parse Reddit publication date %r', pub_date_raw, exc_info=True)
                         pub_iso = pub_date_raw
 
                 # Clean title (Google News appends " - Source Name")
@@ -2688,6 +2713,7 @@ def _fetch_marketwatch_news(max_items: int = 5) -> List[dict]:
                     dt = parsedate_to_datetime(pub_date_raw)
                     pub_iso = dt.isoformat()
                 except Exception:
+                    logger.warning('Failed to parse Google News publication date %r', pub_date_raw, exc_info=True)
                     pub_iso = pub_date_raw
 
             if len(title) > 150:
@@ -2883,6 +2909,7 @@ def api_montecarlo():
             _montecarlo_cache_signature = signature
         return jsonify(results)
     except Exception as e:
+        logger.error('Monte Carlo endpoint failed', exc_info=True)
         return jsonify({'error': str(e)})
 
 
@@ -2902,6 +2929,7 @@ def api_trade_analytics():
         _trade_analytics_cache_time = now
         return jsonify(results)
     except Exception as e:
+        logger.error('Trade analytics endpoint failed', exc_info=True)
         return jsonify({'error': str(e)})
 
 
@@ -2921,6 +2949,7 @@ def api_data_quality():
         _data_quality_cache_time = now
         return jsonify(results)
     except Exception as e:
+        logger.error('Data quality endpoint failed', exc_info=True)
         return jsonify({'error': str(e)})
 
 
@@ -2940,6 +2969,7 @@ def api_execution_microstructure():
         _exec_micro_cache_time = now
         return jsonify(results)
     except Exception as e:
+        logger.error('Execution microstructure endpoint failed', exc_info=True)
         return jsonify({'error': str(e)})
 
 
@@ -3044,6 +3074,7 @@ def api_execution_stats():
                     elif isinstance(data, dict) and 'orders' in data:
                         order_history.extend(data['orders'])
                 except (json.JSONDecodeError, IOError):
+                    logger.warning('Skipping unreadable audit order file %s', af, exc_info=True)
                     continue
 
         total_orders = len(order_history)
@@ -3090,7 +3121,7 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
         if age_days < 5:
             return
     except OSError:
-        pass  # file missing → regenerate
+        logger.warning('Failed to inspect interpretation mtime at %s', interp_path, exc_info=True)
 
     # Count entries by type
     n_entries = sum(1 for r in entries if r.get('_type') == 'decision' and r.get('decision_type') == 'entry')
@@ -3302,7 +3333,7 @@ def api_ml_diagnostics():
                             if ts:
                                 last_decision_date = str(ts)[:10]
                         except Exception:
-                            pass
+                            logger.warning('Skipping malformed ML decision line while building /api/ml', exc_info=True)
 
         total_outcomes = 0
         if os.path.exists(outcomes_path):
@@ -3535,6 +3566,7 @@ def api_agent_heartbeat():
             data['alive'] = False
         return jsonify(data)
     except Exception as e:
+        logger.error('Engine status endpoint failed', exc_info=True)
         return jsonify({'alive': False, 'error': str(e)})
 
 

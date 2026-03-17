@@ -37,6 +37,10 @@ try:
     logging.getLogger('yfinance').setLevel(logging.CRITICAL)
     _HAS_YFINANCE = True
 except ImportError:
+    logging.getLogger(__name__).warning(
+        'yfinance import unavailable in cloud dashboard',
+        exc_info=True,
+    )
     _HAS_YFINANCE = False
 
 try:
@@ -44,12 +48,20 @@ try:
     import xml.etree.ElementTree as XmlET
     _HAS_REQUESTS = True
 except ImportError:
+    logging.getLogger(__name__).warning(
+        'requests import unavailable in cloud dashboard',
+        exc_info=True,
+    )
     _HAS_REQUESTS = False
 
 try:
     import anthropic
     _HAS_ANTHROPIC = bool(os.environ.get('ANTHROPIC_API_KEY'))
 except ImportError:
+    logging.getLogger(__name__).warning(
+        'anthropic import unavailable in cloud dashboard',
+        exc_info=True,
+    )
     _HAS_ANTHROPIC = False
 
 # HYDRA engine (cloud paper trading — runs when local is offline)
@@ -325,7 +337,7 @@ def _yf_get_session():
                 logger.info('Yahoo Finance session established (crumb obtained)')
                 return _yf_session, _yf_crumb
         except Exception as e:
-            logger.warning(f'Failed to get Yahoo Finance crumb: {e}')
+            logger.warning('Failed to get Yahoo Finance crumb: %s', e, exc_info=True)
         return None, None
 
 
@@ -374,7 +386,7 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
                 _yf_reset_session()
                 logger.info('Yahoo Finance crumb expired, will refresh next call')
         except Exception as e:
-            logger.warning(f'Yahoo Finance v7 batch failed: {e}')
+            logger.warning('Yahoo Finance v7 batch failed: %s', e, exc_info=True)
 
     # Fallback: v8 chart API (one request per symbol, with spacing)
     for sym in symbols:
@@ -403,7 +415,7 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
             # Small delay between individual requests to avoid rate limiting
             time_module.sleep(0.15)
         except Exception as e:
-            logger.warning(f'Yahoo Finance {sym} fetch failed: {e}')
+            logger.warning('Yahoo Finance %s fetch failed: %s', sym, e, exc_info=True)
 
     # Circuit breaker: track consecutive failures
     if results:
@@ -476,6 +488,7 @@ def read_state() -> Optional[dict]:
                     continue
                 logger.warning('State file exists but contains invalid JSON after retry: %s', STATE_FILE)
             except IOError:
+                logger.error('Failed to read state file %s', STATE_FILE, exc_info=True)
                 break
     return None
 
@@ -546,9 +559,11 @@ def _coerce_health_timestamp(value):
         try:
             return datetime.fromisoformat(value).isoformat()
         except ValueError:
+            logger.warning('Failed to parse datetime value=%r', value, exc_info=True)
             try:
                 return datetime.combine(date.fromisoformat(value), dtime.min).isoformat()
             except ValueError:
+                logger.warning('Failed to parse date value=%r', value, exc_info=True)
                 return value
     return str(value)
 
@@ -569,6 +584,7 @@ def _health_uptime_seconds(engine, state):
             started = datetime.fromisoformat(started_at)
             return max(0, int(round((datetime.now() - started).total_seconds())))
         except (TypeError, ValueError):
+            logger.warning('Failed to parse engine started_at=%r', started_at, exc_info=True)
             return None
     return None
 
@@ -688,6 +704,7 @@ def _build_health_payload(engine, state):
         try:
             state_last_modified = datetime.fromtimestamp(os.path.getmtime(STATE_FILE)).isoformat()
         except OSError:
+            logger.warning('Failed to read state mtime for %s', STATE_FILE, exc_info=True)
             state_last_modified = None
 
     price_freshness = _price_freshness_snapshot()
@@ -779,8 +796,10 @@ def _engine_lock_owner_is_alive(owner_pid):
         os.kill(owner_pid, 0)
         return True
     except PermissionError:
+        logger.warning('Permission denied probing engine lock owner pid=%s', owner_pid, exc_info=True)
         return True
     except (OSError, ProcessLookupError):
+        logger.warning('Engine lock owner pid=%s is not alive', owner_pid, exc_info=True)
         return False
 
 
@@ -1005,7 +1024,7 @@ def _atomic_write_json(path, payload):
             try:
                 os.unlink(tmp_path)
             except OSError:
-                pass
+                logger.warning('Failed to delete temporary recovered state %s', tmp_path, exc_info=True)
 
 
 def _validate_recovered_state(state, source):
@@ -2514,6 +2533,7 @@ def api_equity_comparison():
         try:
             df = pd.read_csv(csv_path, parse_dates=['date'])
         except Exception as e:
+            logger.error('Failed to read equity CSV %s', csv_path, exc_info=True)
             return jsonify({'error': f'Failed to read CSV: {str(e)}'})
 
     if spy_df is None:
@@ -2522,6 +2542,7 @@ def api_equity_comparison():
         try:
             spy_df = pd.read_csv(SPY_BENCHMARK_CSV, parse_dates=['date'])
         except Exception as e:
+            logger.error('Failed to read SPY benchmark CSV %s', SPY_BENCHMARK_CSV, exc_info=True)
             return jsonify({'error': f'Failed to read SPY CSV: {str(e)}'})
 
     val_col = 'portfolio_value' if 'portfolio_value' in df.columns else 'value'
@@ -2760,6 +2781,7 @@ def api_montecarlo():
             _montecarlo_cache_signature = signature
         return jsonify(results)
     except Exception as e:
+        logger.error('Monte Carlo endpoint failed', exc_info=True)
         return jsonify({'error': f'Monte Carlo unavailable: {str(e)}'})
 
 
@@ -2775,6 +2797,7 @@ def api_trade_analytics():
         _trade_analytics_cache = ta.run_all()
         return jsonify(_trade_analytics_cache)
     except Exception as e:
+        logger.error('Trade analytics endpoint failed', exc_info=True)
         return jsonify({'error': f'Trade analytics unavailable: {str(e)}'})
 
 
@@ -2868,6 +2891,7 @@ def api_price_debug():
             else:
                 diag['tests']['v7_body'] = r.text[:300]
     except Exception as e:
+        logger.warning('Yahoo v7 diagnostics request failed', exc_info=True)
         diag['tests']['v7_error'] = str(e)
 
     # Test v8 chart API fallback
@@ -2882,6 +2906,7 @@ def api_price_debug():
         else:
             diag['tests']['v8_body'] = r.text[:300]
     except Exception as e:
+        logger.warning('Yahoo v8 diagnostics request failed', exc_info=True)
         diag['tests']['v8_error'] = str(e)
 
     return jsonify(diag)
@@ -2968,6 +2993,7 @@ def api_data_quality():
         _data_quality_cache_time = now
         return jsonify(results)
     except Exception as e:
+        logger.error('Data quality endpoint failed to run pipeline', exc_info=True)
         return jsonify({'error': str(e)})
 
 
@@ -3000,6 +3026,7 @@ def api_execution_stats():
                     elif isinstance(data, dict) and 'orders' in data:
                         order_history.extend(data['orders'])
                 except (json.JSONDecodeError, IOError):
+                    logger.warning('Skipping unreadable audit order file %s', af, exc_info=True)
                     continue
 
         total_orders = len(order_history)
@@ -3129,6 +3156,7 @@ def _should_regenerate_interpretation():
             if age_hours > 24:
                 return True
         except OSError:
+            logger.warning('Failed to inspect live interpretation mtime at %s', live_path, exc_info=True)
             return True
         return False
 
@@ -3330,7 +3358,7 @@ def api_ml_diagnostics():
                             if ts:
                                 last_decision_date = str(ts)[:10]
                         except Exception:
-                            pass
+                            logger.warning('Skipping malformed ML decision line while building /api/ml', exc_info=True)
 
         total_outcomes = 0
         if os.path.exists(outcomes_path):
@@ -3509,12 +3537,20 @@ def _api_ml_learning_impl():
         with open(os.path.join(ml_dir, 'interpretation_backtest.md'), 'r', encoding='utf-8') as f:
             interp_backtest = f.read()
     except FileNotFoundError:
-        pass
+        logger.warning(
+            'ML interpretation file missing: %s',
+            os.path.join(ml_dir, 'interpretation_backtest.md'),
+            exc_info=True,
+        )
     try:
         with open(os.path.join(ml_dir, 'interpretation_live.md'), 'r', encoding='utf-8') as f:
             interp_live = f.read()
     except FileNotFoundError:
-        pass
+        logger.warning(
+            'ML interpretation file missing: %s',
+            os.path.join(ml_dir, 'interpretation_live.md'),
+            exc_info=True,
+        )
 
     # Backwards compat: also read old single interpretation file
     interpretation = ''
@@ -3522,7 +3558,11 @@ def _api_ml_learning_impl():
         with open(os.path.join(ml_dir, 'interpretation.md'), 'r', encoding='utf-8') as f:
             interpretation = f.read()
     except FileNotFoundError:
-        pass
+        logger.warning(
+            'ML interpretation file missing: %s',
+            os.path.join(ml_dir, 'interpretation.md'),
+            exc_info=True,
+        )
 
     return jsonify({
         'log_entries': all_entries,
@@ -3601,6 +3641,7 @@ def api_agent_heartbeat():
             data['alive'] = False
         return jsonify(data)
     except Exception as e:
+        logger.error('Engine status endpoint failed', exc_info=True)
         return jsonify({'alive': False, 'error': str(e)})
 
 
@@ -3838,7 +3879,7 @@ def _ensure_cloud_engine():
             try:
                 os.unlink(lock_file)
             except OSError:
-                pass
+                logger.warning('Failed to remove stale cloud engine lock %s', lock_file, exc_info=True)
         else:
             lock_file = os.path.join(STATE_DIR, '.cloud_engine.lock')
             try:
@@ -3846,7 +3887,7 @@ def _ensure_cloud_engine():
                 if _engine_lock_owner_is_alive(owner_pid):
                     return  # Another worker still owns the engine
             except (ValueError, OSError, ProcessLookupError):
-                pass
+                logger.warning('Failed to verify existing cloud engine lock owner for %s', lock_file, exc_info=True)
             logger.warning("Cloud engine lock owner missing/dead — attempting takeover")
             _cloud_engine_started = False
 
@@ -3856,6 +3897,7 @@ def _ensure_cloud_engine():
         _claim_engine_lock(lock_file)
         _cloud_engine_started = True
     except FileExistsError:
+        logger.info('Cloud engine lock already exists, inspecting current owner')
         # Check if the owning PID is still alive
         try:
             owner_pid = _read_engine_lock_owner(lock_file)
@@ -3873,7 +3915,7 @@ def _ensure_cloud_engine():
                 try:
                     os.unlink(lock_file)
                 except FileNotFoundError:
-                    pass
+                    logger.warning('Cloud engine lock %s disappeared during reclaim', lock_file, exc_info=True)
                 except OSError as e:
                     _engine_status['error'] = f'Engine lock reclaim failed: {e}'
                     logger.error('Cloud engine lock reclaim failed: %s', e, exc_info=True)
@@ -3917,7 +3959,7 @@ def _ensure_cloud_engine():
         try:
             os.unlink(lock_file)
         except OSError:
-            pass
+            logger.warning('Failed to clean up cloud engine lock %s after launch failure', lock_file, exc_info=True)
 
 
 @app.before_request

@@ -1,9 +1,11 @@
+import ast
 import json
 import logging
 import os
 import subprocess
 import sys
 import types
+from unittest import mock
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -69,6 +71,45 @@ def make_state(positions=None, universe=None):
         'dd_leverage': 1.0,
         'crash_cooldown': 0,
     }
+
+
+def _handler_has_logging(handler):
+    module = ast.Module(body=handler.body, type_ignores=[])
+    for node in ast.walk(module):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not isinstance(func, ast.Attribute):
+            continue
+        if func.attr not in {'debug', 'info', 'warning', 'error', 'critical', 'exception'}:
+            continue
+        if isinstance(func.value, ast.Name) and func.value.id == 'logger':
+            return True
+        if isinstance(func.value, ast.Call):
+            callee = func.value.func
+            if (
+                isinstance(callee, ast.Attribute)
+                and callee.attr == 'getLogger'
+                and isinstance(callee.value, ast.Name)
+                and callee.value.id == 'logging'
+            ):
+                return True
+    return False
+
+
+def _except_audit(path):
+    tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+    bare = []
+    missing_logs = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for handler in node.handlers:
+            if handler.type is None:
+                bare.append(handler.lineno)
+            if not _handler_has_logging(handler):
+                missing_logs.append(handler.lineno)
+    return bare, missing_logs
 
 
 class FakeResponse:
@@ -788,6 +829,46 @@ def test_yf_fetch_batch_resets_session_after_auth_failure(monkeypatch):
     assert result == {}
     assert dashboard._yf_session is None
     assert dashboard._yf_crumb is None
+
+
+def test_yf_fetch_batch_logs_request_failures(monkeypatch, caplog):
+    class BrokenSession:
+        def get(self, url, params=None, timeout=None):
+            raise RuntimeError('v7 boom')
+
+    monkeypatch.setattr(dashboard, '_HAS_REQUESTS', True)
+    monkeypatch.setattr(dashboard, '_yf_get_session', lambda: (BrokenSession(), 'crumb'))
+    monkeypatch.setattr(
+        dashboard.http_requests,
+        'get',
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError('v8 boom')),
+    )
+
+    with caplog.at_level(logging.WARNING, logger='compass_dashboard_cloud'):
+        result = dashboard._yf_fetch_batch(['AAPL'])
+
+    assert result == {}
+    assert any('Yahoo Finance v7 batch failed' in record.message for record in caplog.records)
+    assert any('Yahoo Finance AAPL fetch failed' in record.message for record in caplog.records)
+
+
+def test_read_state_logs_ioerror(monkeypatch, caplog):
+    monkeypatch.setattr(dashboard.os.path, 'exists', lambda path: True)
+
+    with mock.patch('builtins.open', side_effect=IOError('disk boom')):
+        with caplog.at_level(logging.ERROR, logger='compass_dashboard_cloud'):
+            state = dashboard.read_state()
+
+    assert state is None
+    assert any('Failed to read state file' in record.message for record in caplog.records)
+
+
+def test_dashboard_files_have_logged_typed_except_handlers():
+    repo_root = Path(__file__).resolve().parent.parent
+    for path_str in ['compass_dashboard_cloud.py', 'compass_dashboard.py']:
+        bare, missing_logs = _except_audit(repo_root / path_str)
+        assert bare == [], f'{path_str} has bare except handlers at {bare}'
+        assert missing_logs == [], f'{path_str} has except handlers without logging at {missing_logs}'
 
 
 def test_run_cloud_engine_sets_error_when_engine_unavailable(monkeypatch):
