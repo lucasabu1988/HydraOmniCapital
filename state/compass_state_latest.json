@@ -2,7 +2,7 @@
   "version": "8.4",
   "timestamp": "2026-03-17T12:36:13.805770",
   "cash": 43220.44429382324,
-  "peak_value": 120000,
+  "peak_value": 100000.0,
   "portfolio_value": 100068.7645111084,
   "crash_cooldown": 0,
   "portfolio_values_history": [
