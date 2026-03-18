@@ -1938,6 +1938,7 @@ class COMPASSLive:
                             crash_cooldown=self.crash_cooldown,
                             trading_day=self.trading_day_counter,
                             spy_hist=self._spy_hist,
+                            stock_hist=self._hist_cache.get(symbol),
                         )
                     except Exception as e:
                         _ml_error_counts['entry'] += 1

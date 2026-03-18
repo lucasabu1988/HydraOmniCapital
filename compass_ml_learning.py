@@ -74,6 +74,68 @@ VOL_MEDIUM = "med_vol"    # 1.5-3.0%
 VOL_HIGH   = "high_vol"   # > 3.0%
 
 
+# ---------------------------------------------------------------------------
+# Multi-scale momentum features (adapted from Momentum Transformer paper)
+# Ref: Wood et al., "Trading with the Momentum Transformer" (2021)
+# ---------------------------------------------------------------------------
+
+def compute_normalised_return(close: pd.Series, daily_vol: pd.Series, day_offset: int):
+    """Risk-adjusted return at a given lookback scale.
+    Normalises by volatility and sqrt(horizon) so different scales are comparable."""
+    ret = close / close.shift(day_offset) - 1.0
+    denom = daily_vol * np.sqrt(day_offset)
+    return (ret / denom).replace([np.inf, -np.inf], np.nan)
+
+
+def compute_macd_signal(close: pd.Series, short_ts: int, long_ts: int) -> pd.Series:
+    """MACD signal normalised by rolling std (Baz et al. 2015 / Wood et al. 2021)."""
+    def _halflife(ts):
+        return np.log(0.5) / np.log(1 - 1 / ts)
+    macd = close.ewm(halflife=_halflife(short_ts)).mean() - close.ewm(halflife=_halflife(long_ts)).mean()
+    q = macd / close.rolling(63).std().bfill()
+    return q / q.rolling(252).std().bfill()
+
+
+def compute_multiscale_features(close: pd.Series) -> dict:
+    """Compute multi-scale normalised momentum + MACD features for a stock.
+
+    Returns dict with latest values (decision-time snapshot, no look-ahead).
+    All values are float or None if insufficient data.
+    """
+    if close is None or len(close) < 252:
+        return {
+            "norm_ret_1d": None, "norm_ret_5d": None, "norm_ret_21d": None,
+            "norm_ret_63d": None, "norm_ret_252d": None,
+            "macd_8_24": None, "macd_16_48": None, "macd_32_96": None,
+            "tsmom_signal": None,
+        }
+    daily_ret = close / close.shift(1) - 1.0
+    daily_vol = daily_ret.ewm(span=60, min_periods=60).std().bfill()
+
+    def _safe_last(srs):
+        v = srs.iloc[-1] if len(srs) > 0 else None
+        if v is not None and (np.isnan(v) or np.isinf(v)):
+            return None
+        return float(v) if v is not None else None
+
+    result = {}
+    for days, key in [(1, "1d"), (5, "5d"), (21, "21d"), (63, "63d"), (252, "252d")]:
+        result[f"norm_ret_{key}"] = _safe_last(compute_normalised_return(close, daily_vol, days))
+
+    for short_ts, long_ts in [(8, 24), (16, 48), (32, 96)]:
+        result[f"macd_{short_ts}_{long_ts}"] = _safe_last(compute_macd_signal(close, short_ts, long_ts))
+
+    # TSMOM signal: w * sign(monthly) + (1-w) * sign(annual), w=0.5
+    monthly_ret = (close / close.shift(21) - 1.0).iloc[-1]
+    annual_ret = (close / close.shift(252) - 1.0).iloc[-1]
+    if not (np.isnan(monthly_ret) or np.isnan(annual_ret)):
+        result["tsmom_signal"] = float(0.5 * np.sign(monthly_ret) + 0.5 * np.sign(annual_ret))
+    else:
+        result["tsmom_signal"] = None
+
+    return result
+
+
 def _sanitize_for_json(obj, _seen=None):
     if _seen is None:
         _seen = set()
@@ -198,19 +260,30 @@ class DecisionRecord:
     adaptive_stop_pct: Optional[float]   # computed stop level
     trailing_stop_pct: Optional[float]   # vol-scaled trailing
 
+    # Multi-scale momentum features (Momentum Transformer)
+    norm_ret_1d: Optional[float] = None
+    norm_ret_5d: Optional[float] = None
+    norm_ret_21d: Optional[float] = None
+    norm_ret_63d: Optional[float] = None
+    norm_ret_252d: Optional[float] = None
+    macd_8_24: Optional[float] = None
+    macd_16_48: Optional[float] = None
+    macd_32_96: Optional[float] = None
+    tsmom_signal: Optional[float] = None
+
     # Position state (for hold/exit decisions)
-    days_held: Optional[int]
-    current_return: Optional[float]      # (current_price - entry_price) / entry_price
-    high_price: Optional[float]
-    entry_price: Optional[float]
-    drawdown_from_high: Optional[float]  # (current_price - high_price) / high_price
+    days_held: Optional[int] = None
+    current_return: Optional[float] = None      # (current_price - entry_price) / entry_price
+    high_price: Optional[float] = None
+    entry_price: Optional[float] = None
+    drawdown_from_high: Optional[float] = None  # (current_price - high_price) / high_price
 
     # Exit-specific
-    exit_reason: Optional[str]           # hold_expired / position_stop / trailing_stop / universe_rotation / regime_reduce
+    exit_reason: Optional[str] = None           # hold_expired / position_stop / trailing_stop / universe_rotation / regime_reduce
 
     # Skip-specific (why this stock was not selected)
-    skip_reason: Optional[str]           # "not_top_n" | "sector_limit" | "quality_filter" | "no_cash"
-    skip_universe_rank: Optional[int]    # rank in momentum scores when skipped
+    skip_reason: Optional[str] = None           # "not_top_n" | "sector_limit" | "quality_filter" | "no_cash"
+    skip_universe_rank: Optional[int] = None    # rank in momentum scores when skipped
 
     # Metadata
     version: str = "8.4"
@@ -418,6 +491,23 @@ class DecisionLogger:
             "spy_daily_return": ret_1d,
         }
 
+    def _multiscale_features(self, stock_hist) -> dict:
+        """Compute multi-scale momentum features from stock price history."""
+        empty = {
+            "norm_ret_1d": None, "norm_ret_5d": None, "norm_ret_21d": None,
+            "norm_ret_63d": None, "norm_ret_252d": None,
+            "macd_8_24": None, "macd_16_48": None, "macd_32_96": None,
+            "tsmom_signal": None,
+        }
+        if stock_hist is None or not hasattr(stock_hist, '__len__') or len(stock_hist) < 252:
+            return empty
+        try:
+            close = stock_hist["Close"] if "Close" in stock_hist.columns else stock_hist.iloc[:, 0]
+            return compute_multiscale_features(close)
+        except Exception as e:
+            logger.debug(f"multiscale features failed: {e}")
+            return empty
+
     # ------------------------------------------------------------------
     # Public logging methods
     # ------------------------------------------------------------------
@@ -441,11 +531,14 @@ class DecisionLogger:
         crash_cooldown: int,
         trading_day: int,
         spy_hist=None,
+        stock_hist=None,
         source: str = "live",
     ) -> str:
         """Log a BUY decision. Returns decision_id for later linking to outcome."""
         dec_id = self._make_id()
         spy_ctx = self._spy_features(spy_hist)
+        # Multi-scale momentum features from Momentum Transformer
+        ms_feats = self._multiscale_features(stock_hist)
 
         record = DecisionRecord(
             decision_id=dec_id,
@@ -475,6 +568,15 @@ class DecisionLogger:
             entry_daily_vol=entry_daily_vol,
             adaptive_stop_pct=adaptive_stop_pct,
             trailing_stop_pct=trailing_stop_pct,
+            norm_ret_1d=ms_feats["norm_ret_1d"],
+            norm_ret_5d=ms_feats["norm_ret_5d"],
+            norm_ret_21d=ms_feats["norm_ret_21d"],
+            norm_ret_63d=ms_feats["norm_ret_63d"],
+            norm_ret_252d=ms_feats["norm_ret_252d"],
+            macd_8_24=ms_feats["macd_8_24"],
+            macd_16_48=ms_feats["macd_16_48"],
+            macd_32_96=ms_feats["macd_32_96"],
+            tsmom_signal=ms_feats["tsmom_signal"],
             days_held=None,
             current_return=None,
             high_price=None,
@@ -988,7 +1090,11 @@ class FeatureStore:
         # Columns to pull from entries (beyond what outcomes already store)
         entry_cols = [
             "decision_id", "spy_10d_vol", "spy_vs_sma200_pct", "spy_20d_return",
-            "portfolio_drawdown", "current_leverage", "crash_cooldown"
+            "portfolio_drawdown", "current_leverage", "crash_cooldown",
+            # Multi-scale momentum features (Momentum Transformer)
+            "norm_ret_1d", "norm_ret_5d", "norm_ret_21d", "norm_ret_63d",
+            "norm_ret_252d", "macd_8_24", "macd_16_48", "macd_32_96",
+            "tsmom_signal",
         ]
         available_cols = [c for c in entry_cols if c in entries.columns]
 
@@ -1001,10 +1107,25 @@ class FeatureStore:
 
         df = pd.DataFrame()
 
-        # A. Momentum signal
+        # A. Momentum signal (single-scale)
         df["feat_momentum_score"]    = merged["entry_momentum_score"]
         df["feat_momentum_rank"]     = merged["entry_momentum_rank"]
         df["feat_momentum_score_sq"] = merged["entry_momentum_score"] ** 2
+
+        # A2. Multi-scale momentum (Momentum Transformer features)
+        for col in ["norm_ret_1d", "norm_ret_5d", "norm_ret_21d", "norm_ret_63d",
+                     "norm_ret_252d", "macd_8_24", "macd_16_48", "macd_32_96",
+                     "tsmom_signal"]:
+            if col in merged.columns:
+                df[f"feat_{col}"] = merged[col]
+            elif col in entries.columns:
+                # Try pulling from entries if not in outcomes
+                merged_col = entries.set_index("decision_id").reindex(
+                    merged.get("entry_decision_id", pd.Series())
+                ).get(col)
+                df[f"feat_{col}"] = merged_col.values if merged_col is not None else np.nan
+            else:
+                df[f"feat_{col}"] = np.nan
 
         # B. Volatility regime
         df["feat_daily_vol"]         = merged["entry_daily_vol"]
@@ -1687,7 +1808,7 @@ class COMPASSMLOrchestrator:
                  max_positions_target: int, current_n_positions: int,
                  portfolio_value: float, portfolio_drawdown: float,
                  current_leverage: float, crash_cooldown: int, trading_day: int,
-                 spy_hist=None, source: str = "live") -> str:
+                 spy_hist=None, stock_hist=None, source: str = "live") -> str:
         try:
             return self.logger.log_entry(
                 symbol=symbol, sector=sector, momentum_score=momentum_score,
@@ -1698,7 +1819,7 @@ class COMPASSMLOrchestrator:
                 current_n_positions=current_n_positions, portfolio_value=portfolio_value,
                 portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
                 crash_cooldown=crash_cooldown, trading_day=trading_day, spy_hist=spy_hist,
-                source=source,
+                stock_hist=stock_hist, source=source,
             )
         except Exception as e:
             logger.error(f"ML on_entry failed for {symbol}: {e}")
