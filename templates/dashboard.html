@@ -1547,6 +1547,133 @@
 
 </div><!-- /page-fondos -->
 
+<!-- ═══════════════════ PAGE: ML ═══════════════════ -->
+<div id="page-ml" class="page-content">
+
+<!-- ML Overview -->
+<div class="ml-overview">
+    <div class="ml-overview-header">
+        <div class="ml-overview-title">ML Learning System</div>
+        <div class="ml-overview-desc" data-i18n="ml-overview-desc">Sistema progresivo de aprendizaje autom&aacute;tico que observa cada decisi&oacute;n del algoritmo HYDRA y construye modelos estad&iacute;sticos a medida que se acumulan datos.</div>
+    </div>
+    <!-- Pipeline visualization -->
+    <div class="ml-pipeline">
+        <div class="ml-pipe-step"><div class="ml-pipe-icon">&#128202;</div><div class="ml-pipe-label">DecisionLogger</div><div class="ml-pipe-sub">entries, exits, holds, skips</div></div>
+        <div class="ml-pipe-arrow">&#8594;</div>
+        <div class="ml-pipe-step"><div class="ml-pipe-icon">&#128451;</div><div class="ml-pipe-label">FeatureStore</div><div class="ml-pipe-sub">feature matrices</div></div>
+        <div class="ml-pipe-arrow">&#8594;</div>
+        <div class="ml-pipe-step"><div class="ml-pipe-icon">&#129302;</div><div class="ml-pipe-label">LearningEngine</div><div class="ml-pipe-sub">stats &rarr; Ridge &rarr; LGBM</div></div>
+        <div class="ml-pipe-arrow">&#8594;</div>
+        <div class="ml-pipe-step"><div class="ml-pipe-icon">&#128161;</div><div class="ml-pipe-label">InsightReporter</div><div class="ml-pipe-sub">insights.json</div></div>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="ml-kpis">
+    <div class="ml-kpi-card">
+        <div class="ml-kpi-label" data-i18n="ml-completed-trades">Completed Trades</div>
+        <div class="ml-kpi-value" id="ml-kpi-outcomes">--</div>
+        <div class="ml-kpi-sub" id="ml-kpi-entries-exits">-- entries / -- exits</div>
+    </div>
+    <div class="ml-kpi-card">
+        <div class="ml-kpi-label" data-i18n="ml-win-rate">Win Rate</div>
+        <div class="ml-kpi-value" id="ml-kpi-winrate">--</div>
+        <div class="ml-kpi-sub" id="ml-kpi-stoprate">Stop rate: --</div>
+    </div>
+    <div class="ml-kpi-card">
+        <div class="ml-kpi-label" data-i18n="ml-avg-return">Avg Return</div>
+        <div class="ml-kpi-value" id="ml-kpi-avgreturn">--</div>
+        <div class="ml-kpi-sub" id="ml-kpi-bestworst">Best: -- / Worst: --</div>
+    </div>
+    <div class="ml-kpi-card">
+        <div class="ml-kpi-label" data-i18n="ml-total-pnl">Total P&amp;L</div>
+        <div class="ml-kpi-value" id="ml-kpi-pnl">--</div>
+        <div class="ml-kpi-sub" id="ml-kpi-alpha">Alpha vs S&amp;P: --</div>
+    </div>
+    <div class="ml-kpi-card">
+        <div class="ml-kpi-label" data-i18n="ml-trading-days">Trading Days</div>
+        <div class="ml-kpi-value" id="ml-kpi-days">--</div>
+        <div class="ml-kpi-sub" id="ml-kpi-decisions">-- decisions</div>
+    </div>
+    <div class="ml-kpi-card">
+        <div class="ml-kpi-label" data-i18n="ml-learning-phase">Learning Phase</div>
+        <div class="ml-kpi-value" id="ml-kpi-phase">--</div>
+        <div class="ml-kpi-progress-wrap">
+            <div class="ml-kpi-progress-bar"><div class="ml-kpi-progress-fill" id="ml-kpi-progress" style="width:0%"></div></div>
+        </div>
+        <div class="ml-kpi-sub" id="ml-kpi-phase-sub">--</div>
+    </div>
+</div>
+
+<!-- Phases -->
+<div class="ml-phases">
+    <div class="ml-phase ml-phase-active">
+        <div class="ml-phase-header"><span class="ml-phase-badge ml-phase-1">Phase 1</span><span class="ml-phase-days" data-i18n="ml-phase1-days">0&ndash;62 d&iacute;as</span></div>
+        <div class="ml-phase-title" data-i18n="ml-phase1-title">Estad&iacute;sticas Descriptivas</div>
+        <div class="ml-phase-desc" data-i18n="ml-phase1-desc">Mean/median return, win rate, stop rate, breakdowns por r&eacute;gimen, sector, volatilidad. Bootstrap 95% CI.</div>
+        <div class="ml-phase-detail"><span class="ml-phase-tag">EN CURSO</span></div>
+    </div>
+    <div class="ml-phase">
+        <div class="ml-phase-header"><span class="ml-phase-badge ml-phase-2">Phase 2</span><span class="ml-phase-days" data-i18n="ml-phase2-days">63&ndash;251 d&iacute;as</span></div>
+        <div class="ml-phase-title" data-i18n="ml-phase2-title">ML Ligero (Ridge + LogReg)</div>
+        <div class="ml-phase-desc" data-i18n="ml-phase2-desc">Ridge Regression para retorno, Logistic Regression para win/loss. TimeSeriesSplit CV. Feature importance.</div>
+        <div class="ml-phase-detail"><span class="ml-phase-tag">PENDIENTE</span></div>
+    </div>
+    <div class="ml-phase">
+        <div class="ml-phase-header"><span class="ml-phase-badge ml-phase-3">Phase 3</span><span class="ml-phase-days" data-i18n="ml-phase3-days">252+ d&iacute;as</span></div>
+        <div class="ml-phase-title" data-i18n="ml-phase3-title">ML Completo (LightGBM)</div>
+        <div class="ml-phase-desc" data-i18n="ml-phase3-desc">LightGBM o RandomForest con 5-fold TimeSeriesSplit. Feature importance para monitorear signal decay.</div>
+        <div class="ml-phase-detail"><span class="ml-phase-tag">PENDIENTE</span></div>
+    </div>
+</div>
+
+<!-- Principles -->
+<div style="display:flex; flex-wrap:wrap; gap:10px; margin:0 24px 20px;">
+    <div class="ml-principle"><span class="ml-principle-icon">&#128274;</span><span class="ml-principle-text"><strong>Zero look-ahead bias</strong> &mdash; features solo de datos disponibles al momento de la decisi&oacute;n</span></div>
+    <div class="ml-principle"><span class="ml-principle-icon">&#9888;&#65039;</span><span class="ml-principle-text"><strong>Hip&oacute;tesis, no hechos</strong> &mdash; outputs del ML son sugerencias, nunca directivas</span></div>
+    <div class="ml-principle"><span class="ml-principle-icon">&#128737;</span><span class="ml-principle-text"><strong>Fail-safe</strong> &mdash; el ML nunca puede crashear el engine de trading</span></div>
+    <div class="ml-principle"><span class="ml-principle-icon">&#127919;</span><span class="ml-principle-text"><strong>No auto-apply</strong> &mdash; sugerencias de par&aacute;metros requieren aprobaci&oacute;n manual</span></div>
+</div>
+
+<!-- ML Layout: Terminal + Interpretation -->
+<div class="ml-layout">
+    <!-- Terminal -->
+    <div class="ml-terminal">
+        <div class="ml-terminal-header">
+            <div class="ml-terminal-dots"><span class="ml-dot ml-dot-red"></span><span class="ml-dot ml-dot-yellow"></span><span class="ml-dot ml-dot-green"></span></div>
+            <div class="ml-terminal-title">Decision Log</div>
+            <div class="ml-terminal-status" id="ml-status">Phase 1</div>
+        </div>
+        <div class="ml-terminal-body" id="ml-log">
+            <div class="ml-terminal-loading" data-i18n="ml-loading">Loading ML data...</div>
+        </div>
+    </div>
+    <!-- Interpretation panels -->
+    <div class="ml-interpret-stack">
+        <div class="ml-interpret">
+            <div class="ml-interpret-header">
+                <span class="ml-interpret-icon">&#128202;</span>
+                <span class="ml-interpret-title" data-i18n="ml-interpret-live-title">Live Analysis</span>
+                <span class="ml-interpret-updated" id="ml-interpret-live-time"></span>
+            </div>
+            <div class="ml-interpret-body" id="ml-interpret-live">
+                <p class="ml-interpret-loading" data-i18n="ml-waiting-analysis">Waiting for analysis...</p>
+            </div>
+        </div>
+        <div class="ml-interpret">
+            <div class="ml-interpret-header">
+                <span class="ml-interpret-icon">&#128200;</span>
+                <span class="ml-interpret-title" data-i18n="ml-interpret-bt-title">Backtest Analysis</span>
+                <span class="ml-interpret-updated" id="ml-interpret-bt-time"></span>
+            </div>
+            <div class="ml-interpret-body" id="ml-interpret-backtest">
+                <p class="ml-interpret-loading" data-i18n="ml-waiting-analysis">Waiting for analysis...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /page-ml -->
 
 <!-- FOOTER -->
 <footer class="footer-institutional">
