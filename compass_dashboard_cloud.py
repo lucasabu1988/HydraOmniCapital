@@ -3163,12 +3163,15 @@ def api_ml_diagnostics():
                 for line in f:
                     line = line.strip()
                     if line:
-                        total_decisions += 1
                         try:
                             rec = json.loads(line)
                             ts = rec.get('timestamp', rec.get('date', ''))
-                            if ts:
-                                last_decision_date = str(ts)[:10]
+                            rec_date = str(ts)[:10] if ts else ''
+                            if rec_date < LIVE_TEST_START_DATE:
+                                continue
+                            total_decisions += 1
+                            if rec_date:
+                                last_decision_date = rec_date
                         except Exception:
                             logger.warning('Skipping malformed ML decision line while building /api/ml', exc_info=True)
 
@@ -3176,8 +3179,15 @@ def api_ml_diagnostics():
         if os.path.exists(outcomes_path):
             with open(outcomes_path, 'r') as f:
                 for line in f:
-                    if line.strip():
-                        total_outcomes += 1
+                    line = line.strip()
+                    if line:
+                        try:
+                            rec = json.loads(line)
+                            rec_date = rec.get('entry_date', rec.get('exit_date', ''))[:10]
+                            if rec_date >= LIVE_TEST_START_DATE:
+                                total_outcomes += 1
+                        except Exception:
+                            pass
 
         files_ok = os.path.exists(decisions_path) and os.path.exists(outcomes_path)
 
@@ -3224,6 +3234,10 @@ def _api_ml_learning_impl():
                         line = line.strip()
                         if line:
                             rec = json.loads(line)
+                            # Only show data from current live test start
+                            rec_date = rec.get('date', rec.get('timestamp', ''))[:10]
+                            if rec_date < LIVE_TEST_START_DATE:
+                                continue
                             rec['_type'] = etype
                             entries.append(rec)
             except Exception as e:
