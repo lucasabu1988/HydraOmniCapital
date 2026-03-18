@@ -10,11 +10,13 @@
     "spy_end": null,
     "positions": [
       "JNJ",
-      "GEV"
+      "GEV",
+      "XOM"
     ],
     "positions_current": [
       "JNJ",
-      "GEV"
+      "GEV",
+      "XOM"
     ],
     "hydra_return": null,
     "spy_return": null,
