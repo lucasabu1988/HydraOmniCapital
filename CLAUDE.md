@@ -22,7 +22,7 @@ compass_dashboard.py    — Flask dashboard + live trading engine (main entry)
 omnicapital_live.py     — COMPASSLive class (broker, signals, execution)
 compass_ml_learning.py  — ML orchestrator (logging, learning, insights)
 omnicapital_v84_compass.py — Backtest algorithm (v8.4 parameters)
-static/js/dashboard.js  — Frontend JS (charts, cycle log, social feed)
+static/js/dashboard.js  — Frontend JS (charts, cycle log, analytics)
 static/css/dashboard.css — Dashboard styles
 templates/dashboard.html — Dashboard HTML template
 state/                  — Runtime state (JSON), cycle log, ML learning data
@@ -70,7 +70,6 @@ python scripts/simulate_live_trading.py   # Offline simulation
 - `/api/equity` — equity curve data
 - `/api/annual-returns` — COMPASS vs SPY bar chart
 - `/api/trade-analytics` — win rate, profit factor
-- `/api/social-feed` — activity feed
 
 ## Deployment
 - **Local**: `python compass_dashboard.py` → Flask on port 5000

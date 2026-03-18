@@ -201,9 +201,6 @@
     <div class="page-tab active" data-page="dashboard" onclick="switchPage('dashboard')">
         <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> <span data-i18n="tab-dashboard">Dashboard</span>
     </div>
-    <div class="page-tab" data-page="social" onclick="switchPage('social')">
-        <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> <span data-i18n="tab-news">Noticias</span>
-    </div>
     <div class="page-tab" data-page="roadmap" onclick="switchPage('roadmap')">
         <svg class="page-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> <span data-i18n="tab-roadmap">Roadmap</span>
     </div>
@@ -951,18 +948,6 @@
                 </div>
             </div>
         </div>
-        <div class="ultimate-risk-shell">
-            <div class="ultimate-risk-header">
-                <div class="ultimate-risk-title-wrap">
-                    <div class="ultimate-risk-kicker">ULTIMATE RISK</div>
-                    <div class="ultimate-risk-subtitle" data-i18n="ultimate-risk-subtitle">Solo titulares que apuntan a riesgo extremo o sistémico para los mercados</div>
-                </div>
-                <span class="ultimate-risk-badge loading" id="ultimate-risk-badge" data-i18n="ultimate-risk-loading">Escaneando...</span>
-            </div>
-            <div class="ultimate-risk-list" id="ultimate-risk-list">
-                <div class="ultimate-risk-empty" data-i18n="ultimate-risk-loading">Escaneando...</div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -1014,90 +999,6 @@
 
 </div><!-- /page-dashboard -->
 
-<!-- ==================== PAGE: SOCIAL FEED ==================== -->
-<div id="page-social" class="page-content">
-
-<!-- SF HEADER -->
-<div class="sf-page-header">
-    <div class="sf-page-title-row">
-        <div class="sf-page-title-left">
-            <div class="sf-page-icon">&#9889;</div>
-            <div>
-                <h2 class="sf-page-title" data-i18n="sf-title">Noticias del Portfolio</h2>
-                <p class="sf-page-subtitle" data-i18n="sf-subtitle">Noticias, an&aacute;lisis y publicaciones de tus posiciones actuales</p>
-            </div>
-        </div>
-        <span class="sf-count" id="sf-count"></span>
-    </div>
-
-    <!-- SUMMARY STATS BAR -->
-    <div class="sf-stats-bar" id="sf-stats-bar">
-        <div class="sf-stat">
-            <span class="sf-stat-label" data-i18n="sf-stat-total">Total</span>
-            <span class="sf-stat-value" id="sf-stat-total">--</span>
-        </div>
-        <div class="sf-stat">
-            <span class="sf-stat-label" data-i18n="sf-stat-bull">Alcista</span>
-            <span class="sf-stat-value" style="color:var(--green);" id="sf-stat-bull">--</span>
-        </div>
-        <div class="sf-stat">
-            <span class="sf-stat-label" data-i18n="sf-stat-bear">Bajista</span>
-            <span class="sf-stat-value" style="color:var(--red);" id="sf-stat-bear">--</span>
-        </div>
-        <div class="sf-stat">
-            <span class="sf-stat-label" data-i18n="sf-stat-neutral">Neutral</span>
-            <span class="sf-stat-value" id="sf-stat-neutral">--</span>
-        </div>
-        <div class="sf-stat">
-            <span class="sf-stat-label" data-i18n="sf-stat-most-mentioned">M&aacute;s mencionado</span>
-            <span class="sf-stat-value" style="color:var(--accent-light);" id="sf-stat-top-ticker">--</span>
-        </div>
-        <div class="sf-stat">
-            <span class="sf-stat-label" data-i18n="sf-stat-freshest">M&aacute;s reciente</span>
-            <span class="sf-stat-value" id="sf-stat-freshness">--</span>
-        </div>
-    </div>
-
-    <!-- FILTER ROW -->
-    <div class="sf-filters">
-        <div class="sf-filter-group">
-            <span class="sf-filter-label" data-i18n="sf-source">Fuente:</span>
-            <div class="sf-filter-pills" id="sf-source-filters">
-                <button class="sf-pill sf-pill-active" data-source="all" data-i18n="sf-all-sources">Todas</button>
-                <button class="sf-pill" data-source="sec"><span class="sf-pill-dot sf-dot-sec"></span>SEC</button>
-                <button class="sf-pill" data-source="seekingalpha"><span class="sf-pill-dot sf-dot-sa"></span>SeekingAlpha</button>
-                <button class="sf-pill" data-source="news"><span class="sf-pill-dot sf-dot-news"></span>Yahoo</button>
-                <button class="sf-pill" data-source="google"><span class="sf-pill-dot sf-dot-google"></span>Google</button>
-                <button class="sf-pill" data-source="marketwatch"><span class="sf-pill-dot sf-dot-mw"></span>MarketWatch</button>
-                <button class="sf-pill" data-source="reddit"><span class="sf-pill-dot sf-dot-reddit"></span>Reddit</button>
-            </div>
-        </div>
-        <div class="sf-filter-group">
-            <span class="sf-filter-label" data-i18n="sf-ticker">Ticker:</span>
-            <div class="sf-filter-pills" id="sf-ticker-filters">
-                <button class="sf-pill sf-pill-active" data-ticker="all" data-i18n="sf-all-tickers">Todos</button>
-            </div>
-        </div>
-        <div class="sf-filter-group">
-            <span class="sf-filter-label" data-i18n="sf-view">Vista:</span>
-            <div class="sf-filter-pills" id="sf-view-toggle">
-                <button class="sf-pill sf-pill-active" data-view="timeline" data-i18n="sf-chronological">&#128337; Cronol&oacute;gico</button>
-                <button class="sf-pill" data-view="grouped" data-i18n="sf-by-ticker">&#128196; Por Ticker</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- SF BODY -->
-<div class="sf-page-body" id="sf-body">
-    <div class="sf-skeleton-list" id="sf-skeleton">
-        <div class="sf-skeleton-item"><div class="sf-skeleton-badge skeleton"></div><div class="sf-skeleton-content"><div class="skeleton" style="width:85%;height:14px;border-radius:4px;"></div><div class="skeleton" style="width:55%;height:10px;border-radius:4px;"></div></div></div>
-        <div class="sf-skeleton-item"><div class="sf-skeleton-badge skeleton"></div><div class="sf-skeleton-content"><div class="skeleton" style="width:70%;height:14px;border-radius:4px;"></div><div class="skeleton" style="width:40%;height:10px;border-radius:4px;"></div></div></div>
-        <div class="sf-skeleton-item"><div class="sf-skeleton-badge skeleton"></div><div class="sf-skeleton-content"><div class="skeleton" style="width:90%;height:14px;border-radius:4px;"></div><div class="skeleton" style="width:60%;height:10px;border-radius:4px;"></div></div></div>
-    </div>
-</div>
-
-</div><!-- /page-social -->
 
 
 <!-- ==================== PAGE: LAUNCH ROADMAP ==================== -->
