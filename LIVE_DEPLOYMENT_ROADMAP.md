@@ -248,6 +248,120 @@ HORARIO TIPO (ET)
 
 ---
 
+## ML LEARNING SYSTEM — Roadmap de Aprendizaje Progresivo
+
+El sistema ML (`compass_ml_learning.py`) opera como observador pasivo: registra cada decision del algoritmo y progresivamente construye modelos estadisticos y de ML a medida que se acumulan datos.
+
+### Estado Actual del ML (17 Mar 2026)
+
+| Componente | Estado |
+|-----------|--------|
+| **DecisionLogger** | Activo — loggeando entries, exits, holds, skips |
+| **Archivos JSONL** | `decisions.jsonl`, `outcomes.jsonl`, `daily_snapshots.jsonl` |
+| **Open entries tracking** | `open_entries.json` mantiene link entry→exit |
+| **Fase actual** | Fase 1 (estadisticas descriptivas) |
+| **Dias de trading** | ~11 |
+| **CLI** | `python compass_ml_learning.py status/report/backfill` |
+
+### Fases del ML Learning
+
+```
+FASE 1 (Ahora)         FASE 2               FASE 3
+Dias 0-62               Dias 63-251          Dias 252+
+Mar 2026 - Jun 2026     Jun 2026 - Mar 2027  Mar 2027+
+━━━━━━█░░░░░░░░░░░░     ░░░░░░░░░░░░░░░░░    ░░░░░░░░░░░░░
+Estadisticas            Ridge + LogReg       LightGBM/RF
+descriptivas            (regularizado)       (full ML)
+```
+
+### Fase 1: Estadisticas Descriptivas [EN CURSO — ~11 de 62 dias]
+
+**Que hace:**
+- Mean/median return con bootstrap 95% CI (2000 resamples, seed 666)
+- Win rate, stop rate, avg days held
+- Breakdowns por: regime bucket, sector, exit reason, vol bucket
+- Stop analysis: stop rate por vol bucket, avg return when stopped
+
+**Checklist Fase 1:**
+- [x] DecisionLogger integrado en omnicapital_live.py
+- [x] JSONL files creados y recibiendo datos
+- [x] Fail-safe wrappers (try/except en todos los hooks)
+- [x] Backfill desde state files historicos
+- [ ] Acumular 20+ trades completados (minimo para stats por grupo)
+- [ ] Acumular 62 dias de trading (~3 meses) para pasar a Fase 2
+- [ ] Primer insights.json generado con stats significativas
+
+**Fecha estimada de completar Fase 1:** ~Jun 2026
+
+### Fase 2: ML Ligero [PENDIENTE — ~Jun 2026]
+
+**Prerequisitos:**
+- 63+ dias de trading
+- 20+ trades completados
+- scikit-learn instalado
+
+**Que hace:**
+- Ridge Regression (alpha=10.0) para prediccion de retorno
+- Logistic Regression (C=0.1) para clasificacion win/loss
+- TimeSeriesSplit cross-validation (sin data leakage temporal)
+- Top 10 features por magnitud de coeficiente
+- StopParameterOptimizer: sugerencias de ajuste de stops (solo si >90% bootstrap confidence)
+
+**Features utilizados:**
+
+| Categoria | Features |
+|-----------|----------|
+| Momentum signal | score, rank, score² |
+| Volatility regime | daily vol, annual vol, vol buckets, adaptive stop |
+| Market regime | regime score, SPY vs SMA200, regime buckets, SPY 10d vol |
+| Portfolio state | drawdown, dd_severe flag, leverage |
+| Sector | One-hot encoding (8 sectores) |
+
+**Targets:** return (regression), label 5-class (classification), beat_spy (binary)
+
+**Checklist Fase 2:**
+- [ ] 63 dias de trading acumulados
+- [ ] 20+ trades completados con outcomes
+- [ ] Primer modelo Ridge entrenado
+- [ ] R² y AUC CV scores publicados en insights.json
+- [ ] Feature importance ranking disponible
+- [ ] Stop parameter suggestions generadas (si hay suficiente confianza)
+
+**Fecha estimada:** Jun-Jul 2026
+
+### Fase 3: ML Completo [PENDIENTE — ~Mar 2027]
+
+**Prerequisitos:**
+- 252+ dias de trading (~12 meses)
+- 100+ trades completados
+
+**Que hace:**
+- LightGBM (200 estimators, lr=0.05, depth=3, 8 leaves, subsample=0.8, seed 666)
+- RandomForest como fallback (200 estimators, depth=4, min_samples_leaf=5)
+- 5-fold TimeSeriesSplit cross-validation
+- Feature importance ranking para monitorear signal decay
+- Retraining mensual
+
+**Checklist Fase 3:**
+- [ ] 252 dias de trading acumulados
+- [ ] 100+ trades completados
+- [ ] LightGBM o RF entrenado exitosamente
+- [ ] Feature importance estable (sin signal decay)
+- [ ] Retrain mensual automatizado
+- [ ] Parameter suggestions con alta confianza estadistica
+
+**Fecha estimada:** Mar 2027+
+
+### Principios Inmutables del ML
+
+1. **Zero look-ahead bias** — features solo de datos disponibles al momento de la decision
+2. **Hipotesis, no hechos** — outputs del ML son sugerencias, nunca directivas
+3. **Fail-safe** — el ML nunca puede crashear el engine de trading
+4. **Regime-conditional** — todo analisis segmentado por regimen y volatilidad
+5. **No auto-apply** — las sugerencias de parametros requieren aprobacion manual
+
+---
+
 ## PROTOCOLOS DE EMERGENCIA
 
 ### Si el Sistema Falla
