@@ -94,9 +94,9 @@ class HydraCapitalManager:
         if recycle_amount > 0:
             self.total_recycled_days += 1
 
-        # Remaining idle cash after recycling (available for EFA)
+        # Remaining idle cash after recycling (available for NEW EFA buys)
         r_still_idle = r_effective * (1.0 - rattle_exposure)
-        efa_idle = r_still_idle + self.efa_value  # include current EFA value as available
+        efa_idle = r_still_idle  # only truly idle cash, don't double-count invested EFA
 
         return {
             'compass_budget': c_effective,

@@ -1610,8 +1610,12 @@ class COMPASSLive:
                             logger.warning(f"ML exit logging failed for {symbol}: {e}")
 
                     # Only remove metadata if position is fully closed
+                    # and not owned by another strategy
                     if symbol not in self.broker.positions:
-                        self.position_meta.pop(symbol, None)
+                        in_catalyst = any(cp['symbol'] == symbol for cp in self.catalyst_positions)
+                        in_rattle = any(rp['symbol'] == symbol for rp in self.rattle_positions)
+                        if not in_catalyst and not in_rattle and symbol != EFA_SYMBOL:
+                            self.position_meta.pop(symbol, None)
 
                     self.trades_today.append({
                         'symbol': symbol, 'action': 'SELL',
@@ -1742,9 +1746,10 @@ class COMPASSLive:
             return
 
         # v8.4: Select top N by score WITH sector concentration limits
+        # Only count COMPASS positions for sector limits (not EFA/Catalyst/Rattlesnake)
         ranked = sorted(available.items(), key=lambda x: x[1], reverse=True)
         sector_filtered = filter_by_sector_concentration(
-            ranked, positions, self.config['MAX_PER_SECTOR']
+            ranked, compass_positions, self.config['MAX_PER_SECTOR']
         )
         selected = sector_filtered[:needed]
 
@@ -2198,10 +2203,16 @@ class COMPASSLive:
                 logger.warning(f"Catalyst: cannot buy {sym} — no price available")
                 continue
 
-            available_cash = self.broker.get_portfolio().cash
+            # Enforce ring-fenced budget: min(broker cash, catalyst budget)
+            broker_cash = self.broker.get_portfolio().cash
+            catalyst_remaining = self.hydra_capital.catalyst_account - sum(
+                cp['shares'] * catalyst_prices.get(cp['symbol'], cp['entry_price'])
+                for cp in self.catalyst_positions
+            )
+            available_cash = min(broker_cash, max(catalyst_remaining, 0)) * 0.95
             cost = needed * price
-            if cost > available_cash * 0.95:
-                needed = int(available_cash * 0.95 / price)
+            if cost > available_cash:
+                needed = int(available_cash / price)
                 if needed <= 0:
                     continue
 
@@ -2314,7 +2325,8 @@ class COMPASSLive:
             meta['_efa'] = True
             meta['_entry_reconciled'] = bool(meta.get('_entry_reconciled', False))
             self.position_meta[EFA_SYMBOL] = meta
-        else:
+        elif target_value <= 0 and EFA_SYMBOL not in (self.broker.get_positions() if hasattr(self, 'broker') else {}):
+            # Only pop if broker confirms no EFA shares (not a timing issue)
             self.position_meta.pop(EFA_SYMBOL, None)
 
         return target_value
@@ -3445,7 +3457,12 @@ class COMPASSLive:
         today_str = date.today().isoformat()
         for symbol, entry in meta.items():
             if symbol not in positions:
-                logger.warning(f"position_meta: removing stale symbol {symbol} (not in positions)")
+                # Preserve strategy-flagged entries (may be temporarily out of sync)
+                if isinstance(entry, dict) and (entry.get('_catalyst') or entry.get('_efa') or symbol == EFA_SYMBOL):
+                    logger.info(f"position_meta: preserving {symbol} (strategy-flagged, not yet in broker)")
+                    cleaned[symbol] = entry
+                else:
+                    logger.warning(f"position_meta: removing stale symbol {symbol} (not in positions)")
                 continue
             if not isinstance(entry, dict):
                 entry = {}
