@@ -3187,7 +3187,15 @@ function renderMLTerminal(entries, insights) {
         }
 
         if (r._type !== 'backtest') {
-            html += '<div class="ml-line"><span class="ml-line-ts">' + ts + '</span>' + badge + '<span class="ml-line-detail">' + detail + '</span></div>';
+            var lineCls = 'ml-line';
+            if (r._type === 'decision') {
+                var dt = r.decision_type || '';
+                if (dt === 'entry') lineCls += ' ml-line-entry';
+                else if (dt === 'exit') lineCls += ' ml-line-exit';
+                else if (dt === 'skip') lineCls += ' ml-line-skip';
+            } else if (r._type === 'snapshot') lineCls += ' ml-line-snapshot';
+            else if (r._type === 'outcome') lineCls += ' ml-line-outcome';
+            html += '<div class="' + lineCls + '"><span class="ml-line-ts">' + ts + '</span>' + badge + '<span class="ml-line-detail">' + detail + '</span></div>';
         }
     });
 

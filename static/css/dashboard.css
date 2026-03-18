@@ -3664,7 +3664,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     max-width: 800px;
 }
 
-/* Pipeline */
+/* Pipeline — animated data flow */
 .ml-pipeline {
     display: flex;
     align-items: center;
@@ -3675,19 +3675,31 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 }
 .ml-pipe-step {
     text-align: center;
-    min-width: 110px;
-    padding: 12px 10px;
+    min-width: 120px;
+    padding: 14px 12px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 10px;
-    transition: all 0.2s;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+}
+.ml-pipe-step:first-child {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.08);
+}
+.ml-pipe-step:first-child .ml-pipe-icon {
+    animation: ml-pulse 2.5s ease-in-out infinite;
+}
+@keyframes ml-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 .ml-pipe-step:hover {
     border-color: var(--border-accent);
     box-shadow: var(--shadow-sm), var(--glow-accent);
     transform: translateY(-2px);
 }
-.ml-pipe-icon { font-size: 22px; margin-bottom: 6px; }
+.ml-pipe-icon { font-size: 24px; margin-bottom: 6px; }
 .ml-pipe-label {
     font-size: 11px;
     font-weight: 700;
@@ -3695,24 +3707,42 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     letter-spacing: 0.3px;
 }
 .ml-pipe-sub {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-tertiary);
-    margin-top: 3px;
+    margin-top: 4px;
     line-height: 1.3;
 }
 .ml-pipe-arrow {
-    font-size: 16px;
-    color: var(--text-tertiary);
-    padding: 0 6px;
+    font-size: 14px;
+    color: var(--accent);
+    padding: 0 4px;
     flex-shrink: 0;
+    opacity: 0.5;
+    animation: ml-arrow-flow 1.5s ease-in-out infinite;
+}
+@keyframes ml-arrow-flow {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.8; }
 }
 
-/* Phases */
+/* Phases — Horizontal timeline */
 .ml-phases {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
+    gap: 0;
     margin-bottom: 18px;
+    position: relative;
+}
+/* Connecting line through all phases */
+.ml-phases::before {
+    content: '';
+    position: absolute;
+    top: 28px;
+    left: 60px;
+    right: 60px;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
 }
 .ml-phase {
     background: var(--glass-bg);
@@ -3721,10 +3751,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     border: 1px solid var(--glass-border);
     border-radius: 10px;
     padding: 16px;
-    opacity: 0.6;
+    opacity: 0.45;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    z-index: 1;
+    margin: 0 4px;
 }
-.ml-phase:hover { opacity: 1; transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.ml-phase:hover { opacity: 0.8; transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .ml-phase.ml-phase-active {
     opacity: 1;
     border-color: var(--border-accent);
@@ -3798,7 +3831,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     color: var(--text-secondary);
 }
 
-/* ML KPI Cards */
+/* ML KPI Cards — Mission Control aesthetic */
 .ml-kpis {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
@@ -3811,35 +3844,55 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
-    padding: 16px 14px;
+    padding: 18px 14px 14px;
     text-align: center;
-    transition: all 0.2s;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+}
+.ml-kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent);
+    opacity: 0.5;
+    transition: opacity 0.25s;
 }
 .ml-kpi-card:hover {
     border-color: var(--glass-border-hover);
     box-shadow: var(--shadow-sm), var(--glow-accent);
     transform: translateY(-2px);
 }
+.ml-kpi-card:hover::before { opacity: 1; }
+.ml-kpi-card:nth-child(2)::before { background: var(--green); }
+.ml-kpi-card:nth-child(3)::before { background: var(--cyan); }
+.ml-kpi-card:nth-child(4)::before { background: var(--yellow); }
+.ml-kpi-card:nth-child(5)::before { background: #a78bfa; }
+.ml-kpi-card:nth-child(6)::before { background: var(--accent-light); }
 .ml-kpi-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
     color: var(--text-tertiary);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 .ml-kpi-value {
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 700;
     color: var(--text-primary);
     font-family: 'JetBrains Mono', monospace;
-    line-height: 1.2;
+    line-height: 1.1;
 }
 .ml-kpi-sub {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-tertiary);
-    margin-top: 4px;
+    margin-top: 6px;
     font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.2px;
 }
 .ml-kpi-value.c-green { color: var(--green); }
 .ml-kpi-value.c-red { color: var(--red); }
@@ -3940,14 +3993,25 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     padding: 20px 0;
 }
 
+/* Decision Log — distinct row styling per event type */
 .ml-line {
     display: flex;
     gap: 8px;
-    padding: 2px 0;
+    padding: 5px 8px;
+    margin: 1px 0;
     white-space: nowrap;
     overflow-x: hidden;
     text-overflow: ellipsis;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+    transition: background 0.15s;
 }
+.ml-line:hover { background: rgba(255,255,255,0.04); }
+.ml-line-entry { border-left-color: #3fb950; background: rgba(40,200,64,0.03); }
+.ml-line-exit { border-left-color: #f85149; background: rgba(248,81,73,0.03); }
+.ml-line-snapshot { border-left-color: #58a6ff; background: rgba(88,166,255,0.02); }
+.ml-line-outcome { border-left-color: #d29922; background: rgba(210,153,34,0.04); }
+.ml-line-skip { border-left-color: #484f58; }
 .ml-line-ts {
     color: #484f58;
     min-width: 140px;
@@ -4031,6 +4095,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     font-size: 13px;
     line-height: 1.7;
     color: var(--text-primary);
+}
+.ml-interpret-body h3:not(:first-child) {
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-top: 16px;
 }
 .ml-interpret-body h3 {
     font-size: 14px;
