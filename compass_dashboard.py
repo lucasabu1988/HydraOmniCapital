@@ -2484,7 +2484,7 @@ def api_execution_stats():
 
 
 
-def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
+def _maybe_regenerate_interpretation(ml_dir, entries, insights):
     interp_path = os.path.join(ml_dir, 'interpretation.md')
     # Check staleness: regenerate if file missing or 5+ days old
     try:
@@ -2645,31 +2645,6 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
         lines.append(f'Phase {phase} active. ML models are being trained on accumulated data.')
     lines.append('')
 
-    # Backtest context
-    if bt_stats:
-        lines.append('### Backtest Reference (HYDRA + EFA/MSCI World)\n')
-        lines.append(f'- Period: **{bt_stats.get("start_date", "?")}** to **{bt_stats.get("end_date", "?")}** ({bt_stats.get("years", "?")} years)')
-        bt_cagr = bt_stats.get('cagr', 0)
-        lines.append(f'- CAGR: **{bt_cagr * 100:.1f}%**')
-        lines.append(f'- Sharpe: **{bt_stats.get("sharpe", 0):.3f}**')
-        bt_dd = bt_stats.get('max_drawdown', 0)
-        lines.append(f'- Max Drawdown: **{bt_dd * 100:.1f}%**')
-        bt_ret = bt_stats.get('total_return', 0)
-        lines.append(f'- Total Return: **{bt_ret * 100:.1f}%** (${bt_stats.get("start_value", 0):,.0f} → ${bt_stats.get("end_value", 0):,.0f})')
-        lines.append(f'- Trading Days: **{bt_stats.get("trading_days", 0):,}**')
-        lines.append('')
-        if trading_days > 0 and total_return:
-            lines.append('### Live vs Backtest\n')
-            live_ann = ((1 + total_return) ** (252 / max(1, trading_days))) - 1 if trading_days > 0 else 0
-            lines.append(f'- Live annualized return: **{live_ann * 100:+.1f}%** vs backtest CAGR **{bt_cagr * 100:.1f}%**')
-            if live_ann < bt_cagr * 0.5:
-                lines.append('- **Warning**: Live performance significantly below backtest expectations. Normal for early days with small sample size.')
-            elif live_ann > bt_cagr * 1.5:
-                lines.append('- Live performance above backtest — may indicate favorable market conditions.')
-            else:
-                lines.append('- Live performance tracking within expected range of backtest.')
-            lines.append('')
-
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
     lines.append(f'---\n*Auto-generated on {now_str}. Refreshes every 5 days.*')
 
@@ -2771,67 +2746,8 @@ def api_ml_learning():
         except Exception as e:
             logger.warning(f"api_ml_learning failed: {e}")
 
-    # Load backtest daily data (HYDRA + EFA/MSCI World)
-    backtest_entries = []
-    bt_stats = {}
-    bt_csv = os.path.join('backtests', 'hydra_clean_daily.csv')
-    if os.path.exists(bt_csv):
-        try:
-            import csv
-            with open(bt_csv, 'r') as f:
-                reader = csv.DictReader(f)
-                bt_rows = list(reader)
-            if bt_rows:
-                for row in bt_rows:
-                    pv = float(row.get('value', 0))
-                    backtest_entries.append({
-                        '_type': 'backtest',
-                        'date': row.get('date', ''),
-                        'portfolio_value': round(pv, 2),
-                        'c_alloc': round(float(row.get('c_alloc', 0)), 4),
-                        'r_alloc': round(float(row.get('r_alloc', 0)), 4),
-                        'efa_alloc': round(float(row.get('efa_alloc', 0)), 4),
-                    })
-                values = [float(r['value']) for r in bt_rows]
-                start_val = 100000.0
-                end_val = values[-1]
-                n_bt_days = len(values)
-                years = n_bt_days / 252.0
-                total_bt_return = (end_val / start_val) - 1
-                cagr = (end_val / start_val) ** (1 / years) - 1 if years > 0 else 0
-                daily_rets = [(values[i] - values[i-1]) / values[i-1] for i in range(1, len(values))]
-                import statistics
-                dr_mean = statistics.mean(daily_rets) if daily_rets else 0
-                dr_std = statistics.stdev(daily_rets) if len(daily_rets) > 1 else 1
-                sharpe = dr_mean / dr_std * (252 ** 0.5) if dr_std > 0 else 0
-                peak_val = values[0]
-                max_dd = 0
-                for v in values:
-                    if v > peak_val:
-                        peak_val = v
-                    dd = (v - peak_val) / peak_val
-                    if dd < max_dd:
-                        max_dd = dd
-                bt_stats = {
-                    'start_date': bt_rows[0].get('date', ''),
-                    'end_date': bt_rows[-1].get('date', ''),
-                    'trading_days': n_bt_days,
-                    'years': round(years, 1),
-                    'start_value': round(start_val, 0),
-                    'end_value': round(end_val, 0),
-                    'total_return': round(total_bt_return, 4),
-                    'cagr': round(cagr, 4),
-                    'sharpe': round(sharpe, 3),
-                    'max_drawdown': round(max_dd, 4),
-                }
-        except Exception as e:
-            logger.warning(f"api_ml_learning failed: {e}")
-
-    all_entries = backtest_entries + entries
-    all_entries.sort(key=lambda r: r.get('timestamp', r.get('date', '')))
-
     # Auto-regenerate interpretation if stale (5+ days)
-    _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats)
+    _maybe_regenerate_interpretation(ml_dir, entries, insights)
 
     # Read interpretation
     interpretation = ''
@@ -2864,7 +2780,6 @@ def api_ml_learning():
         'phase': phase,
         'days_to_phase2': days_to_phase2,
         'phase2_progress_pct': round(min(100, trading_days / 63 * 100), 1),
-        'backtest': bt_stats,
     }
     try:
         if outcomes:
@@ -2885,7 +2800,7 @@ def api_ml_learning():
         logger.warning(f"KPI calculation error: {e}")
 
     return jsonify({
-        'log_entries': all_entries,
+        'log_entries': entries,
         'insights': insights,
         'interpretation': interpretation,
         'kpis': kpis,

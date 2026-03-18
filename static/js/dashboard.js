@@ -3038,7 +3038,6 @@ async function fetchMLLearning() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         renderMLTerminal(data.log_entries || [], data.insights || {});
-        renderMLInterpretation(data.interpretation_backtest || '', 'ml-interpret-backtest', 'ml-interpret-bt-time');
         renderMLInterpretation(data.interpretation_live || data.interpretation || '', 'ml-interpret-live', 'ml-interpret-live-time');
         renderMLKpis(data.kpis || {});
     } catch (e) {
@@ -3106,19 +3105,17 @@ function renderMLTerminal(entries, insights) {
     if (!logEl) return;
 
     /* Stats row */
-    var nDecisions = 0, nSnapshots = 0, nOutcomes = 0, nBacktest = 0;
+    var nDecisions = 0, nSnapshots = 0, nOutcomes = 0;
     entries.forEach(function(r) {
         if (r._type === 'decision') nDecisions++;
         else if (r._type === 'snapshot') nSnapshots++;
         else if (r._type === 'outcome') nOutcomes++;
-        else if (r._type === 'backtest') nBacktest++;
     });
 
     var phase = (insights.learning_phase || 1);
     if (statusEl) statusEl.textContent = 'Phase ' + phase;
 
     var html = '<div class="ml-stats-row">';
-    html += '<div class="ml-stat"><span class="ml-stat-label">Backtest Days</span><span class="ml-stat-value">' + nBacktest + '</span></div>';
     html += '<div class="ml-stat"><span class="ml-stat-label">Decisions</span><span class="ml-stat-value">' + nDecisions + '</span></div>';
     html += '<div class="ml-stat"><span class="ml-stat-label">Snapshots</span><span class="ml-stat-value">' + nSnapshots + '</span></div>';
     html += '<div class="ml-stat"><span class="ml-stat-label">Outcomes</span><span class="ml-stat-value">' + nOutcomes + '</span></div>';
@@ -3185,19 +3182,11 @@ function renderMLTerminal(entries, insights) {
                 + ' <span class="ml-dim">exit=</span>' + (r.exit_reason || '--')
                 + ' <span class="ml-dim">days=</span>' + (r.trading_days_held || '--')
                 + ' <span class="ml-dim">label=</span>' + (r.outcome_label || '--');
-        } else if (r._type === 'backtest') {
-            badge = '<span class="ml-line-badge ml-badge-backtest">BT</span>';
-            var btPv = r.portfolio_value != null ? '$' + r.portfolio_value.toLocaleString('en-US', {maximumFractionDigits: 0}) : '--';
-            var cA = r.c_alloc != null ? (r.c_alloc * 100).toFixed(0) + '%' : '--';
-            var rA = r.r_alloc != null ? (r.r_alloc * 100).toFixed(0) + '%' : '--';
-            var eA = r.efa_alloc != null ? (r.efa_alloc * 100).toFixed(0) + '%' : '--';
-            detail = '<span class="ml-dim">portfolio=</span>' + btPv
-                + ' <span class="ml-dim">COMPASS=</span>' + cA
-                + ' <span class="ml-dim">RATTLE=</span>' + rA
-                + ' <span class="ml-dim">EFA=</span>' + eA;
         }
 
-        html += '<div class="ml-line"><span class="ml-line-ts">' + ts + '</span>' + badge + '<span class="ml-line-detail">' + detail + '</span></div>';
+        if (r._type !== 'backtest') {
+            html += '<div class="ml-line"><span class="ml-line-ts">' + ts + '</span>' + badge + '<span class="ml-line-detail">' + detail + '</span></div>';
+        }
     });
 
     logEl.innerHTML = html;
