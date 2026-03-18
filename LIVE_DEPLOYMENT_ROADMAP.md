@@ -1,5 +1,5 @@
-# OmniCapital v6 - Roadmap de Deployment Live
-## Paso a Paso: De Hoy al Primer Trade en Vivo
+# OmniCapital HYDRA — Roadmap de Deployment Live
+## De Paper Trading a Operacion Real
 
 > *"Un viaje de mil millas comienza con un solo paso."*
 > — Lao Tzu
@@ -9,150 +9,136 @@
 ## RESUMEN VISUAL
 
 ```
-HOY → Sem 1-2 → Sem 3-6 → Sem 7 → Sem 8-11 → Sem 12+
-  │      │        │       │        │         │
-  │      │        │       │        │         └── Operacion Normal
-  │      │        │       │        │             ($100k, 2:1 leverage)
-  │      │        │       │        │
-  │      │        │       │        └── Escalado Gradual
-  │      │        │       │            ($10k → $25k → $50k)
-  │      │        │       │
-  │      │        │       └── Transicion a Live
-  │      │        │           (Primer trade con dinero real)
-  │      │        │
-  │      │        └── Paper Trading Riguroso
-  │      │            (1 mes minimo, todos los checks)
-  │      │
-  │      └── Pre-Deployment
-  │          (Legal, fiscal, tecnico)
-  │
-  └── Checklist Inicial
-      (Este documento)
+COMPLETADO          EN CURSO              PENDIENTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Feb 10-Mar 5    Mar 6-Abr 6       Abr 7      Abr 14-May     Jun+
+     │              │               │            │            │
+     │              │               │            │            └── Operacion Normal
+     │              │               │            │                ($100k, sin leverage)
+     │              │               │            │
+     │              │               │            └── Escalado Gradual
+     │              │               │                ($10k → $25k → $50k → $100k)
+     │              │               │
+     │              │               └── Transicion a Live
+     │              │                   (Primer trade real)
+     │              │
+     │              └── ██████░░░░ Paper Trading (1 mes)
+     │                  HYDRA live desde 6 Mar
+     │
+     └── ████████████ Pre-Deployment
+         COMPLETADO: infra, cloud, ML, tests
 ```
 
 ---
 
-## FASE ACTUAL: PREPARACION (HOY)
+## FASE 1: PRE-DEPLOYMENT [COMPLETADO]
 
-### Tareas para Hoy (30 minutos)
+### Logros (Feb 10 — Mar 5, 2026)
 
-- [ ] 1. Leer completamente `OMNICAPITAL_LIVE_DEPLOYMENT_GUIDE.md`
-- [ ] 2. Ejecutar `python deployment_checklist.py`
-- [ ] 3. Identificar gaps y crear plan para resolverlos
-- [ ] 4. Decidir fecha objetivo para inicio de paper trading
-- [ ] 5. Comprometer horario de monitoreo
-
-### Entregable de Hoy
-
-Documento `mi_plan_deployment.md` con:
-- Fecha objetivo paper trading: ___/___/___
-- Fecha objetivo live trading: ___/___/___
-- Capital a asignar: $________
-- Broker seleccionado: __________
-- Horario de monitoreo: __________
+- [x] Algoritmo HYDRA v8.4 finalizado (40 experimentos, 36 fallidos → parametros locked)
+- [x] 4 estrategias integradas: COMPASS momentum + Rattlesnake mean-reversion + Catalyst cross-asset + EFA internacional
+- [x] Cash recycling operativo
+- [x] Dashboard Flask operativo (local + cloud)
+- [x] Deployment en Render.com (gunicorn, auto-sync)
+- [x] IBKR broker mock completo (53 unit tests passing)
+- [x] Sistema ML de learning (decision logging + progressive learning)
+- [x] Alertas y monitoreo configurados
+- [x] GitHub Actions CI/CD operativo
+- [x] Documentacion completa (Manifesto, Deployment Guide, Implementation Guide)
 
 ---
 
-## SEMANAS 1-2: PRE-DEPLOYMENT
+## FASE 2: PAPER TRADING [EN CURSO — Semana 2 de 4]
 
-### Semana 1: Infraestructura Legal y Tecnica
+### Estado Actual (17 Marzo 2026)
 
-| Dia | Tarea | Tiempo | Entregable |
-|-----|-------|--------|------------|
-| 1 | Abrir cuenta broker | 1h | Cuenta creada |
-| 2 | Solicitar margin | 30min | Solicitud enviada |
-| 3 | Generar API keys | 30min | Keys guardadas |
-| 4 | Setup entorno Python | 1h | venv funcionando |
-| 5 | Test conexion API | 1h | Conexion exitosa |
-| 6 | Configurar alertas | 1h | Email/SMS testeado |
-| 7 | Documentar setup | 1h | README de setup |
+| Metrica | Valor |
+|---------|-------|
+| **Inicio paper trading** | 6 Marzo 2026 |
+| **Dias operando** | 11 |
+| **Portfolio** | $100,068.76 (+0.07%) |
+| **Cash disponible** | $43,220.44 |
+| **Posiciones activas** | 6 |
+| **Estrategias activas** | COMPASS (JNJ, GEV) + Catalyst (TLT, GLD, DBC) + EFA |
+| **Errores criticos** | 0 (post-fixes de aislamiento multi-estrategia) |
+| **Cloud dashboard** | Operativo en Render.com |
 
-### Semana 2: Validacion y Paper
+### Posiciones Actuales
 
-| Dia | Tarea | Tiempo | Entregable |
-|-----|-------|--------|------------|
-| 1 | Ejecutar paper trading | Continuo | Sistema corriendo |
-| 2 | Verificar ordenes | 30min | Logs de trades |
-| 3 | Testear stop loss | 30min | Simulacion OK |
-| 4 | Revisar slippage | 30min | Analisis de costos |
-| 5 | Backup y recovery | 1h | Procedimiento documentado |
-| 6 | Revisar semana | 1h | Reporte semanal |
-| 7 | Ajustar si necesario | 2h | Fixes aplicados |
+| Ticker | Estrategia | Rol |
+|--------|-----------|-----|
+| JNJ | COMPASS | Momentum pick |
+| GEV | COMPASS | Momentum pick |
+| TLT | Catalyst | Bonds (cross-asset trend) |
+| GLD | Catalyst | Gold (cross-asset trend) |
+| DBC | Catalyst | Commodities (cross-asset trend) |
+| EFA | EFA | International diversification |
 
----
-
-## SEMANAS 3-6: PAPER TRADING RIGUROSO
-
-### Objetivo: 1 Mes de Paper Trading Exitoso
-
-#### Metricas a Trackear Diariamente
-
-```python
-# Crear archivo tracking.py
-DAILY_METRICS = {
-    'date': '2026-02-10',
-    'portfolio_value': 100000,
-    'cash': 20000,
-    'positions': 5,
-    'trades_executed': 3,
-    'trades_failed': 0,
-    'slippage_avg': 0.0015,
-    'system_uptime_hours': 6.5,
-    'notes': 'Todo funciono correctamente'
-}
-```
+### Objetivo: 1 Mes de Paper Trading Exitoso (6 Mar → 6 Abr)
 
 #### Checklist Semanal
 
-**Semana 3:**
-- [ ] 5+ dias de operacion continua
-- [ ] 20+ trades ejecutados
-- [ ] 0 errores criticos
-- [ ] Slippage < 0.2% promedio
+**Semana 1 (6-12 Mar): [COMPLETADO]**
+- [x] Sistema encendido y operando
+- [x] Primeras posiciones COMPASS tomadas
+- [x] Cloud dashboard desplegado
+- [x] Estado sincronizando automaticamente
+- [x] Multi-estrategia (COMPASS + Catalyst + EFA) activado
 
-**Semana 4:**
-- [ ] 10+ dias de operacion continua
-- [ ] 40+ trades ejecutados
-- [ ] Stop loss testeado (simulado)
-- [ ] Latencia de datos < 5 min
+**Semana 2 (13-19 Mar): [EN CURSO]**
+- [x] Multi-strategy isolation fix (evitar que COMPASS venda posiciones de Catalyst/EFA)
+- [x] Peak value corregido a $100K (estaba stale en $120K)
+- [x] SPY benchmark anclado a cierre Mar 16
+- [ ] 10+ dias de operacion continua sin errores
+- [ ] Verificar que adaptive stops funcionan correctamente
+- [ ] Revisar cycle log (rotaciones de 5 dias)
 
-**Semana 5:**
+**Semana 3 (20-26 Mar):**
 - [ ] 15+ dias de operacion continua
-- [ ] Sistema estable sin intervencion
-- [ ] Costos de operacion calculados
-- [ ] Plan fiscal definido
+- [ ] Sistema estable sin intervencion manual
+- [ ] Rattlesnake mean-reversion: verificar que entra/sale correctamente
+- [ ] Costos de operacion estimados (comisiones + slippage)
+- [ ] Validar ML learning: decisiones loggeadas correctamente
 
-**Semana 6:**
+**Semana 4 (27 Mar - 6 Abr):**
 - [ ] 20+ dias de operacion continua
 - [ ] Todos los checks de deployment pasados
+- [ ] Stop loss testeado en al menos 1 posicion
+- [ ] Documento de go/no-go para live trading
+- [ ] Plan fiscal definido
 - [ ] Decision: continuar a live o extender paper
-- [ ] Documento de go/no-go
 
 ---
 
-## SEMANA 7: TRANSICION A LIVE
+## FASE 3: TRANSICION A LIVE [PENDIENTE — Abr 7, 2026]
+
+### Prerrequisitos (deben estar completos antes)
+
+- [ ] Paper trading exitoso por 1 mes completo
+- [ ] Documento go/no-go aprobado
+- [ ] Cuenta IBKR live abierta y fondeada
+- [ ] API keys de produccion generadas
+- [ ] Plan fiscal definido
 
 ### Dia D-3: Preparacion Final
 
-- [ ] Transferir capital a cuenta broker
-- [ ] Verificar margin activado
-- [ ] Revisar comisiones y costos
-- [ ] Configurar alertas de alto nivel
-- [ ] Notificar a personas clave (familia, asesor)
+- [ ] Transferir capital inicial ($10K) a cuenta broker
+- [ ] Verificar que API keys de produccion funcionan
+- [ ] Revisar comisiones reales de IBKR
+- [ ] Configurar alertas de alto nivel (email/SMS)
+- [ ] Notificar a personas clave
 
 ### Dia D-2: Test Final
 
 - [ ] Ejecutar orden de prueba con $100
 - [ ] Verificar ejecucion en plataforma broker
-- [ ] Confirmar que logs funcionan
+- [ ] Confirmar que logs funcionan con broker real
 - [ ] Testear stop loss con cantidad minima
-- [ ] Revisar checklist final
 
 ### Dia D-1: Descanso
 
 - [ ] No hacer nada relacionado con trading
 - [ ] Dormir bien
-- [ ] Preparar mentalmente
 - [ ] Recordar: "Es solo dinero, no mi identidad"
 
 ### Dia D: PRIMER TRADE EN VIVO
@@ -161,66 +147,72 @@ DAILY_METRICS = {
 HORARIO TIPO (ET)
 =================
 08:30 - Pre-market check
-        - Sistema encendido
+        - Sistema encendido (IBKRBroker live mode)
         - Conexion OK
         - Cash disponible confirmado
-        
+
 09:30 - Mercado abre
-        - Sistema entra en loop
-        - PRIMERAS ORDENES EN VIVO
+        - HYDRA engine entra en loop
+        - 4 estrategias operando simultaneamente
         - Respirar. No intervenir.
-        
+
 12:00 - Check medio dia
-        - Verificar posiciones
-        - Revisar P&L
-        - Todo funcionando OK
-        
+        - Dashboard cloud: verificar posiciones
+        - Revisar P&L por estrategia
+
 16:00 - Cierre
-        - Sistema cierra posiciones expiradas
-        - Reporte diario generado
+        - Sistema procesa rotaciones
+        - State sync automatico
         - Backup de estado
-        
+
 20:00 - Post-market
-        - Revisar logs del dia
-        - Analizar trades
-        - Preparar para manana
+        - Revisar cycle log
+        - Analizar trades por estrategia
+        - Verificar ML learning log
 ```
 
 ---
 
-## SEMANAS 8-11: ESCALADO GRADUAL
+## FASE 4: ESCALADO GRADUAL [PENDIENTE — Abr 14 - May, 2026]
 
 ### Estrategia de Escalado
 
 | Semana | Capital | Leverage | Objetivo |
 |--------|---------|----------|----------|
-| 8 | $10,000 | 1:1 | Validar ejecucion real |
-| 9 | $25,000 | 1.5:1 | Probar con algo de riesgo |
-| 10 | $50,000 | 2:1 | Escala media |
-| 11 | $75,000 | 2:1 | Casi completo |
+| 1 (Abr 14) | $10,000 | 1:1 (sin leverage) | Validar ejecucion real con IBKR |
+| 2 (Abr 21) | $25,000 | 1:1 | Escalar si semana 1 sin errores |
+| 3 (Abr 28) | $50,000 | 1:1 | Probar 4 estrategias a escala media |
+| 4 (May 5) | $100,000 | 1:1 | Capital objetivo completo |
+
+> **IMPORTANTE**: LEVERAGE_MAX = 1.0 — broker margin al 6% destruye valor.
+> Nunca habilitar leverage. Este es un parametro LOCKED.
 
 ### Criterios de Escalado
 
 **Subir al siguiente nivel solo si:**
 - Semana anterior sin errores criticos
-- Slippage dentro de parametros
-- Sistema estable (99%+ uptime)
+- Slippage dentro de parametros (< 0.2%)
+- Sistema estable (99%+ uptime en Render)
 - Comfort emocional con nivel actual
+- Todas las estrategias ejecutando correctamente
 
 **Si algo falla:**
 - Detener escalado
 - Volver a nivel anterior
 - Extender 1 semana adicional
-- Revisar y corregir
+- Diagnosticar y corregir antes de avanzar
 
 ---
 
-## SEMANA 12+: OPERACION NORMAL
+## FASE 5: OPERACION NORMAL [PENDIENTE — Jun 2026+]
 
 ### Estado Estacionario
 
-- Capital: $100,000+ (o tu maximo planeado)
-- Leverage: 2:1 (reducido a 1:1 en proteccion)
+- Capital: $100,000 (o tu maximo planeado)
+- Leverage: 1:1 (nunca mas — LOCKED)
+- Estrategias: COMPASS + Rattlesnake + Catalyst + EFA + cash recycling
+- Cloud: Render.com dashboard con auto-sync
+- ML: Progressive learning activo
 - Monitoreo: Diario pero pasivo
 - Intervencion: Solo en emergencias
 
@@ -247,11 +239,12 @@ HORARIO TIPO (ET)
 
 | Metrica | Target | Accion si fuera de rango |
 |---------|--------|--------------------------|
-| CAGR (rolling 12m) | > 10% | Revisar, NO cambiar sistema |
-| Max DD | < -40% | Esperar recuperacion |
-| Sharpe | > 0.6 | Revisar costos |
-| Uptime | > 99% | Mejorar infraestructura |
-| Trades exitosos | > 95% | Revisar conexion broker |
+| CAGR (rolling 12m) | > 10% | Revisar, NO cambiar algoritmo |
+| Max DD | < -40% | Esperar recuperacion (crash brake activa) |
+| Sharpe | > 0.6 | Revisar costos de ejecucion |
+| Uptime (Render) | > 99% | Revisar gunicorn workers |
+| Trades exitosos | > 95% | Revisar conexion IBKR |
+| ML decisions logged | 100% | Verificar compass_ml_learning.py |
 
 ---
 
@@ -281,12 +274,13 @@ HORARIO TIPO (ET)
 ### Si el Mercado Colapsa
 
 ```
-1. El sistema ACTIVARA stop loss automaticamente
-2. Leverage reducira a 1:1
-3. NO agregar capital
-4. NO intervenir
-5. Esperar recuperacion a 95% del peak
-6. El sistema restaurara leverage automaticamente
+1. HYDRA ACTIVARA adaptive stops automaticamente (-6% a -15% vol-scaled)
+2. Crash brake: 5d=-6% o 10d=-10% → 15% leverage
+3. DD tiers activan: T1=-10%, T2=-20%, T3=-35%
+4. NO agregar capital
+5. NO intervenir — el sistema maneja drawdowns
+6. Esperar recuperacion a 95% del peak
+7. El sistema restaurara posiciones automaticamente
 ```
 
 ### Si Yo Quiero Intervenir
@@ -305,44 +299,48 @@ HORARIO TIPO (ET)
 ## RECURSOS Y CONTACTOS
 
 ### Documentacion
-- `OMNICAPITAL_V6_FINAL_SPEC.md` - Especificacion tecnica
-- `OMNICAPITAL_LIVE_DEPLOYMENT_GUIDE.md` - Guia completa
-- `IMPLEMENTATION_GUIDE.md` - Guia de implementacion
-- `PROJECT_STATE.md` - Estado del proyecto
+- `docs/MANIFESTO.md` - Manifiesto COMPASS/HYDRA
+- `docs/DEPLOYMENT_GUIDE.md` - Guia de deployment
+- `docs/IMPLEMENTATION_GUIDE.md` - Guia de implementacion
+- `docs/PROJECT_STATE.md` - Estado del proyecto
+- `docs/ML_ARCHITECTURE.md` - Arquitectura ML learning
+- `docs/HYDRA_4th_PILLAR_REPORT.md` - Report EFA (4to pilar)
 
-### Scripts
-- `deployment_checklist.py` - Verificacion pre-live
-- `daily_monitor.py` - Monitoreo diario
-- `omnicapital_live.py` - Sistema de trading
+### Scripts Clave
+- `compass_dashboard.py` - Dashboard Flask + engine (entry point)
+- `omnicapital_live.py` - COMPASSLive class (broker, signals, execution)
+- `compass_ml_learning.py` - ML orchestrator
+- `tests/validate_live_system.py` - Validacion de sistema
 
-### Soporte
-- Broker: Interactive Brokers / Alpaca
-- Data: Yahoo Finance / IBKR API
-- Comunidad: [Si existe, agregar]
+### Infraestructura
+- **Broker**: Interactive Brokers (mock ahora, live en Fase 3)
+- **Data**: Yahoo Finance (con cache en `data_cache/`)
+- **Cloud**: Render.com (gunicorn, auto-deploy desde GitHub)
+- **CI/CD**: GitHub Actions
+- **Repo**: github.com/lucasabu1988/NuevoProyecto
 
 ---
 
 ## FIRMA DE COMPROMISO
 
-Yo, ________________, me comprometo a:
+Yo, Lucas, me comprometo a:
 
 1. Seguir este roadmap paso a paso
-2. NO saltear etapas (especialmente paper trading)
+2. NO saltear etapas (completar 1 mes de paper trading)
 3. NO intervenir en el sistema una vez en live
-4. Mantener disciplina durante drawdowns
-5. Documentar y aprender de errores
+4. NO activar leverage (LEVERAGE_MAX = 1.0 LOCKED)
+5. Mantener disciplina durante drawdowns
+6. Documentar y aprender de errores
 
-**Fecha de inicio:** _____________  
-**Fecha objetivo live:** _____________  
-**Capital a asignar:** $___________
-
-Firma: _______________
+**Fecha de inicio paper:** 6 Marzo 2026
+**Fecha objetivo live:** 7 Abril 2026
+**Capital a asignar:** $100,000 (escalado gradual desde $10K)
 
 ---
 
-**Version:** 1.0  
-**Fecha:** 10 Febrero 2026  
-**Sistema:** OmniCapital v6 FINAL  
-**Estado:** Listo para deployment
+**Version:** 2.0
+**Fecha:** 17 Marzo 2026
+**Sistema:** OmniCapital HYDRA v8.4 (COMPASS + Rattlesnake + Catalyst + EFA)
+**Estado:** Paper trading activo — Semana 2 de 4
 
 *"El mejor momento para empezar fue hace 20 anos. El segundo mejor momento es ahora."*
