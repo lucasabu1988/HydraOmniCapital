@@ -22,8 +22,8 @@ var TRANSLATIONS = {
     'tab-ml':         'ML',
 
     // Fund Comparison
-    'fc-hero-sub':        'Comparativa contra fondos reales del mercado',
-    'fc-hero-tagline':    'HYDRA frente a 9 fondos y benchmarks reales \u00b7 Datos de Yahoo Finance (precios ajustados con dividendos)',
+    'fc-hero-sub':        '\u00bfC\u00f3mo se compara HYDRA contra fondos reales?',
+    'fc-hero-tagline':    'Backtest 2000\u20132026 \u00b7 Datos de Yahoo Finance (precios ajustados con dividendos) \u00b7 Costos incluidos',
     'fc-metrics-title':   'M\u00e9tricas Principales',
     'fc-equity-title':    'Crecimiento de $100K (Datos Mensuales Reales)',
     'fc-crisis-title':    'Rendimiento en Crisis',
@@ -331,8 +331,8 @@ var TRANSLATIONS = {
     'tab-ml':         'ML',
 
     // Fund Comparison
-    'fc-hero-sub':        'Comparison against real-world funds',
-    'fc-hero-tagline':    'HYDRA vs 9 real-world funds & benchmarks \u00b7 Yahoo Finance adjusted close prices (dividends reinvested)',
+    'fc-hero-sub':        'How does HYDRA compare to real funds?',
+    'fc-hero-tagline':    'Backtest 2000\u20132026 \u00b7 Yahoo Finance adjusted close prices (dividends reinvested) \u00b7 Costs included',
     'fc-metrics-title':   'Key Metrics',
     'fc-equity-title':    'Growth of $100K (Real Monthly Data)',
     'fc-crisis-title':    'Crisis Performance',

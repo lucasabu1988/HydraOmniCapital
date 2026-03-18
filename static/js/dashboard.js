@@ -3315,6 +3315,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 var _fcData = null;
 var _fcEquityChart = null;
+var _fcDrawdownChart = null;
+var _fcScatterChart = null;
+var _fcRollingChart = null;
 
 async function fetchFundComparison() {
     try {
@@ -3322,9 +3325,13 @@ async function fetchFundComparison() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var data = await res.json();
         _fcData = data;
+        renderFCHeroKpis(data);
         renderFCMetrics(data);
         renderFCEquityChart(data);
-        renderFCCrisis(data);
+        renderFCDrawdownChart(data);
+        renderFCCrisisCards(data);
+        renderFCScatterChart(data);
+        renderFCRollingChart(data);
         renderFCAnnual(data);
         renderFCNotes(data);
     } catch (e) {
@@ -3511,30 +3518,7 @@ function renderFCEquityChart(data) {
     });
 }
 
-function renderFCCrisis(data) {
-    var periods = data.crisis_periods || [];
-    periods.forEach(function(p, i) {
-        var th = document.getElementById('fc-crisis-h' + i);
-        if (th) th.textContent = p.name + ' (' + p.period + ')';
-    });
-
-    var tbody = document.getElementById('fc-crisis-body');
-    if (!tbody) return;
-    while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-    data.funds.forEach(function(f) {
-        var cells = [{text: f.name, cls: 'fc-fund-name'}];
-        periods.forEach(function(p) {
-            var cr = f.crisis_returns && f.crisis_returns[p.id];
-            if (cr && cr['return'] != null) {
-                var v = cr['return'];
-                cells.push({text: (v > 0 ? '+' : '') + v.toFixed(1) + '%', cls: v >= 0 ? 'fc-pos' : 'fc-neg'});
-            } else {
-                cells.push({text: 'N/A', cls: 'fc-na'});
-            }
-        });
-        tbody.appendChild(_fcCreateRow(cells, f.highlight));
-    });
-}
+/* renderFCCrisis removed — replaced by renderFCCrisisCards */
 
 function renderFCAnnual(data) {
     /* Dynamically determine year range from data */
@@ -3601,6 +3585,344 @@ function renderFCNotes(data) {
         var li = document.createElement('li');
         li.textContent = n;
         ul.appendChild(li);
+    });
+}
+
+/* ---- Hero KPI cards ---- */
+function renderFCHeroKpis(data) {
+    var hydra = null, spy = null;
+    data.funds.forEach(function(f) {
+        if (f.highlight) hydra = f;
+        if (f.id === 'spy' || (f.name && f.name.indexOf('SPY') !== -1 && !f.highlight)) spy = f;
+    });
+    if (!hydra) return;
+    var el = function(id) { return document.getElementById(id); };
+    if (el('fc-hero-cagr')) el('fc-hero-cagr').textContent = hydra.cagr.toFixed(1) + '%';
+    if (el('fc-hero-dd')) el('fc-hero-dd').textContent = hydra.max_dd.toFixed(1) + '%';
+    if (el('fc-hero-sharpe')) el('fc-hero-sharpe').textContent = hydra.sharpe.toFixed(2);
+    if (spy) {
+        if (el('fc-hero-cagr-vs')) el('fc-hero-cagr-vs').textContent = 'vs ' + spy.cagr.toFixed(1) + '% S&P';
+        if (el('fc-hero-dd-vs')) el('fc-hero-dd-vs').textContent = 'vs ' + spy.max_dd.toFixed(1) + '% S&P';
+        if (el('fc-hero-sharpe-vs')) el('fc-hero-sharpe-vs').textContent = 'vs ' + spy.sharpe.toFixed(2) + ' S&P';
+    }
+    /* Update growth insight */
+    if (hydra.cumulative && el('fc-growth-insight')) {
+        var final$ = Math.round(100000 * (1 + hydra.cumulative / 100));
+        el('fc-growth-insight').textContent = '$100K → $' + (final$ / 1000000).toFixed(1) + 'M en 26 años';
+    }
+}
+
+/* ---- Drawdown (underwater) chart ---- */
+function renderFCDrawdownChart(data) {
+    var canvas = document.getElementById('fc-drawdown-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    /* Only plot HYDRA + SPY for clarity */
+    var targets = [];
+    data.funds.forEach(function(f) {
+        if (f.highlight || f.id === 'spy' || (f.name && f.name.indexOf('SPY') !== -1 && !f.highlight)) {
+            if (f.growth_100k) targets.push(f);
+        }
+    });
+    if (!targets.length) return;
+
+    /* Compute drawdown series from growth_100k */
+    var allMonths = {};
+    targets.forEach(function(f) {
+        Object.keys(f.growth_100k).forEach(function(m) { allMonths[m] = true; });
+    });
+    var months = Object.keys(allMonths).sort();
+
+    var ddColors = ['rgba(0,230,118,0.5)', 'rgba(255,82,82,0.45)'];
+    var ddBorders = ['#00e676', '#ff5252'];
+    var datasets = [];
+
+    targets.forEach(function(f, idx) {
+        var peak = 0;
+        var ddValues = [];
+        months.forEach(function(m) {
+            var v = f.growth_100k[m];
+            if (v == null) { ddValues.push(null); return; }
+            if (v > peak) peak = v;
+            ddValues.push(peak > 0 ? ((v - peak) / peak) * 100 : 0);
+        });
+        datasets.push({
+            label: f.name,
+            data: ddValues,
+            borderColor: ddBorders[idx % ddBorders.length],
+            backgroundColor: ddColors[idx % ddColors.length],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.1,
+            fill: true,
+            spanGaps: false,
+        });
+    });
+
+    if (_fcDrawdownChart) _fcDrawdownChart.destroy();
+    _fcDrawdownChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels: months, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { color: '#ccc', font: { size: 10 }, boxWidth: 14, padding: 8, usePointStyle: true } },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            if (ctx.raw == null) return ctx.dataset.label + ': N/A';
+                            return ctx.dataset.label + ': ' + ctx.raw.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#999', font: { size: 9 }, maxTicksLimit: 12,
+                        callback: function(val) { var d = this.getLabelForValue(val); return d && d.length === 7 && d.endsWith('-01') ? d.slice(0, 4) : ''; }
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                },
+                y: {
+                    max: 0,
+                    ticks: { color: '#999', callback: function(v) { return v.toFixed(0) + '%'; } },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                }
+            }
+        }
+    });
+}
+
+/* ---- Crisis cards (replaces table) ---- */
+function renderFCCrisisCards(data) {
+    var container = document.getElementById('fc-crisis-cards');
+    if (!container) return;
+    while (container.firstChild) container.removeChild(container.firstChild);
+
+    var periods = data.crisis_periods || [];
+    var hydra = null, spy = null;
+    data.funds.forEach(function(f) {
+        if (f.highlight) hydra = f;
+        if (f.id === 'spy' || (f.name && f.name.indexOf('SPY') !== -1 && !f.highlight)) spy = f;
+    });
+
+    periods.forEach(function(p) {
+        var card = document.createElement('div');
+        card.className = 'fc-crisis-card';
+
+        var nameEl = document.createElement('div');
+        nameEl.className = 'fc-crisis-card-name';
+        nameEl.textContent = p.name;
+        card.appendChild(nameEl);
+
+        var periodEl = document.createElement('div');
+        periodEl.className = 'fc-crisis-card-period';
+        periodEl.textContent = p.period;
+        card.appendChild(periodEl);
+
+        var retEl = document.createElement('div');
+        retEl.className = 'fc-crisis-card-returns';
+
+        [hydra, spy].forEach(function(f) {
+            if (!f) return;
+            var span = document.createElement('span');
+            span.className = 'fc-crisis-card-fund';
+            var cr = f.crisis_returns && f.crisis_returns[p.id];
+            var v = cr && cr['return'] != null ? cr['return'] : null;
+            if (v !== null) {
+                span.textContent = f.name + ': ' + (v > 0 ? '+' : '') + v.toFixed(1) + '%';
+                span.classList.add(v >= 0 ? 'fc-pos' : 'fc-neg');
+            } else {
+                span.textContent = f.name + ': N/A';
+            }
+            retEl.appendChild(span);
+        });
+
+        card.appendChild(retEl);
+        container.appendChild(card);
+    });
+}
+
+/* ---- Risk-return scatter ---- */
+function renderFCScatterChart(data) {
+    var canvas = document.getElementById('fc-scatter-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    var scatterColors = [
+        '#00e676', '#78909c', '#2196f3', '#e91e63', '#fdd835', '#ff7043',
+        '#ab47bc', '#26a69a', '#8d6e63', '#5c6bc0'
+    ];
+
+    var points = [];
+    data.funds.forEach(function(f, idx) {
+        points.push({
+            x: f.volatility,
+            y: f.cagr,
+            label: f.name,
+            sharpe: f.sharpe,
+            highlight: f.highlight,
+            color: scatterColors[idx % scatterColors.length],
+            radius: f.highlight ? 10 : 6 + Math.max(0, f.sharpe) * 3,
+        });
+    });
+
+    if (_fcScatterChart) _fcScatterChart.destroy();
+    _fcScatterChart = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: {
+            datasets: points.map(function(p) {
+                return {
+                    label: p.label,
+                    data: [{ x: p.x, y: p.y }],
+                    backgroundColor: p.color,
+                    borderColor: p.highlight ? '#fff' : p.color,
+                    borderWidth: p.highlight ? 2 : 1,
+                    pointRadius: p.radius,
+                    pointHoverRadius: p.radius + 3,
+                };
+            })
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            var ds = ctx.dataset;
+                            var pt = ctx.raw;
+                            return ds.label + ' — CAGR: ' + pt.y.toFixed(1) + '%, Vol: ' + pt.x.toFixed(1) + '%';
+                        }
+                    }
+                },
+                /* Label each point */
+                datalabels: false
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Volatilidad (%)', color: '#999', font: { size: 11 } },
+                    ticks: { color: '#999', callback: function(v) { return v + '%'; } },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                },
+                y: {
+                    title: { display: true, text: 'CAGR (%)', color: '#999', font: { size: 11 } },
+                    ticks: { color: '#999', callback: function(v) { return v + '%'; } },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                }
+            }
+        },
+        plugins: [{
+            /* Inline labels next to each dot */
+            afterDraw: function(chart) {
+                var ctx = chart.ctx;
+                ctx.font = '10px sans-serif';
+                ctx.textBaseline = 'middle';
+                chart.data.datasets.forEach(function(ds, i) {
+                    var meta = chart.getDatasetMeta(i);
+                    if (!meta.data.length) return;
+                    var pt = meta.data[0];
+                    ctx.fillStyle = ds.borderColor || ds.backgroundColor;
+                    ctx.fillText(ds.label, pt.x + pt.options.radius + 4, pt.y);
+                });
+            }
+        }]
+    });
+}
+
+/* ---- Rolling 5-year CAGR ---- */
+function renderFCRollingChart(data) {
+    var canvas = document.getElementById('fc-rolling-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    /* Only plot HYDRA + SPY */
+    var targets = [];
+    data.funds.forEach(function(f) {
+        if (f.highlight || f.id === 'spy' || (f.name && f.name.indexOf('SPY') !== -1 && !f.highlight)) {
+            if (f.annual_returns) targets.push(f);
+        }
+    });
+    if (!targets.length) return;
+
+    var allYears = {};
+    targets.forEach(function(f) {
+        Object.keys(f.annual_returns).forEach(function(y) { allYears[parseInt(y)] = true; });
+    });
+    var years = Object.keys(allYears).map(Number).sort();
+
+    /* Compute rolling 5yr CAGR: geometric mean of years [y-4..y] */
+    var window = 5;
+    var rollingYears = [];
+    var datasets = [];
+    var rollingColors = ['#00e676', '#ff5252'];
+
+    targets.forEach(function(f, idx) {
+        var vals = [];
+        var labels = [];
+        for (var i = window - 1; i < years.length; i++) {
+            var product = 1;
+            var valid = true;
+            for (var j = 0; j < window; j++) {
+                var yr = years[i - (window - 1) + j];
+                var r = f.annual_returns[yr];
+                if (r == null) { valid = false; break; }
+                product *= (1 + r / 100);
+            }
+            if (valid) {
+                var cagr5 = (Math.pow(product, 1 / window) - 1) * 100;
+                vals.push(cagr5);
+                if (idx === 0) rollingYears.push(years[i]);
+            } else {
+                vals.push(null);
+                if (idx === 0) rollingYears.push(years[i]);
+            }
+        }
+        datasets.push({
+            label: f.name,
+            data: vals,
+            borderColor: rollingColors[idx % rollingColors.length],
+            backgroundColor: 'transparent',
+            borderWidth: f.highlight ? 2.5 : 1.5,
+            borderDash: f.highlight ? [] : [5, 3],
+            pointRadius: 0,
+            tension: 0.2,
+        });
+    });
+
+    if (_fcRollingChart) _fcRollingChart.destroy();
+    _fcRollingChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels: rollingYears.map(String), datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { color: '#ccc', font: { size: 10 }, boxWidth: 14, padding: 8, usePointStyle: true } },
+                tooltip: {
+                    callbacks: {
+                        title: function(items) { return items.length ? items[0].label + ' (5yr ending)' : ''; },
+                        label: function(ctx) {
+                            if (ctx.raw == null) return ctx.dataset.label + ': N/A';
+                            return ctx.dataset.label + ': ' + ctx.raw.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#999', font: { size: 10 }, maxTicksLimit: 14 },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                },
+                y: {
+                    ticks: { color: '#999', callback: function(v) { return v.toFixed(0) + '%'; } },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    title: { display: true, text: 'CAGR 5 años (%)', color: '#999', font: { size: 11 } }
+                }
+            }
+        }
     });
 }
 

@@ -4196,29 +4196,89 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .fc-hero {
     position: relative;
     text-align: center;
-    padding: 48px 24px 32px;
+    padding: 56px 24px 40px;
     overflow: hidden;
 }
 .fc-hero-title {
-    font-size: 1.6rem;
+    font-size: 1.8rem;
     font-weight: 800;
     letter-spacing: -0.03em;
     color: var(--text-primary);
 }
 .fc-hero-sub {
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: var(--accent);
-    margin-top: 6px;
+    margin-top: 8px;
     font-weight: 600;
+}
+.fc-hero-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    max-width: 560px;
+    margin: 28px auto 0;
+}
+.fc-hero-kpi {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 12px;
+    text-align: center;
+}
+.fc-hero-kpi-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+.fc-hero-kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.fc-hero-kpi-vs {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
 }
 .fc-hero-tagline {
     font-size: 0.78rem;
     color: var(--text-muted);
-    margin-top: 8px;
+    margin-top: 20px;
     max-width: 680px;
     margin-left: auto;
     margin-right: auto;
 }
+
+/* Narrative story sections */
+.fc-story-section {
+    padding: 0 24px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.fc-story-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+.fc-story-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+.fc-story-insight {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+    line-height: 1.5;
+}
+
+/* Legacy .fc-section still used for metrics table */
 .fc-section {
     padding: 0 24px 32px;
     max-width: 1200px;
@@ -4303,6 +4363,62 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     z-index: 1;
 }
 
+/* Chart size variants */
+.fc-chart-tall {
+    height: 420px;
+}
+.fc-chart-medium {
+    height: 300px;
+}
+
+/* Resilience: drawdown chart + crisis cards side by side */
+.fc-resilience-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 18px;
+    align-items: start;
+}
+
+/* Crisis cards (replaces raw table) */
+.fc-crisis-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.fc-crisis-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.fc-crisis-card-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+.fc-crisis-card-period {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+.fc-crisis-card-returns {
+    display: flex;
+    gap: 12px;
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+}
+.fc-crisis-card-fund {
+    font-weight: 600;
+}
+
+/* Consistency: rolling chart + heatmap stacked */
+.fc-consistency-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
 /* Notes */
 .fc-notes ul {
     list-style: disc;
@@ -4314,10 +4430,18 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 
 /* Mobile */
 @media (max-width: 700px) {
-    .fc-hero { padding: 32px 16px 24px; }
-    .fc-hero-title { font-size: 1.2rem; }
-    .fc-section { padding: 0 12px 24px; }
+    .fc-hero { padding: 36px 16px 28px; }
+    .fc-hero-title { font-size: 1.3rem; }
+    .fc-hero-kpis { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .fc-hero-kpi { padding: 10px 6px; }
+    .fc-hero-kpi-value { font-size: 1.15rem; }
+    .fc-hero-kpi-label { font-size: 0.6rem; }
+    .fc-story-section { padding: 0 12px 28px; }
+    .fc-story-title { font-size: 1rem; }
     .fc-chart-wrap { height: 280px; }
+    .fc-chart-tall { height: 300px; }
+    .fc-chart-medium { height: 240px; }
+    .fc-resilience-grid { grid-template-columns: 1fr; }
     .fc-hm-cell { min-width: 36px; font-size: 0.69rem; }
     .fc-hm-name { min-width: 100px; font-size: 0.69rem; }
 }

@@ -26,7 +26,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260317c">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260318a">
 <style>
 .startup-loading[hidden] { display: none !important; }
 .startup-loading {
@@ -1469,18 +1469,87 @@
 <!-- ==================== PAGE: FONDOS (Fund Comparison) ==================== -->
 <div id="page-fondos" class="page-content">
 
-<!-- HERO -->
+<!-- SECTION 0: HERO -->
 <div class="fc-hero">
     <div class="lh-glow lh-glow-1" style="opacity:0.2;"></div>
     <div class="lh-glow lh-glow-2" style="opacity:0.15;"></div>
-    <div class="fc-hero-title">HYDRA vs Fondos Momentum</div>
-    <div class="fc-hero-sub" data-i18n="fc-hero-sub">Comparativa contra fondos reales del mercado</div>
-    <div class="fc-hero-tagline" data-i18n="fc-hero-tagline">HYDRA frente a 9 fondos y benchmarks reales &middot; Datos de Yahoo Finance (precios ajustados con dividendos)</div>
+    <div class="fc-hero-title">HYDRA vs El Mercado</div>
+    <div class="fc-hero-sub" data-i18n="fc-hero-sub">&iquest;C&oacute;mo se compara HYDRA contra fondos reales?</div>
+    <div class="fc-hero-kpis" id="fc-hero-kpis">
+        <div class="fc-hero-kpi">
+            <div class="fc-hero-kpi-label">CAGR</div>
+            <div class="fc-hero-kpi-value fc-pos" id="fc-hero-cagr">--</div>
+            <div class="fc-hero-kpi-vs" id="fc-hero-cagr-vs">vs -- S&amp;P</div>
+        </div>
+        <div class="fc-hero-kpi">
+            <div class="fc-hero-kpi-label">Max Drawdown</div>
+            <div class="fc-hero-kpi-value fc-pos" id="fc-hero-dd">--</div>
+            <div class="fc-hero-kpi-vs" id="fc-hero-dd-vs">vs -- S&amp;P</div>
+        </div>
+        <div class="fc-hero-kpi">
+            <div class="fc-hero-kpi-label">Sharpe</div>
+            <div class="fc-hero-kpi-value fc-pos" id="fc-hero-sharpe">--</div>
+            <div class="fc-hero-kpi-vs" id="fc-hero-sharpe-vs">vs -- S&amp;P</div>
+        </div>
+    </div>
+    <div class="fc-hero-tagline" data-i18n="fc-hero-tagline">Backtest 2000&ndash;2026 &middot; Datos de Yahoo Finance (precios ajustados con dividendos) &middot; Costos incluidos</div>
 </div>
 
-<!-- METRICS TABLE -->
-<div class="fc-section">
-    <div class="fc-section-title" data-i18n="fc-metrics-title">M&eacute;tricas Principales</div>
+<!-- SECTION 1: GROWTH -->
+<div class="fc-story-section">
+    <div class="fc-story-label">Crecimiento</div>
+    <div class="fc-story-title">$100K invertidos en el a&ntilde;o 2000</div>
+    <div class="fc-story-insight" id="fc-growth-insight">$100K &rarr; $3.4M en 26 a&ntilde;os</div>
+    <div class="fc-chart-wrap fc-chart-tall">
+        <canvas id="fc-equity-chart" height="380"></canvas>
+    </div>
+</div>
+
+<!-- SECTION 2: RESILIENCE -->
+<div class="fc-story-section">
+    <div class="fc-story-label">Resiliencia</div>
+    <div class="fc-story-title">Rendimiento en Crisis</div>
+    <div class="fc-story-insight" id="fc-resilience-insight">El peor momento de HYDRA fue -22% mientras el S&amp;P cay&oacute; -55%</div>
+    <div class="fc-resilience-grid">
+        <div class="fc-chart-wrap fc-chart-medium">
+            <canvas id="fc-drawdown-chart" height="260"></canvas>
+        </div>
+        <div class="fc-crisis-cards" id="fc-crisis-cards"></div>
+    </div>
+</div>
+
+<!-- SECTION 3: RISK vs RETURN -->
+<div class="fc-story-section">
+    <div class="fc-story-label">Riesgo vs Retorno</div>
+    <div class="fc-story-title">Frontera Eficiente</div>
+    <div class="fc-story-insight">M&aacute;s retorno por unidad de riesgo que cualquier competidor</div>
+    <div class="fc-chart-wrap fc-chart-medium">
+        <canvas id="fc-scatter-chart" height="300"></canvas>
+    </div>
+</div>
+
+<!-- SECTION 4: CONSISTENCY -->
+<div class="fc-story-section">
+    <div class="fc-story-label">Consistencia</div>
+    <div class="fc-story-title">Retornos Anuales</div>
+    <div class="fc-story-insight" id="fc-consistency-insight">22 de 26 a&ntilde;os positivos, supera al S&amp;P en 19</div>
+    <div class="fc-consistency-grid">
+        <div class="fc-chart-wrap fc-chart-medium">
+            <canvas id="fc-rolling-chart" height="260"></canvas>
+        </div>
+        <div class="fc-table-wrap fc-heatmap-wrap">
+            <table class="fc-table fc-heatmap" id="fc-annual-table">
+                <thead id="fc-annual-head"></thead>
+                <tbody id="fc-annual-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 5: THE NUMBERS -->
+<div class="fc-story-section">
+    <div class="fc-story-label">Los N&uacute;meros</div>
+    <div class="fc-story-title">M&eacute;tricas Completas</div>
     <div class="fc-table-wrap">
         <table class="fc-table" id="fc-metrics-table">
             <thead>
@@ -1502,48 +1571,10 @@
     </div>
 </div>
 
-<!-- EQUITY CURVES CHART -->
-<div class="fc-section">
-    <div class="fc-section-title" data-i18n="fc-equity-title">Crecimiento de $100K (Datos Mensuales Reales)</div>
-    <div class="fc-chart-wrap">
-        <canvas id="fc-equity-chart" height="340"></canvas>
-    </div>
-</div>
-
-<!-- CRISIS PERFORMANCE -->
-<div class="fc-section">
-    <div class="fc-section-title" data-i18n="fc-crisis-title">Rendimiento en Crisis</div>
-    <div class="fc-table-wrap">
-        <table class="fc-table" id="fc-crisis-table">
-            <thead id="fc-crisis-head">
-                <tr>
-                    <th data-i18n="fc-th-fund">Fondo</th>
-                    <th id="fc-crisis-h0"></th>
-                    <th id="fc-crisis-h1"></th>
-                    <th id="fc-crisis-h2"></th>
-                    <th id="fc-crisis-h3"></th>
-                    <th id="fc-crisis-h4"></th>
-                </tr>
-            </thead>
-            <tbody id="fc-crisis-body"></tbody>
-        </table>
-    </div>
-</div>
-
-<!-- ANNUAL RETURNS HEATMAP -->
-<div class="fc-section">
-    <div class="fc-section-title" data-i18n="fc-annual-title">Retornos Anuales (%)</div>
-    <div class="fc-table-wrap fc-heatmap-wrap">
-        <table class="fc-table fc-heatmap" id="fc-annual-table">
-            <thead id="fc-annual-head"></thead>
-            <tbody id="fc-annual-body"></tbody>
-        </table>
-    </div>
-</div>
-
-<!-- NOTES -->
-<div class="fc-section fc-notes">
-    <div class="fc-section-title" data-i18n="fc-notes-title">Notas &amp; Fuentes</div>
+<!-- NOTES & SOURCES -->
+<div class="fc-story-section fc-notes">
+    <div class="fc-story-label">Notas</div>
+    <div class="fc-story-title" data-i18n="fc-notes-title">Fuentes &amp; Metodolog&iacute;a</div>
     <ul id="fc-notes-list"></ul>
 </div>
 
@@ -1698,8 +1729,8 @@
 
 <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
 
-<script src="/static/js/i18n.js?v=20260317b"></script>
-<script src="/static/js/dashboard.js?v=20260317e"></script>
+<script src="/static/js/i18n.js?v=20260318a"></script>
+<script src="/static/js/dashboard.js?v=20260318a"></script>
 
 </body>
 </html>
