@@ -1,0 +1,26 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    # Every 10 minutes during US market hours (Mon-Fri)
+    # 14:00-16:30 ET = 19:00-21:30 UTC (standard) / 18:00-20:30 UTC (DST)
+    # Using broader window to cover both: 18:00-21:30 UTC, Mon-Fri
+    - cron: '*/10 18-21 * * 1-5'
+    # Also ping at 13:30 UTC (~9:30 ET) to wake up for market open
+    - cron: '25,30,35 13-14 * * 1-5'
+  workflow_dispatch: # allow manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render to prevent sleep
+        run: |
+          echo "Pinging Render at $(date -u '+%Y-%m-%d %H:%M UTC')"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 60 \
+            "https://omnicapital.onrender.com/api/health")
+          echo "Response: HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" -ge 500 ]; then
+            echo "::warning::Server returned $HTTP_CODE"
+          fi

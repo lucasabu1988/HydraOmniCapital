@@ -3794,17 +3794,30 @@ def _start_background_tasks():
 _self_ping_started = False
 
 def _self_ping_loop():
-    """Ping our own /api/preflight every 10 minutes to prevent Render sleep."""
+    """Ping our own /api/preflight to prevent Render sleep.
+    Every 5 min during market hours (14:00-16:30 ET), every 10 min otherwise."""
     import urllib.request
     url = os.environ.get('RENDER_EXTERNAL_URL', 'https://omnicapital.onrender.com')
     ping_url = f"{url}/api/preflight"
-    logger.info(f"Self-ping started: {ping_url} every 10 min")
+    logger.info(f"Self-ping started: {ping_url} (5 min market hours, 10 min off-hours)")
 
     while True:
-        time_module.sleep(600)  # 10 minutes
+        # Determine interval based on time of day (ET)
+        try:
+            from zoneinfo import ZoneInfo
+            now_et = datetime.now(ZoneInfo('America/New_York'))
+            hour = now_et.hour
+            is_weekday = now_et.weekday() < 5
+            # Critical window: 14:00-16:30 ET (covers pre-close + buffer)
+            is_critical = is_weekday and 14 <= hour < 17
+            interval = 300 if is_critical else 600  # 5 min vs 10 min
+        except Exception:
+            interval = 600
+
+        time_module.sleep(interval)
         try:
             resp = urllib.request.urlopen(ping_url, timeout=15)
-            logger.debug(f"Self-ping OK: {resp.status}")
+            logger.debug(f"Self-ping OK: {resp.status} (interval={interval}s)")
         except Exception as e:
             logger.warning(f"Self-ping failed: {e}")
 

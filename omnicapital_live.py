@@ -867,6 +867,7 @@ class COMPASSLive:
         self._last_audit_positions = set()
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
+        self._missed_preclose = False         # Catch-up flag for missed pre-close
         self._startup_self_test_done = False
         self._shutdown_requested = False
 
@@ -2532,6 +2533,15 @@ class COMPASSLive:
             return
 
         today = self.get_et_now().date()
+
+        # Detect if yesterday's pre-close was missed (e.g., Render cold start)
+        # If _preclose_entries_done is still False from yesterday, we missed it
+        self._missed_preclose = (not self._preclose_entries_done
+                                  and self.trading_day_counter >= 1)
+        if self._missed_preclose:
+            logger.warning(f"[CATCH-UP] Pre-close was missed on day {self.trading_day_counter} "
+                           f"(last_trading_date={self.last_trading_date})")
+
         self.last_trading_date = today
         self.trading_day_counter += 1
         self.trades_today = []
@@ -4696,6 +4706,12 @@ class COMPASSLive:
             # - At 15:30 ET: new entries via pre-close signal + same-day MOC
             # - Intraday: check stops periodically
             if not self._daily_open_done:
+                # Catch-up: if yesterday's pre-close was missed (Render cold start),
+                # run entries now at open so positions aren't left unfilled for days
+                if self._missed_preclose:
+                    logger.warning("[CATCH-UP] Yesterday's pre-close was missed — running entries now at open prices")
+                    self.execute_preclose_entries(prices)
+                    self._missed_preclose = False
                 self.execute_trading_logic(prices)
                 self._daily_open_done = True
                 self.log_status(prices)
