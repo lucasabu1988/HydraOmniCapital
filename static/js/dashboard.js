@@ -546,7 +546,9 @@ function updatePerfBanner(p) {
     if (spyDaily != null) {
         spyVal.textContent = fmtPct(spyDaily);
         spyVal.className = 'perf-side-value ' + colorCls(spyDaily);
-        document.getElementById('perf-spy-sub').textContent = fmtPct(spyDaily);
+        var spyDollarChg = p.initial_capital * spyDaily / 100;
+        document.getElementById('perf-spy-sub').textContent =
+            (spyDollarChg >= 0 ? '+' : '') + fmt$(spyDollarChg);
     } else {
         spyVal.textContent = '--';
         spyVal.className = 'perf-side-value';

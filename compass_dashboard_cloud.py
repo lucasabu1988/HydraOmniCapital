@@ -1417,16 +1417,15 @@ def get_spy_start_price() -> Optional[float]:
         except Exception as e:
             logger.warning("get_spy_start_price cycle_log failed: %s", e, exc_info=True)
 
-    # Fallback: use prev_close as baseline (= close of previous trading day)
-    # This matches position entries which happen at close
+    # Fallback: use prev_close as baseline — but do NOT cache it, because
+    # prev_close changes daily and would freeze spy_cumulative == spy_daily
     try:
         batch = _yf_fetch_batch(['^GSPC'])
         gspc = batch.get('^GSPC', {})
         price = gspc.get('prev_close') or gspc.get('price')
         if price and price > 0:
-            _spy_start_price = float(price)
-            logger.info("SPY start price set from prev_close: %.2f", _spy_start_price)
-            return _spy_start_price
+            logger.info("SPY start price fallback (uncached) from prev_close: %.2f", price)
+            return float(price)
     except Exception as e:
         logger.warning("get_spy_start_price live fallback failed: %s", e, exc_info=True)
 
