@@ -4707,10 +4707,18 @@ class COMPASSLive:
             # - Intraday: check stops periodically
             if not self._daily_open_done:
                 # Catch-up: if yesterday's pre-close was missed (Render cold start),
-                # run entries now at open so positions aren't left unfilled for days
+                # run entries using yesterday's close prices (MOC) from _hist_cache
                 if self._missed_preclose:
-                    logger.warning("[CATCH-UP] Yesterday's pre-close was missed — running entries now at open prices")
-                    self.execute_preclose_entries(prices)
+                    moc_prices = {}
+                    for sym, df in self._hist_cache.items():
+                        if df is not None and len(df) > 0:
+                            moc_prices[sym] = float(df['Close'].iloc[-1])
+                    if moc_prices:
+                        logger.warning("[CATCH-UP] Yesterday's pre-close was missed — "
+                                       f"running entries at yesterday's MOC prices ({len(moc_prices)} symbols)")
+                        self.execute_preclose_entries(moc_prices)
+                    else:
+                        logger.warning("[CATCH-UP] No historical data available for MOC catch-up, skipping")
                     self._missed_preclose = False
                 self.execute_trading_logic(prices)
                 self._daily_open_done = True
