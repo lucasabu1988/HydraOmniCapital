@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # OmniCapital HYDRA — Project Guidelines
 
 ## Project Overview
@@ -7,6 +11,19 @@ Quantitative momentum trading system for S&P 500 large-caps. Live paper trading 
 - **Live engine**: `omnicapital_live.py` (COMPASSLive class)
 - **ML system**: `compass_ml_learning.py` (decision logging + progressive learning)
 - **Cloud**: Render.com (`compass_dashboard_cloud.py` via gunicorn)
+
+### Multi-Strategy System (HYDRA)
+- **COMPASS v8.4** — S&P 500 cross-sectional momentum (primary strategy)
+- **Rattlesnake v1.0** — Mean-reversion dip-buying
+- **Catalyst** — Cross-asset trend + gold
+- **EFA** — International diversification
+- **Cash Recycling** — COMPASS ↔ Rattlesnake capital flow (cap 75%)
+
+### ML Learning System (3 phases)
+- **Phase 1** (< 100 decisions): DecisionLogger logs every signal, entry, exit, skip
+- **Phase 2** (100–500 decisions): FeatureStore builds feature vectors, OutcomeTracker resolves P&L
+- **Phase 3** (> 500 decisions): LearningEngine trains models, InsightReporter surfaces parameter suggestions
+- All ML code is fail-safe (try/except) — never crashes the live engine
 
 ## Critical Rules
 - **ALGORITHM IS LOCKED** — 40 experiments, 36 failed. Do NOT modify signal logic in `omnicapital_v8_compass.py` or `omnicapital_v84_compass.py`
@@ -57,12 +74,16 @@ compass/                — Python package (notifications, git_sync)
 ## Testing
 ```bash
 pytest tests/ -v                          # Unit tests
+pytest tests/ -v -k "test_name"           # Single test
+pytest tests/ -v --cov-fail-under=50      # With coverage threshold (CI default)
 python tests/validate_live_system.py      # System validation
 python scripts/simulate_live_trading.py   # Offline simulation
 ```
 - Tests use pytest. Mock broker with `PaperBroker` or `IBKRBroker(mock=True)`
 - 53 IBKR unit tests (all passing)
 - Test files: `tests/test_*.py`, `tests/validate_*.py`
+- **CI**: GitHub Actions runs `pytest` with coverage on push/PR to `main` (min 50% coverage)
+- Coverage modules: compass_api_models, compass_dashboard, compass_dashboard_cloud, compass_ml_learning, omnicapital_broker, omnicapital_live
 
 ## Dashboard API Endpoints
 - `/api/state` — current positions, cash, regime
@@ -73,12 +94,14 @@ python scripts/simulate_live_trading.py   # Offline simulation
 
 ## Deployment
 - **Local**: `python compass_dashboard.py` → Flask on port 5000
-- **Cloud**: `render.yaml` → gunicorn on Render.com
+- **Cloud**: `render.yaml` → gunicorn on Render.com (health check: `/api/health`)
+- **Docker**: Python 3.11-slim, gunicorn on port 10000
 - **compass/**: Python package only (notifications, git_sync) — no file syncing needed
+- **Data sources**: yfinance (primary, cached in `data_cache/`), Tiingo (optional), FRED (cash yield)
 
 ## Git Workflow
 - Branch: `main` (single branch)
-- Remote: `origin` → GitHub (lucasabu1988/NuevoProyecto)
+- Remote: `origin` → GitHub (lucasabu1988/HydraOmniCapital)
 - Commit messages: conventional commits, Co-Authored-By for AI
 - Push after each logical change set
 
