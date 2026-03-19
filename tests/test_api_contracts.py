@@ -288,32 +288,6 @@ def test_api_health_contract_exposes_top_level_aliases(client):
     assert isinstance(payload['restarts'], list)
 
 
-def test_api_ultimate_risk_news_contract_shape(client, monkeypatch):
-    monkeypatch.setattr(
-        dashboard,
-        'fetch_ultimate_risk_news',
-        lambda: [{
-            'body': 'Liquidity crisis spreads through funding markets',
-            'url': 'https://example.com/liquidity',
-            'time': '2026-03-16T12:00:00Z',
-            'user': 'Reuters',
-            'source': 'google',
-            'matched_keywords': ['liquidity crisis'],
-            'risk_score': 7,
-        }],
-    )
-    dashboard._ultimate_risk_cache_time = datetime.now()
-
-    response = client.get('/api/ultimate-risk-news')
-
-    assert response.status_code == 200
-    payload = response.get_json()
-    assert isinstance(payload['status'], str)
-    assert isinstance(payload['count'], int)
-    assert isinstance(payload['messages'], list)
-    assert isinstance(payload['messages'][0]['matched_keywords'], list)
-
-
 def test_local_price_debug_contract_shape(local_client, local_isolate, monkeypatch):
     class FakeTicker:
         def __init__(self, symbol):

@@ -3187,7 +3187,7 @@ def api_ml_diagnostics():
                             if rec_date >= LIVE_TEST_START_DATE:
                                 total_outcomes += 1
                         except Exception:
-                            pass
+                            logger.warning('Skipping malformed ML outcome line while building /api/ml-diagnostics', exc_info=True)
 
         files_ok = os.path.exists(decisions_path) and os.path.exists(outcomes_path)
 
@@ -3826,6 +3826,7 @@ def _self_ping_loop():
             is_critical = is_weekday and 14 <= hour < 17
             interval = 300 if is_critical else 600  # 5 min vs 10 min
         except Exception:
+            logger.warning('Failed to determine adaptive ping interval, using default', exc_info=True)
             interval = 600
 
         time_module.sleep(interval)

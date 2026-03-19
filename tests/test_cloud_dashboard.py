@@ -628,24 +628,24 @@ def test_api_ml_returns_kpis_structure(client, route):
     write_jsonl(Path('state/ml_learning/decisions.jsonl'), [
         {
             'decision_type': 'entry',
-            'timestamp': '2026-03-10T15:30:00',
+            'timestamp': '2026-03-16T15:30:00',
             'source': 'live',
         },
         {
             'decision_type': 'exit',
-            'timestamp': '2026-03-11T15:30:00',
+            'timestamp': '2026-03-17T15:30:00',
             'source': 'live',
         },
     ])
     write_jsonl(Path('state/ml_learning/outcomes.jsonl'), [{
-        'timestamp': '2026-03-11T15:35:00',
+        'timestamp': '2026-03-17T15:35:00',
         'gross_return': 0.05,
         'was_stopped': False,
         'alpha_vs_spy': 0.02,
         'pnl_usd': 500.0,
     }])
     write_jsonl(Path('state/ml_learning/daily_snapshots.jsonl'), [{
-        'timestamp': '2026-03-11T16:00:00',
+        'timestamp': '2026-03-17T16:00:00',
         'portfolio_value': 105000.0,
     }])
     write_json(Path('state/ml_learning/insights.json'), {
@@ -1579,11 +1579,11 @@ def test_yf_circuit_breaker_opens_after_5_failures_and_blocks_6th(monkeypatch):
 def test_api_ml_diagnostics_with_ml_files(client, isolate_dashboard):
     ml_dir = isolate_dashboard / 'state' / 'ml_learning'
     decisions = [
-        {'timestamp': '2026-03-15T10:00:00', 'action': 'entry', 'symbol': 'AAPL'},
-        {'timestamp': '2026-03-16T10:00:00', 'action': 'hold', 'symbol': 'MSFT'},
+        {'timestamp': '2026-03-16T10:00:00', 'action': 'entry', 'symbol': 'AAPL'},
+        {'timestamp': '2026-03-17T10:00:00', 'action': 'hold', 'symbol': 'MSFT'},
     ]
     outcomes = [
-        {'date': '2026-03-15', 'symbol': 'AAPL', 'pnl': 120.0},
+        {'entry_date': '2026-03-16', 'symbol': 'AAPL', 'pnl': 120.0},
     ]
     write_jsonl(ml_dir / 'decisions.jsonl', decisions)
     write_jsonl(ml_dir / 'outcomes.jsonl', outcomes)
@@ -1594,7 +1594,7 @@ def test_api_ml_diagnostics_with_ml_files(client, isolate_dashboard):
     assert data['phase'] == 1
     assert data['total_decisions'] == 2
     assert data['total_outcomes'] == 1
-    assert data['last_decision_date'] == '2026-03-16'
+    assert data['last_decision_date'] == '2026-03-17'
     assert data['files_ok'] is True
 
 
