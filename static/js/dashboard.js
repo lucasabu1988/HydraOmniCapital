@@ -567,9 +567,8 @@ function updatePerfBanner(p) {
     if (cumVal) {
         cumVal.textContent = fmtPct(cumReturn);
         cumVal.className = 'perf-side-value ' + colorCls(cumReturn);
-        var cumPortfolio = p.initial_capital * (1 + cumReturn / 100);
         document.getElementById('perf-hydra-cum-sub').textContent =
-            '$' + p.initial_capital.toLocaleString() + ' \u2192 ' + fmt$(cumPortfolio);
+            '$' + p.initial_capital.toLocaleString() + ' \u2192 ' + fmt$(p.portfolio_value);
     }
 
     var spyCumVal = document.getElementById('perf-spy-cum');
