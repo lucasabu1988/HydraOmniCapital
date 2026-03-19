@@ -26,7 +26,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260318a">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260318b">
 <style>
 .startup-loading[hidden] { display: none !important; }
 .startup-loading {
@@ -359,6 +359,14 @@
     </div>
 </div>
 
+<!-- ═══════════ SECTION 1: ESTADO ACTUAL ═══════════ -->
+<div class="dash-section">
+<div class="dash-section-header">
+    <div class="dash-section-label" data-i18n="ds-today-label">Estado Actual</div>
+    <div class="dash-section-title" data-i18n="ds-today-title">Rendimiento en Tiempo Real</div>
+    <div class="dash-section-insight" data-i18n="ds-today-insight">HYDRA vs S&amp;P 500 &mdash; d&iacute;a a d&iacute;a y acumulado desde el inicio del test en vivo</div>
+</div>
+
 <!-- PRE-CLOSE SIGNAL INDICATOR -->
 <div class="preclose-bar" id="preclose-bar">
     <div class="preclose-phase" id="preclose-phase">
@@ -503,6 +511,17 @@
     </div>
 </div>
 
+<div class="dash-section-divider"></div>
+</div><!-- /dash-section: Estado Actual -->
+
+<!-- ═══════════ SECTION 2: RÉGIMEN DE MERCADO ═══════════ -->
+<div class="dash-section">
+<div class="dash-section-header">
+    <div class="dash-section-label" data-i18n="ds-regime-label">R&eacute;gimen</div>
+    <div class="dash-section-title" data-i18n="ds-regime-title">R&eacute;gimen de Mercado</div>
+    <div class="dash-section-insight" data-i18n="ds-regime-insight">El term&oacute;metro del mercado determina cu&aacute;ntas posiciones mantener y el overlay macro ajusta la exposici&oacute;n</div>
+</div>
+
 <!-- REGIME SCORE BAND -->
 <div class="regime-band anim-enter anim-d5" id="regime-band">
     <div class="regime-band-left">
@@ -633,6 +652,17 @@
         </div>
     </div>
 </details>
+
+<div class="dash-section-divider"></div>
+</div><!-- /dash-section: Régimen -->
+
+<!-- ═══════════ SECTION 3: ESTRATEGIAS ACTIVAS ═══════════ -->
+<div class="dash-section">
+<div class="dash-section-header">
+    <div class="dash-section-label" data-i18n="ds-strat-label">Posiciones</div>
+    <div class="dash-section-title" data-i18n="ds-strat-title">Estrategias Activas</div>
+    <div class="dash-section-insight" data-i18n="ds-strat-insight">4 estrategias complementarias con reciclaje de capital &mdash; momentum, mean-reversion, tendencia macro y exposici&oacute;n internacional</div>
+</div>
 
 <!-- ═══════════ HYDRA MULTI-STRATEGY POSITIONS ═══════════ -->
 <div class="anim-enter anim-d5" id="hydra-master-header" style="
@@ -861,6 +891,17 @@
     </div>
 </div>
 
+<div class="dash-section-divider"></div>
+</div><!-- /dash-section: Estrategias -->
+
+<!-- ═══════════ SECTION 4: TRACK RECORD ═══════════ -->
+<div class="dash-section">
+<div class="dash-section-header">
+    <div class="dash-section-label" data-i18n="ds-track-label">Evidencia</div>
+    <div class="dash-section-title" data-i18n="ds-track-title">Track Record</div>
+    <div class="dash-section-insight" data-i18n="ds-track-insight">26 a&ntilde;os de backtest con correcci&oacute;n de supervivencia, an&aacute;lisis de riesgo y proyecci&oacute;n Monte Carlo</div>
+</div>
+
 <!-- ANNUAL RETURNS BAR CHART -->
 <div class="card full-width" id="annual-returns-card">
     <div class="card-header">
@@ -997,7 +1038,7 @@
 </div>
 
 
-
+</div><!-- /dash-section: Track Record -->
 
 </div><!-- /page-dashboard -->
 
@@ -1729,7 +1770,7 @@
 
 <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
 
-<script src="/static/js/i18n.js?v=20260318a"></script>
+<script src="/static/js/i18n.js?v=20260318b"></script>
 <script src="/static/js/dashboard.js?v=20260318a"></script>
 
 </body>

@@ -4192,6 +4192,48 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
 .lang-inactive { color: var(--text-muted); font-weight: 400; }
 .lang-sep { color: var(--text-muted); margin: 0 4px; font-weight: 300; }
 
+/* ============ DASHBOARD NARRATIVE SECTIONS ============ */
+.dash-section {
+    margin: 0 auto;
+    padding: 0 0 8px;
+}
+.dash-section-header {
+    padding: 28px 28px 0;
+    margin-bottom: 6px;
+}
+.dash-section-header:first-child {
+    padding-top: 0;
+}
+.dash-section-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+.dash-section-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.dash-section-insight {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+.dash-section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 8px 28px 0;
+}
+@media (max-width: 700px) {
+    .dash-section-header { padding: 20px 16px 0; }
+    .dash-section-title { font-size: 1rem; }
+    .dash-section-divider { margin: 6px 16px 0; }
+}
+
 /* ============ FUND COMPARISON PAGE ============ */
 .fc-hero {
     position: relative;

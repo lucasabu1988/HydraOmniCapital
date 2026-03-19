@@ -21,6 +21,20 @@ var TRANSLATIONS = {
     'tab-funds':      'Comparativa',
     'tab-ml':         'ML',
 
+    // Dashboard Narrative Sections
+    'ds-today-label':     'Estado Actual',
+    'ds-today-title':     'Rendimiento en Tiempo Real',
+    'ds-today-insight':   'HYDRA vs S&P 500 \u2014 d\u00eda a d\u00eda y acumulado desde el inicio del test en vivo',
+    'ds-regime-label':    'R\u00e9gimen',
+    'ds-regime-title':    'R\u00e9gimen de Mercado',
+    'ds-regime-insight':  'El term\u00f3metro del mercado determina cu\u00e1ntas posiciones mantener y el overlay macro ajusta la exposici\u00f3n',
+    'ds-strat-label':     'Posiciones',
+    'ds-strat-title':     'Estrategias Activas',
+    'ds-strat-insight':   '4 estrategias complementarias con reciclaje de capital \u2014 momentum, mean-reversion, tendencia macro y exposici\u00f3n internacional',
+    'ds-track-label':     'Evidencia',
+    'ds-track-title':     'Track Record',
+    'ds-track-insight':   '26 a\u00f1os de backtest con correcci\u00f3n de supervivencia, an\u00e1lisis de riesgo y proyecci\u00f3n Monte Carlo',
+
     // Fund Comparison
     'fc-hero-sub':        '\u00bfC\u00f3mo se compara HYDRA contra fondos reales?',
     'fc-hero-tagline':    'Backtest 2000\u20132026 \u00b7 Datos de Yahoo Finance (precios ajustados con dividendos) \u00b7 Costos incluidos',
@@ -329,6 +343,20 @@ var TRANSLATIONS = {
     'tab-algorithm':  'Algorithm',
     'tab-funds':      'Comparison',
     'tab-ml':         'ML',
+
+    // Dashboard Narrative Sections
+    'ds-today-label':     'Current Status',
+    'ds-today-title':     'Real-Time Performance',
+    'ds-today-insight':   'HYDRA vs S&P 500 \u2014 daily and cumulative since live test inception',
+    'ds-regime-label':    'Regime',
+    'ds-regime-title':    'Market Regime',
+    'ds-regime-insight':  'The market thermometer determines how many positions to hold and the macro overlay adjusts exposure',
+    'ds-strat-label':     'Positions',
+    'ds-strat-title':     'Active Strategies',
+    'ds-strat-insight':   '4 complementary strategies with cash recycling \u2014 momentum, mean-reversion, macro trend, and international exposure',
+    'ds-track-label':     'Evidence',
+    'ds-track-title':     'Track Record',
+    'ds-track-insight':   '26 years of survivorship-corrected backtesting, risk analysis, and Monte Carlo projection',
 
     // Fund Comparison
     'fc-hero-sub':        'How does HYDRA compare to real funds?',
