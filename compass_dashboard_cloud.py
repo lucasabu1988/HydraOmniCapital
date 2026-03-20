@@ -219,7 +219,7 @@ ENGINE_RUNTIME_STATUS_BASENAME = 'cloud_engine_runtime.json'
 ENGINE_HEARTBEAT_INTERVAL_SECONDS = 15
 ENGINE_HEARTBEAT_STALE_SECONDS = 45
 SPY_BENCHMARK_CSV = os.path.join('backtests', 'spy_benchmark.csv')
-GITHUB_STATE_URL = 'https://raw.githubusercontent.com/lucasabu1988/NuevoProyecto/main/state/compass_state_latest.json'
+GITHUB_STATE_URL = 'https://raw.githubusercontent.com/lucasabu1988/HydraOmniCapital/main/state/compass_state_latest.json'
 
 # Rattlesnake parameters (mirrored from rattlesnake_signals.py for dashboard)
 R_VIX_PANIC = 35
@@ -3658,6 +3658,15 @@ def _run_cloud_engine():
             logger.info('Cloud engine created, loading state from %s', STATE_FILE)
             _cloud_engine.load_state()
             logger.info('Cloud engine load_state completed (state exists=%s)', os.path.exists(STATE_FILE))
+
+            # Force regime refresh on startup so we never serve a stale score
+            # (load_state restores the saved score, which may be hours/days old)
+            try:
+                _cloud_engine.refresh_daily_data()
+                _cloud_engine.update_regime()
+                logger.info('Post-startup regime refresh: score=%.4f', _cloud_engine.current_regime_score)
+            except Exception as e:
+                logger.warning('Post-startup regime refresh failed (will retry at next daily_open): %s', e)
 
             _engine_status['running'] = True
             _engine_status['started_at'] = restart_at

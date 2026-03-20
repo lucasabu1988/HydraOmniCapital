@@ -827,6 +827,7 @@ class COMPASSLive:
 
         # Regime (continuous sigmoid score)
         self.current_regime_score = 0.5
+        self._last_regime_refresh = None  # timestamp of last regime recomputation
 
         # Trading day counter (incremented each market day the system runs)
         self.trading_day_counter = 0
@@ -1311,6 +1312,7 @@ class COMPASSLive:
             return
         old_score = self.current_regime_score
         self.current_regime_score = compute_live_regime_score(self._spy_hist)
+        self._last_regime_refresh = datetime.now()
         old_risk_on = old_score >= 0.50
         new_risk_on = self.current_regime_score >= 0.50
         if old_risk_on != new_risk_on:
@@ -4662,6 +4664,16 @@ class COMPASSLive:
                     self._reconcile_runtime_state()
                 except Exception as reconcile_err:
                     logger.error(f"Automated reconciliation failed: {reconcile_err}", exc_info=True)
+            elif self._last_regime_refresh is None or \
+                    (datetime.now() - self._last_regime_refresh).total_seconds() > 14400:
+                # Periodic regime refresh (every 4h) — catches stale scores after
+                # mid-day restarts where daily_open() already ran for today
+                try:
+                    self.refresh_daily_data()
+                    self.update_regime()
+                    logger.info(f"Periodic regime refresh: score={self.current_regime_score:.4f}")
+                except Exception as e:
+                    logger.warning(f"Periodic regime refresh failed: {e}")
 
             # Get current prices (async fetch + batch validation)
             symbols_needed = set(self.current_universe) | set(self.position_meta.keys())
