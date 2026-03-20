@@ -3659,15 +3659,6 @@ def _run_cloud_engine():
             _cloud_engine.load_state()
             logger.info('Cloud engine load_state completed (state exists=%s)', os.path.exists(STATE_FILE))
 
-            # Force regime refresh on startup so we never serve a stale score
-            # (load_state restores the saved score, which may be hours/days old)
-            try:
-                _cloud_engine.refresh_daily_data()
-                _cloud_engine.update_regime()
-                logger.info('Post-startup regime refresh: score=%.4f', _cloud_engine.current_regime_score)
-            except Exception as e:
-                logger.warning('Post-startup regime refresh failed (will retry at next daily_open): %s', e)
-
             _engine_status['running'] = True
             _engine_status['started_at'] = restart_at
             _engine_status['error'] = None
@@ -3676,6 +3667,17 @@ def _run_cloud_engine():
             logger.info("Cloud HYDRA engine started (SharedYahooDataFeed — no duplicate requests)")
             logger.info(f"  Positions: {list(_cloud_engine.broker.positions.keys())}")
             logger.info(f"  Cash: ${_cloud_engine.broker.cash:,.2f}")
+
+            # Force regime refresh on startup so we never serve a stale score.
+            # Done AFTER setting engine status to 'running' so the dashboard
+            # is responsive while data downloads (can take 3-5 min).
+            try:
+                _cloud_engine.refresh_daily_data()
+                _cloud_engine.update_regime()
+                _cloud_engine.save_state()
+                logger.info('Post-startup regime refresh: score=%.4f', _cloud_engine.current_regime_score)
+            except Exception as e:
+                logger.warning('Post-startup regime refresh failed (will retry at next daily_open): %s', e)
 
             # run() is a blocking loop: 60s interval, sleeps when market closed
             _cloud_engine.run(interval=60)

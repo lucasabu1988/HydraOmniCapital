@@ -4654,12 +4654,11 @@ class COMPASSLive:
         self._cycles_completed += 1
 
         try:
-            if not self.is_market_open():
-                return False
-
-            # New trading day setup
+            # Run daily_open() even if market just closed — ensures data/regime
+            # refresh and state save happen on days with late deploys
             if self.is_new_trading_day():
                 self.daily_open()
+                self.save_state()
                 try:
                     self._reconcile_runtime_state()
                 except Exception as reconcile_err:
@@ -4671,9 +4670,13 @@ class COMPASSLive:
                 try:
                     self.refresh_daily_data()
                     self.update_regime()
+                    self.save_state()
                     logger.info(f"Periodic regime refresh: score={self.current_regime_score:.4f}")
                 except Exception as e:
                     logger.warning(f"Periodic regime refresh failed: {e}")
+
+            if not self.is_market_open():
+                return False
 
             # Get current prices (async fetch + batch validation)
             symbols_needed = set(self.current_universe) | set(self.position_meta.keys())
