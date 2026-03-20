@@ -4322,7 +4322,10 @@ class COMPASSLive:
                     'rattle_positions': self.rattle_positions,
                     'rattle_regime': self.rattle_regime,
                     'vix_current': self._vix_current,
-                    'efa_position': None,  # deprecated: EFA now tracked in broker.positions
+                    'efa_position': (
+                        {'shares': pos.shares, 'avg_cost': pos.avg_cost}
+                        if (pos := self.broker.positions.get(EFA_SYMBOL)) else None
+                    ),
                     'catalyst_positions': self.catalyst_positions,
                     'catalyst_day_counter': self._catalyst_day_counter,
                     'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,

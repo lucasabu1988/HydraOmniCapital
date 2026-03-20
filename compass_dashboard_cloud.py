@@ -1888,7 +1888,9 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
     efa_value = 0.0
     efa_position = hydra_state.get('efa_position')
     if efa_position and efa_position.get('shares', 0) > 0:
-        efa_value = efa_position.get('current_value', 0)
+        # Compute current value from shares * live price, fall back to avg_cost
+        efa_price = prices.get('EFA', efa_position.get('avg_cost', 0))
+        efa_value = efa_position['shares'] * efa_price
     if cap_state:
         efa_value = max(efa_value, cap_state.get('efa_value', 0))
 
@@ -2766,17 +2768,23 @@ def api_engine_stop():
 
 @app.route('/api/engine/status')
 def api_engine_status():
+    # Use shared file-based status so both gunicorn workers report correctly
+    snapshot = _engine_snapshot()
     engine = _cloud_engine
-    if engine:
-        closed_cycles = _closed_cycle_count_from_log()
+    closed_cycles = _closed_cycle_count_from_log()
+    if engine or snapshot.get('running'):
         return jsonify({
             'running': True,
-            'started_at': engine._start_time.isoformat() if hasattr(engine, '_start_time') else None,
+            'started_at': (engine._start_time.isoformat() if engine and hasattr(engine, '_start_time')
+                           else snapshot.get('started_at')),
             'error': None,
-            'cycles': engine._cycles_completed if hasattr(engine, '_cycles_completed') else 0,
-            'engine_iterations': engine._cycles_completed if hasattr(engine, '_cycles_completed') else 0,
+            'cycles': (engine._cycles_completed if engine and hasattr(engine, '_cycles_completed')
+                       else snapshot.get('cycles', 0)),
+            'engine_iterations': (engine._cycles_completed if engine and hasattr(engine, '_cycles_completed')
+                                  else snapshot.get('cycles', 0)),
             'cycles_completed': closed_cycles,
             'mode': 'cloud-live',
+            'owner_pid': snapshot.get('owner_pid'),
         })
     if AGENT_MODE:
         status_msg = 'AGENT_MODE — engine disabled (Worker is sole state writer)'
@@ -3128,43 +3136,53 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
                 with open(log_file, 'r') as f:
                     cycle_data = json.load(f)
             except Exception as e:
-                logger.warning(f"_maybe_regenerate_interpretation failed: {e}")
+                logger.warning(f"_maybe_regenerate_interpretation cycle_log read failed: {e}")
 
         # 1) Backtest analysis — regenerate weekly or if missing
-        if bt_stats and (not os.path.exists(bt_path) or
-                (time_module.time() - os.path.getmtime(bt_path)) / 3600 > 168):
-            logger.info("Generating backtest interpretation...")
-            bt_md = _generate_backtest_interpretation(bt_stats)
-            if bt_md:
-                bt_md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza semanalmente.*'
-                tmp = bt_path + '.tmp'
-                with open(tmp, 'w', encoding='utf-8') as f:
-                    f.write(bt_md)
-                os.replace(tmp, bt_path)
-                logger.info("Backtest interpretation saved")
+        # Independent try/except so backtest failure doesn't block live interpretation
+        try:
+            if bt_stats and (not os.path.exists(bt_path) or
+                    (time_module.time() - os.path.getmtime(bt_path)) / 3600 > 168):
+                logger.info("Generating backtest interpretation...")
+                bt_md = _generate_backtest_interpretation(bt_stats)
+                if bt_md:
+                    bt_md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza semanalmente.*'
+                    tmp = bt_path + '.tmp'
+                    with open(tmp, 'w', encoding='utf-8') as f:
+                        f.write(bt_md)
+                    os.replace(tmp, bt_path)
+                    logger.info("Backtest interpretation saved")
+        except Exception as e:
+            logger.error(f"Backtest interpretation generation failed (non-blocking): {e}")
 
         # 2) Live paper trading analysis — regenerate per cycle
-        live_decisions = [e for e in entries if e.get('_type') == 'decision' and e.get('source') == 'live']
-        if len(live_decisions) >= _LIVE_MIN_DECISIONS:
-            logger.info("Generating live paper trading interpretation...")
-            live_md = _generate_live_interpretation(entries, cycle_data)
-            if live_md:
-                live_md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza al cierre de cada ciclo.*'
+        # Independent try/except so this always runs even if backtest failed
+        try:
+            live_decisions = [e for e in entries if e.get('_type') == 'decision' and e.get('source') == 'live']
+            if len(live_decisions) >= _LIVE_MIN_DECISIONS:
+                logger.info("Generating live paper trading interpretation...")
+                live_md = _generate_live_interpretation(entries, cycle_data)
+                if live_md:
+                    live_md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza al cierre de cada ciclo.*'
+                    tmp = live_path + '.tmp'
+                    with open(tmp, 'w', encoding='utf-8') as f:
+                        f.write(live_md)
+                    os.replace(tmp, live_path)
+                    logger.info("Live interpretation saved")
+            else:
+                not_enough = (f"### Datos Insuficientes\n\n"
+                              f"El paper trading lleva **{len(live_decisions)}** decisiones registradas. "
+                              f"Se necesitan al menos **{_LIVE_MIN_DECISIONS}** para generar un analisis significativo.\n\n"
+                              f"El sistema continuara recopilando datos automaticamente en cada ciclo de 5 dias.\n\n"
+                              f"---\n*Actualizado el {now_str}.*")
                 tmp = live_path + '.tmp'
                 with open(tmp, 'w', encoding='utf-8') as f:
-                    f.write(live_md)
+                    f.write(not_enough)
                 os.replace(tmp, live_path)
-                logger.info("Live interpretation saved")
-        else:
-            not_enough = (f"### Datos Insuficientes\n\n"
-                          f"El paper trading lleva **{len(live_decisions)}** decisiones registradas. "
-                          f"Se necesitan al menos **{_LIVE_MIN_DECISIONS}** para generar un analisis significativo.\n\n"
-                          f"El sistema continuara recopilando datos automaticamente en cada ciclo de 5 dias.\n\n"
-                          f"---\n*Actualizado el {now_str}.*")
-            tmp = live_path + '.tmp'
-            with open(tmp, 'w', encoding='utf-8') as f:
-                f.write(not_enough)
-            os.replace(tmp, live_path)
+                logger.info("Live interpretation placeholder saved (%d decisions, need %d)",
+                            len(live_decisions), _LIVE_MIN_DECISIONS)
+        except Exception as e:
+            logger.error(f"Live interpretation generation failed: {e}")
 
         _interp_last_cycle = _get_last_closed_cycle_num() or 0
     except Exception as e:
@@ -3391,20 +3409,12 @@ def _api_ml_learning_impl():
         with open(os.path.join(ml_dir, 'interpretation_backtest.md'), 'r', encoding='utf-8') as f:
             interp_backtest = f.read()
     except FileNotFoundError:
-        logger.warning(
-            'ML interpretation file missing: %s',
-            os.path.join(ml_dir, 'interpretation_backtest.md'),
-            exc_info=True,
-        )
+        logger.debug('ML interpretation file not yet generated: interpretation_backtest.md')
     try:
         with open(os.path.join(ml_dir, 'interpretation_live.md'), 'r', encoding='utf-8') as f:
             interp_live = f.read()
     except FileNotFoundError:
-        logger.warning(
-            'ML interpretation file missing: %s',
-            os.path.join(ml_dir, 'interpretation_live.md'),
-            exc_info=True,
-        )
+        logger.debug('ML interpretation file not yet generated: interpretation_live.md')
 
     # Backwards compat: also read old single interpretation file
     interpretation = ''
@@ -3412,11 +3422,7 @@ def _api_ml_learning_impl():
         with open(os.path.join(ml_dir, 'interpretation.md'), 'r', encoding='utf-8') as f:
             interpretation = f.read()
     except FileNotFoundError:
-        logger.warning(
-            'ML interpretation file missing: %s',
-            os.path.join(ml_dir, 'interpretation.md'),
-            exc_info=True,
-        )
+        logger.debug('Legacy ML interpretation file not found: interpretation.md')
 
     return jsonify({
         'log_entries': all_entries,
