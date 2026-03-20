@@ -314,7 +314,7 @@ def compare_results(experiments: list):
     if len(rows) > 1:
         baseline = rows[0]
         for col in ['CAGR', 'MaxDD', 'Sharpe']:
-            df[f'Δ{col}'] = df[col] - baseline[col]
+            df[f'd_{col}'] = df[col] - baseline[col]
 
     print("\n" + "="*90)
     print("  BACKTEST LAB — COMPARISON TABLE")

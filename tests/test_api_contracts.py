@@ -88,8 +88,6 @@ def isolate_dashboard(monkeypatch, tmp_path):
     dashboard._montecarlo_cache_signature = None
     dashboard._risk_cache = None
     dashboard._risk_cache_time = None
-    dashboard._ultimate_risk_cache = None
-    dashboard._ultimate_risk_cache_time = None
     dashboard._cloud_engine = None
     dashboard._cloud_engine_thread = None
     dashboard._cloud_engine_started = False
