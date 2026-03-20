@@ -567,8 +567,9 @@ function updatePerfBanner(p) {
     if (cumVal) {
         cumVal.textContent = fmtPct(cumReturn);
         cumVal.className = 'perf-side-value ' + colorCls(cumReturn);
+        var cumPortfolio = p.initial_capital * (1 + cumReturn / 100);
         document.getElementById('perf-hydra-cum-sub').textContent =
-            '$' + p.initial_capital.toLocaleString() + ' \u2192 ' + fmt$(p.portfolio_value);
+            '$' + p.initial_capital.toLocaleString() + ' \u2192 ' + fmt$(cumPortfolio);
     }
 
     var spyCumVal = document.getElementById('perf-spy-cum');
@@ -1435,12 +1436,6 @@ async function fetchAll() {
             lastSuccessTime = new Date().toISOString();
             lastPortfolioData = stateData;
             const p = stateData.portfolio;
-            // Use price freshness timestamp for UPD badge (not stale state file timestamp)
-            if (stateData._data_freshness && stateData._data_freshness.last_price_update) {
-                p.timestamp = stateData._data_freshness.last_price_update;
-            } else if (stateData.server_time) {
-                p.timestamp = stateData.server_time;
-            }
             updateStatusBar(p);
             updateStalePriceWarning(stateData._data_freshness);
             updateCards(p);

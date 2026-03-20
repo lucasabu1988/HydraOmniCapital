@@ -19,7 +19,6 @@ var TRANSLATIONS = {
     'tab-roadmap':    'Roadmap',
     'tab-algorithm':  'Algoritmo',
     'tab-funds':      'Comparativa',
-    'tab-analytics':  'Analytics',
     'tab-ml':         'ML',
 
     // Dashboard Narrative Sections
@@ -343,7 +342,6 @@ var TRANSLATIONS = {
     'tab-roadmap':    'Roadmap',
     'tab-algorithm':  'Algorithm',
     'tab-funds':      'Comparison',
-    'tab-analytics':  'Analytics',
     'tab-ml':         'ML',
 
     // Dashboard Narrative Sections

@@ -100,12 +100,6 @@ try:
 except ImportError:
     _overlay_available = False
 
-try:
-    from compass_riskfolio import optimize_weights as riskfolio_optimize
-    _riskfolio_available = True
-except ImportError:
-    _riskfolio_available = False
-
 # ============================================================================
 # LOGGING
 # ============================================================================
@@ -1791,27 +1785,10 @@ class COMPASSLive:
                 _ml_error_counts['skip'] += 1
                 logger.warning(f"ML skip logging failed: {e}")
 
-        # Compute portfolio weights (Riskfolio cascade with inv-vol fallback)
-        _weights_method = "inv_vol"
-        try:
-            if _riskfolio_available:
-                _rf_result = riskfolio_optimize(
-                    selected,
-                    hist_data=self._hist_cache,
-                    lookback=self.config['VOL_LOOKBACK'],
-                )
-                weights = _rf_result["weights"]
-                _weights_method = _rf_result["method_used"]
-                logger.info(f"Portfolio weights ({_weights_method}): {weights}")
-            else:
-                weights = compute_volatility_weights(
-                    self._hist_cache, selected, self.config['VOL_LOOKBACK']
-                )
-        except Exception as e:
-            logger.warning(f"Riskfolio failed, using inv-vol fallback: {e}")
-            weights = compute_volatility_weights(
-                self._hist_cache, selected, self.config['VOL_LOOKBACK']
-            )
+        # Compute inverse-vol weights
+        weights = compute_volatility_weights(
+            self._hist_cache, selected, self.config['VOL_LOOKBACK']
+        )
 
         # Effective capital with leverage
         current_leverage = self.get_current_leverage()
@@ -1918,7 +1895,6 @@ class COMPASSLive:
                     'sector': SECTOR_MAP.get(symbol, 'Unknown'),  # v8.4: sector tracking
                     'entry_momentum_score': scores.get(symbol, 0.0),
                     'entry_momentum_rank': entry_momentum_rank,
-                    'weights_method': _weights_method,
                 }
 
                 self.trades_today.append({
@@ -4322,10 +4298,7 @@ class COMPASSLive:
                     'rattle_positions': self.rattle_positions,
                     'rattle_regime': self.rattle_regime,
                     'vix_current': self._vix_current,
-                    'efa_position': (
-                        {'shares': pos.shares, 'avg_cost': pos.avg_cost}
-                        if (pos := self.broker.positions.get(EFA_SYMBOL)) else None
-                    ),
+                    'efa_position': None,  # deprecated: EFA now tracked in broker.positions
                     'catalyst_positions': self.catalyst_positions,
                     'catalyst_day_counter': self._catalyst_day_counter,
                     'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,

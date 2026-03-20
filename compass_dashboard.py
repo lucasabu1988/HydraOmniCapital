@@ -37,35 +37,9 @@ logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 
 logger = logging.getLogger(__name__)
 
-try:
-    from compass_analytics import create_analytics_app
-    _analytics_available = True
-except ImportError:
-    logger.info("compass_analytics not available, /analytics/ will show fallback page")
-    _analytics_available = False
-
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
-
-# Mount Dash analytics app at /analytics/
-if _analytics_available:
-    try:
-        _dash_app = create_analytics_app(app)
-        logger.info("Dash analytics app mounted at /analytics/")
-    except Exception as e:
-        logger.warning(f"Failed to mount Dash analytics: {e}")
-        _analytics_available = False
-
-if not _analytics_available:
-    @app.route('/analytics/')
-    @app.route('/analytics')
-    def analytics_fallback():
-        return '''<html><body style="background:#0f172a;color:#e2e8f0;font-family:sans-serif;
-        display:flex;justify-content:center;align-items:center;height:100vh;margin:0">
-        <div style="text-align:center"><h1>Analytics Unavailable</h1>
-        <p>Install dependencies: pip install quantstats riskfolio-lib dash</p>
-        <a href="/" style="color:#0ea5e9">&larr; Back to Dashboard</a></div></body></html>'''
 
 
 def _load_json_with_invalid_constants(path):
