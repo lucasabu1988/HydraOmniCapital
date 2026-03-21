@@ -18,7 +18,7 @@ import re
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, time, date
+from datetime import datetime, time, date, timedelta
 import logging
 from logging.handlers import RotatingFileHandler
 import json
@@ -2935,6 +2935,32 @@ class COMPASSLive:
         except Exception as e:
             logger.warning(f"Could not fetch S&P 500 close: {e}")
         return None
+
+    def _trading_days_between(self, start_date, end_date):
+        if start_date >= end_date:
+            return 0
+        count = 0
+        current = start_date + timedelta(days=1)
+        while current <= end_date:
+            if current.weekday() < 5:
+                count += 1
+            current += timedelta(days=1)
+        return count
+
+    def _recovery_price_dict(self, data, symbols):
+        prices = {}
+        is_multi = isinstance(data.columns, pd.MultiIndex)
+        for sym in symbols:
+            try:
+                if is_multi:
+                    close = float(data['Close'][sym].iloc[-1])
+                else:
+                    close = float(data['Close'].iloc[-1])
+                if not math.isnan(close) and close > 0:
+                    prices[sym] = close
+            except (KeyError, IndexError):
+                continue
+        return prices
 
     def _new_cycle_log_entry(self, cycle_number: int, start_date: str,
                              portfolio_start: float, spy_start: Optional[float],
