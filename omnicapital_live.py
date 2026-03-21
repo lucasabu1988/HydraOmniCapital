@@ -2530,6 +2530,140 @@ class COMPASSLive:
         return result
 
     # ------------------------------------------------------------------
+    # Auto-recovery: replay missed trading days
+    # ------------------------------------------------------------------
+
+    def _recover_missed_days(self):
+        raw_date = self._recovery_gap_baseline
+        if not raw_date:
+            return 0
+
+        try:
+            last_date = date.fromisoformat(str(raw_date)[:10])
+        except (ValueError, TypeError):
+            return 0
+
+        today = self.get_et_now().date()
+        gap = self._trading_days_between(last_date, today)
+
+        if gap <= 1:
+            return 0
+
+        if gap > 5:
+            logger.critical(
+                "Engine missed %d trading days (max 5 for auto-recovery). "
+                "Manual intervention required.", gap
+            )
+            return 0
+
+        logger.warning("[RECOVERY] Detected %d missed trading days (%s → %s)",
+                       gap - 1, last_date, today)
+
+        recovered = 0
+        current = last_date + timedelta(days=1)
+
+        while current < today:
+            if current.weekday() >= 5:
+                current += timedelta(days=1)
+                continue
+
+            saved = {
+                '_spy_hist': getattr(self, '_spy_hist', None),
+                '_hist_date': getattr(self, '_hist_date', None),
+                '_preclose_entries_done': self._preclose_entries_done,
+                '_daily_open_done': self._daily_open_done,
+            }
+            try:
+                self._preclose_entries_done = False
+                self._daily_open_done = False
+                self._hist_date = None
+
+                missed_str = current.isoformat()
+                next_day = (current + timedelta(days=1)).isoformat()
+
+                # Step 1: Fetch historical closes
+                symbols = list(self.broker.positions.keys())
+                if hasattr(self, 'current_universe') and self.current_universe:
+                    symbols = list(set(symbols + list(self.current_universe)))
+                if not symbols:
+                    logger.info("[RECOVERY] No symbols to fetch for %s, skipping", missed_str)
+                    current += timedelta(days=1)
+                    continue
+
+                data = yf.download(symbols, start=missed_str, end=next_day, progress=False)
+                if data is None or len(data) == 0:
+                    logger.info("[RECOVERY] No market data for %s (holiday?), skipping", missed_str)
+                    current += timedelta(days=1)
+                    continue
+
+                prices = self._recovery_price_dict(data, symbols)
+                if not prices:
+                    logger.info("[RECOVERY] No valid prices for %s, skipping", missed_str)
+                    current += timedelta(days=1)
+                    continue
+
+                # Step 2: Reconstruct regime score
+                try:
+                    spy_hist = yf.download('SPY', end=next_day, period='2y', progress=False)
+                    if isinstance(spy_hist.columns, pd.MultiIndex):
+                        spy_hist.columns = [c[0] for c in spy_hist.columns]
+                    if len(spy_hist) >= 252:
+                        self._spy_hist = spy_hist
+                        self.current_regime_score = compute_live_regime_score(spy_hist)
+                except Exception as e:
+                    logger.warning("[RECOVERY] Regime reconstruction failed for %s: %s", missed_str, e)
+
+                # Step 3: Fetch ^GSPC close for cycle log
+                try:
+                    gspc = yf.download('^GSPC', start=missed_str, end=next_day, progress=False)
+                    if isinstance(gspc.columns, pd.MultiIndex):
+                        gspc.columns = [c[0] for c in gspc.columns]
+                    if len(gspc) > 0:
+                        self._recovery_spy_close = float(gspc['Close'].iloc[-1])
+                    else:
+                        self._recovery_spy_close = None
+                except Exception as e:
+                    logger.warning("[RECOVERY] GSPC fetch failed for %s: %s", missed_str, e)
+                    self._recovery_spy_close = None
+
+                # Step 4: Run rotation or stops
+                hold_days = self.config.get('HOLD_DAYS', 5) if hasattr(self, 'config') else 5
+                next_counter = self.trading_day_counter + 1
+                is_rotation = (next_counter % hold_days == 0)
+
+                self.trades_today = []
+                if is_rotation:
+                    self._preclose_entries_done = False
+                    self.execute_preclose_entries(prices, _recovery_mode=True)
+                else:
+                    self.check_position_exits(prices)
+
+                # Step 5: Increment state
+                self.trading_day_counter += 1
+                self.last_trading_date = current
+                self.save_state()
+                recovered += 1
+                logger.info("[RECOVERY] Replayed %s (day %d, regime=%.3f%s)",
+                            missed_str, self.trading_day_counter,
+                            self.current_regime_score,
+                            " ROTATION" if is_rotation else "")
+
+            except Exception as e:
+                logger.error("[RECOVERY] Failed on %s: %s", current, e, exc_info=True)
+                break
+            finally:
+                self._spy_hist = saved['_spy_hist']
+                self._hist_date = saved['_hist_date']
+                self._daily_open_done = saved['_daily_open_done']
+
+            current += timedelta(days=1)
+
+        if recovered:
+            logger.info("[RECOVERY] Complete: %d days recovered", recovered)
+        self._recovery_gap_baseline = None
+        return recovered
+
+    # ------------------------------------------------------------------
     # Daily open routine
     # ------------------------------------------------------------------
 

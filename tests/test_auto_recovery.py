@@ -342,3 +342,107 @@ def test_recovery_mode_adds_reconstructed_tag(trader):
 
     assert created_entry['reconstructed'] is True
     assert 'recovery_date' in created_entry
+
+
+# _recover_missed_days tests (Task 6):
+
+def test_recover_no_gap(trader):
+    # baseline is yesterday (gap=1), should return 0
+    trader._recovery_gap_baseline = '2026-03-20'
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 21, 10, 0))
+    assert trader._recover_missed_days() == 0
+
+
+def test_recover_exceeds_cap(trader):
+    # gap > 5 trading days, should return 0 and log CRITICAL
+    trader._recovery_gap_baseline = '2026-03-06'
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 21, 10, 0))
+    assert trader._recover_missed_days() == 0
+
+
+def test_recover_none_baseline(trader):
+    trader._recovery_gap_baseline = None
+    assert trader._recover_missed_days() == 0
+
+
+def test_recover_full_replay(trader):
+    from datetime import timedelta
+    # Missed Wed Mar 18 and Thu Mar 19 (baseline=Tue Mar 17, today=Fri Mar 20)
+    trader._recovery_gap_baseline = '2026-03-17'
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 10, 0))
+    trader._preclose_entries_done = False
+    trader._daily_open_done = False
+    trader._spy_hist = None
+    trader._hist_date = None
+    trader._recovery_spy_close = None
+    trader.trading_day_counter = 8
+    trader.last_trading_date = date(2026, 3, 17)
+    trader.current_regime_score = 0.5
+    trader.trades_today = []
+    trader.config = {'HOLD_DAYS': 5}
+    trader.current_universe = ['AAPL', 'MSFT']
+    trader.broker = MagicMock()
+    trader.broker.positions = {'AAPL': MagicMock()}
+
+    # Mock yf.download to return valid data for each call
+    close_df = pd.DataFrame({'Close': [150.0]}, index=[pd.Timestamp('2026-03-18')])
+    spy_hist = pd.DataFrame({'Close': [400.0] * 300}, index=pd.date_range('2025-03-01', periods=300))
+    gspc_df = pd.DataFrame({'Close': [5200.0]}, index=[pd.Timestamp('2026-03-18')])
+
+    def mock_download(*args, **kwargs):
+        sym = args[0] if args else kwargs.get('tickers', '')
+        if sym == 'SPY':
+            return spy_hist
+        if sym == '^GSPC':
+            return gspc_df
+        # Multi-symbol download for position prices
+        arrays = [['Close', 'Close'], ['AAPL', 'MSFT']]
+        cols = pd.MultiIndex.from_arrays(arrays)
+        return pd.DataFrame([[150.0, 300.0]], columns=cols,
+                           index=[pd.Timestamp('2026-03-18')])
+
+    trader.execute_preclose_entries = MagicMock()
+    trader.check_position_exits = MagicMock()
+    trader.save_state = MagicMock()
+
+    with patch('omnicapital_live.yf.download', side_effect=mock_download), \
+         patch('omnicapital_live.compute_live_regime_score', return_value=0.6):
+        result = trader._recover_missed_days()
+
+    assert result == 2  # Wed and Thu recovered
+    assert trader.trading_day_counter == 10  # 8 + 2
+    assert trader.last_trading_date == date(2026, 3, 19)
+    assert trader.save_state.call_count == 2
+    assert trader._recovery_gap_baseline is None
+    # State overrides restored
+    assert trader._spy_hist is None
+    assert trader._hist_date is None
+
+
+def test_recover_state_restored_on_error(trader):
+    # Verify finally block restores state even when an exception occurs
+    trader._recovery_gap_baseline = '2026-03-17'
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 10, 0))
+    trader._preclose_entries_done = True
+    trader._daily_open_done = True
+    trader._spy_hist = 'original_spy'
+    trader._hist_date = 'original_date'
+    trader._recovery_spy_close = None
+    trader.trading_day_counter = 8
+    trader.last_trading_date = date(2026, 3, 17)
+    trader.current_regime_score = 0.5
+    trader.trades_today = []
+    trader.config = {'HOLD_DAYS': 5}
+    trader.current_universe = ['AAPL']
+    trader.broker = MagicMock()
+    trader.broker.positions = {'AAPL': MagicMock()}
+
+    # yf.download raises on first call
+    with patch('omnicapital_live.yf.download', side_effect=Exception("network error")):
+        result = trader._recover_missed_days()
+
+    assert result == 0
+    # State restored by finally block
+    assert trader._spy_hist == 'original_spy'
+    assert trader._hist_date == 'original_date'
+    assert trader._daily_open_done is True
