@@ -2904,13 +2904,18 @@ class COMPASSLive:
             if len(data) == 0:
                 return None
             total = cash
+            is_multi = isinstance(data.columns, pd.MultiIndex)
             for sym, pos in positions_dict.items():
                 shares = pos.get('shares', 0)
                 try:
-                    if isinstance(data.columns, pd.MultiIndex):
+                    if is_multi:
                         close = float(data['Close'][sym].iloc[-1])
                     else:
-                        close = float(data['Close'].iloc[-1])
+                        # Single-symbol fallback: verify it's our symbol, not SPY
+                        if len(symbols) == 1:
+                            close = float(data['Close'].iloc[-1])
+                        else:
+                            raise KeyError(f"{sym} not individually accessible in flat DataFrame")
                     total += shares * close
                 except Exception:
                     total += shares * pos.get('avg_cost', 0)

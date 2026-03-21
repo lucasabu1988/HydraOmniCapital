@@ -2894,13 +2894,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     fetchTradeAnalytics();
     fetchFundComparison();
-    setInterval(fetchRiskData, 300000);
-    setInterval(fetchMonteCarlo, 300000);
-    setInterval(function() { fetchAll(); fetchCycleLog(); if (!_startupRetryTimer) countdownSec = 30; }, REFRESH_MS);
-    setInterval(function() {
-        countdownSec = Math.max(0, countdownSec - 1);
-        document.getElementById('countdown').textContent = countdownSec;
-    }, 1000);
+    var _pollTimers = [];
+    function _startPolling() {
+        _pollTimers.push(setInterval(fetchRiskData, 300000));
+        _pollTimers.push(setInterval(fetchMonteCarlo, 300000));
+        _pollTimers.push(setInterval(function() { fetchAll(); fetchCycleLog(); if (!_startupRetryTimer) countdownSec = 30; }, REFRESH_MS));
+        _pollTimers.push(setInterval(function() {
+            countdownSec = Math.max(0, countdownSec - 1);
+            document.getElementById('countdown').textContent = countdownSec;
+        }, 1000));
+    }
+    function _stopPolling() {
+        _pollTimers.forEach(function(id) { clearInterval(id); });
+        _pollTimers = [];
+    }
+    _startPolling();
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) { _stopPolling(); } else { _startPolling(); fetchAll(); }
+    });
 
     /* Market open/close countdown timer */
     function updateMarketTimer() {
@@ -3235,11 +3246,15 @@ function renderMLInterpretation(text, elId, timeElId) {
     }
 }
 
-/* Poll ML data every 60s */
-setInterval(fetchMLLearning, 60000);
+/* Poll ML data every 60s (managed by visibilitychange via _pollTimers) */
+var _mlTimer = setInterval(fetchMLLearning, 60000);
 /* Initial load on page ready */
 document.addEventListener('DOMContentLoaded', function() {
     fetchMLLearning();
+});
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) { clearInterval(_mlTimer); _mlTimer = null; }
+    else if (!_mlTimer) { _mlTimer = setInterval(fetchMLLearning, 60000); fetchMLLearning(); }
 });
 
 /* ============ HERO STATS CAROUSEL (Two Sigma-inspired) ============ */

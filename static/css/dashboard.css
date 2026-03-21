@@ -2416,6 +2416,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     text-transform: uppercase;
     color: rgba(255,255,255,0.2);
 }
+/* Light-mode chalk overrides — dark text on light bg */
+:root .lh-chalk-row { color: rgba(0,0,0,0.3); }
+:root .lh-chalk-main { color: rgba(0,0,0,0.4); text-shadow: none; }
+:root .lh-chalk-tertiary { color: rgba(0,0,0,0.2); }
+body.dark .lh-chalk-row { color: rgba(255,255,255,0.35); }
+body.dark .lh-chalk-main { color: rgba(255,255,255,0.45); }
+body.dark .lh-chalk-tertiary { color: rgba(255,255,255,0.2); }
 .lh-chalk-fn {
     font-variant: small-caps;
     font-style: normal;
@@ -3196,6 +3203,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     background-size: 200% 200%;
     animation: heroMesh 12s ease-in-out infinite;
     pointer-events: none;
+}
+@keyframes heroMesh {
+    0%   { background-position: 0% 0%; }
+    50%  { background-position: 100% 100%; }
+    100% { background-position: 0% 0%; }
 }
 .algo-hero > *:not(.lh-glow) { position: relative; z-index: 1; }
 .algo-hero-title {
