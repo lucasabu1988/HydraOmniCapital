@@ -446,3 +446,135 @@ def test_recover_state_restored_on_error(trader):
     assert trader._spy_hist == 'original_spy'
     assert trader._hist_date == 'original_date'
     assert trader._daily_open_done is True
+
+
+# Integration tests (Tasks 7 + 8):
+
+def test_run_once_calls_recovery_before_daily_open(trader):
+    call_order = []
+
+    def mock_recover():
+        call_order.append('_recover_missed_days')
+        return 0
+
+    def mock_daily_open():
+        call_order.append('daily_open')
+
+    trader._cycles_completed = 0
+    trader._recover_missed_days = mock_recover
+    trader.daily_open = mock_daily_open
+    trader.save_state = MagicMock()
+    trader._reconcile_runtime_state = MagicMock()
+    trader.is_new_trading_day = MagicMock(return_value=True)
+    trader.is_market_open = MagicMock(return_value=False)
+    # Return a weekday (Friday=4) so the branch executes
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 10, 0))  # Friday
+    trader._last_regime_refresh = None
+
+    from omnicapital_live import COMPASSLive
+    COMPASSLive.run_once(trader)
+
+    assert call_order == ['_recover_missed_days', 'daily_open'], (
+        f"Expected recovery before daily_open, got: {call_order}"
+    )
+
+
+def test_recovery_idempotent(trader):
+    # First call: baseline is 2 trading days back — should recover 1 missed day
+    trader._recovery_gap_baseline = '2026-03-18'  # Wed; today=Fri Mar 20, gap=2 → 1 missed day (Thu Mar 19)
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 10, 0))
+    trader._preclose_entries_done = False
+    trader._daily_open_done = False
+    trader._spy_hist = None
+    trader._hist_date = None
+    trader._recovery_spy_close = None
+    trader.trading_day_counter = 8
+    trader.last_trading_date = date(2026, 3, 18)
+    trader.current_regime_score = 0.5
+    trader.trades_today = []
+    trader.config = {'HOLD_DAYS': 5}
+    trader.current_universe = ['AAPL']
+    trader.broker = MagicMock()
+    trader.broker.positions = {}
+
+    spy_hist = pd.DataFrame({'Close': [400.0] * 300}, index=pd.date_range('2025-03-01', periods=300))
+    gspc_df = pd.DataFrame({'Close': [5200.0]}, index=[pd.Timestamp('2026-03-19')])
+
+    def mock_download(*args, **kwargs):
+        sym = args[0] if args else kwargs.get('tickers', '')
+        if sym == 'SPY':
+            return spy_hist
+        if sym == '^GSPC':
+            return gspc_df
+        arrays = [['Close'], ['AAPL']]
+        cols = pd.MultiIndex.from_arrays(arrays)
+        return pd.DataFrame([[150.0]], columns=cols, index=[pd.Timestamp('2026-03-19')])
+
+    trader.execute_preclose_entries = MagicMock()
+    trader.check_position_exits = MagicMock()
+    trader.save_state = MagicMock()
+
+    with patch('omnicapital_live.yf.download', side_effect=mock_download), \
+         patch('omnicapital_live.compute_live_regime_score', return_value=0.6):
+        first_result = trader._recover_missed_days()
+
+    assert first_result == 1
+    assert trader._recovery_gap_baseline is None
+
+    # Second call: baseline is now None — should return 0 immediately
+    second_result = trader._recover_missed_days()
+    assert second_result == 0
+
+
+def test_recovery_skips_holiday(trader):
+    # Baseline=Mon Mar 16, today=Thu Mar 19; missed days: Tue Mar 17, Wed Mar 18
+    # Wed Mar 18 returns empty DataFrame (simulated holiday) — only Tue should be recovered
+    trader._recovery_gap_baseline = '2026-03-16'
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 19, 10, 0))
+    trader._preclose_entries_done = False
+    trader._daily_open_done = False
+    trader._spy_hist = None
+    trader._hist_date = None
+    trader._recovery_spy_close = None
+    trader.trading_day_counter = 7
+    trader.last_trading_date = date(2026, 3, 16)
+    trader.current_regime_score = 0.5
+    trader.trades_today = []
+    trader.config = {'HOLD_DAYS': 5}
+    trader.current_universe = ['AAPL']
+    trader.broker = MagicMock()
+    trader.broker.positions = {}
+
+    spy_hist = pd.DataFrame({'Close': [400.0] * 300}, index=pd.date_range('2025-03-01', periods=300))
+    gspc_df_tue = pd.DataFrame({'Close': [5100.0]}, index=[pd.Timestamp('2026-03-17')])
+
+    def mock_download(*args, **kwargs):
+        sym = args[0] if args else kwargs.get('tickers', '')
+        start = kwargs.get('start', '')
+        if sym == 'SPY':
+            return spy_hist
+        if sym == '^GSPC':
+            # Return data for Tue, empty for Wed
+            if '2026-03-17' in str(start):
+                return gspc_df_tue
+            return pd.DataFrame()
+        # Multi-symbol download: return data for Tue, empty for Wed
+        if '2026-03-17' in str(start):
+            arrays = [['Close'], ['AAPL']]
+            cols = pd.MultiIndex.from_arrays(arrays)
+            return pd.DataFrame([[150.0]], columns=cols, index=[pd.Timestamp('2026-03-17')])
+        # Wed Mar 18: simulate holiday (empty)
+        return pd.DataFrame()
+
+    trader.execute_preclose_entries = MagicMock()
+    trader.check_position_exits = MagicMock()
+    trader.save_state = MagicMock()
+
+    with patch('omnicapital_live.yf.download', side_effect=mock_download), \
+         patch('omnicapital_live.compute_live_regime_score', return_value=0.6):
+        result = trader._recover_missed_days()
+
+    # Only Tue Mar 17 recovered; Wed Mar 18 skipped (empty data = holiday)
+    assert result == 1
+    assert trader.last_trading_date == date(2026, 3, 17)
+    assert trader.trading_day_counter == 8  # 7 + 1
