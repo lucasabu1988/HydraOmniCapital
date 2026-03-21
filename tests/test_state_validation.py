@@ -234,7 +234,7 @@ def test_save_state_skips_write_for_mismatched_position_meta_keys(trader, tmp_pa
 
 
 def test_save_state_skips_write_for_excessive_trading_day_counter(trader, tmp_path):
-    trader.trading_day_counter = 500
+    trader.trading_day_counter = 200000
 
     trader.save_state()
 

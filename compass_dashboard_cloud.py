@@ -1439,16 +1439,18 @@ def _atomic_write_json(path, payload):
         suffix='.tmp',
         dir=os.path.dirname(path) or '.',
     )
+    replaced = False
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as tmp_file:
             json.dump(payload, tmp_file, indent=2)
         os.replace(tmp_path, path)
+        replaced = True
     finally:
-        if os.path.exists(tmp_path):
+        if not replaced and os.path.exists(tmp_path):
             try:
                 os.unlink(tmp_path)
             except OSError:
-                logger.warning('Failed to delete temporary recovered state %s', tmp_path, exc_info=True)
+                logger.warning('Failed to delete temporary file %s', tmp_path, exc_info=True)
 
 
 def _validate_recovered_state(state, source):
@@ -3547,7 +3549,7 @@ def _git_pull_latest():
 
     if git_token:
         # Configure HTTPS auth for push/pull
-        repo_url = f'https://x-access-token:{git_token}@github.com/lucasabu1988/NuevoProyecto.git'
+        repo_url = f'https://x-access-token:{git_token}@github.com/lucasabu1988/HydraOmniCapital.git'
         try:
             remote_result = subprocess.run(
                 ['git', 'remote', 'set-url', 'origin', repo_url],

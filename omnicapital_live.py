@@ -3655,10 +3655,10 @@ class COMPASSLive:
             violations.append(f"trading_day_counter={trading_day_counter} cannot be negative")
             if source == 'load':
                 trading_day_counter = 0
-        if trading_day_counter > 365:
-            violations.append(f"trading_day_counter={trading_day_counter} exceeds max supported value 365")
+        if trading_day_counter > 100000:
+            violations.append(f"trading_day_counter={trading_day_counter} exceeds max supported value")
             if source == 'load':
-                trading_day_counter = 365
+                trading_day_counter = 100000
 
         prev_trading_day = None
         if previous_state is not None:
@@ -3884,9 +3884,9 @@ class COMPASSLive:
             violations.append(
                 f"trading_day_counter must be an integer, got {state.get('trading_day_counter')!r}"
             )
-        if trading_day_counter is not None and not (0 <= trading_day_counter <= 365):
+        if trading_day_counter is not None and not (0 <= trading_day_counter <= 100000):
             violations.append(
-                f"trading_day_counter must be between 0 and 365, got {trading_day_counter}"
+                f"trading_day_counter must be between 0 and 100000, got {trading_day_counter}"
             )
 
         positions = state.get('positions')

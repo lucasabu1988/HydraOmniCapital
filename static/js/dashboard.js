@@ -3943,7 +3943,6 @@ function refreshDashboard() {
             for (var i = 0; i < d.position_details.length; i++) posDict[d.position_details[i].symbol] = true;
         }
         updateUniverse(d.universe, posDict);
-        sfRender();
     }
 }
 
