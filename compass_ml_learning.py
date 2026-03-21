@@ -533,6 +533,7 @@ class DecisionLogger:
         spy_hist=None,
         stock_hist=None,
         source: str = "live",
+        **kwargs,
     ) -> str:
         """Log a BUY decision. Returns decision_id for later linking to outcome."""
         dec_id = self._make_id()
@@ -587,7 +588,10 @@ class DecisionLogger:
             skip_universe_rank=None,
             source=source,
         )
-        self._append_jsonl(self._decisions_path, record.to_dict())
+        record_dict = record.to_dict()
+        if kwargs:
+            record_dict.update(kwargs)
+        self._append_jsonl(self._decisions_path, record_dict)
         self._open_entries[symbol] = {
             'decision_id': dec_id,
             'entry_date': record.date,
@@ -625,6 +629,7 @@ class DecisionLogger:
         spy_hist=None,
         spy_return_during_hold: Optional[float] = None,
         source: str = "live",
+        **kwargs,
     ):
         """Log a SELL decision and create a linked OutcomeRecord."""
         dec_id = self._make_id()
@@ -671,7 +676,10 @@ class DecisionLogger:
             skip_universe_rank=None,
             source=source,
         )
-        self._append_jsonl(self._decisions_path, exit_record.to_dict())
+        exit_dict = exit_record.to_dict()
+        if kwargs:
+            exit_dict.update(kwargs)
+        self._append_jsonl(self._decisions_path, exit_dict)
 
         # Outcome record — use entry-time context if available
         had_open_entry = symbol in self._open_entries
@@ -721,7 +729,10 @@ class DecisionLogger:
                 if spy_return_during_hold is not None else None
             ),
         )
-        self._append_jsonl(self._outcomes_path, outcome.to_dict())
+        outcome_dict = outcome.to_dict()
+        if kwargs:
+            outcome_dict.update(kwargs)
+        self._append_jsonl(self._outcomes_path, outcome_dict)
         logger.debug(
             f"ML: logged exit+outcome {symbol} reason={exit_reason} ret={gross_return:.2%}"
         )
@@ -917,6 +928,7 @@ class DecisionLogger:
         position_meta: Dict[str, dict],
         spy_hist=None,
         prev_portfolio_value: Optional[float] = None,
+        **kwargs,
     ):
         """Write end-of-day portfolio snapshot."""
         spy_ctx = self._spy_features(spy_hist)
@@ -965,7 +977,10 @@ class DecisionLogger:
             daily_pnl_pct=daily_pnl_pct,
             spy_daily_return=spy_ctx.get("spy_daily_return"),
         )
-        self._append_jsonl(self._snapshots_path, snapshot.to_dict())
+        snapshot_dict = snapshot.to_dict()
+        if kwargs:
+            snapshot_dict.update(kwargs)
+        self._append_jsonl(self._snapshots_path, snapshot_dict)
 
     # ------------------------------------------------------------------
     # Outcome classification (labels)
