@@ -1,6 +1,21 @@
+import sys
 import pytest
 import numpy as np
 import pandas as pd
+
+
+@pytest.fixture(autouse=True)
+def _isolate_backtest_lab():
+    """Remove omnicapital_live from sys.modules so backtest_lab's safety check passes."""
+    removed = {}
+    for mod_name in list(sys.modules):
+        if 'omnicapital_live' in mod_name:
+            removed[mod_name] = sys.modules.pop(mod_name)
+    # Also clear backtest_lab so it reimports fresh with the check
+    sys.modules.pop('backtest_lab', None)
+    yield
+    # Restore
+    sys.modules.update(removed)
 
 
 def test_patch_and_restore():

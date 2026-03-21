@@ -3215,7 +3215,7 @@ def api_ml_diagnostics():
                             if rec_date >= LIVE_TEST_START_DATE:
                                 total_outcomes += 1
                         except Exception:
-                            pass
+                            logger.debug('Skipping malformed outcome record in /api/ml-diagnostics')
 
         files_ok = os.path.exists(decisions_path) and os.path.exists(outcomes_path)
 
@@ -3866,7 +3866,8 @@ def _self_ping_loop():
             # Critical window: 14:00-16:30 ET (covers pre-close + buffer)
             is_critical = is_weekday and 14 <= hour < 17
             interval = 300 if is_critical else 600  # 5 min vs 10 min
-        except Exception:
+        except Exception as e:
+            logger.debug("Self-ping interval calc failed: %s", e)
             interval = 600
 
         time_module.sleep(interval)
