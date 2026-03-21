@@ -871,6 +871,9 @@ class COMPASSLive:
         self._missed_preclose = False         # Catch-up flag for missed pre-close
         self._startup_self_test_done = False
         self._shutdown_requested = False
+        self._recovery_gap_baseline = None
+        self._recovery_mode = False
+        self._recovery_spy_close = None
 
         # Cycle log tracking
         self._pre_rotation_value = None   # portfolio value before exits
@@ -4479,6 +4482,8 @@ class COMPASSLive:
         if state is None:
             logger.error("ALL state files corrupted or invalid — HALTING to prevent wrong trades")
             raise RuntimeError("Cannot load any valid state file. Manual intervention required.")
+
+        self._recovery_gap_baseline = state.get('last_trading_date')
 
         pre_repair_violations = self._validate_state_before_write(state)
         for violation in pre_repair_violations:
