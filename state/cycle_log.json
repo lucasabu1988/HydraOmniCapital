@@ -2,12 +2,12 @@
   {
     "cycle": 1,
     "start_date": "2026-03-16",
-    "end_date": null,
-    "status": "active",
+    "end_date": "2026-03-20",
+    "status": "closed",
     "portfolio_start": 100000.0,
-    "portfolio_end": null,
+    "portfolio_end": 98478.21,
     "spy_start": 6699.38,
-    "spy_end": null,
+    "spy_end": 652.91,
     "positions": [
       "JNJ",
       "GEV",
@@ -15,15 +15,77 @@
     ],
     "positions_current": [
       "JNJ",
-      "GEV",
-      "XOM"
+      "XOM",
+      "MU"
+    ],
+    "hydra_return": -1521.79,
+    "spy_return": -46.47,
+    "alpha": null,
+    "stop_events": [],
+    "positions_detail": [
+      {
+        "symbol": "JNJ",
+        "entry": 243.19,
+        "exit": 235.37,
+        "pnl_pct": -3.22,
+        "reason": "hold_expired"
+      },
+      {
+        "symbol": "GEV",
+        "entry": 827.37,
+        "exit": 851.07,
+        "pnl_pct": 2.86,
+        "reason": "hold_expired"
+      },
+      {
+        "symbol": "XOM",
+        "entry": 158.81,
+        "exit": 159.67,
+        "pnl_pct": 0.54,
+        "reason": "hold_expired"
+      }
+    ],
+    "sector_breakdown": {},
+    "exits_by_reason": {
+      "hold_expired": [
+        "JNJ",
+        "GEV",
+        "XOM"
+      ]
+    },
+    "cycle_return_pct": -1.52,
+    "spy_return_pct": -90.25,
+    "alpha_pct": 88.73
+  },
+  {
+    "cycle": 2,
+    "start_date": "2026-03-20",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 98478.21,
+    "portfolio_end": null,
+    "spy_start": 652.91,
+    "spy_end": null,
+    "positions": [
+      "JNJ",
+      "XOM",
+      "MU"
+    ],
+    "positions_current": [
+      "JNJ",
+      "XOM",
+      "MU"
     ],
     "hydra_return": null,
     "spy_return": null,
     "alpha": null,
     "stop_events": [],
     "positions_detail": [],
-    "sector_breakdown": {},
+    "sector_breakdown": {
+      "Healthcare": 1,
+      "Energy": 1,
+      "Technology": 1
+    },
     "exits_by_reason": {},
     "cycle_return_pct": null,
     "spy_return_pct": null,

@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-18T11:47:39.382087",
-  "cash": 2247.4642938232355,
+  "timestamp": "2026-03-20T15:55:00.000000",
+  "cash": 35618.57,
   "peak_value": 100068.7645111084,
-  "portfolio_value": 99764.77656539917,
+  "portfolio_value": 98478.21,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000,
@@ -15,59 +15,72 @@
   "last_trading_date": "2026-03-20",
   "positions": {
     "JNJ": {
-      "shares": 107.0,
-      "avg_cost": 243.19000244140625
+      "shares": 94,
+      "avg_cost": 235.37
     },
-    "GEV": {
-      "shares": 9.0,
-      "avg_cost": 827.3699951171875
+    "XOM": {
+      "shares": 87,
+      "avg_cost": 159.67
+    },
+    "MU": {
+      "shares": 11,
+      "avg_cost": 422.9
     },
     "TLT": {
-      "shares": 38.0,
+      "shares": 38,
       "avg_cost": 87.21
     },
     "GLD": {
-      "shares": 17.0,
+      "shares": 17,
       "avg_cost": 460.43
     },
     "DBC": {
-      "shares": 117.0,
+      "shares": 117,
       "avg_cost": 28.31
     },
     "EFA": {
-      "shares": 91.0,
+      "shares": 91,
       "avg_cost": 98.1
-    },
-    "XOM": {
-      "shares": 258.0,
-      "avg_cost": 158.81
     }
   },
   "position_meta": {
     "JNJ": {
-      "entry_price": 243.19000244140625,
-      "entry_date": "2026-03-16",
-      "entry_day_index": 1,
-      "original_entry_day_index": 1,
-      "high_price": 243.19000244140625,
-      "entry_vol": 0.15986035968629964,
-      "entry_daily_vol": 0.010070256100649625,
+      "entry_price": 235.37,
+      "entry_date": "2026-03-20",
+      "entry_day_index": 5,
+      "original_entry_day_index": 5,
+      "high_price": 235.37,
+      "entry_vol": 0.1599,
+      "entry_daily_vol": 0.0101,
       "sector": "Healthcare",
-      "entry_momentum_score": 1.9890691457592615,
+      "entry_momentum_score": 1.9123,
       "entry_momentum_rank": 1.0,
       "_entry_reconciled": true
     },
-    "GEV": {
-      "entry_price": 827.3699951171875,
-      "entry_date": "2026-03-16",
-      "entry_day_index": 1,
-      "original_entry_day_index": 1,
-      "high_price": 874.4099731445312,
-      "entry_vol": 0.4165747650252211,
-      "entry_daily_vol": 0.026241743588616726,
-      "sector": "Unknown",
-      "entry_momentum_score": 0.9331994416779369,
-      "entry_momentum_rank": 0.9393939393939394,
+    "XOM": {
+      "entry_price": 159.67,
+      "entry_date": "2026-03-20",
+      "entry_day_index": 5,
+      "original_entry_day_index": 5,
+      "high_price": 159.67,
+      "entry_vol": 0.2557,
+      "entry_daily_vol": 0.0161,
+      "sector": "Energy",
+      "entry_momentum_score": 1.4734,
+      "entry_momentum_rank": 0.975,
+      "_entry_reconciled": true
+    },
+    "MU": {
+      "entry_price": 422.9,
+      "entry_date": "2026-03-20",
+      "entry_day_index": 5,
+      "original_entry_day_index": 5,
+      "high_price": 422.9,
+      "entry_vol": 0.707,
+      "entry_daily_vol": 0.0445,
+      "sector": "Technology",
+      "entry_momentum_score": 1.1446,
+      "entry_momentum_rank": 0.95,
       "_entry_reconciled": true
     },
     "TLT": {
@@ -117,19 +130,6 @@
       "sector": "International Equity",
       "_efa": true,
       "_entry_reconciled": true
-    },
-    "XOM": {
-      "entry_price": 158.81,
-      "entry_date": "2026-03-17",
-      "entry_day_index": 2,
-      "original_entry_day_index": 2,
-      "high_price": 159.285,
-      "entry_vol": 0.2664,
-      "entry_daily_vol": 0.015492,
-      "sector": "Energy",
-      "entry_momentum_score": 1.1444,
-      "entry_momentum_rank": 1.0,
-      "_entry_reconciled": true
     }
   },
   "current_universe": [
@@ -177,7 +177,7 @@
   "universe_year": 2026,
   "_universe_source": "github",
   "_daily_open_done": true,
-  "_preclose_entries_done": false,
+  "_preclose_entries_done": true,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
@@ -214,7 +214,7 @@
         "sub_strategy": "trend"
       }
     ],
-    "catalyst_day_counter": 1,
+    "catalyst_day_counter": 5,
     "capital_manager": {
       "compass_account": 41828.777248556864,
       "rattle_account": 33040.05677049022,
@@ -230,23 +230,31 @@
   },
   "_pre_rotation_positions_data": {
     "JNJ": {
-      "shares": 107.0,
-      "avg_cost": 243.19000244140625,
-      "entry_price": 243.19000244140625,
+      "shares": 107,
+      "avg_cost": 243.19,
+      "entry_price": 243.19,
       "sector": "Healthcare",
       "entry_day_index": 1,
       "entry_date": "2026-03-16"
     },
     "GEV": {
-      "shares": 9.0,
-      "avg_cost": 827.3699951171875,
-      "entry_price": 827.3699951171875,
+      "shares": 9,
+      "avg_cost": 827.37,
+      "entry_price": 827.37,
       "sector": "Unknown",
       "entry_day_index": 1,
       "entry_date": "2026-03-16"
     },
+    "XOM": {
+      "shares": 258,
+      "avg_cost": 158.81,
+      "entry_price": 158.81,
+      "sector": "Energy",
+      "entry_day_index": 2,
+      "entry_date": "2026-03-17"
+    },
     "TLT": {
-      "shares": 38.0,
+      "shares": 38,
       "avg_cost": 87.21,
       "entry_price": 87.21,
       "sector": "Catalyst (trend)",
@@ -254,7 +262,7 @@
       "entry_date": "2026-03-16"
     },
     "GLD": {
-      "shares": 17.0,
+      "shares": 17,
       "avg_cost": 460.43,
       "entry_price": 460.43,
       "sector": "Catalyst (trend+gold)",
@@ -262,7 +270,7 @@
       "entry_date": "2026-03-16"
     },
     "DBC": {
-      "shares": 117.0,
+      "shares": 117,
       "avg_cost": 28.31,
       "entry_price": 28.31,
       "sector": "Catalyst (trend)",
@@ -270,26 +278,18 @@
       "entry_date": "2026-03-16"
     },
     "EFA": {
-      "shares": 91.0,
+      "shares": 91,
       "avg_cost": 98.1,
       "entry_price": 98.1,
       "sector": "International Equity",
       "entry_day_index": 1,
       "entry_date": "2026-03-16"
-    },
-    "XOM": {
-      "shares": 258.0,
-      "avg_cost": 158.81,
-      "entry_price": 158.81,
-      "sector": "Energy",
-      "entry_day_index": 2,
-      "entry_date": "2026-03-17"
     }
   },
-  "_pre_rotation_cash": 2247.4642938232355,
-  "_pre_rotation_value": 99547.6971472168,
+  "_pre_rotation_cash": 2247.46,
+  "_pre_rotation_value": 98478.21,
   "stats": {
-    "cycles_completed": 0,
+    "cycles_completed": 1,
     "engine_iterations": 15,
     "uptime_minutes": 756.9181911833333
   },
