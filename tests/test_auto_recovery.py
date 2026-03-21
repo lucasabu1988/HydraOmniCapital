@@ -184,3 +184,161 @@ def test_recovery_gap_baseline_none_when_missing(tmp_path):
             os.chdir(original_dir)
 
     assert t._recovery_gap_baseline is None
+
+
+# _recovery_mode in execute_preclose_entries tests (Task 5):
+
+def test_execute_preclose_recovery_skips_strategies(trader):
+    trader._preclose_entries_done = False
+    trader._hydra_available = True
+    trader._recovery_mode = False
+    trader._recovery_spy_close = None
+    trader.trades_today = []
+    trader.broker = MagicMock()
+    trader.broker.positions = {'AAPL': MagicMock()}
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 15, 35))
+    trader.check_position_exits = MagicMock()
+    trader._liquidate_efa_for_capital = MagicMock()
+    trader.open_new_positions = MagicMock()
+    trader._open_rattlesnake_positions = MagicMock()
+    trader._manage_catalyst_positions = MagicMock()
+    trader._manage_efa_position = MagicMock()
+    trader.save_state = MagicMock()
+
+    prices = {'AAPL': 150.0}
+    trader.execute_preclose_entries(prices, _recovery_mode=True)
+
+    trader._open_rattlesnake_positions.assert_not_called()
+    trader._manage_catalyst_positions.assert_not_called()
+    trader._manage_efa_position.assert_not_called()
+    trader._liquidate_efa_for_capital.assert_not_called()
+    # Core COMPASS logic still runs
+    trader.check_position_exits.assert_called_once()
+    trader.open_new_positions.assert_called_once()
+
+
+def test_execute_preclose_normal_calls_strategies(trader):
+    trader._preclose_entries_done = False
+    trader._hydra_available = True
+    trader._recovery_mode = False
+    trader._recovery_spy_close = None
+    trader.trades_today = []
+    trader.broker = MagicMock()
+    trader.broker.positions = {'AAPL': MagicMock()}
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 15, 35))
+    trader.check_position_exits = MagicMock()
+    trader._liquidate_efa_for_capital = MagicMock()
+    trader.open_new_positions = MagicMock()
+    trader._open_rattlesnake_positions = MagicMock()
+    trader._manage_catalyst_positions = MagicMock()
+    trader._manage_efa_position = MagicMock()
+    trader.save_state = MagicMock()
+
+    prices = {'AAPL': 150.0}
+    trader.execute_preclose_entries(prices, _recovery_mode=False)
+
+    trader._open_rattlesnake_positions.assert_called_once()
+    trader._manage_efa_position.assert_called_once()
+
+
+def test_recovery_mode_flag_set_and_cleared_around_cycle_log(trader):
+    trader._preclose_entries_done = False
+    trader._hydra_available = False
+    trader._recovery_mode = False
+    trader._recovery_spy_close = None
+    trader.broker = MagicMock()
+    trader.broker.positions = {'AAPL': MagicMock()}
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 15, 35))
+    trader.check_position_exits = MagicMock()
+    trader.open_new_positions = MagicMock()
+    trader.save_state = MagicMock()
+
+    # Simulate rotation: trades_today has both SELL and BUY
+    trader.trades_today = [
+        {'action': 'SELL', 'symbol': 'MSFT'},
+        {'action': 'BUY', 'symbol': 'AAPL'},
+    ]
+
+    captured_flag = {}
+
+    def mock_update_cycle_log(prices):
+        captured_flag['during'] = trader._recovery_mode
+
+    trader._update_cycle_log = mock_update_cycle_log
+
+    trader.execute_preclose_entries({'AAPL': 150.0}, _recovery_mode=True)
+
+    assert captured_flag['during'] is True
+    assert trader._recovery_mode is False  # Cleared in finally
+
+
+def test_recovery_spy_close_used_in_cycle_log_inner(trader):
+    import threading
+    trader._recovery_mode = True
+    trader._recovery_spy_close = 520.0
+    trader._cycle_log_lock = threading.Lock()
+    trader._pre_rotation_positions_data = {}
+    trader._pre_rotation_cash = 50000
+    trader._pre_rotation_value = 50000
+    trader._pre_rotation_positions = []
+    trader.broker = MagicMock()
+    trader.broker.positions = {'AAPL': MagicMock()}
+    trader.broker.cash = 50000
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 15, 35))
+    trader._reconstruct_close_portfolio = MagicMock(return_value=50000)
+    trader._get_spy_close = MagicMock(return_value=999.0)  # Should NOT be called
+    trader._new_cycle_log_entry = MagicMock(return_value={
+        'cycle': 1, 'start_date': '2026-03-20', 'status': 'active',
+        'positions': ['AAPL'],
+    })
+    trader._append_cycle_log_entry = MagicMock(return_value=True)
+    trader.notifier = None
+
+    with patch('builtins.open', MagicMock()), \
+         patch('os.path.exists', return_value=False), \
+         patch('os.makedirs'), \
+         patch('tempfile.mkstemp', return_value=(0, 'tmp')), \
+         patch('os.fdopen', MagicMock()), \
+         patch('os.replace'):
+        trader._update_cycle_log({'AAPL': 150.0})
+
+    trader._get_spy_close.assert_not_called()
+    # Verify the new_cycle_log_entry was called with our recovery spy_close
+    call_args = trader._new_cycle_log_entry.call_args
+    assert call_args[0][3] == 520.0  # new_spy_start = spy_close = 520.0
+
+
+def test_recovery_mode_adds_reconstructed_tag(trader):
+    import threading
+    trader._recovery_mode = True
+    trader._recovery_spy_close = 520.0
+    trader._cycle_log_lock = threading.Lock()
+    trader._pre_rotation_positions_data = {}
+    trader._pre_rotation_cash = 50000
+    trader._pre_rotation_value = 50000
+    trader._pre_rotation_positions = []
+    trader.broker = MagicMock()
+    trader.broker.positions = {'AAPL': MagicMock()}
+    trader.broker.cash = 50000
+    trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 20, 15, 35))
+    trader._reconstruct_close_portfolio = MagicMock(return_value=50000)
+    trader._get_spy_close = MagicMock(return_value=999.0)
+    trader.notifier = None
+
+    created_entry = {
+        'cycle': 1, 'start_date': '2026-03-20', 'status': 'active',
+        'positions': ['AAPL'],
+    }
+    trader._new_cycle_log_entry = MagicMock(return_value=created_entry)
+    trader._append_cycle_log_entry = MagicMock(return_value=True)
+
+    with patch('builtins.open', MagicMock()), \
+         patch('os.path.exists', return_value=False), \
+         patch('os.makedirs'), \
+         patch('tempfile.mkstemp', return_value=(0, 'tmp')), \
+         patch('os.fdopen', MagicMock()), \
+         patch('os.replace'):
+        trader._update_cycle_log({'AAPL': 150.0})
+
+    assert created_entry['reconstructed'] is True
+    assert 'recovery_date' in created_entry

@@ -2753,7 +2753,7 @@ class COMPASSLive:
         return (self.config['PRECLOSE_SIGNAL_TIME'] <= current_time
                 <= self.config['MOC_DEADLINE'])
 
-    def execute_preclose_entries(self, prices: Dict[str, float]):
+    def execute_preclose_entries(self, prices: Dict[str, float], _recovery_mode=False):
         """Pre-close rotation: sell hold-expired positions, then open new ones.
 
         Called once per day during the 15:30-15:50 ET window.
@@ -2776,7 +2776,7 @@ class COMPASSLive:
         self.check_position_exits(prices, include_hold_expired=True)
 
         # 2. Liquidate EFA if active strategies need capital
-        if self._hydra_available:
+        if self._hydra_available and not _recovery_mode:
             self._liquidate_efa_for_capital(prices)
 
         # 3. Open new positions using momentum scores from historical data
@@ -2785,18 +2785,18 @@ class COMPASSLive:
         self.open_new_positions(prices)
 
         # HYDRA: Rattlesnake entries (after COMPASS, uses separate budget)
-        if self._hydra_available:
+        if self._hydra_available and not _recovery_mode:
             self._open_rattlesnake_positions(prices)
 
         # HYDRA: Catalyst 4th pillar (cross-asset trend + gold, rebalances every 5 days)
-        if self._hydra_available and _catalyst_available:
+        if self._hydra_available and _catalyst_available and not _recovery_mode:
             try:
                 self._manage_catalyst_positions(prices)
             except Exception as e:
                 logger.warning(f"Catalyst management failed (non-blocking): {e}")
 
         # HYDRA: EFA passive pillar (after all active strategies, uses remaining idle cash)
-        if self._hydra_available:
+        if self._hydra_available and not _recovery_mode:
             self._manage_efa_position(prices)
 
         # Detect rotation: if we had sells today (hold_expired OR stops) AND new buys
@@ -2804,7 +2804,11 @@ class COMPASSLive:
         had_sells = any(t['action'] == 'SELL' for t in self.trades_today)
         had_buys = any(t['action'] == 'BUY' for t in self.trades_today)
         if had_sells and had_buys:
-            self._update_cycle_log(prices)
+            self._recovery_mode = _recovery_mode
+            try:
+                self._update_cycle_log(prices)
+            finally:
+                self._recovery_mode = False
 
         self._preclose_entries_done = True
         self.save_state()
@@ -3213,7 +3217,10 @@ class COMPASSLive:
             logger.warning("Could not reconstruct close portfolio, using pre-rotation snapshot")
 
         # SPY close price (today's close — same timing as position closes)
-        spy_close = self._get_spy_close()
+        if getattr(self, '_recovery_mode', False) and getattr(self, '_recovery_spy_close', None) is not None:
+            spy_close = self._recovery_spy_close
+        else:
+            spy_close = self._get_spy_close()
 
         # Close the active cycle
         for cycle in cycles:
@@ -3258,6 +3265,9 @@ class COMPASSLive:
         new_cycle_entry = self._new_cycle_log_entry(
             next_cycle, today, new_start_value, new_spy_start, new_positions
         )
+        if getattr(self, '_recovery_mode', False):
+            new_cycle_entry['reconstructed'] = True
+            new_cycle_entry['recovery_date'] = datetime.now().strftime('%Y-%m-%d')
         new_cycle_opened = self._append_cycle_log_entry(cycles, new_cycle_entry)
 
         # Save (atomic write to prevent corruption on crash)
