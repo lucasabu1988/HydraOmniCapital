@@ -7,7 +7,7 @@
     "portfolio_start": 100000.0,
     "portfolio_end": 98478.21,
     "spy_start": 6699.38,
-    "spy_end": 652.91,
+    "spy_end": 6506.48,
     "positions": [
       "JNJ",
       "GEV",
@@ -19,7 +19,7 @@
       "MU"
     ],
     "hydra_return": -1521.79,
-    "spy_return": -46.47,
+    "spy_return": -192.9,
     "alpha": null,
     "stop_events": [],
     "positions_detail": [
@@ -54,8 +54,8 @@
       ]
     },
     "cycle_return_pct": -1.52,
-    "spy_return_pct": -90.25,
-    "alpha_pct": 88.73
+    "spy_return_pct": -2.88,
+    "alpha_pct": 1.36
   },
   {
     "cycle": 2,
@@ -64,7 +64,7 @@
     "status": "active",
     "portfolio_start": 98478.21,
     "portfolio_end": null,
-    "spy_start": 652.91,
+    "spy_start": 6506.48,
     "spy_end": null,
     "positions": [
       "JNJ",
