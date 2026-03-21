@@ -1451,6 +1451,10 @@ body.dark .perf-bt-bar-track { background: rgba(255,255,255,0.04); }
 .pos-card.pos-profit::before { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
 .pos-card.pos-loss::before { background: var(--red); box-shadow: 0 0 8px var(--red-glow); }
 .pos-card.pos-near-stop::before { background: var(--yellow); box-shadow: 0 0 8px rgba(234,179,8,0.3); animation: blink 1s infinite; }
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
 
 /* Card top row: symbol + P&L% */
 .pos-top {
@@ -2113,10 +2117,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: no
     flex-shrink: 0;
 }
 .preclose-dot-waiting { background: var(--text-muted); }
-.preclose-dot-window { background: var(--yellow); animation: pulse-dot 1.5s ease-in-out infinite; }
+.preclose-dot-window { background: var(--yellow); animation: pulse-dot-preclose 1.5s ease-in-out infinite; }
 .preclose-dot-done { background: var(--green); }
 .preclose-dot-closed { background: var(--text-muted); opacity: 0.4; }
-@keyframes pulse-dot {
+@keyframes pulse-dot-preclose {
     0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
     50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
 }

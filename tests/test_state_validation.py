@@ -452,7 +452,7 @@ def test_validate_state_before_write_flags_mismatched_position_keys(trader):
         )
     )
 
-    assert any('positions keys must exactly match position_meta keys before write' in violation for violation in violations)
+    assert any('positions has symbols missing from position_meta' in violation for violation in violations)
 
 
 def test_load_state_recovers_from_corrupt_latest_and_run_once_succeeds(trader, tmp_path, monkeypatch):

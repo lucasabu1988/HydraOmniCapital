@@ -2796,10 +2796,9 @@ class COMPASSLive:
         if self._hydra_available:
             self._manage_efa_position(prices)
 
-        # Detect rotation: if we had sells (hold_expired) today AND new buys
+        # Detect rotation: if we had sells today (hold_expired OR stops) AND new buys
         positions_after = set(self.broker.positions.keys())
-        had_sells = any(t['action'] == 'SELL' and t.get('exit_reason') == 'hold_expired'
-                        for t in self.trades_today)
+        had_sells = any(t['action'] == 'SELL' for t in self.trades_today)
         had_buys = any(t['action'] == 'BUY' for t in self.trades_today)
         if had_sells and had_buys:
             self._update_cycle_log(prices)
@@ -3916,8 +3915,16 @@ class COMPASSLive:
                         f"last_trading_date={parsed_last_trading_date.isoformat()} is stale by {stale_days} days"
                     )
 
-        if set(positions.keys()) != set(position_meta.keys()):
-            violations.append("positions keys must exactly match position_meta keys before write")
+        pos_keys = set(positions.keys())
+        meta_keys = set(position_meta.keys())
+        if pos_keys != meta_keys:
+            # Strategy positions (EFA, Catalyst) may lag in position_meta — warn, don't block
+            extra_in_meta = meta_keys - pos_keys
+            extra_in_pos = pos_keys - meta_keys
+            if extra_in_pos:
+                violations.append(f"positions has symbols missing from position_meta: {extra_in_pos}")
+            if extra_in_meta:
+                logger.warning("position_meta has extra keys not in positions (strategy lag): %s", extra_in_meta)
 
         for symbol, data in positions.items():
             if not isinstance(data, dict):

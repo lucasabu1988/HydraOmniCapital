@@ -252,11 +252,17 @@ _engine_status = {
     'last_crash_error': None,
     'restarts': [],
 }
+_engine_status_lock = threading.Lock()
 _engine_heartbeat_thread = None
 
 _risk_cache = None
 _risk_cache_time = None
 RISK_CACHE_SECONDS = 300
+
+_hydra_regime_cache = None
+_hydra_regime_cache_time = None
+_hydra_regime_lock = threading.Lock()
+HYDRA_REGIME_CACHE_SECONDS = 60
 _risk_cache_lock = threading.Lock()
 _montecarlo_lock = threading.Lock()
 _data_quality_cache = None
@@ -435,6 +441,11 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
     return results
 
 
+def _get_yf_consecutive_failures():
+    with _price_cache_lock:
+        return _yf_consecutive_failures
+
+
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     """Fetch all live prices from Yahoo Finance.
     Returns {symbol: price_float}. Previous closes in _prev_close_cache.
@@ -458,6 +469,7 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
 
     if missing:
         yf_results = _yf_fetch_batch(missing)
+        fetch_completed = datetime.now()
         with _price_cache_lock:
             if yf_results:
                 _yf_consecutive_failures = 0
@@ -465,14 +477,14 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
                     _price_cache[sym] = result['price']
                     if 'prev_close' in result:
                         _prev_close_cache[sym] = result['prev_close']
-                _price_cache_time = now
+                _price_cache_time = fetch_completed
             else:
                 _yf_consecutive_failures += 1
                 if _yf_consecutive_failures >= 3:
                     logger.warning(f'Yahoo Finance: {_yf_consecutive_failures} consecutive failures, '
                                   f'backing off to {PRICE_CACHE_SECONDS_BACKOFF}s cache TTL')
                 # On failure: set short TTL so we retry soon (15s), not full cache duration
-                _price_cache_time = now - timedelta(seconds=max(0, cache_ttl - 15))
+                _price_cache_time = fetch_completed - timedelta(seconds=max(0, cache_ttl - 15))
     return {s: _price_cache[s] for s in symbols if s in _price_cache}
 
 
@@ -647,7 +659,8 @@ def _engine_is_starting():
 
 
 def _engine_snapshot():
-    snapshot = dict(_engine_status)
+    with _engine_status_lock:
+        snapshot = dict(_engine_status)
     snapshot['thread_alive'] = _engine_thread_is_alive()
     snapshot['cycles'] = (
         getattr(_cloud_engine, '_cycles_completed', 0)
@@ -995,7 +1008,7 @@ def _build_health_payload(engine, state):
         'data_feed': {
             'last_price_update': last_price_update,
             'price_age_seconds': price_age_seconds,
-            'consecutive_failures': _yf_consecutive_failures,
+            'consecutive_failures': _get_yf_consecutive_failures(),
             'cache_size': price_freshness['cache_size'],
         },
         'portfolio': {
@@ -1785,27 +1798,36 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
     if not _HAS_YFINANCE:
         return {'available': False}
 
-    # --- VIX (reuse from price cache if available) ---
+    # --- VIX + Rattlesnake regime (cached 60s to avoid uncached yf calls per request) ---
+    global _hydra_regime_cache, _hydra_regime_cache_time
     vix_current = prices.get('^VIX')
-    if not vix_current:
-        try:
-            vix_hist = yf.Ticker('^VIX').history(period='5d')
-            if len(vix_hist) > 0:
-                vix_current = float(vix_hist['Close'].iloc[-1])
-        except Exception as e:
-            logger.warning(f"compute_hydra_data failed: {e}")
-
-    # --- Rattlesnake regime: SPY vs SMA(200) ---
     rattle_regime = 'RISK_ON'
-    try:
-        spy_hist = yf.Ticker('SPY').history(period='1y')
-        if len(spy_hist) >= 200:
-            spy_close = float(spy_hist['Close'].iloc[-1])
-            spy_sma200 = float(spy_hist['Close'].iloc[-200:].mean())
-            if spy_close < spy_sma200:
-                rattle_regime = 'RISK_OFF'
-    except Exception as e:
-        logger.warning(f"compute_hydra_data failed: {e}")
+
+    with _hydra_regime_lock:
+        now = datetime.now()
+        if (_hydra_regime_cache_time and
+                (now - _hydra_regime_cache_time).total_seconds() < HYDRA_REGIME_CACHE_SECONDS):
+            vix_current = _hydra_regime_cache.get('vix', vix_current)
+            rattle_regime = _hydra_regime_cache.get('regime', rattle_regime)
+        else:
+            if not vix_current:
+                try:
+                    vix_hist = yf.Ticker('^VIX').history(period='5d')
+                    if len(vix_hist) > 0:
+                        vix_current = float(vix_hist['Close'].iloc[-1])
+                except Exception as e:
+                    logger.warning(f"compute_hydra_data VIX fetch failed: {e}")
+            try:
+                spy_hist = yf.Ticker('SPY').history(period='1y')
+                if len(spy_hist) >= 200:
+                    spy_close = float(spy_hist['Close'].iloc[-1])
+                    spy_sma200 = float(spy_hist['Close'].iloc[-200:].mean())
+                    if spy_close < spy_sma200:
+                        rattle_regime = 'RISK_OFF'
+            except Exception as e:
+                logger.warning(f"compute_hydra_data SPY regime fetch failed: {e}")
+            _hydra_regime_cache = {'vix': vix_current, 'regime': rattle_regime}
+            _hydra_regime_cache_time = now
 
     vix_panic = vix_current > R_VIX_PANIC if vix_current else False
 
@@ -1919,6 +1941,7 @@ def compute_hydra_data(state: dict, prices: Dict[str, float]) -> dict:
 _montecarlo_cache = None
 _montecarlo_cache_signature = None
 _trade_analytics_cache = None
+_trade_analytics_lock = threading.Lock()
 
 
 def _montecarlo_signature():
@@ -2605,14 +2628,17 @@ def api_trade_analytics():
     global _trade_analytics_cache
     if _trade_analytics_cache is not None:
         return jsonify(_trade_analytics_cache)
-    try:
-        from compass_trade_analytics import COMPASSTradeAnalytics
-        ta = COMPASSTradeAnalytics()
-        _trade_analytics_cache = ta.run_all()
-        return jsonify(_trade_analytics_cache)
-    except Exception as e:
-        logger.error('Trade analytics endpoint failed', exc_info=True)
-        return jsonify({'error': f'Trade analytics unavailable: {str(e)}'})
+    with _trade_analytics_lock:
+        if _trade_analytics_cache is not None:
+            return jsonify(_trade_analytics_cache)
+        try:
+            from compass_trade_analytics import COMPASSTradeAnalytics
+            ta = COMPASSTradeAnalytics()
+            _trade_analytics_cache = ta.run_all()
+            return jsonify(_trade_analytics_cache)
+        except Exception as e:
+            logger.error('Trade analytics endpoint failed', exc_info=True)
+            return jsonify({'error': f'Trade analytics unavailable: {str(e)}'})
 
 
 
@@ -3185,7 +3211,7 @@ def api_ml_diagnostics():
                     if line:
                         try:
                             rec = json.loads(line)
-                            rec_date = rec.get('entry_date', rec.get('exit_date', ''))[:10]
+                            rec_date = str(rec.get('entry_date') or rec.get('exit_date') or '')[:10]
                             if rec_date >= LIVE_TEST_START_DATE:
                                 total_outcomes += 1
                         except Exception:
@@ -3308,7 +3334,7 @@ def _api_ml_learning_impl():
 
     # Trigger interpretation regeneration in background if needed
     global _interp_last_cycle
-    if _should_regenerate_interpretation():
+    if _should_regenerate_interpretation() and not _interp_lock.locked():
         threading.Thread(
             target=_maybe_regenerate_interpretation,
             args=(ml_dir, list(entries), dict(insights), dict(bt_stats) if bt_stats else None),
@@ -3616,12 +3642,13 @@ def _run_cloud_engine():
         try:
             restart_at = datetime.now().isoformat()
             _cloud_engine = None
-            _engine_status['running'] = False
-            _engine_status['error'] = None
-            _engine_status['startup_started_at'] = restart_at
-            restarts = list(_engine_status.get('restarts') or [])
-            restarts.append(restart_at)
-            _engine_status['restarts'] = restarts[-5:]
+            with _engine_status_lock:
+                _engine_status['running'] = False
+                _engine_status['error'] = None
+                _engine_status['startup_started_at'] = restart_at
+                restarts = list(_engine_status.get('restarts') or [])
+                restarts.append(restart_at)
+                _engine_status['restarts'] = restarts[-5:]
             logger.info('Cloud HYDRA engine startup beginning (worker %s)', os.getpid())
             _ensure_engine_runtime_heartbeat()
             _cleanup_data_cache()
@@ -3687,11 +3714,12 @@ def _run_cloud_engine():
         except Exception as e:
             crash_at = datetime.now().isoformat()
             _cloud_engine = None
-            _engine_status['running'] = False
-            _engine_status['error'] = f'Engine crashed: {e}'
-            _engine_status['crash_count'] = int(_engine_status.get('crash_count') or 0) + 1
-            _engine_status['last_crash_at'] = crash_at
-            _engine_status['last_crash_error'] = str(e)
+            with _engine_status_lock:
+                _engine_status['running'] = False
+                _engine_status['error'] = f'Engine crashed: {e}'
+                _engine_status['crash_count'] = int(_engine_status.get('crash_count') or 0) + 1
+                _engine_status['last_crash_at'] = crash_at
+                _engine_status['last_crash_error'] = str(e)
             _write_engine_runtime_status()
             logger.error(f"Cloud engine crashed: {e}", exc_info=True)
             # Sleep and retry after 5 minutes (loop, not recursion)

@@ -308,6 +308,7 @@ function showFetchError(section, err, type) {
 /* ============ UPDATE FUNCTIONS ============ */
 function updateStatusBar(p) {
     const rt = document.getElementById('regime-tag');
+    if (!rt) return;
     if (p.regime === 'RISK_ON') {
         rt.innerHTML = '<span class="hdr-pill-dot"></span> Risk On';
         rt.className = 'hdr-pill hdr-pill-on';
@@ -391,6 +392,7 @@ function updatePreclose(preclose) {
     const label = document.getElementById('preclose-label');
     const timeEl = document.getElementById('preclose-time');
     const seg = document.getElementById('preclose-seg-window');
+    if (!dot || !label || !timeEl || !seg) return;
 
     timeEl.textContent = preclose.current_time_et + ' ET';
 
@@ -697,7 +699,7 @@ function updatePositions(details) {
                     '<span class="pos-stop-val">$' + (p.position_stop_level || 0).toFixed(2) + '</span>' +
                 '</div>' +
                 trailHtml +
-                (p.sector ? '<div class="pos-stop-item"><span class="pos-stop-dot" style="background:var(--purple);"></span><span class="pos-stop-label">' + p.sector + '</span></div>' : '') +
+                (p.sector ? '<div class="pos-stop-item"><span class="pos-stop-dot" style="background:var(--purple);"></span><span class="pos-stop-label">' + escHtml(p.sector) + '</span></div>' : '') +
                 (p.near_stop ? '<span style="margin-left:auto; font-size:11px; font-weight:700; color:var(--yellow); letter-spacing:0.5px;">' + t('near-stop') + '</span>' : '') +
             '</div>' +
         '</div>';
