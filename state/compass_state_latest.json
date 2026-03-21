@@ -11,8 +11,8 @@
     99371.93670257568
   ],
   "current_regime_score": 0.44773030754970455,
-  "trading_day_counter": 3,
-  "last_trading_date": "2026-03-18",
+  "trading_day_counter": 5,
+  "last_trading_date": "2026-03-20",
   "positions": {
     "JNJ": {
       "shares": 107.0,
