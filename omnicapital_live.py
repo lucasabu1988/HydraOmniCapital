@@ -4654,15 +4654,17 @@ class COMPASSLive:
         self._cycles_completed += 1
 
         try:
-            # Run daily_open() even if market just closed — ensures data/regime
-            # refresh and state save happen on days with late deploys
+            # New trading day setup
             if self.is_new_trading_day():
-                self.daily_open()
-                self.save_state()
-                try:
-                    self._reconcile_runtime_state()
-                except Exception as reconcile_err:
-                    logger.error(f"Automated reconciliation failed: {reconcile_err}", exc_info=True)
+                if self.is_market_open() or self.get_et_now().weekday() < 5:
+                    # Run daily_open() even if market just closed (late deploy),
+                    # but NOT on weekends to avoid phantom trading day increments
+                    self.daily_open()
+                    self.save_state()
+                    try:
+                        self._reconcile_runtime_state()
+                    except Exception as reconcile_err:
+                        logger.error(f"Automated reconciliation failed: {reconcile_err}", exc_info=True)
             elif self._last_regime_refresh is None or \
                     (datetime.now() - self._last_regime_refresh).total_seconds() > 14400:
                 # Periodic regime refresh (every 4h) — catches stale scores after
