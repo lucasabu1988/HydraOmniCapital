@@ -109,3 +109,37 @@ class TestLogExitKwargs:
         outcome = _read_last_jsonl(db_dir / "outcomes.jsonl")
         assert outcome["reconstructed"] is True
         assert outcome["recovery_date"] == "2026-03-21"
+
+
+def _call_log_daily_snapshot(dl, **extra_kwargs):
+    dl.log_daily_snapshot(
+        trading_day=1,
+        portfolio_value=100000.0,
+        cash=20000.0,
+        peak_value=100000.0,
+        n_positions=3,
+        leverage=0.8,
+        crash_cooldown=0,
+        regime_score=0.6,
+        max_positions_target=5,
+        positions=["AAPL", "MSFT", "GOOGL"],
+        position_meta={},
+        spy_hist=None,
+        prev_portfolio_value=None,
+        **extra_kwargs,
+    )
+
+
+class TestLogDailySnapshotKwargs:
+    def test_log_daily_snapshot_merges_kwargs(self, logger_tmpdir):
+        dl, db_dir = logger_tmpdir
+        _call_log_daily_snapshot(dl, reconstructed=True, recovery_date="2026-03-21")
+        record = _read_last_jsonl(db_dir / "daily_snapshots.jsonl")
+        assert record["reconstructed"] is True
+        assert record["recovery_date"] == "2026-03-21"
+
+    def test_log_daily_snapshot_without_kwargs_unchanged(self, logger_tmpdir):
+        dl, db_dir = logger_tmpdir
+        _call_log_daily_snapshot(dl)
+        record = _read_last_jsonl(db_dir / "daily_snapshots.jsonl")
+        assert "reconstructed" not in record
