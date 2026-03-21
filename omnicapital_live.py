@@ -4846,6 +4846,7 @@ class COMPASSLive:
                 if self.is_market_open() or self.get_et_now().weekday() < 5:
                     # Run daily_open() even if market just closed (late deploy),
                     # but NOT on weekends to avoid phantom trading day increments
+                    self._recover_missed_days()
                     self.daily_open()
                     self.save_state()
                     try:
