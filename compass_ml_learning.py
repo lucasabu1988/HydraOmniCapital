@@ -1823,7 +1823,7 @@ class COMPASSMLOrchestrator:
                  max_positions_target: int, current_n_positions: int,
                  portfolio_value: float, portfolio_drawdown: float,
                  current_leverage: float, crash_cooldown: int, trading_day: int,
-                 spy_hist=None, stock_hist=None, source: str = "live") -> str:
+                 spy_hist=None, stock_hist=None, source: str = "live", **kwargs) -> str:
         try:
             return self.logger.log_entry(
                 symbol=symbol, sector=sector, momentum_score=momentum_score,
@@ -1834,7 +1834,7 @@ class COMPASSMLOrchestrator:
                 current_n_positions=current_n_positions, portfolio_value=portfolio_value,
                 portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
                 crash_cooldown=crash_cooldown, trading_day=trading_day, spy_hist=spy_hist,
-                stock_hist=stock_hist, source=source,
+                stock_hist=stock_hist, source=source, **kwargs,
             )
         except Exception as e:
             logger.error(f"ML on_entry failed for {symbol}: {e}")
@@ -1850,7 +1850,7 @@ class COMPASSMLOrchestrator:
                 portfolio_drawdown: float, current_leverage: float,
                 crash_cooldown: int, trading_day: int, spy_hist=None,
                 spy_return_during_hold: Optional[float] = None,
-                source: str = "live"):
+                source: str = "live", **kwargs):
         try:
             self.logger.log_exit(
                 symbol=symbol, sector=sector, exit_reason=exit_reason,
@@ -1865,7 +1865,7 @@ class COMPASSMLOrchestrator:
                 portfolio_drawdown=portfolio_drawdown, current_leverage=current_leverage,
                 crash_cooldown=crash_cooldown, trading_day=trading_day,
                 spy_hist=spy_hist, spy_return_during_hold=spy_return_during_hold,
-                source=source,
+                source=source, **kwargs,
             )
         except Exception as e:
             logger.error(f"ML on_exit failed for {symbol}: {e}")
@@ -1918,7 +1918,7 @@ class COMPASSMLOrchestrator:
                       crash_cooldown: int, regime_score: float,
                       max_positions_target: int, positions: List[str],
                       position_meta: dict, spy_hist=None,
-                      prev_portfolio_value: Optional[float] = None):
+                      prev_portfolio_value: Optional[float] = None, **kwargs):
         try:
             self.set_trading_days(trading_day)
             self.logger.log_daily_snapshot(
@@ -1927,7 +1927,7 @@ class COMPASSMLOrchestrator:
                 crash_cooldown=crash_cooldown, regime_score=regime_score,
                 max_positions_target=max_positions_target, positions=positions,
                 position_meta=position_meta, spy_hist=spy_hist,
-                prev_portfolio_value=prev_portfolio_value,
+                prev_portfolio_value=prev_portfolio_value, **kwargs,
             )
         except Exception as e:
             logger.error(f"ML on_end_of_day failed: {e}")

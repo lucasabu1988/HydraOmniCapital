@@ -143,3 +143,118 @@ class TestLogDailySnapshotKwargs:
         _call_log_daily_snapshot(dl)
         record = _read_last_jsonl(db_dir / "daily_snapshots.jsonl")
         assert "reconstructed" not in record
+
+
+# ---------------------------------------------------------------------------
+# COMPASSMLOrchestrator kwargs forwarding tests
+# ---------------------------------------------------------------------------
+
+from compass_ml_learning import COMPASSMLOrchestrator  # noqa: E402
+
+
+@pytest.fixture
+def orchestrator_tmpdir(tmp_path):
+    orch = COMPASSMLOrchestrator(db_dir=str(tmp_path / "ml"))
+    return orch, tmp_path / "ml"
+
+
+def _call_orch_on_entry(orch, **extra_kwargs):
+    return orch.on_entry(
+        symbol="MSFT",
+        sector="Technology",
+        momentum_score=0.6,
+        momentum_rank=0.7,
+        entry_vol_ann=0.20,
+        entry_daily_vol=0.013,
+        adaptive_stop_pct=-0.07,
+        trailing_stop_pct=-0.03,
+        regime_score=0.5,
+        max_positions_target=5,
+        current_n_positions=2,
+        portfolio_value=100000.0,
+        portfolio_drawdown=-0.03,
+        current_leverage=0.7,
+        crash_cooldown=0,
+        trading_day=5,
+        spy_hist=None,
+        stock_hist=None,
+        source="live",
+        **extra_kwargs,
+    )
+
+
+def _call_orch_on_exit(orch, **extra_kwargs):
+    orch.on_exit(
+        symbol="MSFT",
+        sector="Technology",
+        exit_reason="stop_loss",
+        entry_price=200.0,
+        exit_price=186.0,
+        pnl_usd=-1400.0,
+        days_held=3,
+        high_price=205.0,
+        entry_vol_ann=0.20,
+        entry_daily_vol=0.013,
+        adaptive_stop_pct=-0.07,
+        entry_momentum_score=0.6,
+        entry_momentum_rank=0.7,
+        regime_score=0.5,
+        max_positions_target=5,
+        current_n_positions=2,
+        portfolio_value=98600.0,
+        portfolio_drawdown=-0.014,
+        current_leverage=0.7,
+        crash_cooldown=0,
+        trading_day=8,
+        spy_hist=None,
+        spy_return_during_hold=0.01,
+        source="live",
+        **extra_kwargs,
+    )
+
+
+def _call_orch_on_end_of_day(orch, **extra_kwargs):
+    orch.on_end_of_day(
+        trading_day=1,
+        portfolio_value=100000.0,
+        cash=30000.0,
+        peak_value=100000.0,
+        n_positions=2,
+        leverage=0.7,
+        crash_cooldown=0,
+        regime_score=0.5,
+        max_positions_target=5,
+        positions=["MSFT", "AAPL"],
+        position_meta={},
+        spy_hist=None,
+        prev_portfolio_value=None,
+        **extra_kwargs,
+    )
+
+
+class TestOrchestratorOnEntryForwardsKwargs:
+    def test_orchestrator_on_entry_forwards_kwargs(self, orchestrator_tmpdir):
+        orch, db_dir = orchestrator_tmpdir
+        _call_orch_on_entry(orch, reconstructed=True)
+        record = _read_last_jsonl(db_dir / "decisions.jsonl")
+        assert record["reconstructed"] is True
+        assert record["decision_type"] == "entry"
+
+
+class TestOrchestratorOnExitForwardsKwargs:
+    def test_orchestrator_on_exit_forwards_kwargs(self, orchestrator_tmpdir):
+        orch, db_dir = orchestrator_tmpdir
+        _call_orch_on_entry(orch)
+        _call_orch_on_exit(orch, reconstructed=True)
+        decisions = (db_dir / "decisions.jsonl").read_text(encoding="utf-8").strip().splitlines()
+        exit_record = json.loads(decisions[-1])
+        assert exit_record["reconstructed"] is True
+        assert exit_record["decision_type"] == "exit"
+
+
+class TestOrchestratorOnEndOfDayForwardsKwargs:
+    def test_orchestrator_on_end_of_day_forwards_kwargs(self, orchestrator_tmpdir):
+        orch, db_dir = orchestrator_tmpdir
+        _call_orch_on_end_of_day(orch, reconstructed=True)
+        record = _read_last_jsonl(db_dir / "daily_snapshots.jsonl")
+        assert record["reconstructed"] is True
