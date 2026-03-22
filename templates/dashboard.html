@@ -26,7 +26,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/dashboard.css?v=20260318b">
+<link rel="stylesheet" href="/static/css/dashboard.css?v=20260322a">
 <style>
 .startup-loading[hidden] { display: none !important; }
 .startup-loading {
@@ -235,6 +235,24 @@
     <div class="lh-glow lh-glow-1"></div>
     <div class="lh-glow lh-glow-2"></div>
     <div class="lh-glow lh-glow-3"></div>
+    <!-- Reactor Core — concentric rings -->
+    <div class="reactor-core">
+        <div class="reactor-ring"></div>
+        <div class="reactor-ring"></div>
+        <div class="reactor-ring"></div>
+        <div class="reactor-ring"></div>
+        <div class="reactor-ring"></div>
+        <div class="reactor-ring"></div>
+    </div>
+    <!-- Floating Quant Formulas -->
+    <div class="floating-formulas">
+        <span class="ff-formula">S = R<sub>90d</sub> / &sigma;<sub>63d</sub></span>
+        <span class="ff-formula">Sharpe = (R<sub>p</sub> &minus; R<sub>f</sub>) / &sigma;<sub>p</sub></span>
+        <span class="ff-formula">RSI &lt; 25 &rarr; &Delta;entry</span>
+        <span class="ff-formula">&alpha; = R<sub>p</sub> &minus; &beta;&middot;R<sub>m</sub></span>
+        <span class="ff-formula">w<sub>i</sub> = score<sub>i</sub> / &Sigma;scores</span>
+        <span class="ff-formula">DD<sub>max</sub> = min(V<sub>t</sub>/V<sub>peak</sub> &minus; 1)</span>
+    </div>
     <div class="lh-accent-line"></div>
     <div class="lh-brand">
         <div class="lh-icon">
@@ -244,7 +262,7 @@
         </div>
         <div class="lh-title-group">
             <span class="lh-title">HYDRA</span>
-            <span class="lh-version">Momentum + Rattlesnake + Catalyst + EFA</span>
+            <span class="lh-version">Momentum + Rattlesnake + Catalyst + EFA<span class="heartbeat-dot" id="hero-heartbeat" title="Engine status"></span></span>
         </div>
     </div>
     <div class="lh-tagline" data-i18n="hero-tagline">Momentum + Mean-Reversion + Trend/Gold + International &middot; Cash Recycling &middot; S&amp;P 500 + EAFE &middot; Long-Only</div>
@@ -709,7 +727,7 @@
 <!-- HYDRA CAPITAL ALLOCATION (moved here, above positions) -->
 <div class="regime-band anim-enter anim-d5" id="hydra-alloc-band" style="display:none;">
     <div class="regime-band-left">
-        <span class="regime-band-label">HYDRA Capital</span>
+        <span class="regime-band-label">HYDRA Capital<span class="heartbeat-dot" id="hydra-heartbeat" title="Engine status"></span></span>
         <span class="regime-band-score" id="hydra-recycled">--</span>
     </div>
     <div class="regime-band-bar-wrap" style="flex:1;">
