@@ -26,10 +26,12 @@ Delete the entire `<div class="landing-hero">` block and all associated CSS/JS. 
 
 ### CSS — `static/css/dashboard.css`
 - Delete all `.landing-hero` rules (base + dark mode + light mode)
-- Delete all `.lh-*` rules: `.lh-glow`, `.lh-accent-line`, `.lh-brand`, `.lh-icon`, `.lh-title`, `.lh-title-group`, `.lh-version`, `.lh-tagline`, `.lh-stats-carousel`, `.lh-stats`, `.lh-stat`, `.lh-stat-*`, `.lh-carousel-*`, `.lh-dot`, `.lh-features`, `.lh-feature`, `.lh-feature-dot`, `.lh-disclaimer`, `.lh-chalkboard`, `.lh-chalk-*`
-- Delete `@keyframes glowFloat`, `@keyframes shimmerLine`, `@keyframes statsFadeIn`
-- Delete associated `@media` responsive overrides for all above selectors
-- Estimated: ~350 lines removed
+- Delete most `.lh-*` rules: `.lh-accent-line`, `.lh-brand`, `.lh-icon`, `.lh-title`, `.lh-title-group`, `.lh-version`, `.lh-tagline`, `.lh-stats-carousel`, `.lh-stats`, `.lh-stat`, `.lh-stat-*`, `.lh-carousel-*`, `.lh-dot`, `.lh-features`, `.lh-feature`, `.lh-feature-dot`, `.lh-disclaimer`, `.lh-chalkboard`, `.lh-chalk-*`
+- **KEEP** `.lh-glow`, `.lh-glow-1`, `.lh-glow-2`, `.lh-glow-3`, and `@keyframes glowFloat` — shared by `fc-hero` (Fondos/Comparativa page)
+- Delete `@keyframes shimmerLine`, `@keyframes statsFadeIn`
+- Delete associated `@media` responsive overrides for deleted selectors
+- Also delete `.landing-hero > *:not(.lh-glow)` z-index rule
+- Estimated: ~320 lines removed
 
 ### JS — `static/js/dashboard.js`
 - Delete hero carousel logic (auto-rotation, dot clicks, pause button, slide transitions)
@@ -40,8 +42,8 @@ Delete the entire `<div class="landing-hero">` block and all associated CSS/JS. 
 - "Estado Actual" section and everything below it
 - Footer disclaimer
 - "Track Record" section (already has all backtest stats)
-- Comparativa page hero (separate element, different page)
-- Any other page's hero sections (algo-hero on Comparativa page references `.lh-glow` — verify if shared)
+- Comparativa/Fondos page hero (`fc-hero`) — uses `.lh-glow` classes, which are kept
+- `.algo-hero > *:not(.lh-glow)` selector on Comparativa — uses `.lh-glow` as exclusion, kept
 
 ## Verification
 
@@ -50,9 +52,9 @@ Delete the entire `<div class="landing-hero">` block and all associated CSS/JS. 
 3. No JS errors in console from missing carousel elements
 4. Dark mode and light mode both work
 5. Mobile layout still works
-6. Comparativa page unaffected (check if it shares any `.lh-*` classes)
+6. Comparativa and Fondos pages unaffected (`.lh-glow` styles retained)
 7. All existing tests pass
 
 ## Risk
 
-**Low.** Pure deletion of self-contained UI block. No data flow, API, or engine changes. The only risk is orphaned references — the Comparativa page has `.lh-glow` elements that may share styles.
+**Low.** Pure deletion of self-contained UI block. No data flow, API, or engine changes. The `.lh-glow` / `glowFloat` styles are shared by `fc-hero` (Fondos page) and must be kept.
