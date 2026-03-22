@@ -1437,11 +1437,6 @@ async function fetchAll() {
             document.getElementById('offline-banner').style.display = 'none';
             lastSuccessTime = new Date().toISOString();
             lastPortfolioData = stateData;
-            // Heartbeat dots — engine alive
-            var _hbHero = document.getElementById('hero-heartbeat');
-            var _hbHydra = document.getElementById('hydra-heartbeat');
-            if (_hbHero) _hbHero.classList.remove('inactive');
-            if (_hbHydra) _hbHydra.classList.remove('inactive');
             const p = stateData.portfolio;
             updateStatusBar(p);
             updateStalePriceWarning(stateData._data_freshness);
@@ -1525,11 +1520,6 @@ async function fetchAll() {
         showFetchError('dashboard principal', err);
         hideStartupLoading();
         clearStartupRetry();
-        // Heartbeat dots — engine offline
-        var _hbHeroOff = document.getElementById('hero-heartbeat');
-        var _hbHydraOff = document.getElementById('hydra-heartbeat');
-        if (_hbHeroOff) _hbHeroOff.classList.add('inactive');
-        if (_hbHydraOff) _hbHydraOff.classList.add('inactive');
         const banner = document.getElementById('offline-banner');
         if (banner) {
             banner.style.display = 'block';
