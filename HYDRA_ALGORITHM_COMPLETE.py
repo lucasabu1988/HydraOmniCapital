@@ -2304,7 +2304,7 @@ class COMPASSLive:
     # ------------------------------------------------------------------
 
     # ------------------------------------------------------------------
-    # Catalyst 4th Pillar (Cross-Asset Trend + Gold)
+    # Catalyst 4th Pillar (Cross-Asset Trend)
     # ------------------------------------------------------------------
 
     def _manage_catalyst_positions(self, prices: Dict[str, float]):
