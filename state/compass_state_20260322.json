@@ -3,7 +3,7 @@
   "timestamp": "2026-03-22T23:06:06.892478",
   "cash": 35514.3,
   "peak_value": 100068.7645111084,
-  "portfolio_value": 99667.2,
+  "portfolio_value": 98818.51,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     99895.73,
@@ -288,7 +288,7 @@
     }
   },
   "_pre_rotation_cash": 35514.3,
-  "_pre_rotation_value": 99667.2,
+  "_pre_rotation_value": 98818.51,
   "stats": {
     "cycles_completed": 1,
     "engine_iterations": 1,

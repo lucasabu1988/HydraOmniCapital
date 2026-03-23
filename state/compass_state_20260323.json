@@ -1,15 +1,15 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-23T10:17:21.372780",
+  "timestamp": "2026-03-23T10:22:43.305364",
   "cash": 35514.3,
   "peak_value": 100068.7645111084,
-  "portfolio_value": 99667.2,
+  "portfolio_value": 98785.1,
   "crash_cooldown": 0,
   "portfolio_values_history": [
-    99895.73,
-    99895.4,
-    99267.67,
-    98373.72
+    100000,
+    99999.67457580566,
+    99371.93670257568,
+    98477.98931724549
   ],
   "current_regime_score": 0.4202074252339996,
   "trading_day_counter": 43,
@@ -288,11 +288,11 @@
     }
   },
   "_pre_rotation_cash": 35514.3,
-  "_pre_rotation_value": 99667.2,
+  "_pre_rotation_value": 98785.1,
   "stats": {
     "cycles_completed": 1,
-    "engine_iterations": 22,
-    "uptime_minutes": 1118.8537121166667
+    "engine_iterations": 23,
+    "uptime_minutes": 1124.2192557833334
   },
   "ml_error_counts": {
     "entry": 0,
