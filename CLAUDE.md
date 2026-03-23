@@ -15,7 +15,7 @@ Quantitative momentum trading system for S&P 500 large-caps. Live paper trading 
 ### Multi-Strategy System (HYDRA)
 - **COMPASS v8.4** — S&P 500 cross-sectional momentum (primary strategy)
 - **Rattlesnake v1.0** — Mean-reversion dip-buying
-- **Catalyst** — Cross-asset trend + gold
+- **Catalyst** — Cross-asset trend (TLT/ZROZ/GLD/DBC above SMA200, 15% budget)
 - **EFA** — International diversification
 - **Cash Recycling** — COMPASS ↔ Rattlesnake capital flow (cap 75%)
 

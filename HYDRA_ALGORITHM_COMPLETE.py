@@ -1,3 +1,560 @@
+#!/usr/bin/env python3
+"""
+================================================================================
+HYDRA COMPLETE ALGORITHM — All 4 Modules Consolidated
+================================================================================
+Multi-strategy automated trading system for S&P 500 large-caps.
+Backtest results (2000-2026): CAGR 15.62% | MaxDD -21.7% | Sharpe 1.08
+
+4 Pillars:
+  1. COMPASS v8.4 — Risk-adjusted cross-sectional momentum (42.5% capital)
+  2. Rattlesnake v1.0 — Mean-reversion dip-buying (42.5% capital)
+  3. Catalyst — Cross-asset trend (TLT/ZROZ/GLD/DBC above SMA200, 15% capital)
+  4. EFA — International equity passive (idle cash after recycling)
+
+Cash Recycling: Idle Rattlesnake cash flows to COMPASS (capped at 75%).
+Remaining idle cash parks in EFA (iShares MSCI EAFE).
+
+Files consolidated:
+  - rattlesnake_signals.py (201 lines)
+  - hydra_capital.py (227 lines)
+  - catalyst_signals.py (100 lines)
+  - omnicapital_live.py (3,202 lines)
+
+NOTE: This is a reference copy. The live system imports from separate modules.
+To run live, use the original files (not this consolidated version).
+================================================================================
+"""
+
+
+# ==============================================================================
+# MODULE 1: RATTLESNAKE SIGNALS (rattlesnake_signals.py)
+# ==============================================================================
+
+"""
+Rattlesnake Signal Generator — Live Module
+===========================================
+Generates mean-reversion entry signals for the HYDRA multi-strategy system.
+Called by omnicapital_live.py to find Rattlesnake candidates alongside COMPASS.
+
+Signal: Buy stocks that dropped >=8% in 5 days, RSI(5)<25, above SMA200.
+Exit: +4% profit target, -5% stop loss, 8-day max hold.
+Regime: SPY SMA200 + VIX panic filter.
+Universe: S&P 100 (OEX) — most liquid large-caps.
+"""
+
+import pandas as pd
+import numpy as np
+from typing import Dict, List, Tuple, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ============================================================================
+# PARAMETERS
+# ============================================================================
+R_DROP_THRESHOLD = -0.08
+R_DROP_LOOKBACK = 5
+R_RSI_PERIOD = 5
+R_RSI_THRESHOLD = 25
+R_TREND_SMA = 200
+R_PROFIT_TARGET = 0.04
+R_MAX_HOLD_DAYS = 8
+R_STOP_LOSS = -0.05
+R_MAX_POSITIONS = 5
+R_POSITION_SIZE = 0.20
+R_MAX_POS_RISK_OFF = 2
+R_VIX_PANIC = 35
+R_MIN_AVG_VOLUME = 500_000
+
+# S&P 100 Universe
+R_UNIVERSE = [
+    'AAPL', 'ABBV', 'ABT', 'ACN', 'ADBE', 'AIG', 'AMGN', 'AMT', 'AMZN', 'AVGO',
+    'AXP', 'BA', 'BAC', 'BK', 'BKNG', 'BLK', 'BMY', 'BRK-B', 'C', 'CAT',
+    'CHTR', 'CL', 'CMCSA', 'COF', 'COP', 'COST', 'CRM', 'CSCO', 'CVS', 'CVX',
+    'DE', 'DHR', 'DIS', 'DOW', 'DUK', 'EMR', 'EXC', 'F', 'FDX', 'GD',
+    'GE', 'GILD', 'GM', 'GOOG', 'GS', 'HD', 'HON', 'IBM', 'INTC', 'INTU',
+    'JNJ', 'JPM', 'KHC', 'KO', 'LIN', 'LLY', 'LMT', 'LOW', 'MA', 'MCD',
+    'MDLZ', 'MDT', 'MET', 'META', 'MMM', 'MO', 'MRK', 'MS', 'MSFT', 'NEE',
+    'NFLX', 'NKE', 'NVDA', 'ORCL', 'PEP', 'PFE', 'PG', 'PM', 'PYPL', 'QCOM',
+    'RTX', 'SBUX', 'SCHW', 'SO', 'SPG', 'T', 'TGT', 'TMO', 'TMUS', 'TSLA',
+    'TXN', 'UNH', 'UNP', 'UPS', 'USB', 'V', 'VZ', 'WBA', 'WFC', 'WMT', 'XOM',
+]
+
+
+def compute_rsi(prices: pd.Series, period: int = 5) -> float:
+    """Compute current RSI value for a price series."""
+    if len(prices) < period + 1:
+        return 50.0  # neutral default
+    delta = prices.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.rolling(window=period, min_periods=period).mean()
+    avg_loss = loss.rolling(window=period, min_periods=period).mean()
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0
+
+
+def check_rattlesnake_regime(spy_hist: pd.DataFrame, vix_current: float) -> dict:
+    """
+    Check Rattlesnake regime conditions.
+    Returns dict with regime state and whether new entries are allowed.
+    """
+    regime = 'RISK_ON'
+    vix_panic = vix_current > R_VIX_PANIC if vix_current else False
+
+    if len(spy_hist) >= R_TREND_SMA:
+        spy_close = spy_hist['Close'].iloc[-1]
+        spy_sma = spy_hist['Close'].iloc[-R_TREND_SMA:].mean()
+        if spy_close < spy_sma:
+            regime = 'RISK_OFF'
+
+    return {
+        'regime': regime,
+        'vix_panic': vix_panic,
+        'entries_allowed': not vix_panic,
+        'max_positions': R_MAX_POSITIONS if regime == 'RISK_ON' else R_MAX_POS_RISK_OFF,
+    }
+
+
+def find_rattlesnake_candidates(
+    hist_data: Dict[str, pd.DataFrame],
+    current_prices: Dict[str, float],
+    held_symbols: set,
+    max_candidates: int = 5,
+) -> List[dict]:
+    """
+    Find mean-reversion entry candidates from the Rattlesnake universe.
+
+    Args:
+        hist_data: Historical price data keyed by symbol
+        current_prices: Current prices dict
+        held_symbols: Set of symbols already held (by any strategy)
+        max_candidates: Maximum candidates to return
+
+    Returns:
+        List of candidate dicts sorted by oversold score (most oversold first)
+    """
+    candidates = []
+
+    for ticker in R_UNIVERSE:
+        if ticker in held_symbols:
+            continue
+
+        if ticker not in hist_data or ticker not in current_prices:
+            continue
+
+        df = hist_data[ticker]
+        if len(df) < R_TREND_SMA + 10:
+            continue
+
+        current_price = current_prices[ticker]
+        if current_price <= 0:
+            continue
+
+        close = df['Close']
+
+        # 1. Drop threshold: fell >= 8% in last 5 days
+        if len(close) < R_DROP_LOOKBACK + 1:
+            continue
+        past_price = float(close.iloc[-(R_DROP_LOOKBACK + 1)])
+        if past_price <= 0:
+            continue
+        drop = (current_price / past_price) - 1.0
+        if drop > R_DROP_THRESHOLD:
+            continue
+
+        # 2. RSI check
+        rsi_val = compute_rsi(close, R_RSI_PERIOD)
+        if rsi_val > R_RSI_THRESHOLD:
+            continue
+
+        # 3. Trend filter: above 200-day SMA
+        sma_val = float(close.iloc[-R_TREND_SMA:].mean())
+        if current_price < sma_val:
+            continue
+
+        # 4. Volume filter
+        if 'Volume' in df.columns and len(df) >= 20:
+            avg_vol = df['Volume'].iloc[-20:].mean()
+            if pd.isna(avg_vol) or avg_vol < R_MIN_AVG_VOLUME:
+                continue
+
+        candidates.append({
+            'symbol': ticker,
+            'score': -drop,  # bigger drop = higher score
+            'drop_pct': drop,
+            'rsi': rsi_val,
+            'price': current_price,
+        })
+
+    # Sort by most oversold
+    candidates.sort(key=lambda x: x['score'], reverse=True)
+    return candidates[:max_candidates]
+
+
+def check_rattlesnake_exit(
+    symbol: str,
+    entry_price: float,
+    current_price: float,
+    days_held: int,
+) -> Optional[str]:
+    """
+    Check if a Rattlesnake position should exit.
+
+    Returns exit reason string or None if position should be held.
+    """
+    pnl_pct = (current_price / entry_price) - 1.0
+
+    if pnl_pct >= R_PROFIT_TARGET:
+        return 'PROFIT'
+    if pnl_pct <= R_STOP_LOSS:
+        return 'STOP'
+    if days_held >= R_MAX_HOLD_DAYS:
+        return 'TIME'
+
+    return None
+
+
+def compute_rattlesnake_exposure(positions: list, current_prices: dict,
+                                  account_value: float) -> float:
+    """
+    Compute current Rattlesnake exposure as fraction of account value.
+    Used by cash recycling to determine idle capital.
+    """
+    if account_value <= 0:
+        return 0.0
+
+    invested = sum(
+        pos.get('shares', 0) * current_prices.get(pos.get('symbol', ''), 0)
+        for pos in positions
+    )
+    return min(invested / account_value, 1.0)
+
+
+# ==============================================================================
+# MODULE 2: HYDRA CAPITAL MANAGER (hydra_capital.py)
+# ==============================================================================
+
+"""
+HYDRA Capital Manager — Cash Recycling Between Strategies
+==========================================================
+Manages segregated accounts for COMPASS, Rattlesnake, Catalyst (4th pillar),
+and EFA with dynamic cash recycling. When one strategy has idle cash, it
+flows to the other (capped at 75% max to COMPASS). Remaining idle cash
+after recycling can be parked in EFA for passive international-equity exposure.
+
+Catalyst (4th pillar) is ring-fenced at 15% — does not participate in recycling.
+
+Used by omnicapital_live.py for live capital allocation decisions.
+"""
+
+import logging
+from typing import Dict, Optional
+
+logger = logging.getLogger(__name__)
+
+# ============================================================================
+# PARAMETERS
+# ============================================================================
+BASE_COMPASS_ALLOC = 0.425
+BASE_RATTLE_ALLOC = 0.425
+BASE_CATALYST_ALLOC = 0.15   # 4th pillar: 10% trend + 5% gold
+MAX_COMPASS_ALLOC = 0.75     # Cap: max COMPASS can receive with recycling (of C+R portion)
+EFA_MIN_BUY = 1000           # Minimum idle cash to trigger EFA buy
+
+
+class HydraCapitalManager:
+    """
+    Manages capital allocation between COMPASS, Rattlesnake, Catalyst, and EFA.
+
+    Architecture:
+    - Each strategy has a logical account (not a separate brokerage account)
+    - Cash recycling transfers idle R cash to C's budget (within the 85% C+R portion)
+    - Catalyst (4th pillar) is ring-fenced at 15% — no recycling in/out
+    - Remaining idle cash after recycling can be allocated to EFA
+    - Position sizing for each strategy uses its allocated budget
+    """
+
+    def __init__(self, total_capital: float,
+                 compass_alloc: float = BASE_COMPASS_ALLOC,
+                 rattle_alloc: float = BASE_RATTLE_ALLOC,
+                 catalyst_alloc: float = BASE_CATALYST_ALLOC,
+                 max_compass_alloc: float = MAX_COMPASS_ALLOC):
+        self.base_compass_alloc = compass_alloc
+        self.base_rattle_alloc = rattle_alloc
+        self.base_catalyst_alloc = catalyst_alloc
+        self.max_compass_alloc = max_compass_alloc
+
+        # Logical accounts
+        self.compass_account = total_capital * compass_alloc
+        self.rattle_account = total_capital * rattle_alloc
+        self.catalyst_account = total_capital * catalyst_alloc
+
+        # EFA (passive pillar)
+        self.efa_value = 0.0
+
+        # Tracking
+        self.current_recycled = 0.0
+        self.total_recycled_days = 0
+        self.total_days = 0
+
+    @property
+    def total_capital(self) -> float:
+        return self.compass_account + self.rattle_account + self.catalyst_account + self.efa_value
+
+    def compute_allocation(self, rattle_exposure: float) -> Dict[str, float]:
+        """
+        Compute dynamic allocation based on Rattlesnake's current exposure.
+
+        Args:
+            rattle_exposure: Fraction of Rattlesnake account currently invested (0-1)
+
+        Returns:
+            Dict with compass_budget, rattle_budget, recycled_amount, effective_allocs
+        """
+        total = self.total_capital
+
+        # How much of Rattlesnake's account is idle?
+        r_idle = self.rattle_account * (1.0 - rattle_exposure)
+
+        # Max we can lend to COMPASS
+        max_c = total * self.max_compass_alloc - self.compass_account
+        max_c = max(0, max_c)
+
+        recycle_amount = min(r_idle, max_c)
+
+        c_effective = self.compass_account + recycle_amount
+        r_effective = self.rattle_account - recycle_amount
+
+        self.current_recycled = recycle_amount
+        self.total_days += 1
+        if recycle_amount > 0:
+            self.total_recycled_days += 1
+
+        # Remaining idle cash after recycling (available for EFA)
+        r_still_idle = r_effective * (1.0 - rattle_exposure)
+        efa_idle = r_still_idle + self.efa_value  # include current EFA value as available
+
+        return {
+            'compass_budget': c_effective,
+            'rattle_budget': r_effective,
+            'catalyst_budget': self.catalyst_account,
+            'recycled_amount': recycle_amount,
+            'recycled_pct': recycle_amount / total if total > 0 else 0,
+            'compass_alloc': c_effective / total if total > 0 else 0.425,
+            'rattle_alloc': r_effective / total if total > 0 else 0.425,
+            'catalyst_alloc': self.catalyst_account / total if total > 0 else 0.15,
+            'efa_idle': efa_idle,
+        }
+
+    def update_accounts_after_day(self, compass_return: float, rattle_return: float,
+                                   rattle_exposure: float):
+        """
+        Update logical accounts after a trading day.
+        Recycled cash earns COMPASS returns.
+
+        Args:
+            compass_return: COMPASS daily return (e.g., 0.005 for +0.5%)
+            rattle_return: Rattlesnake daily return
+            rattle_exposure: Rattlesnake exposure fraction
+        """
+        alloc = self.compute_allocation(rattle_exposure)
+        recycled = alloc['recycled_amount']
+
+        # Apply returns
+        c_effective = alloc['compass_budget']
+        r_effective = alloc['rattle_budget']
+
+        c_new = c_effective * (1 + compass_return)
+        r_new = r_effective * (1 + rattle_return)
+
+        # Settle recycled amount (it earned COMPASS returns)
+        recycled_after = recycled * (1 + compass_return)
+        self.compass_account = c_new - recycled_after
+        self.rattle_account = r_new + recycled_after
+
+    def buy_efa(self, amount: float):
+        """Move idle cash into EFA allocation."""
+        self.rattle_account -= amount
+        self.efa_value += amount
+        logger.info(f"EFA: bought ${amount:,.0f} (total EFA: ${self.efa_value:,.0f})")
+
+    def sell_efa(self, amount: float = None) -> float:
+        """Liquidate EFA (partially or fully) to free capital. Returns amount freed."""
+        if self.efa_value <= 0:
+            return 0.0
+        sell = min(amount, self.efa_value) if amount else self.efa_value
+        self.efa_value -= sell
+        self.rattle_account += sell
+        logger.info(f"EFA: sold ${sell:,.0f} (remaining EFA: ${self.efa_value:,.0f})")
+        return sell
+
+    def update_efa_value(self, efa_return: float):
+        """Apply EFA daily return to the EFA allocation."""
+        if self.efa_value > 0 and efa_return != 0:
+            self.efa_value *= (1 + efa_return)
+
+    def record_compass_trade(self, pnl: float):
+        """Record a COMPASS trade P&L to its account."""
+        self.compass_account += pnl
+
+    def record_rattle_trade(self, pnl: float):
+        """Record a Rattlesnake trade P&L to its account."""
+        self.rattle_account += pnl
+
+    def record_catalyst_trade(self, pnl: float):
+        """Record a Catalyst trade P&L to its account."""
+        self.catalyst_account += pnl
+
+    def update_catalyst_value(self, catalyst_return: float):
+        """Apply daily return to the Catalyst allocation."""
+        if catalyst_return != 0:
+            self.catalyst_account *= (1 + catalyst_return)
+
+    def get_status(self) -> Dict:
+        """Get current status for logging/dashboard."""
+        total = self.total_capital
+        return {
+            'total_capital': total,
+            'compass_account': self.compass_account,
+            'rattle_account': self.rattle_account,
+            'catalyst_account': self.catalyst_account,
+            'compass_pct': self.compass_account / total if total > 0 else 0,
+            'rattle_pct': self.rattle_account / total if total > 0 else 0,
+            'catalyst_pct': self.catalyst_account / total if total > 0 else 0,
+            'current_recycled': self.current_recycled,
+            'recycled_pct': self.current_recycled / total if total > 0 else 0,
+            'recycling_frequency': self.total_recycled_days / max(self.total_days, 1),
+            'efa_value': self.efa_value,
+            'efa_pct': self.efa_value / total if total > 0 else 0,
+        }
+
+    def to_dict(self) -> Dict:
+        """Serialize state for persistence."""
+        return {
+            'compass_account': self.compass_account,
+            'rattle_account': self.rattle_account,
+            'catalyst_account': self.catalyst_account,
+            'base_compass_alloc': self.base_compass_alloc,
+            'base_rattle_alloc': self.base_rattle_alloc,
+            'base_catalyst_alloc': self.base_catalyst_alloc,
+            'max_compass_alloc': self.max_compass_alloc,
+            'total_recycled_days': self.total_recycled_days,
+            'total_days': self.total_days,
+            'efa_value': self.efa_value,
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict) -> 'HydraCapitalManager':
+        """Restore from persisted state."""
+        catalyst = d.get('catalyst_account', 0.0)
+        total = d['compass_account'] + d['rattle_account'] + catalyst + d.get('efa_value', 0.0)
+        mgr = cls(total,
+                  d.get('base_compass_alloc', BASE_COMPASS_ALLOC),
+                  d.get('base_rattle_alloc', BASE_RATTLE_ALLOC),
+                  d.get('base_catalyst_alloc', BASE_CATALYST_ALLOC),
+                  d.get('max_compass_alloc', MAX_COMPASS_ALLOC))
+        mgr.compass_account = d['compass_account']
+        mgr.rattle_account = d['rattle_account']
+        mgr.catalyst_account = catalyst
+        mgr.total_recycled_days = d.get('total_recycled_days', 0)
+        mgr.total_days = d.get('total_days', 0)
+        mgr.efa_value = d.get('efa_value', 0.0)
+        return mgr
+
+
+# ==============================================================================
+# MODULE 3: CATALYST SIGNALS (catalyst_signals.py)
+# ==============================================================================
+
+"""
+Catalyst Signals -- 4th Pillar: Cross-Asset Trend
+===================================================
+15% of capital: equal-weight among ETFs above their SMA200
+
+Trend assets: TLT, ZROZ, GLD, DBC (SPY/EFA excluded — managed by other pillars)
+Rule: every 5 days, hold those above 200-day SMA. If none qualify, cash.
+Gold participates via trend filter (GLD held only when above SMA200).
+
+Backtest reference:
+  EXP68 — CAGR 14.42% -> 15.62%, Sharpe 0.908 -> 1.079 (original 10/5 split)
+  EXP71 — CAGR 17.05% -> 18.15%, Sharpe 1.293 -> 1.365 (15% trend, no perm gold)
+"""
+import logging
+import pandas as pd
+from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+# Parameters
+# Only assets NOT managed by other HYDRA pillars
+# SPY excluded: covered by COMPASS (Momentum)
+# EFA excluded: covered by EFA passive pillar
+CATALYST_TREND_ASSETS = ['TLT', 'ZROZ', 'GLD', 'DBC']
+CATALYST_GOLD_SYMBOL = None  # no permanent gold — GLD participates via trend filter
+CATALYST_SMA_PERIOD = 200
+CATALYST_REBALANCE_DAYS = 5
+
+# Allocation: 100% of catalyst budget goes to trend basket
+CATALYST_TREND_WEIGHT = 1.0     # 15% of total portfolio
+CATALYST_GOLD_WEIGHT = 0.0      # no permanent gold (EXP71: +1.10% CAGR, +0.073 Sharpe)
+
+
+def compute_trend_holdings(hist_data: Dict[str, pd.DataFrame]) -> List[str]:
+    """Determine which trend assets are above their SMA200."""
+    holdings = []
+    for ticker in CATALYST_TREND_ASSETS:
+        df = hist_data.get(ticker)
+        if df is None or len(df) < CATALYST_SMA_PERIOD:
+            continue
+        close = float(df['Close'].iloc[-1])
+        sma = float(df['Close'].iloc[-CATALYST_SMA_PERIOD:].mean())
+        if close > sma:
+            holdings.append(ticker)
+            logger.debug(f"Catalyst trend: {ticker} ABOVE SMA200 ({close:.2f} > {sma:.2f})")
+        else:
+            logger.debug(f"Catalyst trend: {ticker} below SMA200 ({close:.2f} < {sma:.2f})")
+    return holdings
+
+
+def compute_catalyst_targets(hist_data: Dict[str, pd.DataFrame],
+                              catalyst_budget: float,
+                              current_prices: Dict[str, float]) -> List[Dict]:
+    """Compute target positions for the Catalyst pillar.
+
+    Returns list of {symbol, target_shares, target_value, sub_strategy}
+    """
+    targets = []
+
+    trend_holdings = compute_trend_holdings(hist_data)
+    if trend_holdings:
+        per_asset = catalyst_budget / len(trend_holdings)
+        for ticker in trend_holdings:
+            price = current_prices.get(ticker, 0)
+            if price <= 0:
+                logger.warning(f"Catalyst: skipping {ticker} — zero/negative price ({price})")
+                continue
+            shares = int(per_asset / price)
+            if shares > 0:
+                targets.append({
+                    'symbol': ticker,
+                    'target_shares': shares,
+                    'target_value': shares * price,
+                    'sub_strategy': 'trend',
+                })
+
+    logger.info(f"Catalyst targets: {len(targets)} positions, "
+                f"trend={len(trend_holdings)}/{len(CATALYST_TREND_ASSETS)} above SMA200, "
+                f"budget=${catalyst_budget:,.0f}")
+    return targets
+
+
+# ==============================================================================
+# MODULE 4: OMNICAPITAL LIVE — CORE ENGINE (omnicapital_live.py)
+# ==============================================================================
+
 """
 OmniCapital HYDRA - Live Trading System (4 Strategies)
 =======================================================
@@ -13,22 +570,16 @@ Results (backtest 2000-2026):
   CAGR 15.62% | MaxDD -21.7% | Sharpe 1.08
 """
 
-import math
-import re
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, time, date, timedelta
+from datetime import datetime, timedelta, time, date
 import logging
-from logging.handlers import RotatingFileHandler
 import json
 import os
 import sys
 import glob
 import tempfile
-import copy
-import signal
-import threading
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 import warnings
@@ -38,8 +589,8 @@ from zoneinfo import ZoneInfo
 warnings.filterwarnings('ignore')
 
 # Importar modulos propios
-from omnicapital_data_feed import YahooDataFeed
-from omnicapital_broker import PaperBroker, IBKRBroker, Order, Position
+from omnicapital_data_feed import YahooDataFeed, MarketDataManager, HistoricalDataLoader
+from omnicapital_broker import PaperBroker, IBKRBroker, Order, Broker, Position
 
 # Git auto-sync (non-blocking, optional)
 try:
@@ -59,17 +610,9 @@ try:
 except ImportError:
     _ml_available = False
 
-_ml_error_counts = {
-    'entry': 0,
-    'exit': 0,
-    'hold': 0,
-    'skip': 0,
-    'snapshot': 0,
-}
-
 # HYDRA: Rattlesnake + Cash Recycling (non-blocking, optional)
 try:
-    from rattlesnake_signals import (  # noqa: F401 - optional dependency availability gate
+    from rattlesnake_signals import (
         R_UNIVERSE, R_MAX_POSITIONS, R_POSITION_SIZE, R_MAX_POS_RISK_OFF,
         find_rattlesnake_candidates, check_rattlesnake_exit,
         check_rattlesnake_regime, compute_rattlesnake_exposure,
@@ -80,7 +623,7 @@ except ImportError:
     _hydra_available = False
 
 try:
-    from catalyst_signals import (  # noqa: F401 - optional dependency availability gate
+    from catalyst_signals import (
         compute_catalyst_targets, compute_trend_holdings,
         CATALYST_TREND_ASSETS, CATALYST_REBALANCE_DAYS,
     )
@@ -91,7 +634,7 @@ except ImportError:
 # Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
 try:
     from compass_fred_data import download_all_overlay_data
-    from compass_overlays import (  # noqa: F401 - optional dependency availability gate
+    from compass_overlays import (
         BankingStressOverlay, M2MomentumIndicator, FOMCSurpriseSignal,
         FedEmergencySignal, CreditSectorPreFilter, compute_overlay_signals,
         OVERLAY_FLOOR,
@@ -105,24 +648,13 @@ except ImportError:
 # ============================================================================
 
 os.makedirs('logs', exist_ok=True)
-_log_format = '%(asctime)s - %(levelname)s - %(message)s'
-_log_formatter = logging.Formatter(_log_format)
-
-_file_handler = RotatingFileHandler(
-    f'logs/compass_live_{datetime.now().strftime("%Y%m%d")}.log',
-    maxBytes=50 * 1024 * 1024,  # 50 MB
-    backupCount=5,
-    encoding='utf-8',
-)
-_file_handler.setFormatter(_log_formatter)
-
-_stream_handler = logging.StreamHandler(sys.stdout)
-_stream_handler.setFormatter(_log_formatter)
-
 logging.basicConfig(
     level=logging.INFO,
-    format=_log_format,
-    handlers=[_file_handler, _stream_handler]
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(f'logs/compass_live_{datetime.now().strftime("%Y%m%d")}.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -217,8 +749,6 @@ CONFIG = {
     'DATA_FEED': 'YAHOO',
     'PRICE_UPDATE_INTERVAL': 60,
     'DATA_CACHE_DURATION': 60,
-    'PRICE_STALE_WARN_SECONDS': 120,
-    'PRICE_STALE_SKIP_SECONDS': 300,
     'MAX_PRICE_AGE_SECONDS': 300,
 
     # Data validation
@@ -276,14 +806,13 @@ SECTOR_MAP = {
     'TXN': 'Technology', 'QCOM': 'Technology', 'ORCL': 'Technology', 'ACN': 'Technology',
     'NOW': 'Technology', 'INTU': 'Technology', 'AMAT': 'Technology', 'MU': 'Technology',
     'LRCX': 'Technology', 'SNPS': 'Technology', 'CDNS': 'Technology', 'KLAC': 'Technology',
-    'MRVL': 'Technology', 'GOOG': 'Technology', 'PLTR': 'Technology', 'APP': 'Technology',
-    'SMCI': 'Technology', 'CRWD': 'Technology',
+    'MRVL': 'Technology',
     # Financials
     'BRK-B': 'Financials', 'JPM': 'Financials', 'V': 'Financials', 'MA': 'Financials',
     'BAC': 'Financials', 'WFC': 'Financials', 'GS': 'Financials', 'MS': 'Financials',
     'AXP': 'Financials', 'BLK': 'Financials', 'SCHW': 'Financials', 'C': 'Financials',
     'USB': 'Financials', 'PNC': 'Financials', 'TFC': 'Financials', 'CB': 'Financials',
-    'MMC': 'Financials', 'AIG': 'Financials', 'HOOD': 'Financials', 'COIN': 'Financials',
+    'MMC': 'Financials', 'AIG': 'Financials',
     # Healthcare
     'UNH': 'Healthcare', 'JNJ': 'Healthcare', 'LLY': 'Healthcare', 'ABBV': 'Healthcare',
     'MRK': 'Healthcare', 'PFE': 'Healthcare', 'TMO': 'Healthcare', 'ABT': 'Healthcare',
@@ -296,7 +825,6 @@ SECTOR_MAP = {
     'NKE': 'Consumer', 'MCD': 'Consumer', 'DIS': 'Consumer', 'SBUX': 'Consumer',
     'TGT': 'Consumer', 'LOW': 'Consumer', 'CL': 'Consumer', 'KMB': 'Consumer',
     'GIS': 'Consumer', 'EL': 'Consumer', 'MO': 'Consumer', 'PM': 'Consumer',
-    'NFLX': 'Consumer', 'UBER': 'Consumer',
     # Energy
     'XOM': 'Energy', 'CVX': 'Energy', 'COP': 'Energy', 'SLB': 'Energy',
     'EOG': 'Energy', 'OXY': 'Energy', 'MPC': 'Energy', 'PSX': 'Energy', 'VLO': 'Energy',
@@ -304,7 +832,7 @@ SECTOR_MAP = {
     'GE': 'Industrials', 'CAT': 'Industrials', 'BA': 'Industrials', 'HON': 'Industrials',
     'UNP': 'Industrials', 'RTX': 'Industrials', 'LMT': 'Industrials', 'DE': 'Industrials',
     'UPS': 'Industrials', 'FDX': 'Industrials', 'MMM': 'Industrials', 'GD': 'Industrials',
-    'NOC': 'Industrials', 'EMR': 'Industrials', 'GEV': 'Industrials',
+    'NOC': 'Industrials', 'EMR': 'Industrials',
     # Utilities
     'NEE': 'Utilities', 'DUK': 'Utilities', 'SO': 'Utilities', 'D': 'Utilities', 'AEP': 'Utilities',
     # Telecom
@@ -449,28 +977,6 @@ def compute_annual_top40(broad_pool: List[str], top_n: int = 40) -> List[str]:
     return top_n_symbols
 
 
-_VALID_SYMBOL_RE = re.compile(r'^[A-Z]{1,5}$')
-_CATALYST_EFA_TICKERS = {'TLT', 'GLD', 'DBC', 'EFA'}
-
-
-def validate_universe(symbols):
-    seen = set()
-    validated = []
-    for sym in symbols:
-        if sym in seen:
-            logger.warning(f"Universe validation: removing duplicate '{sym}'")
-            continue
-        seen.add(sym)
-        if not _VALID_SYMBOL_RE.match(sym):
-            logger.warning(f"Universe validation: rejecting invalid symbol '{sym}'")
-            continue
-        if sym in _CATALYST_EFA_TICKERS:
-            logger.warning(f"Universe validation: excluding Catalyst/EFA ticker '{sym}' from COMPASS universe")
-            continue
-        validated.append(sym)
-    return validated
-
-
 def _sigmoid(x: float, k: float = 15.0) -> float:
     """Logistic sigmoid: maps (-inf, +inf) -> (0, 1)."""
     z = float(np.clip(k * x, -20.0, 20.0))
@@ -587,22 +1093,13 @@ def compute_momentum_scores(hist_data: Dict[str, pd.DataFrame],
             if len(returns) >= 15:
                 ann_vol = float(returns.std() * (252 ** 0.5))
                 if ann_vol > 0.01:
-                    val = raw_score / ann_vol
+                    scores[symbol] = raw_score / ann_vol
                 else:
-                    val = raw_score
+                    scores[symbol] = raw_score
             else:
-                val = raw_score
-            
-            # Ensure finite score
-            if np.isfinite(val):
-                scores[symbol] = float(val)
-            else:
-                scores[symbol] = 0.0
+                scores[symbol] = raw_score
         else:
-            if np.isfinite(raw_score):
-                scores[symbol] = float(raw_score)
-            else:
-                scores[symbol] = 0.0
+            scores[symbol] = raw_score
 
     return scores
 
@@ -680,17 +1177,6 @@ def compute_adaptive_stop(entry_daily_vol: float, config: Dict) -> float:
       High-vol (daily_vol=4.5%):  stop = -11.25%
       Very-high (daily_vol=6%+):  stop = -15.0% (CEILING)
     """
-    if entry_daily_vol is None:
-        return config['STOP_FLOOR']
-
-    try:
-        entry_daily_vol = float(entry_daily_vol)
-    except (TypeError, ValueError):
-        return config['STOP_FLOOR']
-
-    if not math.isfinite(entry_daily_vol) or entry_daily_vol <= 0:
-        return config['STOP_FLOOR']
-
     raw_stop = -config['STOP_DAILY_VOL_MULT'] * entry_daily_vol
     return max(config['STOP_CEILING'], min(config['STOP_FLOOR'], raw_stop))
 
@@ -827,7 +1313,6 @@ class COMPASSLive:
 
         # Regime (continuous sigmoid score)
         self.current_regime_score = 0.5
-        self._last_regime_refresh = None  # timestamp of last regime recomputation
 
         # Trading day counter (incremented each market day the system runs)
         self.trading_day_counter = 0
@@ -859,21 +1344,8 @@ class COMPASSLive:
         self._max_consecutive_errors = 5
         self._last_stop_check = datetime.now()
         self._last_state_save = datetime.now()
-        self._last_persisted_cycles_completed = None
-        self._last_persisted_trading_day_counter = None
-        self._state_save_lock = threading.RLock()
-        self._cycle_log_lock = threading.Lock()
-        self._state_positions_snapshot = {}
-        self._state_cash_snapshot = float(config['PAPER_INITIAL_CASH'])
-        self._last_audit_positions = set()
         self._daily_open_done = False
         self._preclose_entries_done = False   # Pre-close entries for today
-        self._missed_preclose = False         # Catch-up flag for missed pre-close
-        self._startup_self_test_done = False
-        self._shutdown_requested = False
-        self._recovery_gap_baseline = None
-        self._recovery_mode = False
-        self._recovery_spy_close = None
 
         # Cycle log tracking
         self._pre_rotation_value = None   # portfolio value before exits
@@ -935,9 +1407,6 @@ class COMPASSLive:
             except Exception as e:
                 logger.warning(f"Overlay system failed to init (degrading to scalar=1.0): {e}")
 
-        # Validate config parameters (fail fast on startup)
-        self._validate_config()
-
         logger.info("=" * 70)
         if self._hydra_available:
             logger.info("OMNICAPITAL HYDRA - LIVE TRADING (COMPASS + Rattlesnake)")
@@ -965,61 +1434,6 @@ class COMPASSLive:
         else:
             logger.info("Overlays: DISABLED (FRED data unavailable)")
 
-        self._log_startup_report()
-
-    def _log_startup_report(self):
-        logger.info("=== HYDRA Engine Startup Report ===")
-        logger.info(f"  Positions: {self.config.get('NUM_POSITIONS', '?')}")
-        logger.info(f"  Hold days: {self.config.get('HOLD_DAYS', '?')}")
-        logger.info(f"  Leverage max: {self.config.get('LEVERAGE_MAX', '?')}")
-        logger.info(f"  Stop range: [{self.config.get('STOP_FLOOR', '?')}, {self.config.get('STOP_CEILING', '?')}]")
-        logger.info(f"  State file: {getattr(self, 'state_file', '?')}")
-        logger.info(f"  ML available: {getattr(self, '_ml_available', '?')}")
-        logger.info(f"  Python: {sys.version.split()[0]}")
-        logger.info("=================================")
-
-    # ------------------------------------------------------------------
-    # Config validation
-    # ------------------------------------------------------------------
-
-    def _validate_config(self):
-        c = self.config
-        errors = []
-
-        # HOLD_DAYS: int >= 1
-        if not isinstance(c.get('HOLD_DAYS'), int) or c['HOLD_DAYS'] < 1:
-            errors.append(f"HOLD_DAYS must be int >= 1, got {c.get('HOLD_DAYS')!r}")
-
-        # NUM_POSITIONS: int in [1, 20]
-        if not isinstance(c.get('NUM_POSITIONS'), int) or not (1 <= c['NUM_POSITIONS'] <= 20):
-            errors.append(f"NUM_POSITIONS must be int in [1, 20], got {c.get('NUM_POSITIONS')!r}")
-
-        # LEVERAGE_MAX: float in (0, 1.0]
-        lev = c.get('LEVERAGE_MAX')
-        if not isinstance(lev, (int, float)) or lev <= 0 or lev > 1.0:
-            errors.append(f"LEVERAGE_MAX must be float in (0, 1.0], got {lev!r}")
-
-        # STOP_FLOOR: float in [-0.20, 0]
-        sf = c.get('STOP_FLOOR')
-        if not isinstance(sf, (int, float)) or sf < -0.20 or sf > 0:
-            errors.append(f"STOP_FLOOR must be float in [-0.20, 0], got {sf!r}")
-
-        # STOP_CEILING: float in [-0.30, STOP_FLOOR]
-        sc = c.get('STOP_CEILING')
-        sf_val = sf if isinstance(sf, (int, float)) else 0
-        if not isinstance(sc, (int, float)) or sc < -0.30 or sc > sf_val:
-            errors.append(f"STOP_CEILING must be float in [-0.30, {sf_val}], got {sc!r}")
-
-        # TRAILING_ACTIVATION: float > 0
-        ta = c.get('TRAILING_ACTIVATION')
-        if not isinstance(ta, (int, float)) or ta <= 0:
-            errors.append(f"TRAILING_ACTIVATION must be float > 0, got {ta!r}")
-
-        if errors:
-            for err in errors:
-                logger.error(f"Config validation failed: {err}")
-            raise ValueError(f"Invalid config: {'; '.join(errors)}")
-
     # ------------------------------------------------------------------
     # Market hours
     # ------------------------------------------------------------------
@@ -1040,38 +1454,6 @@ class COMPASSLive:
         """Check if this is a new trading day"""
         today = self.get_et_now().date()
         return self.last_trading_date is None or today > self.last_trading_date
-
-    def _get_price_cache_age_seconds(self):
-        getter = getattr(self.data_feed, 'get_cache_age_seconds', None)
-        if not callable(getter):
-            return None
-        try:
-            return getter()
-        except Exception as e:
-            logger.warning(f"Could not determine data cache age: {e}")
-            return None
-
-    def _stale_price_guard_triggered(self, cache_age_seconds: Optional[float]) -> bool:
-        if cache_age_seconds is None:
-            return False
-
-        warn_age = float(self.config.get('PRICE_STALE_WARN_SECONDS', 120) or 120)
-        skip_age = float(self.config.get('PRICE_STALE_SKIP_SECONDS', 300) or 300)
-        if skip_age < warn_age:
-            skip_age = warn_age
-
-        if cache_age_seconds <= warn_age:
-            return False
-
-        message = (
-            f"Skipping trading cycle due to stale market data: cache age "
-            f"{cache_age_seconds:.1f}s (warn>{warn_age:.0f}s, critical>{skip_age:.0f}s)"
-        )
-        if cache_age_seconds > skip_age:
-            logger.error(message)
-        else:
-            logger.warning(message)
-        return True
 
     # ------------------------------------------------------------------
     # Data refresh (called once per trading day)
@@ -1199,91 +1581,6 @@ class COMPASSLive:
             except Exception as e:
                 logger.warning(f"FRED refresh failed, using cached data: {e}")
 
-    def _startup_self_test(self):
-        total_checks = 5
-        passed = 0
-        warnings = []
-
-        if _catalyst_available:
-            passed += 1
-        else:
-            warnings.append("Catalyst unavailable")
-
-        if self._hydra_available:
-            passed += 1
-        else:
-            warnings.append("HYDRA unavailable")
-
-        spy_price = 0.0
-        try:
-            if hasattr(self.data_feed, 'get_price'):
-                spy_price = self._coerce_float(self.data_feed.get_price('SPY'), 0.0)
-            if spy_price <= 0 and hasattr(self.data_feed, 'get_prices'):
-                spy_price = self._coerce_float(
-                    (self.data_feed.get_prices(['SPY']) or {}).get('SPY'),
-                    0.0,
-                )
-        except Exception as e:
-            warnings.append(f"SPY price check failed: {e}")
-        else:
-            if spy_price > 0:
-                passed += 1
-            else:
-                warnings.append("SPY price check failed: no valid price returned")
-
-        if _catalyst_available:
-            missing_assets = [
-                symbol for symbol in CATALYST_TREND_ASSETS
-                if symbol not in self._catalyst_hist
-                or self._catalyst_hist.get(symbol) is None
-                or len(self._catalyst_hist.get(symbol)) == 0
-            ]
-            if not missing_assets:
-                passed += 1
-            else:
-                detail = ", ".join(missing_assets[:4])
-                if len(missing_assets) > 4:
-                    detail += ", ..."
-                warnings.append(f"Catalyst history missing for {detail}")
-        else:
-            warnings.append("Catalyst history check skipped because Catalyst is unavailable")
-
-        if self.current_universe:
-            passed += 1
-        else:
-            warnings.append("Current universe is empty")
-
-        if warnings:
-            logger.warning(
-                "HYDRA startup self-test: %s/%s checks passed - %s",
-                passed,
-                total_checks,
-                " | ".join(warnings),
-            )
-        else:
-            logger.info("HYDRA startup self-test: %s/%s checks passed", passed, total_checks)
-
-        return {
-            'passed': passed,
-            'total': total_checks,
-            'warnings': warnings,
-        }
-
-    def _run_startup_self_test_once(self):
-        if self._startup_self_test_done:
-            return None
-        try:
-            return self._startup_self_test()
-        except Exception as e:
-            logger.warning(f"HYDRA startup self-test crashed unexpectedly: {e}", exc_info=True)
-            return {
-                'passed': 0,
-                'total': 5,
-                'warnings': [str(e)],
-            }
-        finally:
-            self._startup_self_test_done = True
-
     def refresh_universe(self):
         """Refresh top-N universe if new year (dynamic S&P 500 constituents)"""
         current_year = self.get_et_now().year
@@ -1297,18 +1594,12 @@ class COMPASSLive:
             logger.info(f"Computing {current_year} universe...")
             from compass.sp500_universe import refresh_constituents
             broad_pool, source = refresh_constituents(fallback_pool=BROAD_POOL)
-            _PIT_SOURCES = ('github', 'wikipedia', 'cached', 'pit_snapshot')
-            self._universe_source = source if source in _PIT_SOURCES else 'fallback'
-            if self._universe_source == 'fallback':
-                logger.error(f"Universe using HARDCODED fallback ({len(BROAD_POOL)} stocks) — "
-                             f"ALL PIT sources failed. Results have survivorship bias.")
-            raw_universe = compute_annual_top40(
+            self._universe_source = source if source in ('github', 'wikipedia') else 'fallback'
+            self.current_universe = compute_annual_top40(
                 broad_pool, self.config['TOP_N']
             )
-            self.current_universe = validate_universe(raw_universe)
             self.universe_year = current_year
-            logger.info(f"Universe updated: {len(self.current_universe)} stocks from "
-                        f"{len(broad_pool)} constituents (source: {source}, PIT: {source in _PIT_SOURCES})")
+            logger.info(f"Universe updated: {len(self.current_universe)} stocks from {len(broad_pool)} constituents (source: {source})")
 
     # ------------------------------------------------------------------
     # Regime detection
@@ -1320,7 +1611,6 @@ class COMPASSLive:
             return
         old_score = self.current_regime_score
         self.current_regime_score = compute_live_regime_score(self._spy_hist)
-        self._last_regime_refresh = datetime.now()
         old_risk_on = old_score >= 0.50
         new_risk_on = self.current_regime_score >= 0.50
         if old_risk_on != new_risk_on:
@@ -1348,12 +1638,10 @@ class COMPASSLive:
 
         # DD scaling
         dd_lev = _dd_leverage(drawdown, self.config)
-        crash_brake_active = False
 
         # Crash velocity check
         if self.crash_cooldown > 0:
             dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
-            crash_brake_active = True
         elif len(self.portfolio_values_history) >= 5:
             current_val = pv
             val_5d = self.portfolio_values_history[-5]
@@ -1362,16 +1650,13 @@ class COMPASSLive:
                 if ret_5d <= self.config['CRASH_VEL_5D']:
                     dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
                     self.crash_cooldown = self.config['CRASH_COOLDOWN'] - 1
-                    crash_brake_active = True
-            if (not crash_brake_active and self.crash_cooldown == 0
-                    and len(self.portfolio_values_history) >= 10):
+            if self.crash_cooldown == 0 and len(self.portfolio_values_history) >= 10:
                 val_10d = self.portfolio_values_history[-10]
                 if val_10d > 0:
                     ret_10d = (current_val / val_10d) - 1.0
                     if ret_10d <= self.config['CRASH_VEL_10D']:
                         dd_lev = min(self.config['CRASH_LEVERAGE'], dd_lev)
                         self.crash_cooldown = self.config['CRASH_COOLDOWN'] - 1
-                        crash_brake_active = True
 
         # Vol targeting
         vol_lev = 1.0
@@ -1382,10 +1667,7 @@ class COMPASSLive:
                 self.config['LEV_FLOOR'], self.config['LEVERAGE_MAX']
             )
 
-        target_lev = min(dd_lev, vol_lev)
-        if crash_brake_active:
-            return target_lev
-        return max(target_lev, self.config['LEV_FLOOR'])
+        return max(min(dd_lev, vol_lev), self.config['LEV_FLOOR'])
 
     def get_max_positions(self) -> int:
         """Determine max positions from regime score (v8.4: with bull override)"""
@@ -1413,24 +1695,6 @@ class COMPASSLive:
 
         return max_pos
 
-    def _get_ml_spy_context(self):
-        spy_price = None
-        spy_sma200 = None
-        try:
-            if self._spy_hist is not None and len(self._spy_hist) >= 200:
-                close = self._spy_hist['Close']
-                spy_price = float(close.iloc[-1])
-                spy_sma200 = float(close.iloc[-200:].mean())
-        except Exception:
-            spy_price = None
-            spy_sma200 = None
-
-        return {
-            'spy_price': spy_price,
-            'spy_sma200': spy_sma200,
-            'spy_regime_score': self.current_regime_score,
-        }
-
     # ------------------------------------------------------------------
     # Position exit logic (5 conditions from backtest)
     # ------------------------------------------------------------------
@@ -1444,7 +1708,6 @@ class COMPASSLive:
         positions = self.broker.get_positions()
         max_positions = self.get_max_positions()
         self._regime_reduce_done = False  # Only allow one regime-reduce sell per call
-        ml_spy_ctx = self._get_ml_spy_context() if self.ml else None
 
         for symbol in list(positions.keys()):
             price = prices.get(symbol)
@@ -1457,10 +1720,6 @@ class COMPASSLive:
 
             # Skip Catalyst positions — managed by _manage_catalyst_positions
             if meta.get('_catalyst'):
-                continue
-
-            # Skip EFA position — managed by _manage_efa_position
-            if symbol == EFA_SYMBOL or meta.get('_efa'):
                 continue
 
             exit_reason = None
@@ -1502,69 +1761,26 @@ class COMPASSLive:
                     exit_reason = 'trailing_stop'
 
             # 4. Universe rotation (only if no stop already triggered)
-            #    Never rotate out EFA or Catalyst — they're managed by their own pillars
-            is_pillar = (symbol == EFA_SYMBOL
-                         or meta.get('_efa')
-                         or meta.get('_catalyst')
-                         or (_catalyst_available and symbol in CATALYST_TREND_ASSETS))
-            if exit_reason is None and symbol not in self.current_universe and not is_pillar:
+            if exit_reason is None and symbol not in self.current_universe:
                 exit_reason = 'universe_rotation'
 
             # 5. Regime reduce (excess COMPASS positions)
             #    Only sell one per check_position_exits call to prevent double-sell
-            #    Exclude Catalyst, EFA, and Rattlesnake positions from count
-            def _is_compass_position(sym):
-                m = self.position_meta.get(sym, {})
-                return (sym in self.position_meta
-                        and not m.get('_catalyst')
-                        and not m.get('_efa')
-                        and sym != EFA_SYMBOL
-                        and not any(rp['symbol'] == sym for rp in self.rattle_positions))
-
-            compass_count = sum(1 for s in positions if _is_compass_position(s))
+            #    Exclude Catalyst positions from count and worst-performer search
+            compass_count = sum(1 for s in positions if s in self.position_meta
+                                and not self.position_meta.get(s, {}).get('_catalyst'))
             if exit_reason is None and compass_count > max_positions and not self._regime_reduce_done:
                 pos_returns = {}
                 for s, p in positions.items():
                     pr = prices.get(s)
-                    if pr and _is_compass_position(s):
-                        m = self.position_meta[s]
+                    m = self.position_meta.get(s)
+                    if pr and m and not m.get('_catalyst'):
                         pos_returns[s] = (pr - m['entry_price']) / m['entry_price']
                 if pos_returns:
                     worst = min(pos_returns, key=pos_returns.get)
                     if symbol == worst:
                         exit_reason = 'regime_reduce'
                         self._regime_reduce_done = True
-
-            if exit_reason is None and self.ml:
-                try:
-                    portfolio_now = self.broker.get_portfolio()
-                    drawdown = (
-                        (portfolio_now.total_value - self.peak_value) / self.peak_value
-                        if self.peak_value > 0 else 0
-                    )
-                    drawdown_from_high = (
-                        (price - meta['high_price']) / meta['high_price']
-                        if meta['high_price'] > 0 else 0.0
-                    )
-                    self.ml.on_hold(
-                        symbol=symbol,
-                        sector=SECTOR_MAP.get(symbol, meta.get('sector', 'Unknown')),
-                        days_held=days_held,
-                        current_return=pos_return,
-                        drawdown_from_high=drawdown_from_high,
-                        entry_daily_vol=meta.get('entry_daily_vol', 0.016),
-                        adaptive_stop_pct=adaptive_stop,
-                        regime_score=self.current_regime_score,
-                        trading_day=self.trading_day_counter,
-                        portfolio_value=portfolio_now.total_value,
-                        portfolio_drawdown=drawdown,
-                        spy_price=ml_spy_ctx['spy_price'] if ml_spy_ctx else None,
-                        spy_sma200=ml_spy_ctx['spy_sma200'] if ml_spy_ctx else None,
-                        spy_regime_score=ml_spy_ctx['spy_regime_score'] if ml_spy_ctx else None,
-                    )
-                except Exception as e:
-                    _ml_error_counts['hold'] += 1
-                    logger.warning(f"ML hold logging failed for {symbol}: {e}")
 
             # Execute exit
             if exit_reason:
@@ -1616,16 +1832,11 @@ class COMPASSLive:
                                 spy_hist=self._spy_hist,
                             )
                         except Exception as e:
-                            _ml_error_counts['exit'] += 1
                             logger.warning(f"ML exit logging failed for {symbol}: {e}")
 
                     # Only remove metadata if position is fully closed
-                    # and not owned by another strategy
                     if symbol not in self.broker.positions:
-                        in_catalyst = any(cp['symbol'] == symbol for cp in self.catalyst_positions)
-                        in_rattle = any(rp['symbol'] == symbol for rp in self.rattle_positions)
-                        if not in_catalyst and not in_rattle and symbol != EFA_SYMBOL:
-                            self.position_meta.pop(symbol, None)
+                        self.position_meta.pop(symbol, None)
 
                     self.trades_today.append({
                         'symbol': symbol, 'action': 'SELL',
@@ -1636,13 +1847,7 @@ class COMPASSLive:
                     # Track stop exits for cycle log update when replacement enters
                     if exit_reason in ('position_stop', 'trailing_stop'):
                         self._pending_stop_exits.append({
-                            'symbol': symbol,
-                            'reason': exit_reason,
-                            'return': ret,
-                            'exit_price': result.filled_price,
-                            'entry_price': meta.get('entry_price', pos.avg_cost),
-                            'sector': SECTOR_MAP.get(symbol, meta.get('sector', 'Unknown')),
-                            'days_held': total_days_held,
+                            'symbol': symbol, 'reason': exit_reason, 'return': ret
                         })
 
                     stop_info = ""
@@ -1695,15 +1900,8 @@ class COMPASSLive:
             logger.warning("New entries blocked (no SPY data for regime)")
             return
         positions = self.broker.get_positions()
-        # HYDRA: Only count COMPASS positions (exclude EFA, Catalyst, Rattlesnake)
-        compass_positions = {
-            s: p for s, p in positions.items()
-            if s in self.position_meta
-            and not self.position_meta.get(s, {}).get('_catalyst')
-            and not self.position_meta.get(s, {}).get('_efa')
-            and s != EFA_SYMBOL
-            and not any(rp['symbol'] == s for rp in self.rattle_positions)
-        }
+        # HYDRA: Only count COMPASS positions (those with position_meta)
+        compass_positions = {s: p for s, p in positions.items() if s in self.position_meta}
         max_positions = self.get_max_positions()
         needed = max_positions - len(compass_positions)
 
@@ -1756,10 +1954,9 @@ class COMPASSLive:
             return
 
         # v8.4: Select top N by score WITH sector concentration limits
-        # Only count COMPASS positions for sector limits (not EFA/Catalyst/Rattlesnake)
         ranked = sorted(available.items(), key=lambda x: x[1], reverse=True)
         sector_filtered = filter_by_sector_concentration(
-            ranked, compass_positions, self.config['MAX_PER_SECTOR']
+            ranked, positions, self.config['MAX_PER_SECTOR']
         )
         selected = sector_filtered[:needed]
 
@@ -1769,7 +1966,6 @@ class COMPASSLive:
                 selected_set = set(selected)
                 drawdown = (portfolio.total_value - self.peak_value) / self.peak_value if self.peak_value > 0 else 0
                 sector_filtered_set = set(sector_filtered)
-                ml_spy_ctx = self._get_ml_spy_context()
                 for rank_idx, (sym, sc) in enumerate(ranked[:20]):
                     if sym in selected_set:
                         continue
@@ -1786,12 +1982,8 @@ class COMPASSLive:
                         portfolio_drawdown=drawdown,
                         current_n_positions=len(positions),
                         max_positions_target=max_positions,
-                        spy_price=ml_spy_ctx['spy_price'] if ml_spy_ctx else None,
-                        spy_sma200=ml_spy_ctx['spy_sma200'] if ml_spy_ctx else None,
-                        spy_regime_score=ml_spy_ctx['spy_regime_score'] if ml_spy_ctx else None,
                     )
             except Exception as e:
-                _ml_error_counts['skip'] += 1
                 logger.warning(f"ML skip logging failed: {e}")
 
         # Compute inverse-vol weights
@@ -1947,10 +2139,8 @@ class COMPASSLive:
                             crash_cooldown=self.crash_cooldown,
                             trading_day=self.trading_day_counter,
                             spy_hist=self._spy_hist,
-                            stock_hist=self._hist_cache.get(symbol),
                         )
                     except Exception as e:
-                        _ml_error_counts['entry'] += 1
                         logger.warning(f"ML entry logging failed for {symbol}: {e}")
 
                 # Cycle log: link this entry as replacement for a pending stop exit
@@ -1962,7 +2152,6 @@ class COMPASSLive:
                             replacement_symbol=symbol,
                             exit_reason=stop_exit['reason'],
                             stop_return=stop_exit['return'],
-                            stop_details=stop_exit,
                         )
                     except Exception as e:
                         logger.warning(f"Cycle log stop update failed: {e}")
@@ -2040,7 +2229,7 @@ class COMPASSLive:
         ) if self._spy_hist is not None else {'entries_allowed': True, 'max_positions': R_MAX_POSITIONS}
 
         if not regime_info['entries_allowed']:
-            logger.info("Rattlesnake entries blocked: VIX panic")
+            logger.info(f"Rattlesnake entries blocked: VIX panic")
             return
 
         max_r_pos = regime_info['max_positions']
@@ -2057,22 +2246,7 @@ class COMPASSLive:
         )
 
         if not candidates:
-            logger.info(
-                "Rattlesnake: no qualifying entries | held=%d | slots=%d | price_symbols=%d",
-                len(held),
-                r_slots,
-                len(prices),
-            )
             return
-
-        top = candidates[0]
-        logger.info(
-            "Rattlesnake candidates: %d | top=%s drop=%.1f%% RSI=%.1f",
-            len(candidates),
-            top.get('symbol'),
-            top.get('drop_pct', 0.0) * 100,
-            top.get('rsi', 0.0),
-        )
 
         # Compute Rattlesnake budget
         r_exposure = compute_rattlesnake_exposure(
@@ -2136,8 +2310,8 @@ class COMPASSLive:
     def _manage_catalyst_positions(self, prices: Dict[str, float]):
         """Manage Catalyst 4th pillar: rebalance every 5 days.
 
-        Cross-asset trend (15% of portfolio): equal-weight among TLT/ZROZ/GLD/DBC
-        above their SMA200. No permanent gold — GLD participates via trend filter.
+        Cross-asset trend (10% of portfolio): equal-weight among TLT/GLD/DBC
+        above their SMA200. Gold (5%): permanent GLD allocation.
         """
         if not _catalyst_available or not self.hydra_capital:
             return
@@ -2150,23 +2324,11 @@ class COMPASSLive:
 
         self._catalyst_day_counter = 0
 
-        # Augment prices with historical close for Catalyst assets
-        # (live feed may not include TLT/GLD/DBC in validated batch)
-        catalyst_prices = dict(prices)
-        for cat_sym in CATALYST_TREND_ASSETS:
-            if cat_sym not in catalyst_prices or catalyst_prices[cat_sym] <= 0:
-                hist = self._catalyst_hist.get(cat_sym)
-                if hist is not None and len(hist) > 0:
-                    fallback = float(hist['Close'].iloc[-1])
-                    if fallback > 0:
-                        catalyst_prices[cat_sym] = fallback
-                        logger.info(f"Catalyst: using historical close for {cat_sym}: ${fallback:.2f}")
-
         # Compute targets
         targets = compute_catalyst_targets(
             self._catalyst_hist,
             self.hydra_capital.catalyst_account,
-            catalyst_prices,
+            prices,
         )
         target_map = {t['symbol']: t for t in targets}
 
@@ -2184,8 +2346,8 @@ class COMPASSLive:
                 # Sell all shares of this catalyst position
                 order = Order(symbol=sym, action='SELL',
                               quantity=cp['shares'], order_type='MARKET',
-                              decision_price=catalyst_prices.get(sym, pos.avg_cost))
-                result = self._submit_order(order, catalyst_prices)
+                              decision_price=prices.get(sym, pos.avg_cost))
+                result = self._submit_order(order, prices)
                 if result.status == 'FILLED':
                     pnl = (result.filled_price - cp['entry_price']) * cp['shares']
                     logger.info(f"CATALYST SELL {sym}: {cp['shares']} shares @ ${result.filled_price:.2f} (PnL: ${pnl:+,.0f})")
@@ -2209,28 +2371,21 @@ class COMPASSLive:
             if needed <= 0:
                 continue
 
-            price = catalyst_prices.get(sym, 0)
+            price = prices.get(sym, 0)
             if price <= 0:
-                logger.warning(f"Catalyst: cannot buy {sym} — no price available")
                 continue
 
-            # Enforce ring-fenced budget: min(broker cash, catalyst budget)
-            broker_cash = self.broker.get_portfolio().cash
-            catalyst_remaining = self.hydra_capital.catalyst_account - sum(
-                cp['shares'] * catalyst_prices.get(cp['symbol'], cp['entry_price'])
-                for cp in self.catalyst_positions
-            )
-            available_cash = min(broker_cash, max(catalyst_remaining, 0)) * 0.95
+            available_cash = self.broker.get_portfolio().cash
             cost = needed * price
-            if cost > available_cash:
-                needed = int(available_cash / price)
+            if cost > available_cash * 0.95:
+                needed = int(available_cash * 0.95 / price)
                 if needed <= 0:
                     continue
 
             order = Order(symbol=sym, action='BUY',
                           quantity=needed, order_type='MARKET',
                           decision_price=price)
-            result = self._submit_order(order, catalyst_prices)
+            result = self._submit_order(order, prices)
             if result.status == 'FILLED':
                 fill_price = result.filled_price
                 logger.info(f"CATALYST BUY {sym}: {needed} shares @ ${fill_price:.2f} ({target['sub_strategy']})")
@@ -2273,75 +2428,6 @@ class COMPASSLive:
         efa_sma = float(self._efa_hist['Close'].iloc[-EFA_SMA_PERIOD:].mean())
         return efa_close > efa_sma
 
-    def _sync_efa_runtime_state(self, prices: Dict[str, float] = None, reason: str = ''):
-        if not self._hydra_available or not self.hydra_capital:
-            return 0.0
-
-        prices = prices or {}
-        efa_pos = self.broker.get_positions().get(EFA_SYMBOL)
-        efa_price = self._coerce_float(prices.get(EFA_SYMBOL), 0.0)
-        if efa_price <= 0 and self._efa_hist is not None and len(self._efa_hist) > 0:
-            efa_price = self._coerce_float(self._efa_hist['Close'].iloc[-1], 0.0)
-
-        if efa_pos and getattr(efa_pos, 'shares', 0) > 0:
-            if efa_price <= 0:
-                efa_price = self._coerce_float(getattr(efa_pos, 'market_price', None), 0.0)
-            if efa_price <= 0:
-                efa_price = self._coerce_float(getattr(efa_pos, 'avg_cost', None), 0.0)
-            target_value = self._coerce_float(efa_pos.shares, 0.0) * max(efa_price, 0.0)
-        else:
-            target_value = 0.0
-
-        current_value = self._coerce_float(getattr(self.hydra_capital, 'efa_value', 0.0), 0.0)
-        delta = target_value - current_value
-        if abs(delta) > 0.01:
-            self.hydra_capital.efa_value = target_value
-            self.hydra_capital.rattle_account = self._coerce_float(
-                getattr(self.hydra_capital, 'rattle_account', 0.0),
-                0.0,
-            ) - delta
-            if target_value <= 0:
-                logger.warning(
-                    "EFA sync%s: cleared stale allocation $%.2f with no broker position",
-                    f" ({reason})" if reason else "",
-                    current_value,
-                )
-            else:
-                logger.info(
-                    "EFA sync%s: aligned allocation to broker market value $%.2f",
-                    f" ({reason})" if reason else "",
-                    target_value,
-                )
-
-        if target_value > 0 and efa_pos:
-            meta = copy.deepcopy(self.position_meta.get(EFA_SYMBOL, {}))
-            meta['entry_price'] = self._coerce_float(
-                meta.get('entry_price'),
-                self._coerce_float(getattr(efa_pos, 'avg_cost', None), efa_price),
-            ) or max(efa_price, 0.0)
-            meta['entry_date'] = meta.get('entry_date') or self.get_et_now().date().isoformat()
-            meta['entry_day_index'] = self._coerce_int(meta.get('entry_day_index'), self.trading_day_counter)
-            meta['original_entry_day_index'] = self._coerce_int(
-                meta.get('original_entry_day_index'),
-                meta['entry_day_index'],
-            )
-            meta['high_price'] = max(
-                self._coerce_float(meta.get('high_price'), meta['entry_price']),
-                max(efa_price, 0.0),
-                meta['entry_price'],
-            )
-            meta['entry_vol'] = self._coerce_float(meta.get('entry_vol'), 0.15)
-            meta['entry_daily_vol'] = self._coerce_float(meta.get('entry_daily_vol'), 0.0095)
-            meta['sector'] = 'International Equity'
-            meta['_efa'] = True
-            meta['_entry_reconciled'] = bool(meta.get('_entry_reconciled', False))
-            self.position_meta[EFA_SYMBOL] = meta
-        elif target_value <= 0 and EFA_SYMBOL not in (self.broker.get_positions() if hasattr(self, 'broker') else {}):
-            # Only pop if broker confirms no EFA shares (not a timing issue)
-            self.position_meta.pop(EFA_SYMBOL, None)
-
-        return target_value
-
     def _manage_efa_position(self, prices: Dict[str, float]):
         """Manage EFA third pillar: buy with idle cash, sell when needed.
 
@@ -2352,13 +2438,11 @@ class COMPASSLive:
         if not self._hydra_available or not self.hydra_capital:
             return
 
-        self._sync_efa_runtime_state(prices, reason='pre_manage')
         efa_price = prices.get(EFA_SYMBOL)
         if not efa_price or efa_price <= 0:
             if self._efa_hist is not None and len(self._efa_hist) > 0:
                 efa_price = float(self._efa_hist['Close'].iloc[-1])
             else:
-                logger.info("EFA: skipped (no live price and no historical fallback)")
                 return
 
         # Current EFA position from broker
@@ -2366,20 +2450,12 @@ class COMPASSLive:
         efa_pos = positions.get(EFA_SYMBOL)
         efa_shares = efa_pos.shares if efa_pos else 0
 
-        efa_sma = None
-        if self._efa_hist is not None and len(self._efa_hist) >= EFA_SMA_PERIOD:
-            efa_sma = float(self._efa_hist['Close'].iloc[-EFA_SMA_PERIOD:].mean())
-        efa_above_sma = bool(efa_sma is not None and efa_price > efa_sma)
-        logger.info(
-            "EFA decision: price=$%.2f | SMA200=%s | shares=%s | above_sma=%s",
-            efa_price,
-            f"${efa_sma:.2f}" if efa_sma is not None else "n/a",
-            int(efa_shares) if efa_shares else 0,
-            efa_above_sma,
-        )
+        # Update hydra capital manager with current EFA value
+        if efa_shares > 0 and self.hydra_capital:
+            self.hydra_capital.efa_value = efa_shares * efa_price
 
         # Check if we should sell (EFA below SMA200)
-        if efa_shares > 0 and not efa_above_sma:
+        if efa_shares > 0 and not self._efa_above_sma200():
             order = Order(symbol=EFA_SYMBOL, action='SELL',
                           quantity=efa_shares, order_type='MARKET',
                           decision_price=efa_price)
@@ -2387,12 +2463,14 @@ class COMPASSLive:
             if result.status == 'FILLED':
                 proceeds = result.filled_price * efa_shares
                 logger.info(f"EFA SELL (below SMA200): {efa_shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f}")
-                self._sync_efa_runtime_state(prices, reason='sell_fill')
+                self.position_meta.pop(EFA_SYMBOL, None)
+                if self.hydra_capital:
+                    self.hydra_capital.sell_efa(proceeds)
             return
 
         # Check if we should buy (idle cash available and EFA above SMA200)
-        if not efa_above_sma:
-            logger.info("EFA: skipped (below SMA200)")
+        if not self._efa_above_sma200():
+            logger.debug("EFA: skipped (below SMA200)")
             return
 
         # Use capital manager to determine truly idle cash (after recycling)
@@ -2404,12 +2482,6 @@ class COMPASSLive:
         # efa_idle = remaining Rattlesnake idle cash after recycling to COMPASS
         # Cap by actual broker cash to avoid over-allocation
         idle_cash = min(alloc['efa_idle'], portfolio.cash) * 0.90
-        logger.info(
-            "EFA budget: idle=$%.2f | portfolio_cash=$%.2f | efa_alloc=$%.2f",
-            idle_cash,
-            portfolio.cash,
-            alloc.get('efa_idle', 0.0),
-        )
 
         if idle_cash < EFA_MIN_BUY:
             logger.info(f"EFA: skipped (idle=${idle_cash:,.0f} < min=${EFA_MIN_BUY})")
@@ -2435,10 +2507,10 @@ class COMPASSLive:
                 'entry_vol': 0.15,
                 'entry_daily_vol': 0.0095,
                 'sector': 'International Equity',
-                '_efa': True,
                 '_entry_reconciled': True,  # MARKET order fill = real price, no reconciliation needed
             }
-            self._sync_efa_runtime_state(prices, reason='buy_fill')
+            if self.hydra_capital:
+                self.hydra_capital.buy_efa(cost)
 
     def _liquidate_efa_for_capital(self, prices: Dict[str, float]):
         """Sell EFA to free capital for active strategies. Called BEFORE entries."""
@@ -2454,16 +2526,10 @@ class COMPASSLive:
             else:
                 return
 
-        # Check if COMPASS needs capital (exclude EFA, Catalyst, Rattlesnake)
+        # Check if COMPASS needs capital
         max_positions = self.get_max_positions()
-        compass_positions = {
-            s: p for s, p in positions.items()
-            if s in self.position_meta
-            and not self.position_meta.get(s, {}).get('_catalyst')
-            and not self.position_meta.get(s, {}).get('_efa')
-            and s != EFA_SYMBOL
-            and not any(rp['symbol'] == s for rp in self.rattle_positions)
-        }
+        compass_positions = {s: p for s, p in positions.items()
+                             if s in self.position_meta and s != EFA_SYMBOL}
         compass_needed = max_positions - len(compass_positions)
 
         # Check if Rattlesnake needs capital (has signals pending)
@@ -2534,140 +2600,6 @@ class COMPASSLive:
         return result
 
     # ------------------------------------------------------------------
-    # Auto-recovery: replay missed trading days
-    # ------------------------------------------------------------------
-
-    def _recover_missed_days(self):
-        raw_date = self._recovery_gap_baseline
-        if not raw_date:
-            return 0
-
-        try:
-            last_date = date.fromisoformat(str(raw_date)[:10])
-        except (ValueError, TypeError):
-            return 0
-
-        today = self.get_et_now().date()
-        gap = self._trading_days_between(last_date, today)
-
-        if gap <= 1:
-            return 0
-
-        if gap > 5:
-            logger.critical(
-                "Engine missed %d trading days (max 5 for auto-recovery). "
-                "Manual intervention required.", gap
-            )
-            return 0
-
-        logger.warning("[RECOVERY] Detected %d missed trading days (%s → %s)",
-                       gap - 1, last_date, today)
-
-        recovered = 0
-        current = last_date + timedelta(days=1)
-
-        while current < today:
-            if current.weekday() >= 5:
-                current += timedelta(days=1)
-                continue
-
-            saved = {
-                '_spy_hist': getattr(self, '_spy_hist', None),
-                '_hist_date': getattr(self, '_hist_date', None),
-                '_preclose_entries_done': self._preclose_entries_done,
-                '_daily_open_done': self._daily_open_done,
-            }
-            try:
-                self._preclose_entries_done = False
-                self._daily_open_done = False
-                self._hist_date = None
-
-                missed_str = current.isoformat()
-                next_day = (current + timedelta(days=1)).isoformat()
-
-                # Step 1: Fetch historical closes
-                symbols = list(self.broker.positions.keys())
-                if hasattr(self, 'current_universe') and self.current_universe:
-                    symbols = list(set(symbols + list(self.current_universe)))
-                if not symbols:
-                    logger.info("[RECOVERY] No symbols to fetch for %s, skipping", missed_str)
-                    current += timedelta(days=1)
-                    continue
-
-                data = yf.download(symbols, start=missed_str, end=next_day, progress=False)
-                if data is None or len(data) == 0:
-                    logger.info("[RECOVERY] No market data for %s (holiday?), skipping", missed_str)
-                    current += timedelta(days=1)
-                    continue
-
-                prices = self._recovery_price_dict(data, symbols)
-                if not prices:
-                    logger.info("[RECOVERY] No valid prices for %s, skipping", missed_str)
-                    current += timedelta(days=1)
-                    continue
-
-                # Step 2: Reconstruct regime score
-                try:
-                    spy_hist = yf.download('SPY', end=next_day, period='2y', progress=False)
-                    if isinstance(spy_hist.columns, pd.MultiIndex):
-                        spy_hist.columns = [c[0] for c in spy_hist.columns]
-                    if len(spy_hist) >= 252:
-                        self._spy_hist = spy_hist
-                        self.current_regime_score = compute_live_regime_score(spy_hist)
-                except Exception as e:
-                    logger.warning("[RECOVERY] Regime reconstruction failed for %s: %s", missed_str, e)
-
-                # Step 3: Fetch ^GSPC close for cycle log
-                try:
-                    gspc = yf.download('^GSPC', start=missed_str, end=next_day, progress=False)
-                    if isinstance(gspc.columns, pd.MultiIndex):
-                        gspc.columns = [c[0] for c in gspc.columns]
-                    if len(gspc) > 0:
-                        self._recovery_spy_close = float(gspc['Close'].iloc[-1])
-                    else:
-                        self._recovery_spy_close = None
-                except Exception as e:
-                    logger.warning("[RECOVERY] GSPC fetch failed for %s: %s", missed_str, e)
-                    self._recovery_spy_close = None
-
-                # Step 4: Run rotation or stops
-                hold_days = self.config.get('HOLD_DAYS', 5) if hasattr(self, 'config') else 5
-                next_counter = self.trading_day_counter + 1
-                is_rotation = (next_counter % hold_days == 0)
-
-                self.trades_today = []
-                if is_rotation:
-                    self._preclose_entries_done = False
-                    self.execute_preclose_entries(prices, _recovery_mode=True)
-                else:
-                    self.check_position_exits(prices)
-
-                # Step 5: Increment state
-                self.trading_day_counter += 1
-                self.last_trading_date = current
-                self.save_state()
-                recovered += 1
-                logger.info("[RECOVERY] Replayed %s (day %d, regime=%.3f%s)",
-                            missed_str, self.trading_day_counter,
-                            self.current_regime_score,
-                            " ROTATION" if is_rotation else "")
-
-            except Exception as e:
-                logger.error("[RECOVERY] Failed on %s: %s", current, e, exc_info=True)
-                break
-            finally:
-                self._spy_hist = saved['_spy_hist']
-                self._hist_date = saved['_hist_date']
-                self._daily_open_done = saved['_daily_open_done']
-
-            current += timedelta(days=1)
-
-        if recovered:
-            logger.info("[RECOVERY] Complete: %d days recovered", recovered)
-        self._recovery_gap_baseline = None
-        return recovered
-
-    # ------------------------------------------------------------------
     # Daily open routine
     # ------------------------------------------------------------------
 
@@ -2677,15 +2609,6 @@ class COMPASSLive:
             return
 
         today = self.get_et_now().date()
-
-        # Detect if yesterday's pre-close was missed (e.g., Render cold start)
-        # If _preclose_entries_done is still False from yesterday, we missed it
-        self._missed_preclose = (not self._preclose_entries_done
-                                  and self.trading_day_counter >= 1)
-        if self._missed_preclose:
-            logger.warning(f"[CATCH-UP] Pre-close was missed on day {self.trading_day_counter} "
-                           f"(last_trading_date={self.last_trading_date})")
-
         self.last_trading_date = today
         self.trading_day_counter += 1
         self.trades_today = []
@@ -2704,14 +2627,7 @@ class COMPASSLive:
         self._pre_rotation_positions = list(self.broker.positions.keys())
         # Deep copy position data for close-price reconstruction in _update_cycle_log
         self._pre_rotation_positions_data = {
-            sym: {
-                'shares': pos.shares,
-                'avg_cost': pos.avg_cost,
-                'entry_price': self.position_meta.get(sym, {}).get('entry_price', pos.avg_cost),
-                'sector': self.position_meta.get(sym, {}).get('sector', SECTOR_MAP.get(sym, 'Unknown')),
-                'entry_day_index': self.position_meta.get(sym, {}).get('entry_day_index', self.trading_day_counter),
-                'entry_date': self.position_meta.get(sym, {}).get('entry_date'),
-            }
+            sym: {'shares': pos.shares, 'avg_cost': pos.avg_cost}
             for sym, pos in self.broker.positions.items()
         }
         self._pre_rotation_cash = self.broker.cash
@@ -2827,8 +2743,6 @@ class COMPASSLive:
                         efa_ret = float(efa_prices.iloc[-1] / efa_prices.iloc[-2] - 1)
                         self.hydra_capital.update_efa_value(efa_ret)
 
-                self._sync_efa_runtime_state(prices, reason='daily_open')
-
                 logger.info(f"HYDRA accounts synced: C=${self.hydra_capital.compass_account:,.0f} | "
                            f"R=${self.hydra_capital.rattle_account:,.0f} | "
                            f"EFA=${self.hydra_capital.efa_value:,.0f}")
@@ -2855,7 +2769,6 @@ class COMPASSLive:
                     prev_portfolio_value=prev_pv,
                 )
             except Exception as e:
-                _ml_error_counts['snapshot'] += 1
                 logger.warning(f"ML daily snapshot failed: {e}")
 
         # ML: weekly learning run (every 5 trading days)
@@ -2891,7 +2804,7 @@ class COMPASSLive:
         return (self.config['PRECLOSE_SIGNAL_TIME'] <= current_time
                 <= self.config['MOC_DEADLINE'])
 
-    def execute_preclose_entries(self, prices: Dict[str, float], _recovery_mode=False):
+    def execute_preclose_entries(self, prices: Dict[str, float]):
         """Pre-close rotation: sell hold-expired positions, then open new ones.
 
         Called once per day during the 15:30-15:50 ET window.
@@ -2914,7 +2827,7 @@ class COMPASSLive:
         self.check_position_exits(prices, include_hold_expired=True)
 
         # 2. Liquidate EFA if active strategies need capital
-        if self._hydra_available and not _recovery_mode:
+        if self._hydra_available:
             self._liquidate_efa_for_capital(prices)
 
         # 3. Open new positions using momentum scores from historical data
@@ -2923,34 +2836,31 @@ class COMPASSLive:
         self.open_new_positions(prices)
 
         # HYDRA: Rattlesnake entries (after COMPASS, uses separate budget)
-        if self._hydra_available and not _recovery_mode:
+        if self._hydra_available:
             self._open_rattlesnake_positions(prices)
 
         # HYDRA: Catalyst 4th pillar (cross-asset trend + gold, rebalances every 5 days)
-        if self._hydra_available and _catalyst_available and not _recovery_mode:
+        if self._hydra_available and _catalyst_available:
             try:
                 self._manage_catalyst_positions(prices)
             except Exception as e:
                 logger.warning(f"Catalyst management failed (non-blocking): {e}")
 
         # HYDRA: EFA passive pillar (after all active strategies, uses remaining idle cash)
-        if self._hydra_available and not _recovery_mode:
+        if self._hydra_available:
             self._manage_efa_position(prices)
 
-        # Detect rotation: if we had sells today (hold_expired OR stops) AND new buys
+        # Detect rotation: if we had sells (hold_expired) today AND new buys
         positions_after = set(self.broker.positions.keys())
-        had_sells = any(t['action'] == 'SELL' for t in self.trades_today)
+        had_sells = any(t['action'] == 'SELL' and t.get('exit_reason') == 'hold_expired'
+                        for t in self.trades_today)
         had_buys = any(t['action'] == 'BUY' for t in self.trades_today)
         if had_sells and had_buys:
-            self._recovery_mode = _recovery_mode
-            try:
-                self._update_cycle_log(prices)
-            finally:
-                self._recovery_mode = False
+            self._update_cycle_log(prices)
 
         self._preclose_entries_done = True
         self.save_state()
-        logger.info("[PRE-CLOSE] Entry signal complete")
+        logger.info(f"[PRE-CLOSE] Entry signal complete")
 
     # ------------------------------------------------------------------
     # Entry price reconciliation (close-price alignment)
@@ -3049,18 +2959,13 @@ class COMPASSLive:
             if len(data) == 0:
                 return None
             total = cash
-            is_multi = isinstance(data.columns, pd.MultiIndex)
             for sym, pos in positions_dict.items():
                 shares = pos.get('shares', 0)
                 try:
-                    if is_multi:
+                    if isinstance(data.columns, pd.MultiIndex):
                         close = float(data['Close'][sym].iloc[-1])
                     else:
-                        # Single-symbol fallback: verify it's our symbol, not SPY
-                        if len(symbols) == 1:
-                            close = float(data['Close'].iloc[-1])
-                        else:
-                            raise KeyError(f"{sym} not individually accessible in flat DataFrame")
+                        close = float(data['Close'].iloc[-1])
                     total += shares * close
                 except Exception:
                     total += shares * pos.get('avg_cost', 0)
@@ -3081,245 +2986,6 @@ class COMPASSLive:
             logger.warning(f"Could not fetch S&P 500 close: {e}")
         return None
 
-    def _trading_days_between(self, start_date, end_date):
-        if start_date >= end_date:
-            return 0
-        count = 0
-        current = start_date + timedelta(days=1)
-        while current <= end_date:
-            if current.weekday() < 5:
-                count += 1
-            current += timedelta(days=1)
-        return count
-
-    def _recovery_price_dict(self, data, symbols):
-        prices = {}
-        is_multi = isinstance(data.columns, pd.MultiIndex)
-        for sym in symbols:
-            try:
-                if is_multi:
-                    close = float(data['Close'][sym].iloc[-1])
-                else:
-                    close = float(data['Close'].iloc[-1])
-                if not math.isnan(close) and close > 0:
-                    prices[sym] = close
-            except (KeyError, IndexError):
-                continue
-        return prices
-
-    def _new_cycle_log_entry(self, cycle_number: int, start_date: str,
-                             portfolio_start: float, spy_start: Optional[float],
-                             positions: List[str]):
-        return {
-            'cycle': cycle_number,
-            'start_date': start_date,
-            'end_date': None,
-            'status': 'active',
-            'portfolio_start': round(portfolio_start, 2),
-            'portfolio_end': None,
-            'spy_start': round(spy_start, 2) if spy_start else None,
-            'spy_end': None,
-            'positions': list(positions),
-            'positions_current': list(positions),
-            'hydra_return': None,
-            'spy_return': None,
-            'alpha': None,
-            'stop_events': [],
-            'positions_detail': [],
-            'sector_breakdown': {},
-            'exits_by_reason': {},
-            'cycle_return_pct': None,
-            'spy_return_pct': None,
-            'alpha_pct': None,
-        }
-
-    def _validate_cycle_log_entry(self, entry: dict) -> bool:
-        issues = []
-        cycle_number = self._coerce_int(entry.get('cycle'), 0)
-        if cycle_number <= 0:
-            issues.append(f"cycle={cycle_number} must be > 0")
-
-        start_date = entry.get('start_date')
-        try:
-            date.fromisoformat(start_date)
-        except Exception:
-            issues.append(f"start_date={start_date!r} is not a valid ISO date")
-
-        end_date = entry.get('end_date')
-        if end_date not in (None, ''):
-            try:
-                date.fromisoformat(end_date)
-            except Exception:
-                issues.append(f"end_date={end_date!r} is not a valid ISO date")
-
-        cycle_return_pct = entry.get('cycle_return_pct')
-        if cycle_return_pct is not None:
-            try:
-                cycle_return_pct = float(cycle_return_pct)
-            except (TypeError, ValueError):
-                issues.append(f"cycle_return_pct={cycle_return_pct!r} is not numeric")
-            else:
-                if not math.isfinite(cycle_return_pct):
-                    issues.append(f"cycle_return_pct={cycle_return_pct!r} is not finite")
-
-        if issues:
-            logger.warning(
-                "Skipping invalid cycle log entry %s: %s",
-                entry.get('cycle', '?'),
-                " | ".join(issues),
-            )
-            return False
-        return True
-
-    def _append_cycle_log_entry(self, cycles: List[dict], entry: dict) -> bool:
-        if not self._validate_cycle_log_entry(entry):
-            return False
-        cycles.append(entry)
-        return True
-
-    def _cycle_exit_reason_bucket(self, exit_reason: Optional[str]) -> Optional[str]:
-        mapping = {
-            'position_stop': 'stop_loss',
-            'trailing_stop': 'trailing',
-            'hold_expired': 'rotation',
-            'universe_rotation': 'rotation',
-        }
-        return mapping.get(exit_reason, exit_reason)
-
-    def _build_cycle_positions_detail(self, cycle: dict,
-                                      pre_rot_positions: dict,
-                                      prices: Dict[str, float]) -> List[dict]:
-        details = []
-        stop_events = {
-            event.get('stopped'): event
-            for event in cycle.get('stop_events', [])
-            if event.get('stopped')
-        }
-        sell_trades = {}
-        for trade in self.trades_today:
-            if trade.get('action') == 'SELL' and trade.get('symbol'):
-                sell_trades.setdefault(trade['symbol'], trade)
-
-        symbols = list(dict.fromkeys(
-            list(cycle.get('positions', []))
-            + list(cycle.get('positions_current', []))
-            + list(stop_events.keys())
-        ))
-        carried_symbols = set(self.broker.positions.keys()) & set(symbols)
-
-        for symbol in symbols:
-            base = pre_rot_positions.get(symbol, {})
-            stop_event = stop_events.get(symbol)
-            sell_trade = sell_trades.get(symbol)
-            current_meta = self.position_meta.get(symbol, {})
-            current_pos = self.broker.positions.get(symbol)
-
-            entry_price = (
-                base.get('entry_price')
-                or (stop_event.get('entry_price') if stop_event else None)
-                or current_meta.get('entry_price')
-                or base.get('avg_cost')
-                or (current_pos.avg_cost if current_pos else None)
-            )
-            if not entry_price:
-                continue
-
-            sector = (
-                base.get('sector')
-                or (stop_event.get('sector') if stop_event else None)
-                or current_meta.get('sector')
-                or SECTOR_MAP.get(symbol, 'Unknown')
-            )
-
-            exit_reason = None
-            exit_price = None
-            pnl_pct = None
-            days_held = None
-
-            if sell_trade:
-                exit_reason = sell_trade.get('exit_reason')
-                exit_price = sell_trade.get('price')
-                pnl_pct = ((exit_price - entry_price) / entry_price * 100) if exit_price else None
-                entry_day_index = base.get('entry_day_index', self.trading_day_counter)
-                days_held = self.trading_day_counter - entry_day_index + 1
-            elif stop_event:
-                exit_reason = stop_event.get('reason')
-                exit_price = stop_event.get('exit_price')
-                if exit_price:
-                    pnl_pct = (exit_price - entry_price) / entry_price * 100
-                elif stop_event.get('return') is not None:
-                    pnl_pct = stop_event.get('return')
-                days_held = stop_event.get('days_held')
-            elif symbol in carried_symbols and current_pos:
-                exit_reason = 'carried_forward'
-                exit_price = prices.get(symbol, current_pos.avg_cost)
-                pnl_pct = (exit_price - entry_price) / entry_price * 100 if exit_price else None
-                entry_day_index = current_meta.get('entry_day_index', self.trading_day_counter)
-                days_held = self.trading_day_counter - entry_day_index + 1
-            else:
-                continue
-
-            details.append({
-                'symbol': symbol,
-                'entry_price': round(entry_price, 2),
-                'exit_price': round(exit_price, 2) if exit_price is not None else None,
-                'pnl_pct': round(pnl_pct, 2) if pnl_pct is not None else None,
-                'exit_reason': exit_reason,
-                'sector': sector,
-                'days_held': int(days_held) if days_held is not None else None,
-            })
-
-        return details
-
-    def _enrich_cycle_summary(self, cycle: dict, pre_rot_positions: dict,
-                              prices: Dict[str, float]):
-        defaults = {
-            'positions_detail': [],
-            'sector_breakdown': {},
-            'exits_by_reason': {},
-            'cycle_return_pct': None,
-            'spy_return_pct': cycle.get('spy_return'),
-            'alpha_pct': None,
-        }
-
-        try:
-            positions_detail = self._build_cycle_positions_detail(
-                cycle, pre_rot_positions, prices
-            )
-            sector_breakdown = {}
-            exits_by_reason = {}
-            for detail in positions_detail:
-                sector = detail.get('sector') or 'Unknown'
-                sector_breakdown[sector] = sector_breakdown.get(sector, 0) + 1
-                exit_bucket = self._cycle_exit_reason_bucket(detail.get('exit_reason'))
-                if exit_bucket and exit_bucket != 'carried_forward':
-                    exits_by_reason[exit_bucket] = exits_by_reason.get(exit_bucket, 0) + 1
-
-            cycle_return_pct = None
-            portfolio_start = cycle.get('portfolio_start')
-            portfolio_end = cycle.get('portfolio_end')
-            if portfolio_start and portfolio_end is not None:
-                cycle_return_pct = round(
-                    (portfolio_end - portfolio_start) / portfolio_start * 100, 2
-                )
-
-            spy_return_pct = cycle.get('spy_return')
-            alpha_pct = None
-            if cycle_return_pct is not None and spy_return_pct is not None:
-                alpha_pct = round(cycle_return_pct - spy_return_pct, 2)
-
-            cycle.update({
-                'positions_detail': positions_detail,
-                'sector_breakdown': sector_breakdown,
-                'exits_by_reason': exits_by_reason,
-                'cycle_return_pct': cycle_return_pct,
-                'spy_return_pct': spy_return_pct,
-                'alpha_pct': alpha_pct,
-            })
-        except Exception as e:
-            logger.warning(f"Cycle log enrichment failed: {e}")
-            cycle.update(defaults)
-
     def _update_cycle_log(self, prices: Dict[str, float]):
         """Close the active cycle and open a new one in cycle_log.json.
 
@@ -3327,10 +2993,6 @@ class COMPASSLive:
         Uses close prices for all values: portfolio end = cash + sum(shares * close),
         SPY benchmark = SPY close. Cycle N+1 start = Cycle N end (no gaps).
         """
-        with self._cycle_log_lock:
-            self._update_cycle_log_inner(prices)
-
-    def _update_cycle_log_inner(self, prices: Dict[str, float]):
         log_file = os.path.join('state', 'cycle_log.json')
         today = self.get_et_now().date().isoformat()
 
@@ -3355,10 +3017,7 @@ class COMPASSLive:
             logger.warning("Could not reconstruct close portfolio, using pre-rotation snapshot")
 
         # SPY close price (today's close — same timing as position closes)
-        if getattr(self, '_recovery_mode', False) and getattr(self, '_recovery_spy_close', None) is not None:
-            spy_close = self._recovery_spy_close
-        else:
-            spy_close = self._get_spy_close()
+        spy_close = self._get_spy_close()
 
         # Close the active cycle
         for cycle in cycles:
@@ -3383,8 +3042,6 @@ class COMPASSLive:
                 if cycle.get('hydra_return') is not None and cycle.get('spy_return') is not None:
                     cycle['alpha'] = round(cycle['hydra_return'] - cycle['spy_return'], 2)
 
-                self._enrich_cycle_summary(cycle, pre_rot_positions, prices)
-
                 status_str = 'WIN' if cycle.get('alpha', 0) >= 0 else 'LOSS'
                 logger.info(f"CYCLE #{cycle['cycle']} CLOSED: "
                            f"HYDRA {cycle['hydra_return']:+.2f}% | "
@@ -3400,13 +3057,22 @@ class COMPASSLive:
         new_positions = list(self.broker.positions.keys())
         next_cycle = max((c.get('cycle', 0) for c in cycles), default=0) + 1
 
-        new_cycle_entry = self._new_cycle_log_entry(
-            next_cycle, today, new_start_value, new_spy_start, new_positions
-        )
-        if getattr(self, '_recovery_mode', False):
-            new_cycle_entry['reconstructed'] = True
-            new_cycle_entry['recovery_date'] = datetime.now().strftime('%Y-%m-%d')
-        new_cycle_opened = self._append_cycle_log_entry(cycles, new_cycle_entry)
+        cycles.append({
+            'cycle': next_cycle,
+            'start_date': today,
+            'end_date': None,
+            'status': 'active',
+            'portfolio_start': round(new_start_value, 2),
+            'portfolio_end': None,
+            'spy_start': round(new_spy_start, 2) if new_spy_start else None,
+            'spy_end': None,
+            'positions': new_positions,
+            'positions_current': list(new_positions),
+            'hydra_return': None,
+            'spy_return': None,
+            'alpha': None,
+            'stop_events': [],
+        })
 
         # Save (atomic write to prevent corruption on crash)
         os.makedirs('state', exist_ok=True)
@@ -3422,9 +3088,8 @@ class COMPASSLive:
             except OSError:
                 pass
 
-        if new_cycle_opened:
-            logger.info(f"CYCLE #{next_cycle} OPENED: {', '.join(new_positions)} | "
-                        f"${new_start_value:,.0f}")
+        logger.info(f"CYCLE #{next_cycle} OPENED: {', '.join(new_positions)} | "
+                    f"${new_start_value:,.0f}")
 
         # WhatsApp/Email notification on rotation
         if self.notifier and hasattr(self.notifier, 'send_rotation_alert'):
@@ -3458,10 +3123,6 @@ class COMPASSLive:
 
     def _ensure_active_cycle(self):
         """On startup, ensure cycle_log.json has an active cycle if we hold positions."""
-        with self._cycle_log_lock:
-            self._ensure_active_cycle_inner()
-
-    def _ensure_active_cycle_inner(self):
         if not self.broker.positions:
             return
 
@@ -3501,11 +3162,22 @@ class COMPASSLive:
             start_value = round(portfolio.total_value, 2)
 
         current_positions = list(self.broker.positions.keys())
-        new_cycle_entry = self._new_cycle_log_entry(
-            next_cycle, today, start_value, spy_price, current_positions
-        )
-        if not self._append_cycle_log_entry(cycles, new_cycle_entry):
-            return
+        cycles.append({
+            'cycle': next_cycle,
+            'start_date': today,
+            'end_date': None,
+            'status': 'active',
+            'portfolio_start': start_value,
+            'portfolio_end': None,
+            'spy_start': round(spy_price, 2) if spy_price else None,
+            'spy_end': None,
+            'positions': current_positions,
+            'positions_current': list(current_positions),
+            'hydra_return': None,
+            'spy_return': None,
+            'alpha': None,
+            'stop_events': [],
+        })
 
         os.makedirs('state', exist_ok=True)
         try:
@@ -3524,21 +3196,12 @@ class COMPASSLive:
                     f"{list(self.broker.positions.keys())}")
 
     def _update_cycle_log_stop(self, stopped_symbol: str, replacement_symbol: str,
-                                exit_reason: str, stop_return: float,
-                                stop_details: dict = None):
+                                exit_reason: str, stop_return: float):
         """Update the active cycle when a mid-cycle stop fires and a replacement enters.
 
         Records the stop event and updates positions_current so the dashboard
         shows the actual current holdings, not just the cycle-start snapshot.
         """
-        with self._cycle_log_lock:
-            self._update_cycle_log_stop_inner(
-                stopped_symbol, replacement_symbol, exit_reason,
-                stop_return, stop_details)
-
-    def _update_cycle_log_stop_inner(self, stopped_symbol: str, replacement_symbol: str,
-                                      exit_reason: str, stop_return: float,
-                                      stop_details: dict = None):
         log_file = os.path.join('state', 'cycle_log.json')
         if not os.path.exists(log_file):
             return
@@ -3557,31 +3220,13 @@ class COMPASSLive:
                 c['positions_current'] = list(c.get('positions', []))
 
             today = self.get_et_now().date().isoformat()
-            event = {
+            c['stop_events'].append({
                 'date': today,
                 'stopped': stopped_symbol,
                 'replacement': replacement_symbol,
                 'reason': exit_reason,
-            }
-            if stop_details:
-                if stop_details.get('exit_price') is not None:
-                    event['exit_price'] = round(stop_details['exit_price'], 2)
-                if stop_details.get('entry_price') is not None:
-                    event['entry_price'] = round(stop_details['entry_price'], 2)
-                if stop_details.get('sector'):
-                    event['sector'] = stop_details['sector']
-                if stop_details.get('days_held') is not None:
-                    event['days_held'] = int(stop_details['days_held'])
-            event_return = stop_return
-            if (stop_details and stop_details.get('entry_price')
-                    and stop_details.get('exit_price') is not None):
-                entry_price = stop_details['entry_price']
-                if entry_price:
-                    event_return = (
-                        (stop_details['exit_price'] - entry_price) / entry_price
-                    )
-            event['return'] = round(event_return * 100, 1)
-            c['stop_events'].append(event)
+                'return': round(stop_return * 100, 1),
+            })
 
             current = c['positions_current']
             if stopped_symbol in current:
@@ -3607,978 +3252,108 @@ class COMPASSLive:
     # State persistence
     # ------------------------------------------------------------------
 
-    def _coerce_float(self, value, default=0.0):
-        try:
-            number = float(value)
-            if np.isnan(number) or np.isinf(number):
-                return float(default)
-            return number
-        except (TypeError, ValueError):
-            return float(default)
-
-    def _coerce_int(self, value, default=0):
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return int(default)
-
-    def _estimate_state_positions_value(self, positions: Dict[str, dict]) -> float:
-        total = 0.0
-        for data in (positions or {}).values():
-            if not isinstance(data, dict):
-                continue
-            shares = self._coerce_float(data.get('shares'), 0.0)
-            avg_cost = self._coerce_float(data.get('avg_cost'), 0.0)
-            if shares > 0 and avg_cost > 0:
-                total += shares * avg_cost
-        return total
-
-    def _get_state_reference_date(self, state) -> date:
-        if isinstance(state, dict):
-            timestamp = state.get('timestamp')
-            if isinstance(timestamp, str) and timestamp:
-                normalized = timestamp.strip()
-                if normalized.endswith('Z'):
-                    normalized = f"{normalized[:-1]}+00:00"
-                try:
-                    return datetime.fromisoformat(normalized).date()
-                except ValueError:
-                    pass
-        return date.today()
-
-    def _validate_position_meta(self, meta, positions):
-        cleaned = {}
-        today_str = date.today().isoformat()
-        for symbol, entry in meta.items():
-            if symbol not in positions:
-                # Preserve strategy-flagged entries (may be temporarily out of sync)
-                if isinstance(entry, dict) and (entry.get('_catalyst') or entry.get('_efa') or symbol == EFA_SYMBOL):
-                    logger.info(f"position_meta: preserving {symbol} (strategy-flagged, not yet in broker)")
-                    cleaned[symbol] = entry
-                else:
-                    logger.warning(f"position_meta: removing stale symbol {symbol} (not in positions)")
-                continue
-            if not isinstance(entry, dict):
-                entry = {}
-            # entry_price
-            try:
-                ep = float(entry.get('entry_price', 0))
-                if ep <= 0:
-                    raise ValueError
-            except (TypeError, ValueError):
-                logger.warning(f"position_meta[{symbol}]: invalid entry_price={entry.get('entry_price')!r}, resetting to 0.0")
-                ep = 0.0
-            entry['entry_price'] = ep
-            # entry_date
-            ed = entry.get('entry_date')
-            try:
-                if not isinstance(ed, str) or not ed:
-                    raise ValueError
-                date.fromisoformat(ed)
-            except (TypeError, ValueError):
-                logger.warning(f"position_meta[{symbol}]: invalid entry_date={ed!r}, resetting to {today_str}")
-                entry['entry_date'] = today_str
-            # sector
-            sector = entry.get('sector')
-            if not isinstance(sector, str) or not sector.strip():
-                logger.warning(f"position_meta[{symbol}]: invalid sector={sector!r}, resetting to 'Unknown'")
-                entry['sector'] = 'Unknown'
-            # entry_vol
-            if 'entry_vol' in entry:
-                try:
-                    ev = float(entry['entry_vol'])
-                    if ev < 0:
-                        raise ValueError
-                except (TypeError, ValueError):
-                    logger.warning(f"position_meta[{symbol}]: invalid entry_vol={entry['entry_vol']!r}, resetting to 0.01")
-                    entry['entry_vol'] = 0.01
-            # entry_daily_vol
-            if 'entry_daily_vol' in entry:
-                try:
-                    edv = float(entry['entry_daily_vol'])
-                    if edv < 0:
-                        raise ValueError
-                except (TypeError, ValueError):
-                    logger.warning(f"position_meta[{symbol}]: invalid entry_daily_vol={entry['entry_daily_vol']!r}, resetting to 0.01")
-                    entry['entry_daily_vol'] = 0.01
-            cleaned[symbol] = entry
-        return cleaned
-
-    def _build_position_meta_defaults(self, symbol: str, data: dict,
-                                      trading_day_counter: int,
-                                      entry_date: Optional[str]) -> dict:
-        avg_cost = self._coerce_float((data or {}).get('avg_cost'), 0.0)
-        entry_day_index = max(0, trading_day_counter)
-        return {
-            'entry_price': avg_cost,
-            'high_price': avg_cost,
-            'entry_day_index': entry_day_index,
-            'original_entry_day_index': entry_day_index,
-            'entry_date': entry_date,
-            'sector': SECTOR_MAP.get(symbol, 'Unknown'),
-        }
-
-    def _write_corrupted_state_backup(self, state: dict, violations: List[str]) -> Optional[str]:
-        os.makedirs('state', exist_ok=True)
-        backup_path = os.path.join(
-            'state',
-            f"compass_state_CORRUPTED_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
-        )
-        payload = copy.deepcopy(state)
-        payload['_validation_errors'] = list(violations)
-        tmp_path = None
-        try:
-            fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
-            with os.fdopen(fd, 'w') as fp:
-                json.dump(payload, fp, indent=2, default=str)
-            os.replace(tmp_path, backup_path)
-            backup_files = sorted(glob.glob(os.path.join('state', 'compass_state_CORRUPTED_*.json')))
-            if len(backup_files) > 20:
-                prune_count = len(backup_files) - 20
-                for old_path in backup_files[:prune_count]:
-                    try:
-                        os.unlink(old_path)
-                    except OSError as prune_err:
-                        logger.warning(f"Failed to prune corrupted state backup {old_path}: {prune_err}")
-                logger.warning(f"Pruned {prune_count} old corrupted state backups")
-            return backup_path
-        except Exception as backup_err:
-            logger.error(f"Failed to persist corrupted state backup: {backup_err}")
-            if tmp_path:
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
-        return None
-
-    def _cleanup_old_corrupted_backups(self, max_age_days=7, max_files=10):
-        pattern = os.path.join('state', 'compass_state_CORRUPTED_*.json')
-        files = sorted(glob.glob(pattern), key=os.path.getmtime)
-        now = time_module.time()
-        max_age_seconds = max_age_days * 86400
-        remaining = []
-        for fpath in files:
-            try:
-                age = now - os.path.getmtime(fpath)
-                if age > max_age_seconds:
-                    os.unlink(fpath)
-                    logger.info(f"Deleted old corrupted backup (age={age / 86400:.1f}d): {fpath}")
-                else:
-                    remaining.append(fpath)
-            except OSError as e:
-                logger.warning(f"Failed to delete corrupted backup {fpath}: {e}")
-                remaining.append(fpath)
-        if len(remaining) > max_files:
-            to_delete = remaining[:len(remaining) - max_files]
-            for fpath in to_delete:
-                try:
-                    os.unlink(fpath)
-                    logger.info(f"Deleted excess corrupted backup: {fpath}")
-                except OSError as e:
-                    logger.warning(f"Failed to delete corrupted backup {fpath}: {e}")
-
-    def _validate_state(self, state, source='save', previous_state=None):
-        state = copy.deepcopy(state or {})
-        violations = []
-        initial_capital = self._coerce_float(
-            self.config.get('PAPER_INITIAL_CASH', self.config.get('INITIAL_CAPITAL', 100_000)),
-            100_000.0,
-        )
-
-        positions = state.get('positions')
-        if not isinstance(positions, dict):
-            violations.append("positions must be a dict; resetting to empty")
-            positions = {}
-        state['positions'] = positions
-
-        position_meta = state.get('position_meta')
-        if not isinstance(position_meta, dict):
-            violations.append("position_meta must be a dict; resetting to empty")
-            position_meta = {}
-        state['position_meta'] = position_meta
-
-        if source == 'load':
-            cleaned_positions = {}
-            invalid_position_symbols = []
-            for symbol, data in positions.items():
-                if not isinstance(data, dict):
-                    violations.append(f"positions[{symbol}] must be a dict; removing invalid position")
-                    invalid_position_symbols.append(symbol)
-                    continue
-
-                shares = self._coerce_float(data.get('shares'), 0.0)
-                avg_cost = self._coerce_float(data.get('avg_cost'), 0.0)
-                if shares <= 0 or avg_cost <= 0:
-                    violations.append(
-                        f"positions[{symbol}] has invalid shares/avg_cost ({shares}, {avg_cost}); removing invalid position"
-                    )
-                    invalid_position_symbols.append(symbol)
-                    continue
-
-                cleaned_positions[symbol] = {
-                    'shares': shares,
-                    'avg_cost': avg_cost,
-                }
-
-            if invalid_position_symbols:
-                for symbol in invalid_position_symbols:
-                    if symbol in position_meta:
-                        violations.append(
-                            f"position_meta[{symbol}] removed because the position payload was invalid"
-                        )
-                        position_meta.pop(symbol, None)
-
-            positions = cleaned_positions
-            state['positions'] = positions
-
-        trading_day_counter = self._coerce_int(state.get('trading_day_counter'), 0)
-        if trading_day_counter < 0:
-            violations.append(f"trading_day_counter={trading_day_counter} cannot be negative")
-            if source == 'load':
-                trading_day_counter = 0
-        if trading_day_counter > 100000:
-            violations.append(f"trading_day_counter={trading_day_counter} exceeds max supported value")
-            if source == 'load':
-                trading_day_counter = 100000
-
-        prev_trading_day = None
-        if previous_state is not None:
-            prev_trading_day = self._coerce_int(previous_state.get('trading_day_counter'), trading_day_counter)
-        elif self._last_persisted_trading_day_counter is not None:
-            prev_trading_day = self._last_persisted_trading_day_counter
-        if prev_trading_day is not None and trading_day_counter < prev_trading_day:
-            violations.append(
-                f"trading_day_counter decreased from {prev_trading_day} to {trading_day_counter}; keeping {prev_trading_day}"
-            )
-            trading_day_counter = prev_trading_day
-        state['trading_day_counter'] = trading_day_counter
-
-        stats = state.get('stats')
-        if not isinstance(stats, dict):
-            violations.append("stats must be a dict; resetting to empty")
-            stats = {}
-        legacy_cycles_completed = self._coerce_int(stats.get('cycles_completed'), 0)
-        engine_iterations = self._coerce_int(
-            stats.get('engine_iterations'),
-            legacy_cycles_completed,
-        )
-        if engine_iterations < 0:
-            violations.append(f"engine_iterations={engine_iterations} cannot be negative; resetting to 0")
-            engine_iterations = 0
-        cycles_completed = self._coerce_int(
-            stats.get('cycles_completed'),
-            self._get_closed_cycle_count(),
-        )
-        if 'engine_iterations' not in stats and source == 'load':
-            cycles_completed = self._get_closed_cycle_count()
-        if cycles_completed < 0:
-            violations.append(f"cycles_completed={cycles_completed} cannot be negative; resetting to 0")
-            cycles_completed = 0
-
-        prev_cycles = None
-        if previous_state is not None:
-            prev_cycles = self._coerce_int(
-                (previous_state.get('stats') or {}).get('engine_iterations'),
-                self._coerce_int(
-                    (previous_state.get('stats') or {}).get('cycles_completed'),
-                    engine_iterations,
-                ),
-            )
-        elif self._last_persisted_cycles_completed is not None:
-            prev_cycles = self._last_persisted_cycles_completed
-        if prev_cycles is not None and engine_iterations > prev_cycles + 1:
-            violations.append(
-                f"engine_iterations jumped from {prev_cycles} to {engine_iterations}; capping to {prev_cycles + 1}"
-            )
-            engine_iterations = prev_cycles + 1
-        stats['cycles_completed'] = cycles_completed
-        stats['engine_iterations'] = engine_iterations
-        state['stats'] = stats
-
-        cash = self._coerce_float(state.get('cash'), initial_capital)
-        if cash < 0:
-            violations.append(f"cash={cash:.2f} cannot be negative")
-            if source == 'load':
-                cash = 0.0
-        state['cash'] = cash
-
-        estimated_positions_value = self._estimate_state_positions_value(positions)
-        portfolio_value = self._coerce_float(state.get('portfolio_value'), cash + estimated_positions_value)
-        if portfolio_value <= 0:
-            fallback_portfolio = cash + estimated_positions_value
-            if fallback_portfolio <= 0:
-                fallback_portfolio = initial_capital
-            violations.append(
-                f"portfolio_value={portfolio_value:.2f} must be positive; resetting to {fallback_portfolio:.2f}"
-            )
-            portfolio_value = fallback_portfolio
-        state['portfolio_value'] = portfolio_value
-
-        peak_value = self._coerce_float(state.get('peak_value'), max(portfolio_value, initial_capital))
-        if peak_value < portfolio_value:
-            violations.append(
-                f"peak_value={peak_value:.2f} below portfolio_value={portfolio_value:.2f}; raising to current portfolio"
-            )
-            peak_value = portfolio_value
-
-        peak_cap = initial_capital * 5
-        if peak_value > peak_cap and portfolio_value <= peak_cap:
-            violations.append(
-                f"peak_value={peak_value:.2f} exceeds sanity cap {peak_cap:.2f}; capping"
-            )
-            peak_value = peak_cap
-
-        early_peak_cap = initial_capital * 1.20
-        if (
-            source == 'load'
-            and trading_day_counter <= 5
-            and peak_value >= early_peak_cap
-        ):
-            violations.append(
-                f"peak_value={peak_value:.2f} unreasonably high for early day {trading_day_counter}; capping to portfolio_value={portfolio_value:.2f}"
-            )
-            peak_value = portfolio_value
-
-        if trading_day_counter <= 1 and not positions and abs(peak_value - initial_capital) > 0.01:
-            violations.append(
-                f"peak_value={peak_value:.2f} invalid for day {trading_day_counter} with no positions; resetting to initial capital"
-            )
-            peak_value = initial_capital
-            if portfolio_value <= 0:
-                portfolio_value = initial_capital
-                state['portfolio_value'] = portfolio_value
-
-        if peak_value < portfolio_value:
-            violations.append(
-                f"peak_value={peak_value:.2f} still below portfolio_value={portfolio_value:.2f}; aligning with portfolio"
-            )
-            peak_value = portfolio_value
-        state['peak_value'] = peak_value
-
-        reference_date = self._get_state_reference_date(state)
-        reference_date_str = reference_date.isoformat()
-        last_trading_date = state.get('last_trading_date')
-        allow_missing_last_trading_date = trading_day_counter == 0 and not positions
-        if last_trading_date in (None, ''):
-            if not allow_missing_last_trading_date:
-                if source == 'save':
-                    violations.append(
-                        f"last_trading_date missing; resetting to {reference_date_str}"
-                    )
-                    state['last_trading_date'] = reference_date_str
-                elif source == 'load':
-                    violations.append("last_trading_date missing; resetting to None")
-                    state['last_trading_date'] = None
-        else:
-            try:
-                parsed_last_trading_date = date.fromisoformat(str(last_trading_date))
-            except (TypeError, ValueError):
-                if source == 'save':
-                    violations.append(
-                        f"last_trading_date={last_trading_date!r} is invalid; resetting to {reference_date_str}"
-                    )
-                    state['last_trading_date'] = reference_date_str
-                else:
-                    violations.append(f"last_trading_date={last_trading_date!r} is invalid")
-                    state['last_trading_date'] = None
-            else:
-                stale_days = (reference_date - parsed_last_trading_date).days
-                if stale_days > 7:
-                    if source == 'save':
-                        violations.append(
-                            f"last_trading_date={parsed_last_trading_date.isoformat()} is stale by {stale_days} days; resetting to {reference_date_str}"
-                        )
-                        state['last_trading_date'] = reference_date_str
-                    else:
-                        violations.append(
-                            f"last_trading_date={parsed_last_trading_date.isoformat()} is stale by {stale_days} days"
-                        )
-                        state['last_trading_date'] = None
-                else:
-                    state['last_trading_date'] = parsed_last_trading_date.isoformat()
-
-        if source == 'load':
-            entry_date = state.get('last_trading_date')
-            for symbol, data in positions.items():
-                if symbol not in position_meta:
-                    violations.append(f"position_meta missing {symbol}; creating default metadata")
-                    position_meta[symbol] = self._build_position_meta_defaults(
-                        symbol,
-                        data if isinstance(data, dict) else {},
-                        trading_day_counter,
-                        entry_date,
-                    )
-
-        return state, violations
-
-    def _validate_state_before_write(self, state):
-        violations = []
-        if not isinstance(state, dict):
-            return ["state payload must be a dict"]
-
-        initial_capital = self._coerce_float(
-            self.config.get('PAPER_INITIAL_CASH', self.config.get('INITIAL_CAPITAL', 100_000)),
-            100_000.0,
-        )
-        reference_date = self._get_state_reference_date(state)
-
-        def parse_finite_number(field_name):
-            value = state.get(field_name)
-            try:
-                number = float(value)
-            except (TypeError, ValueError):
-                violations.append(f"{field_name} must be numeric, got {value!r}")
-                return None
-            if not math.isfinite(number):
-                violations.append(f"{field_name} must be finite, got {value!r}")
-                return None
-            return number
-
-        cash = parse_finite_number('cash')
-        if cash is not None and cash < 0:
-            violations.append(f"cash must be >= 0, got {cash:.2f}")
-
-        portfolio_value = parse_finite_number('portfolio_value')
-        if portfolio_value is not None:
-            if portfolio_value <= 0:
-                violations.append(f"portfolio_value must be > 0, got {portfolio_value:.2f}")
-            if portfolio_value >= initial_capital * 5:
-                violations.append(
-                    f"portfolio_value={portfolio_value:.2f} exceeds sanity bound {(initial_capital * 5):.2f}"
-                )
-
-        peak_value = parse_finite_number('peak_value')
-        if peak_value is not None and portfolio_value is not None:
-            if peak_value < portfolio_value:
-                violations.append(
-                    f"peak_value={peak_value:.2f} must be >= portfolio_value={portfolio_value:.2f}"
-                )
-        if peak_value is not None and peak_value > initial_capital * 3:
-            violations.append(
-                f"peak_value={peak_value:.2f} exceeds sanity bound {(initial_capital * 3):.2f}"
-            )
-
-        try:
-            trading_day_counter = int(state.get('trading_day_counter'))
-        except (TypeError, ValueError):
-            trading_day_counter = None
-            violations.append(
-                f"trading_day_counter must be an integer, got {state.get('trading_day_counter')!r}"
-            )
-        if trading_day_counter is not None and not (0 <= trading_day_counter <= 100000):
-            violations.append(
-                f"trading_day_counter must be between 0 and 100000, got {trading_day_counter}"
-            )
-
-        positions = state.get('positions')
-        if not isinstance(positions, dict):
-            violations.append(f"positions must be a dict, got {type(positions).__name__}")
-            positions = {}
-
-        position_meta = state.get('position_meta')
-        if not isinstance(position_meta, dict):
-            violations.append(f"position_meta must be a dict, got {type(position_meta).__name__}")
-            position_meta = {}
-
-        allow_missing_last_trading_date = trading_day_counter == 0 and not positions
-        last_trading_date = state.get('last_trading_date')
-        if last_trading_date in (None, ''):
-            if not allow_missing_last_trading_date:
-                violations.append("last_trading_date must be a valid ISO date string")
-        else:
-            try:
-                parsed_last_trading_date = date.fromisoformat(str(last_trading_date))
-            except (TypeError, ValueError):
-                violations.append(f"last_trading_date must be a valid ISO date string, got {last_trading_date!r}")
-            else:
-                stale_days = (reference_date - parsed_last_trading_date).days
-                if stale_days > 7:
-                    violations.append(
-                        f"last_trading_date={parsed_last_trading_date.isoformat()} is stale by {stale_days} days"
-                    )
-
-        pos_keys = set(positions.keys())
-        meta_keys = set(position_meta.keys())
-        if pos_keys != meta_keys:
-            # Strategy positions (EFA, Catalyst) may lag in position_meta — warn, don't block
-            extra_in_meta = meta_keys - pos_keys
-            extra_in_pos = pos_keys - meta_keys
-            if extra_in_pos:
-                violations.append(f"positions has symbols missing from position_meta: {extra_in_pos}")
-            if extra_in_meta:
-                logger.warning("position_meta has extra keys not in positions (strategy lag): %s", extra_in_meta)
-
-        for symbol, data in positions.items():
-            if not isinstance(data, dict):
-                violations.append(f"positions[{symbol}] must be a dict")
-                continue
-
-            try:
-                shares = float(data.get('shares'))
-            except (TypeError, ValueError):
-                shares = None
-                violations.append(f"positions[{symbol}].shares must be numeric, got {data.get('shares')!r}")
-            if shares is not None:
-                if not math.isfinite(shares) or shares <= 0:
-                    violations.append(f"positions[{symbol}].shares must be > 0, got {shares!r}")
-
-            try:
-                avg_cost = float(data.get('avg_cost'))
-            except (TypeError, ValueError):
-                avg_cost = None
-                violations.append(f"positions[{symbol}].avg_cost must be numeric, got {data.get('avg_cost')!r}")
-            if avg_cost is not None:
-                if not math.isfinite(avg_cost) or avg_cost <= 0:
-                    violations.append(f"positions[{symbol}].avg_cost must be > 0, got {avg_cost!r}")
-
-        return violations
-
-    def _validate_state_schema(self, state):
-        violations = []
-        import math
-
-        # cash: must exist, finite float >= 0
-        if 'cash' not in state:
-            violations.append("missing required field 'cash'")
-        else:
-            cash = state['cash']
-            if not isinstance(cash, (int, float)):
-                violations.append(f"'cash' must be a number, got {type(cash).__name__}")
-            elif not math.isfinite(cash):
-                violations.append(f"'cash' must be finite, got {cash}")
-            elif cash < 0:
-                violations.append(f"'cash' must be >= 0, got {cash}")
-
-        # positions: must exist and be dict
-        if 'positions' not in state:
-            violations.append("missing required field 'positions'")
-        elif not isinstance(state['positions'], dict):
-            violations.append(f"'positions' must be a dict, got {type(state['positions']).__name__}")
-
-        # portfolio_value: must exist, finite float > 0
-        if 'portfolio_value' not in state:
-            violations.append("missing required field 'portfolio_value'")
-        else:
-            pv = state['portfolio_value']
-            if not isinstance(pv, (int, float)):
-                violations.append(f"'portfolio_value' must be a number, got {type(pv).__name__}")
-            elif not math.isfinite(pv):
-                violations.append(f"'portfolio_value' must be finite, got {pv}")
-            elif pv <= 0:
-                violations.append(f"'portfolio_value' must be > 0, got {pv}")
-
-        # peak_value: must exist, finite float
-        if 'peak_value' not in state:
-            violations.append("missing required field 'peak_value'")
-        else:
-            pk = state['peak_value']
-            if not isinstance(pk, (int, float)):
-                violations.append(f"'peak_value' must be a number, got {type(pk).__name__}")
-            elif not math.isfinite(pk):
-                violations.append(f"'peak_value' must be finite, got {pk}")
-
-        # trading_day_counter: int >= 0
-        if 'trading_day_counter' in state:
-            tdc = state['trading_day_counter']
-            if not isinstance(tdc, int):
-                violations.append(f"'trading_day_counter' must be an int, got {type(tdc).__name__}")
-            elif tdc < 0:
-                violations.append(f"'trading_day_counter' must be >= 0, got {tdc}")
-
-        # regime: if present, must be str
-        if 'regime' in state and not isinstance(state['regime'], str):
-            violations.append(f"'regime' must be a str, got {type(state['regime']).__name__}")
-
-        return violations
-
-    def _snapshot_positions(self, positions=None):
-        if positions is None:
-            positions = self.broker.get_positions()
-        snapshot = {}
-        for symbol, pos in (positions or {}).items():
-            snapshot[symbol] = {
-                'shares': round(self._coerce_float(getattr(pos, 'shares', 0.0), 0.0), 8),
-                'avg_cost': round(self._coerce_float(getattr(pos, 'avg_cost', 0.0), 0.0), 8),
-            }
-        return snapshot
-
-    def _build_reconciled_position_meta(self, symbol, broker_pos, current_meta=None):
-        current_meta = copy.deepcopy(current_meta or {})
-        entry_date = current_meta.get('entry_date')
-        if not entry_date:
-            if self.last_trading_date:
-                entry_date = self.last_trading_date.isoformat()
-            else:
-                entry_date = self.get_et_now().date().isoformat()
-
-        defaults = self._build_position_meta_defaults(
-            symbol,
-            {'avg_cost': getattr(broker_pos, 'avg_cost', 0.0)},
-            self.trading_day_counter,
-            entry_date,
-        )
-        merged = defaults
-        merged.update(current_meta)
-
-        avg_cost = self._coerce_float(getattr(broker_pos, 'avg_cost', 0.0), defaults['entry_price'])
-        market_price = self._coerce_float(
-            getattr(broker_pos, 'market_price', None),
-            avg_cost,
-        )
-        merged['entry_price'] = self._coerce_float(merged.get('entry_price'), avg_cost) or avg_cost
-        merged['high_price'] = max(
-            self._coerce_float(merged.get('high_price'), merged['entry_price']),
-            market_price,
-            merged['entry_price'],
-        )
-        merged['entry_day_index'] = self._coerce_int(
-            merged.get('entry_day_index'),
-            self.trading_day_counter,
-        )
-        merged['original_entry_day_index'] = self._coerce_int(
-            merged.get('original_entry_day_index'),
-            merged['entry_day_index'],
-        )
-
-        if symbol == EFA_SYMBOL:
-            merged['sector'] = 'International Equity'
-            merged['_efa'] = True
-        elif merged.get('_catalyst'):
-            merged['sector'] = merged.get('sector', defaults['sector'])
-        else:
-            merged['sector'] = merged.get('sector') or defaults['sector']
-        merged['entry_date'] = merged.get('entry_date') or entry_date
-        return merged
-
-    def _append_reconciliation_log(self, payload):
-        os.makedirs('state', exist_ok=True)
-        log_path = os.path.join('state', 'reconciliation_log.jsonl')
-        try:
-            with open(log_path, 'a', encoding='utf-8') as log_file:
-                log_file.write(json.dumps(payload, default=str) + '\n')
-        except Exception as e:
-            logger.error(f"Failed to write reconciliation log: {e}")
-
-    def _get_closed_cycle_count(self):
-        cycle_log_path = os.path.join('state', 'cycle_log.json')
-        if not os.path.exists(cycle_log_path):
-            return 0
-        try:
-            with open(cycle_log_path, 'r', encoding='utf-8') as cycle_file:
-                cycles = json.load(cycle_file)
-            if not isinstance(cycles, list):
-                return 0
-            return sum(
-                1 for cycle in cycles
-                if isinstance(cycle, dict) and cycle.get('status') == 'closed'
-            )
-        except Exception as e:
-            logger.debug(f"Failed to read cycle log count: {e}")
-            return 0
-
-    def _reconcile_runtime_state(self):
-        skip_flag = os.environ.get('SKIP_RECONCILIATION', '')
-        if skip_flag.strip().lower() in ('1', 'true', 'yes', 'on'):
-            logger.info("Position reconciliation skipped via SKIP_RECONCILIATION=%s", skip_flag)
-            return False
-
-        broker_positions = self.broker.get_positions()
-        broker_snapshot = self._snapshot_positions(broker_positions)
-        state_snapshot = copy.deepcopy(self._state_positions_snapshot or {})
-        state_cash = self._coerce_float(self._state_cash_snapshot, self.broker.cash)
-        broker_cash = self._coerce_float(getattr(self.broker, 'cash', state_cash), state_cash)
-
-        mismatches = []
-        for symbol in sorted(set(state_snapshot.keys()) | set(broker_snapshot.keys())):
-            state_pos = state_snapshot.get(symbol)
-            broker_pos = broker_snapshot.get(symbol)
-
-            if state_pos and not broker_pos:
-                mismatches.append({
-                    'symbol': symbol,
-                    'status': 'phantom_state_position',
-                    'state_shares': state_pos.get('shares', 0.0),
-                    'broker_shares': 0.0,
-                })
-                continue
-            if broker_pos and not state_pos:
-                mismatches.append({
-                    'symbol': symbol,
-                    'status': 'broker_only_position',
-                    'state_shares': 0.0,
-                    'broker_shares': broker_pos.get('shares', 0.0),
-                })
-                continue
-
-            state_shares = self._coerce_float(state_pos.get('shares'), 0.0)
-            broker_shares = self._coerce_float(broker_pos.get('shares'), 0.0)
-            if abs(state_shares - broker_shares) > 0.01:
-                mismatches.append({
-                    'symbol': symbol,
-                    'status': 'share_count_mismatch',
-                    'state_shares': state_shares,
-                    'broker_shares': broker_shares,
-                })
-                continue
-
-            state_avg_cost = self._coerce_float(state_pos.get('avg_cost'), 0.0)
-            broker_avg_cost = self._coerce_float(broker_pos.get('avg_cost'), 0.0)
-            if abs(state_avg_cost - broker_avg_cost) > 0.01:
-                mismatches.append({
-                    'symbol': symbol,
-                    'status': 'avg_cost_mismatch',
-                    'state_avg_cost': state_avg_cost,
-                    'broker_avg_cost': broker_avg_cost,
-                })
-
-        cash_mismatch = abs(state_cash - broker_cash) > 1.0
-        if cash_mismatch:
-            mismatches.append({
-                'symbol': '__cash__',
-                'status': 'cash_mismatch',
-                'state_cash': round(state_cash, 2),
-                'broker_cash': round(broker_cash, 2),
-            })
-
-        if not mismatches:
-            self._state_positions_snapshot = broker_snapshot
-            self._state_cash_snapshot = broker_cash
-            return False
-
-        event = {
-            'timestamp': datetime.now().isoformat(),
-            'trading_day_counter': self.trading_day_counter,
-            'action': 'trust_broker_and_resave_state',
-            'mismatch_count': len(mismatches),
-            'mismatches': mismatches,
-            'state_cash': round(state_cash, 2),
-            'broker_cash': round(broker_cash, 2),
-        }
-        logger.critical(f"POSITION RECONCILIATION CRITICAL: {event}")
-
-        preserved_meta = copy.deepcopy(self.position_meta)
-        rebuilt_meta = {}
-        for symbol, broker_pos in broker_positions.items():
-            rebuilt_meta[symbol] = self._build_reconciled_position_meta(
-                symbol,
-                broker_pos,
-                preserved_meta.get(symbol),
-            )
-        self.position_meta = rebuilt_meta
-
-        self.rattle_positions = [
-            {
-                **pos,
-                'shares': broker_positions[pos['symbol']].shares,
-                'entry_price': pos.get('entry_price') or broker_positions[pos['symbol']].avg_cost,
-            }
-            for pos in self.rattle_positions
-            if pos.get('symbol') in broker_positions
-        ]
-        self.catalyst_positions = [
-            {
-                **pos,
-                'shares': broker_positions[pos['symbol']].shares,
-                'entry_price': pos.get('entry_price') or broker_positions[pos['symbol']].avg_cost,
-            }
-            for pos in self.catalyst_positions
-            if pos.get('symbol') in broker_positions
-        ]
-        self._sync_efa_runtime_state(reason='reconciliation')
-
-        self._state_positions_snapshot = broker_snapshot
-        self._state_cash_snapshot = broker_cash
-        self._append_reconciliation_log(event)
-        self.save_state()
-        self._last_state_save = datetime.now()
-        return True
-
-    def _append_audit_log(self, event_type, details):
-        try:
-            os.makedirs('state', exist_ok=True)
-            audit_path = 'state/audit_log.jsonl'
-            portfolio = self.broker.get_portfolio()
-            entry = json.dumps({
-                'timestamp': datetime.now().isoformat(),
-                'event_type': event_type,
-                'details': details,
-                'portfolio_value': portfolio.total_value,
-                'num_positions': len(self.broker.positions),
-            }, default=str)
-            with open(audit_path, 'a') as f:
-                f.write(entry + '\n')
-            # Cap at 10,000 lines
-            try:
-                with open(audit_path, 'r') as f:
-                    lines = f.readlines()
-                if len(lines) > 10_000:
-                    with open(audit_path, 'w') as f:
-                        f.writelines(lines[-10_000:])
-            except Exception:
-                pass
-        except Exception as e:
-            logger.debug(f"Audit log write failed: {e}")
-
     def save_state(self):
         """Save full system state to JSON"""
-        with self._state_save_lock:
-            portfolio = self.broker.get_portfolio()
-            closed_cycles = self._get_closed_cycle_count()
+        portfolio = self.broker.get_portfolio()
+        state = {
+            'version': '8.4',
+            'timestamp': datetime.now().isoformat(),
 
-            # Audit trail: detect position changes
-            current_positions = set(self.broker.positions.keys())
-            added = sorted(current_positions - self._last_audit_positions)
-            removed = sorted(self._last_audit_positions - current_positions)
-            if added or removed:
-                self._append_audit_log('position_change', {'added': added, 'removed': removed})
-            self._last_audit_positions = set(current_positions)
+            # Portfolio
+            'cash': self.broker.cash,
+            'peak_value': self.peak_value,
+            'portfolio_value': portfolio.total_value,
 
-            state = {
-                'version': '8.4',
-                'timestamp': datetime.now().isoformat(),
+            # Drawdown / Crash state
+            'crash_cooldown': self.crash_cooldown,
+            'portfolio_values_history': self.portfolio_values_history[-30:],  # Keep last 30 days
 
-                # Portfolio
-                'cash': self.broker.cash,
-                'peak_value': self.peak_value,
-                'portfolio_value': portfolio.total_value,
+            # Regime
+            'current_regime_score': self.current_regime_score,
 
-                # Drawdown / Crash state
-                'crash_cooldown': self.crash_cooldown,
-                'portfolio_values_history': self.portfolio_values_history[-30:],  # Keep last 30 days
+            # Counters
+            'trading_day_counter': self.trading_day_counter,
+            'last_trading_date': self.last_trading_date.isoformat() if self.last_trading_date else None,
 
-                # Regime
-                'current_regime_score': self.current_regime_score,
+            # Positions (broker)
+            'positions': {
+                s: {
+                    'shares': p.shares,
+                    'avg_cost': p.avg_cost,
+                }
+                for s, p in self.broker.positions.items()
+            },
 
-                # Counters
-                'trading_day_counter': self.trading_day_counter,
-                'last_trading_date': self.last_trading_date.isoformat() if self.last_trading_date else None,
+            # Position metadata (COMPASS)
+            'position_meta': self.position_meta,
 
-                # Positions (broker)
-                'positions': {
-                    s: {
-                        'shares': p.shares,
-                        'avg_cost': p.avg_cost,
-                    }
-                    for s, p in self.broker.positions.items()
-                },
+            # Universe
+            'current_universe': self.current_universe,
+            'universe_year': self.universe_year,
+            '_universe_source': getattr(self, '_universe_source', ''),
 
-                # Position metadata (COMPASS)
-                'position_meta': self.position_meta,
+            # Intraday flags (prevents duplicate trades after mid-day restart)
+            '_daily_open_done': getattr(self, '_daily_open_done', False),
+            '_preclose_entries_done': getattr(self, '_preclose_entries_done', False),
 
-                # Universe
-                'current_universe': self.current_universe,
-                'universe_year': self.universe_year,
-                '_universe_source': getattr(self, '_universe_source', ''),
+            # Overlay diagnostics
+            'overlay': {
+                'available': self._overlay_available,
+                'capital_scalar': self._overlay_result.get('capital_scalar', 1.0) if self._overlay_result else 1.0,
+                'per_overlay': self._overlay_result.get('per_overlay_scalars', {}) if self._overlay_result else {},
+                'position_floor': self._overlay_result.get('position_floor') if self._overlay_result else None,
+                'diagnostics': self._overlay_result.get('diagnostics', {}) if self._overlay_result else {},
+            },
 
-                # Intraday flags (prevents duplicate trades after mid-day restart)
-                '_daily_open_done': getattr(self, '_daily_open_done', False),
-                '_preclose_entries_done': getattr(self, '_preclose_entries_done', False),
+            # HYDRA state
+            'hydra': {
+                'available': self._hydra_available,
+                'rattle_positions': self.rattle_positions,
+                'rattle_regime': self.rattle_regime,
+                'vix_current': self._vix_current,
+                'efa_position': None,  # deprecated: EFA now tracked in broker.positions
+                'catalyst_positions': self.catalyst_positions,
+                'catalyst_day_counter': self._catalyst_day_counter,
+                'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
+            },
 
-                # Overlay diagnostics
-                'overlay': {
-                    'available': self._overlay_available,
-                    'capital_scalar': self._overlay_result.get('capital_scalar', 1.0) if self._overlay_result else 1.0,
-                    'per_overlay': self._overlay_result.get('per_overlay_scalars', {}) if self._overlay_result else {},
-                    'position_floor': self._overlay_result.get('position_floor') if self._overlay_result else None,
-                    'diagnostics': self._overlay_result.get('diagnostics', {}) if self._overlay_result else {},
-                },
+            # Pre-rotation snapshot (survives restart between execute_new_day and _update_cycle_log)
+            '_pre_rotation_positions_data': getattr(self, '_pre_rotation_positions_data', {}),
+            '_pre_rotation_cash': getattr(self, '_pre_rotation_cash', None),
+            '_pre_rotation_value': getattr(self, '_pre_rotation_value', None),
 
-                # HYDRA state
-                'hydra': {
-                    'available': self._hydra_available,
-                    'rattle_positions': self.rattle_positions,
-                    'rattle_regime': self.rattle_regime,
-                    'vix_current': self._vix_current,
-                    'efa_position': None,  # deprecated: EFA now tracked in broker.positions
-                    'catalyst_positions': self.catalyst_positions,
-                    'catalyst_day_counter': self._catalyst_day_counter,
-                    'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
-                },
-
-                # Pre-rotation snapshot (survives restart between execute_new_day and _update_cycle_log)
-                '_pre_rotation_positions_data': getattr(self, '_pre_rotation_positions_data', {}),
-                '_pre_rotation_cash': getattr(self, '_pre_rotation_cash', None),
-                '_pre_rotation_value': getattr(self, '_pre_rotation_value', None),
-
-                # Stats
-                'stats': {
-                    'cycles_completed': closed_cycles,
-                    'engine_iterations': self._cycles_completed,
-                    'uptime_minutes': (datetime.now() - self._start_time).total_seconds() / 60
-                },
-
-                # ML fail-safe observability
-                'ml_error_counts': dict(_ml_error_counts),
+            # Stats
+            'stats': {
+                'cycles_completed': self._cycles_completed,
+                'uptime_minutes': (datetime.now() - self._start_time).total_seconds() / 60
             }
-            previous_state = {
-                'trading_day_counter': self._last_persisted_trading_day_counter,
-                'stats': {'engine_iterations': self._last_persisted_cycles_completed},
-            }
-            state, violations = self._validate_state(
-                state,
-                source='save',
-                previous_state=previous_state if self._last_persisted_trading_day_counter is not None
-                or self._last_persisted_cycles_completed is not None else None,
-            )
-            blocking_violations = self._validate_state_before_write(state)
-            if blocking_violations:
-                logger.error(
-                    "STATE SAVE SKIPPED due to validation blockers: %s",
-                    "; ".join(violations + blocking_violations),
-                )
-                return
-            if violations:
-                logger.warning(
-                    "State repaired before save: %s",
-                    "; ".join(violations),
-                )
-                self.peak_value = state['peak_value']
-                self.trading_day_counter = state['trading_day_counter']
-                self.position_meta = copy.deepcopy(state['position_meta'])
-                if state.get('cash', 0) >= 0:
+        }
+
+        os.makedirs('state', exist_ok=True)
+        filename = f'state/compass_state_{datetime.now().strftime("%Y%m%d")}.json'
+        latest = 'state/compass_state_latest.json'
+
+        # Atomic write: temp file + rename (prevents corruption on crash)
+        for target in [filename, latest]:
+            written = False
+            for attempt in range(2):
+                try:
+                    fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
+                    with os.fdopen(fd, 'w') as fp:
+                        json.dump(state, fp, indent=2, default=str)
+                    os.replace(tmp_path, target)
+                    written = True
+                    break
+                except Exception as write_err:
+                    logger.error(f"Atomic write failed for {target} (attempt {attempt+1}): {write_err}")
                     try:
-                        self.broker.cash = state['cash']
-                    except Exception:
+                        os.unlink(tmp_path)
+                    except OSError:
                         pass
+            if not written:
+                logger.error(f"STATE SAVE FAILED for {target} after 2 attempts")
 
-            os.makedirs('state', exist_ok=True)
-            filename = f'state/compass_state_{datetime.now().strftime("%Y%m%d")}.json'
-            latest = 'state/compass_state_latest.json'
-
-            # Atomic write: temp file + rename (prevents corruption on crash)
-            write_results = {}
-            for target in [filename, latest]:
-                written = False
-                for attempt in range(2):
-                    try:
-                        fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
-                        with os.fdopen(fd, 'w') as fp:
-                            json.dump(state, fp, indent=2, default=str)
-                        os.replace(tmp_path, target)
-                        written = True
-                        break
-                    except Exception as write_err:
-                        logger.error(f"Atomic write failed for {target} (attempt {attempt+1}): {write_err}")
-                        try:
-                            os.unlink(tmp_path)
-                        except OSError:
-                            pass
-                if not written:
-                    logger.error(f"STATE SAVE FAILED for {target} after 2 attempts")
-                write_results[target] = written
-
-            if any(write_results.values()):
-                self._last_persisted_cycles_completed = self._coerce_int(
-                    (state.get('stats') or {}).get('engine_iterations'),
-                    self._cycles_completed,
-                )
-                self._last_persisted_trading_day_counter = self._coerce_int(
-                    state.get('trading_day_counter'),
-                    self.trading_day_counter,
-                )
-                self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
-                self._state_cash_snapshot = self._coerce_float(state.get('cash'), self.broker.cash)
-                logger.info(f"State saved: {filename}")
+        logger.info(f"State saved: {filename}")
 
         # Auto git sync (non-blocking, never crashes engine)
         if _git_sync_available:
@@ -4592,8 +3367,9 @@ class COMPASSLive:
         try:
             with open(filepath, 'r') as f:
                 state = json.load(f)
-            if not isinstance(state, dict):
-                logger.warning(f"State file {filepath} did not contain a JSON object")
+            # Sanity check: must have critical fields
+            if 'cash' not in state or 'positions' not in state:
+                logger.warning(f"State file {filepath} missing critical fields")
                 return None
             return state
         except (json.JSONDecodeError, IOError, OSError) as e:
@@ -4631,35 +3407,6 @@ class COMPASSLive:
             logger.error("ALL state files corrupted or invalid — HALTING to prevent wrong trades")
             raise RuntimeError("Cannot load any valid state file. Manual intervention required.")
 
-        self._recovery_gap_baseline = state.get('last_trading_date')
-
-        pre_repair_violations = self._validate_state_before_write(state)
-        for violation in pre_repair_violations:
-            logger.warning(f"State validation issue detected on load: {violation}")
-
-        previous_state = None
-        if len(candidates) > 1 and loaded_from == candidates[0]:
-            for fallback_candidate in candidates[1:]:
-                previous_state = self._try_load_json(fallback_candidate)
-                if previous_state is not None:
-                    break
-
-        state, violations = self._validate_state(
-            state,
-            source='load',
-            previous_state=previous_state,
-        )
-        for violation in violations:
-            logger.warning(f"State validation repaired on load: {violation}")
-
-        post_repair_violations = self._validate_state_before_write(state)
-        for violation in post_repair_violations:
-            logger.warning(f"State validation warning after load repair: {violation}")
-
-        schema_violations = self._validate_state_schema(state)
-        for sv in schema_violations:
-            logger.warning(f"State schema violation on load: {sv}")
-
         # Restore portfolio state
         self.peak_value = state.get('peak_value', self.config['PAPER_INITIAL_CASH'])
 
@@ -4692,10 +3439,8 @@ class COMPASSLive:
             if abs(broker_cash - json_cash) > 100:
                 logger.warning(f"Cash mismatch: broker=${broker_cash:,.0f} vs state=${json_cash:,.0f}")
 
-        # Restore position metadata (validated and cleaned)
-        raw_meta = state.get('position_meta', {})
-        active_positions = self.broker.get_positions() if not is_paper else self.broker.positions
-        self.position_meta = self._validate_position_meta(raw_meta, active_positions)
+        # Restore position metadata
+        self.position_meta = state.get('position_meta', {})
 
         # Restore universe
         self.current_universe = state.get('current_universe', [])
@@ -4714,26 +3459,6 @@ class COMPASSLive:
             self._vix_current = hydra_state.get('vix_current')
             self.catalyst_positions = hydra_state.get('catalyst_positions', [])
             self._catalyst_day_counter = hydra_state.get('catalyst_day_counter', 0)
-
-            # Reconcile: if broker has positions marked _catalyst in position_meta
-            # but catalyst_positions list is empty, restore them
-            raw_meta = state.get('position_meta', {})
-            cat_syms_in_list = {cp['symbol'] for cp in self.catalyst_positions}
-            for sym, meta in raw_meta.items():
-                if meta.get('_catalyst') and sym not in cat_syms_in_list:
-                    pos_data = state.get('positions', {}).get(sym)
-                    if pos_data:
-                        self.catalyst_positions.append({
-                            'symbol': sym,
-                            'shares': pos_data['shares'],
-                            'entry_price': meta.get('entry_price', pos_data['avg_cost']),
-                            'sub_strategy': 'trend',
-                        })
-                        logger.warning(f"Reconciled orphan catalyst position: {sym} "
-                                      f"({pos_data['shares']}sh @ ${meta.get('entry_price', 0):.2f})")
-            if self.catalyst_positions and self._catalyst_day_counter == 0:
-                self._catalyst_day_counter = max(1, self.trading_day_counter)
-
             cap_state = hydra_state.get('capital_manager')
             if cap_state:
                 self.hydra_capital = HydraCapitalManager.from_dict(cap_state)
@@ -4744,7 +3469,6 @@ class COMPASSLive:
                            f"C_acct=${self.hydra_capital.compass_account:,.0f} | "
                            f"R_acct=${self.hydra_capital.rattle_account:,.0f} | "
                            f"Cat_acct=${self.hydra_capital.catalyst_account:,.0f}")
-                self._sync_efa_runtime_state(reason='load_state')
 
         # Restore pre-rotation snapshot (survives restart between rotation and cycle log update)
         saved_pre_rot = state.get('_pre_rotation_positions_data')
@@ -4762,20 +3486,6 @@ class COMPASSLive:
         if loaded_from != latest:
             logger.warning(f"  Loaded from FALLBACK file (not latest): {loaded_from}")
 
-        self._state_positions_snapshot = copy.deepcopy(state.get('positions', {}))
-        self._state_cash_snapshot = self._coerce_float(
-            state.get('cash'),
-            getattr(self.broker, 'cash', self.config['PAPER_INITIAL_CASH']),
-        )
-        self._last_persisted_cycles_completed = self._coerce_int(
-            (state.get('stats') or {}).get('engine_iterations'),
-            self._cycles_completed,
-        )
-        self._last_persisted_trading_day_counter = self._coerce_int(
-            state.get('trading_day_counter'),
-            self.trading_day_counter,
-        )
-
         # Position reconciliation (logs discrepancies vs broker)
         if hasattr(self.broker, 'reconcile_positions'):
             try:
@@ -4787,12 +3497,6 @@ class COMPASSLive:
 
         # Ensure cycle log has an active cycle if we have positions
         self._ensure_active_cycle()
-
-        # Cleanup old corrupted state backups
-        try:
-            self._cleanup_old_corrupted_backups()
-        except Exception as e:
-            logger.warning(f"Corrupted backup cleanup failed (non-fatal): {e}")
 
     # ------------------------------------------------------------------
     # Status logging
@@ -4845,32 +3549,12 @@ class COMPASSLive:
         self._cycles_completed += 1
 
         try:
-            # New trading day setup
-            if self.is_new_trading_day():
-                if self.is_market_open() or self.get_et_now().weekday() < 5:
-                    # Run daily_open() even if market just closed (late deploy),
-                    # but NOT on weekends to avoid phantom trading day increments
-                    self._recover_missed_days()
-                    self.daily_open()
-                    self.save_state()
-                    try:
-                        self._reconcile_runtime_state()
-                    except Exception as reconcile_err:
-                        logger.error(f"Automated reconciliation failed: {reconcile_err}", exc_info=True)
-            elif self._last_regime_refresh is None or \
-                    (datetime.now() - self._last_regime_refresh).total_seconds() > 14400:
-                # Periodic regime refresh (every 4h) — catches stale scores after
-                # mid-day restarts where daily_open() already ran for today
-                try:
-                    self.refresh_daily_data()
-                    self.update_regime()
-                    self.save_state()
-                    logger.info(f"Periodic regime refresh: score={self.current_regime_score:.4f}")
-                except Exception as e:
-                    logger.warning(f"Periodic regime refresh failed: {e}")
-
             if not self.is_market_open():
                 return False
+
+            # New trading day setup
+            if self.is_new_trading_day():
+                self.daily_open()
 
             # Get current prices (async fetch + batch validation)
             symbols_needed = set(self.current_universe) | set(self.position_meta.keys())
@@ -4879,8 +3563,6 @@ class COMPASSLive:
                 symbols_needed |= {p['symbol'] for p in self.rattle_positions}
                 symbols_needed |= set(R_UNIVERSE)
                 symbols_needed.add(EFA_SYMBOL)
-                if _catalyst_available:
-                    symbols_needed |= set(CATALYST_TREND_ASSETS)
             symbols_needed = list(symbols_needed)
             raw_prices = self.data_feed.get_prices(symbols_needed)
             prices = self.validator.validate_batch(raw_prices)
@@ -4888,17 +3570,9 @@ class COMPASSLive:
             if not prices:
                 logger.warning("No valid prices obtained after validation")
                 self._consecutive_errors += 1
-                if self._consecutive_errors >= self._max_consecutive_errors:
-                    logger.critical(f"Too many consecutive errors ({self._consecutive_errors}). Stopping.")
-                    if self.notifier:
-                        self.notifier.send_error_alert("No valid prices obtained after validation", "")
-                    raise RuntimeError("Too many consecutive errors")
                 return False
 
             self._consecutive_errors = 0
-            cache_age_seconds = self._get_price_cache_age_seconds()
-            if self._stale_price_guard_triggered(cache_age_seconds):
-                return False
 
             # Update broker positions with current prices
             for symbol, price in prices.items():
@@ -4916,20 +3590,6 @@ class COMPASSLive:
             # - At 15:30 ET: new entries via pre-close signal + same-day MOC
             # - Intraday: check stops periodically
             if not self._daily_open_done:
-                # Catch-up: if yesterday's pre-close was missed (Render cold start),
-                # run entries using yesterday's close prices (MOC) from _hist_cache
-                if self._missed_preclose:
-                    moc_prices = {}
-                    for sym, df in self._hist_cache.items():
-                        if df is not None and len(df) > 0:
-                            moc_prices[sym] = float(df['Close'].iloc[-1])
-                    if moc_prices:
-                        logger.warning("[CATCH-UP] Yesterday's pre-close was missed — "
-                                       f"running entries at yesterday's MOC prices ({len(moc_prices)} symbols)")
-                        self.execute_preclose_entries(moc_prices)
-                    else:
-                        logger.warning("[CATCH-UP] No historical data available for MOC catch-up, skipping")
-                    self._missed_preclose = False
                 self.execute_trading_logic(prices)
                 self._daily_open_done = True
                 self.log_status(prices)
@@ -4950,12 +3610,13 @@ class COMPASSLive:
                     self._last_stop_check = now
 
             # Check for stale orders (order timeout)
-            try:
-                stale = self.broker.check_stale_orders()
+            if hasattr(self.broker, 'check_stale_orders'):
+                stale = self.broker.check_stale_orders(
+                    self.config.get('ORDER_TIMEOUT_SECONDS', 300)
+                )
                 if stale:
-                    logger.warning(f"Cancelled {len(stale)} stale orders: {[o.symbol for o in stale]}")
-            except Exception as e:
-                logger.warning(f"check_stale_orders failed: {e}")
+                    logger.warning(f"Cancelled {len(stale)} stale orders: "
+                                  f"{', '.join(o.symbol for o in stale)}")
 
             # Periodic state save
             now = datetime.now()
@@ -4980,29 +3641,12 @@ class COMPASSLive:
     def run(self, interval: int = 60):
         """Main trading loop"""
         logger.info("Starting COMPASS v8.4 live trading loop...")
-        self._run_startup_self_test_once()
-
-        # Register graceful shutdown handlers (only works in main thread)
-        def _graceful_shutdown(signum, frame):
-            logger.info(f"Received signal {signum}, saving state and shutting down...")
-            self._shutdown_requested = True
-        try:
-            signal.signal(signal.SIGTERM, _graceful_shutdown)
-            signal.signal(signal.SIGINT, _graceful_shutdown)
-        except ValueError:
-            # signal.signal() only works in main thread — skip on cloud (daemon thread)
-            logger.info("Signal handlers skipped (not main thread)")
 
         # Kill switch check
         kill_file = 'STOP_TRADING'
 
         try:
             while True:
-                # Graceful shutdown
-                if self._shutdown_requested:
-                    logger.info("Graceful shutdown requested, exiting loop...")
-                    break
-
                 # Kill switch
                 if os.path.exists(kill_file):
                     logger.warning("KILL SWITCH activated (STOP_TRADING file found)")
@@ -5065,7 +3709,6 @@ def main():
                 'BROKER_TYPE', 'IBKR_HOST', 'IBKR_PORT', 'IBKR_CLIENT_ID',
                 'IBKR_MOCK', 'PRICE_UPDATE_INTERVAL', 'PAPER_INITIAL_CASH',
                 'LOG_LEVEL', 'STATE_DIR',
-                'PRICE_STALE_WARN_SECONDS', 'PRICE_STALE_SKIP_SECONDS',
             }
             for k, v in ext_config.items():
                 if k in safe_keys:

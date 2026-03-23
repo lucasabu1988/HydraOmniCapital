@@ -1,0 +1,31 @@
+{
+  "experiment": "EXP69 -- Bond Pillar: IEF vs TLT in Catalyst Trend",
+  "tlt": {
+    "cagr": 16.59,
+    "sharpe": 1.245,
+    "sortino": 1.596,
+    "max_dd": -19.61,
+    "vol": 13.05,
+    "final": 5500031.96
+  },
+  "ief": {
+    "cagr": 16.2,
+    "sharpe": 1.22,
+    "sortino": 1.565,
+    "max_dd": -19.68,
+    "vol": 13.04,
+    "final": 5042889.63
+  },
+  "delta": {
+    "cagr": -0.39,
+    "sharpe": -0.025,
+    "max_dd": -0.07
+  },
+  "bond_stats": {
+    "correlation": 0.911,
+    "tlt_vol": 14.35,
+    "ief_vol": 6.82,
+    "tlt_above_sma_pct": 57.4,
+    "ief_above_sma_pct": 66.6
+  }
+}

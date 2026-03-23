@@ -1,18 +1,19 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-22T15:38:35.115069",
-  "cash": 35618.57,
+  "timestamp": "2026-03-23T10:17:21.372780",
+  "cash": 35410.03,
   "peak_value": 100068.7645111084,
-  "portfolio_value": 98477.98931724549,
+  "portfolio_value": 99562.93,
   "crash_cooldown": 0,
   "portfolio_values_history": [
-    100000,
-    99999.67457580566,
-    99371.93670257568
+    99791.46,
+    99791.13,
+    99163.4,
+    98269.45
   ],
-  "current_regime_score": 0.44773030754970455,
-  "trading_day_counter": 42,
-  "last_trading_date": "2026-03-20",
+  "current_regime_score": 0.4202074252339996,
+  "trading_day_counter": 43,
+  "last_trading_date": "2026-03-23",
   "positions": {
     "JNJ": {
       "shares": 94.0,
@@ -26,21 +27,21 @@
       "shares": 11.0,
       "avg_cost": 422.9
     },
-    "TLT": {
-      "shares": 38.0,
-      "avg_cost": 87.21
-    },
-    "GLD": {
-      "shares": 17.0,
-      "avg_cost": 460.43
-    },
-    "DBC": {
-      "shares": 117.0,
-      "avg_cost": 28.31
-    },
     "EFA": {
       "shares": 91.0,
       "avg_cost": 98.1
+    },
+    "TLT": {
+      "shares": 57.0,
+      "avg_cost": 87.21
+    },
+    "GLD": {
+      "shares": 10.0,
+      "avg_cost": 460.43
+    },
+    "DBC": {
+      "shares": 176.0,
+      "avg_cost": 28.31
     }
   },
   "position_meta": {
@@ -49,7 +50,7 @@
       "entry_date": "2026-03-20",
       "entry_day_index": 5,
       "original_entry_day_index": 5,
-      "high_price": 235.37,
+      "high_price": 237.80499267578125,
       "entry_vol": 0.1599,
       "entry_daily_vol": 0.0101,
       "sector": "Healthcare",
@@ -62,7 +63,7 @@
       "entry_date": "2026-03-20",
       "entry_day_index": 5,
       "original_entry_day_index": 5,
-      "high_price": 159.67,
+      "high_price": 161.2100067138672,
       "entry_vol": 0.2557,
       "entry_daily_vol": 0.0161,
       "sector": "Energy",
@@ -75,7 +76,7 @@
       "entry_date": "2026-03-20",
       "entry_day_index": 5,
       "original_entry_day_index": 5,
-      "high_price": 422.9,
+      "high_price": 428.9599914550781,
       "entry_vol": 0.707,
       "entry_daily_vol": 0.0445,
       "sector": "Technology",
@@ -83,12 +84,24 @@
       "entry_momentum_rank": 0.95,
       "_entry_reconciled": true
     },
+    "EFA": {
+      "entry_price": 98.1,
+      "entry_date": "2026-03-16",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 98.37000274658203,
+      "entry_vol": 0.15,
+      "entry_daily_vol": 0.0095,
+      "sector": "International Equity",
+      "_efa": true,
+      "_entry_reconciled": true
+    },
     "TLT": {
       "entry_price": 87.21,
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 87.34549713134766,
+      "high_price": 87.21,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "Catalyst (trend)",
@@ -103,7 +116,7 @@
       "high_price": 460.43,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
-      "sector": "Catalyst (trend+gold)",
+      "sector": "Catalyst (trend)",
       "_catalyst": true,
       "_entry_reconciled": true
     },
@@ -112,23 +125,11 @@
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 29.190000534057617,
+      "high_price": 28.31,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "Catalyst (trend)",
       "_catalyst": true,
-      "_entry_reconciled": true
-    },
-    "EFA": {
-      "entry_price": 98.1,
-      "entry_date": "2026-03-16",
-      "entry_day_index": 1,
-      "original_entry_day_index": 1,
-      "high_price": 98.37000274658203,
-      "entry_vol": 0.15,
-      "entry_daily_vol": 0.0095,
-      "sector": "International Equity",
-      "_efa": true,
       "_entry_reconciled": true
     }
   },
@@ -177,7 +178,7 @@
   "universe_year": 2026,
   "_universe_source": "github",
   "_daily_open_done": true,
-  "_preclose_entries_done": true,
+  "_preclose_entries_done": false,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
@@ -188,27 +189,27 @@
   "hydra": {
     "available": true,
     "rattle_positions": [],
-    "rattle_regime": "RISK_ON",
-    "vix_current": 23.219999313354492,
+    "rattle_regime": "RISK_OFF",
+    "vix_current": 26.780000686645508,
     "efa_position": null,
     "catalyst_positions": [
       {
         "symbol": "TLT",
-        "shares": 38,
+        "shares": 57,
         "entry_price": 87.21,
         "entry_date": "2026-03-16",
         "sub_strategy": "trend"
       },
       {
         "symbol": "GLD",
-        "shares": 17,
+        "shares": 10,
         "entry_price": 460.43,
         "entry_date": "2026-03-16",
-        "sub_strategy": "trend+gold"
+        "sub_strategy": "trend"
       },
       {
         "symbol": "DBC",
-        "shares": 117,
+        "shares": 176,
         "entry_price": 28.31,
         "entry_date": "2026-03-16",
         "sub_strategy": "trend"
@@ -216,45 +217,53 @@
     ],
     "catalyst_day_counter": 5,
     "capital_manager": {
-      "compass_account": 41828.777248556864,
-      "rattle_account": 33414.977020429185,
+      "compass_account": 41237.78736963948,
+      "rattle_account": 32700.906853312998,
       "catalyst_account": 15000.0,
       "base_compass_alloc": 0.425,
       "base_rattle_alloc": 0.425,
       "base_catalyst_alloc": 0.15,
       "max_compass_alloc": 0.75,
-      "total_recycled_days": 7,
-      "total_days": 7,
+      "total_recycled_days": 8,
+      "total_days": 8,
       "efa_value": 8516.689666748047
     }
   },
   "_pre_rotation_positions_data": {
     "JNJ": {
-      "shares": 107,
-      "avg_cost": 243.19,
-      "entry_price": 243.19,
+      "shares": 94.0,
+      "avg_cost": 235.37,
+      "entry_price": 235.37,
       "sector": "Healthcare",
-      "entry_day_index": 1,
-      "entry_date": "2026-03-16"
-    },
-    "GEV": {
-      "shares": 9,
-      "avg_cost": 827.37,
-      "entry_price": 827.37,
-      "sector": "Unknown",
-      "entry_day_index": 1,
-      "entry_date": "2026-03-16"
+      "entry_day_index": 5,
+      "entry_date": "2026-03-20"
     },
     "XOM": {
-      "shares": 258,
-      "avg_cost": 158.81,
-      "entry_price": 158.81,
+      "shares": 87.0,
+      "avg_cost": 159.67,
+      "entry_price": 159.67,
       "sector": "Energy",
-      "entry_day_index": 2,
-      "entry_date": "2026-03-17"
+      "entry_day_index": 5,
+      "entry_date": "2026-03-20"
+    },
+    "MU": {
+      "shares": 11.0,
+      "avg_cost": 422.9,
+      "entry_price": 422.9,
+      "sector": "Technology",
+      "entry_day_index": 5,
+      "entry_date": "2026-03-20"
+    },
+    "EFA": {
+      "shares": 91.0,
+      "avg_cost": 98.1,
+      "entry_price": 98.1,
+      "sector": "International Equity",
+      "entry_day_index": 1,
+      "entry_date": "2026-03-16"
     },
     "TLT": {
-      "shares": 38,
+      "shares": 57.0,
       "avg_cost": 87.21,
       "entry_price": 87.21,
       "sector": "Catalyst (trend)",
@@ -262,36 +271,28 @@
       "entry_date": "2026-03-16"
     },
     "GLD": {
-      "shares": 17,
+      "shares": 10.0,
       "avg_cost": 460.43,
       "entry_price": 460.43,
-      "sector": "Catalyst (trend+gold)",
+      "sector": "Catalyst (trend)",
       "entry_day_index": 1,
       "entry_date": "2026-03-16"
     },
     "DBC": {
-      "shares": 117,
+      "shares": 176.0,
       "avg_cost": 28.31,
       "entry_price": 28.31,
       "sector": "Catalyst (trend)",
       "entry_day_index": 1,
       "entry_date": "2026-03-16"
-    },
-    "EFA": {
-      "shares": 91,
-      "avg_cost": 98.1,
-      "entry_price": 98.1,
-      "sector": "International Equity",
-      "entry_day_index": 1,
-      "entry_date": "2026-03-16"
     }
   },
-  "_pre_rotation_cash": 2247.46,
-  "_pre_rotation_value": 98478.21,
+  "_pre_rotation_cash": 35410.03,
+  "_pre_rotation_value": 99562.93,
   "stats": {
     "cycles_completed": 1,
-    "engine_iterations": 0,
-    "uptime_minutes": 0.08275025
+    "engine_iterations": 22,
+    "uptime_minutes": 1118.8537121166667
   },
   "ml_error_counts": {
     "entry": 0,

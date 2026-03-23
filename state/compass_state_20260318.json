@@ -1,17 +1,18 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-17T23:10:47.014531",
-  "cash": 43116.17,
+  "timestamp": "2026-03-18T22:25:51.222897",
+  "cash": 18251.38,
   "peak_value": 100068.7645111084,
-  "portfolio_value": 100068.76,
+  "portfolio_value": 100068.63,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     99895.73,
-    99895.4
+    99895.4,
+    99267.67
   ],
-  "current_regime_score": 0.4873041989251161,
-  "trading_day_counter": 2,
-  "last_trading_date": "2026-03-17",
+  "current_regime_score": 0.5242023189341606,
+  "trading_day_counter": 3,
+  "last_trading_date": "2026-03-18",
   "positions": {
     "JNJ": {
       "shares": 107.0,
@@ -24,6 +25,14 @@
     "EFA": {
       "shares": 91.0,
       "avg_cost": 98.1
+    },
+    "XOM": {
+      "shares": 108.0,
+      "avg_cost": 158.65499877929688
+    },
+    "AMAT": {
+      "shares": 22.0,
+      "avg_cost": 351.3599853515625
     },
     "TLT": {
       "shares": 57.0,
@@ -57,7 +66,7 @@
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 833.9039916992188,
+      "high_price": 879.780029296875,
       "entry_vol": 0.4165747650252211,
       "entry_daily_vol": 0.026241743588616726,
       "sector": "Unknown",
@@ -76,6 +85,30 @@
       "sector": "International Equity",
       "_efa": true,
       "_entry_reconciled": true
+    },
+    "XOM": {
+      "entry_price": 158.65499877929688,
+      "entry_date": "2026-03-18",
+      "entry_day_index": 3,
+      "original_entry_day_index": 3,
+      "high_price": 158.65499877929688,
+      "entry_vol": 0.2252721526054599,
+      "entry_daily_vol": 0.014190811740529477,
+      "sector": "Energy",
+      "entry_momentum_score": 1.1381023649206536,
+      "entry_momentum_rank": 0.9696969696969697
+    },
+    "AMAT": {
+      "entry_price": 351.3599853515625,
+      "entry_date": "2026-03-18",
+      "entry_day_index": 3,
+      "original_entry_day_index": 3,
+      "high_price": 352.1199951171875,
+      "entry_vol": 0.48885374504054807,
+      "entry_daily_vol": 0.030794891353806312,
+      "sector": "Technology",
+      "entry_momentum_score": 0.8933082627958064,
+      "entry_momentum_rank": 0.9090909090909091
     },
     "TLT": {
       "entry_price": 87.21,
@@ -159,7 +192,7 @@
   "universe_year": 2026,
   "_universe_source": "github",
   "_daily_open_done": true,
-  "_preclose_entries_done": false,
+  "_preclose_entries_done": true,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
@@ -171,7 +204,7 @@
     "available": true,
     "rattle_positions": [],
     "rattle_regime": "RISK_ON",
-    "vix_current": 22.5,
+    "vix_current": 23.219999313354492,
     "efa_position": null,
     "catalyst_positions": [
       {
@@ -196,28 +229,44 @@
         "sub_strategy": "trend"
       }
     ],
-    "catalyst_day_counter": 1,
+    "catalyst_day_counter": 2,
     "capital_manager": {
-      "compass_account": 42412.072288389594,
-      "rattle_account": 33486.697249797544,
+      "compass_account": 41828.777248556864,
+      "rattle_account": 33132.87646500926,
       "catalyst_account": 15000.0,
       "base_compass_alloc": 0.425,
       "base_rattle_alloc": 0.425,
       "base_catalyst_alloc": 0.15,
       "max_compass_alloc": 0.75,
-      "total_recycled_days": 6,
-      "total_days": 6,
-      "efa_value": 8951.670249938965
+      "total_recycled_days": 11,
+      "total_days": 11,
+      "efa_value": 8798.790222167969
     }
   },
   "_pre_rotation_positions_data": {
     "JNJ": {
-      "shares": 107,
-      "avg_cost": 242.47500610351562
+      "shares": 107.0,
+      "avg_cost": 243.19000244140625,
+      "entry_price": 243.19000244140625,
+      "sector": "Healthcare",
+      "entry_day_index": 1,
+      "entry_date": "2026-03-16"
     },
     "GEV": {
-      "shares": 9,
-      "avg_cost": 824.1900024414062
+      "shares": 9.0,
+      "avg_cost": 827.3699951171875,
+      "entry_price": 827.3699951171875,
+      "sector": "Unknown",
+      "entry_day_index": 1,
+      "entry_date": "2026-03-16"
+    },
+    "EFA": {
+      "shares": 91.0,
+      "avg_cost": 98.1,
+      "entry_price": 98.1,
+      "sector": "International Equity",
+      "entry_day_index": 1,
+      "entry_date": "2026-03-16"
     },
     "TLT": {
       "shares": 57.0,
@@ -244,12 +293,12 @@
       "entry_date": "2026-03-16"
     }
   },
-  "_pre_rotation_cash": 66496.83,
-  "_pre_rotation_value": 114417.2,
+  "_pre_rotation_cash": 43116.17,
+  "_pre_rotation_value": 100068.76,
   "stats": {
     "cycles_completed": 0,
     "engine_iterations": 0,
-    "uptime_minutes": 0.045398183333333335
+    "uptime_minutes": 0.08359386666666667
   },
   "ml_error_counts": {
     "entry": 0,
