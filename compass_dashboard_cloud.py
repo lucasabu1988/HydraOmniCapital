@@ -900,7 +900,7 @@ def _build_data_freshness(engine):
     if not engine_alive:
         status = 'offline'
     elif price_age_seconds is None or price_age_seconds > 300:
-        status = 'stale'
+        status = 'market_closed' if not _market_is_open() else 'stale'
     else:
         status = 'live'
 

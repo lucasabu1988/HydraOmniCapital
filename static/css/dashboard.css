@@ -329,6 +329,12 @@ body.dark::after { opacity: 0.03; }
     color: var(--yellow);
 }
 
+.data-freshness-banner-closed {
+    background: linear-gradient(90deg, rgba(148, 163, 184, 0.14), rgba(148, 163, 184, 0.06));
+    border-bottom-color: rgba(148, 163, 184, 0.22);
+    color: var(--text-muted);
+}
+
 .data-freshness-banner-offline {
     background: linear-gradient(90deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.08));
     border-bottom-color: rgba(239, 68, 68, 0.30);
@@ -477,6 +483,10 @@ body.dark::after { opacity: 0.03; }
 
 .stale-data-offline {
     color: var(--red);
+}
+
+.stale-data-closed {
+    color: var(--text-muted);
 }
 
 /* ---- REGIME MICRO STATS (Lev, Day) ---- */

@@ -373,6 +373,11 @@ function updateStalePriceWarning(freshness) {
         banner.textContent = mins != null
             ? 'Datos desactualizados: engine inactivo. Ultima actualizacion hace ' + mins + ' min.'
             : 'Datos desactualizados: engine inactivo.';
+    } else if (status === 'market_closed') {
+        badge.textContent = 'Mercado cerrado';
+        badge.className = 'stale-data stale-data-closed';
+        banner.className = 'data-freshness-banner data-freshness-banner-closed';
+        banner.textContent = 'Mercado cerrado \u2014 precios al ultimo cierre.';
     } else {
         badge.textContent = mins != null ? 'Precios ' + mins + 'm atrasados' : 'Precios atrasados';
         badge.className = 'stale-data';
