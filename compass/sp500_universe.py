@@ -144,6 +144,64 @@ def refresh_constituents(fallback_pool: List[str]) -> Tuple[List[str], str]:
             return tickers, 'cached'
         logger.warning(f"Cached file has {len(tickers)} tickers (invalid count), falling back")
 
-    # Layer 4: Hardcoded fallback
-    logger.warning(f"All sources failed. Using hardcoded fallback ({len(fallback_pool)} tickers)")
+    # Layer 4: Committed PIT snapshot (checked into git, survives cache loss)
+    pit_file = os.path.join(os.path.dirname(__file__), 'sp500_pit_snapshot.json')
+    try:
+        with open(pit_file, 'r') as f:
+            pit_data = json.load(f)
+        tickers = _normalize_tickers(pit_data.get('tickers', []))
+        if _validate_count(tickers):
+            logger.warning(f"Using committed PIT snapshot from {pit_data.get('date', 'unknown')} "
+                           f"({len(tickers)} tickers) — update with: python -m compass.sp500_universe")
+            return tickers, 'pit_snapshot'
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+
+    # Layer 5: Legacy hardcoded fallback (survivorship-biased, last resort)
+    logger.error(f"ALL sources failed including PIT snapshot. Using legacy hardcoded fallback "
+                 f"({len(fallback_pool)} tickers) — THIS HAS SURVIVORSHIP BIAS")
     return list(fallback_pool), 'fallback'
+
+
+def update_pit_snapshot():
+    """Fetch current S&P 500 from GitHub/Wikipedia and save as committed PIT snapshot."""
+    pit_file = os.path.join(os.path.dirname(__file__), 'sp500_pit_snapshot.json')
+
+    # Try GitHub first, then Wikipedia
+    tickers = None
+    source = None
+    try:
+        raw = fetch_from_github()
+        tickers = _normalize_tickers(raw)
+        source = 'github'
+    except Exception as e:
+        print(f"GitHub failed: {e}")
+
+    if not tickers or not _validate_count(tickers):
+        try:
+            raw = fetch_from_wikipedia()
+            tickers = _normalize_tickers(raw)
+            source = 'wikipedia'
+        except Exception as e:
+            print(f"Wikipedia also failed: {e}")
+            return False
+
+    if not tickers or not _validate_count(tickers):
+        print(f"ERROR: Got {len(tickers) if tickers else 0} tickers, expected {MIN_CONSTITUENTS}-{MAX_CONSTITUENTS}")
+        return False
+
+    data = {
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'source': source,
+        'tickers': tickers,
+        'count': len(tickers),
+    }
+    with open(pit_file, 'w') as f:
+        json.dump(data, f, indent=2)
+    print(f"PIT snapshot saved: {len(tickers)} tickers from {source} ({pit_file})")
+    print(f"Commit this file to git: git add {pit_file} && git commit -m 'update PIT snapshot'")
+    return True
+
+
+if __name__ == '__main__':
+    update_pit_snapshot()

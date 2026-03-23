@@ -1297,17 +1297,18 @@ class COMPASSLive:
             logger.info(f"Computing {current_year} universe...")
             from compass.sp500_universe import refresh_constituents
             broad_pool, source = refresh_constituents(fallback_pool=BROAD_POOL)
-            self._universe_source = source if source in ('github', 'wikipedia') else 'fallback'
+            _PIT_SOURCES = ('github', 'wikipedia', 'cached', 'pit_snapshot')
+            self._universe_source = source if source in _PIT_SOURCES else 'fallback'
             if self._universe_source == 'fallback':
-                logger.warning(f"Universe using HARDCODED fallback ({len(BROAD_POOL)} stocks) — "
-                               f"PIT sources (GitHub/Wikipedia) failed. Results may have survivorship bias.")
+                logger.error(f"Universe using HARDCODED fallback ({len(BROAD_POOL)} stocks) — "
+                             f"ALL PIT sources failed. Results have survivorship bias.")
             raw_universe = compute_annual_top40(
                 broad_pool, self.config['TOP_N']
             )
             self.current_universe = validate_universe(raw_universe)
             self.universe_year = current_year
             logger.info(f"Universe updated: {len(self.current_universe)} stocks from "
-                        f"{len(broad_pool)} constituents (source: {source}, PIT: {source in ('github', 'wikipedia')})")
+                        f"{len(broad_pool)} constituents (source: {source}, PIT: {source in _PIT_SOURCES})")
 
     # ------------------------------------------------------------------
     # Regime detection
