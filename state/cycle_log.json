@@ -5,7 +5,7 @@
     "end_date": "2026-03-20",
     "status": "closed",
     "portfolio_start": 100000.0,
-    "portfolio_end": 98818.51,
+    "portfolio_end": 99256.79,
     "spy_start": 6699.38,
     "spy_end": 6506.48,
     "positions": [
@@ -18,7 +18,7 @@
       "XOM",
       "MU"
     ],
-    "hydra_return": -1181.49,
+    "hydra_return": -743.21,
     "spy_return": -192.9,
     "alpha": null,
     "stop_events": [],
@@ -53,16 +53,16 @@
         "XOM"
       ]
     },
-    "cycle_return_pct": -1.18,
+    "cycle_return_pct": -0.74,
     "spy_return_pct": -2.88,
-    "alpha_pct": 1.7
+    "alpha_pct": 2.14
   },
   {
     "cycle": 2,
     "start_date": "2026-03-20",
     "end_date": null,
     "status": "active",
-    "portfolio_start": 98818.51,
+    "portfolio_start": 99256.79,
     "portfolio_end": null,
     "spy_start": 6506.48,
     "spy_end": null,

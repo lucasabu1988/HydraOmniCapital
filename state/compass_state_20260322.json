@@ -1,9 +1,9 @@
 {
   "version": "8.4",
   "timestamp": "2026-03-22T23:06:06.892478",
-  "cash": 35514.3,
+  "cash": 35135.83,
   "peak_value": 100068.7645111084,
-  "portfolio_value": 98818.51,
+  "portfolio_value": 99256.79,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     99895.73,
@@ -31,17 +31,13 @@
       "shares": 91.0,
       "avg_cost": 98.1
     },
-    "TLT": {
-      "shares": 57.0,
-      "avg_cost": 87.21
-    },
     "GLD": {
-      "shares": 10.0,
-      "avg_cost": 460.43
+      "shares": 18.0,
+      "avg_cost": 413.38
     },
     "DBC": {
-      "shares": 176.0,
-      "avg_cost": 28.31
+      "shares": 259.0,
+      "avg_cost": 28.94
     }
   },
   "position_meta": {
@@ -96,24 +92,12 @@
       "_efa": true,
       "_entry_reconciled": true
     },
-    "TLT": {
-      "entry_price": 87.21,
-      "entry_date": "2026-03-16",
-      "entry_day_index": 1,
-      "original_entry_day_index": 1,
-      "high_price": 87.21,
-      "entry_vol": 0.15,
-      "entry_daily_vol": 0.0095,
-      "sector": "Catalyst (trend)",
-      "_catalyst": true,
-      "_entry_reconciled": true
-    },
     "GLD": {
-      "entry_price": 460.43,
-      "entry_date": "2026-03-16",
+      "entry_price": 413.38,
+      "entry_date": "2026-03-20",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 460.43,
+      "high_price": 413.38,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "Catalyst (trend)",
@@ -121,11 +105,11 @@
       "_entry_reconciled": true
     },
     "DBC": {
-      "entry_price": 28.31,
-      "entry_date": "2026-03-16",
+      "entry_price": 28.94,
+      "entry_date": "2026-03-20",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 28.31,
+      "high_price": 28.94,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "Catalyst (trend)",
@@ -194,24 +178,17 @@
     "efa_position": null,
     "catalyst_positions": [
       {
-        "symbol": "TLT",
-        "shares": 57,
-        "entry_price": 87.21,
-        "entry_date": "2026-03-16",
-        "sub_strategy": "trend"
-      },
-      {
         "symbol": "GLD",
-        "shares": 10,
-        "entry_price": 460.43,
-        "entry_date": "2026-03-16",
+        "shares": 18,
+        "entry_price": 413.38,
+        "entry_date": "2026-03-20",
         "sub_strategy": "trend"
       },
       {
         "symbol": "DBC",
-        "shares": 176,
-        "entry_price": 28.31,
-        "entry_date": "2026-03-16",
+        "shares": 259,
+        "entry_price": 28.94,
+        "entry_date": "2026-03-20",
         "sub_strategy": "trend"
       }
     ],
@@ -262,32 +239,24 @@
       "entry_day_index": 1,
       "entry_date": "2026-03-16"
     },
-    "TLT": {
-      "shares": 57.0,
-      "avg_cost": 87.21,
-      "entry_price": 87.21,
-      "sector": "Catalyst (trend)",
-      "entry_day_index": 1,
-      "entry_date": "2026-03-16"
-    },
     "GLD": {
-      "shares": 10.0,
-      "avg_cost": 460.43,
-      "entry_price": 460.43,
+      "shares": 18.0,
+      "avg_cost": 413.38,
+      "entry_price": 413.38,
       "sector": "Catalyst (trend)",
       "entry_day_index": 1,
-      "entry_date": "2026-03-16"
+      "entry_date": "2026-03-20"
     },
     "DBC": {
-      "shares": 176.0,
-      "avg_cost": 28.31,
-      "entry_price": 28.31,
+      "shares": 259.0,
+      "avg_cost": 28.94,
+      "entry_price": 28.94,
       "sector": "Catalyst (trend)",
       "entry_day_index": 1,
-      "entry_date": "2026-03-16"
+      "entry_date": "2026-03-20"
     }
   },
-  "_pre_rotation_cash": 35514.3,
+  "_pre_rotation_cash": 35135.83,
   "_pre_rotation_value": 98818.51,
   "stats": {
     "cycles_completed": 1,

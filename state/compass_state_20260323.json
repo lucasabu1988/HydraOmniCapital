@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-23T10:22:43.305364",
-  "cash": 35514.3,
+  "timestamp": "2026-03-23T10:44:22.427887",
+  "cash": 35618.57,
   "peak_value": 100068.7645111084,
-  "portfolio_value": 98785.1,
+  "portfolio_value": 98385.12900573731,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000,
@@ -27,21 +27,21 @@
       "shares": 11.0,
       "avg_cost": 422.9
     },
-    "EFA": {
-      "shares": 91.0,
-      "avg_cost": 98.1
-    },
     "TLT": {
-      "shares": 57.0,
+      "shares": 38.0,
       "avg_cost": 87.21
     },
     "GLD": {
-      "shares": 10.0,
+      "shares": 17.0,
       "avg_cost": 460.43
     },
     "DBC": {
-      "shares": 176.0,
+      "shares": 117.0,
       "avg_cost": 28.31
+    },
+    "EFA": {
+      "shares": 91.0,
+      "avg_cost": 98.1
     }
   },
   "position_meta": {
@@ -84,24 +84,12 @@
       "entry_momentum_rank": 0.95,
       "_entry_reconciled": true
     },
-    "EFA": {
-      "entry_price": 98.1,
-      "entry_date": "2026-03-16",
-      "entry_day_index": 1,
-      "original_entry_day_index": 1,
-      "high_price": 98.37000274658203,
-      "entry_vol": 0.15,
-      "entry_daily_vol": 0.0095,
-      "sector": "International Equity",
-      "_efa": true,
-      "_entry_reconciled": true
-    },
     "TLT": {
       "entry_price": 87.21,
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 87.21,
+      "high_price": 87.34549713134766,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "Catalyst (trend)",
@@ -116,7 +104,7 @@
       "high_price": 460.43,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
-      "sector": "Catalyst (trend)",
+      "sector": "Catalyst (trend+gold)",
       "_catalyst": true,
       "_entry_reconciled": true
     },
@@ -125,11 +113,23 @@
       "entry_date": "2026-03-16",
       "entry_day_index": 1,
       "original_entry_day_index": 1,
-      "high_price": 28.31,
+      "high_price": 29.190000534057617,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "Catalyst (trend)",
       "_catalyst": true,
+      "_entry_reconciled": true
+    },
+    "EFA": {
+      "entry_price": 98.1,
+      "entry_date": "2026-03-16",
+      "entry_day_index": 1,
+      "original_entry_day_index": 1,
+      "high_price": 98.37000274658203,
+      "entry_vol": 0.15,
+      "entry_daily_vol": 0.0095,
+      "sector": "International Equity",
+      "_efa": true,
       "_entry_reconciled": true
     }
   },
@@ -195,21 +195,21 @@
     "catalyst_positions": [
       {
         "symbol": "TLT",
-        "shares": 57,
+        "shares": 38,
         "entry_price": 87.21,
         "entry_date": "2026-03-16",
         "sub_strategy": "trend"
       },
       {
         "symbol": "GLD",
-        "shares": 10,
+        "shares": 17,
         "entry_price": 460.43,
         "entry_date": "2026-03-16",
-        "sub_strategy": "trend"
+        "sub_strategy": "trend+gold"
       },
       {
         "symbol": "DBC",
-        "shares": 176,
+        "shares": 117,
         "entry_price": 28.31,
         "entry_date": "2026-03-16",
         "sub_strategy": "trend"
@@ -254,16 +254,8 @@
       "entry_day_index": 5,
       "entry_date": "2026-03-20"
     },
-    "EFA": {
-      "shares": 91.0,
-      "avg_cost": 98.1,
-      "entry_price": 98.1,
-      "sector": "International Equity",
-      "entry_day_index": 1,
-      "entry_date": "2026-03-16"
-    },
     "TLT": {
-      "shares": 57.0,
+      "shares": 38.0,
       "avg_cost": 87.21,
       "entry_price": 87.21,
       "sector": "Catalyst (trend)",
@@ -271,28 +263,36 @@
       "entry_date": "2026-03-16"
     },
     "GLD": {
-      "shares": 10.0,
+      "shares": 17.0,
       "avg_cost": 460.43,
       "entry_price": 460.43,
-      "sector": "Catalyst (trend)",
+      "sector": "Catalyst (trend+gold)",
       "entry_day_index": 1,
       "entry_date": "2026-03-16"
     },
     "DBC": {
-      "shares": 176.0,
+      "shares": 117.0,
       "avg_cost": 28.31,
       "entry_price": 28.31,
       "sector": "Catalyst (trend)",
       "entry_day_index": 1,
       "entry_date": "2026-03-16"
+    },
+    "EFA": {
+      "shares": 91.0,
+      "avg_cost": 98.1,
+      "entry_price": 98.1,
+      "sector": "International Equity",
+      "entry_day_index": 1,
+      "entry_date": "2026-03-16"
     }
   },
-  "_pre_rotation_cash": 35514.3,
-  "_pre_rotation_value": 98785.1,
+  "_pre_rotation_cash": 35618.57,
+  "_pre_rotation_value": 98477.98931724549,
   "stats": {
     "cycles_completed": 1,
-    "engine_iterations": 23,
-    "uptime_minutes": 1124.2192557833334
+    "engine_iterations": 27,
+    "uptime_minutes": 1145.8712978333335
   },
   "ml_error_counts": {
     "entry": 0,
