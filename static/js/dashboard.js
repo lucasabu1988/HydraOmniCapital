@@ -1407,7 +1407,7 @@ function updateSpyTracker(prices, prevCloses) {
 
 async function fetchAll() {
     try {
-        const stateRes = await fetch('/api/state');
+        const stateRes = await fetch('/api/state', {cache: 'no-store'});
         if (!stateRes.ok) throw new Error('HTTP ' + stateRes.status);
         const stateData = await stateRes.json();
 

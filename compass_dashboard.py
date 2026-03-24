@@ -42,6 +42,15 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 
 
+@app.after_request
+def add_no_cache_headers(response):
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
+
 def _load_json_with_invalid_constants(path):
     with open(path, 'r', encoding='utf-8') as f:
         return json.loads(f.read(), parse_constant=lambda _constant: None)
