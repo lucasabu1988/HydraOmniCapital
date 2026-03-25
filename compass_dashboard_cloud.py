@@ -859,6 +859,20 @@ def _health_cycle_counts(state, engine):
     return int(cycles_completed or 0), int(engine_iterations or 0)
 
 
+def _snap_weekend_to_monday(date_str):
+    """If date_str falls on Sat/Sun, return next Monday. Otherwise pass through."""
+    if not date_str or not isinstance(date_str, str):
+        return date_str
+    try:
+        d = date.fromisoformat(date_str[:10])
+        if d.weekday() >= 5:
+            d += timedelta(days=(7 - d.weekday()))
+        return d.isoformat()
+    except (ValueError, TypeError):
+        logger.warning(f"_snap_weekend_to_monday: invalid date_str={date_str!r}")
+        return date_str
+
+
 def _last_cycle_close_timestamp(state):
     if state:
         for key in ('last_cycle_close', 'last_cycle_close_at'):
@@ -1314,7 +1328,7 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
         entry_price = meta.get('entry_price', pos_data.get('avg_cost', 0))
         high_price = meta.get('high_price', entry_price)
         entry_day_index = meta.get('entry_day_index', 0)
-        entry_date = meta.get('entry_date', '')
+        entry_date = _snap_weekend_to_monday(meta.get('entry_date', ''))
         shares = pos_data.get('shares', 0)
         current_price = prices.get(symbol, entry_price)
 
@@ -1612,7 +1626,7 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     today_et = datetime.now(ZoneInfo('America/New_York')).date()
     for sym, pos in positions.items():
         meta = position_meta.get(sym, {})
-        entry_date = meta.get('entry_date', '')
+        entry_date = _snap_weekend_to_monday(meta.get('entry_date', ''))
         entry_price = meta.get('entry_price', pos.get('avg_cost', 0))
         # Use entry_price on entry day to avoid phantom PnL from after-hours prices
         if entry_date:

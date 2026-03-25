@@ -216,8 +216,13 @@ function colorCls(v) {
 
 function timeAgo(isoStr) {
     if (!isoStr || isNaN(new Date(isoStr).getTime())) return '\u2014';
-    const d = new Date(isoStr);
+    // Server timestamps are UTC but lack 'Z' suffix — append it to avoid
+    // JS interpreting them as local time (causes negative diff in non-UTC zones)
+    var s = isoStr;
+    if (!s.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(s)) s += 'Z';
+    const d = new Date(s);
     const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 0) return 'just now';
     if (diff < 60) return Math.floor(diff) + 's ago';
     if (diff < 3600) return Math.floor(diff/60) + 'm ago';
     if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
@@ -343,7 +348,9 @@ function updateStatusBar(p) {
     const ago = timeAgo(p.timestamp);
     document.getElementById('last-update').textContent = ago;
 
-    const ts = p.timestamp ? new Date(p.timestamp).toLocaleString() : '--';
+    var rawTs = p.timestamp || '';
+    if (rawTs && !rawTs.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(rawTs)) rawTs += 'Z';
+    const ts = rawTs ? new Date(rawTs).toLocaleString() : '--';
     document.getElementById('upd-tooltip').innerHTML =
         t('tooltip-last-update') + ': ' + ts + '<br>' + t('tooltip-next-in') + ': ' + countdownSec + 's';
 }

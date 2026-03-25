@@ -3711,7 +3711,13 @@ class COMPASSLive:
             try:
                 if not isinstance(ed, str) or not ed:
                     raise ValueError
-                date.fromisoformat(ed)
+                parsed_ed = date.fromisoformat(ed)
+                # Snap weekend dates to next Monday
+                if parsed_ed.weekday() >= 5:
+                    days_ahead = 7 - parsed_ed.weekday()  # Mon=0..Sun=6
+                    corrected = parsed_ed + timedelta(days=days_ahead)
+                    logger.warning(f"position_meta[{symbol}]: entry_date={ed} is a weekend, snapping to {corrected.isoformat()}")
+                    entry['entry_date'] = corrected.isoformat()
             except (TypeError, ValueError):
                 logger.warning(f"position_meta[{symbol}]: invalid entry_date={ed!r}, resetting to {today_str}")
                 entry['entry_date'] = today_str
