@@ -1,1 +1,37 @@
-{"JNJ": {"decision_id": "e5a066510f5b4bb38687190f73ff8332", "entry_date": "2026-03-16", "entry_regime_score": 0.48326506712266426, "entry_portfolio_drawdown": -0.16666666666666666, "entry_spy_vs_sma200": 0.018435119327936178}, "GEV": {"decision_id": "29558719228a40e19a3882e5fab569de", "entry_date": "2026-03-16", "entry_regime_score": 0.48326506712266426, "entry_portfolio_drawdown": -0.1666684000000001, "entry_spy_vs_sma200": 0.018435119327936178}}
+{
+  "GEV": {
+    "decision_id": "29558719228a40e19a3882e5fab569de",
+    "entry_date": "2026-03-16",
+    "entry_regime_score": 0.48326506712266426,
+    "entry_portfolio_drawdown": -0.1666684000000001,
+    "entry_spy_vs_sma200": 0.018435119327936178
+  },
+  "AMAT": {
+    "decision_id": "caf7b4c4fdb74a1ead994edae6929a9c",
+    "entry_date": "2026-03-18",
+    "entry_regime_score": 0.5242023189341606,
+    "entry_portfolio_drawdown": -0.006337057723873617,
+    "entry_spy_vs_sma200": 0.01796166382732589
+  },
+  "JNJ": {
+    "decision_id": "00741d2c0f3e485eab539d27d22875b9",
+    "entry_date": "2026-03-24",
+    "entry_regime_score": 0.4202074252339996,
+    "entry_portfolio_drawdown": -0.017201097033838084,
+    "entry_spy_vs_sma200": -0.01211130286042994
+  },
+  "XOM": {
+    "decision_id": "bca31024cb9d449cb8910417512db140",
+    "entry_date": "2026-03-24",
+    "entry_regime_score": 0.4202074252339996,
+    "entry_portfolio_drawdown": -0.01720227622297446,
+    "entry_spy_vs_sma200": -0.01211130286042994
+  },
+  "WMT": {
+    "decision_id": "ec38686263e843c28bed13df544a4c77",
+    "entry_date": "2026-03-24",
+    "entry_regime_score": 0.4202074252339996,
+    "entry_portfolio_drawdown": -0.017203195590775728,
+    "entry_spy_vs_sma200": -0.01211130286042994
+  }
+}

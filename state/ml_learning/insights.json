@@ -1,72 +1,119 @@
 {
-  "generated_at": "2026-03-13T09:58:37.548850",
-  "trading_days": 5,
+  "generated_at": "2026-03-23T23:03:45.912952",
+  "trading_days": 45,
   "learning_phase": 1,
   "phase_description": "Phase 1 \u2014 Statistical summaries only. Need 63+ trading days for ML.",
   "data_summary": {
-    "total_decisions": 13,
-    "completed_trades": 4,
-    "daily_snapshots": 9,
+    "total_decisions": 277,
+    "completed_trades": 11,
+    "daily_snapshots": 15,
     "decisions_by_type": {
-      "entry": 9,
-      "exit": 4
+      "hold": 197,
+      "skip": 52,
+      "entry": 17,
+      "exit": 11
     }
   },
   "trade_analytics": {
-    "n_completed_trades": 4,
+    "n_completed_trades": 11,
     "overall": {
-      "n": 1,
-      "mean_return": -0.0825,
+      "n": 8,
+      "mean_return": -0.0204,
       "mean_return_ci_95": [
-        -0.0825,
-        -0.0825
+        -0.0414,
+        -0.0038
       ],
-      "median_return": -0.0825,
-      "std_return": null,
-      "win_rate": 0.0,
+      "median_return": -0.0112,
+      "std_return": 0.0296,
+      "win_rate": 0.25,
       "stop_rate": 0.0,
-      "avg_days_held": 3.5,
-      "best": -0.0825,
+      "avg_days_held": 12.6,
+      "best": 0.0059,
       "worst": -0.0825,
-      "sharpe_approx": null
+      "sharpe_approx": -0.687
     },
     "by_regime": {
       "mild_bull": {
-        "n": 1,
-        "mean_return": -0.0825,
+        "n": 3,
+        "mean_return": -0.0337,
         "mean_return_ci_95": [
           -0.0825,
-          -0.0825
+          0.0059
         ],
-        "median_return": -0.0825,
-        "std_return": null,
-        "win_rate": 0.0,
+        "median_return": -0.0246,
+        "std_return": 0.0449,
+        "win_rate": 0.333,
         "stop_rate": 0.0,
-        "avg_days_held": 3.5,
-        "best": -0.0825,
+        "avg_days_held": 9.2,
+        "best": 0.0059,
         "worst": -0.0825,
-        "sharpe_approx": null
+        "sharpe_approx": -0.751
+      },
+      "mild_bear": {
+        "n": 5,
+        "mean_return": -0.0123,
+        "mean_return_ci_95": [
+          -0.0281,
+          -0.0002
+        ],
+        "median_return": -0.002,
+        "std_return": 0.0177,
+        "win_rate": 0.2,
+        "stop_rate": 0.0,
+        "avg_days_held": 16.8,
+        "best": 0.0011,
+        "worst": -0.0399,
+        "sharpe_approx": -0.698
       }
     },
     "by_sector": {
       "Technology": {
-        "n": 1,
-        "mean_return": -0.0825,
+        "n": 3,
+        "mean_return": -0.049,
         "mean_return_ci_95": [
           -0.0825,
-          -0.0825
+          -0.0246
         ],
-        "median_return": -0.0825,
-        "std_return": null,
+        "median_return": -0.0399,
+        "std_return": 0.03,
         "win_rate": 0.0,
         "stop_rate": 0.0,
-        "avg_days_held": 3.0,
-        "best": -0.0825,
+        "avg_days_held": 11.8,
+        "best": -0.0246,
         "worst": -0.0825,
-        "sharpe_approx": null
+        "sharpe_approx": -1.634
       },
       "Healthcare": {
-        "n": 0
+        "n": 2,
+        "mean_return": -0.0097,
+        "mean_return_ci_95": [
+          -0.0204,
+          0.0011
+        ],
+        "median_return": -0.0097,
+        "std_return": 0.0152,
+        "win_rate": 0.5,
+        "stop_rate": 0.0,
+        "avg_days_held": 12.8,
+        "best": 0.0011,
+        "worst": -0.0204,
+        "sharpe_approx": -0.637
+      },
+      "Energy": {
+        "n": 2,
+        "mean_return": 0.002,
+        "mean_return_ci_95": [
+          -0.002,
+          0.0059
+        ],
+        "median_return": 0.002,
+        "std_return": 0.0056,
+        "win_rate": 0.5,
+        "stop_rate": 0.0,
+        "avg_days_held": 20.0,
+        "best": 0.0059,
+        "worst": -0.002,
+        "sharpe_approx": 0.355
       }
     },
     "by_exit_reason": {
@@ -87,46 +134,147 @@
         "sharpe_approx": null
       },
       "hold_expired": {
-        "n": 0
+        "n": 3,
+        "mean_return": -0.011,
+        "mean_return_ci_95": [
+          -0.0399,
+          0.0059
+        ],
+        "median_return": 0.0011,
+        "std_return": 0.0252,
+        "win_rate": 0.667,
+        "stop_rate": 0.0,
+        "avg_days_held": 21.5,
+        "best": 0.0059,
+        "worst": -0.0399,
+        "sharpe_approx": -0.435
+      },
+      "regime_reduce": {
+        "n": 3,
+        "mean_return": -0.0157,
+        "mean_return_ci_95": [
+          -0.0246,
+          -0.002
+        ],
+        "median_return": -0.0204,
+        "std_return": 0.012,
+        "win_rate": 0.0,
+        "stop_rate": 0.0,
+        "avg_days_held": 2.3,
+        "best": -0.002,
+        "worst": -0.0246,
+        "sharpe_approx": -1.301
+      },
+      "universe_rotation": {
+        "n": 1,
+        "mean_return": -0.0005,
+        "mean_return_ci_95": [
+          -0.0005,
+          -0.0005
+        ],
+        "median_return": -0.0005,
+        "std_return": null,
+        "win_rate": 0.0,
+        "stop_rate": 0.0,
+        "avg_days_held": 1.0,
+        "best": -0.0005,
+        "worst": -0.0005,
+        "sharpe_approx": null
       }
     },
     "by_vol_bucket": {
       "low_vol": {
-        "n": 0
+        "n": 3,
+        "mean_return": -0.0066,
+        "mean_return_ci_95": [
+          -0.0204,
+          0.0011
+        ],
+        "median_return": -0.0005,
+        "std_return": 0.012,
+        "win_rate": 0.333,
+        "stop_rate": 0.0,
+        "avg_days_held": 10.4,
+        "best": 0.0011,
+        "worst": -0.0204,
+        "sharpe_approx": -0.553
+      },
+      "med_vol": {
+        "n": 2,
+        "mean_return": 0.002,
+        "mean_return_ci_95": [
+          -0.002,
+          0.0059
+        ],
+        "median_return": 0.002,
+        "std_return": 0.0056,
+        "win_rate": 0.5,
+        "stop_rate": 0.0,
+        "avg_days_held": 14.7,
+        "best": 0.0059,
+        "worst": -0.002,
+        "sharpe_approx": 0.355
+      },
+      "high_vol": {
+        "n": 3,
+        "mean_return": -0.049,
+        "mean_return_ci_95": [
+          -0.0825,
+          -0.0246
+        ],
+        "median_return": -0.0399,
+        "std_return": 0.03,
+        "win_rate": 0.0,
+        "stop_rate": 0.333,
+        "avg_days_held": 14.3,
+        "best": -0.0246,
+        "worst": -0.0825,
+        "sharpe_approx": -1.634
       }
     },
     "stop_analysis": {
       "total_stops": 1,
-      "overall_stop_rate": 0.25,
+      "overall_stop_rate": 0.091,
       "avg_return_when_stopped": -0.0825,
-      "avg_return_when_not_stopped": null,
+      "avg_return_when_not_stopped": -0.0115,
       "stop_by_vol_bucket": {
         "low_vol": {
-          "n": 2,
+          "n": 5,
           "stop_rate": 0.0,
           "avg_return_when_stopped": null
+        },
+        "med_vol": {
+          "n": 3,
+          "stop_rate": 0.0,
+          "avg_return_when_stopped": null
+        },
+        "high_vol": {
+          "n": 3,
+          "stop_rate": 0.333,
+          "avg_return_when_stopped": -0.0825
         }
       }
     }
   },
   "ml_models": {},
   "stop_analysis": {
-    "status": "insufficient_data",
-    "n": 4,
-    "message": "Need at least 5 completed trades for stop analysis."
+    "n_outcomes": 11,
+    "n_stops": 1,
+    "suggestions": [],
+    "warnings": []
   },
   "portfolio_analytics": {
-    "n_days": 9,
+    "n_days": 15,
     "start_value": 99872.84,
-    "current_value": 101535.28,
-    "total_return": 0.0166,
-    "annualized_return_approx": 0.5876,
-    "daily_sharpe_annualized": 4.763,
-    "max_drawdown": -0.0082,
-    "daily_returns_mean": 0.00209,
-    "daily_returns_std": 0.00697
+    "current_value": 98367.87,
+    "total_return": -0.0151,
+    "annualized_return_approx": -0.2251,
+    "daily_sharpe_annualized": -2.345,
+    "max_drawdown": -0.0312,
+    "daily_returns_mean": -0.00106,
+    "daily_returns_std": 0.00716
   },
   "parameter_suggestions": [],
   "warnings": [],
-  "next_milestone": "Phase 2 ML begins in ~58 trading days (~2 months). Collect more entry/exit decisions and completed trade outcomes."
+  "next_milestone": "Phase 2 ML begins in ~18 trading days (~0 months). Collect more entry/exit decisions and completed trade outcomes."
 }

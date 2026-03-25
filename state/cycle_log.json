@@ -60,12 +60,12 @@
   {
     "cycle": 2,
     "start_date": "2026-03-20",
-    "end_date": null,
-    "status": "active",
+    "end_date": "2026-03-23",
+    "status": "closed",
     "portfolio_start": 99256.79,
-    "portfolio_end": null,
+    "portfolio_end": 98346.68,
     "spy_start": 6506.48,
-    "spy_end": null,
+    "spy_end": 6599.78,
     "positions": [
       "JNJ",
       "XOM",
@@ -76,16 +76,82 @@
       "XOM",
       "MU"
     ],
-    "hydra_return": null,
-    "spy_return": null,
-    "alpha": null,
+    "hydra_return": -2.06,
+    "spy_return": 1.43,
+    "alpha": -3.49,
     "stop_events": [],
-    "positions_detail": [],
+    "positions_detail": [
+      {
+        "symbol": "JNJ",
+        "entry_price": 235.37,
+        "exit_price": 235.62,
+        "pnl_pct": 0.11,
+        "exit_reason": "hold_expired",
+        "sector": "Healthcare",
+        "days_held": 39
+      },
+      {
+        "symbol": "XOM",
+        "entry_price": 159.67,
+        "exit_price": 160.62,
+        "pnl_pct": 0.59,
+        "exit_reason": "hold_expired",
+        "sector": "Energy",
+        "days_held": 39
+      },
+      {
+        "symbol": "MU",
+        "entry_price": 422.9,
+        "exit_price": 406.03,
+        "pnl_pct": -3.99,
+        "exit_reason": "hold_expired",
+        "sector": "Technology",
+        "days_held": 39
+      }
+    ],
     "sector_breakdown": {
       "Healthcare": 1,
       "Energy": 1,
       "Technology": 1
     },
+    "exits_by_reason": {
+      "rotation": 3
+    },
+    "cycle_return_pct": -0.92,
+    "spy_return_pct": 1.43,
+    "alpha_pct": -2.35
+  },
+  {
+    "cycle": 3,
+    "start_date": "2026-03-23",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 98346.68,
+    "portfolio_end": null,
+    "spy_start": 6599.78,
+    "spy_end": null,
+    "positions": [
+      "GLD",
+      "DBC",
+      "EFA",
+      "JNJ",
+      "XOM",
+      "WMT"
+    ],
+    "positions_current": [
+      "GLD",
+      "DBC",
+      "EFA",
+      "JNJ",
+      "XOM",
+      "WMT"
+    ],
+    "hydra_return": null,
+    "spy_return": null,
+    "alpha": null,
+    "stop_events": [],
+    "positions_detail": [],
+    "sector_breakdown": {},
     "exits_by_reason": {},
     "cycle_return_pct": null,
     "spy_return_pct": null,
