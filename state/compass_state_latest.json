@@ -1,6 +1,6 @@
 {
   "version": "8.4",
-  "timestamp": "2026-03-24T19:10:00.028658",
+  "timestamp": "2026-03-25T07:47:47.419604",
   "cash": 23538.387279998766,
   "peak_value": 100068.7645111084,
   "portfolio_value": 98876.74822665405,
@@ -10,11 +10,12 @@
     99999.67457580566,
     99371.93670257568,
     98477.98931724549,
-    98367.86747409057
+    98367.86747409057,
+    98876.74822665405
   ],
-  "current_regime_score": 0.4258641273695651,
-  "trading_day_counter": 45,
-  "last_trading_date": "2026-03-24",
+  "current_regime_score": 0.4157840637900317,
+  "trading_day_counter": 46,
+  "last_trading_date": "2026-03-25",
   "positions": {
     "GLD": {
       "shares": 24.0,
@@ -44,7 +45,7 @@
   "position_meta": {
     "GLD": {
       "entry_price": 405.1300048828125,
-      "entry_date": "2026-03-24",
+      "entry_date": "2026-03-23",
       "entry_day_index": 43,
       "original_entry_day_index": 43,
       "high_price": 407.1325988769531,
@@ -56,7 +57,7 @@
     },
     "DBC": {
       "entry_price": 27.65999984741211,
-      "entry_date": "2026-03-24",
+      "entry_date": "2026-03-23",
       "entry_day_index": 43,
       "original_entry_day_index": 43,
       "high_price": 28.389999389648438,
@@ -80,7 +81,7 @@
     },
     "JNJ": {
       "entry_price": 235.4199981689453,
-      "entry_date": "2026-03-24",
+      "entry_date": "2026-03-23",
       "entry_day_index": 43,
       "original_entry_day_index": 43,
       "high_price": 236.3300018310547,
@@ -93,7 +94,7 @@
     },
     "XOM": {
       "entry_price": 161.1300048828125,
-      "entry_date": "2026-03-24",
+      "entry_date": "2026-03-23",
       "entry_day_index": 43,
       "original_entry_day_index": 43,
       "high_price": 167.4499969482422,
@@ -106,7 +107,7 @@
     },
     "WMT": {
       "entry_price": 120.72000122070312,
-      "entry_date": "2026-03-24",
+      "entry_date": "2026-03-23",
       "entry_day_index": 43,
       "original_entry_day_index": 43,
       "high_price": 124.08000183105469,
@@ -162,8 +163,8 @@
   ],
   "universe_year": 2026,
   "_universe_source": "github",
-  "_daily_open_done": true,
-  "_preclose_entries_done": true,
+  "_daily_open_done": false,
+  "_preclose_entries_done": false,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
@@ -197,7 +198,7 @@
     "available": true,
     "rattle_positions": [],
     "rattle_regime": "RISK_OFF",
-    "vix_current": 26.149999618530273,
+    "vix_current": 26.950000762939453,
     "efa_position": null,
     "catalyst_positions": [
       {
@@ -217,16 +218,16 @@
     ],
     "catalyst_day_counter": 1,
     "capital_manager": {
-      "compass_account": 41231.38341993895,
-      "rattle_account": 32701.32966602934,
+      "compass_account": 41574.85824030351,
+      "rattle_account": 32967.78894590569,
       "catalyst_account": 14969.409953613282,
       "base_compass_alloc": 0.425,
       "base_rattle_alloc": 0.425,
       "base_catalyst_alloc": 0.15,
       "max_compass_alloc": 0.75,
-      "total_recycled_days": 15,
-      "total_days": 15,
-      "efa_value": 8721.439666748047
+      "total_recycled_days": 16,
+      "total_days": 16,
+      "efa_value": 8669.569694519043
     }
   },
   "_pre_rotation_positions_data": {
@@ -236,7 +237,7 @@
       "entry_price": 405.1300048828125,
       "sector": "Catalyst (trend+gold)",
       "entry_day_index": 43,
-      "entry_date": "2026-03-24"
+      "entry_date": "2026-03-23"
     },
     "DBC": {
       "shares": 180.0,
@@ -244,7 +245,7 @@
       "entry_price": 27.65999984741211,
       "sector": "Catalyst (trend)",
       "entry_day_index": 43,
-      "entry_date": "2026-03-24"
+      "entry_date": "2026-03-23"
     },
     "EFA": {
       "shares": 91.0,
@@ -256,35 +257,35 @@
     },
     "JNJ": {
       "shares": 118,
-      "avg_cost": 235.6199951171875,
-      "entry_price": 235.6199951171875,
+      "avg_cost": 235.4199981689453,
+      "entry_price": 235.4199981689453,
       "sector": "Healthcare",
       "entry_day_index": 43,
-      "entry_date": "2026-03-24"
+      "entry_date": "2026-03-23"
     },
     "XOM": {
       "shares": 92,
-      "avg_cost": 160.6199951171875,
-      "entry_price": 160.6199951171875,
+      "avg_cost": 161.1300048828125,
+      "entry_price": 161.1300048828125,
       "sector": "Energy",
       "entry_day_index": 43,
-      "entry_date": "2026-03-24"
+      "entry_date": "2026-03-23"
     },
     "WMT": {
       "shares": 73,
-      "avg_cost": 120.44999694824219,
-      "entry_price": 120.44999694824219,
+      "avg_cost": 120.72000122070312,
+      "entry_price": 120.72000122070312,
       "sector": "Consumer",
       "entry_day_index": 43,
-      "entry_date": "2026-03-24"
+      "entry_date": "2026-03-23"
     }
   },
   "_pre_rotation_cash": 23538.387279998766,
-  "_pre_rotation_value": 98367.86747409057,
+  "_pre_rotation_value": 98876.74822665405,
   "stats": {
     "cycles_completed": 2,
-    "engine_iterations": 152,
-    "uptime_minutes": 3091.4979784166667
+    "engine_iterations": 154,
+    "uptime_minutes": 3849.2878272000003
   },
   "ml_error_counts": {
     "entry": 0,
