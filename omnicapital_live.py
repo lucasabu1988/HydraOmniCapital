@@ -235,6 +235,32 @@ CONFIG = {
     'STATE_SAVE_INTERVAL': 300,  # 5 min
 }
 
+# US market holidays (NYSE/NASDAQ closed) — update annually
+US_MARKET_HOLIDAYS = {
+    # 2026
+    date(2026, 1, 1),   # New Year's Day
+    date(2026, 1, 19),  # MLK Day
+    date(2026, 2, 16),  # Presidents' Day
+    date(2026, 4, 3),   # Good Friday
+    date(2026, 5, 25),  # Memorial Day
+    date(2026, 6, 19),  # Juneteenth
+    date(2026, 7, 3),   # Independence Day (observed)
+    date(2026, 9, 7),   # Labor Day
+    date(2026, 11, 26), # Thanksgiving
+    date(2026, 12, 25), # Christmas
+    # 2027 (cover full year ahead)
+    date(2027, 1, 1),   # New Year's Day
+    date(2027, 1, 18),  # MLK Day
+    date(2027, 2, 15),  # Presidents' Day
+    date(2027, 3, 26),  # Good Friday
+    date(2027, 5, 31),  # Memorial Day
+    date(2027, 6, 18),  # Juneteenth (observed Fri)
+    date(2027, 7, 5),   # Independence Day (observed Mon)
+    date(2027, 9, 6),   # Labor Day
+    date(2027, 11, 25), # Thanksgiving
+    date(2027, 12, 24), # Christmas (observed Fri)
+}
+
 # EFA Third Pillar (HYDRA: idle cash → international developed markets)
 EFA_SYMBOL = 'EFA'
 EFA_SMA_PERIOD = 200
@@ -1030,24 +1056,26 @@ class COMPASSLive:
 
     def _get_trading_date_str(self) -> str:
         d = self.get_et_now().date()
-        wd = d.weekday()
-        if wd == 5:      # Saturday -> next Monday
-            d += timedelta(days=2)
-        elif wd == 6:    # Sunday -> next Monday
+        while d.weekday() >= 5 or d in US_MARKET_HOLIDAYS:
             d += timedelta(days=1)
         return d.isoformat()
 
+    def is_market_holiday(self, d=None) -> bool:
+        if d is None:
+            d = self.get_et_now().date()
+        return d in US_MARKET_HOLIDAYS
+
     def is_market_open(self) -> bool:
-        """Check if US market is currently open (ET)"""
         now_et = self.get_et_now()
-        if now_et.weekday() >= 5:
+        if now_et.weekday() >= 5 or self.is_market_holiday(now_et.date()):
             return False
         current_time = now_et.time()
         return self.config['MARKET_OPEN'] <= current_time <= self.config['MARKET_CLOSE']
 
     def is_new_trading_day(self) -> bool:
-        """Check if this is a new trading day"""
         today = self.get_et_now().date()
+        if today.weekday() >= 5 or self.is_market_holiday(today):
+            return False
         return self.last_trading_date is None or today > self.last_trading_date
 
     def _get_price_cache_age_seconds(self):
@@ -2576,7 +2604,7 @@ class COMPASSLive:
         current = last_date + timedelta(days=1)
 
         while current < today:
-            if current.weekday() >= 5:
+            if current.weekday() >= 5 or current in US_MARKET_HOLIDAYS:
                 current += timedelta(days=1)
                 continue
 

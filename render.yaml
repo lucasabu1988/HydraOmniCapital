@@ -6,7 +6,7 @@ services:
     plan: starter
     region: oregon
     buildCommand: pip install -r requirements-cloud.txt
-    startCommand: gunicorn compass_dashboard_cloud:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --preload
+    startCommand: gunicorn compass_dashboard_cloud:app --bind 0.0.0.0:$PORT --workers 2 --timeout 240 --preload
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
