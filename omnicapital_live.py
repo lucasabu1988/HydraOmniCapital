@@ -1028,6 +1028,15 @@ class COMPASSLive:
         """Get current time in Eastern Time"""
         return datetime.now(self.et_tz)
 
+    def _get_trading_date_str(self) -> str:
+        d = self.get_et_now().date()
+        wd = d.weekday()
+        if wd == 5:      # Saturday -> next Monday
+            d += timedelta(days=2)
+        elif wd == 6:    # Sunday -> next Monday
+            d += timedelta(days=1)
+        return d.isoformat()
+
     def is_market_open(self) -> bool:
         """Check if US market is currently open (ET)"""
         now_et = self.get_et_now()
@@ -1895,7 +1904,7 @@ class COMPASSLive:
 
                 self.position_meta[symbol] = {
                     'entry_price': result.filled_price,
-                    'entry_date': self.get_et_now().date().isoformat(),
+                    'entry_date': self._get_trading_date_str(),
                     'entry_day_index': self.trading_day_counter,
                     'original_entry_day_index': self.trading_day_counter,
                     'high_price': result.filled_price,
@@ -2108,7 +2117,7 @@ class COMPASSLive:
                 self.rattle_positions.append({
                     'symbol': symbol,
                     'entry_price': result.filled_price,
-                    'entry_date': self.get_et_now().date().isoformat(),
+                    'entry_date': self._get_trading_date_str(),
                     'shares': shares,
                     'days_held': 0,
                 })
@@ -2247,14 +2256,14 @@ class COMPASSLive:
                         'symbol': sym,
                         'shares': needed,
                         'entry_price': fill_price,
-                        'entry_date': date.today().isoformat(),
+                        'entry_date': self._get_trading_date_str(),
                         'sub_strategy': target['sub_strategy'],
                     })
 
                 # Mark in position_meta
                 self.position_meta[sym] = {
                     'entry_price': fill_price,
-                    'entry_date': date.today().isoformat(),
+                    'entry_date': self._get_trading_date_str(),
                     'entry_day_index': self.trading_day_counter,
                     'original_entry_day_index': self.trading_day_counter,
                     'high_price': fill_price,
@@ -2319,7 +2328,7 @@ class COMPASSLive:
                 meta.get('entry_price'),
                 self._coerce_float(getattr(efa_pos, 'avg_cost', None), efa_price),
             ) or max(efa_price, 0.0)
-            meta['entry_date'] = meta.get('entry_date') or self.get_et_now().date().isoformat()
+            meta['entry_date'] = meta.get('entry_date') or self._get_trading_date_str()
             meta['entry_day_index'] = self._coerce_int(meta.get('entry_day_index'), self.trading_day_counter)
             meta['original_entry_day_index'] = self._coerce_int(
                 meta.get('original_entry_day_index'),
@@ -2428,7 +2437,7 @@ class COMPASSLive:
             logger.info(f"EFA BUY: {shares} shares @ ${result.filled_price:.2f} = ${cost:,.0f}")
             self.position_meta[EFA_SYMBOL] = {
                 'entry_price': result.filled_price,
-                'entry_date': date.today().isoformat(),
+                'entry_date': self._get_trading_date_str(),
                 'entry_day_index': self.trading_day_counter,
                 'original_entry_day_index': self.trading_day_counter,
                 'high_price': result.filled_price,
@@ -3648,7 +3657,7 @@ class COMPASSLive:
 
     def _validate_position_meta(self, meta, positions):
         cleaned = {}
-        today_str = date.today().isoformat()
+        today_str = self._get_trading_date_str()
         for symbol, entry in meta.items():
             if symbol not in positions:
                 # Preserve strategy-flagged entries (may be temporarily out of sync)
@@ -4209,7 +4218,7 @@ class COMPASSLive:
             if self.last_trading_date:
                 entry_date = self.last_trading_date.isoformat()
             else:
-                entry_date = self.get_et_now().date().isoformat()
+                entry_date = self._get_trading_date_str()
 
         defaults = self._build_position_meta_defaults(
             symbol,
