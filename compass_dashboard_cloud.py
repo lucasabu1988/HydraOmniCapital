@@ -2807,7 +2807,9 @@ def api_preflight():
 def api_health():
     state = read_state()
     engine = _engine_snapshot()
-    return jsonify(_build_health_payload(engine, state))
+    payload = _build_health_payload(engine, state)
+    status_code = 503 if payload.get('status') == 'down' else 200
+    return jsonify(payload), status_code
 
 
 @app.route('/api/logs')

@@ -29,7 +29,7 @@ import os
 import threading
 import warnings
 from dataclasses import dataclass, asdict
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -45,6 +45,17 @@ warnings.filterwarnings('ignore', category=DeprecationWarning)
 logger = logging.getLogger("compass.ml")
 
 _ml_write_lock = threading.Lock()
+
+
+def _trading_date_str():
+    d = date.today()
+    wd = d.weekday()
+    if wd == 5:
+        d += timedelta(days=2)
+    elif wd == 6:
+        d += timedelta(days=1)
+    return d.isoformat()
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -546,7 +557,7 @@ class DecisionLogger:
             decision_type="entry",
             timestamp=datetime.now().isoformat(),
             trading_day=trading_day,
-            date=date.today().isoformat(),
+            date=_trading_date_str(),
             symbol=symbol,
             sector=sector,
             regime_score=regime_score,
@@ -643,7 +654,7 @@ class DecisionLogger:
             decision_type="exit",
             timestamp=datetime.now().isoformat(),
             trading_day=trading_day,
-            date=date.today().isoformat(),
+            date=_trading_date_str(),
             symbol=symbol,
             sector=sector,
             regime_score=regime_score,
@@ -704,7 +715,7 @@ class DecisionLogger:
             entry_date=entry_ctx.get("entry_date", (
                 pd.Timestamp.today() - pd.Timedelta(days=days_held)
             ).strftime("%Y-%m-%d")),
-            exit_date=date.today().isoformat(),
+            exit_date=_trading_date_str(),
             trading_days_held=days_held,
             gross_return=gross_return,
             pnl_usd=pnl_usd,
@@ -767,7 +778,7 @@ class DecisionLogger:
             decision_type="skip",
             timestamp=datetime.now().isoformat(),
             trading_day=trading_day,
-            date=date.today().isoformat(),
+            date=_trading_date_str(),
             symbol=symbol,
             sector=sector,
             regime_score=effective_regime_score,
@@ -827,7 +838,7 @@ class DecisionLogger:
             decision_type="hold",
             timestamp=datetime.now().isoformat(),
             trading_day=trading_day,
-            date=date.today().isoformat(),
+            date=_trading_date_str(),
             symbol=symbol,
             sector=sector,
             regime_score=effective_regime_score,
@@ -875,7 +886,7 @@ class DecisionLogger:
             decision_type="regime_change",
             timestamp=datetime.now().isoformat(),
             trading_day=trading_day,
-            date=date.today().isoformat(),
+            date=_trading_date_str(),
             symbol="",
             sector="",
             regime_score=new_score,
@@ -953,7 +964,7 @@ class DecisionLogger:
             daily_pnl_pct = (portfolio_value / prev_portfolio_value) - 1.0
 
         snapshot = DailySnapshot(
-            date=date.today().isoformat(),
+            date=_trading_date_str(),
             trading_day=trading_day,
             portfolio_value=portfolio_value,
             cash=cash,
