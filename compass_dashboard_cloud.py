@@ -310,12 +310,53 @@ _yf_consecutive_failures: int = 0
 _yf_fail_count: int = 0
 _yf_circuit_open_until: float = 0
 
+# Shared price cache file — ensures all gunicorn workers serve identical prices
+_SHARED_PRICE_CACHE_FILE = os.path.join(STATE_DIR, '.price_cache_shared.json')
+
 PRICE_CACHE_SECONDS_NORMAL = 60   # 1 min default
 PRICE_CACHE_SECONDS_BACKOFF = 300  # 5 min after repeated failures
 
 _YF_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 }
+
+
+def _write_shared_price_cache(prices: Dict[str, float], prev_closes: Dict[str, float]):
+    """Write price cache to shared file so all gunicorn workers use identical prices."""
+    try:
+        payload = {
+            'ts': datetime.now().isoformat(),
+            'prices': prices,
+            'prev_closes': prev_closes,
+        }
+        _atomic_write_json_simple(_SHARED_PRICE_CACHE_FILE, payload)
+    except Exception as e:
+        logger.warning('Failed to write shared price cache: %s', e)
+
+
+def _read_shared_price_cache(max_age_seconds: float) -> Optional[dict]:
+    """Read shared price cache if fresh enough. Returns dict with prices/prev_closes or None."""
+    try:
+        if not os.path.exists(_SHARED_PRICE_CACHE_FILE):
+            return None
+        with open(_SHARED_PRICE_CACHE_FILE, 'r') as f:
+            data = json.load(f)
+        ts = datetime.fromisoformat(data['ts'])
+        age = (datetime.now() - ts).total_seconds()
+        if age > max_age_seconds:
+            return None
+        return data
+    except Exception:
+        return None
+
+
+def _atomic_write_json_simple(path, payload):
+    """Minimal atomic JSON write (no tempfile import needed — uses rename)."""
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(payload, f)
+    os.replace(tmp, path)
+
 
 # Yahoo Finance v8 crumb/cookie session (reused across requests)
 _yf_session: Optional['http_requests.Session'] = None
@@ -449,7 +490,7 @@ def _get_yf_consecutive_failures():
 def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
     """Fetch all live prices from Yahoo Finance.
     Returns {symbol: price_float}. Previous closes in _prev_close_cache.
-    Keeps stale prices as fallback if fetch fails."""
+    Uses a shared file cache so all gunicorn workers serve identical prices."""
     global _price_cache, _prev_close_cache, _price_cache_time, _yf_consecutive_failures
 
     if not symbols:
@@ -467,6 +508,20 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
             # DON'T clear cache — keep stale prices as fallback
             missing = symbols
 
+    # Before hitting Yahoo, check if another worker already has fresh prices
+    shared = _read_shared_price_cache(max_age_seconds=cache_ttl)
+    if shared:
+        shared_prices = shared.get('prices', {})
+        shared_prev = shared.get('prev_closes', {})
+        still_missing = [s for s in missing if s not in shared_prices]
+        if not still_missing:
+            with _price_cache_lock:
+                _price_cache.update({s: shared_prices[s] for s in symbols if s in shared_prices})
+                _prev_close_cache.update(shared_prev)
+                _price_cache_time = datetime.fromisoformat(shared['ts'])
+            return {s: _price_cache[s] for s in symbols if s in _price_cache}
+        missing = still_missing
+
     if missing:
         yf_results = _yf_fetch_batch(missing)
         fetch_completed = datetime.now()
@@ -478,6 +533,8 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
                     if 'prev_close' in result:
                         _prev_close_cache[sym] = result['prev_close']
                 _price_cache_time = fetch_completed
+                # Write to shared file so other workers get the same prices
+                _write_shared_price_cache(dict(_price_cache), dict(_prev_close_cache))
             else:
                 _yf_consecutive_failures += 1
                 if _yf_consecutive_failures >= 3:
