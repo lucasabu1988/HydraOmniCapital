@@ -619,13 +619,7 @@ function updatePositions(details) {
     const totalBar = document.getElementById('positions-total-bar');
     currentPositions = {};
 
-    /* Filter: only show momentum positions in Strategy 1 grid.
-       Catalyst/EFA/Rattlesnake have their own display sections. */
-    var momentumDetails = (details || []).filter(function(p) {
-        return !p.strategy || p.strategy === 'momentum';
-    });
-
-    if (!momentumDetails || momentumDetails.length === 0) {
+    if (!details || details.length === 0) {
         grid.innerHTML = '<div class="positions-empty"><div class="positions-empty-icon">&#9671;</div>' + t('strat-no-positions') + '</div>';
         totalBar.style.display = 'none';
         document.getElementById('ph-invested').textContent = '$0';
@@ -635,9 +629,6 @@ function updatePositions(details) {
         document.getElementById('ph-total-pct').className = 'ph-stat-value c-dim';
         return;
     }
-
-    /* Use ALL details for totals (across all strategies) */
-    details = momentumDetails;
 
     let html = '';
     let totalValue = 0;
@@ -651,6 +642,10 @@ function updatePositions(details) {
         totalValue += p.market_value || 0;
         totalPnl += p.pnl_dollar || 0;
         totalCost += (p.entry_price * p.shares) || 0;
+
+        /* Skip non-momentum positions for the card grid —
+           Catalyst/EFA/Rattlesnake have their own display sections */
+        if (p.strategy && p.strategy !== 'momentum') continue;
 
         const isProfit = p.pnl_pct >= 0;
         const cardCls = p.near_stop ? 'pos-near-stop' : (isProfit ? 'pos-profit' : 'pos-loss');
