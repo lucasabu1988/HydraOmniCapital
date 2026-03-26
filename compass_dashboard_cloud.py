@@ -1458,6 +1458,28 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
 
         sector = meta.get('sector', 'Unknown')
 
+        # Classify strategy from hydra sub-system data when position_meta is missing
+        strategy = meta.get('strategy', '')
+        if not strategy:
+            hydra_state = state.get('hydra', {})
+            cat_syms = {cp['symbol']: cp.get('sub_strategy', 'trend')
+                        for cp in hydra_state.get('catalyst_positions', [])}
+            efa_pos = hydra_state.get('efa_position')
+            efa_sym = efa_pos.get('symbol') if isinstance(efa_pos, dict) else None
+            rattle_syms = {rp.get('symbol') for rp in hydra_state.get('rattle_positions', [])}
+
+            if symbol in cat_syms:
+                strategy = 'catalyst'
+                sub = cat_syms[symbol]
+                sector = f'Catalyst ({sub})' if sector == 'Unknown' else sector
+            elif symbol == 'EFA' or symbol == efa_sym:
+                strategy = 'efa'
+                sector = 'International Equity' if sector == 'Unknown' else sector
+            elif symbol in rattle_syms:
+                strategy = 'rattlesnake'
+            else:
+                strategy = 'momentum'
+
         near_stop = False
         if current_price:
             if trailing_stop_level and current_price < trailing_stop_level * 1.01:
@@ -1483,6 +1505,7 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             'entry_date': entry_date,
             'near_stop': near_stop,
             'sector': sector,
+            'strategy': strategy,
         })
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)

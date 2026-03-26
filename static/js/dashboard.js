@@ -619,7 +619,13 @@ function updatePositions(details) {
     const totalBar = document.getElementById('positions-total-bar');
     currentPositions = {};
 
-    if (!details || details.length === 0) {
+    /* Filter: only show momentum positions in Strategy 1 grid.
+       Catalyst/EFA/Rattlesnake have their own display sections. */
+    var momentumDetails = (details || []).filter(function(p) {
+        return !p.strategy || p.strategy === 'momentum';
+    });
+
+    if (!momentumDetails || momentumDetails.length === 0) {
         grid.innerHTML = '<div class="positions-empty"><div class="positions-empty-icon">&#9671;</div>' + t('strat-no-positions') + '</div>';
         totalBar.style.display = 'none';
         document.getElementById('ph-invested').textContent = '$0';
@@ -629,6 +635,9 @@ function updatePositions(details) {
         document.getElementById('ph-total-pct').className = 'ph-stat-value c-dim';
         return;
     }
+
+    /* Use ALL details for totals (across all strategies) */
+    details = momentumDetails;
 
     let html = '';
     let totalValue = 0;
