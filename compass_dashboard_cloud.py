@@ -1489,6 +1489,34 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
     return results
 
 
+def _get_previous_day_portfolio_value() -> Optional[float]:
+    """Read the most recent PRIOR-day state file for yesterday's portfolio value.
+    Used as fallback when portfolio_values_history is empty (e.g. after cloud restart)."""
+    try:
+        today_str = date.today().strftime('%Y%m%d')
+        pattern = os.path.join(STATE_DIR, 'compass_state_2*.json')
+        state_files = sorted(
+            (f for f in glob.glob(pattern)
+             if 'pre_rotation' not in f and 'latest' not in f),
+            reverse=True
+        )
+        for sf in state_files:
+            basename = os.path.basename(sf)
+            # Extract date from filename: compass_state_YYYYMMDD.json
+            file_date = basename.replace('compass_state_', '').replace('.json', '')
+            if file_date >= today_str:
+                continue  # Skip today's file, we want yesterday's
+            with open(sf, 'r') as f:
+                s = json.load(f)
+            val = s.get('portfolio_value')
+            if val and val > 0:
+                return float(val)
+        return None
+    except Exception as e:
+        logger.warning("_get_previous_day_portfolio_value failed: %s", e, exc_info=True)
+        return None
+
+
 def get_spy_start_price() -> Optional[float]:
     """Get SPY price at live test start. Tries cycle_log first cycle,
     then falls back to current ^GSPC price (for fresh start / reset)."""
@@ -1791,7 +1819,13 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         yesterday_value = pv_hist[-1]
         daily_return = round((portfolio_value - yesterday_value) / yesterday_value * 100, 2)
     else:
-        daily_return = None
+        # Fallback: read yesterday's state file for prior-day portfolio value
+        # (handles cloud restarts where portfolio_values_history is lost)
+        yesterday_value = _get_previous_day_portfolio_value()
+        if yesterday_value and yesterday_value > 0 and portfolio_value > 0:
+            daily_return = round((portfolio_value - yesterday_value) / yesterday_value * 100, 2)
+        else:
+            daily_return = None
 
     # Don't show SPY benchmark until HYDRA has actual positions
     if not positions:
