@@ -643,10 +643,6 @@ function updatePositions(details) {
         totalPnl += p.pnl_dollar || 0;
         totalCost += (p.entry_price * p.shares) || 0;
 
-        /* Skip non-momentum positions for the card grid —
-           Catalyst/EFA/Rattlesnake have their own display sections */
-        if (p.strategy && p.strategy !== 'momentum') continue;
-
         const isProfit = p.pnl_pct >= 0;
         const cardCls = p.near_stop ? 'pos-near-stop' : (isProfit ? 'pos-profit' : 'pos-loss');
 
