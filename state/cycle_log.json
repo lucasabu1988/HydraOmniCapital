@@ -124,12 +124,12 @@
   {
     "cycle": 3,
     "start_date": "2026-03-23",
-    "end_date": null,
-    "status": "active",
+    "end_date": "2026-03-26",
+    "status": "closed",
     "portfolio_start": 98346.68,
-    "portfolio_end": null,
+    "portfolio_end": NaN,
     "spy_start": 6599.78,
-    "spy_end": null,
+    "spy_end": 6542.62,
     "positions": [
       "GLD",
       "DBC",
@@ -145,6 +145,106 @@
       "JNJ",
       "XOM",
       "WMT"
+    ],
+    "hydra_return": 0.15,
+    "spy_return": -0.87,
+    "alpha": 1.02,
+    "stop_events": [],
+    "positions_detail": [
+      {
+        "symbol": "GLD",
+        "entry_price": 405.13,
+        "exit_price": 416.29,
+        "pnl_pct": 2.75,
+        "exit_reason": "carried_forward",
+        "sector": "Catalyst (trend+gold)",
+        "days_held": 5
+      },
+      {
+        "symbol": "DBC",
+        "entry_price": 27.66,
+        "exit_price": 28.17,
+        "pnl_pct": 1.84,
+        "exit_reason": "carried_forward",
+        "sector": "Catalyst (trend)",
+        "days_held": 5
+      },
+      {
+        "symbol": "EFA",
+        "entry_price": 98.1,
+        "exit_price": 96.66,
+        "pnl_pct": -1.47,
+        "exit_reason": "carried_forward",
+        "sector": "International Equity",
+        "days_held": 1
+      },
+      {
+        "symbol": "JNJ",
+        "entry_price": 235.42,
+        "exit_price": 240.52,
+        "pnl_pct": 2.17,
+        "exit_reason": "hold_expired",
+        "sector": "Healthcare",
+        "days_held": 5
+      },
+      {
+        "symbol": "XOM",
+        "entry_price": 161.13,
+        "exit_price": 164.37,
+        "pnl_pct": 2.01,
+        "exit_reason": "hold_expired",
+        "sector": "Energy",
+        "days_held": 5
+      },
+      {
+        "symbol": "WMT",
+        "entry_price": 120.72,
+        "exit_price": 123.33,
+        "pnl_pct": 2.16,
+        "exit_reason": "hold_expired",
+        "sector": "Consumer",
+        "days_held": 5
+      }
+    ],
+    "sector_breakdown": {
+      "Catalyst (trend+gold)": 1,
+      "Catalyst (trend)": 1,
+      "International Equity": 1,
+      "Healthcare": 1,
+      "Energy": 1,
+      "Consumer": 1
+    },
+    "exits_by_reason": {
+      "rotation": 3
+    },
+    "cycle_return_pct": NaN,
+    "spy_return_pct": -0.87,
+    "alpha_pct": NaN
+  },
+  {
+    "cycle": 4,
+    "start_date": "2026-03-26",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": NaN,
+    "portfolio_end": null,
+    "spy_start": 6542.62,
+    "spy_end": null,
+    "positions": [
+      "GLD",
+      "DBC",
+      "EFA",
+      "JNJ",
+      "XOM",
+      "GEV"
+    ],
+    "positions_current": [
+      "GLD",
+      "DBC",
+      "EFA",
+      "JNJ",
+      "XOM",
+      "GEV"
     ],
     "hydra_return": null,
     "spy_return": null,
