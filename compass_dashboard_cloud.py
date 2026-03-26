@@ -1398,12 +1398,16 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
         shares = pos_data.get('shares', 0)
         current_price = prices.get(symbol, entry_price)
 
-        # If position was opened today, use entry_price to avoid phantom PnL
-        # from after-hours last_price vs MOC fill price mismatch
+        # If position was opened today AND market hasn't opened yet,
+        # use entry_price to avoid phantom PnL from after-hours prices.
+        # During market hours, show real live prices.
         if entry_date:
             try:
-                today_et = datetime.now(ZoneInfo('America/New_York')).date()
-                if date.fromisoformat(entry_date) == today_et:
+                ET = ZoneInfo('America/New_York')
+                now_et = datetime.now(ET)
+                today_et = now_et.date()
+                market_open = (now_et.weekday() < 5 and now_et.time() >= dtime(9, 30))
+                if date.fromisoformat(entry_date) == today_et and not market_open:
                     current_price = entry_price
             except Exception as e:
                 logger.warning(f"compute_position_details failed: {e}")
@@ -1745,10 +1749,14 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
         meta = position_meta.get(sym, {})
         entry_date = _snap_weekend_to_monday(meta.get('entry_date', ''))
         entry_price = meta.get('entry_price', pos.get('avg_cost', 0))
-        # Use entry_price on entry day to avoid phantom PnL from after-hours prices
+        # Use entry_price on entry day only before market open (pre-market)
+        # During market hours, use live prices even on entry day
         if entry_date:
             try:
-                if date.fromisoformat(entry_date) == today_et:
+                ET = ZoneInfo('America/New_York')
+                now_et = datetime.now(ET)
+                market_open = (now_et.weekday() < 5 and now_et.time() >= dtime(9, 30))
+                if date.fromisoformat(entry_date) == today_et and not market_open:
                     price = entry_price
                 else:
                     price = prices.get(sym, entry_price)
