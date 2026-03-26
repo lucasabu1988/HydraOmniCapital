@@ -410,28 +410,37 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
     results = {}
 
     # Try v7 batch quote first (single request for all symbols)
+    # Include regularMarketTime to detect stale prices
     session, crumb = _yf_get_session()
     if session and crumb:
         try:
             url = 'https://query2.finance.yahoo.com/v7/finance/quote'
             params = {
                 'symbols': ','.join(symbols),
-                'fields': 'regularMarketPrice,regularMarketPreviousClose,symbol',
+                'fields': 'regularMarketPrice,regularMarketPreviousClose,regularMarketTime,symbol',
                 'crumb': crumb,
             }
             r = session.get(url, params=params, timeout=15)
             if r.status_code == 200:
                 data = r.json()
+                v7_stale = False
                 for quote in data.get('quoteResponse', {}).get('result', []):
                     sym = quote.get('symbol')
                     price = quote.get('regularMarketPrice')
                     prev = quote.get('regularMarketPreviousClose')
+                    mkt_time = quote.get('regularMarketTime', 0)
                     if sym and price and price > 0:
+                        # Check freshness: reject if market time is >6h old
+                        if mkt_time and (time_module.time() - mkt_time) > 21600:
+                            v7_stale = True
                         out = {'price': float(price)}
                         if prev and prev > 0:
                             out['prev_close'] = float(prev)
                         results[sym] = out
-                if results:
+                if v7_stale:
+                    logger.warning('Yahoo Finance v7 returned stale prices (market time >6h old), falling through to v8')
+                    results = {}
+                elif results:
                     return results
             elif r.status_code in (401, 403):
                 # Crumb expired, reset session for next call
