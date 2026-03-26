@@ -170,7 +170,8 @@ class TestRefreshConstituents:
     def test_all_fail_uses_fallback(self):
         with patch('compass.sp500_universe.fetch_from_github', side_effect=Exception("down")), \
              patch('compass.sp500_universe.fetch_from_wikipedia', side_effect=Exception("down")), \
-             patch('compass.sp500_universe.load_cached', return_value=None):
+             patch('compass.sp500_universe.load_cached', return_value=None), \
+             patch('compass.sp500_universe.os.path.dirname', return_value=tempfile.mkdtemp()):
             tickers, source = refresh_constituents(FALLBACK)
         assert tickers == FALLBACK
         assert source == 'fallback'

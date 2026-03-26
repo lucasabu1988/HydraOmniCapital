@@ -346,7 +346,8 @@ def _read_shared_price_cache(max_age_seconds: float) -> Optional[dict]:
         if age > max_age_seconds:
             return None
         return data
-    except Exception:
+    except Exception as e:
+        logger.warning('Failed to read shared price cache: %s', e)
         return None
 
 

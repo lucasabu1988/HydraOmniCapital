@@ -10,6 +10,18 @@ import omnicapital_live as live
 from omnicapital_broker import Position
 
 
+def _recent_weekday_pair():
+    """Return (previous_weekday, current_weekday) within 7 days of today."""
+    today = date.today()
+    current = today
+    while current.weekday() >= 5:
+        current -= timedelta(days=1)
+    previous = current - timedelta(days=1)
+    while previous.weekday() >= 5:
+        previous -= timedelta(days=1)
+    return previous, current
+
+
 class MutableFeed:
     def __init__(self, prices=None):
         self.prices = dict(prices or {})
@@ -25,9 +37,10 @@ class MutableFeed:
 
 
 def build_meta(symbol, entry_price, day_index, sector):
+    _, current_wd = _recent_weekday_pair()
     return {
         'entry_price': entry_price,
-        'entry_date': '2026-03-16',
+        'entry_date': current_wd.isoformat(),
         'entry_day_index': day_index,
         'original_entry_day_index': day_index,
         'high_price': entry_price,
@@ -87,11 +100,12 @@ def seed_positions(trader):
 
 
 def test_restart_restores_mid_cycle_state_without_double_trading(engine_factory, monkeypatch):
+    _, current_wd = _recent_weekday_pair()
     prices = {'AAPL': 151.0, 'MSFT': 202.0, 'JNJ': 150.0, 'SPY': 505.0}
     first_engine = engine_factory(prices)
     seed_positions(first_engine)
     first_engine.trading_day_counter = 3
-    first_engine.last_trading_date = date(2026, 3, 16)
+    first_engine.last_trading_date = current_wd
     first_engine._daily_open_done = True
     first_engine._preclose_entries_done = True
     first_engine.save_state()
@@ -105,7 +119,7 @@ def test_restart_restores_mid_cycle_state_without_double_trading(engine_factory,
     assert restarted._daily_open_done is True
     assert restarted._preclose_entries_done is True
 
-    fixed_now = datetime(2026, 3, 16, 15, 35, tzinfo=restarted.et_tz)
+    fixed_now = datetime(current_wd.year, current_wd.month, current_wd.day, 15, 35, tzinfo=restarted.et_tz)
     restarted.get_et_now = lambda: fixed_now
     restarted.is_market_open = lambda: True
     restarted.is_preclose_window = lambda: True
@@ -131,11 +145,12 @@ def test_restart_restores_mid_cycle_state_without_double_trading(engine_factory,
 
 
 def test_restart_calls_daily_open_when_previous_day_state_was_incomplete(engine_factory):
+    previous_wd, current_wd = _recent_weekday_pair()
     prices = {'AAPL': 151.0, 'MSFT': 202.0, 'JNJ': 150.0, 'SPY': 505.0}
     first_engine = engine_factory(prices)
     seed_positions(first_engine)
     first_engine.trading_day_counter = 3
-    first_engine.last_trading_date = date(2026, 3, 15)
+    first_engine.last_trading_date = previous_wd
     first_engine._daily_open_done = False
     first_engine._preclose_entries_done = False
     first_engine.save_state()
@@ -143,7 +158,7 @@ def test_restart_calls_daily_open_when_previous_day_state_was_incomplete(engine_
     restarted = engine_factory(prices)
     restarted.load_state()
 
-    fixed_now = datetime(2026, 3, 16, 10, 0, tzinfo=restarted.et_tz)
+    fixed_now = datetime(current_wd.year, current_wd.month, current_wd.day, 10, 0, tzinfo=restarted.et_tz)
     restarted.get_et_now = lambda: fixed_now
     restarted.is_market_open = lambda: True
     restarted.is_preclose_window = lambda: False
@@ -172,4 +187,4 @@ def test_restart_calls_daily_open_when_previous_day_state_was_incomplete(engine_
     assert open_calls == ['daily_open']
     assert logic_calls == ['execute_trading_logic']
     assert restarted.trading_day_counter == 4
-    assert restarted.last_trading_date == date(2026, 3, 16)
+    assert restarted.last_trading_date == current_wd

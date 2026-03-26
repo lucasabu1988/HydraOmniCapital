@@ -2,6 +2,7 @@ import sys
 from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -13,6 +14,7 @@ import omnicapital_live as live
 def make_engine():
     engine = object.__new__(live.COMPASSLive)
     engine.position_meta = {}
+    engine.et_tz = ZoneInfo('America/New_York')
     return engine
 
 
@@ -134,7 +136,7 @@ class TestValidatePositionMeta:
         meta = {
             'AAPL': {
                 'entry_price': 150.0,
-                'entry_date': '2026-03-01',
+                'entry_date': '2026-03-02',
                 'sector': 'Technology',
                 'entry_vol': 0.25,
                 'entry_daily_vol': 0.02,
@@ -143,7 +145,7 @@ class TestValidatePositionMeta:
         positions = {'AAPL': MagicMock()}
         result = engine._validate_position_meta(meta, positions)
         assert result['AAPL']['entry_price'] == 150.0
-        assert result['AAPL']['entry_date'] == '2026-03-01'
+        assert result['AAPL']['entry_date'] == '2026-03-02'
         assert result['AAPL']['sector'] == 'Technology'
         assert result['AAPL']['entry_vol'] == 0.25
         assert result['AAPL']['entry_daily_vol'] == 0.02

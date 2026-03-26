@@ -1183,7 +1183,7 @@ def test_api_health_returns_down_when_engine_is_not_running_during_market_hours(
 
     response = client.get('/api/health')
 
-    assert response.status_code == 200
+    assert response.status_code == 503
     payload = response.get_json()
     assert payload['status'] == 'down'
     assert payload['engine_alive'] is False
@@ -1310,7 +1310,7 @@ def test_api_health_reports_down_when_shared_runtime_status_is_stale(client, mon
 
     response = client.get('/api/health')
 
-    assert response.status_code == 200
+    assert response.status_code == 503
     payload = response.get_json()
     assert payload['status'] == 'down'
     assert payload['engine_alive'] is False
