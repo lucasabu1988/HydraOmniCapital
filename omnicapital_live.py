@@ -441,6 +441,26 @@ class DataValidator:
 
 
 # ============================================================================
+# UTILITIES
+# ============================================================================
+
+def _sanitize_nan(obj):
+    """Replace float NaN/Inf with None in nested dicts/lists (in-place)."""
+    if isinstance(obj, list):
+        for i, v in enumerate(obj):
+            if isinstance(v, float) and not math.isfinite(v):
+                obj[i] = None
+            elif isinstance(v, (dict, list)):
+                _sanitize_nan(v)
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, float) and not math.isfinite(v):
+                obj[k] = None
+            elif isinstance(v, (dict, list)):
+                _sanitize_nan(v)
+
+
+# ============================================================================
 # COMPASS v8.4 SIGNAL FUNCTIONS
 # ============================================================================
 
@@ -3446,11 +3466,13 @@ class COMPASSLive:
         new_cycle_opened = self._append_cycle_log_entry(cycles, new_cycle_entry)
 
         # Save (atomic write to prevent corruption on crash)
+        # Sanitize NaN/Inf → None (NaN is invalid JSON, breaks JS parsers)
+        _sanitize_nan(cycles)
         os.makedirs('state', exist_ok=True)
         try:
             fd, tmp_path = tempfile.mkstemp(dir='state', suffix='.json.tmp')
             with os.fdopen(fd, 'w') as fp:
-                json.dump(cycles, fp, indent=2)
+                json.dump(cycles, fp, indent=2, allow_nan=False)
             os.replace(tmp_path, log_file)
         except Exception as e:
             logger.error(f"Atomic cycle log write failed: {e}")

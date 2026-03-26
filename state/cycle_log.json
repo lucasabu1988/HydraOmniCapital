@@ -127,7 +127,7 @@
     "end_date": "2026-03-26",
     "status": "closed",
     "portfolio_start": 98346.68,
-    "portfolio_end": NaN,
+    "portfolio_end": 99126.29,
     "spy_start": 6599.78,
     "spy_end": 6542.62,
     "positions": [
@@ -217,16 +217,16 @@
     "exits_by_reason": {
       "rotation": 3
     },
-    "cycle_return_pct": NaN,
+    "cycle_return_pct": 0.79,
     "spy_return_pct": -0.87,
-    "alpha_pct": NaN
+    "alpha_pct": 1.66
   },
   {
     "cycle": 4,
     "start_date": "2026-03-26",
     "end_date": null,
     "status": "active",
-    "portfolio_start": NaN,
+    "portfolio_start": 99126.29,
     "portfolio_end": null,
     "spy_start": 6542.62,
     "spy_end": null,
