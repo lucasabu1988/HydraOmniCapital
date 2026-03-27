@@ -1382,12 +1382,13 @@ def read_recent_logs(max_lines: int = 50) -> List[dict]:
 # DERIVED CALCULATIONS
 # ============================================================================
 
-def compute_position_details(state: dict, prices: Dict[str, float] = None) -> List[dict]:
+def compute_position_details(state: dict, prices: Dict[str, float] = None, prev_closes: Dict[str, float] = None) -> List[dict]:
     """Compute enriched position data for display."""
     positions = state.get('positions', {})
     position_meta = state.get('position_meta', {})
     trading_day = state.get('trading_day_counter', 0)
     prices = prices or {}
+    prev_closes = prev_closes or {}
 
     results = []
     for symbol, pos_data in positions.items():
@@ -1511,6 +1512,7 @@ def compute_position_details(state: dict, prices: Dict[str, float] = None) -> Li
             'near_stop': near_stop,
             'sector': sector,
             'strategy': strategy,
+            'prev_close': prev_closes.get(symbol),
         })
 
     results.sort(key=lambda x: x['pnl_pct'], reverse=True)
@@ -2155,7 +2157,7 @@ def api_state():
         symbols = list(set(symbols))
         prices = fetch_live_prices(symbols)
 
-        position_details = compute_position_details(state, prices)
+        position_details = compute_position_details(state, prices, _prev_close_cache)
         portfolio = compute_portfolio_metrics(state, prices)
 
         # HYDRA: Rattlesnake + Cash Recycling data
