@@ -1840,26 +1840,19 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     # HYDRA cumulative return (since live test start)
     cumulative_return = round(total_return * 100, 2)
 
-    # HYDRA daily return (current portfolio vs yesterday's close value)
-    # On day 1 (started today), daily == cumulative since there's no prior day
-    pv_hist = state.get('portfolio_values_history', [])
-    live_start = date.fromisoformat(LIVE_TEST_START_DATE)
-    live_days = sum(1 for d in range((date.today() - live_start).days + 1)
-                    if (live_start + timedelta(days=d)).weekday() < 5)
-    if live_days <= 1:
-        # Day 1: daily return equals cumulative (both from initial capital)
-        daily_return = cumulative_return
-    elif len(pv_hist) >= 1 and portfolio_value > 0:
-        yesterday_value = pv_hist[-1]
-        daily_return = round((portfolio_value - yesterday_value) / yesterday_value * 100, 2)
-    else:
-        # Fallback: read yesterday's state file for prior-day portfolio value
-        # (handles cloud restarts where portfolio_values_history is lost)
-        yesterday_value = _get_previous_day_portfolio_value()
-        if yesterday_value and yesterday_value > 0 and portfolio_value > 0:
-            daily_return = round((portfolio_value - yesterday_value) / yesterday_value * 100, 2)
+    # HYDRA daily return: reconstruct yesterday's portfolio from prev_closes
+    # (robust to cloud restarts — does not depend on portfolio_values_history)
+    prev_close_portfolio = cash
+    for sym, pos in positions.items():
+        pc = _prev_close_cache.get(sym)
+        if pc and pc > 0:
+            prev_close_portfolio += pos.get('shares', 0) * pc
         else:
-            daily_return = None
+            prev_close_portfolio += pos.get('shares', 0) * pos.get('avg_cost', 0)
+    if prev_close_portfolio > 0 and portfolio_value > 0:
+        daily_return = round((portfolio_value - prev_close_portfolio) / prev_close_portfolio * 100, 2)
+    else:
+        daily_return = 0.0
 
     # Don't show SPY benchmark until HYDRA has actual positions
     if not positions:
