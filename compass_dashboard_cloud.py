@@ -1840,6 +1840,11 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
     # HYDRA cumulative return (since live test start)
     cumulative_return = round(total_return * 100, 2)
 
+    # Trading days elapsed (used for display)
+    live_start = date.fromisoformat(LIVE_TEST_START_DATE)
+    live_days = sum(1 for d in range((date.today() - live_start).days + 1)
+                    if (live_start + timedelta(days=d)).weekday() < 5)
+
     # HYDRA daily return: reconstruct yesterday's portfolio from prev_closes
     # (robust to cloud restarts — does not depend on portfolio_values_history)
     prev_close_portfolio = cash
