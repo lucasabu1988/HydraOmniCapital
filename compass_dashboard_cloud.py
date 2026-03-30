@@ -2328,31 +2328,47 @@ def api_live_chart():
     fetches SPY data from yfinance. Both series are indexed
     to 100 on the start date for easy visual comparison.
     """
-    # 1. Read all dated state files for HYDRA daily values
+    # 1. Read HYDRA daily values — baseline file first, then state files overlay
+    #    The baseline contains pre-computed history that survives Render deploys.
+    #    State files from the running engine overlay (and may update) recent dates.
+    baseline_path = os.path.join(STATE_DIR, 'live_chart_baseline.json')
+    hydra_data = {}  # date_str -> portfolio_value
+    first_value = None
+    if os.path.exists(baseline_path):
+        try:
+            with open(baseline_path, 'r') as f:
+                bl = json.load(f)
+            initial = bl.get('initial_capital', HYDRA_CONFIG['INITIAL_CAPITAL'])
+            for dt, val in zip(bl.get('dates', []), bl.get('values', [])):
+                hydra_data[dt] = val
+            first_value = initial
+        except Exception as e:
+            logger.warning(f"api_live_chart baseline read failed: {e}")
+
     pattern = os.path.join(STATE_DIR, 'compass_state_2*.json')
     state_files = sorted(f for f in glob.glob(pattern)
                          if 'pre_rotation' not in f and 'latest' not in f)
 
-    if not state_files:
+    if not state_files and not hydra_data:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
-    hydra_data = {}  # date_str -> portfolio_value
-    first_value = None
+    # State files overlay: update/add dates from engine's own state files
     for sf in state_files:
         try:
             with open(sf, 'r') as f:
                 s = json.load(f)
             dt = s.get('last_trading_date')
             val = s.get('portfolio_value')
-            if dt and val:
+            if dt and val and val > 0:
                 hydra_data[dt] = val
-                if first_value is None:
-                    first_value = val
         except Exception as e:
             logger.warning(f"api_live_chart failed: {e}")
             continue
 
-    if not hydra_data or first_value is None:
+    if first_value is None:
+        first_value = HYDRA_CONFIG['INITIAL_CAPITAL']
+
+    if not hydra_data:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
     # Add today's live value from latest state, recalculated with live prices
