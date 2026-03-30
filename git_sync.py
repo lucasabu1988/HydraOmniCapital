@@ -175,6 +175,60 @@ def _ensure_worker():
     return True
 
 
+def _update_live_chart_baseline():
+    """Update the live_chart_baseline.json with current state file data.
+
+    Reads all dated state files, builds a clean timeline, and writes
+    the baseline so the cloud live-chart survives Render deploys.
+    """
+    import json, glob
+    baseline_path = os.path.join(_repo_dir, 'state', 'live_chart_baseline.json')
+    try:
+        # Read existing baseline
+        existing = {}
+        if os.path.exists(baseline_path):
+            with open(baseline_path, 'r') as f:
+                bl = json.load(f)
+            for dt, val in zip(bl.get('dates', []), bl.get('values', [])):
+                existing[dt] = val
+
+        # Overlay with current state files
+        pattern = os.path.join(_repo_dir, 'state', 'compass_state_2*.json')
+        for sf in sorted(glob.glob(pattern)):
+            if 'pre_rotation' in sf or 'latest' in sf:
+                continue
+            try:
+                with open(sf, 'r') as f:
+                    s = json.load(f)
+                dt = s.get('last_trading_date')
+                val = s.get('portfolio_value')
+                if dt and val and val > 0:
+                    existing[dt] = val
+            except Exception:
+                continue
+
+        if not existing:
+            return None
+
+        dates = sorted(existing.keys())
+        values = [existing[d] for d in dates]
+        payload = {
+            'dates': dates,
+            'values': values,
+            'initial_capital': 100000.0,
+            'note': f'Auto-updated {datetime.now().strftime("%Y-%m-%d %H:%M")} by git_sync'
+        }
+        tmp = baseline_path + '.tmp'
+        with open(tmp, 'w') as f:
+            json.dump(payload, f, indent=2)
+        os.replace(tmp, baseline_path)
+        logger.debug(f"live_chart_baseline updated: {len(dates)} dates")
+        return baseline_path
+    except Exception as e:
+        logger.warning(f"Failed to update live_chart_baseline: {e}")
+        return None
+
+
 def git_sync_async(state_file: str, latest_file: str):
     """Queue a git sync operation. Non-blocking. Called from save_state().
 
@@ -187,6 +241,11 @@ def git_sync_async(state_file: str, latest_file: str):
         return
 
     files = [state_file, latest_file]
+
+    # Update live chart baseline so cloud chart survives deploys
+    baseline = _update_live_chart_baseline()
+    if baseline:
+        files.append(baseline)
 
     # Normalize to forward slashes (git on Windows)
     files = list(set(f.replace('\\', '/') for f in files))
@@ -215,6 +274,11 @@ def git_sync_rotation(cycle_num: int, hydra_return: float, status: str):
     dated_state = f'state/compass_state_{today}.json'
     if os.path.exists(os.path.join(_repo_dir, dated_state)):
         files.append(dated_state)
+
+    # Update live chart baseline
+    baseline = _update_live_chart_baseline()
+    if baseline:
+        files.append(baseline)
 
     files = list(set(f.replace('\\', '/') for f in files))
 
