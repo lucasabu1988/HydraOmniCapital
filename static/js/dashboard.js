@@ -2916,17 +2916,20 @@ function renderLiveCompChart(data) {
 
     var isDark = document.body.classList.contains('dark');
     var dates = data.dates;
-    var hydra = data.hydra.map(function(v) { return +(v - 100).toFixed(2); });
+    var rawHydra = data.hydra || data.compass;
+    if (!rawHydra) return;
+    var hydra = rawHydra.map(function(v) { return +(v - 100).toFixed(2); });
     var spy = data.spy.map(function(v) { return +(v - 100).toFixed(2); });
 
-    // Day labels: Día 1, Día 2, ...
-    var dayLabels = dates.map(function(_, i) { return (i + 1); });
+    // Day labels: 1, 2, 3 ... (trading days since inception)
+    var tradingDays = dates.length - 1; // first point is baseline (day 0)
+    var dayLabels = dates.map(function(_, i) { return String(i); });
 
     // Subtitle: "Día N · dd/mm/yyyy – dd/mm/yyyy"
     var sub = document.getElementById('live-perf-subtitle');
     if (sub) {
         var fmtDate = function(s) { var p = s.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
-        sub.textContent = (t('ml-trading-days') || 'Día') + ': ' + dates.length + ' \u00b7 ' +
+        sub.textContent = (t('ml-trading-days') || 'Día') + ': ' + tradingDays + ' \u00b7 ' +
             fmtDate(dates[0]) + ' \u2013 ' + fmtDate(dates[dates.length - 1]);
     }
 
