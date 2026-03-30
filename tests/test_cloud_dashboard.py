@@ -301,6 +301,57 @@ def test_api_state_includes_offline_data_freshness_when_engine_is_down(client, m
     assert payload['_data_freshness']['engine_alive'] is False
 
 
+@pytest.mark.parametrize("weekend_time", [
+    datetime(2026, 3, 29, 14, 0),  # Sunday 2pm ET
+    datetime(2026, 3, 28, 10, 0),  # Saturday 10am ET
+    datetime(2026, 3, 31, 8, 0),   # Monday pre-market 8am ET
+])
+def test_daily_return_zero_outside_market_hours_cloud(weekend_time, monkeypatch):
+    """HYDRA daily_return MUST be 0.0 outside market hours, matching SPY behavior.
+
+    Regression: without the market_has_opened_today gate, HYDRA daily_return
+    showed stale Friday returns on weekends while SPY showed 0%, causing
+    visible oscillation between gunicorn workers with different prev_close caches.
+    """
+    state = make_state()
+    prices = {'AAPL': 110.0, 'SPY': 570.0, '^GSPC': 5700.0}
+    # Populate prev_close_cache so the ungated code WOULD compute a non-zero return
+    monkeypatch.setattr(dashboard, '_prev_close_cache', {'AAPL': 100.0, '^GSPC': 5650.0})
+
+    from zoneinfo import ZoneInfo
+    ET = ZoneInfo('America/New_York')
+    fake_now = weekend_time.replace(tzinfo=ET)
+    monkeypatch.setattr(dashboard, 'datetime',
+                        type('FakeDT', (datetime,), {'now': classmethod(lambda cls, tz=None: fake_now)}))
+
+    metrics = dashboard.compute_portfolio_metrics(state, prices)
+
+    assert metrics['daily_return'] == 0.0, (
+        f"HYDRA daily_return must be 0.0 outside market hours (got {metrics['daily_return']})"
+    )
+    assert metrics['spy_daily_return'] == 0.0, (
+        f"SPY daily_return must be 0.0 outside market hours (got {metrics['spy_daily_return']})"
+    )
+
+
+def test_daily_return_nonzero_during_market_hours(monkeypatch):
+    """During market hours, daily_return should reflect actual price changes."""
+    state = make_state()
+    prices = {'AAPL': 110.0, 'SPY': 570.0, '^GSPC': 5700.0}
+    monkeypatch.setattr(dashboard, '_prev_close_cache', {'AAPL': 100.0, '^GSPC': 5650.0})
+
+    from zoneinfo import ZoneInfo
+    ET = ZoneInfo('America/New_York')
+    # Monday 11am ET — market is open
+    fake_now = datetime(2026, 3, 30, 11, 0, tzinfo=ET)
+    monkeypatch.setattr(dashboard, 'datetime',
+                        type('FakeDT', (datetime,), {'now': classmethod(lambda cls, tz=None: fake_now)}))
+
+    metrics = dashboard.compute_portfolio_metrics(state, prices)
+
+    assert metrics['daily_return'] != 0.0, "HYDRA daily_return should be non-zero during market hours"
+
+
 def test_compute_portfolio_metrics_exposes_dd_leverage_top_level():
     state = make_state()
     state['dd_leverage'] = 0.6
