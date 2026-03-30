@@ -2407,13 +2407,18 @@ def api_live_chart():
         except Exception as e:
             logger.warning(f"api_live_chart failed: {e}")
 
-    # Use live S&P 500 index price for today (from TradingView)
+    # Use live S&P 500 price for today — but ONLY if we have a spy_first
+    # from the same source (yfinance). Mixing yfinance historical with
+    # live Yahoo v8 prices corrupts the indexing (different price scales
+    # if yfinance downloaded SPY ETF but live returns ^GSPC index).
     today_str = date.today().strftime('%Y-%m-%d')
-    if today_str in [d for d in dates]:
+    if today_str in [d for d in dates] and spy_data:
         try:
-            live_spy = fetch_live_prices(['^GSPC'])
-            if '^GSPC' in live_spy:
-                spy_data[today_str] = live_spy['^GSPC']
+            # Use the same symbol that yfinance downloaded
+            dl_sym = 'SPY' if max(spy_data.values()) < 1000 else '^GSPC'
+            live_spy = fetch_live_prices([dl_sym])
+            if dl_sym in live_spy:
+                spy_data[today_str] = live_spy[dl_sym]
         except Exception as e:
             logger.warning(f"api_live_chart failed: {e}")
 
