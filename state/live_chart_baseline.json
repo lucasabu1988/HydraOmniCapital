@@ -2,6 +2,9 @@
   "dates": [
     "2026-03-17",
     "2026-03-18",
+    "2026-03-19",
+    "2026-03-20",
+    "2026-03-21",
     "2026-03-23",
     "2026-03-24",
     "2026-03-25",
@@ -12,6 +15,9 @@
   "values": [
     99781.17,
     99429.06,
+    99385.99,
+    99342.92,
+    99299.86,
     99256.79,
     98367.87,
     98876.75,
@@ -20,5 +26,5 @@
     100522.96
   ],
   "initial_capital": 100000.0,
-  "note": "Pre-computed baseline for cloud live-chart (days 19-21 excluded: engine restarts with no real trades)"
+  "note": "Days 19-21 Mar interpolated linearly between 18-Mar ($99429) and 23-Mar ($99257)"
 }
