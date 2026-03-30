@@ -2895,10 +2895,161 @@ function renderAnnualReturns(data, positiveYears, totalYears) {
     });
 }
 
+/* ============ LIVE COMPARISON CHART (HYDRA vs S&P 500, %) ============ */
+var _liveCompChart = null;
+async function fetchLiveCompChart() {
+    try {
+        var res = await fetch('/api/live-chart');
+        if (!res.ok) return;
+        var data = await res.json();
+        renderLiveCompChart(data);
+    } catch (e) { /* silent */ }
+}
+
+function renderLiveCompChart(data) {
+    var canvas = document.getElementById('liveCompChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (!data.dates || data.dates.length < 2) {
+        document.getElementById('live-perf-section').style.display = 'none';
+        return;
+    }
+
+    var isDark = document.body.classList.contains('dark');
+    var dates = data.dates;
+    var hydra = data.hydra.map(function(v) { return +(v - 100).toFixed(2); });
+    var spy = data.spy.map(function(v) { return +(v - 100).toFixed(2); });
+
+    // Day labels: Día 1, Día 2, ...
+    var dayLabels = dates.map(function(_, i) { return (i + 1); });
+
+    // Subtitle: "Día N · dd/mm/yyyy – dd/mm/yyyy"
+    var sub = document.getElementById('live-perf-subtitle');
+    if (sub) {
+        var fmtDate = function(s) { var p = s.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
+        sub.textContent = (t('ml-trading-days') || 'Día') + ': ' + dates.length + ' \u00b7 ' +
+            fmtDate(dates[0]) + ' \u2013 ' + fmtDate(dates[dates.length - 1]);
+    }
+
+    var greenLine = isDark ? '#4ade80' : '#16a34a';
+    var greenFill = isDark ? 'rgba(34,197,94,0.12)' : 'rgba(22,163,74,0.08)';
+    var blueLine = isDark ? 'rgba(56,189,248,0.7)' : 'rgba(14,165,233,0.6)';
+    var blueFill = isDark ? 'rgba(56,189,248,0.06)' : 'rgba(14,165,233,0.04)';
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    var tickColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+    var zeroColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)';
+
+    if (_liveCompChart) _liveCompChart.destroy();
+    _liveCompChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: dayLabels,
+            datasets: [
+                {
+                    label: 'HYDRA',
+                    data: hydra,
+                    borderColor: greenLine,
+                    borderWidth: 2.5,
+                    fill: true,
+                    backgroundColor: greenFill,
+                    pointRadius: dates.length <= 30 ? 4 : 0,
+                    pointBackgroundColor: greenLine,
+                    pointBorderColor: isDark ? '#1a1a2e' : '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                },
+                {
+                    label: 'S&P 500',
+                    data: spy,
+                    borderColor: blueLine,
+                    borderWidth: 1.8,
+                    borderDash: [6, 3],
+                    fill: true,
+                    backgroundColor: blueFill,
+                    pointRadius: dates.length <= 30 ? 3 : 0,
+                    pointBackgroundColor: blueLine,
+                    pointBorderColor: isDark ? '#1a1a2e' : '#fff',
+                    pointBorderWidth: 1.5,
+                    pointHoverRadius: 5,
+                    tension: 0.25,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(20, 20, 40, 0.95)',
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    borderWidth: 1,
+                    titleFont: { family: "'Inter', sans-serif", size: 12, weight: '600' },
+                    bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+                    displayColors: true,
+                    callbacks: {
+                        title: function(items) {
+                            var idx = items[0].dataIndex;
+                            var d = dates[idx];
+                            var p = d.split('-');
+                            return 'Día ' + (idx + 1) + '  \u00b7  ' + p[2] + '/' + p[1] + '/' + p[0];
+                        },
+                        label: function(ctx) {
+                            var sign = ctx.parsed.y >= 0 ? '+' : '';
+                            return ' ' + ctx.dataset.label + ':  ' + sign + ctx.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                },
+                annotation: {
+                    annotations: {
+                        zeroLine: {
+                            type: 'line',
+                            yMin: 0, yMax: 0,
+                            borderColor: zeroColor,
+                            borderWidth: 1,
+                            borderDash: [4, 4],
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: tickColor,
+                        font: { family: "'JetBrains Mono', monospace", size: 10 },
+                        callback: function(val) { return val; }
+                    },
+                    grid: { color: gridColor },
+                    border: { color: gridColor },
+                    title: {
+                        display: true,
+                        text: 'Día de Trading',
+                        color: tickColor,
+                        font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
+                    },
+                },
+                y: {
+                    ticks: {
+                        color: tickColor,
+                        font: { family: "'JetBrains Mono', monospace", size: 10 },
+                        callback: function(v) {
+                            return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+                        }
+                    },
+                    grid: { color: gridColor },
+                    border: { color: gridColor },
+                }
+            }
+        }
+    });
+}
+
 /* ============ INIT ============ */
 document.addEventListener('DOMContentLoaded', function() {
     fetchEquityData();
     fetchAnnualReturns();
+    fetchLiveCompChart();
     fetchAll();
     fetchCycleLog();
     fetchRiskData();

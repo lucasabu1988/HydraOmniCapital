@@ -938,6 +938,72 @@ details.regime-band .collapse-arrow { font-size: 0.55rem; color: var(--text-mute
 }
 
 
+/* ============ LIVE PERFORMANCE CHART (HYDRA vs S&P 500 %) ============ */
+.live-perf-chart-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 10px;
+    padding: 16px 20px 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-md), var(--glass-inset);
+}
+body.dark .live-perf-chart-card {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4), var(--glass-inset);
+    border-color: rgba(14, 165, 233, 0.10);
+    background: var(--bg-card);
+}
+.live-perf-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.live-perf-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-primary);
+}
+.live-perf-subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+.live-perf-legend {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.live-perf-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.live-perf-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.live-perf-dot-hydra { background: var(--green); }
+.live-perf-dot-spy { background: var(--accent); opacity: 0.7; }
+.live-perf-canvas-wrap {
+    position: relative;
+    height: 200px;
+}
+@media (max-width: 700px) {
+    .live-perf-canvas-wrap { height: 160px; }
+    .live-perf-chart-card { padding: 12px 14px 10px; }
+}
+
 /* ============ PERFORMANCE vs SPY — HERO BANNER ============ */
 .perf-banner {
     background: var(--glass-bg);
