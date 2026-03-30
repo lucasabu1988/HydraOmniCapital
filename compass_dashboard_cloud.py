@@ -1847,17 +1847,23 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
 
     # HYDRA daily return: reconstruct yesterday's portfolio from prev_closes
     # (robust to cloud restarts — does not depend on portfolio_values_history)
-    prev_close_portfolio = cash
-    for sym, pos in positions.items():
-        pc = _prev_close_cache.get(sym)
-        if pc and pc > 0:
-            prev_close_portfolio += pos.get('shares', 0) * pc
-        else:
-            prev_close_portfolio += pos.get('shares', 0) * pos.get('avg_cost', 0)
-    if prev_close_portfolio > 0 and portfolio_value > 0:
-        daily_return = round((portfolio_value - prev_close_portfolio) / prev_close_portfolio * 100, 2)
-    else:
+    # Gate with market_has_opened_today to match SPY — avoids showing stale
+    # Friday return on weekends and prevents worker cache divergence from
+    # causing visible oscillation between live and prev_close values.
+    if not market_has_opened_today:
         daily_return = 0.0
+    else:
+        prev_close_portfolio = cash
+        for sym, pos in positions.items():
+            pc = _prev_close_cache.get(sym)
+            if pc and pc > 0:
+                prev_close_portfolio += pos.get('shares', 0) * pc
+            else:
+                prev_close_portfolio += pos.get('shares', 0) * pos.get('avg_cost', 0)
+        if prev_close_portfolio > 0 and portfolio_value > 0:
+            daily_return = round((portfolio_value - prev_close_portfolio) / prev_close_portfolio * 100, 2)
+        else:
+            daily_return = 0.0
 
     # Don't show SPY benchmark until HYDRA has actual positions
     if not positions:

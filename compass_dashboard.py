@@ -1098,24 +1098,33 @@ def _compute_portfolio_metrics_impl(state: dict, prices: Dict[str, float]) -> di
         spy_cumulative = None
 
     # Daily returns: today's change vs previous close (resets to 0% each morning)
-    prev_close_portfolio = cash
-    for sym, pos in positions.items():
-        pc = _prev_close_cache.get(sym)
-        if pc:
-            prev_close_portfolio += pos.get('shares', 0) * pc
-        else:
-            prev_close_portfolio += pos.get('shares', 0) * pos.get('avg_cost', 0)
+    # Gate with market hours to avoid showing stale data on weekends/pre-market
+    ET = ZoneInfo('America/New_York')
+    now_et = datetime.now(ET)
+    market_has_opened_today = (now_et.weekday() < 5 and now_et.time() >= dtime(9, 30))
 
-    if prev_close_portfolio > 0:
-        daily_return = round((portfolio_value - prev_close_portfolio) / prev_close_portfolio * 100, 2)
-    else:
+    if not market_has_opened_today:
         daily_return = 0.0
-
-    spy_prev_close = _prev_close_cache.get('SPY')
-    if spy_current and spy_prev_close and spy_prev_close > 0:
-        spy_daily_return = round((spy_current - spy_prev_close) / spy_prev_close * 100, 2)
+        spy_daily_return = 0.0
     else:
-        spy_daily_return = None
+        prev_close_portfolio = cash
+        for sym, pos in positions.items():
+            pc = _prev_close_cache.get(sym)
+            if pc:
+                prev_close_portfolio += pos.get('shares', 0) * pc
+            else:
+                prev_close_portfolio += pos.get('shares', 0) * pos.get('avg_cost', 0)
+
+        if prev_close_portfolio > 0:
+            daily_return = round((portfolio_value - prev_close_portfolio) / prev_close_portfolio * 100, 2)
+        else:
+            daily_return = 0.0
+
+        spy_prev_close = _prev_close_cache.get('SPY')
+        if spy_current and spy_prev_close and spy_prev_close > 0:
+            spy_daily_return = round((spy_current - spy_prev_close) / spy_prev_close * 100, 2)
+        else:
+            spy_daily_return = None
 
     trading_days_elapsed = _compute_real_trading_day(state)
 
