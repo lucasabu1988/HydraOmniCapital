@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-04-01T10:34:33.844834",
+  "timestamp": "2026-04-01T10:39:49.865167",
   "cash": 41209.92714852904,
   "peak_value": 101925.29667825316,
-  "portfolio_value": 101777.2275559387,
+  "portfolio_value": 101848.70704049681,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000,
@@ -48,7 +48,7 @@
       "entry_date": "2026-03-23",
       "entry_day_index": 43,
       "original_entry_day_index": 43,
-      "high_price": 438.864990234375,
+      "high_price": 439.2149963378906,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "Catalyst (trend+gold)",
@@ -72,7 +72,7 @@
       "entry_date": "2026-03-26",
       "entry_day_index": 47,
       "original_entry_day_index": 47,
-      "high_price": 98.87999725341797,
+      "high_price": 98.98999786376953,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "International Equity",
@@ -241,8 +241,8 @@
   "_pre_rotation_value": 101233.07763833617,
   "stats": {
     "cycles_completed": 3,
-    "engine_iterations": 25,
-    "uptime_minutes": 162.26239978333334
+    "engine_iterations": 26,
+    "uptime_minutes": 167.52940595
   },
   "ml_error_counts": {
     "entry": 0,
