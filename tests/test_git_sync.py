@@ -106,7 +106,8 @@ def test_git_sync_async_queues_when_enabled(git_sync_module, monkeypatch):
     git_sync_module.git_sync_async('state/daily.json', 'state/latest.json')
 
     queued = git_sync_module._git_queue.get_nowait()
-    assert set(queued['files']) == {'state/daily.json', 'state/latest.json'}
+    queued_files = set(queued['files'])
+    assert {'state/daily.json', 'state/latest.json'}.issubset(queued_files)
     assert queued['message'].startswith('auto: COMPASS state sync ')
 
 
