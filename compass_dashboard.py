@@ -1091,7 +1091,7 @@ def _compute_portfolio_metrics_impl(state: dict, prices: Dict[str, float]) -> di
 
     # SPY benchmark return over same live test period (cumulative)
     spy_start = get_spy_start_price()
-    spy_current = prices.get('SPY')
+    spy_current = prices.get('^GSPC')
     if spy_start and spy_current and spy_start > 0:
         spy_cumulative = round((spy_current - spy_start) / spy_start * 100, 2)
     else:
@@ -1540,7 +1540,7 @@ def api_cycle_log():
 
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
-            symbols = list(positions.keys()) + ['SPY']
+            symbols = list(positions.keys()) + ['^GSPC']
             prices = fetch_live_prices(symbols)
 
             # Holdings-only return: compare stock picks vs SPY (no cash dilution)
@@ -1563,7 +1563,7 @@ def api_cycle_log():
                 c['hydra_return'] = round((invested_now / invested_at_cost - 1) * 100, 2)
 
             # SPY return over same period (from cycle start)
-            spy_price = prices.get('SPY') if market_is_open else (_prev_close_cache.get('SPY') or prices.get('SPY'))
+            spy_price = prices.get('^GSPC') if market_is_open else (_prev_close_cache.get('^GSPC') or prices.get('^GSPC'))
             spy_start = c.get('spy_start')
             if spy_price and spy_start and spy_start > 0:
                 c['spy_end'] = round(spy_price, 2)

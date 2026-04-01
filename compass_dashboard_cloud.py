@@ -3297,6 +3297,8 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
                          f"La API de Claude no esta configurada (`ANTHROPIC_API_KEY`). "
                          f"El analisis automatico se activara cuando se configure la clave.\n\n"
                          f"---\n*{now_str}*")
+            else:
+                logger.warning("Backtest interpretation API call returned None — keeping stale file")
             if bt_md:
                 tmp = bt_path + '.tmp'
                 with open(tmp, 'w', encoding='utf-8') as f:
@@ -3317,6 +3319,8 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
                            f"Hay **{len(live_decisions)}** decisiones registradas, listas para analizar "
                            f"cuando se configure la clave.\n\n"
                            f"---\n*{now_str}*")
+            else:
+                logger.warning("Live interpretation API call returned None — keeping stale file")
             if live_md:
                 tmp = live_path + '.tmp'
                 with open(tmp, 'w', encoding='utf-8') as f:

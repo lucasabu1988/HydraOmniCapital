@@ -3415,7 +3415,8 @@ class COMPASSLive:
         if close_portfolio_value is None:
             # Last resort: use current broker portfolio value
             close_portfolio_value = self.broker.cash + sum(
-                p.shares * getattr(p, 'avg_cost', 0) for p in self.broker.positions.values()
+                p.shares * (p.market_price or getattr(p, 'avg_cost', 0))
+                for p in self.broker.positions.values()
             )
             logger.error("Both reconstruction and pre-rotation snapshot failed, using broker value")
 
