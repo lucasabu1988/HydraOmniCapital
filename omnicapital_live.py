@@ -3410,8 +3410,14 @@ class COMPASSLive:
         close_portfolio_value = self._reconstruct_close_portfolio(pre_rot_positions, pre_rot_cash)
         if close_portfolio_value is None:
             # Fallback: use the pre-rotation snapshot (less accurate but better than nothing)
-            close_portfolio_value = self._pre_rotation_value
+            close_portfolio_value = getattr(self, '_pre_rotation_value', None)
             logger.warning("Could not reconstruct close portfolio, using pre-rotation snapshot")
+        if close_portfolio_value is None:
+            # Last resort: use current broker portfolio value
+            close_portfolio_value = self.broker.cash + sum(
+                p.shares * getattr(p, 'avg_cost', 0) for p in self.broker.positions.values()
+            )
+            logger.error("Both reconstruction and pre-rotation snapshot failed, using broker value")
 
         # SPY close price (today's close — same timing as position closes)
         if getattr(self, '_recovery_mode', False) and getattr(self, '_recovery_spy_close', None) is not None:

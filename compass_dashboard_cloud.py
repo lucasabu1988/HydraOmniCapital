@@ -1039,7 +1039,7 @@ def _build_health_payload(engine, state):
     else:
         overall_status = 'degraded'
 
-    git_sync_enabled = bool(os.environ.get('GIT_TOKEN'))
+    git_sync_enabled = False  # Always disabled on cloud — state persists via Render disk
     cycles_completed, engine_iterations = _health_cycle_counts(state, engine)
     crash_count = int(engine.get('crash_count') or 0)
     last_crash_at = _coerce_health_timestamp(engine.get('last_crash_at'))
@@ -2283,7 +2283,7 @@ def api_cycle_log():
             # Current holdings from state
             positions = state.get('positions', {})
             position_meta = state.get('position_meta', {})
-            symbols = list(positions.keys()) + ['SPY']
+            symbols = list(positions.keys()) + ['^GSPC']
             prices = fetch_live_prices(symbols)
 
             # Sync positions_current with actual state holdings
@@ -2305,8 +2305,8 @@ def api_cycle_log():
             if invested_at_cost > 0:
                 c['hydra_return'] = round((invested_now / invested_at_cost - 1) * 100, 2)
 
-            # SPY ETF return over same period
-            spy_price = prices.get('SPY')
+            # S&P 500 index return over same period (spy_start is ^GSPC, not SPY ETF)
+            spy_price = prices.get('^GSPC')
             spy_start = c.get('spy_start')
             if spy_price and spy_start and spy_start > 0:
                 c['spy_end'] = round(spy_price, 2)
@@ -3292,6 +3292,12 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
             bt_md = _generate_backtest_interpretation(bt_stats)
             if bt_md:
                 bt_md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza semanalmente.*'
+            elif not _HAS_ANTHROPIC:
+                bt_md = (f"### Analisis de Backtest No Disponible\n\n"
+                         f"La API de Claude no esta configurada (`ANTHROPIC_API_KEY`). "
+                         f"El analisis automatico se activara cuando se configure la clave.\n\n"
+                         f"---\n*{now_str}*")
+            if bt_md:
                 tmp = bt_path + '.tmp'
                 with open(tmp, 'w', encoding='utf-8') as f:
                     f.write(bt_md)
@@ -3305,6 +3311,13 @@ def _maybe_regenerate_interpretation(ml_dir, entries, insights, bt_stats=None):
             live_md = _generate_live_interpretation(entries, cycle_data)
             if live_md:
                 live_md += f'\n\n---\n*Generado por Claude el {now_str}. Se actualiza al cierre de cada ciclo.*'
+            elif not _HAS_ANTHROPIC:
+                live_md = (f"### Analisis Live No Disponible\n\n"
+                           f"La API de Claude no esta configurada (`ANTHROPIC_API_KEY`). "
+                           f"Hay **{len(live_decisions)}** decisiones registradas, listas para analizar "
+                           f"cuando se configure la clave.\n\n"
+                           f"---\n*{now_str}*")
+            if live_md:
                 tmp = live_path + '.tmp'
                 with open(tmp, 'w', encoding='utf-8') as f:
                     f.write(live_md)

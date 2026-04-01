@@ -2368,7 +2368,8 @@ function renderP2PScatter(positions) {
     legendEl.innerHTML = legendHtml;
 
     // Chart data — X: Return %, Y: Days Held, Size: Market Value
-    var maxMv = Math.max.apply(null, positions.map(function(p) { return p.market_value || 1; }));
+    var mvValues = positions.map(function(p) { return p.market_value || 1; });
+    var maxMv = mvValues.length > 0 ? Math.max.apply(null, mvValues) : 1;
     var dataPoints = positions.map(function(p) {
         var sc = getSectorColor(p.sector);
         var radius = Math.max(10, Math.min(32, 10 + ((p.market_value || 0) / maxMv) * 22));
@@ -3077,6 +3078,7 @@ document.addEventListener('DOMContentLoaded', function() {
             countdownSec = Math.max(0, countdownSec - 1);
             document.getElementById('countdown').textContent = countdownSec;
         }, 1000));
+        _pollTimers.push(setInterval(updateMarketTimer, 1000));
     }
     function _stopPolling() {
         _pollTimers.forEach(function(id) { clearInterval(id); });
@@ -3136,7 +3138,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     updateMarketTimer();
-    setInterval(updateMarketTimer, 1000);
 });
 
 /* ============ EXPERIMENT ANALYSIS PANEL ============ */
