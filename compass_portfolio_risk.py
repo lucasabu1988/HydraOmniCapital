@@ -59,8 +59,8 @@ def compute_portfolio_risk(state, prices, hist_data):
         if not isinstance(pos_data, dict):
             continue
         shares = _coerce_price(pos_data.get('shares'), 0.0)
-        avg_cost = _coerce_price(pos_data.get('avg_cost'), 0.0)
-        price = _coerce_price(prices.get(symbol), avg_cost)
+        entry_price = _coerce_price(position_meta.get(symbol, {}).get('entry_price') or pos_data.get('avg_cost'), 0.0)
+        price = _coerce_price(prices.get(symbol), entry_price)
         market_value = max(0.0, shares * price)
         if market_value <= 0:
             continue

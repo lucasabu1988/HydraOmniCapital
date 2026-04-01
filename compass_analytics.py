@@ -157,7 +157,7 @@ def _render_weights_tab():
                 break
 
         shares_data = {sym: pos.get("shares", 0) for sym, pos in positions.items()}
-        costs = {sym: pos.get("avg_cost", 100) for sym, pos in positions.items()}
+        costs = {sym: position_meta.get(sym, {}).get("entry_price", pos.get("avg_cost", 100)) for sym, pos in positions.items()}
         values = {sym: shares_data[sym] * costs[sym] for sym in symbols}
         total = sum(values.values()) or 1
         weight_pct = {sym: v / total for sym, v in values.items()}
@@ -194,13 +194,14 @@ def _render_risk_tab():
             state = json.load(f)
 
         positions = state.get("positions", {})
+        position_meta = state.get("position_meta", {})
         if not positions:
             return _card("Risk Decomposition", [html.P("No active positions", style={"color": MUTED})])
 
         symbols = list(positions.keys())
 
         from compass_riskfolio import compute_risk_contribution
-        costs = {sym: positions[sym].get("avg_cost", 100) for sym in symbols}
+        costs = {sym: position_meta.get(sym, {}).get("entry_price", positions[sym].get("avg_cost", 100)) for sym in symbols}
         shares = {sym: positions[sym].get("shares", 0) for sym in symbols}
         values = {sym: shares[sym] * costs[sym] for sym in symbols}
         total = sum(values.values()) or 1

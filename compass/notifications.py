@@ -730,14 +730,14 @@ class TelegramCommandHandler:
             for sym in positions:
                 pos = positions[sym]
                 shares = getattr(pos, 'shares', 0)
-                avg_cost = getattr(pos, 'avg_cost', 0)
+                entry_price = meta.get(sym, {}).get('entry_price', getattr(pos, 'avg_cost', 0))
                 try:
                     ticker = yf.Ticker(sym)
                     price = ticker.fast_info.get('lastPrice', 0) or ticker.fast_info.get('previousClose', 0)
                 except Exception:
-                    price = avg_cost
-                pnl_pct = ((price - avg_cost) / avg_cost * 100) if avg_cost > 0 else 0
-                pnl_dollar = (price - avg_cost) * shares
+                    price = entry_price
+                pnl_pct = ((price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+                pnl_dollar = (price - entry_price) * shares
                 icon = "🟢" if pnl_pct >= 0 else "🔴"
                 lines.append(f"{icon} {sym}: ${price:.2f} ({pnl_pct:+.1f}%) ${pnl_dollar:+,.0f}")
             self._notifier._send_message('\n'.join(lines))
@@ -751,18 +751,19 @@ class TelegramCommandHandler:
         try:
             import yfinance as yf
             positions = self.engine.broker.positions
+            meta = getattr(self.engine, 'position_meta', {})
             cash = self.engine.broker.cash
             total_cost = 0
             total_market = 0
             for sym, pos in positions.items():
                 shares = getattr(pos, 'shares', 0)
-                avg_cost = getattr(pos, 'avg_cost', 0)
+                entry_price = meta.get(sym, {}).get('entry_price', getattr(pos, 'avg_cost', 0))
                 try:
                     ticker = yf.Ticker(sym)
                     price = ticker.fast_info.get('lastPrice', 0) or ticker.fast_info.get('previousClose', 0)
                 except Exception:
-                    price = avg_cost
-                total_cost += avg_cost * shares
+                    price = entry_price
+                total_cost += entry_price * shares
                 total_market += price * shares
             portfolio_value = total_market + cash
             initial = 100000.0

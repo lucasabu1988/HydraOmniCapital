@@ -404,7 +404,7 @@ class HydraToolExecutor:
             results = []
             for sym, pos in positions.items():
                 meta = position_meta.get(sym, {})
-                entry_price = getattr(pos, 'avg_cost', meta.get('entry_price', 0))
+                entry_price = meta.get('entry_price', getattr(pos, 'avg_cost', 0))
                 current_price = getattr(pos, 'market_price', entry_price)
                 high_price = getattr(pos, 'high_price', current_price)
                 if entry_price > 0:
@@ -930,15 +930,18 @@ class HydraToolExecutor:
             if efa_pos:
                 shares = getattr(efa_pos, 'shares', 0)
                 avg_cost = getattr(efa_pos, 'avg_cost', 0)
+                efa_meta = getattr(self.engine, 'position_meta', {}).get('EFA', {})
+                efa_entry = efa_meta.get('entry_price', avg_cost)
                 current_value = shares * efa_price if efa_price else 0
-                pnl = (efa_price - avg_cost) * shares if efa_price else 0
+                pnl = (efa_price - efa_entry) * shares if efa_price else 0
                 position = {
                     'shares': shares,
                     'avg_cost': round(avg_cost, 2),
+                    'entry_price': round(efa_entry, 2),
                     'current_price': round(efa_price, 2) if efa_price else None,
                     'current_value': round(current_value, 2),
                     'pnl': round(pnl, 2),
-                    'return_pct': round((efa_price / avg_cost - 1) * 100, 2) if avg_cost > 0 and efa_price else 0,
+                    'return_pct': round((efa_price / efa_entry - 1) * 100, 2) if efa_entry > 0 and efa_price else 0,
                 }
 
             # Idle cash available

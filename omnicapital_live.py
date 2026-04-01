@@ -2544,7 +2544,8 @@ class COMPASSLive:
 
         # Liquidate EFA
         shares = efa_pos.shares
-        pnl = (efa_price - efa_pos.avg_cost) * shares
+        efa_entry = self.position_meta.get(EFA_SYMBOL, {}).get('entry_price', efa_pos.avg_cost)
+        pnl = (efa_price - efa_entry) * shares
         reason = "COMPASS" if compass_needed > 0 else "Rattlesnake"
         order = Order(symbol=EFA_SYMBOL, action='SELL',
                       quantity=shares, order_type='MARKET',
@@ -3120,7 +3121,8 @@ class COMPASSLive:
                             raise KeyError(f"{sym} not individually accessible in flat DataFrame")
                     total += shares * close
                 except Exception:
-                    total += shares * pos.get('avg_cost', 0)
+                    ep = self.position_meta.get(sym, {}).get('entry_price', pos.get('avg_cost', 0))
+                    total += shares * ep
             return total
         except Exception as e:
             logger.warning(f"Could not reconstruct close portfolio: {e}")
@@ -3309,7 +3311,7 @@ class COMPASSLive:
                 days_held = stop_event.get('days_held')
             elif symbol in carried_symbols and current_pos:
                 exit_reason = 'carried_forward'
-                exit_price = prices.get(symbol, current_pos.avg_cost)
+                exit_price = prices.get(symbol, current_meta.get('entry_price', current_pos.avg_cost))
                 pnl_pct = (exit_price - entry_price) / entry_price * 100 if exit_price else None
                 entry_day_index = current_meta.get('entry_day_index', self.trading_day_counter)
                 days_held = self.trading_day_counter - entry_day_index + 1
@@ -3428,9 +3430,9 @@ class COMPASSLive:
                     cycle['spy_return'] = round(
                         (spy_close - cycle['spy_start']) / cycle['spy_start'] * 100, 2)
                 # Holdings-only return (excludes cash, direct comparison vs SPY)
-                invested_now = sum(p['shares'] * prices.get(s, p['avg_cost'])
+                invested_now = sum(p['shares'] * prices.get(s, p.get('entry_price', p['avg_cost']))
                                    for s, p in pre_rot_positions.items())
-                invested_at_cost = sum(p['shares'] * p['avg_cost']
+                invested_at_cost = sum(p['shares'] * p.get('entry_price', p['avg_cost'])
                                        for p in pre_rot_positions.values())
                 if invested_at_cost > 0:
                     cycle['hydra_return'] = round(
@@ -3683,13 +3685,14 @@ class COMPASSLive:
 
     def _estimate_state_positions_value(self, positions: Dict[str, dict]) -> float:
         total = 0.0
-        for data in (positions or {}).values():
+        for sym, data in (positions or {}).items():
             if not isinstance(data, dict):
                 continue
             shares = self._coerce_float(data.get('shares'), 0.0)
-            avg_cost = self._coerce_float(data.get('avg_cost'), 0.0)
-            if shares > 0 and avg_cost > 0:
-                total += shares * avg_cost
+            ep = self._coerce_float(
+                self.position_meta.get(sym, {}).get('entry_price') or data.get('avg_cost'), 0.0)
+            if shares > 0 and ep > 0:
+                total += shares * ep
         return total
 
     def _get_state_reference_date(self, state) -> date:

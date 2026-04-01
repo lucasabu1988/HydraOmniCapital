@@ -1859,7 +1859,8 @@ def compute_portfolio_metrics(state: dict, prices: Dict[str, float] = None) -> d
             if pc and pc > 0:
                 prev_close_portfolio += pos.get('shares', 0) * pc
             else:
-                prev_close_portfolio += pos.get('shares', 0) * pos.get('avg_cost', 0)
+                meta_ep = position_meta.get(sym, {}).get('entry_price', pos.get('avg_cost', 0))
+                prev_close_portfolio += pos.get('shares', 0) * meta_ep
         if prev_close_portfolio > 0 and portfolio_value > 0:
             daily_return = round((portfolio_value - prev_close_portfolio) / prev_close_portfolio * 100, 2)
         else:
@@ -2293,13 +2294,13 @@ def api_cycle_log():
             invested_at_cost = 0
             for sym, pos in positions.items():
                 shares = pos.get('shares', 0)
-                avg_cost = pos.get('avg_cost', 0)
+                meta = position_meta.get(sym, {})
+                entry_price = meta.get('entry_price', pos.get('avg_cost', 0))
                 price = prices.get(sym)
                 if not price:
-                    meta = position_meta.get(sym, {})
-                    price = meta.get('entry_price', avg_cost)
+                    price = entry_price
                 invested_now += shares * price
-                invested_at_cost += shares * avg_cost
+                invested_at_cost += shares * entry_price
 
             if invested_at_cost > 0:
                 c['hydra_return'] = round((invested_now / invested_at_cost - 1) * 100, 2)
