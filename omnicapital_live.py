@@ -4509,8 +4509,13 @@ class COMPASSLive:
             portfolio = self.broker.get_portfolio()
             closed_cycles = self._get_closed_cycle_count()
 
+            with self._data_lock:
+                position_meta_snapshot = {k: dict(v) for k, v in self.position_meta.items()}
+                positions_snapshot = {s: {'shares': p.shares, 'avg_cost': p.avg_cost} for s, p in self.broker.positions.items()}
+                cash_snapshot = self.broker.cash
+
             # Audit trail: detect position changes
-            current_positions = set(self.broker.positions.keys())
+            current_positions = set(positions_snapshot.keys())
             added = sorted(current_positions - self._last_audit_positions)
             removed = sorted(self._last_audit_positions - current_positions)
             if added or removed:
@@ -4522,7 +4527,7 @@ class COMPASSLive:
                 'timestamp': datetime.now().isoformat(),
 
                 # Portfolio
-                'cash': self.broker.cash,
+                'cash': cash_snapshot,
                 'peak_value': self.peak_value,
                 'portfolio_value': portfolio.total_value,
 
@@ -4538,16 +4543,10 @@ class COMPASSLive:
                 'last_trading_date': self.last_trading_date.isoformat() if self.last_trading_date else None,
 
                 # Positions (broker)
-                'positions': {
-                    s: {
-                        'shares': p.shares,
-                        'avg_cost': p.avg_cost,
-                    }
-                    for s, p in self.broker.positions.items()
-                },
+                'positions': positions_snapshot,
 
                 # Position metadata (COMPASS)
-                'position_meta': self.position_meta,
+                'position_meta': position_meta_snapshot,
 
                 # Universe
                 'current_universe': self.current_universe,
