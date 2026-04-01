@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-04-01T08:33:28.167721",
+  "timestamp": "2026-04-01T09:00:03.925662",
   "cash": 41209.92714852904,
-  "peak_value": 101790.52588815306,
-  "portfolio_value": 101790.52588815306,
+  "peak_value": 101925.29667825316,
+  "portfolio_value": 101686.98655862425,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000,
@@ -48,7 +48,7 @@
       "entry_date": "2026-03-23",
       "entry_day_index": 43,
       "original_entry_day_index": 43,
-      "high_price": 435.2099914550781,
+      "high_price": 435.989990234375,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "Catalyst (trend+gold)",
@@ -72,7 +72,7 @@
       "entry_date": "2026-03-26",
       "entry_day_index": 47,
       "original_entry_day_index": 47,
-      "high_price": 98.5999984741211,
+      "high_price": 98.80999755859375,
       "entry_vol": 0.15,
       "entry_daily_vol": 0.0095,
       "sector": "International Equity",
@@ -84,7 +84,7 @@
       "entry_date": "2026-03-26",
       "entry_day_index": 47,
       "original_entry_day_index": 47,
-      "high_price": 246.2899932861328,
+      "high_price": 247.0,
       "entry_vol": 0.1702917181021859,
       "entry_daily_vol": 0.010727369915054762,
       "sector": "Healthcare",
@@ -241,8 +241,8 @@
   "_pre_rotation_value": 101233.07763833617,
   "stats": {
     "cycles_completed": 3,
-    "engine_iterations": 2,
-    "uptime_minutes": 41.16778571666667
+    "engine_iterations": 7,
+    "uptime_minutes": 67.76374696666667
   },
   "ml_error_counts": {
     "entry": 0,
