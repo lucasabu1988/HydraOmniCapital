@@ -2770,18 +2770,18 @@ class COMPASSLive:
         self._pre_rotation_value = portfolio.total_value
         self._pre_rotation_positions = list(self.broker.positions.keys())
         # Deep copy position data for close-price reconstruction in _update_cycle_log
+        _snap = self._safe_broker_snapshot()
         self._pre_rotation_positions_data = {
             sym: {
-                'shares': pos.shares,
-                'avg_cost': pos.avg_cost,
-                'entry_price': self.position_meta.get(sym, {}).get('entry_price', pos.avg_cost),
-                'sector': self.position_meta.get(sym, {}).get('sector', SECTOR_MAP.get(sym, 'Unknown')),
-                'entry_day_index': self.position_meta.get(sym, {}).get('entry_day_index', self.trading_day_counter),
-                'entry_date': self.position_meta.get(sym, {}).get('entry_date'),
+                **pos_data,
+                'entry_price': _snap['position_meta'].get(sym, {}).get('entry_price', pos_data['avg_cost']),
+                'sector': _snap['position_meta'].get(sym, {}).get('sector', SECTOR_MAP.get(sym, 'Unknown')),
+                'entry_day_index': _snap['position_meta'].get(sym, {}).get('entry_day_index', self.trading_day_counter),
+                'entry_date': _snap['position_meta'].get(sym, {}).get('entry_date'),
             }
-            for sym, pos in self.broker.positions.items()
+            for sym, pos_data in _snap['positions'].items()
         }
-        self._pre_rotation_cash = self.broker.cash
+        self._pre_rotation_cash = _snap['cash']
 
         logger.info(f"\n{'='*60}")
         logger.info(f"TRADING DAY {self.trading_day_counter} | {today}")
@@ -4503,6 +4503,21 @@ class COMPASSLive:
                 pass
         except Exception as e:
             logger.debug(f"Audit log write failed: {e}")
+
+    def _safe_broker_snapshot(self):
+        with self._data_lock:
+            return {
+                'cash': self.broker.cash,
+                'positions': {
+                    s: {
+                        'shares': p.shares,
+                        'avg_cost': p.avg_cost,
+                        'market_price': p.market_price,
+                    }
+                    for s, p in self.broker.positions.items()
+                },
+                'position_meta': {k: dict(v) for k, v in self.position_meta.items()},
+            }
 
     def save_state(self):
         """Save full system state to JSON"""

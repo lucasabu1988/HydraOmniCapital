@@ -1,7 +1,7 @@
 """Thread safety tests for COMPASSLive shared state."""
 import threading
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 
 @pytest.fixture
@@ -78,6 +78,45 @@ class TestSaveStateSnapshot:
         if state_file.exists():
             saved = json.loads(state_file.read_text())
             assert saved.get('position_meta') == {'AAPL': {'entry_price': 150.0}}
+
+
+class TestBrokerSnapshot:
+    def test_safe_broker_snapshot_returns_independent_copy(self, trader):
+        mock_broker = MagicMock()
+        mock_broker.cash = 50000
+        mock_pos = MagicMock()
+        mock_pos.shares = 10
+        mock_pos.avg_cost = 150.0
+        mock_pos.market_price = 155.0
+        mock_broker.positions = {'AAPL': mock_pos}
+        trader.broker = mock_broker
+        trader.position_meta = {'AAPL': {'entry_price': 150.0, 'sector': 'Tech'}}
+
+        snap = trader._safe_broker_snapshot()
+
+        assert snap['cash'] == 50000
+        assert snap['positions']['AAPL']['shares'] == 10
+        assert snap['positions']['AAPL']['avg_cost'] == 150.0
+        assert snap['positions']['AAPL']['market_price'] == 155.0
+        assert snap['position_meta']['AAPL']['entry_price'] == 150.0
+        assert snap['position_meta']['AAPL']['sector'] == 'Tech'
+
+        # Mutations to snapshot don't affect live state
+        snap['position_meta']['AAPL']['entry_price'] = 999.0
+        assert trader.position_meta['AAPL']['entry_price'] == 150.0
+
+    def test_safe_broker_snapshot_empty_positions(self, trader):
+        mock_broker = MagicMock()
+        mock_broker.cash = 100000
+        mock_broker.positions = {}
+        trader.broker = mock_broker
+        trader.position_meta = {}
+
+        snap = trader._safe_broker_snapshot()
+
+        assert snap['cash'] == 100000
+        assert snap['positions'] == {}
+        assert snap['position_meta'] == {}
 
 
 class TestCycleLogLock:
