@@ -908,7 +908,7 @@ class COMPASSLive:
         self._last_persisted_cycles_completed = None
         self._last_persisted_trading_day_counter = None
         self._state_save_lock = threading.RLock()
-        self._cycle_log_lock = threading.Lock()
+        self._cycle_log_lock = threading.RLock()
         self._data_lock = threading.RLock()
         self._state_positions_snapshot = {}
         self._state_cash_snapshot = float(config['PAPER_INITIAL_CASH'])
@@ -4344,21 +4344,22 @@ class COMPASSLive:
             logger.error(f"Failed to write reconciliation log: {e}")
 
     def _get_closed_cycle_count(self):
-        cycle_log_path = os.path.join('state', 'cycle_log.json')
-        if not os.path.exists(cycle_log_path):
-            return 0
-        try:
-            with open(cycle_log_path, 'r', encoding='utf-8') as cycle_file:
-                cycles = json.load(cycle_file)
-            if not isinstance(cycles, list):
+        with self._cycle_log_lock:
+            cycle_log_path = os.path.join('state', 'cycle_log.json')
+            if not os.path.exists(cycle_log_path):
                 return 0
-            return sum(
-                1 for cycle in cycles
-                if isinstance(cycle, dict) and cycle.get('status') == 'closed'
-            )
-        except Exception as e:
-            logger.debug(f"Failed to read cycle log count: {e}")
-            return 0
+            try:
+                with open(cycle_log_path, 'r', encoding='utf-8') as cycle_file:
+                    cycles = json.load(cycle_file)
+                if not isinstance(cycles, list):
+                    return 0
+                return sum(
+                    1 for cycle in cycles
+                    if isinstance(cycle, dict) and cycle.get('status') == 'closed'
+                )
+            except Exception as e:
+                logger.debug(f"Failed to read cycle log count: {e}")
+                return 0
 
     def _reconcile_runtime_state(self):
         skip_flag = os.environ.get('SKIP_RECONCILIATION', '')

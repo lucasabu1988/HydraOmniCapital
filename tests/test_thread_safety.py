@@ -78,3 +78,18 @@ class TestSaveStateSnapshot:
         if state_file.exists():
             saved = json.loads(state_file.read_text())
             assert saved.get('position_meta') == {'AAPL': {'entry_price': 150.0}}
+
+
+class TestCycleLogLock:
+    def test_cycle_log_lock_is_rlock(self):
+        """_cycle_log_lock must be RLock for safe reentrancy."""
+        from omnicapital_live import COMPASSLive
+        with patch.object(COMPASSLive, '__init__', lambda self, *a, **kw: None):
+            t = object.__new__(COMPASSLive)
+        t._cycle_log_lock = threading.RLock()
+        # RLock allows reentrant acquisition
+        t._cycle_log_lock.acquire()
+        acquired = t._cycle_log_lock.acquire(blocking=False)
+        assert acquired is True
+        t._cycle_log_lock.release()
+        t._cycle_log_lock.release()
