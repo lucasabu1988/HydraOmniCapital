@@ -909,6 +909,7 @@ class COMPASSLive:
         self._last_persisted_trading_day_counter = None
         self._state_save_lock = threading.RLock()
         self._cycle_log_lock = threading.Lock()
+        self._data_lock = threading.RLock()
         self._state_positions_snapshot = {}
         self._state_cash_snapshot = float(config['PAPER_INITIAL_CASH'])
         self._last_audit_positions = set()
@@ -1682,7 +1683,8 @@ class COMPASSLive:
                         in_catalyst = any(cp['symbol'] == symbol for cp in self.catalyst_positions)
                         in_rattle = any(rp['symbol'] == symbol for rp in self.rattle_positions)
                         if not in_catalyst and not in_rattle and symbol != EFA_SYMBOL:
-                            self.position_meta.pop(symbol, None)
+                            with self._data_lock:
+                                self.position_meta.pop(symbol, None)
 
                     self.trades_today.append({
                         'symbol': symbol, 'action': 'SELL',
@@ -1950,18 +1952,19 @@ class COMPASSLive:
                 rank_above = sum(1 for s in all_scores_sorted if s > scores.get(symbol, 0))
                 entry_momentum_rank = 1.0 - (rank_above / max(1, n_scores))
 
-                self.position_meta[symbol] = {
-                    'entry_price': result.filled_price,
-                    'entry_date': self._get_trading_date_str(),
-                    'entry_day_index': self.trading_day_counter,
-                    'original_entry_day_index': self.trading_day_counter,
-                    'high_price': result.filled_price,
-                    'entry_vol': entry_vol,              # v8.4: annualized vol
-                    'entry_daily_vol': entry_daily_vol,  # v8.4: daily vol for stop calc
-                    'sector': SECTOR_MAP.get(symbol, 'Unknown'),  # v8.4: sector tracking
-                    'entry_momentum_score': scores.get(symbol, 0.0),
-                    'entry_momentum_rank': entry_momentum_rank,
-                }
+                with self._data_lock:
+                    self.position_meta[symbol] = {
+                        'entry_price': result.filled_price,
+                        'entry_date': self._get_trading_date_str(),
+                        'entry_day_index': self.trading_day_counter,
+                        'original_entry_day_index': self.trading_day_counter,
+                        'high_price': result.filled_price,
+                        'entry_vol': entry_vol,              # v8.4: annualized vol
+                        'entry_daily_vol': entry_daily_vol,  # v8.4: daily vol for stop calc
+                        'sector': SECTOR_MAP.get(symbol, 'Unknown'),  # v8.4: sector tracking
+                        'entry_momentum_score': scores.get(symbol, 0.0),
+                        'entry_momentum_rank': entry_momentum_rank,
+                    }
 
                 self.trades_today.append({
                     'symbol': symbol, 'action': 'BUY',
@@ -2252,7 +2255,8 @@ class COMPASSLive:
                     in_rattle = any(rp['symbol'] == sym for rp in self.rattle_positions)
                     in_compass = sym in self.position_meta and not self.position_meta.get(sym, {}).get('_catalyst')
                     if not in_rattle and not in_compass:
-                        self.position_meta.pop(sym, None)
+                        with self._data_lock:
+                            self.position_meta.pop(sym, None)
 
         # 2. Buy new targets or adjust up
         for sym, target in target_map.items():
@@ -2309,18 +2313,19 @@ class COMPASSLive:
                     })
 
                 # Mark in position_meta
-                self.position_meta[sym] = {
-                    'entry_price': fill_price,
-                    'entry_date': self._get_trading_date_str(),
-                    'entry_day_index': self.trading_day_counter,
-                    'original_entry_day_index': self.trading_day_counter,
-                    'high_price': fill_price,
-                    'entry_vol': 0.15,
-                    'entry_daily_vol': 0.0095,
-                    'sector': f'Catalyst ({target["sub_strategy"]})',
-                    '_catalyst': True,
-                    '_entry_reconciled': True,
-                }
+                with self._data_lock:
+                    self.position_meta[sym] = {
+                        'entry_price': fill_price,
+                        'entry_date': self._get_trading_date_str(),
+                        'entry_day_index': self.trading_day_counter,
+                        'original_entry_day_index': self.trading_day_counter,
+                        'high_price': fill_price,
+                        'entry_vol': 0.15,
+                        'entry_daily_vol': 0.0095,
+                        'sector': f'Catalyst ({target["sub_strategy"]})',
+                        '_catalyst': True,
+                        '_entry_reconciled': True,
+                    }
 
     def _efa_above_sma200(self) -> bool:
         """Check if EFA is above its 200-day SMA (regime filter for third pillar)."""
@@ -2392,10 +2397,12 @@ class COMPASSLive:
             meta['sector'] = 'International Equity'
             meta['_efa'] = True
             meta['_entry_reconciled'] = bool(meta.get('_entry_reconciled', False))
-            self.position_meta[EFA_SYMBOL] = meta
+            with self._data_lock:
+                self.position_meta[EFA_SYMBOL] = meta
         elif target_value <= 0 and EFA_SYMBOL not in (self.broker.get_positions() if hasattr(self, 'broker') else {}):
             # Only pop if broker confirms no EFA shares (not a timing issue)
-            self.position_meta.pop(EFA_SYMBOL, None)
+            with self._data_lock:
+                self.position_meta.pop(EFA_SYMBOL, None)
 
         return target_value
 
@@ -2483,18 +2490,19 @@ class COMPASSLive:
         if result.status == 'FILLED':
             cost = result.filled_price * shares
             logger.info(f"EFA BUY: {shares} shares @ ${result.filled_price:.2f} = ${cost:,.0f}")
-            self.position_meta[EFA_SYMBOL] = {
-                'entry_price': result.filled_price,
-                'entry_date': self._get_trading_date_str(),
-                'entry_day_index': self.trading_day_counter,
-                'original_entry_day_index': self.trading_day_counter,
-                'high_price': result.filled_price,
-                'entry_vol': 0.15,
-                'entry_daily_vol': 0.0095,
-                'sector': 'International Equity',
-                '_efa': True,
-                '_entry_reconciled': True,  # MARKET order fill = real price, no reconciliation needed
-            }
+            with self._data_lock:
+                self.position_meta[EFA_SYMBOL] = {
+                    'entry_price': result.filled_price,
+                    'entry_date': self._get_trading_date_str(),
+                    'entry_day_index': self.trading_day_counter,
+                    'original_entry_day_index': self.trading_day_counter,
+                    'high_price': result.filled_price,
+                    'entry_vol': 0.15,
+                    'entry_daily_vol': 0.0095,
+                    'sector': 'International Equity',
+                    '_efa': True,
+                    '_entry_reconciled': True,  # MARKET order fill = real price, no reconciliation needed
+                }
             self._sync_efa_runtime_state(prices, reason='buy_fill')
 
     def _liquidate_efa_for_capital(self, prices: Dict[str, float]):
@@ -2554,7 +2562,8 @@ class COMPASSLive:
         if result.status == 'FILLED':
             proceeds = result.filled_price * shares
             logger.info(f"EFA LIQUIDATE ({reason} needs capital): {shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f} (PnL: ${pnl:+,.0f})")
-            self.position_meta.pop(EFA_SYMBOL, None)
+            with self._data_lock:
+                self.position_meta.pop(EFA_SYMBOL, None)
             if self.hydra_capital:
                 self.hydra_capital.sell_efa(proceeds)
 
