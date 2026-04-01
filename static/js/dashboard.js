@@ -2915,11 +2915,19 @@ function renderLiveCompChart(data) {
     }
 
     var isDark = document.body.classList.contains('dark');
-    var dates = data.dates;
-    var rawHydra = data.hydra || data.compass;
-    if (!rawHydra) return;
+
+    // Only show up to yesterday's close — today is still intraday
+    var today = new Date().toISOString().slice(0, 10);
+    var cutoff = data.dates.length;
+    for (var ci = 0; ci < data.dates.length; ci++) {
+        if (data.dates[ci] >= today) { cutoff = ci; break; }
+    }
+    var dates = data.dates.slice(0, cutoff);
+    var rawHydra = (data.hydra || data.compass || []).slice(0, cutoff);
+    var rawSpy = (data.spy || []).slice(0, cutoff);
+    if (!rawHydra || dates.length < 2) return;
     var hydra = rawHydra.map(function(v) { return +(v - 100).toFixed(2); });
-    var spy = data.spy.map(function(v) { return +(v - 100).toFixed(2); });
+    var spy = rawSpy.map(function(v) { return +(v - 100).toFixed(2); });
 
     // Day labels: 1, 2, 3 ... (trading days since inception)
     var tradingDays = dates.length - 1; // first point is baseline (day 0)

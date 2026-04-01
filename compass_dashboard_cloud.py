@@ -2374,29 +2374,6 @@ def api_live_chart():
     if not hydra_data:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
-    # Add today's live value from latest state, recalculated with live prices
-    try:
-        state = read_state()
-        if state:
-            today_str = state.get('last_trading_date')
-            if today_str:
-                # Recalculate with live prices (same as banner)
-                pos_symbols = list(state.get('positions', {}).keys())
-                if pos_symbols:
-                    live_prices = fetch_live_prices(pos_symbols)
-                    cash = state.get('cash', 0)
-                    invested = sum(
-                        state['positions'][s].get('shares', 0) * live_prices.get(s, state['positions'][s].get('avg_cost', 0))
-                        for s in state.get('positions', {})
-                    )
-                    today_val = cash + invested if invested > 0 else state.get('portfolio_value')
-                else:
-                    today_val = state.get('portfolio_value')
-                if today_val:
-                    hydra_data[today_str] = today_val
-    except Exception as e:
-        logger.warning(f"api_live_chart failed: {e}")
-
     dates = sorted(hydra_data.keys())
     start_date = dates[0]
 
