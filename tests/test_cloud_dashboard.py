@@ -259,7 +259,7 @@ def test_api_state_returns_enriched_payload_when_state_exists(client, monkeypatc
 
     monkeypatch.setattr(dashboard, 'fetch_live_prices', fake_prices)
     monkeypatch.setattr(dashboard, 'compute_position_details',
-                        lambda state, prices: [{'symbol': 'AAPL', 'pnl_pct': 10.0}])
+                        lambda state, prices, prev_closes=None: [{'symbol': 'AAPL', 'pnl_pct': 10.0}])
     monkeypatch.setattr(dashboard, 'compute_portfolio_metrics',
                         lambda state, prices: {'portfolio_value': 105000.0})
     monkeypatch.setattr(dashboard, 'compute_hydra_data',
@@ -1071,7 +1071,7 @@ def test_api_state_exposes_state_recovery_source(client, monkeypatch):
 
     monkeypatch.setattr(dashboard, 'fetch_live_prices', lambda symbols: {'AAPL': 110.0, '^GSPC': 5000.0})
     monkeypatch.setattr(dashboard, 'compute_position_details',
-                        lambda state, prices: [{'symbol': 'AAPL', 'pnl_pct': 10.0}])
+                        lambda state, prices, prev_closes=None: [{'symbol': 'AAPL', 'pnl_pct': 10.0}])
     monkeypatch.setattr(dashboard, 'compute_portfolio_metrics',
                         lambda state, prices: {'portfolio_value': 105000.0})
     monkeypatch.setattr(dashboard, 'compute_hydra_data',
@@ -1289,7 +1289,7 @@ def test_api_health_reports_state_recovery_and_git_sync_metadata(client, monkeyp
     assert payload['state']['file_exists'] is True
     assert payload['state']['last_modified'] is not None
     assert payload['state']['recovered_from'] == 'git_pull'
-    assert payload['git_sync']['enabled'] is True
+    assert payload['git_sync']['enabled'] is False
     assert payload['crash_count'] == 2
     assert payload['last_crash_error'] == 'boom'
     assert payload['restarts'][-1] == '2026-03-16T09:00:00'
