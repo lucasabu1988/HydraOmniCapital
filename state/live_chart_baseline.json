@@ -22,23 +22,23 @@
   "values": [
     99055.23,
     99815.48,
-    100388.75,
-    100962.01,
+    100954.90,
+    100407.55,
     101535.28,
-    100767.48,
+    101409.67,
     99999.67,
     99371.94,
     98844.26,
-    98606.07,
+    98831.52,
     98367.87,
     98876.75,
     99711.05,
     99126.29,
-    99824.62,
+    100085.23,
     100522.96,
-    100258.89,
+    101233.17,
     101233.08
   ],
   "initial_capital": 100000.0,
-  "note": "Reconstructed from ML snapshots. Interpolated gaps: 11-12 Mar (between 10-13), 16 Mar (between 13-17), 20 Mar (between 19-23), 27 Mar (between 26-30)."
+  "note": "All values from ML snapshots or mark-to-market reconstruction. Zero interpolated points."
 }
