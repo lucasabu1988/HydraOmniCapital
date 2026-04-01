@@ -1602,7 +1602,9 @@ def api_live_chart():
                 s = json.load(f)
             dt = s.get('last_trading_date')
             val = s.get('portfolio_value')
-            if dt and val:
+            n_pos = len(s.get('positions', {}))
+            # Skip reset/corrupt state files (0 positions with ~$100K = engine restart)
+            if dt and val and n_pos > 0:
                 compass_data[dt] = val
                 if first_value is None:
                     first_value = val
