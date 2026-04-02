@@ -2445,7 +2445,9 @@ def api_live_chart():
     if not hydra_data:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
-    dates = sorted(hydra_data.keys())
+    dates = sorted(d for d in hydra_data.keys() if d >= LIVE_TEST_START_DATE)
+    if not dates:
+        return jsonify({'dates': [], 'hydra': [], 'spy': []})
     start_date = dates[0]
 
     # 2. Fetch S&P 500 index data for the same period (try ^GSPC, fallback SPY)

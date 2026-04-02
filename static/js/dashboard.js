@@ -2930,9 +2930,9 @@ function renderLiveCompChart(data) {
     var hydra = rawHydra.map(function(v) { return +(v - 100).toFixed(2); });
     var spy = rawSpy.map(function(v) { return +(v - 100).toFixed(2); });
 
-    // Day labels: 1, 2, 3 ... (trading days since inception)
-    var tradingDays = dates.length - 1; // first point is baseline (day 0)
-    var dayLabels = dates.map(function(_, i) { return String(i); });
+    // Day labels: 1, 2, 3 ... (trading days since inception, day 1 = start date)
+    var tradingDays = dates.length;
+    var dayLabels = dates.map(function(_, i) { return String(i + 1); });
 
     // Subtitle: "Día N · dd/mm/yyyy – dd/mm/yyyy"
     var sub = document.getElementById('live-perf-subtitle');
