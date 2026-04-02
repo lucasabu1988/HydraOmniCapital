@@ -235,6 +235,11 @@ LIVE_TEST_START_DATE = '2026-03-16'
 LIVE_TEST_PORTFOLIO_START = 100_000  # initial capital at start
 _spy_start_price = None
 
+# Last-known-good portfolio metrics — prevents wild swings from stale Yahoo data
+_last_good_portfolio: Optional[dict] = None
+_last_good_portfolio_time: Optional[datetime] = None
+_portfolio_metrics_lock = threading.Lock()
+
 # Showcase mode keeps the dashboard online with static/read-only data and the engine disabled.
 SHOWCASE_MODE = os.environ.get('HYDRA_MODE', 'live') == 'showcase'
 
@@ -411,7 +416,9 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
     results = {}
 
     # Try v7 batch quote first (single request for all symbols)
-    # Include regularMarketTime to detect stale prices
+    # Per-symbol staleness: reject only stale symbols, not the entire batch.
+    # Previously, ONE stale symbol caused ALL v7 results to be discarded,
+    # forcing v8 fallback which returns yesterday's close for indices.
     session, crumb = _yf_get_session()
     if session and crumb:
         try:
@@ -424,37 +431,44 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
             r = session.get(url, params=params, timeout=15)
             if r.status_code == 200:
                 data = r.json()
-                v7_stale = False
+                stale_syms = []
                 for quote in data.get('quoteResponse', {}).get('result', []):
                     sym = quote.get('symbol')
                     price = quote.get('regularMarketPrice')
                     prev = quote.get('regularMarketPreviousClose')
                     mkt_time = quote.get('regularMarketTime', 0)
                     if sym and price and price > 0:
-                        # Check freshness: reject if market time is >6h old
                         if mkt_time and (time_module.time() - mkt_time) > 21600:
-                            v7_stale = True
+                            stale_syms.append(sym)
+                            continue  # skip this symbol, don't poison the batch
                         out = {'price': float(price)}
                         if prev and prev > 0:
                             out['prev_close'] = float(prev)
                         results[sym] = out
-                if v7_stale:
-                    logger.warning('Yahoo Finance v7 returned stale prices (market time >6h old), falling through to v8')
-                    results = {}
-                elif results:
-                    return results
+                if stale_syms:
+                    logger.info('Yahoo v7: skipped %d stale symbols: %s', len(stale_syms),
+                                stale_syms[:10])
+                if results:
+                    # Only fall through to v8 for symbols NOT already fetched
+                    v8_needed = [s for s in symbols if s not in results]
+                    if not v8_needed:
+                        return results
+                    # Fetch remaining via v8 below
+                    symbols = v8_needed
             elif r.status_code in (401, 403):
-                # Crumb expired, reset session for next call
                 _yf_reset_session()
                 logger.info('Yahoo Finance crumb expired, will refresh next call')
         except Exception as e:
             logger.warning('Yahoo Finance v7 batch failed: %s', e, exc_info=True)
 
     # Fallback: v8 chart API (one request per symbol, with spacing)
+    # Only fetch symbols not already resolved by v7 above.
     for sym in symbols:
+        if sym in results:
+            continue
         try:
             url = f'https://query1.finance.yahoo.com/v8/finance/chart/{sym}'
-            params = {'range': '1d', 'interval': '1d'}
+            params = {'range': '1d', 'interval': '1m'}  # 1m interval for fresher regularMarketPrice
             r = http_requests.get(url, params=params, headers=_YF_HEADERS, timeout=10)
             if r.status_code == 429:
                 logger.warning('Yahoo Finance rate-limited (429), stopping batch')
@@ -470,11 +484,15 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
             price = meta.get('regularMarketPrice')
             prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
             if price and price > 0:
+                # Guard: reject if v8 price equals prev_close (stale echo)
+                if prev_close and abs(price - prev_close) < 0.001:
+                    logger.info('Yahoo v8 %s: price %.2f == prev_close (stale echo), skipping',
+                                sym, price)
+                    continue
                 out = {'price': float(price)}
                 if prev_close and prev_close > 0:
                     out['prev_close'] = float(prev_close)
                 results[sym] = out
-            # Small delay between individual requests to avoid rate limiting
             time_module.sleep(0.15)
         except Exception as e:
             logger.warning('Yahoo Finance %s fetch failed: %s', sym, e, exc_info=True)
@@ -539,7 +557,20 @@ def fetch_live_prices(symbols: List[str]) -> Dict[str, float]:
             if yf_results:
                 _yf_consecutive_failures = 0
                 for sym, result in yf_results.items():
-                    _price_cache[sym] = result['price']
+                    new_price = result['price']
+                    old_price = _price_cache.get(sym)
+                    # Guard: don't overwrite a recent price with one that matches
+                    # the old prev_close (stale echo from Yahoo CDN).
+                    old_prev = _prev_close_cache.get(sym)
+                    if (old_price and old_prev
+                            and abs(new_price - old_prev) < 0.01
+                            and abs(old_price - old_prev) > 0.01
+                            and _price_cache_time
+                            and (fetch_completed - _price_cache_time).total_seconds() < 120):
+                        logger.info('Rejected stale price for %s: new=%.2f == old prev_close=%.2f, '
+                                    'keeping cached=%.2f', sym, new_price, old_prev, old_price)
+                        continue
+                    _price_cache[sym] = new_price
                     if 'prev_close' in result:
                         _prev_close_cache[sym] = result['prev_close']
                 _price_cache_time = fetch_completed
@@ -2118,6 +2149,42 @@ def index():
     return render_template('dashboard.html')
 
 
+def _stabilize_portfolio_metrics(portfolio: dict) -> dict:
+    """Reject portfolio metrics that swing wildly between refreshes.
+
+    If SPY daily return flips sign AND the swing is >1pp within 2 minutes,
+    keep the last-known-good metrics.  This catches stale Yahoo data that
+    slipped past the per-symbol guards in _yf_fetch_batch.
+    """
+    global _last_good_portfolio, _last_good_portfolio_time
+
+    spy_daily = portfolio.get('spy_daily_return')
+    pv = portfolio.get('portfolio_value')
+    now = datetime.now()
+
+    with _portfolio_metrics_lock:
+        if _last_good_portfolio is not None and _last_good_portfolio_time is not None:
+            age = (now - _last_good_portfolio_time).total_seconds()
+            old_spy = _last_good_portfolio.get('spy_daily_return')
+            old_pv = _last_good_portfolio.get('portfolio_value')
+
+            # Detect impossible swing: SPY flips sign by >1pp within 2 min
+            if (age < 120 and spy_daily is not None and old_spy is not None
+                    and old_spy * spy_daily < 0  # sign flip
+                    and abs(spy_daily - old_spy) > 1.0):
+                logger.warning(
+                    'Portfolio stabilizer: SPY daily flipped %.2f→%.2f in %.0fs, '
+                    'rejecting stale data (pv %.2f→%.2f)',
+                    old_spy, spy_daily, age, old_pv or 0, pv or 0,
+                )
+                return dict(_last_good_portfolio)
+
+        # Accept this as the new good baseline
+        _last_good_portfolio = dict(portfolio)
+        _last_good_portfolio_time = now
+    return portfolio
+
+
 @app.route('/api/state')
 def api_state():
     """Return enriched state data with live prices."""
@@ -2165,6 +2232,10 @@ def api_state():
         position_details = compute_position_details(state, prices, _prev_close_cache)
         portfolio = compute_portfolio_metrics(state, prices)
 
+        # Consistency guard: reject portfolio metrics that swing wildly between
+        # refreshes — this catches stale Yahoo prices that slipped past other guards.
+        portfolio = _stabilize_portfolio_metrics(portfolio)
+
         # HYDRA: Rattlesnake + Cash Recycling data
         hydra_data = compute_hydra_data(state, prices)
 
@@ -2202,7 +2273,7 @@ def api_state():
             'portfolio': portfolio,
             'position_details': position_details,
             'prices': prices,
-            'prev_closes': _prev_close_cache,
+            'prev_closes': dict(_prev_close_cache),
             'universe': state.get('current_universe', []),
             'universe_year': state.get('universe_year'),
             'config': {},  # Algorithm parameters are confidential
