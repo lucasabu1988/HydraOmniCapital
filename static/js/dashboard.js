@@ -2927,6 +2927,7 @@ function renderLiveCompChart(data) {
     var rawHydra = (data.hydra || data.compass || []).slice(0, cutoff);
     var rawSpy = (data.spy || []).slice(0, cutoff);
     if (!rawHydra || dates.length < 2) return;
+    var updateDays = (data.update_days || []).filter(function(i) { return i < cutoff; });
     var hydra = rawHydra.map(function(v) { return +(v - 100).toFixed(2); });
     var spy = rawSpy.map(function(v) { return +(v - 100).toFixed(2); });
 
@@ -3021,27 +3022,79 @@ function renderLiveCompChart(data) {
                             var d = dates[idx];
                             var p = d.split('-');
                             var dateStr = p[2] + '/' + p[1] + '/' + p[0];
-                            if (useMonthLabels) {
-                                return dateStr + '  \u00b7  ' + t('day-label') + ' ' + (idx + 1);
-                            }
-                            return t('day-label') + ' ' + (idx + 1) + '  \u00b7  ' + dateStr;
+                            var isUpdate = updateDays.indexOf(idx) >= 0;
+                            var title = useMonthLabels
+                                ? dateStr + '  \u00b7  ' + t('day-label') + ' ' + (idx + 1)
+                                : t('day-label') + ' ' + (idx + 1) + '  \u00b7  ' + dateStr;
+                            return isUpdate ? title + '  \u00b7  \u2191 update' : title;
                         },
                         label: function(ctx) {
                             var sign = ctx.parsed.y >= 0 ? '+' : '';
-                            return ' ' + ctx.dataset.label + ':  ' + sign + ctx.parsed.y.toFixed(2) + '%';
+                            var suffix = updateDays.indexOf(ctx.dataIndex) >= 0 ? '  (sin cambio)' : '';
+                            return ' ' + ctx.dataset.label + ':  ' + sign + ctx.parsed.y.toFixed(2) + '%' + suffix;
                         }
                     }
                 },
                 annotation: {
-                    annotations: {
-                        zeroLine: {
-                            type: 'line',
-                            yMin: 0, yMax: 0,
-                            borderColor: zeroColor,
-                            borderWidth: 1,
-                            borderDash: [4, 4],
+                    annotations: (function() {
+                        var ann = {
+                            zeroLine: {
+                                type: 'line',
+                                yMin: 0, yMax: 0,
+                                borderColor: zeroColor,
+                                borderWidth: 1,
+                                borderDash: [4, 4],
+                            }
+                        };
+                        // Group consecutive update days into bands
+                        if (updateDays.length > 0) {
+                            var bandColor = isDark
+                                ? 'rgba(250,204,21,0.08)'
+                                : 'rgba(250,204,21,0.12)';
+                            var bandBorder = isDark
+                                ? 'rgba(250,204,21,0.25)'
+                                : 'rgba(250,204,21,0.35)';
+                            var labelColor = isDark
+                                ? 'rgba(250,204,21,0.5)'
+                                : 'rgba(180,140,0,0.6)';
+                            var bands = [];
+                            var bStart = updateDays[0], bEnd = updateDays[0];
+                            for (var bi = 1; bi < updateDays.length; bi++) {
+                                if (updateDays[bi] === bEnd + 1) {
+                                    bEnd = updateDays[bi];
+                                } else {
+                                    bands.push([bStart, bEnd]);
+                                    bStart = bEnd = updateDays[bi];
+                                }
+                            }
+                            bands.push([bStart, bEnd]);
+                            for (var bi = 0; bi < bands.length; bi++) {
+                                var s = bands[bi][0], e = bands[bi][1];
+                                ann['updateBand' + bi] = {
+                                    type: 'box',
+                                    xMin: s - 0.5,
+                                    xMax: e + 0.5,
+                                    backgroundColor: bandColor,
+                                    borderColor: bandBorder,
+                                    borderWidth: 1,
+                                    borderDash: [3, 3],
+                                    label: {
+                                        display: true,
+                                        content: '\u2191 update',
+                                        position: { x: 'center', y: 'start' },
+                                        color: labelColor,
+                                        font: {
+                                            family: "'JetBrains Mono', monospace",
+                                            size: 9,
+                                            weight: '600',
+                                        },
+                                        padding: 2,
+                                    },
+                                };
+                            }
                         }
-                    }
+                        return ann;
+                    })()
                 }
             },
             scales: {

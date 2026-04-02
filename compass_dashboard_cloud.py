@@ -2452,14 +2452,31 @@ def api_live_chart():
             logger.warning('Invalid chart date %s: %s', dt_str, e)
             return False
 
-    dates = sorted(d for d in hydra_data.keys() if _is_valid_chart_date(d))
-    if not dates:
+    data_dates = sorted(d for d in hydra_data.keys() if _is_valid_chart_date(d))
+    if not data_dates:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
     # Ensure Day 1 = initial capital (positions entered at close, no P&L yet)
     hydra_data[LIVE_TEST_START_DATE] = first_value
-    if dates[0] != LIVE_TEST_START_DATE:
-        dates.insert(0, LIVE_TEST_START_DATE)
+
+    # Build complete weekday timeline from start to last date, filling gaps
+    # with carry-forward values and marking update periods.
+    last_date = date.fromisoformat(data_dates[-1])
+    dates = []
+    update_days = []  # indices of days with no data (algorithm updates)
+    d = date.fromisoformat(LIVE_TEST_START_DATE)
+    last_known_val = first_value
+    while d <= last_date:
+        if d.weekday() < 5:  # weekday
+            dt_str = d.isoformat()
+            dates.append(dt_str)
+            if dt_str in hydra_data:
+                last_known_val = hydra_data[dt_str]
+            else:
+                # Gap: carry forward last known value, mark as update
+                hydra_data[dt_str] = last_known_val
+                update_days.append(len(dates) - 1)
+        d += timedelta(days=1)
 
     start_date = dates[0]
 
@@ -2529,6 +2546,7 @@ def api_live_chart():
         'hydra': result_hydra,
         'spy': result_spy,
         'start_date': start_date,
+        'update_days': update_days,
     })
 
 
