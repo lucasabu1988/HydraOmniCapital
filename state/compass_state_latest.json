@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-04-01T11:32:35.817274",
+  "timestamp": "2026-04-02T17:24:11.872680",
   "cash": 41209.92714852904,
   "peak_value": 101925.29667825316,
-  "portfolio_value": 101743.06692666624,
+  "portfolio_value": 101322.97642678831,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000,
@@ -15,11 +15,12 @@
     99711.0462842102,
     99126.29455715942,
     100522.95914608764,
-    101233.07763833617
+    101233.07763833617,
+    101322.97642678831
   ],
-  "current_regime_score": 0.3200044954737774,
-  "trading_day_counter": 51,
-  "last_trading_date": "2026-04-01",
+  "current_regime_score": 0.3269898518851095,
+  "trading_day_counter": 52,
+  "last_trading_date": "2026-04-02",
   "positions": {
     "GLD": {
       "shares": 24.0,
@@ -150,7 +151,7 @@
   ],
   "universe_year": 2026,
   "_universe_source": "github",
-  "_daily_open_done": true,
+  "_daily_open_done": false,
   "_preclose_entries_done": false,
   "overlay": {
     "available": true,
@@ -163,7 +164,7 @@
     "available": true,
     "rattle_positions": [],
     "rattle_regime": "RISK_OFF",
-    "vix_current": 24.739999771118164,
+    "vix_current": 23.8700008392334,
     "efa_position": null,
     "catalyst_positions": [
       {
@@ -183,22 +184,23 @@
     ],
     "catalyst_day_counter": 2,
     "capital_manager": {
-      "compass_account": 44663.78393240873,
-      "rattle_account": 34417.89263583349,
+      "compass_account": 46021.816646981,
+      "rattle_account": 35279.238868001994,
       "catalyst_account": 14969.409953613282,
       "base_compass_alloc": 0.425,
       "base_rattle_alloc": 0.425,
       "base_catalyst_alloc": 0.15,
       "max_compass_alloc": 0.75,
-      "total_recycled_days": 25,
-      "total_days": 25,
-      "efa_value": 9810.129722595215
+      "total_recycled_days": 26,
+      "total_days": 26,
+      "efa_value": 9898.0
     }
   },
   "_pre_rotation_positions_data": {
     "GLD": {
       "shares": 24.0,
       "avg_cost": 444.30083475748705,
+      "market_price": 429.4100036621094,
       "entry_price": 405.1300048828125,
       "sector": "Catalyst (trend+gold)",
       "entry_day_index": 43,
@@ -207,6 +209,7 @@
     "DBC": {
       "shares": 180.0,
       "avg_cost": 28.08249994659424,
+      "market_price": 29.329999923706055,
       "entry_price": 27.65999984741211,
       "sector": "Catalyst (trend)",
       "entry_day_index": 43,
@@ -215,6 +218,7 @@
     "EFA": {
       "shares": 101.0,
       "avg_cost": 97.83564359457186,
+      "market_price": 98.0,
       "entry_price": 95.43000030517578,
       "sector": "International Equity",
       "entry_day_index": 47,
@@ -223,6 +227,7 @@
     "JNJ": {
       "shares": 124.0,
       "avg_cost": 239.24000549316406,
+      "market_price": 243.0399932861328,
       "entry_price": 239.24000549316406,
       "sector": "Healthcare",
       "entry_day_index": 47,
@@ -231,6 +236,7 @@
     "GEV": {
       "shares": 5.0,
       "avg_cost": 873.1199951171875,
+      "market_price": 898.5700073242188,
       "entry_price": 873.1199951171875,
       "sector": "Industrials",
       "entry_day_index": 47,
@@ -238,11 +244,11 @@
     }
   },
   "_pre_rotation_cash": 41209.92714852904,
-  "_pre_rotation_value": 101233.07763833617,
+  "_pre_rotation_value": 101322.97642678831,
   "stats": {
     "cycles_completed": 3,
-    "engine_iterations": 36,
-    "uptime_minutes": 220.29527483333334
+    "engine_iterations": 1,
+    "uptime_minutes": 1.1034233
   },
   "ml_error_counts": {
     "entry": 0,
