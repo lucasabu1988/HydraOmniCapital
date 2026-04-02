@@ -1,9 +1,9 @@
 {
   "version": "8.4",
   "timestamp": "2026-04-02T17:53:07.447745",
-  "cash": 29497.407281585678,
+  "cash": 29597.937281585677,
   "peak_value": 101925.29667825316,
-  "portfolio_value": 101337.41723794554,
+  "portfolio_value": 101554.1773092041,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000,
@@ -37,11 +37,11 @@
     },
     "XOM": {
       "shares": 169.0,
-      "avg_cost": 160.77999877929688
+      "avg_cost": 160.69
     },
     "JNJ": {
       "shares": 79.0,
-      "avg_cost": 244.1199951171875
+      "avg_cost": 243.04
     }
   },
   "position_meta": {
@@ -82,11 +82,11 @@
       "_entry_reconciled": true
     },
     "XOM": {
-      "entry_price": 160.77999877929688,
-      "entry_date": "2026-04-01",
-      "entry_day_index": 51,
-      "original_entry_day_index": 51,
-      "high_price": 160.77999877929688,
+      "entry_price": 160.69,
+      "entry_date": "2026-04-02",
+      "entry_day_index": 52,
+      "original_entry_day_index": 52,
+      "high_price": 160.69,
       "entry_vol": 0.25810454889871953,
       "entry_daily_vol": 0.01625905830096481,
       "sector": "Energy",
@@ -95,11 +95,11 @@
       "_entry_reconciled": true
     },
     "JNJ": {
-      "entry_price": 244.1199951171875,
-      "entry_date": "2026-04-01",
-      "entry_day_index": 51,
-      "original_entry_day_index": 51,
-      "high_price": 244.1199951171875,
+      "entry_price": 243.04,
+      "entry_date": "2026-04-02",
+      "entry_day_index": 52,
+      "original_entry_day_index": 52,
+      "high_price": 243.04,
       "entry_vol": 0.15675764954050556,
       "entry_daily_vol": 0.009874803733123718,
       "sector": "Healthcare",
@@ -228,20 +228,20 @@
     "XOM": {
       "shares": 169.0,
       "avg_cost": 160.77999877929688,
-      "market_price": 160.69000244140625,
-      "entry_price": 160.77999877929688,
+      "market_price": 160.69,
+      "entry_price": 160.69,
       "sector": "Energy",
-      "entry_day_index": 51,
-      "entry_date": "2026-04-01"
+      "entry_day_index": 52,
+      "entry_date": "2026-04-02"
     },
     "JNJ": {
       "shares": 79.0,
       "avg_cost": 244.1199951171875,
-      "market_price": 243.0399932861328,
-      "entry_price": 244.1199951171875,
+      "market_price": 243.04,
+      "entry_price": 243.04,
       "sector": "Healthcare",
-      "entry_day_index": 51,
-      "entry_date": "2026-04-01"
+      "entry_day_index": 52,
+      "entry_date": "2026-04-02"
     }
   },
   "_pre_rotation_cash": 29497.407281585678,
