@@ -1,9 +1,9 @@
 {
   "version": "8.4",
-  "timestamp": "2026-04-02T17:45:28.885622",
-  "cash": 41209.92714852904,
+  "timestamp": "2026-04-02T17:53:07.447745",
+  "cash": 29497.407281585678,
   "peak_value": 101925.29667825316,
-  "portfolio_value": 101322.97642678831,
+  "portfolio_value": 101337.41723794554,
   "crash_cooldown": 0,
   "portfolio_values_history": [
     100000,
@@ -16,9 +16,10 @@
     99126.29455715942,
     100522.95914608764,
     101233.07763833617,
-    101322.97642678831
+    101322.97642678831,
+    101337.41723794554
   ],
-  "current_regime_score": 0.3269898518851095,
+  "current_regime_score": 0.32863594144942837,
   "trading_day_counter": 52,
   "last_trading_date": "2026-04-02",
   "positions": {
@@ -34,13 +35,13 @@
       "shares": 101.0,
       "avg_cost": 97.83564359457186
     },
-    "JNJ": {
-      "shares": 124.0,
-      "avg_cost": 239.24000549316406
+    "XOM": {
+      "shares": 169.0,
+      "avg_cost": 160.77999877929688
     },
-    "GEV": {
-      "shares": 5.0,
-      "avg_cost": 873.1199951171875
+    "JNJ": {
+      "shares": 79.0,
+      "avg_cost": 244.1199951171875
     }
   },
   "position_meta": {
@@ -80,30 +81,30 @@
       "_efa": true,
       "_entry_reconciled": true
     },
-    "JNJ": {
-      "entry_price": 239.24000549316406,
-      "entry_date": "2026-03-26",
-      "entry_day_index": 47,
-      "original_entry_day_index": 47,
-      "high_price": 247.0,
-      "entry_vol": 0.1702917181021859,
-      "entry_daily_vol": 0.010727369915054762,
-      "sector": "Healthcare",
-      "entry_momentum_score": 1.393208825050167,
+    "XOM": {
+      "entry_price": 160.77999877929688,
+      "entry_date": "2026-04-01",
+      "entry_day_index": 51,
+      "original_entry_day_index": 51,
+      "high_price": 160.77999877929688,
+      "entry_vol": 0.25810454889871953,
+      "entry_daily_vol": 0.01625905830096481,
+      "sector": "Energy",
+      "entry_momentum_score": 1.634072409393891,
       "entry_momentum_rank": 1.0,
       "_entry_reconciled": true
     },
-    "GEV": {
-      "entry_price": 873.1199951171875,
-      "entry_date": "2026-03-26",
-      "entry_day_index": 47,
-      "original_entry_day_index": 47,
-      "high_price": 915.7999877929688,
-      "entry_vol": 0.4243605510782192,
-      "entry_daily_vol": 0.026732202009030728,
-      "sector": "Industrials",
-      "entry_momentum_score": 1.0189470506762204,
-      "entry_momentum_rank": 0.9393939393939394,
+    "JNJ": {
+      "entry_price": 244.1199951171875,
+      "entry_date": "2026-04-01",
+      "entry_day_index": 51,
+      "original_entry_day_index": 51,
+      "high_price": 244.1199951171875,
+      "entry_vol": 0.15675764954050556,
+      "entry_daily_vol": 0.009874803733123718,
+      "sector": "Healthcare",
+      "entry_momentum_score": 1.431881295610047,
+      "entry_momentum_rank": 0.975,
       "_entry_reconciled": true
     }
   },
@@ -151,8 +152,8 @@
   ],
   "universe_year": 2026,
   "_universe_source": "github",
-  "_daily_open_done": false,
-  "_preclose_entries_done": false,
+  "_daily_open_done": true,
+  "_preclose_entries_done": true,
   "overlay": {
     "available": true,
     "capital_scalar": 1.0,
@@ -184,7 +185,7 @@
     ],
     "catalyst_day_counter": 2,
     "capital_manager": {
-      "compass_account": 46021.816646981,
+      "compass_account": 75954.70668954466,
       "rattle_account": 35279.238868001994,
       "catalyst_account": 14969.409953613282,
       "base_compass_alloc": 0.425,
@@ -224,31 +225,31 @@
       "entry_day_index": 47,
       "entry_date": "2026-03-26"
     },
-    "JNJ": {
-      "shares": 124.0,
-      "avg_cost": 239.24000549316406,
-      "market_price": 243.0399932861328,
-      "entry_price": 239.24000549316406,
-      "sector": "Healthcare",
-      "entry_day_index": 47,
-      "entry_date": "2026-03-26"
+    "XOM": {
+      "shares": 169.0,
+      "avg_cost": 160.77999877929688,
+      "market_price": 160.69000244140625,
+      "entry_price": 160.77999877929688,
+      "sector": "Energy",
+      "entry_day_index": 51,
+      "entry_date": "2026-04-01"
     },
-    "GEV": {
-      "shares": 5.0,
-      "avg_cost": 873.1199951171875,
-      "market_price": 898.5700073242188,
-      "entry_price": 873.1199951171875,
-      "sector": "Industrials",
-      "entry_day_index": 47,
-      "entry_date": "2026-03-26"
+    "JNJ": {
+      "shares": 79.0,
+      "avg_cost": 244.1199951171875,
+      "market_price": 243.0399932861328,
+      "entry_price": 244.1199951171875,
+      "sector": "Healthcare",
+      "entry_day_index": 51,
+      "entry_date": "2026-04-01"
     }
   },
-  "_pre_rotation_cash": 41209.92714852904,
-  "_pre_rotation_value": 101322.97642678831,
+  "_pre_rotation_cash": 29497.407281585678,
+  "_pre_rotation_value": 101337.41723794554,
   "stats": {
-    "cycles_completed": 3,
-    "engine_iterations": 0,
-    "uptime_minutes": 0.03312718333333333
+    "cycles_completed": 4,
+    "engine_iterations": 1,
+    "uptime_minutes": 1.6842355166666667
   },
   "ml_error_counts": {
     "entry": 0,

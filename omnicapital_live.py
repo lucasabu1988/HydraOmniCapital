@@ -2698,9 +2698,20 @@ class COMPASSLive:
                     self._recovery_spy_close = None
 
                 # Step 4: Run rotation or stops
+                # Check if ANY position has reached hold expiry (days_held >= HOLD_DAYS).
+                # Previous code used counter % hold_days which doesn't align with actual
+                # position entry dates when cycles shift.
                 hold_days = self.config.get('HOLD_DAYS', 5) if hasattr(self, 'config') else 5
                 next_counter = self.trading_day_counter + 1
-                is_rotation = (next_counter % hold_days == 0)
+                has_expired = False
+                for _sym, _meta in getattr(self, 'position_meta', {}).items():
+                    if _meta.get('_catalyst') or _meta.get('_efa'):
+                        continue
+                    _days = next_counter - _meta.get('entry_day_index', next_counter) + 1
+                    if _days >= hold_days:
+                        has_expired = True
+                        break
+                is_rotation = has_expired
 
                 self.trades_today = []
                 if is_rotation:
@@ -4968,6 +4979,24 @@ class COMPASSLive:
                 except Exception as e:
                     logger.warning(f"Periodic regime refresh failed: {e}")
 
+            # After-hours catch-up: if the engine missed yesterday's pre-close
+            # (Render sleep, cold start after market close), run rotation now
+            # using historical close prices. This MUST run before is_market_open()
+            # check, otherwise it's unreachable when market is closed.
+            if getattr(self, '_missed_preclose', False) and getattr(self, '_hist_cache', {}):
+                moc_prices = {}
+                for sym, df in self._hist_cache.items():
+                    if df is not None and len(df) > 0:
+                        moc_prices[sym] = float(df['Close'].iloc[-1])
+                if moc_prices:
+                    logger.warning("[CATCH-UP] Pre-close was missed — "
+                                   f"running rotation at historical MOC prices ({len(moc_prices)} symbols)")
+                    self.execute_preclose_entries(moc_prices)
+                else:
+                    logger.warning("[CATCH-UP] No historical data available for MOC catch-up, skipping")
+                self._missed_preclose = False
+                self.save_state()
+
             if not self.is_market_open():
                 return False
 
@@ -5015,20 +5044,6 @@ class COMPASSLive:
             # - At 15:30 ET: new entries via pre-close signal + same-day MOC
             # - Intraday: check stops periodically
             if not self._daily_open_done:
-                # Catch-up: if yesterday's pre-close was missed (Render cold start),
-                # run entries using yesterday's close prices (MOC) from _hist_cache
-                if self._missed_preclose:
-                    moc_prices = {}
-                    for sym, df in self._hist_cache.items():
-                        if df is not None and len(df) > 0:
-                            moc_prices[sym] = float(df['Close'].iloc[-1])
-                    if moc_prices:
-                        logger.warning("[CATCH-UP] Yesterday's pre-close was missed — "
-                                       f"running entries at yesterday's MOC prices ({len(moc_prices)} symbols)")
-                        self.execute_preclose_entries(moc_prices)
-                    else:
-                        logger.warning("[CATCH-UP] No historical data available for MOC catch-up, skipping")
-                    self._missed_preclose = False
                 self.execute_trading_logic(prices)
                 self._daily_open_done = True
                 self.log_status(prices)
@@ -5037,6 +5052,23 @@ class COMPASSLive:
             if not self._preclose_entries_done and self.is_preclose_window():
                 self.execute_preclose_entries(prices)
                 self.log_status(prices)
+
+            # Late pre-close catch-up: if the 15:30-15:50 window was missed,
+            # run the rotation anyway before market close.
+            # Safe for paper trading; for IBKR live, MOC deadline would need
+            # separate handling (limit orders instead of MOC).
+            if (not self._preclose_entries_done
+                    and self._daily_open_done
+                    and not self.is_preclose_window()):
+                now_et = self.get_et_now()
+                if (now_et.weekday() < 5
+                        and now_et.time() > self.config['MOC_DEADLINE']
+                        and now_et.time() <= self.config['MARKET_CLOSE']):
+                    logger.warning(
+                        "[LATE-CATCHUP] Pre-close window missed — running late rotation at %s ET",
+                        now_et.strftime('%H:%M:%S'))
+                    self.execute_preclose_entries(prices)
+                    self.log_status(prices)
 
             # Intraday: check stops periodically
             if self._daily_open_done:

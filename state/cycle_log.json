@@ -224,12 +224,12 @@
   {
     "cycle": 4,
     "start_date": "2026-03-26",
-    "end_date": null,
-    "status": "active",
+    "end_date": "2026-04-01",
+    "status": "closed",
     "portfolio_start": 99126.29,
-    "portfolio_end": null,
+    "portfolio_end": 101584.4,
     "spy_start": 6542.62,
-    "spy_end": null,
+    "spy_end": 6575.32,
     "positions": [
       "GLD",
       "DBC",
@@ -242,9 +242,96 @@
       "GLD",
       "DBC",
       "EFA",
-      "JNJ",
       "XOM",
-      "GEV"
+      "JNJ"
+    ],
+    "hydra_return": 2458.11,
+    "spy_return": 32.7,
+    "alpha": null,
+    "stop_events": [],
+    "positions_detail": [
+      {
+        "symbol": "JNJ",
+        "entry_price": 239.24,
+        "exit_price": 244.12,
+        "pnl_pct": 2.04,
+        "exit_reason": "hold_expired",
+        "sector": "Healthcare",
+        "days_held": 5
+      },
+      {
+        "symbol": "GEV",
+        "entry_price": 873.12,
+        "exit_price": 894.78,
+        "pnl_pct": 2.48,
+        "exit_reason": "hold_expired",
+        "sector": "Industrials",
+        "days_held": 5
+      },
+      {
+        "symbol": "GLD",
+        "entry_price": 405.13,
+        "exit_price": 437.82,
+        "pnl_pct": 8.07,
+        "exit_reason": "carried_forward",
+        "sector": "Catalyst (trend+gold)",
+        "days_held": 8
+      },
+      {
+        "symbol": "DBC",
+        "entry_price": 27.66,
+        "exit_price": 28.68,
+        "pnl_pct": 3.69,
+        "exit_reason": "carried_forward",
+        "sector": "Catalyst (trend)",
+        "days_held": 8
+      },
+      {
+        "symbol": "EFA",
+        "entry_price": 95.43,
+        "exit_price": 98.61,
+        "pnl_pct": 3.33,
+        "exit_reason": "carried_forward",
+        "sector": "International Equity",
+        "days_held": 5
+      }
+    ],
+    "sector_breakdown": {
+      "Healthcare": 1,
+      "Industrials": 1,
+      "Catalyst (trend+gold)": 1,
+      "Catalyst (trend)": 1,
+      "International Equity": 1
+    },
+    "exits_by_reason": {
+      "rotation": 2
+    },
+    "cycle_return_pct": 2.48,
+    "spy_return_pct": 0.5,
+    "alpha_pct": 1.98
+  },
+  {
+    "cycle": 5,
+    "start_date": "2026-04-01",
+    "end_date": null,
+    "status": "active",
+    "portfolio_start": 101584.4,
+    "portfolio_end": null,
+    "spy_start": 6575.32,
+    "spy_end": null,
+    "positions": [
+      "GLD",
+      "DBC",
+      "EFA",
+      "XOM",
+      "JNJ"
+    ],
+    "positions_current": [
+      "GLD",
+      "DBC",
+      "EFA",
+      "XOM",
+      "JNJ"
     ],
     "hydra_return": null,
     "spy_return": null,
