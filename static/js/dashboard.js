@@ -2930,11 +2930,26 @@ function renderLiveCompChart(data) {
     var hydra = rawHydra.map(function(v) { return +(v - 100).toFixed(2); });
     var spy = rawSpy.map(function(v) { return +(v - 100).toFixed(2); });
 
-    // Day labels: 1, 2, 3 ... (trading days since inception, day 1 = start date)
+    // Adaptive x-axis labels based on data density
     var tradingDays = dates.length;
-    var dayLabels = dates.map(function(_, i) { return String(i + 1); });
+    var useMonthLabels = tradingDays > 40;
+    var MONTH_ABBR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-    // Subtitle: "Día N · dd/mm/yyyy – dd/mm/yyyy"
+    var dayLabels;
+    if (useMonthLabels) {
+        // Show "Mar", "Abr", "May" at month boundaries; empty string for other points
+        var lastMonth = -1;
+        dayLabels = dates.map(function(d) {
+            var m = parseInt(d.slice(5, 7), 10) - 1; // 0-based month
+            if (m !== lastMonth) { lastMonth = m; return MONTH_ABBR[m]; }
+            return '';
+        });
+    } else {
+        // Show day numbers: 1, 2, 3 ...
+        dayLabels = dates.map(function(_, i) { return String(i + 1); });
+    }
+
+    // Subtitle: "Días de Trading: N · dd/mm/yyyy – dd/mm/yyyy"
     var sub = document.getElementById('live-perf-subtitle');
     if (sub) {
         var fmtDate = function(s) { var p = s.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
@@ -2960,30 +2975,30 @@ function renderLiveCompChart(data) {
                     label: 'HYDRA',
                     data: hydra,
                     borderColor: greenLine,
-                    borderWidth: 2.5,
+                    borderWidth: tradingDays > 120 ? 1.5 : 2.5,
                     fill: true,
                     backgroundColor: greenFill,
-                    pointRadius: dates.length <= 30 ? 4 : 0,
+                    pointRadius: tradingDays <= 30 ? 4 : 0,
                     pointBackgroundColor: greenLine,
                     pointBorderColor: isDark ? '#1a1a2e' : '#fff',
                     pointBorderWidth: 2,
-                    pointHoverRadius: 6,
-                    tension: 0.25,
+                    pointHoverRadius: tradingDays > 120 ? 4 : 6,
+                    tension: tradingDays > 120 ? 0.3 : 0.25,
                 },
                 {
                     label: 'S&P 500',
                     data: spy,
                     borderColor: blueLine,
-                    borderWidth: 1.8,
-                    borderDash: [6, 3],
+                    borderWidth: tradingDays > 120 ? 1.2 : 1.8,
+                    borderDash: tradingDays > 120 ? [4, 2] : [6, 3],
                     fill: true,
                     backgroundColor: blueFill,
-                    pointRadius: dates.length <= 30 ? 3 : 0,
+                    pointRadius: tradingDays <= 30 ? 3 : 0,
                     pointBackgroundColor: blueLine,
                     pointBorderColor: isDark ? '#1a1a2e' : '#fff',
                     pointBorderWidth: 1.5,
-                    pointHoverRadius: 5,
-                    tension: 0.25,
+                    pointHoverRadius: tradingDays > 120 ? 3 : 5,
+                    tension: tradingDays > 120 ? 0.3 : 0.25,
                 }
             ]
         },
@@ -3005,7 +3020,11 @@ function renderLiveCompChart(data) {
                             var idx = items[0].dataIndex;
                             var d = dates[idx];
                             var p = d.split('-');
-                            return 'Día ' + (idx + 1) + '  \u00b7  ' + p[2] + '/' + p[1] + '/' + p[0];
+                            var dateStr = p[2] + '/' + p[1] + '/' + p[0];
+                            if (useMonthLabels) {
+                                return dateStr + '  \u00b7  ' + t('day-label') + ' ' + (idx + 1);
+                            }
+                            return t('day-label') + ' ' + (idx + 1) + '  \u00b7  ' + dateStr;
                         },
                         label: function(ctx) {
                             var sign = ctx.parsed.y >= 0 ? '+' : '';
@@ -3030,12 +3049,26 @@ function renderLiveCompChart(data) {
                     ticks: {
                         color: tickColor,
                         font: { family: "'JetBrains Mono', monospace", size: 10 },
-                        callback: function(val) { return val; }
+                        maxRotation: 0,
+                        autoSkip: !useMonthLabels,
+                        callback: function(val, idx) {
+                            if (useMonthLabels) {
+                                // Only show labels at month boundaries (non-empty labels)
+                                return dayLabels[idx] || null;
+                            }
+                            return val;
+                        }
                     },
-                    grid: { color: gridColor },
+                    grid: {
+                        color: function(ctx) {
+                            // Subtle grid line at month boundaries in month mode
+                            if (useMonthLabels && dayLabels[ctx.index]) return gridColor;
+                            return useMonthLabels ? 'transparent' : gridColor;
+                        }
+                    },
                     border: { color: gridColor },
                     title: {
-                        display: true,
+                        display: !useMonthLabels,
                         text: 'Día de Trading',
                         color: tickColor,
                         font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
