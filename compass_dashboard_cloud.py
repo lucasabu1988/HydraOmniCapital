@@ -2403,17 +2403,16 @@ def api_live_chart():
     # 1. Read HYDRA daily values — baseline file first, then state files overlay
     #    The baseline contains pre-computed history that survives Render deploys.
     #    State files from the running engine overlay (and may update) recent dates.
-    baseline_path = os.path.join(STATE_DIR, 'live_chart_baseline.json')
+    first_value = HYDRA_CONFIG['INITIAL_CAPITAL']
     hydra_data = {}  # date_str -> portfolio_value
-    first_value = None
+
+    baseline_path = os.path.join(STATE_DIR, 'live_chart_baseline.json')
     if os.path.exists(baseline_path):
         try:
             with open(baseline_path, 'r') as f:
                 bl = json.load(f)
-            initial = bl.get('initial_capital', HYDRA_CONFIG['INITIAL_CAPITAL'])
             for dt, val in zip(bl.get('dates', []), bl.get('values', [])):
                 hydra_data[dt] = val
-            first_value = initial
         except Exception as e:
             logger.warning(f"api_live_chart baseline read failed: {e}")
 
@@ -2439,15 +2438,29 @@ def api_live_chart():
             logger.warning(f"api_live_chart failed: {e}")
             continue
 
-    if first_value is None:
-        first_value = HYDRA_CONFIG['INITIAL_CAPITAL']
-
     if not hydra_data:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
-    dates = sorted(d for d in hydra_data.keys() if d >= LIVE_TEST_START_DATE)
+    # Filter: only live test dates, weekdays only, no reset states
+    def _is_valid_chart_date(dt_str):
+        if dt_str < LIVE_TEST_START_DATE:
+            return False
+        try:
+            d = date.fromisoformat(dt_str)
+            return d.weekday() < 5  # skip weekends
+        except ValueError as e:
+            logger.warning('Invalid chart date %s: %s', dt_str, e)
+            return False
+
+    dates = sorted(d for d in hydra_data.keys() if _is_valid_chart_date(d))
     if not dates:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
+
+    # Ensure Day 1 = initial capital (positions entered at close, no P&L yet)
+    hydra_data[LIVE_TEST_START_DATE] = first_value
+    if dates[0] != LIVE_TEST_START_DATE:
+        dates.insert(0, LIVE_TEST_START_DATE)
+
     start_date = dates[0]
 
     # 2. Fetch S&P 500 index data for the same period (try ^GSPC, fallback SPY)
