@@ -934,461 +934,229 @@
 <div id="page-roadmap" class="page-content">
 
 <div class="roadmap-header">
-    <h2 data-i18n="rm-heading">Camino hacia Lanzamiento</h2>
-    <p data-i18n="rm-heading-sub">HYDRA (Momentum + Rattlesnake + Catalyst + EFA) &mdash; Checklist de producci&oacute;n. Cada fase debe completarse antes de operar con capital real.</p>
+    <h2>HYDRA &mdash; Road Map</h2>
+    <p class="lang-es">Del concepto al capital real. Cada hito es un paso verificado hacia producci&oacute;n.</p>
+    <p class="lang-en" style="display:none">From concept to real capital. Every milestone is a verified step toward production.</p>
 </div>
 
 <!-- PROGRESS BAR -->
 <div class="roadmap-progress-bar">
     <div class="roadmap-progress-track">
-        <div class="roadmap-progress-fill" id="rm-progress-fill" style="width:50%;"></div>
+        <div class="roadmap-progress-fill" id="rm-progress-fill" style="width:58%;"></div>
     </div>
     <div class="roadmap-progress-label">
-        <span class="done" id="rm-progress-text">3 / 6 completado</span>
-        <span id="rm-progress-pct">50%</span>
+        <span class="done" id="rm-progress-text">14 / 24 hitos</span>
+        <span id="rm-progress-pct">58%</span>
     </div>
 </div>
 
 <!-- SUMMARY STATS -->
 <div class="roadmap-summary">
     <div class="roadmap-summary-card">
-        <div class="rm-summary-title" data-i18n="rm-summary-title">Resumen de Progreso</div>
+        <div class="rm-summary-title">Resumen de Progreso</div>
         <div class="rm-summary-grid">
             <div class="rm-summary-stat">
-                <div class="rm-summary-num" style="color:var(--green);">3</div>
-                <div class="rm-summary-label" data-i18n="rm-completed">Completado</div>
+                <div class="rm-summary-num" style="color:var(--green);">5</div>
+                <div class="rm-summary-label">Ciclos</div>
             </div>
             <div class="rm-summary-stat">
-                <div class="rm-summary-num" style="color:var(--accent-light);">1</div>
-                <div class="rm-summary-label" data-i18n="rm-in-progress">En Progreso</div>
+                <div class="rm-summary-num" style="color:var(--accent-light);">20</div>
+                <div class="rm-summary-label">D&iacute;as Trading</div>
             </div>
             <div class="rm-summary-stat">
-                <div class="rm-summary-num" style="color:var(--text-tertiary);">2</div>
-                <div class="rm-summary-label" data-i18n="rm-pending">Pendiente</div>
+                <div class="rm-summary-num" style="color:var(--cyan);">64</div>
+                <div class="rm-summary-label">Experimentos</div>
             </div>
             <div class="rm-summary-stat">
-                <div class="rm-summary-num" style="color:var(--cyan);">62</div>
-                <div class="rm-summary-label" data-i18n="rm-experiments">Experimentos</div>
+                <div class="rm-summary-num" style="color:var(--green);">+1.55%</div>
+                <div class="rm-summary-label">Retorno</div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- MILESTONE CARDS -->
-<div class="roadmap-grid">
+<!-- VISUAL TIMELINE -->
+<div class="rm-timeline">
 
-    <!-- Phase 1: Algorithm -->
-    <div class="roadmap-card rm-done">
-        <div class="rm-card-top">
-            <span class="rm-phase" data-i18n="rm-phase1">Fase 1 &mdash; Algoritmo</span>
-            <span class="rm-status rm-status-done" data-i18n="rm-status-done">Completado</span>
-        </div>
-        <div class="rm-title">Motor HYDRA</div>
-        <div class="lang-es">
-        <div class="rm-desc">
-            Algoritmo de momentum cross-sectional con filtro sigmoid de r&eacute;gimen, bull market override, adaptive stops, sector concentration, DD scaling suave, exit renewal, y quality filter. 68 experimentos.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> Backtest 2000-2026: HYDRA <strong style="color:var(--green);">15.62% CAGR</strong>, 1.08 Sharpe (survivorship-corrected, 882 tickers PIT)</li>
-            <li><span class="rm-check checked"></span> <strong>Exp61: Survivorship bias HYDRA = +0.50% CAGR (diversificaci&oacute;n absorbe el sesgo)</strong></li>
-            <li><span class="rm-check checked"></span> 68 experimentos, 924 tickers hist&oacute;ricos de 4 fuentes (yfinance + Tiingo + Stooq + Wayback)</li>
-            <li><span class="rm-check checked"></span> v8.4: Bull market override (+1 pos cuando SPY &gt; SMA200*1.03)</li>
-            <li><span class="rm-check checked"></span> v8.4: Adaptive stops por volatilidad (-6% a -15%)</li>
-            <li><span class="rm-check checked"></span> v8.4: Sector concentration limits (max 3 por sector)</li>
-            <li><span class="rm-check checked"></span> No leverage (1.0x) &mdash; margen 6% destruye valor</li>
-            <li><span class="rm-check checked"></span> Pre-close signal 15:30 ET + MOC same-day</li>
-            <li><span class="rm-check checked"></span> Dashboard cloud desplegado en Render.com</li>
-            <li><span class="rm-check checked"></span> Secci&oacute;n Algoritmo reescrita en espa&ntilde;ol con explicaciones accesibles</li>
-            <li><span class="rm-check checked"></span> Dashboard biling&uuml;e ES/EN con toggle instant&aacute;neo</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Inicio: <span class="rm-meta-val">2024</span></div>
-            <div class="rm-meta-item">Fin: <span class="rm-meta-val">Mar 2026</span></div>
-            <div class="rm-meta-item">Resultado: <span class="rm-meta-val" style="color:var(--green);">$100K &rarr; ~$4.4M (HYDRA survivorship-corrected)</span></div>
-        </div>
-        </div>
-        <div class="lang-en" style="display:none">
-        <div class="rm-desc">
-            Cross-sectional momentum algorithm with sigmoid regime filter, bull market override, adaptive stops, sector concentration, smooth DD scaling, exit renewal, and quality filter. 68 experiments.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> Backtest 2000-2026: HYDRA <strong style="color:var(--green);">15.62% CAGR</strong>, 1.08 Sharpe (survivorship-corrected, 882 tickers PIT)</li>
-            <li><span class="rm-check checked"></span> <strong>Exp61: HYDRA survivorship bias = +0.50% CAGR (diversification absorbs the bias)</strong></li>
-            <li><span class="rm-check checked"></span> 68 experiments, 924 historical tickers from 4 sources (yfinance + Tiingo + Stooq + Wayback)</li>
-            <li><span class="rm-check checked"></span> v8.4: Bull market override (+1 pos when SPY &gt; SMA200*1.03)</li>
-            <li><span class="rm-check checked"></span> v8.4: Adaptive stops by volatility (-6% to -15%)</li>
-            <li><span class="rm-check checked"></span> v8.4: Sector concentration limits (max 3 per sector)</li>
-            <li><span class="rm-check checked"></span> No leverage (1.0x) &mdash; broker margin 6% destroys value</li>
-            <li><span class="rm-check checked"></span> Pre-close signal 15:30 ET + MOC same-day</li>
-            <li><span class="rm-check checked"></span> Cloud dashboard deployed on Render.com</li>
-            <li><span class="rm-check checked"></span> Algorithm section rewritten with accessible explanations</li>
-            <li><span class="rm-check checked"></span> Bilingual dashboard ES/EN with instant toggle</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Start: <span class="rm-meta-val">2024</span></div>
-            <div class="rm-meta-item">End: <span class="rm-meta-val">Mar 2026</span></div>
-            <div class="rm-meta-item">Result: <span class="rm-meta-val" style="color:var(--green);">$100K &rarr; ~$4.4M (HYDRA survivorship-corrected)</span></div>
-        </div>
+    <!-- 1. Genesis -->
+    <div class="rm-node rm-done">
+        <div class="rm-date">2024</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Completado</div>
+            <div class="rm-title">G&eacute;nesis del Proyecto</div>
+            <div class="rm-desc">Primeros algoritmos de momentum. Investigaci&oacute;n de se&ntilde;ales cross-sectional, filtros de r&eacute;gimen, y backtesting en S&amp;P 500.</div>
         </div>
     </div>
 
-    <!-- Phase 2: Data Integrity -->
-    <div class="roadmap-card rm-done">
-        <div class="rm-card-top">
-            <span class="rm-phase" data-i18n="rm-phase2">Fase 2 &mdash; Datos</span>
-            <span class="rm-status rm-status-done">Completado</span>
-        </div>
-        <div class="rm-title">Survivorship Bias Corrected</div>
-        <div class="lang-es">
-        <div class="rm-desc">
-            <strong>Exp61 COMPLETADO:</strong> Pipeline multi-fuente con 924 tickers (yfinance + Tiingo + Stooq + Wayback Machine). Backtest HYDRA survivorship-corrected: <strong>15.62% CAGR</strong> (1.08 Sharpe, -21.7% MaxDD). Sesgo de solo +0.50% &mdash; la diversificaci&oacute;n de HYDRA absorbe el bias.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> 1,197 tickers hist&oacute;ricos del S&amp;P 500 identificados (fja05680/sp500)</li>
-            <li><span class="rm-check checked"></span> 924 tickers descargados de 4 fuentes (77.2% cobertura)</li>
-            <li><span class="rm-check checked"></span> 42 tickers corruptos filtrados (precio max, near-zero, retornos >80%)</li>
-            <li><span class="rm-check checked"></span> 882 tickers limpios en backtest point-in-time</li>
-            <li><span class="rm-check checked"></span> HYDRA corregido: <strong>15.62% CAGR</strong> (vs 15.62% producci&oacute;n = <strong>+0.50% bias</strong>)</li>
-            <li><span class="rm-check checked"></span> COMPASS standalone corregido: 8.75% CAGR (bias much larger sin diversificaci&oacute;n)</li>
-            <li><span class="rm-check checked"></span> Datos de bancarrotas recuperados: Lehman, Bear Stearns, Merrill Lynch, Wachovia, Countrywide (Wayback Machine)</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Inicio: <span class="rm-meta-val">Feb 2026</span></div>
-            <div class="rm-meta-item">Fin: <span class="rm-meta-val">12 Mar 2026</span></div>
-            <div class="rm-meta-item">Impacto: <span class="rm-meta-val" style="color:var(--green);">HYDRA resilient &mdash; only +0.50% bias</span></div>
-        </div>
-        </div>
-        <div class="lang-en" style="display:none">
-        <div class="rm-desc">
-            <strong>Exp61 COMPLETED:</strong> Multi-source pipeline with 924 tickers (yfinance + Tiingo + Stooq + Wayback Machine). HYDRA survivorship-corrected backtest: <strong>15.62% CAGR</strong> (1.08 Sharpe, -21.7% MaxDD). Only +0.50% bias &mdash; HYDRA&rsquo;s diversification absorbs survivorship bias.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> 1,197 historical S&amp;P 500 tickers identified (fja05680/sp500)</li>
-            <li><span class="rm-check checked"></span> 924 tickers downloaded from 4 sources (77.2% coverage)</li>
-            <li><span class="rm-check checked"></span> 42 corrupt tickers filtered (max price, near-zero, >80% daily returns)</li>
-            <li><span class="rm-check checked"></span> 882 clean tickers in point-in-time backtest</li>
-            <li><span class="rm-check checked"></span> HYDRA corrected: <strong>15.62% CAGR</strong> (vs 15.62% production = <strong>+0.50% bias</strong>)</li>
-            <li><span class="rm-check checked"></span> COMPASS standalone corrected: 8.75% CAGR (bias much larger without diversification)</li>
-            <li><span class="rm-check checked"></span> Bankruptcy data recovered: Lehman, Bear Stearns, Merrill Lynch, Wachovia, Countrywide (Wayback Machine)</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Start: <span class="rm-meta-val">Feb 2026</span></div>
-            <div class="rm-meta-item">End: <span class="rm-meta-val">12 Mar 2026</span></div>
-            <div class="rm-meta-item">Impact: <span class="rm-meta-val" style="color:var(--green);">HYDRA resilient &mdash; only +0.50% bias</span></div>
-        </div>
+    <!-- 2. COMPASS v8 -->
+    <div class="rm-node rm-done">
+        <div class="rm-date">Ene 2026</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Completado</div>
+            <div class="rm-title">COMPASS v8 &mdash; Motor Bloqueado</div>
+            <div class="rm-desc">Algoritmo de momentum inel&aacute;stico: 90d lookback, 5d hold, adaptive stops, sigmoid regime, bull override, sector limits, DD scaling. <strong>64 experimentos</strong> &mdash; ning&uacute;n cambio mejora el baseline.</div>
+            <div class="rm-kpi"><span class="rm-kpi-val green">15.62% CAGR</span> <span class="rm-kpi-val cyan">1.08 Sharpe</span> <span class="rm-kpi-val yellow">&minus;21.7% MaxDD</span></div>
         </div>
     </div>
 
-    <!-- Phase 3: Broker -->
-    <div class="roadmap-card rm-done">
-        <div class="rm-card-top">
-            <span class="rm-phase" data-i18n="rm-phase3">Fase 3 &mdash; Broker</span>
-            <span class="rm-status rm-status-done">Completado</span>
-        </div>
-        <div class="rm-title">IBKR TWS API + PaperBroker</div>
-        <div class="lang-es">
-        <div class="rm-desc">
-            Integraci&oacute;n completa con Interactive Brokers (IBKRBroker) y PaperBroker para simulaci&oacute;n. 53 unit tests. Estrategias MOC, TWAP, VWAP, PassiveLimit implementadas.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> IBKRBroker class completa (2,116 l&iacute;neas)</li>
-            <li><span class="rm-check checked"></span> PaperBroker operativo para paper trading</li>
-            <li><span class="rm-check checked"></span> Adapter de &oacute;rdenes MOC (Market-on-Close)</li>
-            <li><span class="rm-check checked"></span> Estrategias: MOC, TWAP, VWAP, PassiveLimit</li>
-            <li><span class="rm-check checked"></span> ConnectionManager con auto-reconnect</li>
-            <li><span class="rm-check checked"></span> 53 unit tests (IBKRCommissionModel, Portfolio, Orders)</li>
-            <li><span class="rm-check checked"></span> Failover: PaperBroker como backup autom&aacute;tico</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Inicio: <span class="rm-meta-val">Feb 2026</span></div>
-            <div class="rm-meta-item">Fin: <span class="rm-meta-val">19 Feb 2026</span></div>
-            <div class="rm-meta-item">Resultado: <span class="rm-meta-val" style="color:var(--green);">Production-ready</span></div>
-        </div>
-        </div>
-        <div class="lang-en" style="display:none">
-        <div class="rm-desc">
-            Full integration with Interactive Brokers (IBKRBroker) and PaperBroker for simulation. 53 unit tests. MOC, TWAP, VWAP, PassiveLimit strategies implemented.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> Complete IBKRBroker class (2,116 lines)</li>
-            <li><span class="rm-check checked"></span> PaperBroker operational for paper trading</li>
-            <li><span class="rm-check checked"></span> MOC (Market-on-Close) order adapter</li>
-            <li><span class="rm-check checked"></span> Strategies: MOC, TWAP, VWAP, PassiveLimit</li>
-            <li><span class="rm-check checked"></span> ConnectionManager with auto-reconnect</li>
-            <li><span class="rm-check checked"></span> 53 unit tests (IBKRCommissionModel, Portfolio, Orders)</li>
-            <li><span class="rm-check checked"></span> Failover: PaperBroker as automatic backup</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Start: <span class="rm-meta-val">Feb 2026</span></div>
-            <div class="rm-meta-item">End: <span class="rm-meta-val">19 Feb 2026</span></div>
-            <div class="rm-meta-item">Result: <span class="rm-meta-val" style="color:var(--green);">Production-ready</span></div>
-        </div>
+    <!-- 3. IBKR Broker -->
+    <div class="rm-node rm-done">
+        <div class="rm-date">19 Feb</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Completado</div>
+            <div class="rm-title">Broker IBKR + PaperBroker</div>
+            <div class="rm-desc">Integraci&oacute;n completa con Interactive Brokers. PaperBroker para simulaci&oacute;n. Estrategias MOC, TWAP, VWAP. ConnectionManager con auto-reconnect.</div>
+            <div class="rm-kpi"><span class="rm-kpi-val green">53 unit tests</span> <span class="rm-kpi-val cyan">Production-ready</span></div>
         </div>
     </div>
 
-    <!-- Phase 4: Paper Trading -->
-    <div class="roadmap-card rm-active">
-        <div class="rm-card-top">
-            <span class="rm-phase" data-i18n="rm-phase4">Fase 4 &mdash; Validaci&oacute;n</span>
-            <span class="rm-status rm-status-active" data-i18n="rm-status-active">En Progreso</span>
-        </div>
-        <div class="rm-title">Paper Trading Activo desde 6 Mar 2026</div>
-        <div class="lang-es">
-        <div class="rm-desc">
-            Simulaci&oacute;n en tiempo real con PaperBroker. Portfolio: <strong>$99,247</strong> (&minus;0.75%). 3 posiciones abiertas (MRK, JNJ, GOOGL). Sistema ML activo recopilando datos. Test reiniciado el 6 de marzo con $100K.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> Dashboard live operativo (local + cloud Render.com)</li>
-            <li><span class="rm-check checked"></span> Dashboard biling&uuml;e ES/EN desplegado</li>
-            <li><span class="rm-check checked"></span> HYDRA engine corriendo 24/7</li>
-            <li><span class="rm-check checked"></span> ML learning system integrado (Phase 1: logging)</li>
-            <li><span class="rm-check checked"></span> 3 posiciones abiertas: MRK, JNJ, GOOGL</li>
-            <li><span class="rm-check"></span> 1 mes paper sin errores de ejecuci&oacute;n (2/~22 d&iacute;as)</li>
-            <li><span class="rm-check"></span> 3 meses paper (ciclo completo de earnings)</li>
-            <li><span class="rm-check"></span> ML Phase 2: modelos predictivos (2/63 d&iacute;as recopilados)</li>
-            <li><span class="rm-check"></span> 0 incidentes de sistema no resueltos</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Inicio: <span class="rm-meta-val" style="color:var(--green);">6 Mar 2026</span></div>
-            <div class="rm-meta-item">D&iacute;as activos: <span class="rm-meta-val">2 d&iacute;as de trading</span></div>
-            <div class="rm-meta-item">Portfolio: <span class="rm-meta-val" style="color:var(--red);">$99,247 (&minus;0.75%)</span></div>
-        </div>
-        </div>
-        <div class="lang-en" style="display:none">
-        <div class="rm-desc">
-            Real-time simulation with PaperBroker. Portfolio: <strong>$99,247</strong> (&minus;0.75%). 3 open positions (MRK, JNJ, GOOGL). ML system actively collecting data. Test restarted March 6 with $100K.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check checked"></span> Live dashboard operational (local + cloud Render.com)</li>
-            <li><span class="rm-check checked"></span> Bilingual dashboard ES/EN deployed</li>
-            <li><span class="rm-check checked"></span> HYDRA engine running 24/7</li>
-            <li><span class="rm-check checked"></span> ML learning system integrated (Phase 1: logging)</li>
-            <li><span class="rm-check checked"></span> 3 open positions: MRK, JNJ, GOOGL</li>
-            <li><span class="rm-check"></span> 1 month paper without execution errors (2/~22 days)</li>
-            <li><span class="rm-check"></span> 3 months paper (complete earnings cycle)</li>
-            <li><span class="rm-check"></span> ML Phase 2: predictive models (2/63 days collected)</li>
-            <li><span class="rm-check"></span> 0 unresolved system incidents</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Start: <span class="rm-meta-val" style="color:var(--green);">6 Mar 2026</span></div>
-            <div class="rm-meta-item">Active days: <span class="rm-meta-val">2 trading days</span></div>
-            <div class="rm-meta-item">Portfolio: <span class="rm-meta-val" style="color:var(--red);">$99,247 (&minus;0.75%)</span></div>
-        </div>
+    <!-- 4. Survivorship Bias -->
+    <div class="rm-node rm-done">
+        <div class="rm-date">12 Mar</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Completado</div>
+            <div class="rm-title">Survivorship Bias Corregido (Exp61)</div>
+            <div class="rm-desc">Pipeline multi-fuente: 882 tickers limpios de 4 fuentes (yfinance + Tiingo + Stooq + Wayback Machine). Bancarrotas recuperadas: Lehman, Bear Stearns, Merrill Lynch, Countrywide.</div>
+            <div class="rm-kpi"><span class="rm-kpi-val green">Bias = +0.50%</span> <span class="rm-kpi-val cyan">882 tickers PIT</span></div>
         </div>
     </div>
 
-    <!-- Phase 5: Tax Optimization -->
-    <div class="roadmap-card rm-pending">
-        <div class="rm-card-top">
-            <span class="rm-phase" data-i18n="rm-phase5">Fase 5 &mdash; Fiscalidad</span>
-            <span class="rm-status rm-status-pending" data-i18n="rm-status-pending">Pendiente</span>
-        </div>
-        <div class="rm-title lang-es">Optimizaci&oacute;n Fiscal</div>
-        <div class="rm-title lang-en" style="display:none">Tax Optimization</div>
-        <div class="lang-es">
-        <div class="rm-desc">
-            ~209 trades/a&ntilde;o generan ganancias de corto plazo (hasta 37% + state tax). Operar en cuenta IRA/401(k) para diferir impuestos.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check"></span> Evaluar IRA vs 401(k) vs Taxable</li>
-            <li><span class="rm-check"></span> Transferir/abrir cuenta IRA en IBKR</li>
-            <li><span class="rm-check"></span> Calcular tax drag real (~10-11% after-tax en taxable)</li>
-            <li><span class="rm-check"></span> Configurar m&oacute;dulo de tax-lot tracking</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--yellow);">#4</span></div>
-            <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fase 3</span></div>
-            <div class="rm-meta-item">Impacto: <span class="rm-meta-val">+4-5% CAGR (tax savings)</span></div>
-        </div>
-        </div>
-        <div class="lang-en" style="display:none">
-        <div class="rm-desc">
-            ~209 trades/year generate short-term gains (up to 37% + state tax). Operate in IRA/401(k) account to defer taxes.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check"></span> Evaluate IRA vs 401(k) vs Taxable</li>
-            <li><span class="rm-check"></span> Transfer/open IRA account at IBKR</li>
-            <li><span class="rm-check"></span> Calculate real tax drag (~10-11% after-tax in taxable)</li>
-            <li><span class="rm-check"></span> Configure tax-lot tracking module</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Priority: <span class="rm-meta-val" style="color:var(--yellow);">#4</span></div>
-            <div class="rm-meta-item">Depends on: <span class="rm-meta-val">Phase 3</span></div>
-            <div class="rm-meta-item">Impact: <span class="rm-meta-val">+4-5% CAGR (tax savings)</span></div>
-        </div>
+    <!-- 5. Paper Trading Start -->
+    <div class="rm-node rm-done rm-major">
+        <div class="rm-date">6 Mar</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Hito Mayor</div>
+            <div class="rm-title">&#9654; Paper Trading Iniciado</div>
+            <div class="rm-desc">HYDRA engine activo 24/7 en Render.com. Dashboard cloud + local. ML learning system recopilando datos. Capital inicial: $100,000.</div>
+            <div class="rm-kpi"><span class="rm-kpi-val green">$100,000</span> <span class="rm-kpi-val cyan">5 estrategias</span></div>
         </div>
     </div>
 
-    <!-- Phase 6: Go Live -->
-    <div class="roadmap-card rm-pending">
-        <div class="rm-card-top">
-            <span class="rm-phase" data-i18n="rm-phase6">Fase 6 &mdash; Lanzamiento</span>
-            <span class="rm-status rm-status-pending">Pendiente</span>
-        </div>
-        <div class="rm-title lang-es">Capital Real $100K</div>
-        <div class="rm-title lang-en" style="display:none">Real Capital $100K</div>
-        <div class="lang-es">
-        <div class="rm-desc">
-            Despliegue con $100K de capital real. Escalar a $500K+ en el futuro con RATTLESNAKE dual-engine y Box Spread financing via portfolio margin.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check"></span> Depositar $100K en IBKR</li>
-            <li><span class="rm-check"></span> Ejecutar primera se&ntilde;al real</li>
-            <li><span class="rm-check"></span> Monitoreo 24/7 (alertas, failover activo)</li>
-            <li><span class="rm-check"></span> Review mensual: CAGR real vs backtest</li>
-            <li><span class="rm-check"></span> Plan de escala: $500K+ &rarr; RATTLESNAKE + portfolio margin</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Prioridad: <span class="rm-meta-val" style="color:var(--text-tertiary);">#6 FINAL</span></div>
-            <div class="rm-meta-item">Depende de: <span class="rm-meta-val">Fases 1-5</span></div>
-            <div class="rm-meta-item">Capital: <span class="rm-meta-val" style="color:var(--green);">$100,000</span></div>
-        </div>
-        </div>
-        <div class="lang-en" style="display:none">
-        <div class="rm-desc">
-            Deployment with $100K real capital. Scale to $500K+ in the future with RATTLESNAKE dual-engine and Box Spread financing via portfolio margin.
-        </div>
-        <ul class="rm-checklist">
-            <li><span class="rm-check"></span> Deposit $100K in IBKR</li>
-            <li><span class="rm-check"></span> Execute first real signal</li>
-            <li><span class="rm-check"></span> 24/7 monitoring (alerts, active failover)</li>
-            <li><span class="rm-check"></span> Monthly review: real CAGR vs backtest</li>
-            <li><span class="rm-check"></span> Scale plan: $500K+ &rarr; RATTLESNAKE + portfolio margin</li>
-        </ul>
-        <div class="rm-meta">
-            <div class="rm-meta-item">Priority: <span class="rm-meta-val" style="color:var(--text-tertiary);">#6 FINAL</span></div>
-            <div class="rm-meta-item">Depends on: <span class="rm-meta-val">Phases 1-5</span></div>
-            <div class="rm-meta-item">Capital: <span class="rm-meta-val" style="color:var(--green);">$100,000</span></div>
-        </div>
+    <!-- 6. Cycle 1 -->
+    <div class="rm-node rm-done">
+        <div class="rm-date">16 Mar</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Ciclo 1</div>
+            <div class="rm-title">Primera Rotaci&oacute;n &mdash; JNJ, GEV, XOM</div>
+            <div class="rm-desc">Primer ciclo completo de 5 d&iacute;as. HYDRA super&oacute; al SPY en &minus;2.88% drawdown del mercado.</div>
+            <div class="rm-kpi"><span class="rm-kpi-val red">&minus;0.74%</span> <span class="rm-kpi-val green">+2.14% alpha</span></div>
         </div>
     </div>
 
-</div><!-- /roadmap-grid -->
-
-<!-- DECISION LOG -->
-<div class="roadmap-summary" style="margin-bottom:20px;">
-    <div class="roadmap-summary-card">
-        <div class="rm-summary-title" data-i18n="rm-decisions-title">Decisiones Clave Tomadas</div>
-        <div class="lang-es" style="display:grid; gap:8px;">
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">No Leverage</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Margen broker 6% destruye -1.10% CAGR. Box Spread (SOFR+20bps) es la &uacute;nica v&iacute;a viable.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">Motor Bloqueado</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">68 experimentos. Algoritmo inel&aacute;stico &mdash; cualquier cambio degrada performance.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">US-Only</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Expansi&oacute;n geogr&aacute;fica FALLIDA: EU -20.87%, Asia -19.71%. Algoritmo depende de microestructura US.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">HYDRA Multi-Strategy</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Momentum + Rattlesnake + Catalyst + EFA con cash recycling. 15.62% CAGR, 1.08 Sharpe, &minus;21.7% MaxDD (survivorship-corrected, 882 tickers).</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">Pre-Close MOC</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Se&ntilde;al a 15:30 ET + MOC same-day recupera +0.79% CAGR y mejora MaxDD en 7.8pp.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">ML Learning System</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Sistema progresivo de aprendizaje: Phase 1 logging activo, Phase 2 ML a los 63 d&iacute;as de trading.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0;">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">Dashboard Cloud</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Dashboard desplegado en Render.com con auto-deploy. Algoritmo explicado en espa&ntilde;ol con analog&iacute;as accesibles.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0;">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">Dashboard Biling&uuml;e ES/EN</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Toggle instant&aacute;neo client-side con data-i18n + diccionario JS. 200+ claves traducidas, sin dependencias externas.</div>
-                </div>
-            </div>
-        </div>
-        <div class="lang-en" style="display:none; gap:8px;">
-            <div style="display:grid; gap:8px;">
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">No Leverage</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Broker margin 6% destroys -1.10% CAGR. Box Spread (SOFR+20bps) is the only viable path.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">Engine Locked</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">68 experiments. Inelastic algorithm &mdash; any change degrades performance.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">US-Only</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Geographic expansion FAILED: EU -20.87%, Asia -19.71%. Algorithm depends on US microstructure.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">HYDRA Multi-Strategy</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Momentum + Rattlesnake + Catalyst + EFA with cash recycling. 15.62% CAGR, 1.08 Sharpe, &minus;21.7% MaxDD (survivorship-corrected, 882 tickers).</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">Pre-Close MOC</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Signal at 15:30 ET + MOC same-day recovers +0.79% CAGR and improves MaxDD by 7.8pp.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">ML Learning System</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Progressive learning system: Phase 1 logging active, Phase 2 ML at 63 trading days.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0;">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">Cloud Dashboard</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Dashboard deployed on Render.com with auto-deploy. Algorithm explained with accessible analogies.</div>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:8px 0;">
-                <span style="color:var(--green); font-size:16px;">&#10003;</span>
-                <div>
-                    <div style="font-size:13px; font-weight:600;">Bilingual Dashboard ES/EN</div>
-                    <div style="font-size:12px; color:var(--text-tertiary);">Instant client-side toggle with data-i18n + JS dictionary. 200+ keys translated, no external dependencies.</div>
-                </div>
-            </div>
-            </div>
+    <!-- 7. Cycle 2 -->
+    <div class="rm-node rm-done">
+        <div class="rm-date">20 Mar</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Ciclo 2</div>
+            <div class="rm-title">Rotaci&oacute;n &mdash; JNJ, XOM, MU</div>
+            <div class="rm-desc">Primer ciclo negativo vs SPY. MU cay&oacute; &minus;3.99%. Lecci&oacute;n: concentraci&oacute;n en 2 posiciones (RISK_OFF) amplifica.</div>
+            <div class="rm-kpi"><span class="rm-kpi-val red">&minus;0.92%</span> <span class="rm-kpi-val red">&minus;2.35% alpha</span></div>
         </div>
     </div>
-</div>
+
+    <!-- 8. Cycle 3 + Catalyst -->
+    <div class="rm-node rm-done rm-major">
+        <div class="rm-date">23 Mar</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Ciclo 3</div>
+            <div class="rm-title">Catalyst + EFA Activados &mdash; 4 Pilares</div>
+            <div class="rm-desc">GLD y DBC entran como cobertura cross-asset. EFA a&ntilde;ade exposici&oacute;n internacional. HYDRA opera ahora con las 4 estrategias activas.</div>
+            <div class="rm-kpi"><span class="rm-kpi-val green">+0.79%</span> <span class="rm-kpi-val green">+1.66% alpha</span></div>
+        </div>
+    </div>
+
+    <!-- 9. Cycle 4 -->
+    <div class="rm-node rm-done">
+        <div class="rm-date">1 Abr</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge done">Ciclo 4</div>
+            <div class="rm-title">Mejor Ciclo &mdash; +2.48% Return</div>
+            <div class="rm-desc">JNJ +2.04%, GEV +2.48%. Catalyst (GLD +8.1%, DBC +3.7%) aporta diversificaci&oacute;n. Bug de preclose detectado y corregido con 3 safety nets.</div>
+            <div class="rm-kpi"><span class="rm-kpi-val green">+2.48%</span> <span class="rm-kpi-val green">+1.98% alpha</span></div>
+        </div>
+    </div>
+
+    <!-- 10. Bug Fix + Cycle 5 = CURRENT -->
+    <div class="rm-node rm-active rm-current">
+        <div class="rm-date">2 Abr</div>
+        <div class="rm-dot rm-pulse"></div>
+        <div class="rm-card">
+            <div class="rm-badge active">Ahora</div>
+            <div class="rm-title">Ciclo 5 Activo &mdash; XOM, JNJ</div>
+            <div class="rm-desc">Posiciones: XOM (Energy) + JNJ (Healthcare) + GLD/DBC (Catalyst) + EFA. Preclose safety nets implementados. Portfolio: ~$101,500 (+1.55%).</div>
+            <div class="rm-kpi"><span class="rm-kpi-val cyan">$101,554</span> <span class="rm-kpi-val green">+1.55%</span> <span class="rm-kpi-val yellow">D&iacute;a 20</span></div>
+        </div>
+    </div>
+
+    <!-- ===== FUTURE MILESTONES ===== -->
+
+    <!-- 11. 1 Month Milestone -->
+    <div class="rm-node rm-pending">
+        <div class="rm-date">~Abr</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge pending">Pr&oacute;ximo</div>
+            <div class="rm-title">1 Mes Paper Sin Errores</div>
+            <div class="rm-desc">~22 d&iacute;as de trading sin incidentes de ejecuci&oacute;n. Validaci&oacute;n de robustez operativa del engine.</div>
+        </div>
+    </div>
+
+    <!-- 12. ML Phase 2 -->
+    <div class="rm-node rm-pending">
+        <div class="rm-date">~May</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge pending">Pendiente</div>
+            <div class="rm-title">ML Phase 2 &mdash; Modelos Predictivos</div>
+            <div class="rm-desc">100+ decisiones recopiladas. Feature store + outcome tracker. Primeros modelos de aprendizaje sobre se&ntilde;ales de entrada/salida.</div>
+        </div>
+    </div>
+
+    <!-- 13. 3-Month Validation -->
+    <div class="rm-node rm-pending rm-major">
+        <div class="rm-date">~Jun</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge pending">Hito Mayor</div>
+            <div class="rm-title">3 Meses de Paper Trading</div>
+            <div class="rm-desc">Ciclo completo de earnings trimestrales. Comparativa HYDRA vs SPY con datos reales forward. Decisi&oacute;n go/no-go.</div>
+        </div>
+    </div>
+
+    <!-- 14. Tax Optimization -->
+    <div class="rm-node rm-pending">
+        <div class="rm-date">~Jul</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge pending">Pendiente</div>
+            <div class="rm-title">Optimizaci&oacute;n Fiscal</div>
+            <div class="rm-desc">~209 trades/a&ntilde;o = ganancias corto plazo (hasta 37%). Evaluar IRA/401(k) para diferir impuestos. Tax-lot tracking.</div>
+        </div>
+    </div>
+
+    <!-- 15. Go Live -->
+    <div class="rm-node rm-pending rm-major rm-final">
+        <div class="rm-date">H2 2026</div>
+        <div class="rm-dot"></div>
+        <div class="rm-card">
+            <div class="rm-badge pending">Destino Final</div>
+            <div class="rm-title">&#127937; Capital Real &mdash; $100,000</div>
+            <div class="rm-desc">Depositar en IBKR. Primera se&ntilde;al real. Monitoreo 24/7. Review mensual CAGR real vs backtest. Plan de escala: $500K+ con portfolio margin.</div>
+        </div>
+    </div>
+
+</div><!-- /rm-timeline -->
+
+
 
 </div><!-- /page-roadmap -->
 
