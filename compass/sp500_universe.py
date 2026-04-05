@@ -11,6 +11,7 @@ import logging
 import os
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -56,7 +57,7 @@ def save_cache(tickers: List[str], source: str) -> None:
     try:
         os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
         data = {
-            'date': datetime.now().strftime('%Y-%m-%d'),
+            'date': datetime.now(ZoneInfo('America/New_York')).strftime('%Y-%m-%d'),  # BUG-14 fix: use ET not UTC
             'source': source,
             'tickers': tickers,
             'count': len(tickers),

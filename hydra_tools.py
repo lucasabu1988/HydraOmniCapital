@@ -27,13 +27,19 @@ MAX_DAILY_ROUND_TRIPS = 10
 # ---------------------------------------------------------------------------
 
 def _get_et_now():
-    """Current time in US/Eastern (handles EDT/EST automatically)."""
+    """Current time in US/Eastern (handles EDT/EST automatically).
+
+    BUG-15 fix: removed .replace(tzinfo=None). Stripping the timezone produced
+    naive datetimes that raised TypeError when compared against tz-aware timestamps
+    (e.g., yfinance returns UTC-aware pd.Timestamps). Callers that need naive
+    datetimes should call .replace(tzinfo=None) themselves.
+    """
     try:
         from zoneinfo import ZoneInfo
-        return datetime.now(ZoneInfo('America/New_York')).replace(tzinfo=None)
+        return datetime.now(ZoneInfo('America/New_York'))
     except ImportError:
         from dateutil import tz
-        return datetime.now(tz.gettz('America/New_York')).replace(tzinfo=None)
+        return datetime.now(tz.gettz('America/New_York'))
 
 
 def _check_yfinance_health():

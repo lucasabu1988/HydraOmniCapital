@@ -662,9 +662,10 @@ class PaperBroker(Broker):
             logger.error(f"Fill rejected by circuit breaker: {order.symbol}")
             return order
 
-        # Simular delay
-        import time
-        time.sleep(self.fill_delay)
+        # BUG-11 fix: removed time.sleep(fill_delay) from the hot path.
+        # Sleeping 1s per order blocks the main trading thread for ~5s per cycle
+        # (5 positions × 1s), delaying exits, kill switch checks and state updates.
+        # fill_delay is preserved in the attribute for compatibility but not used here.
         
         # Ejecutar orden
         commission = order.quantity * self.commission_per_share
@@ -725,8 +726,15 @@ class PaperBroker(Broker):
         self.orders[order.order_id] = order
         self.order_history.append(order)
         
-        logger.info(f"Orden ejecutada: {order.action} {order.quantity} {order.symbol} "
-                   f"@ ${fill_price:.2f} | P&L: ${realized_pnl:.2f}" if order.action == 'SELL' else "")
+        # BUG-08 fix: realized_pnl is only defined in the SELL branch.
+        # The original ternary expression caused NameError on every BUY because
+        # Python evaluates both branches of an f-string before the conditional.
+        if order.action == 'SELL':
+            logger.info(f"Orden ejecutada: SELL {order.quantity} {order.symbol} "
+                       f"@ ${fill_price:.2f} | P&L: ${realized_pnl:.2f}")
+        else:
+            logger.info(f"Orden ejecutada: BUY {order.quantity} {order.symbol} "
+                       f"@ ${fill_price:.2f} | Costo: ${total_cost:.2f}")
         
         return order
     

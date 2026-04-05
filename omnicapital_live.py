@@ -236,7 +236,21 @@ CONFIG = {
 }
 
 # US market holidays (NYSE/NASDAQ closed) — update annually
+# BUG-09 fix: added 2025 holidays required by _recover_missed_days() when
+# recovering state from prior year. Without 2025, is_market_holiday() returns
+# False for all 2025 holidays, causing recovery to attempt trading on closed days.
 US_MARKET_HOLIDAYS = {
+    # 2025 (needed for state recovery / backfill reaching prior year)
+    date(2025, 1, 1),   # New Year's Day
+    date(2025, 1, 20),  # MLK Day
+    date(2025, 2, 17),  # Presidents' Day
+    date(2025, 4, 18),  # Good Friday
+    date(2025, 5, 26),  # Memorial Day
+    date(2025, 6, 19),  # Juneteenth
+    date(2025, 7, 4),   # Independence Day
+    date(2025, 9, 1),   # Labor Day
+    date(2025, 11, 27), # Thanksgiving
+    date(2025, 12, 25), # Christmas
     # 2026
     date(2026, 1, 1),   # New Year's Day
     date(2026, 1, 19),  # MLK Day
@@ -529,7 +543,14 @@ def compute_live_regime_score(spy_hist: pd.DataFrame) -> float:
     0.0 = extreme bear, 1.0 = strong bull.
     """
     if len(spy_hist) < 252:
-        return 0.5
+        # BUG-12 fix: return conservative 0.35 instead of neutral 0.5 when data is
+        # insufficient. Score 0.5 maps to max_positions-1 = 4 (too aggressive without
+        # regime evidence). Score 0.35 maps to max_positions-2 = 3, a safer default.
+        logger.warning(
+            "SPY history too short (%d days < 252) — using conservative regime score 0.35",
+            len(spy_hist),
+        )
+        return 0.35
 
     spy_close = spy_hist['Close']
     current = float(spy_close.iloc[-1])
@@ -2674,6 +2695,10 @@ class COMPASSLive:
                     continue
 
                 # Step 2: Reconstruct regime score
+                # BUG-13 fix: if regime reconstruction fails, fall back to
+                # conservative score 0.35 instead of silently keeping the prior
+                # cycle's (possibly stale or over-optimistic) score.
+                _regime_ok = False
                 try:
                     spy_hist = yf.download('SPY', end=next_day, period='2y', progress=False)
                     if isinstance(spy_hist.columns, pd.MultiIndex):
@@ -2681,8 +2706,15 @@ class COMPASSLive:
                     if len(spy_hist) >= 252:
                         self._spy_hist = spy_hist
                         self.current_regime_score = compute_live_regime_score(spy_hist)
+                        _regime_ok = True
                 except Exception as e:
                     logger.warning("[RECOVERY] Regime reconstruction failed for %s: %s", missed_str, e)
+                if not _regime_ok:
+                    logger.warning(
+                        "[RECOVERY] Using conservative regime score 0.35 for %s (SPY data unavailable)",
+                        missed_str,
+                    )
+                    self.current_regime_score = 0.35
 
                 # Step 3: Fetch ^GSPC close for cycle log
                 try:
