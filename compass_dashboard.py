@@ -32,6 +32,37 @@ import requests as http_requests  # for external APIs
 
 from compass_portfolio_risk import compute_portfolio_risk
 
+# Import compute_adaptive_stop from the engine so dashboard and live trading
+# use exactly the same stop calculation (BUG-02 fix: eliminates dashboard/engine divergence).
+try:
+    from omnicapital_live import compute_adaptive_stop as _engine_compute_adaptive_stop
+    _HAS_ENGINE_STOP = True
+except ImportError:
+    _HAS_ENGINE_STOP = False
+    _engine_compute_adaptive_stop = None
+
+
+import math as _math
+
+
+def _compute_adaptive_stop(entry_daily_vol, config: dict) -> float:
+    """Wrapper that delegates to omnicapital_live.compute_adaptive_stop when available,
+    falling back to a local implementation so the dashboard never diverges from the engine."""
+    if _HAS_ENGINE_STOP and _engine_compute_adaptive_stop is not None:
+        return _engine_compute_adaptive_stop(entry_daily_vol, config)
+    # Local fallback (mirrors the engine implementation exactly)
+    if entry_daily_vol is None:
+        return config['STOP_FLOOR']
+    try:
+        entry_daily_vol = float(entry_daily_vol)
+    except (TypeError, ValueError):
+        return config['STOP_FLOOR']
+    if not _math.isfinite(entry_daily_vol) or entry_daily_vol <= 0:
+        return config['STOP_FLOOR']
+    raw_stop = -config['STOP_DAILY_VOL_MULT'] * entry_daily_vol
+    return max(config['STOP_CEILING'], min(config['STOP_FLOOR'], raw_stop))
+
+
 # Suppress yfinance noise
 logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 
@@ -264,12 +295,13 @@ def _backtest_scheduler_loop():
 
 
 def _check_csv_freshness():
-    """Check if backtest CSV was already updated today (skip run on startup)."""
+    """Check if backtest CSV was already updated today (skip run on startup).
+    Uses ET timezone so the comparison is consistent regardless of server timezone (e.g. Render UTC)."""
     global _backtest_status
     if os.path.exists(BACKTEST_CSV):
         mtime = os.path.getmtime(BACKTEST_CSV)
-        mtime_dt = datetime.fromtimestamp(mtime)
-        today = date.today()
+        mtime_dt = datetime.fromtimestamp(mtime, tz=ZoneInfo('America/New_York'))
+        today = datetime.now(ZoneInfo('America/New_York')).date()
         if mtime_dt.date() == today:
             _backtest_status['last_run_date'] = today.strftime('%Y-%m-%d')
             _backtest_status['last_result'] = 'success (pre-existing)'
@@ -674,9 +706,20 @@ def _build_health_payload(state):
 
     engine_running = bool(_engine_status.get('running'))
     ml_error_total = sum(abs(int(value or 0)) for value in ml_errors.values())
+
+    # Grace period: suppress 'degraded' for the first 60s after engine start
+    # to avoid false alerts during cold-start price cache warmup.
+    _startup_grace = False
+    _started_at = _engine_status.get('started_at')
+    if engine_running and _started_at:
+        try:
+            _startup_grace = (datetime.now() - datetime.fromisoformat(_started_at)).total_seconds() < 60
+        except (TypeError, ValueError):
+            pass
+
     if not engine_running or (price_age_seconds is not None and price_age_seconds > 300):
         overall_status = 'critical'
-    elif price_age_seconds is None or price_age_seconds > 60 or ml_error_total > 0:
+    elif not _startup_grace and (price_age_seconds is None or price_age_seconds > 60 or ml_error_total > 0):
         overall_status = 'degraded'
     else:
         overall_status = 'healthy'
@@ -754,7 +797,7 @@ def read_recent_logs(max_lines: int = 50) -> List[dict]:
         )
 
         entries = []
-        for line in lines[-max_lines * 3:]:  # read more lines to compensate for filtered noise
+        for line in lines[-max_lines * 5:]:  # read more lines to compensate for filtered noise (x5 to handle noisy cold-start logs)
             line = line.strip()
             if not line:
                 continue
@@ -799,13 +842,66 @@ def read_recent_logs(max_lines: int = 50) -> List[dict]:
         return entries[-max_lines:]  # return only the last N after filtering
 
     except (IOError, OSError):
-        logger.error('Failed to read recent logs from %s', log_path, exc_info=True)
+        logger.error('Failed to read recent logs from %s', log_file, exc_info=True)
         return []
 
 
 # ============================================================================
 # DERIVED CALCULATIONS
 # ============================================================================
+
+# US market holidays (NYSE) — pre-computed for years 2020-2030
+# Format: set of date strings 'YYYY-MM-DD'
+_US_MARKET_HOLIDAYS = {
+    # 2020
+    '2020-01-01', '2020-01-20', '2020-02-17', '2020-04-10', '2020-05-25',
+    '2020-07-03', '2020-09-07', '2020-11-26', '2020-12-25',
+    # 2021
+    '2021-01-01', '2021-01-18', '2021-02-15', '2021-04-02', '2021-05-31',
+    '2021-07-05', '2021-09-06', '2021-11-25', '2021-12-24',
+    # 2022
+    '2022-01-17', '2022-02-21', '2022-04-15', '2022-05-30',
+    '2022-06-20', '2022-07-04', '2022-09-05', '2022-11-24', '2022-12-26',
+    # 2023
+    '2023-01-02', '2023-01-16', '2023-02-20', '2023-04-07', '2023-05-29',
+    '2023-07-04', '2023-09-04', '2023-11-23', '2023-12-25',
+    # 2024
+    '2024-01-01', '2024-01-15', '2024-02-19', '2024-03-29', '2024-05-27',
+    '2024-07-04', '2024-09-02', '2024-11-28', '2024-12-25',
+    # 2025
+    '2025-01-01', '2025-01-09', '2025-01-20', '2025-02-17', '2025-04-18',
+    '2025-05-26', '2025-07-04', '2025-09-01', '2025-11-27', '2025-12-25',
+    # 2026
+    '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
+    '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
+    # 2027
+    '2027-01-01', '2027-01-18', '2027-02-15', '2027-04-26', '2027-05-31',
+    '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24',
+    # 2028
+    '2028-01-17', '2028-02-21', '2028-04-14', '2028-05-29',
+    '2028-07-04', '2028-09-04', '2028-11-23', '2028-12-25',
+    # 2029
+    '2029-01-01', '2029-01-15', '2029-02-19', '2029-04-13', '2029-05-28',
+    '2029-07-04', '2029-09-03', '2029-11-22', '2029-12-25',
+    # 2030
+    '2030-01-01', '2030-01-21', '2030-02-18', '2030-04-19', '2030-05-27',
+    '2030-07-04', '2030-09-02', '2030-11-28', '2030-12-25',
+}
+
+
+def _count_trading_days(start: date, end: date) -> int:
+    """Count NYSE trading days between start and end (exclusive of start, inclusive of end).
+    Excludes weekends and known US market holidays."""
+    if end <= start:
+        return 0
+    total = (end - start).days
+    count = 0
+    for d in range(1, total + 1):
+        day = start + timedelta(days=d)
+        if day.weekday() < 5 and day.isoformat() not in _US_MARKET_HOLIDAYS:
+            count += 1
+    return count
+
 
 def compute_position_details(state: dict, prices: Dict[str, float], prev_closes: Dict[str, float] = None) -> List[dict]:
     """Compute enriched position data for display."""
@@ -851,14 +947,12 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
             current_price = current_price or entry_price or 0
 
         # Compute days held from actual entry_date (entry day counts as day 1)
+        # Uses _count_trading_days() which excludes weekends AND NYSE holidays
         if entry_date:
             try:
                 entry_dt = date.fromisoformat(entry_date)
                 today = datetime.now(ZoneInfo('America/New_York')).date()
-                total_days = (today - entry_dt).days
-                # Count trading days from entry to today, inclusive of entry day (+1)
-                days_held = 1 + sum(1 for d in range(1, total_days + 1)
-                                    if (entry_dt + timedelta(days=d)).weekday() < 5)
+                days_held = 1 + _count_trading_days(entry_dt, today)
             except Exception:
                 logger.warning(
                     'Failed to parse entry_date=%r for position %s',
@@ -882,12 +976,13 @@ def compute_position_details(state: dict, prices: Dict[str, float], prev_closes:
             trailing_stop_level = None
 
         # v8.4: Adaptive position stop (vol-scaled)
+        # Uses _compute_adaptive_stop() which delegates to the engine's function
+        # to guarantee dashboard and live trading show identical stop levels.
         entry_daily_vol = meta.get('entry_daily_vol')
         if entry_daily_vol is not None:
-            raw_stop = -COMPASS_CONFIG['STOP_DAILY_VOL_MULT'] * entry_daily_vol
-            adaptive_stop = max(COMPASS_CONFIG['STOP_CEILING'], min(COMPASS_CONFIG['STOP_FLOOR'], raw_stop))
+            adaptive_stop = _compute_adaptive_stop(entry_daily_vol, COMPASS_CONFIG)
         else:
-            adaptive_stop = COMPASS_CONFIG['POSITION_STOP_LOSS']  # fallback
+            adaptive_stop = COMPASS_CONFIG['POSITION_STOP_LOSS']  # fallback for pre-v8.4 positions
         position_stop_level = entry_price * (1 + adaptive_stop)
 
         # Today's change: current price vs previous regular close (not post-market)
@@ -2021,18 +2116,13 @@ def api_backtest_status():
         result['csv_age_hours'] = round((time_module.time() - mtime) / 3600, 2)
 
     # Next scheduled run: next weekday at 16:15 ET
+    # Priority: if already ran today, jump to next business day regardless of current time.
+    # Otherwise, if past 16:15 today or on weekend, also advance to next business day.
     now_et = datetime.now(ZoneInfo('America/New_York'))
     target_time = now_et.replace(hour=16, minute=15, second=0, microsecond=0)
-    if now_et >= target_time or now_et.weekday() >= 5:
-        # Move to next weekday
-        days_ahead = 1
-        next_day = now_et + timedelta(days=days_ahead)
-        while next_day.weekday() >= 5:
-            days_ahead += 1
-            next_day = now_et + timedelta(days=days_ahead)
-        target_time = next_day.replace(hour=16, minute=15, second=0, microsecond=0)
-    # Already run today? Advance to next weekday
-    if _backtest_status['last_run_date'] == now_et.strftime('%Y-%m-%d'):
+    already_ran_today = _backtest_status['last_run_date'] == now_et.strftime('%Y-%m-%d')
+    if already_ran_today or now_et >= target_time or now_et.weekday() >= 5:
+        # Advance to next business day at 16:15 ET
         days_ahead = 1
         next_day = now_et + timedelta(days=days_ahead)
         while next_day.weekday() >= 5:
