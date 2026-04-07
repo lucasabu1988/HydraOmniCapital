@@ -39,7 +39,9 @@ def test_cli_runs_end_to_end(tmp_path):
     # 2. Synthetic Aaa + T-bill yield CSVs (FRED column shape)
     dates = pd.bdate_range('2020-01-01', periods=300)
     aaa_csv = tmp_path / 'aaa.csv'
-    pd.DataFrame({'DATE': dates, 'DAAA': [4.5] * len(dates)}).to_csv(aaa_csv, index=False)
+    pd.DataFrame(
+        {'observation_date': dates, 'yield_pct': [4.5] * len(dates)}
+    ).to_csv(aaa_csv, index=False)
     tbill_csv = tmp_path / 'tbill.csv'
     pd.DataFrame({'DATE': dates, 'DGS3MO': [3.5] * len(dates)}).to_csv(tbill_csv, index=False)
 

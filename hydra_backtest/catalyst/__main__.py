@@ -50,8 +50,10 @@ def main(argv=None) -> int:
                         default='data_cache/moody_aaa_yield.csv')
     parser.add_argument('--tbill', type=str,
                         default='data_cache/tbill_3m_fred.csv')
-    parser.add_argument('--aaa-date-col', type=str, default='DATE')
-    parser.add_argument('--aaa-value-col', type=str, default='DAAA')
+    # Defaults match the real on-disk shape: moody_aaa_yield.csv uses
+    # observation_date/yield_pct; tbill_3m_fred.csv uses DATE/DGS3MO.
+    parser.add_argument('--aaa-date-col', type=str, default='observation_date')
+    parser.add_argument('--aaa-value-col', type=str, default='yield_pct')
     parser.add_argument('--tbill-date-col', type=str, default='DATE')
     parser.add_argument('--tbill-value-col', type=str, default='DGS3MO')
     parser.add_argument('--slippage-bps', type=float, default=2.0)
