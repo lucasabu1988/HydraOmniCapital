@@ -190,3 +190,32 @@ def apply_catalyst_rebalance(
 
     new_state = state._replace(cash=cash, positions=new_positions)
     return new_state, trades, decisions
+
+
+def _apply_catalyst_daily_costs(
+    state: BacktestState,
+    cash_yield_annual_pct: float,
+) -> BacktestState:
+    """Apply one trading day's cash yield. Catalyst has no leverage,
+    no margin cost. Negative yields are ignored (fail-safe — see v1.0
+    design §13.4).
+    """
+    cash = state.cash
+    if cash > 0 and cash_yield_annual_pct > 0:
+        daily_rate = cash_yield_annual_pct / 100.0 / 252
+        cash += cash * daily_rate
+    return state._replace(cash=cash)
+
+
+def _capture_git_sha() -> str:
+    """Get current git commit sha, or 'unknown' if not in a repo."""
+    try:
+        out = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            capture_output=True, text=True, timeout=5,
+        )
+        if out.returncode == 0:
+            return out.stdout.strip()
+    except Exception:
+        pass
+    return 'unknown'
