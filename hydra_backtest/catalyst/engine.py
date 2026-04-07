@@ -219,3 +219,189 @@ def _capture_git_sha() -> str:
     except Exception:
         pass
     return 'unknown'
+
+
+def run_catalyst_backtest(
+    config: dict,
+    asset_data: Dict[str, pd.DataFrame],
+    cash_yield_daily: pd.Series,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    execution_mode: str = 'same_close',
+    progress_callback: Optional[callable] = None,
+) -> BacktestResult:
+    """Run a Catalyst cross-asset trend backtest from start_date to end_date.
+
+    Pure function: no side effects. Returns a BacktestResult compatible
+    with v1.0 reporting/methodology layers (drop-in for build_waterfall).
+
+    Universe is hardcoded as CATALYST_TREND_ASSETS (no PIT parameter).
+    """
+    started_at = datetime.now()
+
+    # Aggregate trading dates from the union of all 4 ETFs
+    all_dates_set = set()
+    for df in asset_data.values():
+        all_dates_set.update(df.index)
+    all_dates = sorted(all_dates_set)
+
+    state = BacktestState(
+        cash=float(config['INITIAL_CAPITAL']),
+        positions={},
+        peak_value=float(config['INITIAL_CAPITAL']),
+        crash_cooldown=0,
+        portfolio_value_history=(),
+    )
+
+    trades: list = []
+    decisions: list = []
+    snapshots: list = []
+    universe_size: Dict[int, int] = {}
+
+    catalyst_day_counter = 0
+    last_progress_year: Optional[int] = None
+    dates_in_range = [d for d in all_dates if start_date <= d <= end_date]
+    total_bars = max(len(dates_in_range), 1)
+
+    for i, date in enumerate(all_dates):
+        if date < start_date or date > end_date:
+            continue
+
+        # Progress callback (first bar of each year)
+        if progress_callback is not None and date.year != last_progress_year:
+            last_progress_year = date.year
+            try:
+                pv_now = _mark_to_market(state, asset_data, date)
+                bars_done = sum(1 for d in dates_in_range if d < date)
+                progress_callback({
+                    'year': int(date.year),
+                    'progress_pct': 100.0 * bars_done / total_bars,
+                    'portfolio_value': float(pv_now),
+                    'n_positions': len(state.positions),
+                })
+            except Exception:
+                pass
+
+        # 1. Mark-to-market
+        portfolio_value = _mark_to_market(state, asset_data, date)
+
+        # 1b. Update peak BEFORE drawdown
+        if portfolio_value > state.peak_value:
+            state = state._replace(peak_value=portfolio_value)
+
+        # 2. Universe size = count of assets with enough history today
+        eligible_today = sum(
+            1 for t in CATALYST_TREND_ASSETS
+            if _has_enough_history(asset_data, t, date)
+        )
+        universe_size[date.year] = max(
+            universe_size.get(date.year, 0), eligible_today
+        )
+
+        # 3. Drawdown
+        drawdown = (
+            (portfolio_value - state.peak_value) / state.peak_value
+            if state.peak_value > 0 else 0.0
+        )
+
+        # 4. Daily costs (cash yield only — Catalyst has no leverage)
+        if len(cash_yield_daily) > 0:
+            daily_yield = float(cash_yield_daily.get(date, cash_yield_daily.iloc[0]))
+        else:
+            daily_yield = 0.0
+        state = _apply_catalyst_daily_costs(state, daily_yield)
+
+        # 5. Rebalance check (every CATALYST_REBALANCE_DAYS or on first run)
+        catalyst_day_counter += 1
+        rebalance_today = False
+        if catalyst_day_counter >= CATALYST_REBALANCE_DAYS or not state.positions:
+            catalyst_day_counter = 0
+            rebalance_today = True
+            state, rb_trades, rb_decisions = apply_catalyst_rebalance(
+                state, date, i, asset_data, config, execution_mode, all_dates,
+            )
+            trades.extend(rb_trades)
+            decisions.extend(rb_decisions)
+
+        # 6. Snapshot AFTER rebalance
+        pv_after = _mark_to_market(state, asset_data, date)
+        snapshots.append({
+            'date': date,
+            'portfolio_value': pv_after,
+            'cash': state.cash,
+            'n_positions': len(state.positions),
+            'leverage': 1.0,            # Catalyst never uses leverage
+            'drawdown': drawdown,
+            'regime_score': 1.0,        # No regime gate
+            'crash_active': False,
+            'max_positions': len(CATALYST_TREND_ASSETS),
+            'rebalance_today': rebalance_today,
+            'n_trend_holdings': len(state.positions),
+        })
+
+        # 7. Update state tail: peak + days_held
+        if pv_after > state.peak_value:
+            state = state._replace(peak_value=pv_after)
+        new_positions = {
+            sym: {**p, 'days_held': p.get('days_held', 0) + 1}
+            for sym, p in state.positions.items()
+        }
+        state = state._replace(
+            positions=new_positions,
+            portfolio_value_history=state.portfolio_value_history + (pv_after,),
+        )
+
+    # 8. Synthetic-close any remaining open positions at the end of the backtest
+    if state.positions and dates_in_range:
+        last_date = dates_in_range[-1]
+        last_i = all_dates.index(last_date)
+        for sym in sorted(state.positions.keys()):
+            pos = state.positions[sym]
+            exit_price = _get_exec_price(
+                sym, last_date, last_i, all_dates, asset_data, execution_mode
+            )
+            if exit_price is None:
+                # Fall back to entry_price as a last resort so the trade
+                # appears in the log; PnL will be 0.
+                exit_price = float(pos['entry_price'])
+            shares = pos['shares']
+            commission = shares * config.get('COMMISSION_PER_SHARE', 0.0035)
+            pnl = (exit_price - pos['entry_price']) * shares - commission
+            ret = (
+                (exit_price / pos['entry_price'] - 1.0)
+                if pos['entry_price'] > 0 else 0.0
+            )
+            trades.append({
+                'symbol': sym,
+                'entry_date': pos['entry_date'],
+                'exit_date': last_date,
+                'exit_reason': 'CATALYST_BACKTEST_END',
+                'entry_price': pos['entry_price'],
+                'exit_price': exit_price,
+                'shares': shares,
+                'pnl': pnl,
+                'return': ret,
+                'sector': 'Catalyst',
+            })
+
+    finished_at = datetime.now()
+
+    result_config = dict(config)
+    result_config['_execution_mode'] = execution_mode
+
+    trade_cols = [
+        'symbol', 'entry_date', 'exit_date', 'exit_reason',
+        'entry_price', 'exit_price', 'shares', 'pnl', 'return', 'sector',
+    ]
+    return BacktestResult(
+        config=result_config,
+        daily_values=pd.DataFrame(snapshots),
+        trades=pd.DataFrame(trades) if trades else pd.DataFrame(columns=trade_cols),
+        decisions=decisions,
+        exit_events=[t for t in trades if t['exit_reason'] == 'CATALYST_TREND_OFF'],
+        universe_size=universe_size,
+        started_at=started_at,
+        finished_at=finished_at,
+        git_sha=_capture_git_sha(),
+        data_inputs_hash=compute_data_fingerprint(asset_data),
+    )
