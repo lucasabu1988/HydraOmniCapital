@@ -15,6 +15,11 @@ from typing import Dict, List, Tuple
 
 import pandas as pd
 
+from omnicapital_live import (
+    _dd_leverage,
+    compute_dynamic_leverage,
+)
+
 
 @dataclass(frozen=True)
 class BacktestState:
@@ -101,3 +106,70 @@ def get_tradeable_symbols(
             continue
         tradeable.append(sym)
     return tradeable
+
+
+def get_current_leverage_pure(
+    drawdown: float,
+    portfolio_value_history: tuple,
+    crash_cooldown: int,
+    config: dict,
+    spy_hist: pd.DataFrame,
+) -> Tuple[float, int, bool]:
+    """Pure equivalent of COMPASSLive.get_current_leverage.
+
+    Source: omnicapital_live.py:1396. Returns (leverage, new_crash_cooldown,
+    crash_active).
+
+    Mirrors the live logic exactly, including the crash brake bypass of
+    LEV_FLOOR at lines 1444-1446 of the live engine:
+
+        if crash_brake_active:
+            return target_lev           # bypass the floor
+        return max(target_lev, config['LEV_FLOOR'])
+    """
+    # 1. DD scaling (tiered drawdown leverage)
+    dd_lev = _dd_leverage(drawdown, config)
+    crash_brake_active = False
+    new_cooldown = crash_cooldown
+
+    # 2. Crash brake — three pathways (cooldown active, 5d velocity, 10d velocity).
+    # Mirror omnicapital_live.py:1412-1432 exactly.
+    if crash_cooldown > 0:
+        dd_lev = min(config['CRASH_LEVERAGE'], dd_lev)
+        crash_brake_active = True
+    elif len(portfolio_value_history) >= 5:
+        current_val = portfolio_value_history[-1]
+        val_5d = portfolio_value_history[-5]
+        if val_5d > 0:
+            ret_5d = (current_val / val_5d) - 1.0
+            if ret_5d <= config['CRASH_VEL_5D']:
+                dd_lev = min(config['CRASH_LEVERAGE'], dd_lev)
+                new_cooldown = config['CRASH_COOLDOWN'] - 1
+                crash_brake_active = True
+        if not crash_brake_active and len(portfolio_value_history) >= 10:
+            val_10d = portfolio_value_history[-10]
+            if val_10d > 0:
+                ret_10d = (current_val / val_10d) - 1.0
+                if ret_10d <= config['CRASH_VEL_10D']:
+                    dd_lev = min(config['CRASH_LEVERAGE'], dd_lev)
+                    new_cooldown = config['CRASH_COOLDOWN'] - 1
+                    crash_brake_active = True
+
+    # 3. Vol targeting (scaled into [LEV_FLOOR, LEVERAGE_MAX] by the live fn)
+    if spy_hist is not None and len(spy_hist) > 0:
+        vol_lev = compute_dynamic_leverage(
+            spy_hist,
+            config['TARGET_VOL'],
+            config['VOL_LOOKBACK'],
+            config['LEV_FLOOR'],
+            config['LEVERAGE_MAX'],
+        )
+    else:
+        vol_lev = 1.0
+
+    # 4. Final: minimum of DD-scaled and vol-targeted leverage.
+    # Crash brake bypass: when the brake fires, do NOT clamp to LEV_FLOOR.
+    target_lev = min(dd_lev, vol_lev)
+    if crash_brake_active:
+        return target_lev, new_cooldown, True
+    return max(target_lev, config['LEV_FLOOR']), new_cooldown, False

@@ -8,6 +8,7 @@ from hydra_backtest.engine import (
     BacktestResult,
     BacktestState,
     _mark_to_market,
+    get_current_leverage_pure,
     get_tradeable_symbols,
 )
 
@@ -148,3 +149,95 @@ def test_get_tradeable_symbols_respects_min_age():
     )
     assert 'AAPL' in tradeable
     assert 'NEW_IPO' not in tradeable  # only 2 days of history
+
+
+# -- get_current_leverage_pure -----------------------------------------------
+
+def _synthetic_spy(n=260, start_price=100.0, daily_return=0.0003):
+    """Build a realistic SPY price series for leverage tests."""
+    import numpy as np
+    prices = [start_price]
+    for _ in range(n - 1):
+        prices.append(prices[-1] * (1 + daily_return))
+    return pd.DataFrame(
+        {'Close': prices},
+        index=pd.date_range('2019-01-01', periods=n),
+    )
+
+
+def test_leverage_normal_regime(minimal_config):
+    spy = _synthetic_spy()
+    lev, cooldown, crash_active = get_current_leverage_pure(
+        drawdown=0.0,
+        portfolio_value_history=(100_000.0,) * 20,
+        crash_cooldown=0,
+        config=minimal_config,
+        spy_hist=spy,
+    )
+    assert minimal_config['LEV_FLOOR'] - 1e-9 <= lev <= minimal_config['LEVERAGE_MAX'] + 1e-9
+    assert not crash_active
+
+
+def test_leverage_dd_scaling(minimal_config):
+    spy = _synthetic_spy()
+    # -25% drawdown → DD scaling tier2 territory
+    lev, cooldown, crash_active = get_current_leverage_pure(
+        drawdown=-0.25,
+        portfolio_value_history=(100_000.0,) * 20,
+        crash_cooldown=0,
+        config=minimal_config,
+        spy_hist=spy,
+    )
+    assert lev < minimal_config['LEV_FULL']
+    assert not crash_active
+
+
+def test_crash_brake_fires_on_5d_drop(minimal_config):
+    spy = _synthetic_spy()
+    # 5-day return of -8% triggers CRASH_VEL_5D (-6%).
+    # history[-5] = 100000, history[-1] = 92000 → (92000/100000 - 1) = -8% ≤ -6%
+    history = (100_000.0, 100_000.0, 100_000.0, 100_000.0, 92_000.0)
+    lev, cooldown, crash_active = get_current_leverage_pure(
+        drawdown=-0.08,
+        portfolio_value_history=history,
+        crash_cooldown=0,
+        config=minimal_config,
+        spy_hist=spy,
+    )
+    assert crash_active
+    assert lev <= minimal_config['CRASH_LEVERAGE'] + 1e-9
+    assert cooldown == minimal_config['CRASH_COOLDOWN'] - 1
+
+
+def test_crash_brake_bypasses_lev_floor(minimal_config):
+    """When the crash brake fires, the returned leverage must be BELOW
+    LEV_FLOOR (0.15 < 0.30). Mirrors omnicapital_live.py:1444-1446."""
+    spy = _synthetic_spy()
+    history = (100_000.0,) * 4 + (92_000.0,)
+    lev, _, crash_active = get_current_leverage_pure(
+        drawdown=-0.08,
+        portfolio_value_history=history,
+        crash_cooldown=0,
+        config=minimal_config,
+        spy_hist=spy,
+    )
+    assert crash_active
+    assert lev < minimal_config['LEV_FLOOR'], (
+        f"Crash brake bypass failed: leverage {lev} should be < LEV_FLOOR "
+        f"{minimal_config['LEV_FLOOR']} when brake is active"
+    )
+
+
+def test_crash_cooldown_persists(minimal_config):
+    """If we're already in cooldown, leverage stays at CRASH_LEVERAGE
+    regardless of current portfolio trajectory."""
+    spy = _synthetic_spy()
+    lev, _, crash_active = get_current_leverage_pure(
+        drawdown=-0.02,
+        portfolio_value_history=(100_000.0,) * 20,
+        crash_cooldown=5,
+        config=minimal_config,
+        spy_hist=spy,
+    )
+    assert crash_active
+    assert lev <= minimal_config['CRASH_LEVERAGE'] + 1e-9
