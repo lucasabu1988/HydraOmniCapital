@@ -230,3 +230,190 @@ def _apply_rattlesnake_daily_costs(
         daily_rate = cash_yield_annual_pct / 100.0 / 252
         cash += cash * daily_rate
     return state._replace(cash=cash)
+
+
+def _capture_git_sha() -> str:
+    """Get current git commit sha, or 'unknown' if not in a repo."""
+    try:
+        out = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            capture_output=True, text=True, timeout=5,
+        )
+        if out.returncode == 0:
+            return out.stdout.strip()
+    except Exception:
+        pass
+    return 'unknown'
+
+
+def run_rattlesnake_backtest(
+    config: dict,
+    price_data: Dict[str, pd.DataFrame],
+    pit_universe: Dict[int, List[str]],
+    spy_data: pd.DataFrame,
+    vix_data: pd.Series,
+    cash_yield_daily: pd.Series,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    execution_mode: str = 'same_close',
+    progress_callback: Optional[callable] = None,
+) -> BacktestResult:
+    """Run a Rattlesnake mean-reversion backtest from start_date to end_date.
+
+    Pure function: no side effects. Returns a BacktestResult compatible
+    with v1.0 reporting/methodology layers (drop-in for build_waterfall).
+    """
+    started_at = datetime.now()
+
+    # Aggregate all trading dates from price_data
+    all_dates_set = set()
+    for df in price_data.values():
+        all_dates_set.update(df.index)
+    all_dates = sorted(all_dates_set)
+
+    state = BacktestState(
+        cash=float(config['INITIAL_CAPITAL']),
+        positions={},
+        peak_value=float(config['INITIAL_CAPITAL']),
+        crash_cooldown=0,
+        portfolio_value_history=(),
+    )
+
+    trades: list = []
+    decisions: list = []
+    snapshots: list = []
+    universe_size: Dict[int, int] = {}
+
+    last_progress_year: Optional[int] = None
+    dates_in_range = [d for d in all_dates if start_date <= d <= end_date]
+    total_bars = max(len(dates_in_range), 1)
+
+    for i, date in enumerate(all_dates):
+        if date < start_date or date > end_date:
+            continue
+
+        # Progress callback (first bar of each year)
+        if progress_callback is not None and date.year != last_progress_year:
+            last_progress_year = date.year
+            try:
+                pv_now = _mark_to_market(state, price_data, date)
+                bars_done = sum(1 for d in dates_in_range if d < date)
+                progress_callback({
+                    'year': int(date.year),
+                    'progress_pct': 100.0 * bars_done / total_bars,
+                    'portfolio_value': float(pv_now),
+                    'n_positions': len(state.positions),
+                })
+            except Exception:
+                pass
+
+        # 1. Mark-to-market
+        portfolio_value = _mark_to_market(state, price_data, date)
+
+        # 1b. Update peak BEFORE drawdown
+        if portfolio_value > state.peak_value:
+            state = state._replace(peak_value=portfolio_value)
+
+        # 2. Resolve PIT universe (intersection with R_UNIVERSE)
+        tradeable = _resolve_rattlesnake_universe(pit_universe, date.year)
+        # Filter further by tickers that have price data on this date
+        # AND meet MIN_AGE_DAYS history requirement
+        min_age = config.get('MIN_AGE_DAYS', 220)
+        tradeable = [
+            t for t in tradeable
+            if t in price_data
+            and date in price_data[t].index
+            and len(price_data[t].loc[:date]) >= min_age
+        ]
+        universe_size[date.year] = max(universe_size.get(date.year, 0), len(tradeable))
+
+        # 3. Drawdown
+        drawdown = (
+            (portfolio_value - state.peak_value) / state.peak_value
+            if state.peak_value > 0 else 0.0
+        )
+
+        # 4. Regime + VIX
+        spy_slice = spy_data.loc[:date]
+        vix_value = float(vix_data.loc[date]) if date in vix_data.index else None
+        regime_info = check_rattlesnake_regime(spy_slice, vix_value)
+        max_positions = regime_info['max_positions']
+        entries_allowed = regime_info['entries_allowed']
+        vix_panic = regime_info['vix_panic']
+
+        # 5. Daily costs (cash yield only)
+        daily_yield = float(
+            cash_yield_daily.get(date, cash_yield_daily.iloc[0])
+            if len(cash_yield_daily) > 0 else 0.0
+        )
+        state = _apply_rattlesnake_daily_costs(state, daily_yield)
+
+        # 6. Apply exits
+        state, exit_trades, exit_decisions = apply_rattlesnake_exits(
+            state, date, i, price_data, config, execution_mode, all_dates,
+        )
+        trades.extend(exit_trades)
+        decisions.extend(exit_decisions)
+
+        # 7. Apply entries (if regime allows)
+        if entries_allowed and len(tradeable) >= 5:
+            sliced = _slice_history_to_date(price_data, date, symbols=tradeable)
+            current_prices = {
+                t: float(price_data[t].loc[date, 'Close'])
+                for t in tradeable
+            }
+            held = set(state.positions.keys())
+            slots = max_positions - len(state.positions)
+            if slots > 0:
+                candidates = find_rattlesnake_candidates(
+                    sliced, current_prices, held, max_candidates=slots,
+                )
+                state, entry_decisions = apply_rattlesnake_entries(
+                    state, date, i, price_data, candidates,
+                    max_positions, config, execution_mode, all_dates,
+                )
+                decisions.extend(entry_decisions)
+
+        # 8. Snapshot AFTER exits and entries
+        pv_after = _mark_to_market(state, price_data, date)
+        snapshots.append({
+            'date': date,
+            'portfolio_value': pv_after,
+            'cash': state.cash,
+            'n_positions': len(state.positions),
+            'leverage': 1.0,         # Rattlesnake never uses leverage
+            'drawdown': drawdown,
+            'regime_score': 1.0 if regime_info['regime'] == 'RISK_ON' else 0.0,
+            'crash_active': vix_panic,  # repurpose this column for VIX panic
+            'max_positions': max_positions,
+        })
+
+        # 9. Update state tail: peak (if pv_after exceeded), increment days_held
+        if pv_after > state.peak_value:
+            state = state._replace(peak_value=pv_after)
+
+        new_positions = {
+            sym: {**p, 'days_held': p.get('days_held', 0) + 1}
+            for sym, p in state.positions.items()
+        }
+        state = state._replace(
+            positions=new_positions,
+            portfolio_value_history=state.portfolio_value_history + (pv_after,),
+        )
+
+    finished_at = datetime.now()
+
+    trade_cols = ['symbol', 'entry_date', 'exit_date', 'exit_reason',
+                  'entry_price', 'exit_price', 'shares', 'pnl', 'return', 'sector']
+    return BacktestResult(
+        config=dict(config),
+        daily_values=pd.DataFrame(snapshots),
+        trades=pd.DataFrame(trades) if trades else pd.DataFrame(columns=trade_cols),
+        decisions=decisions,
+        exit_events=[t for t in trades if t['exit_reason'] in ('R_STOP', 'R_PROFIT')],
+        universe_size=universe_size,
+        started_at=started_at,
+        finished_at=finished_at,
+        git_sha=_capture_git_sha(),
+        data_inputs_hash=compute_data_fingerprint(price_data),
+    )

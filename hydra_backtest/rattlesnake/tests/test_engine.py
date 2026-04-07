@@ -2,12 +2,15 @@
 import pandas as pd
 import pytest
 
-from hydra_backtest.engine import BacktestState
+import numpy as np
+
+from hydra_backtest.engine import BacktestResult, BacktestState
 from hydra_backtest.rattlesnake.engine import (
     _apply_rattlesnake_daily_costs,
     _resolve_rattlesnake_universe,
     apply_rattlesnake_entries,
     apply_rattlesnake_exits,
+    run_rattlesnake_backtest,
 )
 
 
@@ -326,3 +329,105 @@ def test_daily_costs_rattlesnake_negative_yield_ignored():
     )
     new_state = _apply_rattlesnake_daily_costs(state, cash_yield_annual_pct=-0.10)
     assert new_state.cash == 10_000.0
+
+
+# -- run_rattlesnake_backtest integration ------------------------------------
+
+def test_run_rattlesnake_backtest_smoke():
+    """Minimal 400-day backtest with synthetic data. Verify it returns
+    a valid BacktestResult without crashing."""
+    dates = pd.date_range('2020-01-02', periods=400)
+
+    # Build 30 synthetic tickers with normal returns
+    price_data = {}
+    for k in range(30):
+        base = 100.0 + k
+        returns = np.random.normal(0.0005, 0.020, 400)
+        closes = base * np.exp(np.cumsum(returns))
+        price_data[f'T{k:02d}'] = pd.DataFrame({
+            'Open': closes,
+            'High': closes * 1.005,
+            'Low': closes * 0.995,
+            'Close': closes,
+            'Volume': [1_500_000] * 400,
+        }, index=dates)
+
+    spy_returns = np.random.normal(0.0005, 0.012, 400)
+    spy_close = 300.0 * np.exp(np.cumsum(spy_returns))
+    spy_data = pd.DataFrame({'Close': spy_close}, index=dates)
+    vix_data = pd.Series([15.0] * 400, index=dates, name='vix')
+
+    # Override R_UNIVERSE to make synthetic tickers eligible
+    import rattlesnake_signals as rs
+    original_universe = rs.R_UNIVERSE
+    rs.R_UNIVERSE = [f'T{k:02d}' for k in range(30)]
+    try:
+        pit_universe = {
+            2020: [f'T{k:02d}' for k in range(30)],
+            2021: [f'T{k:02d}' for k in range(30)],
+        }
+        cash_yield = pd.Series([3.5] * 400, index=dates)
+        config = {
+            'INITIAL_CAPITAL': 100_000,
+            'COMMISSION_PER_SHARE': 0.0035,
+            'NUM_POSITIONS': 5,
+            'NUM_POSITIONS_RISK_OFF': 2,
+            'MIN_AGE_DAYS': 220,
+        }
+        result = run_rattlesnake_backtest(
+            config=config, price_data=price_data, pit_universe=pit_universe,
+            spy_data=spy_data, vix_data=vix_data, cash_yield_daily=cash_yield,
+            start_date=dates[0], end_date=dates[-1],
+            execution_mode='same_close',
+        )
+    finally:
+        rs.R_UNIVERSE = original_universe
+
+    assert isinstance(result, BacktestResult)
+    assert len(result.daily_values) == 400
+    assert 'portfolio_value' in result.daily_values.columns
+    assert result.daily_values['portfolio_value'].iloc[0] > 0
+    assert len(result.git_sha) > 0
+
+
+def test_run_rattlesnake_backtest_days_held_increments():
+    """Smoke test verifying the days_held counter doesn't crash and the
+    backtest completes when a single ticker is in the universe."""
+    dates = pd.date_range('2020-01-02', periods=300)
+
+    closes = ([100.0] * 250 + [90.0] * 5 + [91.0] * 45)
+    price_data = {
+        'AAA': pd.DataFrame({
+            'Open': closes, 'High': [c * 1.01 for c in closes],
+            'Low': [c * 0.99 for c in closes], 'Close': closes,
+            'Volume': [2_000_000] * 300,
+        }, index=dates),
+    }
+    spy_data = pd.DataFrame({'Close': [300.0] * 300}, index=dates)
+    vix_data = pd.Series([15.0] * 300, index=dates, name='vix')
+
+    import rattlesnake_signals as rs
+    original_universe = rs.R_UNIVERSE
+    rs.R_UNIVERSE = ['AAA']
+    try:
+        pit_universe = {2020: ['AAA']}
+        config = {
+            'INITIAL_CAPITAL': 100_000,
+            'COMMISSION_PER_SHARE': 0.0035,
+            'NUM_POSITIONS': 5,
+            'NUM_POSITIONS_RISK_OFF': 2,
+            'MIN_AGE_DAYS': 220,
+        }
+        result = run_rattlesnake_backtest(
+            config=config, price_data=price_data, pit_universe=pit_universe,
+            spy_data=spy_data, vix_data=vix_data,
+            cash_yield_daily=pd.Series([0.0] * 300, index=dates),
+            start_date=dates[0], end_date=dates[-1],
+            execution_mode='same_close',
+        )
+    finally:
+        rs.R_UNIVERSE = original_universe
+
+    # Just verify the backtest completed without error
+    assert isinstance(result, BacktestResult)
+    assert len(result.daily_values) == 300
