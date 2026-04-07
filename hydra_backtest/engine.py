@@ -576,12 +576,18 @@ def run_backtest(
     start_date: pd.Timestamp,
     end_date: pd.Timestamp,
     execution_mode: str = 'same_close',
+    progress_callback: Optional[callable] = None,
 ) -> BacktestResult:
     """Run a COMPASS backtest from start_date to end_date.
 
     Produces a BacktestResult with daily equity curve, all trades, and
     the full decision log. This function has no side effects — pure in
     / pure out.
+
+    If `progress_callback` is provided, it will be called periodically
+    with a dict {year, progress_pct, portfolio_value} so callers can
+    emit progress indicators. The callback itself may do I/O; the engine
+    stays pure.
     """
     started_at = datetime.now()
 
@@ -604,9 +610,31 @@ def run_backtest(
     snapshots: list = []
     universe_size: Dict[int, int] = {}
 
+    # Progress tracking: emit callback on first bar of each new year
+    last_progress_year: Optional[int] = None
+    dates_in_range = [d for d in all_dates if start_date <= d <= end_date]
+    total_bars = max(len(dates_in_range), 1)
+
     for i, date in enumerate(all_dates):
         if date < start_date or date > end_date:
             continue
+
+        # Emit progress callback on first bar of each calendar year
+        if progress_callback is not None and date.year != last_progress_year:
+            last_progress_year = date.year
+            try:
+                # Compute current mark-to-market for the callback
+                pv_now = _mark_to_market(state, price_data, date)
+                bars_done = sum(1 for d in dates_in_range if d < date)
+                progress_callback({
+                    'year': int(date.year),
+                    'progress_pct': 100.0 * bars_done / total_bars,
+                    'portfolio_value': float(pv_now),
+                    'n_positions': len(state.positions),
+                })
+            except Exception:
+                # Progress callbacks must never break the backtest
+                pass
 
         # 1. Mark-to-market
         portfolio_value = _mark_to_market(state, price_data, date)

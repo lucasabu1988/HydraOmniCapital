@@ -86,7 +86,7 @@ def main(argv=None) -> int:
 
     validate_config(_CONFIG)
 
-    print("Loading data...")
+    print("Loading data...", flush=True)
     pit = load_pit_universe(args.constituents)
     prices = load_price_history(args.prices)
     sectors = load_sector_map(args.sectors)
@@ -97,35 +97,56 @@ def main(argv=None) -> int:
     tbill_yield = load_yield_series(
         args.tbill, date_col=args.tbill_date_col, value_col=args.tbill_value_col,
     )
+    print(
+        f"  PIT universe: {sum(len(v) for v in pit.values()) // max(len(pit), 1)} tickers/year avg, "
+        f"{len(prices)} total tickers",
+        flush=True,
+    )
 
     start = pd.Timestamp(args.start)
     end = pd.Timestamp(args.end)
 
-    print("\nTier 0: baseline (Aaa cash, same-close exec)")
+    def _make_progress_cb(tier_name):
+        def _cb(info):
+            print(
+                f"  [{tier_name}] {info['year']}: {info['progress_pct']:5.1f}% | "
+                f"portfolio ${info['portfolio_value']:>12,.0f} | "
+                f"{info['n_positions']} positions",
+                flush=True,
+            )
+        return _cb
+
+    print("\nTier 0: baseline (Aaa cash, same-close exec)", flush=True)
     tier_0 = run_backtest(
         config=_CONFIG, price_data=prices, pit_universe=pit, spy_data=spy,
         cash_yield_daily=aaa_yield, sector_map=sectors,
         start_date=start, end_date=end, execution_mode='same_close',
+        progress_callback=_make_progress_cb('tier0'),
     )
     run_smoke_tests(tier_0)  # BLOCKING — Layer A
+    print("  tier 0 smoke tests: PASSED", flush=True)
 
-    print("\nTier 1: + T-bill cash yield")
+    print("\nTier 1: + T-bill cash yield", flush=True)
     tier_1 = run_backtest(
         config=_CONFIG, price_data=prices, pit_universe=pit, spy_data=spy,
         cash_yield_daily=tbill_yield, sector_map=sectors,
         start_date=start, end_date=end, execution_mode='same_close',
+        progress_callback=_make_progress_cb('tier1'),
     )
     run_smoke_tests(tier_1)
+    print("  tier 1 smoke tests: PASSED", flush=True)
 
-    print("\nTier 2: + next-open execution")
+    print("\nTier 2: + next-open execution", flush=True)
     tier_2 = run_backtest(
         config=_CONFIG, price_data=prices, pit_universe=pit, spy_data=spy,
         cash_yield_daily=tbill_yield, sector_map=sectors,
         start_date=start, end_date=end, execution_mode='next_open',
+        progress_callback=_make_progress_cb('tier2'),
     )
     run_smoke_tests(tier_2)
+    print("  tier 2 smoke tests: PASSED", flush=True)
 
-    print("\nBuilding waterfall...")
+    print("\nBuilding waterfall...", flush=True)
     report = build_waterfall(
         tier_0=tier_0, tier_1=tier_1, tier_2=tier_2,
         t_bill_rf=args.t_bill_rf,
@@ -138,7 +159,7 @@ def main(argv=None) -> int:
     write_trades_csv(tier_0, os.path.join(args.out_dir, 'hydra_v2_trades.csv'))
     write_waterfall_json(report, os.path.join(args.out_dir, 'hydra_v2_waterfall.json'))
 
-    print('\n' + format_summary_table(report))
+    print('\n' + format_summary_table(report), flush=True)
     return 0
 
 
