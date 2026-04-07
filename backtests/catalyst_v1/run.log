@@ -1,0 +1,101 @@
+Loading data...
+  Catalyst assets: TLT=5960, ZROZ=4129, GLD=5378, DBC=5073
+
+Tier 0: baseline (Aaa cash, same-close exec)
+  [tier0] 2002:   0.0% | portfolio $     100,000 | 0 positions
+  [tier0] 2003:   1.8% | portfolio $     102,754 | 0 positions
+  [tier0] 2004:   6.1% | portfolio $      93,196 | 1 positions
+  [tier0] 2005:  10.3% | portfolio $     100,224 | 1 positions
+  [tier0] 2006:  14.6% | portfolio $     119,459 | 1 positions
+  [tier0] 2007:  18.8% | portfolio $     132,809 | 2 positions
+  [tier0] 2008:  23.0% | portfolio $     172,006 | 2 positions
+  [tier0] 2009:  27.3% | portfolio $     224,335 | 1 positions
+  [tier0] 2010:  31.5% | portfolio $     239,917 | 1 positions
+  [tier0] 2011:  35.8% | portfolio $     301,534 | 1 positions
+  [tier0] 2012:  40.0% | portfolio $     330,196 | 2 positions
+  [tier0] 2013:  44.2% | portfolio $     336,436 | 2 positions
+  [tier0] 2014:  48.5% | portfolio $     316,881 | 0 positions
+  [tier0] 2015:  52.7% | portfolio $     411,422 | 2 positions
+  [tier0] 2016:  56.9% | portfolio $     351,591 | 0 positions
+  [tier0] 2017:  61.2% | portfolio $     410,344 | 1 positions
+  [tier0] 2018:  65.4% | portfolio $     371,565 | 3 positions
+  [tier0] 2019:  69.6% | portfolio $     338,203 | 1 positions
+  [tier0] 2020:  73.9% | portfolio $     388,253 | 2 positions
+  [tier0] 2021:  78.1% | portfolio $     435,678 | 1 positions
+  [tier0] 2022:  82.4% | portfolio $     621,628 | 1 positions
+  [tier0] 2023:  86.6% | portfolio $     659,921 | 1 positions
+  [tier0] 2024:  90.8% | portfolio $     668,488 | 1 positions
+  [tier0] 2025:  95.1% | portfolio $     860,213 | 1 positions
+  [tier0] 2026:  99.3% | portfolio $   1,395,988 | 1 positions
+  tier 0 smoke tests: PASSED
+
+Tier 1: + T-bill cash yield
+  [tier1] 2002:   0.0% | portfolio $     100,000 | 0 positions
+  [tier1] 2003:   1.8% | portfolio $     100,623 | 0 positions
+  [tier1] 2004:   6.1% | portfolio $      88,393 | 1 positions
+  [tier1] 2005:  10.3% | portfolio $      94,238 | 1 positions
+  [tier1] 2006:  14.6% | portfolio $     112,324 | 1 positions
+  [tier1] 2007:  18.8% | portfolio $     124,877 | 2 positions
+  [tier1] 2008:  23.0% | portfolio $     161,733 | 2 positions
+  [tier1] 2009:  27.3% | portfolio $     210,940 | 1 positions
+  [tier1] 2010:  31.5% | portfolio $     225,577 | 2 positions
+  [tier1] 2011:  35.8% | portfolio $     283,501 | 2 positions
+  [tier1] 2012:  40.0% | portfolio $     310,440 | 2 positions
+  [tier1] 2013:  44.2% | portfolio $     316,301 | 2 positions
+  [tier1] 2014:  48.5% | portfolio $     288,889 | 0 positions
+  [tier1] 2015:  52.7% | portfolio $     374,006 | 2 positions
+  [tier1] 2016:  56.9% | portfolio $     314,632 | 0 positions
+  [tier1] 2017:  61.2% | portfolio $     367,159 | 1 positions
+  [tier1] 2018:  65.4% | portfolio $     331,631 | 3 positions
+  [tier1] 2019:  69.6% | portfolio $     301,379 | 1 positions
+  [tier1] 2020:  73.9% | portfolio $     345,982 | 2 positions
+  [tier1] 2021:  78.1% | portfolio $     388,260 | 1 positions
+  [tier1] 2022:  82.4% | portfolio $     553,973 | 1 positions
+  [tier1] 2023:  86.6% | portfolio $     587,254 | 1 positions
+  [tier1] 2024:  90.8% | portfolio $     594,885 | 1 positions
+  [tier1] 2025:  95.1% | portfolio $     765,495 | 1 positions
+  [tier1] 2026:  99.3% | portfolio $   1,242,267 | 1 positions
+  tier 1 smoke tests: PASSED
+
+Tier 2: + next-open execution
+  [tier2] 2002:   0.0% | portfolio $     100,000 | 0 positions
+  [tier2] 2003:   1.8% | portfolio $     100,623 | 0 positions
+  [tier2] 2004:   6.1% | portfolio $      88,102 | 1 positions
+  [tier2] 2005:  10.3% | portfolio $      94,412 | 1 positions
+  [tier2] 2006:  14.6% | portfolio $     111,671 | 1 positions
+  [tier2] 2007:  18.8% | portfolio $     123,848 | 2 positions
+  [tier2] 2008:  23.0% | portfolio $     161,566 | 2 positions
+  [tier2] 2009:  27.3% | portfolio $     210,303 | 1 positions
+  [tier2] 2010:  31.5% | portfolio $     224,708 | 2 positions
+  [tier2] 2011:  35.8% | portfolio $     282,407 | 2 positions
+  [tier2] 2012:  40.0% | portfolio $     308,918 | 2 positions
+  [tier2] 2013:  44.2% | portfolio $     314,755 | 2 positions
+  [tier2] 2014:  48.5% | portfolio $     286,608 | 0 positions
+  [tier2] 2015:  52.7% | portfolio $     371,880 | 2 positions
+  [tier2] 2016:  56.9% | portfolio $     310,480 | 0 positions
+  [tier2] 2017:  61.2% | portfolio $     368,977 | 1 positions
+  [tier2] 2018:  65.4% | portfolio $     338,876 | 3 positions
+  [tier2] 2019:  69.6% | portfolio $     306,076 | 1 positions
+  [tier2] 2020:  73.9% | portfolio $     351,370 | 2 positions
+  [tier2] 2021:  78.1% | portfolio $     403,119 | 2 positions
+  [tier2] 2022:  82.4% | portfolio $     573,962 | 1 positions
+  [tier2] 2023:  86.6% | portfolio $     593,628 | 1 positions
+  [tier2] 2024:  90.8% | portfolio $     590,446 | 2 positions
+  [tier2] 2025:  95.1% | portfolio $     759,735 | 1 positions
+  [tier2] 2026:  99.3% | portfolio $   1,232,839 | 2 positions
+  tier 2 smoke tests: PASSED
+
+Building waterfall...
+
+==========================================================================================
+Tier               CAGR   Sharpe      MaxDD   Sortino              Final
+------------------------------------------------------------------------------------------
+baseline         12.57%    0.793    -29.89%     0.998 $       1,633,802
+t_bill           12.01%    0.584    -30.69%     0.756 $       1,453,891
+                delta vs prev: -55.4 bp CAGR, -0.209 Sharpe, -81 bp MaxDD
+next_open        11.98%    0.581    -32.37%     0.752 $       1,442,855
+                delta vs prev: -3.6 bp CAGR, -0.003 Sharpe, -168 bp MaxDD
+real_costs       11.95%    0.577    -32.86%     0.747 $       1,434,807
+                delta vs prev: -2.7 bp CAGR, -0.004 Sharpe, -49 bp MaxDD
+net_honest       11.95%    0.577    -32.86%     0.747 $       1,434,807
+==========================================================================================

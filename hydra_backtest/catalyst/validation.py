@@ -113,18 +113,25 @@ def _check_exit_reasons(trades: pd.DataFrame, errors: List[str]) -> None:
 
 
 def _check_rebalance_cadence(daily: pd.DataFrame, errors: List[str]) -> None:
+    """Cadence rule: rebalance gaps must NEVER exceed CATALYST_REBALANCE_DAYS.
+
+    Smaller gaps (e.g. 1-day) are valid: when state.positions is empty
+    (no asset above SMA200), the engine retries the rebalance every bar
+    until at least one asset re-enters the trend. This mirrors live
+    behavior in COMPASSLive._manage_catalyst_positions
+    (omnicapital_live.py:2208 — `self.catalyst_positions` falsy path).
+    """
     if 'rebalance_today' not in daily.columns:
         return
     rb_idxs = daily.index[daily['rebalance_today']].tolist()
     if len(rb_idxs) < 3:
         return  # not enough rebalances to check cadence
-    # Skip the very first rebalance (always day 1 / first run)
-    diffs = np.diff(rb_idxs[1:])
-    bad = [int(d) for d in diffs if d != CATALYST_REBALANCE_DAYS]
+    diffs = np.diff(rb_idxs)
+    bad = [int(d) for d in diffs if d > CATALYST_REBALANCE_DAYS]
     if bad:
         errors.append(
-            f"Rebalance cadence broken: expected every {CATALYST_REBALANCE_DAYS} "
-            f"days, got diffs containing {bad[:5]}"
+            f"Rebalance cadence broken: gaps must not exceed "
+            f"{CATALYST_REBALANCE_DAYS} days, got {bad[:5]}"
         )
 
 
