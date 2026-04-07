@@ -60,7 +60,7 @@ def main(argv=None) -> int:
         args.tbill, date_col=args.tbill_date_col, value_col=args.tbill_value_col,
     )
     print(
-        f"  EFA: {len(efa_data)} rows ({efa_data.index.min().date()} → "
+        f"  EFA: {len(efa_data)} rows ({efa_data.index.min().date()} -> "
         f"{efa_data.index.max().date()})",
         flush=True,
     )
