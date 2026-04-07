@@ -311,7 +311,7 @@ function showFetchError(section, err, type) {
 }
 
 /* ============ UPDATE FUNCTIONS ============ */
-function updateStatusBar(p) {
+function updateStatusBar(p, freshness) {
     const rt = document.getElementById('regime-tag');
     if (!rt) return;
     if (p.regime === 'RISK_ON') {
@@ -345,10 +345,12 @@ function updateStatusBar(p) {
 
     document.getElementById('day-display').textContent = p.trading_day;
 
-    const ago = timeAgo(p.timestamp);
+    /* Prefer live price freshness over portfolio.timestamp (which only updates on cycle close) */
+    const liveTs = (freshness && freshness.last_price_update) || p.timestamp;
+    const ago = timeAgo(liveTs);
     document.getElementById('last-update').textContent = ago;
 
-    var rawTs = p.timestamp || '';
+    var rawTs = liveTs || '';
     if (rawTs && !rawTs.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(rawTs)) rawTs += 'Z';
     const ts = rawTs ? new Date(rawTs).toLocaleString() : '--';
     document.getElementById('upd-tooltip').innerHTML =
@@ -1450,7 +1452,7 @@ async function fetchAll() {
             lastSuccessTime = new Date().toISOString();
             lastPortfolioData = stateData;
             const p = stateData.portfolio;
-            updateStatusBar(p);
+            updateStatusBar(p, stateData._data_freshness);
             updateStalePriceWarning(stateData._data_freshness);
             updateCards(p);
             updateRegimeBand(p);
@@ -4137,7 +4139,7 @@ function refreshDashboard() {
     if (lastPortfolioData) {
         var d = lastPortfolioData;
         var p = d.portfolio;
-        updateStatusBar(p);
+        updateStatusBar(p, d._data_freshness);
         updateStalePriceWarning(d._data_freshness);
         updateCards(p);
         updateRegimeBand(p);
