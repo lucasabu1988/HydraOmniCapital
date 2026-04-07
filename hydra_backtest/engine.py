@@ -611,6 +611,11 @@ def run_backtest(
         # 1. Mark-to-market
         portfolio_value = _mark_to_market(state, price_data, date)
 
+        # 1b. Update peak BEFORE computing drawdown, mirroring live engine
+        # (omnicapital_live.py:1401-1405). This guarantees drawdown ≤ 0.
+        if portfolio_value > state.peak_value:
+            state = state._replace(peak_value=portfolio_value)
+
         # 2. Universe resolution
         tradeable = get_tradeable_symbols(
             pit_universe, price_data, date, min_age_days=config['MIN_AGE_DAYS']
@@ -683,7 +688,9 @@ def run_backtest(
             'max_positions': max_positions,
         })
 
-        # 9. Update state tail (history, cooldown, peak)
+        # 9. Update state tail (history, cooldown). Peak was already updated
+        # in step 1b. If exits+entries moved the portfolio above the intraday
+        # peak, bump peak to reflect the end-of-day value.
         new_peak = max(state.peak_value, pv_after)
         decayed_cooldown = max(new_cooldown - 1, 0) if not crash_active else new_cooldown
         state = state._replace(

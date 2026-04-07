@@ -93,7 +93,7 @@ def format_summary_table(report: WaterfallReport) -> str:
         lines.append(line)
         if t.delta_cagr_bps != 0:
             lines.append(
-                f"{'':<14}  Δ vs prev: {t.delta_cagr_bps:+.1f} bp CAGR, "
+                f"{'':<14}  delta vs prev: {t.delta_cagr_bps:+.1f} bp CAGR, "
                 f"{t.delta_sharpe:+.3f} Sharpe, {t.delta_maxdd_bps:+.0f} bp MaxDD"
             )
     lines.append('=' * 90)
