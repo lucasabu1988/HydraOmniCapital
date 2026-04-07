@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # OmniCapital HYDRA — Project Guidelines
 
 ## Project Overview
-Quantitative momentum trading system for S&P 500 large-caps. Live paper trading since Mar 6, 2026.
+Quantitative momentum trading system for S&P 500 large-caps. Live paper trading since Mar 16, 2026 (current algorithm; see `LIVE_TEST_START_DATE` in `compass_dashboard_cloud.py`).
 - **Algorithm**: HYDRA v8.4 (adaptive stops, bull override, sector limits, Rattlesnake + EFA + cash recycling)
 - **Dashboard**: Flask @ localhost:5000 (`compass_dashboard.py`)
 - **Live engine**: `omnicapital_live.py` (COMPASSLive class)
