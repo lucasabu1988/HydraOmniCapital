@@ -175,6 +175,41 @@ def test_load_spy_data_returns_dataframe(tmp_path):
 
 # -- load_yield_series --------------------------------------------------------
 
+def test_load_vix_series_returns_daily_series(tmp_path):
+    from hydra_backtest.data import load_vix_series
+    df = pd.DataFrame({
+        'Date': pd.date_range('2020-01-02', periods=5, freq='B'),
+        'Close': [12.5, 13.1, 14.0, 18.5, 35.5],
+    })
+    path = tmp_path / 'vix.csv'
+    df.to_csv(path, index=False)
+    series = load_vix_series(str(path))
+    assert isinstance(series, pd.Series)
+    assert len(series) == 5
+    assert series.iloc[-1] == 35.5
+
+
+def test_load_vix_series_missing_file_raises(tmp_path):
+    from hydra_backtest.data import load_vix_series
+    with pytest.raises(HydraDataError, match="VIX"):
+        load_vix_series(str(tmp_path / 'nonexistent.csv'))
+
+
+def test_load_vix_series_handles_yfinance_format(tmp_path):
+    """yfinance saves with index named 'Date' and 'Close' column."""
+    from hydra_backtest.data import load_vix_series
+    df = pd.DataFrame(
+        {'Close': [13.5, 14.0, 15.0]},
+        index=pd.date_range('2020-01-02', periods=3, freq='B'),
+    )
+    df.index.name = 'Date'
+    path = tmp_path / 'vix_yf.csv'
+    df.to_csv(path)
+    series = load_vix_series(str(path))
+    assert len(series) == 3
+    assert series.iloc[0] == 13.5
+
+
 def test_load_yield_series_returns_daily_series(tmp_path):
     # Use business-day frequency so reindexing to freq='B' preserves all rows.
     df = pd.DataFrame({

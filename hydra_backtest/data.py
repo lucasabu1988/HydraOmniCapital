@@ -193,6 +193,38 @@ def load_spy_data(path: str) -> pd.DataFrame:
     return df
 
 
+def load_vix_series(path: str) -> pd.Series:
+    """Load daily VIX close from CSV.
+
+    Accepts two formats:
+      - yfinance default: Date as index column + 'Close' column
+      - Plain: 'Date' or 'date' column + 'Close' or 'close' column
+
+    Returns a Series indexed by Timestamp, values in points (e.g. 35.5
+    for VIX=35.5). The caller is responsible for download:
+
+        import yfinance as yf
+        yf.download('^VIX', start='1999-01-01', end='2027-01-01').to_csv(
+            'data_cache/vix_history.csv'
+        )
+    """
+    if not os.path.exists(path):
+        raise HydraDataError(f"VIX series file not found: {path}")
+    df = pd.read_csv(path)
+    cols_lower = {c.lower(): c for c in df.columns}
+    date_col = cols_lower.get('date')
+    close_col = cols_lower.get('close')
+    if date_col is None or close_col is None:
+        raise HydraDataError(
+            f"VIX CSV must have 'Date' and 'Close' columns, got {list(df.columns)}"
+        )
+    df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+    df = df.dropna(subset=[date_col]).sort_values(date_col).set_index(date_col)
+    series = pd.to_numeric(df[close_col], errors='coerce').dropna()
+    series.name = 'vix'
+    return series
+
+
 def load_yield_series(
     path: str,
     date_col: str,

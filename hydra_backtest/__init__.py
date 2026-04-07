@@ -10,6 +10,7 @@ from hydra_backtest.data import (
     load_price_history,
     load_sector_map,
     load_spy_data,
+    load_vix_series,
     load_yield_series,
     validate_config,
 )
@@ -44,8 +45,8 @@ __all__ = [
     'HydraBacktestValidationError', 'HydraBacktestLookaheadError',
     # data
     'validate_config', 'load_pit_universe', 'load_sector_map',
-    'load_price_history', 'load_spy_data', 'load_yield_series',
-    'compute_data_fingerprint',
+    'load_price_history', 'load_spy_data', 'load_vix_series',
+    'load_yield_series', 'compute_data_fingerprint',
     # engine
     'BacktestState', 'BacktestResult', 'run_backtest',
     # methodology
