@@ -102,3 +102,61 @@ def compute_allocation_pure(
         ),
         'efa_idle': efa_idle,
     }
+
+
+def update_accounts_after_day_pure(
+    capital: HydraCapitalState,
+    compass_return: float,
+    rattle_return: float,
+    rattle_exposure: float,
+) -> HydraCapitalState:
+    """Pure equivalent of HydraCapitalManager.update_accounts_after_day
+    (hydra_capital.py:113-138).
+
+    Settles recycled cash (which earns COMPASS returns) back into the
+    rattle account at end-of-day. Returns a NEW HydraCapitalState.
+    """
+    alloc = compute_allocation_pure(capital, rattle_exposure)
+    recycled = alloc['recycled_amount']
+
+    c_effective = alloc['compass_budget']
+    r_effective = alloc['rattle_budget']
+
+    c_new = c_effective * (1 + compass_return)
+    r_new = r_effective * (1 + rattle_return)
+
+    # Settle recycled amount (it earned COMPASS returns)
+    recycled_after = recycled * (1 + compass_return)
+
+    return capital._replace(
+        compass_account=c_new - recycled_after,
+        rattle_account=r_new + recycled_after,
+    )
+
+
+def update_efa_value_pure(
+    capital: HydraCapitalState,
+    efa_return: float,
+) -> HydraCapitalState:
+    """Apply daily EFA return to the efa_value bucket.
+
+    Mirrors HydraCapitalManager.update_efa_value (hydra_capital.py:155-158).
+    """
+    if capital.efa_value > 0 and efa_return != 0:
+        return capital._replace(efa_value=capital.efa_value * (1 + efa_return))
+    return capital
+
+
+def update_catalyst_value_pure(
+    capital: HydraCapitalState,
+    catalyst_return: float,
+) -> HydraCapitalState:
+    """Apply daily Catalyst return to the catalyst_account bucket.
+
+    Mirrors HydraCapitalManager.update_catalyst_value (hydra_capital.py:172-175).
+    """
+    if catalyst_return != 0:
+        return capital._replace(
+            catalyst_account=capital.catalyst_account * (1 + catalyst_return)
+        )
+    return capital
