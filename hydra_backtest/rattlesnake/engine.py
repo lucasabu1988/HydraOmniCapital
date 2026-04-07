@@ -403,10 +403,15 @@ def run_rattlesnake_backtest(
 
     finished_at = datetime.now()
 
+    # Stamp execution_mode into config so downstream consumers (validation,
+    # waterfall) can adjust their checks. This is purely informational.
+    result_config = dict(config)
+    result_config['_execution_mode'] = execution_mode
+
     trade_cols = ['symbol', 'entry_date', 'exit_date', 'exit_reason',
                   'entry_price', 'exit_price', 'shares', 'pnl', 'return', 'sector']
     return BacktestResult(
-        config=dict(config),
+        config=result_config,
         daily_values=pd.DataFrame(snapshots),
         trades=pd.DataFrame(trades) if trades else pd.DataFrame(columns=trade_cols),
         decisions=decisions,
