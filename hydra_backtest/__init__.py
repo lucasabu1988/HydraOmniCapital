@@ -6,6 +6,8 @@ for the implementation plan.
 """
 from hydra_backtest.data import (
     compute_data_fingerprint,
+    load_catalyst_assets,
+    load_efa_series,
     load_pit_universe,
     load_price_history,
     load_sector_map,
@@ -46,7 +48,8 @@ __all__ = [
     # data
     'validate_config', 'load_pit_universe', 'load_sector_map',
     'load_price_history', 'load_spy_data', 'load_vix_series',
-    'load_yield_series', 'compute_data_fingerprint',
+    'load_yield_series', 'load_catalyst_assets', 'load_efa_series',
+    'compute_data_fingerprint',
     # engine
     'BacktestState', 'BacktestResult', 'run_backtest',
     # methodology

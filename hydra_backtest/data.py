@@ -241,6 +241,38 @@ def load_catalyst_assets(path: str) -> Dict[str, pd.DataFrame]:
     return data
 
 
+def load_efa_series(path: str) -> pd.DataFrame:
+    """Load EFA OHLCV from pickle.
+
+    Format: pickle of a single pd.DataFrame with Open/High/Low/Close/Volume
+    columns indexed by date. Caller is responsible for download:
+
+        import yfinance as yf
+        import pickle
+        df = yf.download('EFA', start='1999-01-01', end='2027-01-01',
+                         auto_adjust=True, progress=False)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(1)
+        with open('data_cache/efa_history.pkl', 'wb') as f:
+            pickle.dump(df, f)
+    """
+    if not os.path.exists(path):
+        raise HydraDataError(f"EFA history file not found: {path}")
+    with open(path, 'rb') as f:
+        df = pickle.load(f)
+    if not isinstance(df, pd.DataFrame):
+        raise HydraDataError(
+            f"EFA history must be a DataFrame, got {type(df).__name__}"
+        )
+    if df.empty:
+        raise HydraDataError("EFA history DataFrame is empty")
+    required_cols = {'Open', 'High', 'Low', 'Close', 'Volume'}
+    missing_cols = required_cols - set(df.columns)
+    if missing_cols:
+        raise HydraDataError(f"EFA history missing columns: {missing_cols}")
+    return df
+
+
 def load_vix_series(path: str) -> pd.Series:
     """Load daily VIX close from CSV.
 
