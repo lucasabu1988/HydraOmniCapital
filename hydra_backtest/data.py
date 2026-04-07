@@ -193,6 +193,54 @@ def load_spy_data(path: str) -> pd.DataFrame:
     return df
 
 
+def load_catalyst_assets(path: str) -> Dict[str, pd.DataFrame]:
+    """Load Catalyst trend asset OHLCV from pickle.
+
+    Format: pickle of dict {ticker: DataFrame with Open/High/Low/Close/Volume}.
+    Required tickers: TLT, ZROZ, GLD, DBC (the CATALYST_TREND_ASSETS from
+    catalyst_signals.py).
+
+    Caller is responsible for download. One-time setup:
+
+        import yfinance as yf
+        import pickle
+        data = {}
+        for sym in ['TLT', 'ZROZ', 'GLD', 'DBC']:
+            df = yf.download(sym, start='1999-01-01', end='2027-01-01',
+                             auto_adjust=True, progress=False)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.droplevel(1)
+            data[sym] = df
+        with open('data_cache/catalyst_assets.pkl', 'wb') as f:
+            pickle.dump(data, f)
+    """
+    if not os.path.exists(path):
+        raise HydraDataError(f"Catalyst assets file not found: {path}")
+    with open(path, 'rb') as f:
+        data = pickle.load(f)
+    if not isinstance(data, dict):
+        raise HydraDataError(
+            f"Catalyst assets must be dict, got {type(data).__name__}"
+        )
+    required_tickers = {'TLT', 'ZROZ', 'GLD', 'DBC'}
+    missing_tickers = required_tickers - set(data.keys())
+    if missing_tickers:
+        raise HydraDataError(
+            f"Catalyst assets missing required tickers: {missing_tickers}"
+        )
+    required_cols = {'Open', 'High', 'Low', 'Close', 'Volume'}
+    for ticker in required_tickers:
+        df = data[ticker]
+        if not isinstance(df, pd.DataFrame):
+            raise HydraDataError(f"Catalyst assets[{ticker}] is not a DataFrame")
+        missing_cols = required_cols - set(df.columns)
+        if missing_cols:
+            raise HydraDataError(
+                f"Catalyst assets[{ticker}] missing columns: {missing_cols}"
+            )
+    return data
+
+
 def load_vix_series(path: str) -> pd.Series:
     """Load daily VIX close from CSV.
 
