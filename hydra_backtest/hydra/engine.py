@@ -151,3 +151,204 @@ def apply_compass_entries_wrapper(
         cash_delta=cash_delta, capital_account_delta=cash_delta,
     )
     return new_state, decisions
+
+
+def apply_rattle_exits_wrapper(
+    state: HydraBacktestState,
+    date: pd.Timestamp,
+    i: int,
+    price_data: Dict[str, pd.DataFrame],
+    config: dict,
+    execution_mode: str,
+    all_dates: list,
+) -> Tuple[HydraBacktestState, list, list]:
+    """Wrap v1.1 apply_rattlesnake_exits with sub-state slicing."""
+    substate = to_pillar_substate(state, 'rattle')
+    cash_before = substate.cash
+    new_substate, trades, decisions = rattle_apply_exits(
+        substate, date, i, price_data, config, execution_mode, all_dates,
+    )
+    cash_delta = new_substate.cash - cash_before
+    new_state = merge_pillar_substate(
+        state, new_substate, 'rattle',
+        cash_delta=cash_delta, capital_account_delta=cash_delta,
+    )
+    return new_state, trades, decisions
+
+
+def apply_rattle_entries_wrapper(
+    state: HydraBacktestState,
+    rattle_budget: float,
+    date: pd.Timestamp,
+    i: int,
+    price_data: Dict[str, pd.DataFrame],
+    candidates: list,
+    max_positions: int,
+    config: dict,
+    execution_mode: str,
+    all_dates: list,
+) -> Tuple[HydraBacktestState, list]:
+    """Wrap v1.1 apply_rattlesnake_entries with the budget hack."""
+    substate = to_pillar_substate(state, 'rattle', cash_override=rattle_budget)
+    new_substate, decisions = rattle_apply_entries(
+        substate, date, i, price_data, candidates,
+        max_positions, config, execution_mode, all_dates,
+    )
+    spent = rattle_budget - new_substate.cash
+    cash_delta = -spent
+    new_state = merge_pillar_substate(
+        state, new_substate, 'rattle',
+        cash_delta=cash_delta, capital_account_delta=cash_delta,
+    )
+    return new_state, decisions
+
+
+def apply_catalyst_wrapper(
+    state: HydraBacktestState,
+    catalyst_budget: float,
+    date: pd.Timestamp,
+    i: int,
+    catalyst_assets: Dict[str, pd.DataFrame],
+    config: dict,
+    execution_mode: str,
+    all_dates: list,
+) -> Tuple[HydraBacktestState, list, list]:
+    """Wrap v1.2 apply_catalyst_rebalance with the budget hack.
+
+    Catalyst is ring-fenced — its budget is the catalyst_account,
+    never recycles. The wrapper still uses the cash-override pattern
+    so the rebalance logic works on a sandboxed balance.
+    """
+    substate = to_pillar_substate(state, 'catalyst', cash_override=catalyst_budget)
+    cash_before = substate.cash
+    new_substate, trades, decisions = apply_catalyst_rebalance(
+        substate, date, i, catalyst_assets, config, execution_mode, all_dates,
+    )
+    cash_delta = new_substate.cash - cash_before  # may be positive (sells) or negative (buys)
+    new_state = merge_pillar_substate(
+        state, new_substate, 'catalyst',
+        cash_delta=cash_delta, capital_account_delta=cash_delta,
+    )
+    return new_state, trades, decisions
+
+
+def apply_efa_wrapper(
+    state: HydraBacktestState,
+    efa_idle: float,
+    date: pd.Timestamp,
+    i: int,
+    efa_data: pd.DataFrame,
+    config: dict,
+    execution_mode: str,
+    all_dates: list,
+) -> Tuple[HydraBacktestState, list, list]:
+    """Wrap v1.3 apply_efa_decision with the idle-cash gate.
+
+    Live behavior:
+      - Buy is gated by efa_idle from compute_allocation_pure
+      - Min buy threshold $1k
+      - 90% deployment cap on idle cash
+    """
+    held = EFA_SYMBOL in slice_positions_by_strategy(state.positions, 'efa')
+    capped_idle = min(efa_idle, max(state.cash, 0.0)) * EFA_DEPLOYMENT_CAP
+
+    if not held and capped_idle < EFA_MIN_BUY:
+        # Not enough idle cash to attempt a buy AND nothing held → no-op
+        return state, [], []
+
+    # When held, the wrapper still calls apply_efa_decision so the SELL
+    # path can fire if EFA dropped below SMA200. Use the full broker cash
+    # for the held case (the SELL path adds to cash, doesn't spend).
+    cash_for_substate = capped_idle if not held else state.cash
+    substate = to_pillar_substate(state, 'efa', cash_override=cash_for_substate)
+    cash_before = substate.cash
+    new_substate, trades, decisions = apply_efa_decision(
+        substate, date, i, efa_data, config, execution_mode, all_dates,
+    )
+    cash_delta = new_substate.cash - cash_before
+    new_state = merge_pillar_substate(
+        state, new_substate, 'efa',
+        cash_delta=cash_delta, capital_account_delta=cash_delta,
+    )
+    return new_state, trades, decisions
+
+
+def apply_efa_liquidation(
+    state: HydraBacktestState,
+    date: pd.Timestamp,
+    i: int,
+    efa_data: pd.DataFrame,
+    config: dict,
+    execution_mode: str,
+    all_dates: list,
+) -> Tuple[HydraBacktestState, list]:
+    """Sell all EFA shares to free capital. Mirrors live
+    omnicapital_live.py::_liquidate_efa_for_capital (line 2508).
+    """
+    efa_positions = slice_positions_by_strategy(state.positions, 'efa')
+    if EFA_SYMBOL not in efa_positions:
+        return state, []
+    pos = efa_positions[EFA_SYMBOL]
+    exit_price = _get_exec_price(
+        EFA_SYMBOL, date, i, all_dates, {EFA_SYMBOL: efa_data}, execution_mode,
+    )
+    if exit_price is None:
+        return state, []
+    shares = pos['shares']
+    commission = shares * config.get('COMMISSION_PER_SHARE', 0.0035)
+    proceeds = shares * exit_price - commission
+    pnl = (exit_price - pos['entry_price']) * shares - commission
+    ret = (
+        (exit_price / pos['entry_price'] - 1.0)
+        if pos['entry_price'] > 0 else 0.0
+    )
+    trade = {
+        'symbol': EFA_SYMBOL,
+        'entry_date': pos['entry_date'],
+        'exit_date': date,
+        'exit_reason': 'EFA_LIQUIDATED_FOR_CAPITAL',
+        'entry_price': pos['entry_price'],
+        'exit_price': exit_price,
+        'shares': shares,
+        'pnl': pnl,
+        'return': ret,
+        'sector': 'International Equity',
+    }
+    new_positions = {
+        sym: pos for sym, pos in state.positions.items()
+        if not (sym == EFA_SYMBOL and pos.get('_strategy') == 'efa')
+    }
+    new_capital = state.capital._replace(
+        efa_value=max(0.0, state.capital.efa_value - shares * pos['entry_price'])
+    )
+    new_state = state._replace(
+        cash=state.cash + proceeds,
+        positions=new_positions,
+        capital=new_capital,
+    )
+    return new_state, [trade]
+
+
+def _needs_efa_liquidation(
+    state: HydraBacktestState,
+    portfolio_value: float,
+    config: dict,
+    n_compass_positions: int,
+    n_compass_max: int,
+    rattle_signal_pending: bool,
+) -> bool:
+    """Mirrors omnicapital_live.py::_liquidate_efa_for_capital decision logic.
+
+    Liquidate when:
+      - EFA is held
+      - Active strategy needs capital (compass slots open OR rattle signals)
+      - Broker cash < threshold% of portfolio value
+    """
+    threshold_pct = config.get('EFA_LIQUIDATION_CASH_THRESHOLD_PCT', 0.20)
+    efa_held = EFA_SYMBOL in slice_positions_by_strategy(state.positions, 'efa')
+    if not efa_held:
+        return False
+    needs_capital = (n_compass_positions < n_compass_max) or rattle_signal_pending
+    if not needs_capital:
+        return False
+    return state.cash < threshold_pct * portfolio_value
