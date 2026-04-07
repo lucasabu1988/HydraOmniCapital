@@ -58,6 +58,13 @@ jobs:
           --cov-report=term-missing
           -m "not slow"
 
+      - name: Test hydra_backtest.efa sub-package
+        run: >
+          pytest hydra_backtest/efa/tests/ -v --tb=short
+          --cov=hydra_backtest.efa
+          --cov-report=term-missing
+          -m "not slow"
+
       - name: Coverage report
         if: always()
         run: |
