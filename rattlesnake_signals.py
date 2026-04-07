@@ -73,9 +73,17 @@ def check_rattlesnake_regime(spy_hist: pd.DataFrame, vix_current: float) -> dict
     """
     Check Rattlesnake regime conditions.
     Returns dict with regime state and whether new entries are allowed.
+
+    Risk-data fail-closed: if VIX is unavailable (None / NaN), treat as panic
+    and block new entries. Operating without panic-filter visibility on a
+    mean-reversion dip-buyer is unacceptable in live trading (issue #36).
     """
     regime = 'RISK_ON'
-    vix_panic = vix_current > R_VIX_PANIC if vix_current else False
+    if vix_current is None or (isinstance(vix_current, float) and math.isnan(vix_current)):
+        vix_panic = True
+        logger.warning("check_rattlesnake_regime: VIX unavailable -> fail-closed, blocking entries")
+    else:
+        vix_panic = vix_current > R_VIX_PANIC
 
     if len(spy_hist) >= R_TREND_SMA:
         spy_close = spy_hist['Close'].iloc[-1]
