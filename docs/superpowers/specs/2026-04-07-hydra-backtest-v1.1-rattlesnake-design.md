@@ -134,7 +134,7 @@ signal logic. Pure functions are imported directly from
 ```python
 from rattlesnake_signals import (
     R_UNIVERSE,                  # hardcoded S&P 100 (94 tickers, intersected with PIT)
-    R_HOLD_DAYS, R_MAX_HOLD_DAYS,
+    R_MAX_HOLD_DAYS,             # 8
     R_PROFIT_TARGET, R_STOP_LOSS,
     R_MAX_POSITIONS, R_MAX_POS_RISK_OFF,
     R_POSITION_SIZE, R_VIX_PANIC,
@@ -540,10 +540,10 @@ Add to existing `.github/workflows/test.yml`, after the v1.0 test step:
    recycling to COMPASS — that's why standalone Rattlesnake CAGR alone
    under-states its contribution.
 
-5. **R_HOLD_DAYS=8 vs R_MAX_HOLD_DAYS=8**: the live `check_rattlesnake_exit`
-   uses `>= R_MAX_HOLD_DAYS` which is 8. The R_HOLD_DAYS constant (also 8)
-   is currently unused but exists for future flexibility. v1.1 uses
-   `R_MAX_HOLD_DAYS` consistently.
+5. **Time-exit constant**: only `R_MAX_HOLD_DAYS` (=8) exists in
+   `rattlesnake_signals.py`. The live `check_rattlesnake_exit` triggers
+   `'TIME'` when `days_held >= R_MAX_HOLD_DAYS`. v1.1 uses the same
+   constant directly via the imported function (no separate config key).
 
 ## 15. Success criteria (measurable)
 
