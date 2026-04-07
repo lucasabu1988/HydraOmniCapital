@@ -352,3 +352,417 @@ def _needs_efa_liquidation(
     if not needs_capital:
         return False
     return state.cash < threshold_pct * portfolio_value
+
+
+def _rattle_exposure(state: HydraBacktestState, prices: Dict[str, float]) -> float:
+    """Mirror rattlesnake_signals.compute_rattlesnake_exposure but use the
+    HydraCapitalState rattle_account as the denominator.
+    """
+    if state.capital.rattle_account <= 0:
+        return 0.0
+    rattle_positions = slice_positions_by_strategy(state.positions, 'rattle')
+    invested = sum(
+        pos.get('shares', 0) * prices.get(sym, pos.get('entry_price', 0.0))
+        for sym, pos in rattle_positions.items()
+    )
+    return min(invested / state.capital.rattle_account, 1.0)
+
+
+def _build_asset_dict(
+    sym: str,
+    pos: dict,
+    price_data: Dict[str, pd.DataFrame],
+    catalyst_assets: Dict[str, pd.DataFrame],
+    efa_data: pd.DataFrame,
+) -> Optional[pd.DataFrame]:
+    """Look up the right OHLCV DataFrame for a position based on its strategy tag."""
+    strategy = pos.get('_strategy')
+    if strategy == 'catalyst':
+        return catalyst_assets.get(sym)
+    if strategy == 'efa':
+        return efa_data if sym == EFA_SYMBOL else None
+    return price_data.get(sym)
+
+
+def _mark_full_portfolio(
+    state: HydraBacktestState,
+    date: pd.Timestamp,
+    price_data: Dict[str, pd.DataFrame],
+    catalyst_assets: Dict[str, pd.DataFrame],
+    efa_data: pd.DataFrame,
+) -> float:
+    """Compute total portfolio value at end of `date` across all 4 pillars."""
+    pv = state.cash
+    for sym, pos in state.positions.items():
+        df = _build_asset_dict(sym, pos, price_data, catalyst_assets, efa_data)
+        if df is not None and date in df.index:
+            price = float(df.loc[date, 'Close'])
+        else:
+            price = float(pos.get('entry_price', 0.0))
+        pv += float(pos.get('shares', 0)) * price
+    return pv
+
+
+def _current_prices_for_positions(
+    state: HydraBacktestState,
+    date: pd.Timestamp,
+    price_data: Dict[str, pd.DataFrame],
+    catalyst_assets: Dict[str, pd.DataFrame],
+    efa_data: pd.DataFrame,
+) -> Dict[str, float]:
+    """Build a {symbol: price} dict for every currently-held position."""
+    prices = {}
+    for sym, pos in state.positions.items():
+        df = _build_asset_dict(sym, pos, price_data, catalyst_assets, efa_data)
+        if df is not None and date in df.index:
+            prices[sym] = float(df.loc[date, 'Close'])
+    return prices
+
+
+def run_hydra_backtest(
+    config: dict,
+    price_data: Dict[str, pd.DataFrame],
+    pit_universe: Dict[int, List[str]],
+    spy_data: pd.DataFrame,
+    vix_data: pd.Series,
+    catalyst_assets: Dict[str, pd.DataFrame],
+    efa_data: pd.DataFrame,
+    cash_yield_daily: pd.Series,
+    sector_map: Dict[str, str],
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    execution_mode: str = 'same_close',
+    progress_callback: Optional[callable] = None,
+) -> BacktestResult:
+    """Run the full HYDRA backtest from start_date to end_date.
+
+    Mirrors omnicapital_live.py::execute_preclose_entries order of
+    operations (line 2972).
+    """
+    started_at = datetime.now()
+
+    # Build the union of all trading dates from all data sources
+    all_dates_set = set()
+    for df in price_data.values():
+        all_dates_set.update(df.index)
+    for df in catalyst_assets.values():
+        all_dates_set.update(df.index)
+    all_dates_set.update(efa_data.index)
+    all_dates = sorted(all_dates_set)
+
+    initial_capital = float(config['INITIAL_CAPITAL'])
+    capital0 = HydraCapitalState(
+        compass_account=initial_capital * config.get('BASE_COMPASS_ALLOC', 0.425),
+        rattle_account=initial_capital * config.get('BASE_RATTLE_ALLOC', 0.425),
+        catalyst_account=initial_capital * config.get('BASE_CATALYST_ALLOC', 0.15),
+        efa_value=0.0,
+    )
+    state = HydraBacktestState(
+        cash=initial_capital,
+        positions={},
+        peak_value=initial_capital,
+        crash_cooldown=0,
+        portfolio_value_history=(),
+        capital=capital0,
+    )
+
+    trades: list = []
+    decisions: list = []
+    snapshots: list = []
+    universe_size: dict = {}
+
+    catalyst_day_counter = 0
+    last_progress_year: Optional[int] = None
+    dates_in_range = [d for d in all_dates if start_date <= d <= end_date]
+    total_bars = max(len(dates_in_range), 1)
+
+    for i, date in enumerate(all_dates):
+        if date < start_date or date > end_date:
+            continue
+
+        # Progress callback (first bar of each year)
+        if progress_callback is not None and date.year != last_progress_year:
+            last_progress_year = date.year
+            try:
+                pv_now = _mark_full_portfolio(
+                    state, date, price_data, catalyst_assets, efa_data
+                )
+                bars_done = sum(1 for d in dates_in_range if d < date)
+                prices_now = _current_prices_for_positions(
+                    state, date, price_data, catalyst_assets, efa_data
+                )
+                progress_callback({
+                    'year': int(date.year),
+                    'progress_pct': 100.0 * bars_done / total_bars,
+                    'portfolio_value': float(pv_now),
+                    'n_positions': len(state.positions),
+                    'recycled_pct': compute_allocation_pure(
+                        state.capital, _rattle_exposure(state, prices_now)
+                    )['recycled_pct'],
+                })
+            except Exception:
+                pass
+
+        # 1. Mark-to-market
+        portfolio_value = _mark_full_portfolio(
+            state, date, price_data, catalyst_assets, efa_data
+        )
+
+        # 1b. Update peak BEFORE drawdown
+        if portfolio_value > state.peak_value:
+            state = state._replace(peak_value=portfolio_value)
+
+        drawdown = (
+            (portfolio_value - state.peak_value) / state.peak_value
+            if state.peak_value > 0 else 0.0
+        )
+
+        # 2. Daily cash yield (one call at HYDRA level — no leverage assumed)
+        if len(cash_yield_daily) > 0:
+            daily_yield = float(
+                cash_yield_daily.get(date, cash_yield_daily.iloc[0])
+            )
+        else:
+            daily_yield = 0.0
+        if state.cash > 0 and daily_yield > 0:
+            new_cash = state.cash + state.cash * (daily_yield / 100.0 / 252)
+            state = state._replace(cash=new_cash)
+
+        # 3. Compute COMPASS scoring inputs
+        tradeable = get_tradeable_symbols(
+            pit_universe, price_data, date, min_age_days=config['MIN_AGE_DAYS']
+        )
+        universe_size[date.year] = max(universe_size.get(date.year, 0), len(tradeable))
+
+        spy_slice = spy_data.loc[:date]
+        regime_score = compute_live_regime_score(spy_slice)
+        leverage, _new_cooldown, _crash_active = get_current_leverage_pure(
+            drawdown=drawdown,
+            portfolio_value_history=state.portfolio_value_history + (portfolio_value,),
+            crash_cooldown=state.crash_cooldown,
+            config=config,
+            spy_hist=spy_slice,
+        )
+        max_compass_pos = get_max_positions_pure(regime_score, spy_slice, config)
+
+        sliced = _slice_history_to_date(price_data, date, symbols=tradeable)
+        quality_syms = compute_quality_filter(
+            sliced, tradeable,
+            vol_max=config['QUALITY_VOL_MAX'],
+            vol_lookback=config['QUALITY_VOL_LOOKBACK'],
+            max_single_day=config['QUALITY_MAX_SINGLE_DAY'],
+        )
+        scores = compute_momentum_scores(
+            sliced, quality_syms,
+            lookback=config['MOMENTUM_LOOKBACK'],
+            skip=config['MOMENTUM_SKIP'],
+        )
+
+        # 4. Compute current rattle_exposure (uses current prices)
+        prices_today = _current_prices_for_positions(
+            state, date, price_data, catalyst_assets, efa_data
+        )
+        rattle_exposure = _rattle_exposure(state, prices_today)
+        alloc = compute_allocation_pure(state.capital, rattle_exposure)
+
+        # 5. Snapshot pillar values BEFORE mutations (for pillar return calc)
+        compass_invested_before = compute_pillar_invested(
+            state.positions, 'compass', prices_today
+        )
+        rattle_invested_before = compute_pillar_invested(
+            state.positions, 'rattle', prices_today
+        )
+
+        # ============================================================
+        # COMPASS exits
+        # ============================================================
+        state, c_exit_trades, c_exit_decisions = apply_compass_exits_wrapper(
+            state, date, i, price_data, scores, tradeable,
+            max_compass_pos, config, sector_map, execution_mode, all_dates,
+        )
+        trades.extend(c_exit_trades)
+        decisions.extend(c_exit_decisions)
+
+        # ============================================================
+        # EFA LIQUIDATION (if active strategies need capital)
+        # ============================================================
+        n_compass_now = len(slice_positions_by_strategy(state.positions, 'compass'))
+        vix_value = float(vix_data.loc[date]) if date in vix_data.index else None
+        rattle_regime = check_rattlesnake_regime(spy_slice, vix_value)
+        rattle_signal_pending = (
+            rattle_regime['entries_allowed']
+            and len(slice_positions_by_strategy(state.positions, 'rattle')) < rattle_regime['max_positions']
+        )
+        if _needs_efa_liquidation(
+            state, portfolio_value, config,
+            n_compass_now, max_compass_pos, rattle_signal_pending,
+        ):
+            state, liq_trades = apply_efa_liquidation(
+                state, date, i, efa_data, config, execution_mode, all_dates,
+            )
+            trades.extend(liq_trades)
+
+        # ============================================================
+        # COMPASS entries
+        # ============================================================
+        state, c_entry_decisions = apply_compass_entries_wrapper(
+            state, alloc['compass_budget'], date, i, price_data, scores, tradeable,
+            max_compass_pos, leverage, config, sector_map, all_dates, execution_mode,
+        )
+        decisions.extend(c_entry_decisions)
+
+        # ============================================================
+        # Rattlesnake exits + entries
+        # ============================================================
+        state, r_exit_trades, r_exit_decisions = apply_rattle_exits_wrapper(
+            state, date, i, price_data, config, execution_mode, all_dates,
+        )
+        trades.extend(r_exit_trades)
+        decisions.extend(r_exit_decisions)
+
+        if rattle_regime['entries_allowed']:
+            r_tradeable = _resolve_rattlesnake_universe(pit_universe, date.year)
+            min_age = config.get('MIN_AGE_DAYS', 220)
+            r_tradeable = [
+                t for t in r_tradeable
+                if t in price_data
+                and date in price_data[t].index
+                and len(price_data[t].loc[:date]) >= min_age
+            ]
+            if len(r_tradeable) >= 5:
+                r_sliced = _slice_history_to_date(
+                    price_data, date, symbols=r_tradeable
+                )
+                r_held = set(slice_positions_by_strategy(state.positions, 'rattle').keys())
+                r_max = rattle_regime['max_positions']
+                r_slots = r_max - len(r_held)
+                if r_slots > 0:
+                    r_current_prices = {
+                        t: float(price_data[t].loc[date, 'Close'])
+                        for t in r_tradeable
+                    }
+                    candidates = find_rattlesnake_candidates(
+                        r_sliced, r_current_prices, r_held, max_candidates=r_slots,
+                    )
+                    state, r_entry_decisions = apply_rattle_entries_wrapper(
+                        state, alloc['rattle_budget'], date, i, price_data,
+                        candidates, r_max, config, execution_mode, all_dates,
+                    )
+                    decisions.extend(r_entry_decisions)
+
+        # ============================================================
+        # Catalyst rebalance (every 5 days or whenever empty)
+        # ============================================================
+        catalyst_day_counter += 1
+        catalyst_held = slice_positions_by_strategy(state.positions, 'catalyst')
+        if catalyst_day_counter >= CATALYST_REBALANCE_DAYS or not catalyst_held:
+            catalyst_day_counter = 0
+            state, cat_trades, cat_decisions = apply_catalyst_wrapper(
+                state, alloc['catalyst_budget'], date, i, catalyst_assets,
+                config, execution_mode, all_dates,
+            )
+            trades.extend(cat_trades)
+            decisions.extend(cat_decisions)
+
+        # ============================================================
+        # EFA passive overflow
+        # ============================================================
+        # Recompute alloc after all the previous mutations to capture the
+        # current efa_idle (rattle_account may have shifted).
+        prices_mid = _current_prices_for_positions(
+            state, date, price_data, catalyst_assets, efa_data
+        )
+        alloc_post = compute_allocation_pure(
+            state.capital, _rattle_exposure(state, prices_mid)
+        )
+        state, efa_trades, efa_decisions = apply_efa_wrapper(
+            state, alloc_post['efa_idle'], date, i, efa_data,
+            config, execution_mode, all_dates,
+        )
+        trades.extend(efa_trades)
+        decisions.extend(efa_decisions)
+
+        # ============================================================
+        # Accounting — update HydraCapitalState with daily returns
+        # ============================================================
+        prices_after = _current_prices_for_positions(
+            state, date, price_data, catalyst_assets, efa_data
+        )
+        compass_invested_after = compute_pillar_invested(
+            state.positions, 'compass', prices_after
+        )
+        rattle_invested_after = compute_pillar_invested(
+            state.positions, 'rattle', prices_after
+        )
+        c_ret = (
+            (compass_invested_after / compass_invested_before - 1)
+            if compass_invested_before > 0 else 0.0
+        )
+        r_ret = (
+            (rattle_invested_after / rattle_invested_before - 1)
+            if rattle_invested_before > 0 else 0.0
+        )
+        state = state._replace(
+            capital=update_accounts_after_day_pure(
+                state.capital, c_ret, r_ret, rattle_exposure,
+            )
+        )
+
+        # 6. Snapshot
+        pv_after = _mark_full_portfolio(
+            state, date, price_data, catalyst_assets, efa_data
+        )
+        snapshots.append({
+            'date': date,
+            'portfolio_value': pv_after,
+            'cash': state.cash,
+            'n_positions': len(state.positions),
+            'leverage': leverage,
+            'drawdown': drawdown,
+            'regime_score': regime_score,
+            'crash_active': False,
+            'max_positions': max_compass_pos,
+            'compass_account': state.capital.compass_account,
+            'rattle_account': state.capital.rattle_account,
+            'catalyst_account': state.capital.catalyst_account,
+            'efa_value': state.capital.efa_value,
+            'recycled_pct': alloc['recycled_pct'],
+            'n_compass': len(slice_positions_by_strategy(state.positions, 'compass')),
+            'n_rattle': len(slice_positions_by_strategy(state.positions, 'rattle')),
+            'n_catalyst': len(slice_positions_by_strategy(state.positions, 'catalyst')),
+            'n_efa': len(slice_positions_by_strategy(state.positions, 'efa')),
+        })
+
+        # 7. Update state tail: peak + days_held
+        if pv_after > state.peak_value:
+            state = state._replace(peak_value=pv_after)
+        new_positions = {
+            sym: {**p, 'days_held': p.get('days_held', 0) + 1}
+            for sym, p in state.positions.items()
+        }
+        state = state._replace(
+            positions=new_positions,
+            portfolio_value_history=state.portfolio_value_history + (pv_after,),
+        )
+
+    finished_at = datetime.now()
+
+    result_config = dict(config)
+    result_config['_execution_mode'] = execution_mode
+
+    trade_cols = [
+        'symbol', 'entry_date', 'exit_date', 'exit_reason',
+        'entry_price', 'exit_price', 'shares', 'pnl', 'return', 'sector',
+    ]
+    return BacktestResult(
+        config=result_config,
+        daily_values=pd.DataFrame(snapshots),
+        trades=pd.DataFrame(trades) if trades else pd.DataFrame(columns=trade_cols),
+        decisions=decisions,
+        exit_events=trades,  # all closing trades
+        universe_size=universe_size,
+        started_at=started_at,
+        finished_at=finished_at,
+        git_sha=_capture_git_sha(),
+        data_inputs_hash=compute_data_fingerprint(price_data),
+    )
