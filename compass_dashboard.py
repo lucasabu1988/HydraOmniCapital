@@ -2275,8 +2275,11 @@ def api_risk():
         hist_symbols.append('SPY')
 
     prices = fetch_live_prices(price_symbols)
-    if 'SPY' not in prices and '^GSPC' in prices:
-        prices['SPY'] = prices['^GSPC']
+    # NEVER fall back to ^GSPC for SPY — the index quote (~$6,592) is ~10x
+    # the SPY ETF quote (~$659), so aliasing would inflate any SPY position's
+    # market value 10x in compute_portfolio_risk (line ~63). If SPY is missing
+    # from the live price feed, leave it absent: compute_portfolio_risk falls
+    # back to entry_price for any position whose live quote is missing.
 
     hist_data = _fetch_risk_histories(hist_symbols)
     results = compute_portfolio_risk(state, prices, hist_data)
