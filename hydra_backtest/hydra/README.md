@@ -5,23 +5,32 @@ backtest that orchestrates all four standalone pillars (COMPASS,
 Rattlesnake, Catalyst, EFA) with HydraCapitalManager-style cash
 recycling, the Catalyst 15% ring-fence, and EFA overflow.
 
-## ⚠️ Status: Code complete, official run pending architectural fix
+## ✅ Status: COMPLETE — official 2000-2026 run shipped 2026-04-08
 
-**Tasks 1–18** of the implementation plan are complete and committed:
-the sub-package, capital model, state model, all four wrappers, the
-orchestrator, validation, Layer B helper, public API, unit tests,
-integration test, E2E tests (1-month determinism verified
-byte-identical on real data), README, and CI step. **39 unit tests +
-1 integration smoke pass.**
+All 19 tasks done. The official run produced **NET HONEST 10.70%
+CAGR / 0.591 Sharpe / -32.73% MaxDD** ($100k → $1.45M over 2000-2026)
+with Layer B verdict **PASS Spearman 0.9958** vs the production
+dashboard's `hydra_clean_daily.csv`.
 
-**Task 19** (the official 2000–2026 run) is **blocked** by an
-architectural feedback loop in the budget allocation hack. See
-`docs/STATUS_v1.4_HYDRA.md` for the full diagnosis and the two
-candidate fixes (Option A: budget = `BASE_PCT * portfolio_value`;
-Option B: live HCM percentage returns with relaxed canary tolerance).
+**47 unit tests** pass (17 capital + 13 state + 8 engine wrapper +
+11 validation), plus 1 CLI integration smoke + 3 E2E real-data
+tests. v1.0–v1.3 suites unchanged (138 tests still green).
 
-The four standalone pillar backtests (v1.0 COMPASS, v1.1 Rattlesnake,
-v1.2 Catalyst, v1.3 EFA) are unaffected and continue to work.
+The original Task 19 blocker (a feedback loop in the derived bucket
+budget hack) was resolved by **Option C**: NAV-derived budgets via
+the new pure function `compute_budgets_from_snapshot` in `capital.py`.
+Budgets now depend ONLY on the current economic snapshot
+(positions + cash + prices + nav), never on accumulated
+HydraCapitalState buckets. Replay determinism is enforced by unit
+test.
+
+A second critical bug was discovered while validating Option C on
+real 2000 data: a **symbol collision** in `merge_pillar_substate`
+silently overwrote prior pillars' positions when two pillars held
+the same symbol (e.g., GE held by compass at $11k AND picked by
+rattle on 2000-01-07). Fixed by filtering cross-pillar held symbols
+in compass and rattle entry wrappers, plus a defensive assertion in
+`merge_pillar_substate` that raises ValueError on any collision.
 
 ## What this is
 
