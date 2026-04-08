@@ -63,6 +63,7 @@ from hydra_backtest.hydra.capital import (
     EFA_MIN_BUY,
     HydraCapitalState,
     compute_allocation_pure,
+    compute_budgets_from_snapshot,
     update_accounts_after_day_pure,
     update_catalyst_value_pure,
     update_efa_value_pure,
@@ -140,14 +141,24 @@ def apply_compass_entries_wrapper(
     all_dates: list,
     execution_mode: str,
 ) -> Tuple[HydraBacktestState, list]:
-    """Wrap v1.0 apply_entries with the cash-budget hack.
+    """Wrap v1.0 apply_entries with the NAV-derived budget hack.
 
-    Builds a sub-state where cash = min(compass_budget, broker_cash),
-    runs apply_entries, and merges the diff back. Capping at broker
-    cash prevents over-spending when the recycled budget exceeds the
-    physical cash on hand.
+    Option C: compass_budget is the TOTAL target capital for compass
+    (base + recycled). The "free cash" compass can actually spend on
+    NEW entries is budget - current_positions_value. That free cash
+    is then capped at broker_cash to prevent over-spending physical
+    cash. Mirrors the catalyst wrapper's fix for double-counting.
     """
-    capped_budget = min(compass_budget, max(state.cash, 0.0))
+    prices_now = {}
+    for sym, pos in slice_positions_by_strategy(state.positions, 'compass').items():
+        df = price_data.get(sym)
+        if df is not None and date in df.index:
+            prices_now[sym] = float(df.loc[date, 'Close'])
+    compass_pos_value = compute_pillar_invested(
+        state.positions, 'compass', prices_now,
+    )
+    free_cash_in_bucket = max(0.0, compass_budget - compass_pos_value)
+    capped_budget = min(free_cash_in_bucket, max(state.cash, 0.0))
     substate = to_pillar_substate(state, 'compass', cash_override=capped_budget)
     new_substate, decisions = compass_apply_entries(
         substate, date, i, price_data, scores, tradeable,
@@ -200,12 +211,24 @@ def apply_rattle_entries_wrapper(
     execution_mode: str,
     all_dates: list,
 ) -> Tuple[HydraBacktestState, list]:
-    """Wrap v1.1 apply_rattlesnake_entries with the budget hack.
+    """Wrap v1.1 apply_rattlesnake_entries with the NAV-derived budget hack.
 
-    capital_account_delta=0 — intra-bucket cash→positions transfer.
-    Budget is capped at broker cash to prevent over-spending.
+    Option C: rattle_budget is the TOTAL target for rattle (base -
+    recycled_out). The free cash for NEW entries is budget -
+    current_positions_value, capped at broker_cash. Mirrors compass
+    and catalyst wrappers for consistency — no pillar may pass its
+    raw target budget as deployable cash.
     """
-    capped_budget = min(rattle_budget, max(state.cash, 0.0))
+    prices_now = {}
+    for sym, pos in slice_positions_by_strategy(state.positions, 'rattle').items():
+        df = price_data.get(sym)
+        if df is not None and date in df.index:
+            prices_now[sym] = float(df.loc[date, 'Close'])
+    rattle_pos_value = compute_pillar_invested(
+        state.positions, 'rattle', prices_now,
+    )
+    free_cash_in_bucket = max(0.0, rattle_budget - rattle_pos_value)
+    capped_budget = min(free_cash_in_bucket, max(state.cash, 0.0))
     substate = to_pillar_substate(state, 'rattle', cash_override=capped_budget)
     new_substate, decisions = rattle_apply_entries(
         substate, date, i, price_data, candidates,
@@ -569,8 +592,12 @@ def run_hydra_backtest(
                     'progress_pct': 100.0 * bars_done / total_bars,
                     'portfolio_value': float(pv_now),
                     'n_positions': len(state.positions),
-                    'recycled_pct': compute_allocation_pure(
-                        state.capital, _rattle_exposure(state, prices_now)
+                    'recycled_pct': compute_budgets_from_snapshot(
+                        positions=state.positions,
+                        cash=state.cash,
+                        prices=prices_now,
+                        nav=pv_now,
+                        config=config,
                     )['recycled_pct'],
                 })
             except Exception:
@@ -649,12 +676,23 @@ def run_hydra_backtest(
             skip=config['MOMENTUM_SKIP'],
         )
 
-        # 4. Compute current rattle_exposure (uses current prices)
+        # 4. Compute budgets from the CURRENT economic snapshot (Option C).
+        # Budgets depend only on (positions + cash + prices + nav) — never
+        # on accumulated HydraCapitalState buckets. This eliminates the
+        # v1.4 T19 feedback loop by construction: calling this function
+        # twice on the same snapshot always yields identical budgets
+        # (replay determinism test in test_capital.py).
         prices_today = _current_prices_for_positions(
             state, date, price_data, catalyst_assets, efa_data
         )
         rattle_exposure = _rattle_exposure(state, prices_today)
-        alloc = compute_allocation_pure(state.capital, rattle_exposure)
+        alloc = compute_budgets_from_snapshot(
+            positions=state.positions,
+            cash=state.cash,
+            prices=prices_today,
+            nav=portfolio_value,
+            config=config,
+        )
 
         # 5. Compute pure price-driven daily returns BEFORE any wrapper
         # mutates positions. The pattern is:
@@ -800,13 +838,21 @@ def run_hydra_backtest(
         # ============================================================
         # EFA passive overflow
         # ============================================================
-        # Recompute alloc after all the previous mutations to capture the
-        # current efa_idle (rattle_account may have shifted).
+        # Recompute budgets from the updated snapshot to capture the
+        # current efa_idle (positions/cash have shifted from the wrappers
+        # above). Option C: pure snapshot, no state.capital dependency.
         prices_mid = _current_prices_for_positions(
             state, date, price_data, catalyst_assets, efa_data
         )
-        alloc_post = compute_allocation_pure(
-            state.capital, _rattle_exposure(state, prices_mid)
+        nav_mid = _mark_full_portfolio(
+            state, date, price_data, catalyst_assets, efa_data
+        )
+        alloc_post = compute_budgets_from_snapshot(
+            positions=state.positions,
+            cash=state.cash,
+            prices=prices_mid,
+            nav=nav_mid,
+            config=config,
         )
         state, efa_trades, efa_decisions = apply_efa_wrapper(
             state, alloc_post['efa_idle'], date, i, efa_data,
