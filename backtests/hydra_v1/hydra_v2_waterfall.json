@@ -1,0 +1,80 @@
+{
+  "tiers": [
+    {
+      "name": "baseline",
+      "description": "Live methodology (Aaa cash, same-close exec)",
+      "cagr": 0.12175823443497102,
+      "sharpe": 1.0102990293069227,
+      "sortino": 1.4027606702764819,
+      "calmar": 0.38623110682952644,
+      "max_drawdown": -0.3152470950215626,
+      "volatility": 0.12126912813751556,
+      "final_value": 2022576.1363031785,
+      "delta_cagr_bps": 0.0,
+      "delta_sharpe": 0.0,
+      "delta_maxdd_bps": 0.0
+    },
+    {
+      "name": "t_bill",
+      "description": "+ T-bill 3M cash yield",
+      "cagr": 0.11257076060177074,
+      "sharpe": 0.6956485998471735,
+      "sortino": 0.9655222094669688,
+      "calmar": 0.34696548306050473,
+      "max_drawdown": -0.3244436870457813,
+      "volatility": 0.12111780274202587,
+      "final_value": 1630804.815207452,
+      "delta_cagr_bps": -91.87473833200288,
+      "delta_sharpe": -0.3146504294597492,
+      "delta_maxdd_bps": -91.96592024218685
+    },
+    {
+      "name": "next_open",
+      "description": "+ next-open execution",
+      "cagr": 0.11267396547178965,
+      "sharpe": 0.6829733076518458,
+      "sortino": 0.9465761603539863,
+      "calmar": 0.3841650216278451,
+      "max_drawdown": -0.29329574304904077,
+      "volatility": 0.12402288323202201,
+      "final_value": 1657992.3754938936,
+      "delta_cagr_bps": 1.0320487001891365,
+      "delta_sharpe": -0.012675292195327703,
+      "delta_maxdd_bps": 311.47943996740537
+    },
+    {
+      "name": "real_costs",
+      "description": "+ slippage and half-spread",
+      "cagr": 0.10702976756315663,
+      "sharpe": 0.5911444015442477,
+      "sortino": 0.8178261350374423,
+      "calmar": 0.3269642759488919,
+      "max_drawdown": -0.3273439193090519,
+      "volatility": 0.13769981658236805,
+      "final_value": 1451397.3696161737,
+      "delta_cagr_bps": -56.44197908633019,
+      "delta_sharpe": -0.09182890610759809,
+      "delta_maxdd_bps": -340.4817626001111
+    },
+    {
+      "name": "net_honest",
+      "description": "NET HONEST \u2014 all corrections applied",
+      "cagr": 0.10702976756315663,
+      "sharpe": 0.5911444015442477,
+      "sortino": 0.8178261350374423,
+      "calmar": 0.3269642759488919,
+      "max_drawdown": -0.3273439193090519,
+      "volatility": 0.13769981658236805,
+      "final_value": 1451397.3696161737,
+      "delta_cagr_bps": 0.0,
+      "delta_sharpe": 0.0,
+      "delta_maxdd_bps": 0.0
+    }
+  ],
+  "metadata": {
+    "git_sha": "b8bfaceadaa2e60343f27b9335f38aec705574e0",
+    "data_inputs_hash": "cffdce7eb6901c611a8e6d88dddca33bf1e88ec67860ad0915236f403288c144",
+    "started_at": "2026-04-07T22:41:00.872752",
+    "finished_at": "2026-04-07T23:15:12.436278"
+  }
+}
