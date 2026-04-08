@@ -147,6 +147,99 @@ def update_efa_value_pure(
     return capital
 
 
+def compute_budgets_from_snapshot(
+    positions: dict,
+    cash: float,
+    prices: Dict[str, float],
+    nav: float,
+    config: dict,
+) -> Dict[str, float]:
+    """Option C — NAV-derived budget computation.
+
+    This is the replacement for compute_allocation_pure as the budget
+    source in the v1.4 orchestrator. It depends only on the current
+    economic snapshot (positions + cash + prices + nav) and never on
+    accumulated HydraCapitalState buckets. That eliminates the v1.4 T19
+    feedback loop where the derived-bucket model fed back into budget
+    sizing day-over-day.
+
+    Returns the SAME dict keys as compute_allocation_pure so the
+    orchestrator can swap them one-for-one:
+        compass_budget, rattle_budget, catalyst_budget,
+        recycled_amount, recycled_pct,
+        compass_alloc, rattle_alloc, catalyst_alloc,
+        efa_idle.
+
+    Semantics:
+      - compass_budget  = BASE_C * NAV + recycled  (capped at MAX_C * NAV)
+      - rattle_budget   = BASE_R * NAV - recycled  (rattle gives up the lent share)
+      - catalyst_budget = BASE_CAT * NAV
+      - recycled        = min(rattle_idle, compass_room)
+      - efa_idle        = leftover rattle free budget after recycling
+
+    where:
+      - rattle_idle     = max(0, BASE_R * NAV - rattle_positions_value)
+      - compass_room    = max(0, MAX_C * NAV - compass_positions_value)
+                          (so compass cannot exceed its hard cap)
+    """
+    base_c = float(config.get('BASE_COMPASS_ALLOC', BASE_COMPASS_ALLOC))
+    base_r = float(config.get('BASE_RATTLE_ALLOC', BASE_RATTLE_ALLOC))
+    base_cat = float(config.get('BASE_CATALYST_ALLOC', BASE_CATALYST_ALLOC))
+    max_c = float(config.get('MAX_COMPASS_ALLOC', MAX_COMPASS_ALLOC))
+
+    compass_pos_value = 0.0
+    rattle_pos_value = 0.0
+    catalyst_pos_value = 0.0
+    for sym, pos in positions.items():
+        strat = pos.get('_strategy')
+        shares = pos.get('shares', 0)
+        if shares == 0:
+            continue
+        price = prices.get(sym, pos.get('entry_price', 0.0))
+        mv = shares * price
+        if strat == 'compass':
+            compass_pos_value += mv
+        elif strat == 'rattle':
+            rattle_pos_value += mv
+        elif strat == 'catalyst':
+            catalyst_pos_value += mv
+        # efa excluded — it's a separate bucket fed from rattle idle
+
+    # Base targets from NAV
+    compass_target = base_c * nav
+    rattle_target = base_r * nav
+    catalyst_target = base_cat * nav
+
+    # Idle rattle budget (free, not invested)
+    rattle_idle = max(0.0, rattle_target - rattle_pos_value)
+
+    # Compass headroom up to MAX_C
+    compass_room = max(0.0, max_c * nav - compass_pos_value)
+    # Compass can only accept recycled on top of its base target
+    compass_extra_room = max(0.0, compass_room - max(0.0, compass_target - compass_pos_value))
+
+    recycled = min(rattle_idle, compass_extra_room)
+
+    compass_budget = compass_target + recycled
+    rattle_budget = rattle_target - recycled
+    catalyst_budget = catalyst_target
+
+    # Leftover rattle idle (after recycling) is available for EFA
+    efa_idle = max(0.0, rattle_idle - recycled)
+
+    return {
+        'compass_budget': compass_budget,
+        'rattle_budget': rattle_budget,
+        'catalyst_budget': catalyst_budget,
+        'recycled_amount': recycled,
+        'recycled_pct': recycled / nav if nav > 0 else 0.0,
+        'compass_alloc': compass_budget / nav if nav > 0 else base_c,
+        'rattle_alloc': rattle_budget / nav if nav > 0 else base_r,
+        'catalyst_alloc': catalyst_budget / nav if nav > 0 else base_cat,
+        'efa_idle': efa_idle,
+    }
+
+
 def update_catalyst_value_pure(
     capital: HydraCapitalState,
     catalyst_return: float,
