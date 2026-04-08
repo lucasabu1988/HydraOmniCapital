@@ -733,6 +733,24 @@ def _price_freshness_snapshot():
     with _price_cache_lock:
         cache_time = _price_cache_time
         cache_size = len(_price_cache)
+    # Fallback to the shared file cache when the in-memory value is absent.
+    # Under gunicorn --preload, each worker has its own _price_cache_time; only
+    # the engine-owning worker actually calls _fetch_prices_internal, so the
+    # serving worker's in-memory value stays None forever and /api/state.data_freshness
+    # reports 'stale' even when prices are fresh on disk. Reading the shared
+    # cache file here makes freshness reflect reality regardless of which
+    # worker serves the request.
+    if cache_time is None:
+        try:
+            shared_path = os.path.join(STATE_DIR, '.price_cache_shared.json')
+            if os.path.exists(shared_path):
+                with open(shared_path, 'r') as _f:
+                    _shared = json.load(_f)
+                cache_time = datetime.fromisoformat(_shared['ts'])
+                if cache_size == 0:
+                    cache_size = len(_shared.get('prices', {}))
+        except Exception as _e:
+            logger.debug('price freshness fallback read failed: %s', _e)
     last_price_update = cache_time.isoformat() if cache_time else None
     price_age_seconds = None
     if cache_time:
@@ -2423,7 +2441,12 @@ def api_live_chart():
     if not state_files and not hydra_data:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
 
-    # State files overlay: update/add dates from engine's own state files
+    # State files overlay: only EXTEND the baseline forward. Baseline is
+    # authoritative for any date it already covers (it contains curated
+    # mark-to-market history). State files can only add dates strictly
+    # newer than the latest baseline date — this prevents the live engine
+    # from clobbering historical entries with stale post-restart values.
+    baseline_max_date = max(hydra_data.keys()) if hydra_data else ''
     for sf in state_files:
         try:
             with open(sf, 'r') as f:
@@ -2432,7 +2455,7 @@ def api_live_chart():
             val = s.get('portfolio_value')
             n_pos = len(s.get('positions', {}))
             # Skip reset/corrupt state files (0 positions with ~$100K = engine restart)
-            if dt and val and val > 0 and n_pos > 0:
+            if dt and val and val > 0 and n_pos > 0 and dt > baseline_max_date:
                 hydra_data[dt] = val
         except Exception as e:
             logger.warning(f"api_live_chart failed: {e}")
