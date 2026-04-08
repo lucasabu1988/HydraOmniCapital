@@ -2410,6 +2410,42 @@ def api_cycle_log():
     return jsonify(cycles)
 
 
+def _debug_read_baseline_raw(path):
+    try:
+        with open(path, 'r') as f:
+            bl = json.load(f)
+        pairs = list(zip(bl.get('dates', []), bl.get('values', [])))
+        return {
+            'total': len(pairs),
+            'note': bl.get('note', ''),
+            'last5': [[d, round(v, 2)] for d, v in pairs[-5:]],
+            'apr2': next((round(v, 2) for d, v in pairs if d == '2026-04-02'), None),
+            'apr6': next((round(v, 2) for d, v in pairs if d == '2026-04-06'), None),
+            'apr7': next((round(v, 2) for d, v in pairs if d == '2026-04-07'), None),
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def _debug_read_state_april(state_files):
+    out = []
+    for sf in state_files:
+        try:
+            with open(sf, 'r') as f:
+                s = json.load(f)
+            dt = s.get('last_trading_date')
+            if dt and dt >= '2026-04-01':
+                out.append({
+                    'file': os.path.basename(sf),
+                    'last_trading_date': dt,
+                    'portfolio_value': round(s.get('portfolio_value', 0), 2),
+                    'n_pos': len(s.get('positions', {})),
+                })
+        except Exception as e:
+            out.append({'file': os.path.basename(sf), 'error': str(e)})
+    return out
+
+
 @app.route('/api/live-chart')
 def api_live_chart():
     """Return daily HYDRA vs S&P 500 indexed performance since live test start.
@@ -2576,6 +2612,8 @@ def api_live_chart():
             'baseline_dates_count': len(hydra_data),
             'state_files_count': len(state_files),
             'state_files_sample': [os.path.basename(f) for f in state_files[-5:]],
+            'baseline_raw': _debug_read_baseline_raw(baseline_path),
+            'state_april': _debug_read_state_april(state_files),
         },
     })
 
