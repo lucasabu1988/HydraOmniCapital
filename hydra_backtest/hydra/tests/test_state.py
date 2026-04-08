@@ -159,3 +159,68 @@ def test_compute_pillar_invested_empty_pillar():
                  '_strategy': 'compass'},
     }
     assert compute_pillar_invested(positions, 'rattle', {'AAPL': 200.0}) == 0.0
+
+
+def test_merge_raises_on_symbol_collision_with_other_pillar():
+    """v1.4 T19 catastrophic bug: state.positions is keyed by symbol, so
+    if pillar A merges a position whose symbol is held by pillar B, the
+    dict spread silently overwrites B's position, vanishing its value.
+    The defensive assertion in merge_pillar_substate must catch this so
+    the orchestrator is forced to filter cross-pillar held symbols
+    BEFORE calling apply_*_entries.
+
+    Repro: GE held by compass on 2000-01-07, rattle finds GE as RSI<25
+    candidate and tries to enter it. The merge would silently overwrite
+    compass's GE position, causing a $11k vanish from PV.
+    """
+    from hydra_backtest.engine import BacktestState
+
+    state = _make_state(positions={
+        'GE': {
+            '_strategy': 'compass', 'shares': 100, 'entry_price': 50.0,
+            'entry_date': None,
+        },
+    })
+    # Rattle substate that "buys" GE — simulates the bug condition
+    new_substate = BacktestState(
+        cash=50_000, peak_value=100_000, crash_cooldown=0,
+        portfolio_value_history=(),
+        positions={
+            'GE': {'shares': 80, 'entry_price': 51.0, 'entry_date': None},
+        },
+    )
+    with pytest.raises(ValueError, match="symbol collision"):
+        merge_pillar_substate(
+            state, new_substate, 'rattle',
+            cash_delta=-4_080.0, capital_account_delta=0.0,
+        )
+
+
+def test_merge_no_collision_when_pillars_disjoint():
+    """When the merged pillar's symbols are disjoint from other pillars'
+    symbols, merge proceeds normally — the collision check must not
+    trigger false positives."""
+    from hydra_backtest.engine import BacktestState
+
+    state = _make_state(positions={
+        'AAPL': {
+            '_strategy': 'compass', 'shares': 100, 'entry_price': 150.0,
+            'entry_date': None,
+        },
+    })
+    new_substate = BacktestState(
+        cash=20_000, peak_value=100_000, crash_cooldown=0,
+        portfolio_value_history=(),
+        positions={
+            'XOM': {'shares': 200, 'entry_price': 80.0, 'entry_date': None},
+        },
+    )
+    # Should not raise
+    new_state = merge_pillar_substate(
+        state, new_substate, 'rattle',
+        cash_delta=-16_000.0, capital_account_delta=0.0,
+    )
+    assert 'AAPL' in new_state.positions
+    assert 'XOM' in new_state.positions
+    assert new_state.positions['AAPL']['_strategy'] == 'compass'
+    assert new_state.positions['XOM']['_strategy'] == 'rattle'

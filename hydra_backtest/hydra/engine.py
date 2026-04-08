@@ -160,8 +160,22 @@ def apply_compass_entries_wrapper(
     free_cash_in_bucket = max(0.0, compass_budget - compass_pos_value)
     capped_budget = min(free_cash_in_bucket, max(state.cash, 0.0))
     substate = to_pillar_substate(state, 'compass', cash_override=capped_budget)
+
+    # CRITICAL: filter tradeable + scores to exclude symbols held by ANY
+    # other pillar. compass_apply_entries' internal filter only excludes
+    # symbols already in substate.positions (compass-only), so without
+    # this filter compass would happily buy a symbol already held by
+    # rattle, causing a silent overwrite in merge_pillar_substate.
+    other_pillar_held = {
+        sym for sym, p in state.positions.items()
+        if p.get('_strategy') != 'compass'
+    }
+    tradeable_filtered = [t for t in tradeable if t not in other_pillar_held]
+    scores_filtered = {
+        s: sc for s, sc in scores.items() if s not in other_pillar_held
+    }
     new_substate, decisions = compass_apply_entries(
-        substate, date, i, price_data, scores, tradeable,
+        substate, date, i, price_data, scores_filtered, tradeable_filtered,
         max_positions, leverage, config, sector_map, all_dates, execution_mode,
     )
     spent = capped_budget - new_substate.cash  # positive number
@@ -805,6 +819,14 @@ def run_hydra_backtest(
                     price_data, date, symbols=r_tradeable
                 )
                 r_held = set(slice_positions_by_strategy(state.positions, 'rattle').keys())
+                # CRITICAL: exclude symbols held by ANY pillar, not just rattle.
+                # state.positions is keyed by symbol — if rattle buys a symbol
+                # already held by compass (or any other pillar), the merge would
+                # silently overwrite the existing position via dict spread,
+                # vanishing the prior pillar's value from PV. This was the v1.4
+                # T19 catastrophic loss bug (e.g., GE held by compass, then
+                # rattle bought GE on the same day → -67% in 2000-H1).
+                all_held = set(state.positions.keys())
                 r_max = rattle_regime['max_positions']
                 r_slots = r_max - len(r_held)
                 if r_slots > 0:
@@ -813,7 +835,7 @@ def run_hydra_backtest(
                         for t in r_tradeable
                     }
                     candidates = find_rattlesnake_candidates(
-                        r_sliced, r_current_prices, r_held, max_candidates=r_slots,
+                        r_sliced, r_current_prices, all_held, max_candidates=r_slots,
                     )
                     state, r_entry_decisions = apply_rattle_entries_wrapper(
                         state, alloc['rattle_budget'], date, i, price_data,

@@ -102,6 +102,23 @@ def merge_pillar_substate(
         sym: {**pos, '_strategy': strategy}
         for sym, pos in new_substate.positions.items()
     }
+    # CRITICAL: detect symbol collisions across pillars. state.positions is
+    # keyed by symbol, so if `strategy` adds a position whose symbol is held
+    # by another pillar, the dict spread below would silently overwrite the
+    # other pillar's position, vanishing its value from PV. The orchestrator
+    # is responsible for excluding cross-pillar symbols from candidate lists
+    # BEFORE calling apply_*_entries; this assertion is a defense-in-depth.
+    collisions = set(other_positions.keys()) & set(new_pillar_positions.keys())
+    if collisions:
+        existing_owners = {
+            sym: other_positions[sym].get('_strategy', '?') for sym in collisions
+        }
+        raise ValueError(
+            f"merge_pillar_substate: symbol collision merging {strategy!r} "
+            f"with existing pillars: {existing_owners}. The orchestrator must "
+            f"exclude cross-pillar held symbols from {strategy!r} entry "
+            f"candidates to prevent silent position overwrite."
+        )
     merged_positions = {**other_positions, **new_pillar_positions}
 
     if strategy == 'compass':
