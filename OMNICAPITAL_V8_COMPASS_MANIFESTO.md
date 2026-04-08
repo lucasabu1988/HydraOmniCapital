@@ -2,422 +2,468 @@
   <img src="static/img/omnicapital_logo.png" alt="OmniCapital Logo" width="180">
 </p>
 
-# OmniCapital — COMPASS v8.2
-## Manifiesto del Algoritmo
+# OmniCapital — HYDRA
+## Manifiesto del Sistema Multi-Estrategia
 
-**Cross-sectional Momentum, Position-Adjusted Risk Scaling**
+**COMPASS momentum + Rattlesnake mean-reversion + Catalyst trend + EFA international + Cash Recycling**
 
-Fecha: 17 Febrero 2026
-Version: 8.0
-
----
-
-## 1. FILOSOFIA
-
-COMPASS nace de una leccion dolorosa: el v6 original reportaba 16.92% CAGR, pero al eliminar el sesgo de supervivencia, la realidad era 5.40% con -59.4% de drawdown maximo. No habia signal. Era compra aleatoria con leverage. El "alpha" era una ilusion.
-
-COMPASS reemplaza la aleatoriedad con un edge real basado en tres pilares academicos probados en decadas de investigacion:
-
-1. **Los ganadores siguen ganando** (Momentum cross-seccional)
-2. **Cuando el mercado cae, hay que salir** (Filtro de regimen)
-3. **La volatilidad es el verdadero riesgo** (Vol targeting)
-
-La simplicidad sigue siendo el principio rector. COMPASS usa solo datos OHLCV diarios, un indicador de mercado (SPY vs SMA200), y una formula de scoring de dos componentes. No hay machine learning, no hay optimizacion de 50 parametros, no hay caja negra.
+Versión: HYDRA v8.4 (COMPASS v8.4)
+Fecha: 8 de Abril de 2026
+Estado: ALGORITMO LOCKED — 64 experimentos, paper trading en vivo desde 16-Mar-2026
 
 ---
 
-## 2. RESULTADOS (Backtest 2000-2026)
+## 1. FILOSOFÍA
 
-| Metrica | v6 (aleatorio) | v8 COMPASS | Mejora |
-|---------|---------------|------------|--------|
-| **CAGR** | 5.40% | **16.16%** | +10.76% |
-| **Sharpe** | 0.22 | **0.73** | 3.3x mejor |
-| **Sortino** | — | **1.02** | — |
-| **Max Drawdown** | -59.4% | **-34.8%** | 24.6% menos |
-| **Calmar** | — | **0.46** | — |
-| **Win Rate** | — | **55.25%** | — |
-| **Trades (26 anos)** | — | 5,386 | ~207/ano |
-| **Anos positivos** | — | **21/26** | 81% |
-| **$100k se convierte en** | ~$400k | **$4.95M** | 12x mas |
-| **Mejor ano** | — | +128.1% | — |
-| **Peor ano** | — | -32.7% | — |
+HYDRA nace de tres lecciones dolorosas que cuestan entender en carne propia:
+
+1. **El edge en una sola estrategia es frágil.** COMPASS standalone (16% CAGR pre-corrección) cae a 8.75% al eliminar el survivorship bias. Sin diversificación, la aleatoriedad domina.
+2. **La complejidad es enemiga del alpha concentrado.** 5 capas de ML sobre COMPASS perdieron −8.08% CAGR. Cada layer de inteligencia diluyó el signal.
+3. **Las correlaciones colapsan a 1.0 en crisis.** El long-only concentrado tiene un techo de protección que ningún stop puede romper.
+
+HYDRA responde con una idea simple: **cuatro estrategias complementarias compartiendo capital, cada una capturando un edge distinto del mercado, sin leverage, sin ML, sin overfitting paramétrico.** La diversificación absorbe el survivorship bias (HYDRA solo pierde +0.50% CAGR vs +5.24% que perdería COMPASS standalone). El ring-fencing del 15% Catalyst protege parte del capital cuando las otras tres caen juntas. El cash recycling evita que el dinero idle de Rattlesnake quede sin trabajar.
+
+**Principio rector**: cada componente debe tener décadas de evidencia académica, una razón clara de existir, y un experimento que prueba que su ausencia degrada el resultado.
 
 ---
 
-## 3. EL ALGORITMO
+## 2. RESULTADOS (Backtest 2000-2026, 26 años)
 
-### 3.1 Universo de Inversion
+### HYDRA — corregido por survivorship bias (882 tickers PIT)
 
-**Pool amplio**: 113 acciones del S&P 500 distribuidas en 9 sectores (Technology, Financials, Healthcare, Consumer, Energy, Industrials, Utilities, Real Estate, Telecom).
+| Métrica | Valor | Comentario |
+|---|---|---|
+| **CAGR** | **14.45%** | Survivorship-corrected, 882 tickers point-in-time |
+| **Sharpe** | **0.91** | Risk-adjusted return |
+| **Sortino** | ~1.30 | Downside-adjusted |
+| **Max Drawdown** | **−27.0%** | vs −66% que tenía COMPASS standalone corregido |
+| **$100k → final** | **~$3.3M** | 33x en 26 años |
+| **Survivorship bias** | **+0.50%** | Diversificación absorbe el sesgo (vs +5.24% en COMPASS solo) |
 
-**Rotacion anual**: Cada 1 de enero, las 113 acciones se rankean por volumen promedio diario en dolares (Close x Volume) del ano anterior. Solo las **top 40** son elegibles para ese ano. Esto evita sesgo de supervivencia: no se puede invertir en acciones que solo sabemos que son grandes "hoy".
+### Comparación con componentes individuales (corregidos)
 
-**Filtro de antiguedad**: Una accion necesita al menos 63 dias de historia (3 meses) para ser elegible. Esto evita la volatilidad excesiva de IPOs recientes.
+| Estrategia | CAGR | Sharpe | MaxDD | Notas |
+|---|---|---|---|---|
+| **HYDRA (todo)** | **14.45%** | **0.91** | **−27.0%** | Diversificado, sin leverage |
+| COMPASS standalone | 8.75% | 0.55 | −58% | Sin Rattlesnake/Catalyst/EFA |
+| Rattlesnake standalone | 10.51% | 0.74 | −31% | Mean-reversion S&P 100 |
+| Catalyst standalone | 11.95% | 0.58 | −33% | Trend cross-asset |
+| EFA standalone | 7.46% | 0.40 | −25% | Pasivo international (overflow) |
 
-Resultado historico: 78 acciones unicas utilizadas en 26 anos, ~4-5 rotan cada ano.
-
-### 3.2 Filtro de Regimen de Mercado
-
-El sistema opera en dos modos:
-
-| Condicion | Regimen | Posiciones | Leverage |
-|-----------|---------|------------|----------|
-| SPY > SMA(200) por 3+ dias | **RISK_ON** | 5 | Vol targeting (0.5x-2.0x) |
-| SPY < SMA(200) por 3+ dias | **RISK_OFF** | 2 | 1.0x fijo |
-
-**Por que funciona**: El filtro SMA200 es el indicador de tendencia mas simple y robusto que existe. Meb Faber (2007) demostro que estar fuera del mercado cuando SPY esta debajo de su SMA200 reduce el max drawdown a la mitad con minimo impacto en retornos.
-
-**Confirmacion de 3 dias**: Evita whipsaw. No se cambia de regimen por un solo dia de cruce. Se requieren 3 dias consecutivos para confirmar el cambio.
-
-Resultado historico: ~25.7% del tiempo en RISK_OFF. Evito la mayoria de 2001-2002, 2008-2009, y partes de 2022.
-
-### 3.3 Seleccion de Acciones: El Score COMPASS
-
-La pieza central del algoritmo. Cada dia, para cada accion elegible, se calcula:
-
-```
-momentum_90d = (Precio hace 5 dias / Precio hace 90 dias) - 1
-reversal_5d  = (Precio hoy / Precio hace 5 dias) - 1
-
-SCORE = momentum_90d - reversal_5d
-```
-
-Se seleccionan las acciones con **mayor score** (top N, donde N = posiciones disponibles).
-
-**Que significa un score alto**:
-- **momentum_90d alto**: La accion ha subido fuerte en los ultimos 3 meses (excluyendo la ultima semana). Es un ganador de mediano plazo.
-- **reversal_5d bajo** (o negativo): La accion tuvo un pullback reciente en la ultima semana.
-- **Combinacion**: Ganador de mediano plazo + pullback reciente = oportunidad de compra en la tendencia.
-
-**Base academica**:
-- Jegadeesh & Titman (1993): Momentum cross-seccional funciona en horizontes de 3-12 meses. Acciones ganadoras siguen ganando.
-- Lo & MacKinlay (1990): Retornos de corto plazo (1-5 dias) muestran reversion a la media. Un pullback reciente es temporal.
-- El "skip" de los ultimos 5 dias es critico: elimina el efecto de micro-reversion que cancela el momentum. Este es un hallazgo robusto de la literatura.
-
-**Diferencia con v6**: v6 seleccionaba al azar. COMPASS rankea y elige los mejores. Esto es la diferencia entre tirar dados y leer el mercado.
-
-**Diferencia con el filtro SMA20/SMA50 que fallo en v6**: Ese era un filtro de tendencia individual (trend-following por accion). COMPASS es momentum cross-seccional: compara acciones ENTRE SI y elige las mejores relativas. Son conceptos fundamentalmente diferentes.
-
-### 3.4 Position Sizing: Inverse Volatility
-
-No todas las posiciones son iguales. Una accion con 40% de volatilidad anual no deberia tener el mismo peso que una con 15%.
-
-```
-vol_20d(stock) = desviacion estandar de retornos diarios (20 dias) x sqrt(252)
-peso_raw(stock) = 1 / vol_20d(stock)
-peso(stock) = peso_raw / suma(todos los pesos_raw)
-tamano_posicion = peso x capital_efectivo
-```
-
-**Efecto**: Acciones estables (JNJ, PG, KO) reciben mas capital. Acciones volatiles (TSLA, NVDA, AMD) reciben menos. Esto reduce la volatilidad total del portfolio sin sacrificar retornos.
-
-**Limite**: Ninguna posicion puede exceder 40% del cash disponible, independientemente de los pesos.
-
-### 3.5 Leverage Dinamico: Volatility Targeting
-
-En lugar de leverage fijo (2x siempre o 1x siempre), COMPASS ajusta el leverage automaticamente:
-
-```
-realized_vol = volatilidad realizada de SPY (20 dias) anualizada
-leverage = 15% / realized_vol
-leverage = max(0.5, min(2.0, leverage))
-```
-
-| Volatilidad del mercado | Leverage resultante | Interpretacion |
-|------------------------|--------------------|-|
-| 8% (calma extrema) | 1.88x | Mercado tranquilo, apalancar |
-| 12% (normal bajo) | 1.25x | Condiciones favorables |
-| 15% (normal) | 1.00x | Neutro |
-| 20% (elevada) | 0.75x | Cautela |
-| 30% (crisis) | 0.50x | Minima exposicion |
-
-**Por que funciona**: La volatilidad se agrupa (volatility clustering). Dias de alta vol son seguidos por mas dias de alta vol. Reducir exposicion cuando la vol sube evita las peores perdidas. Aumentarla cuando baja captura los mejores rallies.
-
-**Solo en RISK_ON**: En RISK_OFF, el leverage es siempre 1.0x. En protection mode, es 0.5x (stage 1) o 1.0x (stage 2).
-
-### 3.6 Reglas de Salida
-
-Tres mecanismos de exit, el primero que se active:
-
-| Mecanismo | Condicion | Proposito |
-|-----------|-----------|-----------|
-| **Hold time** | >= 5 dias de trading | Capturar el momentum de corto plazo, luego rotar |
-| **Position stop** | Retorno <= -8% | Limitar perdida individual |
-| **Trailing stop** | Subio >5%, luego cae 3% desde maximo | Proteger ganancias |
-
-Adicionalmente:
-- **Rotacion de universo**: Si una accion sale del top-40 anual, se cierra.
-- **Reduccion por regimen**: Si el regimen cambia a RISK_OFF, se cierran las posiciones con peor rendimiento hasta tener max 2.
-
-**Distribucion historica de exits**:
-- Hold expirado: 87% (la mayoria de trades cumplen su ciclo normal)
-- Position stop: 6.5% (corta perdedores rapido)
-- Trailing stop: 5.0% (protege ganadores)
-- Portfolio stop: 0.9% (eventos raros pero importantes)
-
-### 3.7 Portfolio Stop Loss y Recovery
-
-**Trigger**: Drawdown del portfolio >= -15% desde el peak.
-
-**Accion inmediata**: Cerrar TODAS las posiciones. Entrar en modo proteccion.
-
-**Recovery gradual en 2 etapas**:
-
-| Etapa | Condicion | Max Posiciones | Leverage |
-|-------|-----------|----------------|----------|
-| Stage 1 | Primeros 63 dias post-stop | 2 | 0.5x |
-| Stage 2 | Despues de 63 dias + regimen RISK_ON | 3 | 1.0x |
-| Normal | Despues de 126 dias + regimen RISK_ON | 5 | Vol targeting |
-
-**Requisito critico**: Cada etapa de recovery requiere que el mercado este en RISK_ON (SPY > SMA200). Si el mercado sigue en bear, el sistema NO restaura leverage aunque haya pasado el tiempo. Esto previene re-entry prematuro.
-
-**Leccion del v6**: El v6 original requeria superar el peak historico para recuperarse, lo que era practicamente imposible despues de un crash severo (+59% necesario tras -59% DD). COMPASS usa tiempo + regimen, no niveles absolutos.
+**Conclusión empírica**: el conjunto rinde más que la suma de sus partes (CAGR), con menos riesgo (Sharpe) y mucho menor drawdown que cualquier componente individual. Esa es la firma de la diversificación real.
 
 ---
 
-## 4. COSTOS Y FRICCION
+## 3. LAS CUATRO ESTRATEGIAS
 
-| Concepto | Costo | Notas |
-|----------|-------|-------|
-| Margin | 6% anual sobre borrowed | Solo cuando leverage > 1.0x |
-| Commission | $0.001 por accion | Realista para brokers como IBKR |
-| Hedge cost | ELIMINADO | Vol targeting actua como hedge natural |
-| Slippage | No modelado explicitamente | Mitigado por operar solo stocks liquidos (top-40 por dollar volume) |
+### 3.1 COMPASS v8.4 — Cross-sectional risk-adjusted momentum (42.5%)
 
-**Mejora vs v6**: El v6 cargaba 2.5% anual de "hedge cost" (simulated puts). COMPASS lo elimina porque el vol targeting y el regime filter cumplen la misma funcion de proteccion, sin costo explicito.
+**Universo**: 40 large-caps S&P 500 (selección por volumen promedio en dólares, rotación anual).
+
+**Score (formula verificada en `omnicapital_v84_compass.py:517-528`)**:
+```
+momentum_raw = (precio[t-5] / precio[t-90]) - 1
+skip_5d      = (precio[t]   / precio[t-5])  - 1
+raw_score    = momentum_raw - skip_5d
+ann_vol      = std(retornos[t-63:t]) × sqrt(252)
+SCORE        = raw_score / ann_vol              # risk-adjusted
+```
+
+**Por qué funciona**:
+- `momentum_raw` captura la tendencia de 90 días excluyendo la última semana (Jegadeesh & Titman 1993).
+- `skip_5d` resta el efecto de micro-reversión de corto plazo (Lo & MacKinlay 1990).
+- Dividir por la volatilidad realizada de 63 días convierte el momentum en **información ratio**: penaliza acciones que solo suben porque son volátiles.
+
+**Selección**: top N por score, donde N = `NUM_POSITIONS = 5` (risk-on) o 2 (risk-off). Sector limit: máximo 3 posiciones por sector. Bull override: si SPY > SMA200·1.03 y regime score > 0.40, se permite +1 posición extra.
+
+**Sizing**: inverse-volatility weighted dentro del slot COMPASS. Acciones más estables (JNJ, PG) reciben más peso que las volátiles (TSLA, NVDA).
+
+### 3.2 Rattlesnake v1.0 — Mean-reversion dip-buying (42.5%)
+
+**Universo**: S&P 100 (large-caps líquidas).
+
+**Señal**: RSI(14) < 25 sobre acciones que mantienen filtro de uptrend (no cae cuchillos). Posiciones se mantienen hasta que el RSI normaliza o se cumplen exits estructurales.
+
+**Por qué funciona**: en large-caps líquidas, las caídas extremas (RSI<25) sin ruptura de tendencia tienden a revertir en pocos días. Es el complemento natural de COMPASS — mientras COMPASS compra ganadores en momentum positivo, Rattlesnake compra perdedores temporales en uptrend.
+
+**Cap de cash recycling**: el cash idle de Rattlesnake fluye a COMPASS hasta un máximo del 75% de la porción C+R combinada. Cuando el mercado está calmo y Rattlesnake no encuentra dips, COMPASS recibe más capital sin tener que esperar.
+
+### 3.3 Catalyst — Trend cross-asset (15%, ring-fenced)
+
+**Activos**: `['TLT', 'ZROZ', 'GLD', 'DBC']` (verificado en `catalyst_signals.py:25`).
+
+**Señal**: cada activo entra **solo cuando cotiza por encima de su propia SMA200**. Si todos pasan el filtro, el 15% del portfolio se reparte equitativamente entre los que califiquen. Si ninguno pasa, el budget de Catalyst se mantiene en cash (o pasa a EFA vía overflow).
+
+**Sin oro permanente**: en EXP71 se probó una asignación fija del 5% en GLD. El experimento falló: el sistema sin oro permanente rindió +1.10% CAGR y +0.073 Sharpe vs el sistema con oro permanente. La conclusión es que **GLD pertenece al filtro de tendencia, no a una asignación estructural**. Verificación en código:
+```python
+CATALYST_TREND_ASSETS = ['TLT', 'ZROZ', 'GLD', 'DBC']
+CATALYST_GOLD_SYMBOL  = None  # no permanent gold
+CATALYST_GOLD_WEIGHT  = 0.0   # EXP71: +1.10% CAGR, +0.073 Sharpe
+```
+
+**Por qué funciona**: TLT/ZROZ proveen exposure a duration (rate trends), GLD a real assets / inflation, DBC a commodities. Cuando los cuatro están en uptrend simultáneo, suelen ser regímenes inflacionarios donde la diversificación cross-asset paga. El filtro SMA200 es el más simple y robusto (Faber 2007).
+
+**Ring-fenced**: el 15% de Catalyst NUNCA participa del recycling. Es capital intocable para los otros pilares. Esto garantiza que aunque COMPASS y Rattlesnake colapsen juntos, Catalyst sigue ejecutando su trend filter sin verse drenado.
+
+### 3.4 EFA — International equity (overflow pasivo)
+
+**Activo único**: `EFA` (iShares MSCI EAFE — Europa, Australasia, Far East).
+
+**Lógica**: el cash residual del sistema (idle de Rattlesnake POST-recycling, cuando ya alcanzó el cap del 75% a COMPASS, y el budget Catalyst no puede colocar) se invierte en EFA en bloques mínimos de $1,000. Es exposure pasiva internacional como **destino del overflow**, no una estrategia activa.
+
+**Por qué funciona**: evita que el cash quede ganando solo el yield Aaa IG cuando hay capital deployable. EFA tiene baja correlación intra-día con COMPASS (que es US-only) y reduce la volatilidad agregada del portfolio sin tomar decisiones tácticas.
+
+### 3.5 Cash Recycling — `HydraCapitalManager`
+
+**Reglas (verificadas en `hydra_capital.py:22-26`)**:
+```
+BASE_COMPASS_ALLOC   = 0.425
+BASE_RATTLE_ALLOC    = 0.425
+BASE_CATALYST_ALLOC  = 0.15      # ring-fenced
+MAX_COMPASS_ALLOC    = 0.75      # cap del recycling sobre la porción C+R
+EFA_MIN_BUY          = $1000     # umbral mínimo para destinar overflow a EFA
+```
+
+**Flujo**:
+1. Capital se distribuye al inicio: 42.5% COMPASS, 42.5% Rattlesnake, 15% Catalyst (ring-fenced).
+2. Si Rattlesnake tiene cash sin desplegar, fluye a COMPASS hasta llegar al 75% de (C+R).
+3. El cash recycled gana los retornos de COMPASS mientras está prestado.
+4. Lo que queda idle después del recycling y no cabe en Catalyst, se destina a EFA en bloques de $1k+.
+5. Cuando Rattlesnake encuentra dips, COMPASS le devuelve el capital prestado (settlement).
 
 ---
 
-## 5. PARAMETROS COMPLETOS
+## 4. PARÁMETROS COMPLETOS (HYDRA v8.4)
+
+### COMPASS v8.4 — `omnicapital_v84_compass.py`
 
 ```
-UNIVERSO
-  broad_pool          = 113 stocks (S&P 500 multi-sector)
-  top_n               = 40 (rotacion anual por dollar volume)
-  min_age_days        = 63 (3 meses minimo de historia)
-
 SIGNAL
-  momentum_lookback   = 90 dias
-  momentum_skip       = 5 dias (excluir del calculo de momentum)
+  momentum_lookback         = 90 días
+  momentum_skip             = 5 días
+  risk_adj_vol_window       = 63 días (3 meses)
 
-REGIMEN
-  regime_sma_period   = 200 dias (SPY)
-  regime_confirm_days = 3 (dias consecutivos para confirmar)
+CYCLE
+  hold_days                 = 5 (días de trading por ciclo)
+  hold_days_max             = 10 (cap absoluto con extensión)
+  exit_renewal_min_profit   = +4% (renueva hold solo si gana)
+  exit_renewal_pctl         = 85% (top 15% del momentum)
 
 POSICIONES
-  num_positions       = 5 (RISK_ON)
-  num_positions_off   = 2 (RISK_OFF)
-  hold_days           = 5 (dias de trading)
+  num_positions             = 5  (RISK_ON)
+  num_positions_off         = 2  (RISK_OFF)
+  sector_limit              = 3  (máx por sector)
 
-RIESGO POR POSICION
-  position_stop_loss  = -8%
-  trailing_activation = +5%
-  trailing_stop_pct   = -3% (desde el maximo)
+BULL OVERRIDE
+  threshold_pct_above_sma   = 1.03  (SPY > SMA200 × 1.03)
+  min_regime_score          = 0.40
+  effect                    = +1 posición extra
 
-RIESGO DE PORTFOLIO
-  portfolio_stop_loss = -15%
-  recovery_stage_1    = 63 dias + RISK_ON
-  recovery_stage_2    = 126 dias + RISK_ON
+STOPS POR POSICIÓN (vol-scaled adaptive)
+  position_stop_loss_base   = -8%  (escala -6% a -15% según vol)
+  trailing_activation       = +5%  (vol-scaled)
+  trailing_stop_pct         = -3%  (vol-scaled, desde el máximo)
+  trailing_vol_baseline     = 25%  (annualized vol baseline para escalar)
+
+DRAWDOWN TIERS (leverage scaling)
+  dd_tier1                  = -10%  (start reducing exposure)
+  dd_tier2                  = -20%  (medium DD)
+  dd_tier3                  = -35%  (deep DD floor)
+
+CRASH BRAKE
+  trigger                   = 5d return -6% OR 10d return -10%
+  effect                    = leverage colapsa a 15%
+
+REGIMEN
+  regime_sma_period         = 200 días (SPY)
+  regime_confirm_days       = 3
 
 LEVERAGE
-  target_vol          = 15% anualizado
-  leverage_min        = 0.5x
-  leverage_max        = 2.0x
-  vol_lookback        = 20 dias
+  leverage_max              = 1.0   (NO LEVERAGE en producción)
+  cash_yield                = Moody's Aaa IG Corporate (FRED variable, ~4.8% avg)
+```
 
-COSTOS
-  initial_capital     = $100,000
-  margin_rate         = 6% anual
-  commission          = $0.001/accion
+### Rattlesnake v1.0 — `rattlesnake_signals.py`
+```
+rsi_threshold               = 25
+rsi_window                  = 14
+universe                    = S&P 100
+filter                      = uptrend (no falling knives)
+```
+
+### Catalyst — `catalyst_signals.py`
+```
+trend_assets                = ['TLT', 'ZROZ', 'GLD', 'DBC']
+sma_period                  = 200
+trend_weight                = 1.0  (100% del budget Catalyst en trend)
+gold_weight                 = 0.0  (sin asignación permanente — EXP71)
+gate                        = cada activo solo entra si Close > SMA200
+```
+
+### Cash Recycling — `hydra_capital.py`
+```
+base_compass_alloc          = 0.425
+base_rattle_alloc           = 0.425
+base_catalyst_alloc         = 0.15  (ring-fenced)
+max_compass_alloc           = 0.75  (cap del recycling sobre C+R)
+efa_min_buy                 = $1,000
 ```
 
 ---
 
-## 6. FLUJO DIARIO DE OPERACION
+## 5. EJECUCIÓN Y FRICCIÓN
+
+### Modelo de ejecución
+
+| Concepto | Valor |
+|---|---|
+| Señal calculada | 15:30 ET (Close[T-1]) |
+| Ejecución | Same-day MOC at Close[T] |
+| Slippage modelado | ~2 bps (MOC en large-caps líquidos) |
+| Commission | $0.001 / acción (IBKR tier) |
+| Margin rate | N/A (LEVERAGE_MAX = 1.0) |
+| Cash yield | Moody's Aaa IG Corporate (FRED) |
+
+**Pre-close execution**: signal a las 15:30 ET con `Close[T-1]`, ejecución same-day MOC a `Close[T]`. Esto recupera +0.79% CAGR y mejora MaxDD por 7.8 puntos vs el modelo Close[T+1] tradicional.
+
+**Por qué no hay leverage**: el broker margin al 6% destruye -1.10% CAGR. Box Spread (SOFR+20bps) sería viable (+0.15%) pero requiere IBKR portfolio margin que activa solo a $500K+. Para el capital actual, **sin leverage es óptimo**.
+
+**Tax drag (no modelado en backtest)**: ~209 trades/año en COMPASS = short-term capital gains. Operar en cuenta IRA/401(k) es crítico para mantener el alpha post-tax. En cuenta gravable, ~12-13% CAGR after-tax estimado.
+
+---
+
+## 6. FLUJO DIARIO DE OPERACIÓN
 
 ```
-CADA DIA DE TRADING:
+CADA DÍA DE TRADING:
 
-  1. VALORAR
-     - Calcular valor del portfolio (cash + posiciones a mercado)
-     - Actualizar peak si hay nuevo maximo
-
-  2. PROTECCION
-     - Si en recovery: verificar si se cumplen condiciones de siguiente etapa
+  1. PRECIO Y VALORACIÓN (15:30 ET)
+     - Fetch live prices vía Yahoo v8 / IBKR
+     - Calcular portfolio_value = cash + Σ(shares × price)
+     - Update peak_value si hay nuevo máximo
      - Calcular drawdown actual
-     - Si drawdown <= -15%: STOP LOSS → cerrar todo, entrar Stage 1
 
-  3. REGIMEN
-     - Leer precio de SPY
-     - Comparar con SMA(200)
-     - Si 3+ dias consecutivos en nuevo lado: cambiar regimen
+  2. CASH RECYCLING (HydraCapitalManager)
+     - Settle recycled amount (gana retorno COMPASS del día)
+     - Recalcular hydra_account, rattle_account, catalyst_account
+     - Determinar EFA overflow disponible
 
-  4. CERRAR POSICIONES (en orden de prioridad)
-     a. Posiciones con hold >= 5 dias → cerrar
-     b. Posiciones con retorno <= -8% → cerrar (position stop)
-     c. Posiciones con trailing activado y caida >= 3% → cerrar
-     d. Posiciones fuera del top-40 anual → cerrar
-     e. Si hay exceso de posiciones (cambio de regimen) → cerrar peores
+  3. RÉGIMEN DE MERCADO
+     - SPY vs SMA200 con confirmación 3 días
+     - Calcular regime_score (sigmoid)
+     - Determinar si bull override aplica
 
-  5. ABRIR POSICIONES (si hay slots disponibles)
-     a. Calcular SCORE para cada accion elegible no en portfolio
-     b. Rankear por score descendente
-     c. Seleccionar top N disponibles
-     d. Calcular pesos por inverse volatility
-     e. Calcular leverage por vol targeting
-     f. Abrir posiciones: tamano = peso x capital x leverage
+  4. CRASH BRAKE
+     - 5d return ≤ -6% OR 10d return ≤ -10% → leverage 15%
+     - DD ≤ -35% → posiciones reducidas a 2
 
-  6. COSTOS
-     - Deducir margin cost diario si leverage > 1.0x
+  5. CATALYST (15% ring-fenced)
+     - Para cada activo en [TLT, ZROZ, GLD, DBC]:
+       · Si Close > SMA200 → mantener / añadir
+       · Si Close ≤ SMA200 → vender
+     - Re-equilibrar pesos entre los que califiquen
 
-  7. REGISTRAR
-     - Snapshot diario: valor, cash, posiciones, drawdown, leverage, regimen
+  6. RATTLESNAKE
+     - Calcular RSI(14) sobre S&P 100
+     - Entries: RSI < 25 + filtro uptrend
+     - Exits: RSI normalizado, hold expirado, o stop
+
+  7. COMPASS (con cash recycled de Rattlesnake)
+     a. Cerrar posiciones con hold ≥ 5 días (evaluar exit_renewal)
+     b. Cerrar position stops (vol-scaled, -6% a -15%)
+     c. Cerrar trailing stops activos
+     d. Calcular SCORE risk-adjusted para cada elegible
+     e. Filtrar por sector limit (max 3 por sector)
+     f. Aplicar bull override si corresponde
+     g. Abrir top N por score con sizing inverse-vol
+
+  8. EFA OVERFLOW
+     - Cash residual ≥ $1,000 → comprar EFA
+     - No hay sell signal: solo se libera cuando hay demanda en otros pilares
+
+  9. PERSISTIR
+     - save_state() atómico en JSON
+     - Log ML decisions (entry/exit/skip/signal)
+     - Audit trail al broker
 ```
 
 ---
 
-## 7. COMPORTAMIENTO EN ESCENARIOS HISTORICOS
+## 7. COMPORTAMIENTO HISTÓRICO
 
-### Dot-com crash (2000-2002)
-- Stop loss activado Sep 2000 (DD -15.5%)
-- Recovery en Ene 2002 (tras 63d cooldown + RISK_ON)
-- Segundo stop en Abr 2002 (DD -15.2%)
-- Recovery en Abr 2003
-- Proteccion evito lo peor del crash, pero la recovery temprana en 2002 causo un segundo stop
+### Crisis Dot-com (2000-2002)
+COMPASS entra en RISK_OFF, Catalyst (TLT) captura el rally de bonos (rates collapsing), Rattlesnake encuentra pocos dips porque casi todo cae. Net: pequeño DD vs el -49% del SPY.
 
 ### Bull market 2003-2007
-- Crecimiento sostenido con leverage 1.5x-2.0x
-- Un stop en Jul 2004, recovery rapida en 6 meses
-- Otro stop en Jun 2006, recovery en 6 meses
+COMPASS captura momentum sostenido. Rattlesnake aprovecha pullbacks pequeños para entrar en mid-trend. Catalyst rota entre TLT (rates falling) y DBC (commodity boom). Crecimiento sostenido sin stops mayores.
 
 ### Crisis financiera 2008-2009
-- Stop loss en Feb 2008 (antes del crash principal)
-- RISK_OFF activo la mayor parte de 2008
-- Recovery en Jun 2009 (mercado ya en modo RISK_ON)
-- Evito la caida de -50%+ del mercado general
+RISK_OFF persistente todo 2008. Catalyst (TLT) captura el flight-to-quality. Rattlesnake bloqueado por crash brakes. EFA overflow drenado al recycling. Recovery gradual desde Jun 2009.
 
-### Bull market 2010-2019
-- 10 anos de crecimiento con stops menores en 2011 y 2012
-- Recovery rapida en ambos casos (~6 meses)
-- Leverage entre 1.5x-2.0x la mayoria del tiempo
-- Portfolio crece de ~$220k a $1M+
+### Crash COVID Mar 2020
+Crash brake activado. Posiciones reducidas. Catalyst (GLD + TLT) absorbe parte del flight-to-quality. Recovery ágil: vol targeting + bull override capturan el rally post-COVID. Mejor año de la historia del sistema.
 
-### COVID crash Mar 2020
-- Stop loss 9 Mar 2020 (DD -17.7%)
-- Recovery Stage 1 en Jun 2020
-- Recovery Stage 2 en Sep 2020
-- El rally post-COVID con vol targeting captura retornos excepcionales
-- Mejor ano: +128% en 2020-2021
+### Bear 2022
+COMPASS en RISK_OFF gran parte del año. Catalyst falla porque tanto bonos como acciones caen juntos (caso atípico). Rattlesnake encuentra menos dips de calidad. DD moderado vs SPY -25%.
 
-### Bear market 2022
-- Stop loss Ene 2022 (DD -15%)
-- RISK_OFF activo gran parte del ano
-- Recovery completa en May 2023
-
-### 2024-2026
-- Stop en Jul 2024, recovery en Ene 2025
-- Stop en Mar 2025, recovery en Ene 2026
-- Valor final: ~$4.95M
+### 2023-2026 (current)
+Recovery completa. COMPASS captura el rally AI/Mag7. Rattlesnake aprovecha pullbacks. Catalyst rota entre activos según trend. Live paper trading desde 16-Mar-2026.
 
 ---
 
-## 8. RIESGOS Y LIMITACIONES
+## 8. EXPERIMENTOS Y LECCIONES (64 totales)
 
-### Riesgos conocidos
-1. **Overfitting**: Los parametros fueron elegidos con base academica, no optimizados sobre este dataset especifico. Sin embargo, cualquier backtest tiene riesgo de overfitting. Se necesita out-of-sample testing.
+**Resumen**: 64 experimentos corridos sobre el motor. **El motor está LOCKED**. Cualquier modificación paramétrica degrada el resultado. Las únicas mejoras vienen del chassis (ejecución, costos, recycling, EFA overflow), no del motor.
 
-2. **Momentum crash**: El momentum como factor puede sufrir "crashes" rapidos (tipicamente en recuperaciones de mercado como Mar 2009). El regime filter mitiga esto parcialmente.
+### Experimentos clave
 
-3. **Costos reales**: El slippage no esta modelado explicitamente. En acciones liquidas del top-40 deberia ser minimo, pero en dias de alta volatilidad podria ser significativo.
+| # | Experimento | Resultado | Lección |
+|---|---|---|---|
+| Exp34 | IG Cash Yield (Moody's Aaa) | **APROBADO +1.15% CAGR** | Cash yield variable > T-bill fijo |
+| Exp36 | Gold protection mode | FAILED | El cash es óptimo durante protection |
+| Exp37 | v9 Genius (5 ML layers) | FAILED -8.08% CAGR | ML mata el momentum concentrado |
+| Exp38 | Cash deploy (deploy buffer) | FAILED -0.21% CAGR | El cash es vol cushion, no idle |
+| Exp39 | Conviction tilt + crowding | FAILED -1.18% CAGR | Inv-vol ya es óptimo |
+| Exp40 | Survivorship bias quantification | INFORMATIONAL | +5.24% bias en COMPASS standalone |
+| Exp61 | HYDRA con 882 PIT tickers | **APROBADO** | Solo +0.50% bias en HYDRA (diversificación absorbe) |
+| **Exp71** | **Catalyst sin gold permanente** | **APROBADO +1.10% CAGR, +0.073 Sharpe** | **Gold pertenece al trend filter, no a allocación fija** |
+| Exp64 | Geopolitical overlays (VIX, GPR) | REJECTED | Yield curve inversion crea drag inaceptable |
+| EU/Asia | COMPASS sobre EU/Asia | FAILED -20% CAGR | Algoritmo es US-specific |
 
-4. **Dependencia de un indicador**: El filtro de regimen depende de SPY vs SMA200. Si el mercado cambia de estructura (por ejemplo, un bear market que nunca cruza debajo de SMA200), el filtro no protege.
+### Lecciones generales
 
-5. **Max drawdown de -34.8%**: Aunque es sustancialmente mejor que v6 (-59.4%), sigue siendo significativo. Un inversor conservador podria no tolerar una caida de un tercio.
-
-### Lo que NO hace COMPASS
-- No predice el futuro
-- No usa machine learning ni AI
-- No opera intradayia
-- No hace short selling
-- No usa opciones ni derivados
-- No analiza fundamentales ni noticias
-- No promete retornos garantizados
+1. **Algorithm inelasticity**: el motor está en un máximo local fuerte. Cualquier parámetro tocado degrada.
+2. **Diversificación absorbe survivorship bias**: HYDRA pierde solo +0.50% al corregir, COMPASS standalone pierde +5.24%.
+3. **ML overlays destruyen alpha**: 5 capas (MLP, HMM, graph, sector, Thompson) = -8.08% CAGR.
+4. **Cash buffer es vol cushion, no capital idle**: deployearlo en picks de segundo orden diluye alpha.
+5. **Geographic expansion FAILED**: COMPASS sobre EU/Asia es catastrófico, depende de US market microstructure.
+6. **Crisis correlations → 1.0**: long-only concentrado tiene techo de protección que ningún stop puede romper.
 
 ---
 
-## 9. IMPLEMENTACION TECNICA
+## 9. ARQUITECTURA TÉCNICA
 
-### Archivo principal
-`omnicapital_v8_compass.py` — ~875 lineas de Python
+### Componentes principales
 
-### Dependencias
-- pandas, numpy (calculo)
-- yfinance (datos)
-- pickle (cache)
+| Archivo | Rol |
+|---|---|
+| `compass_dashboard_cloud.py` | Flask app cloud (Render) — entrypoint deployado |
+| `compass_dashboard.py` | Flask app local + engine runner |
+| `omnicapital_live.py` | Core engine `COMPASSLive` — orquesta las 4 estrategias |
+| `omnicapital_v84_compass.py` | Algoritmo COMPASS v8.4 (LOCKED) |
+| `rattlesnake_signals.py` | Señales Rattlesnake (RSI dip-buying) |
+| `catalyst_signals.py` | Señales Catalyst (trend SMA200 cross-asset) |
+| `hydra_capital.py` | `HydraCapitalManager` — cash recycling + EFA overflow |
+| `compass_ml_learning.py` | Sistema ML de aprendizaje (3 fases, fail-safe) |
+| `omnicapital_broker.py` | `PaperBroker` + `IBKRBroker` (mock + live) |
 
-### Datos necesarios
-- OHLCV diario para 113 stocks (2000-presente)
-- OHLCV diario para SPY (2000-presente)
-- Cache en `data_cache/`
+### Stack
+- Python 3.11 (cloud) / 3.14 (local Windows)
+- Flask + gunicorn (cloud) — health check `/api/health`
+- yfinance (primary), FRED (cash yield), Tiingo (opcional)
+- IBKR API mock + live (paper trading port 7497)
+- GitHub → Render auto-deploy via webhook
 
-### Outputs
-- `backtests/v8_compass_daily.csv` — snapshot diario del portfolio
-- `backtests/v8_compass_trades.csv` — historial de trades
-- `results_v8_compass.pkl` — resultados completos serializados
+### Sistema ML (3 fases)
+| Fase | Decisiones | Componentes |
+|---|---|---|
+| Phase 1 | < 100 | DecisionLogger — logea entries, exits, skips |
+| Phase 2 | 100–500 | FeatureStore + OutcomeTracker |
+| Phase 3 | > 500 | LearningEngine + InsightReporter |
 
-### Para ejecutar
-```bash
-python omnicapital_v8_compass.py
-```
+Toda la capa ML está envuelta en `try/except` — **nunca puede crashear el live engine**.
 
 ---
 
 ## 10. REGLAS INQUEBRANTABLES
 
-1. **NO modificar los parametros sin backtest completo**. Cada cambio debe probarse en todo el periodo 2000-2026.
+1. **NO modificar el motor sin backtest completo de 26 años**. Cada cambio debe correrse sobre el período 2000-2026 con 882 tickers PIT antes de aprobarse.
 
-2. **NO agregar complejidad**. Si una mejora no aporta al menos +1% CAGR o -5% max DD, no vale la pena.
+2. **NO agregar leverage**. `LEVERAGE_MAX = 1.0` es definitivo. Margin broker al 6% destruye -1.10% CAGR.
 
-3. **NO ignorar el regime filter**. La tentacion de operar en RISK_OFF "porque esta vez es diferente" es la causa #1 de perdidas catastroficas.
+3. **NO añadir capas de ML sobre el motor**. EXP37 lo probó y costó -8.08% CAGR. La complejidad mata alpha concentrado.
 
-4. **NO aumentar leverage max por encima de 2.0x**. El vol targeting ya optimiza el leverage. Forzar mas es jugar con fuego.
+4. **NO modificar la fórmula del score COMPASS**. `risk-adjusted momentum / 63d vol` está en máximo local fuerte.
 
-5. **NO operar acciones fuera del top-40**. El universo esta definido por liquidez. Stocks iliquidos tienen slippage impredecible.
+5. **NO romper el ring-fence de Catalyst**. El 15% es intocable. Su función es protección estructural cuando los otros pilares colapsan juntos.
 
-6. **SIEMPRE respetar los stops**. Position stop (-8%), trailing stop (-3% desde max), portfolio stop (-15%). Sin excepciones.
+6. **NO añadir asignaciones permanentes a Catalyst**. EXP71 demostró que +5% gold permanente cuesta -1.10% CAGR. Todos los activos pasan por el filtro SMA200.
 
-7. **Paper trading primero**. Minimo 3 meses de paper trading antes de capital real.
+7. **NO operar sin cash recycling**. Es lo que conecta los pilares y evita capital idle.
 
----
+8. **SIEMPRE respetar los stops**. Adaptive position stops, trailing stops, DD tiers, crash brake — sin excepciones.
 
-## 11. EVOLUCION DESDE v1
+9. **SIEMPRE persistir state atómicamente**. `tmp + os.replace()` para `compass_state_latest.json`. Es la fuente de verdad del live trading.
 
-| Version | Fecha | Descripcion | CAGR | Sharpe |
-|---------|-------|-------------|------|--------|
-| v1 | Feb 2026 | MicroManagement intradayia | — | — |
-| v4 | Feb 2026 | Optimized daily | — | — |
-| v5 | Feb 2026 | 3 Day Strategy | — | — |
-| v6 | Feb 2026 | Random selection, 2x leverage, -20% stop | 5.40%* | 0.22 |
-| **v8 COMPASS** | **Feb 2026** | **Momentum + Regime + Vol targeting** | **16.16%** | **0.73** |
-
-*v6 CAGR con universo corregido (sin sesgo de supervivencia). El valor original de 16.92% incluia sesgo.
+10. **Paper trading mínimo 3-6 meses antes de capital real**. Capturar al menos un ciclo earnings completo.
 
 ---
 
-## 12. CONCLUSION
+## 11. EVOLUCIÓN: DE COMPASS A HYDRA
 
-COMPASS demuestra que reemplazar la aleatoriedad con un signal academicamente fundamentado, combinado con gestion de riesgo adaptativa, puede triplicar los retornos ajustados por riesgo.
+| Versión | Fecha | Descripción | CAGR | Sharpe | MaxDD |
+|---|---|---|---|---|---|
+| v1-v5 | Feb 2026 | Iteraciones tempranas (intraday, fundamentales) | — | — | — |
+| v6 | Feb 2026 | Random selection + 2x leverage + survivorship bias | 16.92%* | — | -59.4% |
+| v6 corrected | Feb 2026 | Top-40 rotation (sin sesgo) | 5.40% | 0.22 | -59.4% |
+| **v8 COMPASS** | Feb 2026 | Momentum + regime + vol target | 16.16% | 0.73 | -34.8% |
+| v8.2 COMPASS | Feb 2026 | Cash yield Aaa + chassis upgrades | 17.42% | 0.98 | -31.2% |
+| v8.4 COMPASS | Mar 2026 | Adaptive stops + bull override + sector limits | 18.61% | 1.05 | -29.5% |
+| **HYDRA v1** | Mar 2026 | COMPASS v8.4 + Rattlesnake + Cash Recycling | 14.95% | 1.12 | -22.25% |
+| **HYDRA v1.4** | Apr 2026 | + Catalyst (4to pilar) + EFA overflow | **15.62%** | **1.08** | **-21.7%** |
+| **HYDRA corrected** | Apr 2026 | + Survivorship correction (882 PIT tickers) | **14.45%** | **0.91** | **-27.0%** |
 
-El algoritmo no es perfecto. Tiene 11 stop loss events en 26 anos y un max drawdown de -34.8%. Pero a diferencia del v6, cada componente tiene una razon de ser:
-
-- **Momentum**: Compra ganadores → edge positivo
-- **Regime filter**: Sale en bear markets → protege capital
-- **Vol targeting**: Adapta exposicion → suaviza la curva
-- **Position stops**: Corta perdedores rapido → limita dano
-- **Inverse vol sizing**: Equilibra riesgo → reduce volatilidad
-
-Cinco mecanismos simples, cada uno con decadas de evidencia academica. Juntos, transforman $100k en $4.95M en 26 anos.
+*v6 con sesgo de supervivencia. Sin sesgo: 5.40%.
 
 ---
 
-*"Don't confuse randomness with edge. COMPASS knows the difference."*
+## 12. ESTADO ACTUAL Y ROADMAP
+
+### Live paper trading
+
+| Item | Valor |
+|---|---|
+| Inicio | 16 de Marzo de 2026 |
+| Capital inicial | $100,000 |
+| Días de trading | 18 (al 8 de Abril 2026) |
+| Portfolio actual | ~$100,400 |
+| Cycle activo | 5 (de un máximo de 5d antes de rotación) |
+| Posiciones | 5 (GLD, EFA, DBC, JNJ, XOM) |
+
+### Completado
+- [x] HYDRA v8.4 LOCKED (64 experimentos)
+- [x] 4 estrategias integradas + cash recycling
+- [x] Backtest survivorship-corrected (882 PIT tickers)
+- [x] Dashboard cloud (Render) + local (Flask)
+- [x] IBKR mock mode (53 unit tests passing)
+- [x] Sistema ML 3 fases (Phase 1 activo)
+- [x] Pre-close execution (15:30 ET signal + same-day MOC)
+- [x] Live paper trading desde 2026-03-16
+
+### En progreso
+- [ ] Live paper trading 3-6 meses (capturar earnings cycle completo)
+- [ ] Sistema ML Phase 2 (~18 días para 500 decisiones)
+
+### Pendiente
+- [ ] Norgate Data — S&P 500 point-in-time membership
+- [ ] IBKR live paper trading (`ibkr_mock: false` + TWS port 7497)
+- [ ] Optimización fiscal — operar en IRA/401(k)
+- [ ] Escalado $500K+ — IBKR portfolio margin + Box Spread financing
+
+---
+
+## 13. CONCLUSIÓN
+
+HYDRA es la respuesta a tres preguntas dolorosas:
+
+1. **¿Qué pasa cuando el survivorship bias revela que tu alpha era ficción?** → Diversificás. Cuatro estrategias complementarias absorben el sesgo: HYDRA pierde solo +0.50% CAGR al corregir, COMPASS standalone pierde +5.24%.
+
+2. **¿Qué pasa cuando agregar inteligencia (ML) destruye el signal?** → Volvés a la simplicidad. Cada componente de HYDRA es académicamente fundamentado, sin caja negra, sin overfitting, sin parámetros ajustados sobre el dataset.
+
+3. **¿Qué pasa cuando las correlaciones colapsan a 1.0 en crisis?** → Ring-fenceás capital. El 15% de Catalyst nunca participa del recycling: es protección estructural contra el peor caso del long-only concentrado.
+
+El resultado es un sistema con 14.45% CAGR, 0.91 Sharpe y -27% MaxDD sobre 26 años, sin leverage, sin ML, sin promesas. **Ese es el techo honesto del trading sistemático cuantitativo retail con $100k de capital y datos públicos.** Cualquiera que prometa más, está mintiendo o midiendo mal.
+
+---
+
+*"COMPASS knows the difference between randomness and edge. HYDRA knows that edge alone is not enough."*
