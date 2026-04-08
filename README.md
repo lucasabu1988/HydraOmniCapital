@@ -2,340 +2,209 @@
   <img src="static/img/omnicapital_logo.png" alt="OmniCapital Logo" width="200">
 </p>
 
-<h1 align="center">OmniCapital</h1>
-<h3 align="center">COMPASS v8.2 &mdash; Quantitative Momentum Strategy</h3>
+<h1 align="center">OmniCapital HYDRA</h1>
+<h3 align="center">Sistema multi-estrategia de trading cuantitativo</h3>
 
 <p align="center">
-  <strong>13.90% CAGR (Bias-Corrected)</strong> | <strong>0.646 Sharpe</strong> | <strong>-66% Max DD</strong> | <strong>S&P 500 Universe</strong>
+  <strong>14.45% CAGR</strong> | <strong>0.91 Sharpe</strong> | <strong>-27.0% Max DD</strong> | <strong>$100k → $3.3M</strong> (2000-2026, survivorship-corrected)
+</p>
+
+<p align="center">
+  <a href="https://omnicapital.onrender.com">🌐 Dashboard en vivo</a>
 </p>
 
 ---
 
-## 🚨 Latest Update: Experiment 40 - Survivorship Bias Analysis (Feb 27, 2026)
+## 🎯 Estado actual
 
-<div align="center">
+**Paper trading en vivo desde el 16 de marzo de 2026.** 18 días de trading completados al 8 de abril de 2026.
 
-### 📊 SURVIVORSHIP BIAS QUANTIFIED: **+4.56% CAGR OVERESTIMATION**
+| Métrica | Backtest (2000-2026) | Live (Mar 16 - Apr 8 2026) |
+|---|---|---|
+| CAGR esperado | 14.45% | en curso |
+| Sharpe | 0.91 | en curso |
+| Max Drawdown | -27.0% | -1.49% |
+| Final value | $3.3M (de $100k) | $100,400 (de $100k) |
 
-| Metric | Original (Biased) | Corrected (Realistic) | Difference |
-|--------|------------------|----------------------|------------|
-| **CAGR** | 18.46% | **13.90%** ✅ | **-4.56%** |
-| **Final Value** | $8.3M | **$3.0M** | -64.0% |
-| **Max Drawdown** | -36.18% | **-66.25%** | +83.1% |
-| **Sharpe Ratio** | 0.921 | **0.646** | -29.9% |
-
-**Key Finding**: The original backtest overestimated performance by excluding companies that failed, went bankrupt, or were delisted during the 26-year testing period (2000-2026).
-
-**Data Coverage**: 1,128 historical S&P 500 constituents analyzed, 756 stocks with price data obtained (72% coverage), 25 stocks filtered for data corruption.
-
-**View Full Report**: [EXP40_REPORT.html](backtests/EXP40_REPORT.html) | [EXP40_SUMMARY.md](backtests/EXP40_SUMMARY.md) | [PROJECT_STATE.md](PROJECT_STATE.md)
-
-</div>
+Backtest corrido sobre **882 tickers point-in-time** del S&P 500 (multi-source pipeline: yfinance + Tiingo + Stooq + Wayback Machine), recuperando incluso bancarrotas históricas (Lehman, Bear Stearns, Merrill, Wachovia, Eastman Kodak, Nortel, Countrywide).
 
 ---
 
-## 📈 Strategy Overview
+## 🐍 Las 4 estrategias de HYDRA
 
-Algoritmo cuantitativo de momentum cross-sectional sobre el S&P 500, con filtro de regimen SPY y vol-targeting.
+HYDRA combina cuatro estrategias complementarias con un sistema de reciclaje de capital:
 
-**Corrected Performance** (2000-2026, 26 years, including delisted stocks):
-- ✅ **13.90% CAGR** (realistic, survivorship bias removed)
-- 📊 **0.646 Sharpe Ratio** (risk-adjusted returns)
-- ⚠️ **-66.25% Maximum Drawdown** (true risk exposure)
-- 🔄 **5,309 Trades** executed over 26 years
+| Estrategia | Asignación | Lógica |
+|---|---|---|
+| **COMPASS v8.4** | 42.5% | Momentum cross-sectional risk-adjusted (90d return / 63d vol) sobre 40 large-caps US. Ciclos de 5 días, vol-targeting capped 1.0x, regimen SPY SMA200 |
+| **Rattlesnake v1.0** | 42.5% | Mean-reversion dip-buying (RSI<25) sobre S&P 100 con filtro de uptrend |
+| **Catalyst** | 15% (ring-fenced) | Trend cross-asset (TLT/GLD/DBC sobre SMA200) + 5% gold permanente |
+| **EFA** | overflow | Diversificación internacional pasiva con cash residual del recycling |
 
-## Características Principales
+**Cash recycling**: el cash idle de Rattlesnake fluye a COMPASS hasta un cap del 75%. El cash residual (post-recycling, no Catalyst) se asigna a EFA. Catalyst está aislado y nunca participa del recycling.
 
-### Estrategia de Inversión
-- **Enfoque**: Maximización de retornos con control de riesgo
-- **Universo**: Acciones de gran capitalización (S&P 500 y similares)
-- **Horizonte**: Medio-largo plazo con rebalanceo activo
+**Algorithm LOCKED**: 64 experimentos corridos. El motor está congelado; cualquier cambio paramétrico degrada performance. La inelasticidad fue confirmada empíricamente.
 
-### Gestión de Riesgo
-- **Stop Loss Automático**: Basado en ATR o porcentaje fijo
-- **Take Profit Parcial**: Tres niveles de salida (50%, 75%, 100%)
-- **Trailing Stop**: Protección dinámica de ganancias
-- **Sizing de Posiciones**: Criterio de Kelly con fracción conservadora
+---
 
-### Señales de Trading
-- **Análisis Técnico**: Momentum, tendencia (MA crossover), RSI, MACD
-- **Análisis Fundamental**: Valor, calidad, crecimiento, dividendos
-- **Señal Compuesta**: Combinación ponderada de factores técnicos y fundamentales
-
-### Rebalanceo de Portafolio
-- **Frecuencia**: Mensual o por umbral de drift
-- **Optimización Fiscal**: Consideración de ganancias/pérdidas
-- **Control de Turnover**: Límite anual del 50%
-
-## Estructura del Proyecto
+## 🏗️ Arquitectura
 
 ```
-NuevoProyecto/
-├── config/
-│   └── strategy.yaml          # Configuración de la estrategia
-├── src/
-│   ├── core/
-│   │   ├── engine.py          # Motor principal del algoritmo
-│   │   └── portfolio.py       # Gestión de portafolio y rebalanceo
-│   ├── data/
-│   │   ├── data_provider.py   # Proveedor de datos de mercado
-│   │   └── fundamental_provider.py  # Proveedor de datos fundamentales
-│   ├── risk/
-│   │   ├── position_risk.py   # Gestión de riesgo por posición
-│   │   └── portfolio_risk.py  # Gestión de riesgo de portafolio
-│   ├── signals/
-│   │   ├── technical.py       # Señales técnicas
-│   │   ├── fundamental.py     # Señales fundamentales
-│   │   └── composite.py       # Generador de señales compuestas
-│   ├── execution/
-│   │   └── executor.py        # Ejecutor de órdenes
-│   └── main.py                # Punto de entrada
-├── tests/                     # Tests unitarios
-├── data/                      # Datos históricos
-├── logs/                      # Logs de ejecución
-├── reports/                   # Reportes generados
-├── backtests/                 # Resultados de backtests
-├── requirements.txt           # Dependencias
-└── README.md                  # Este archivo
+┌──────────────────────┐         ┌──────────────────────────┐
+│   Local Machine      │         │   Render Cloud           │
+│ ┌──────────────────┐ │         │ ┌──────────────────────┐ │
+│ │compass_dashboard │ │         │ │compass_dashboard_    │ │
+│ │   .py + engine   │ │         │ │   cloud.py           │ │
+│ └──────────────────┘ │         │ │ gunicorn --workers 1 │ │
+│ ┌──────────────────┐ │         │ │ PaperBroker +        │ │
+│ │compass_watchdog  │ │         │ │ YahooDataFeed        │ │
+│ └──────────────────┘ │         │ └──────────────────────┘ │
+└──────────────────────┘         └──────────────────────────┘
+            │                                ▲
+            │                                │
+            └────── git push → GitHub ───────┘
+                                  (auto-deploy webhook)
 ```
 
-## Instalación
+### Componentes clave
 
-### Requisitos
-- Python 3.11+
-- pip o uv
+| Archivo | Rol |
+|---|---|
+| `compass_dashboard_cloud.py` | Flask app cloud (Render) — entrypoint deployado |
+| `compass_dashboard.py` | Flask app local + engine runner |
+| `omnicapital_live.py` | Core engine (`COMPASSLive`) — orquesta las 4 estrategias |
+| `omnicapital_v84_compass.py` | Algoritmo COMPASS v8.4 (LOCKED) |
+| `rattlesnake_signals.py` | Señales Rattlesnake (RSI dip-buying) |
+| `catalyst_signals.py` | Señales Catalyst (trend cross-asset + gold) |
+| `hydra_capital.py` | `HydraCapitalManager` — cash recycling |
+| `compass_ml_learning.py` | Sistema ML de aprendizaje progresivo |
+| `omnicapital_broker.py` | `PaperBroker` + `IBKRBroker` (mock + live) |
+| `templates/dashboard.html` + `static/` | Frontend dashboard |
 
-### Instalación de Dependencias
+### Stack técnico
+
+- **Lenguaje**: Python 3.11 (cloud) / 3.14 (local Windows)
+- **Web**: Flask + gunicorn (cloud) — health check `/api/health`
+- **Datos**: yfinance (primary), FRED (cash yield Moody's Aaa IG), Tiingo (opcional)
+- **Broker**: IBKR API (mock + live paper trading on port 7497)
+- **Deploy**: GitHub → Render auto-deploy via webhook
+
+---
+
+## 📊 Sistema ML de aprendizaje (3 fases)
+
+El engine loguea cada decisión y construye gradualmente un sistema de inteligencia:
+
+| Fase | Decisiones | Componentes |
+|---|---|---|
+| **Phase 1** | < 100 | `DecisionLogger` — loguea entries, exits, skips, signals |
+| **Phase 2** | 100–500 | `FeatureStore` + `OutcomeTracker` — feature vectors + resolución de P&L |
+| **Phase 3** | > 500 | `LearningEngine` + `InsightReporter` — entrena modelos, sugiere parámetros |
+
+Toda la capa ML está envuelta en `try/except` — **nunca puede crashear el live engine**.
+
+---
+
+## 🚀 Instalación local
 
 ```bash
-# Usando pip
+git clone https://github.com/lucasabu1988/HydraOmniCapital.git
+cd HydraOmniCapital
 pip install -r requirements.txt
-
-# Usando uv (recomendado)
-uv pip install -r requirements.txt
+python compass_dashboard.py    # Flask en localhost:5000
 ```
 
-### Configuración
+Para deploy cloud-style:
+```bash
+gunicorn compass_dashboard_cloud:app --bind 0.0.0.0:5000 --workers 1 --threads 4 --preload
+```
 
-El archivo `config/strategy.yaml` contiene todos los parámetros configurables:
+---
 
-- **Objetivos**: Retorno objetivo (25%), máximo drawdown (15%)
-- **Capital**: Capital inicial, tamaños de posición, buffers
-- **Riesgo**: Configuración de stop loss, take profit, trailing stops
-- **Señales**: Pesos de indicadores técnicos y fundamentales
-- **Rebalanceo**: Frecuencia y umbrales
-
-## Uso
-
-### Ejecutables Disponibles
-
-El proyecto incluye varios ejecutables para facilitar el uso:
-
-#### 1. Menú Interactivo (Recomendado)
-
-Ejecuta el menú principal con todas las opciones:
+## 🧪 Tests
 
 ```bash
-# Windows (Batch)
-run_live.bat
-
-# Windows (PowerShell)
-.\LiveMonitor.ps1
-
-# O con modo específico
-.\LiveMonitor.ps1 -Mode Dashboard
-.\LiveMonitor.ps1 -Mode Analysis
-.\LiveMonitor.ps1 -Mode Monitor -Interval 60
+pytest tests/ -v                           # Suite completa
+pytest tests/ -v --cov-fail-under=50       # Con coverage threshold (CI default)
+python tests/validate_live_system.py       # Validación end-to-end
 ```
 
-#### 2. Análisis Rápido
+CI corre en GitHub Actions con coverage mínimo del 50% en módulos críticos: `compass_api_models`, `compass_dashboard`, `compass_dashboard_cloud`, `compass_ml_learning`, `omnicapital_broker`, `omnicapital_live`.
 
-Ejecuta el análisis de mercado directamente:
+53 tests unitarios para `IBKRBroker` mock mode, todos passing.
 
-```bash
-ejecutar_analisis.bat
-```
+---
 
-#### 3. Monitor en Tiempo Real
+## 📈 Parámetros del algoritmo (v8.4)
 
-Monitoreo continuo con actualizaciones periódicas:
+| Categoría | Valor |
+|---|---|
+| Momentum lookback | 90 días |
+| Skip period | 5 días |
+| Hold period | 5 días (ciclos) |
+| Posiciones (risk-on) | 5 (ajustable por regimen) |
+| Stops adaptativos | -6% a -15% (vol-scaled) |
+| Trailing | +5% / -3% (vol-scaled) |
+| Bull override | SPY > SMA200·103% & score>40% → +1 posición |
+| Sector limit | máx 3 por sector |
+| Crash brake | 5d=-6% o 10d=-10% → 15% leverage |
+| Drawdown tiers | T1=-10%, T2=-20%, T3=-35% |
+| Leverage máx | **1.0** (sin leverage en producción) |
+| Universo | 40 large-caps S&P 500 más líquidas |
 
-```bash
-python live_monitor.py
-python live_monitor.py --interval 30
-python live_monitor.py --symbols AAPL MSFT GOOGL
-```
+---
 
-### Uso Manual (Python)
+## 🔬 Lecciones del backtest (64 experimentos)
 
-#### Análisis de Mercado
+- **Algorithm inelasticity**: cualquier cambio paramétrico degrada performance. El motor está en un máximo local fuerte sobre este universo y timeframe.
+- **Geographic expansion FAILED**: COMPASS aplicado a EU (-20.87% CAGR) y Asia (-19.71% CAGR) catastrófico. El alpha es US-market-specific.
+- **Leverage destruye valor**: con margin broker al 6%, perdés -1.10% CAGR. Box Spread (SOFR+20bps) sería el único path viable (+0.15%).
+- **Survivorship bias absorbido por diversificación**: HYDRA pierde solo +0.50% CAGR vs +5.24% que perdería COMPASS standalone. El portafolio multi-estrategia neutraliza el sesgo.
+- **ML overlays destruyen alpha**: 5 capas de ML (MLP filter, HMM regime, graph centrality, sector optimization, Thompson sampling) = -8.08% CAGR vs baseline. La complejidad mata el momentum concentrado.
+- **Cash buffer es vol cushion, no capital idle**: deployear el 20% en picks de segundo orden diluye alpha. Cash + Aaa yield es óptimo.
+- **Crisis correlation risk**: en flash crashes las correlaciones → 1.0, gaps overnight pueden bypasear el -15% stop. Es inherente al long-only concentrado.
 
-Analiza las mejores oportunidades actuales sin ejecutar trades:
+---
 
-```bash
-python src/main.py --mode analyze
-```
-
-Con símbolos específicos:
-
-```bash
-python src/main.py --mode analyze --symbols AAPL MSFT GOOGL NVDA
-```
-
-#### Trading Simulado/En Vivo
-
-Ejecuta el algoritmo de trading:
-
-```bash
-python src/main.py --mode live
-```
-
-#### Backtest
-
-Prueba la estrategia en datos históricos:
-
-```bash
-python src/main.py --mode backtest --start-date 2022-01-01 --end-date 2024-01-01
-```
-
-#### Dashboard Web
-
-Lanza el dashboard de monitoreo en tiempo real:
-
-```bash
-python launch_dashboard.py
-# o
-python -m streamlit run dashboard.py
-```
-
-## Configuración de la Estrategia
-
-### Parámetros Clave
-
-```yaml
-# Objetivos de retorno
-objectives:
-  target_annual_return: 0.25      # 25% anual objetivo
-  max_drawdown: 0.15              # Máximo 15% drawdown
-  sharpe_ratio_min: 1.5           # Sharpe mínimo 1.5
-
-# Gestión de capital
-capital:
-  initial_capital: 1000000        # $1M inicial
-  max_portfolio_positions: 20     # Máximo 20 posiciones
-  min_position_size: 0.02         # Mínimo 2% por posición
-  max_position_size: 0.10         # Máximo 10% por posición
-  max_sector_exposure: 0.30       # Máximo 30% por sector
-
-# Gestión de riesgo
-risk_management:
-  stop_loss:
-    method: "atr"                 # Basado en ATR
-    atr_multiplier: 2.0           # 2x ATR para stop
-    trailing: true                # Trailing stop activado
-  
-  take_profit:
-    method: "risk_reward"         # Ratio riesgo/beneficio
-    risk_reward_ratio: 3.0        # 1:3 ratio
-    partial_exit:
-      enabled: true               # Salidas parciales
-```
-
-## Reglas del Algoritmo
-
-### Entrada a Posiciones
-
-1. **Screening Fundamental**: Filtrar empresas con score fundamental > 0.60
-2. **Señal Técnica**: Confirmar señal de compra técnica
-3. **Gestión de Riesgo**: Calcular stop loss y tamaño de posición
-4. **Verificación de Portafolio**: Confirmar espacio y exposición permitida
-
-### Salida de Posiciones
-
-#### Stop Loss
-- Ejecución automática cuando el precio toca el nivel de stop
-- Stop loss inicial basado en 2x ATR
-- Trailing stop que sube con el precio
-
-#### Take Profit Parcial
-- **Nivel 1 (50%)**: Cerrar 30% de la posición
-- **Nivel 2 (75%)**: Cerrar 30% adicional
-- **Nivel 3 (100%)**: Cerrar 40% restante
-
-#### Señales de Salida Adicionales
-- Reversión de momentum técnico
-- Deterioro fundamental de la empresa
-
-### Rebalanceo
-
-El portafolio se rebalancea cuando:
-1. Drift de pesos excede 5% del objetivo
-2. Fecha de rebalanceo mensual alcanzada
-3. Violación de límites de riesgo
-
-## Métricas de Rendimiento
-
-El algoritmo rastrea:
-
-- **Total Return**: Retorno total del portafolio
-- **Sharpe Ratio**: Rendimiento ajustado por riesgo
-- **Max Drawdown**: Máxima caída desde peak
-- **Win Rate**: Porcentaje de trades ganadores
-- **Profit Factor**: Ratio ganancias/pérdidas
-- **Calmar Ratio**: Retorno / Max Drawdown
-- **Sector Exposure**: Exposición por sector
-- **Beta del Portafolio**: Sensibilidad al mercado
-
-## Consideraciones de Riesgo
-
-⚠️ **Aviso Importante**: Este algoritmo es para fines educativos e investigación. Antes de usar con capital real:
-
-1. Realizar backtests extensivos en diferentes condiciones de mercado
-2. Validar con paper trading
-3. Ajustar parámetros según tolerancia al riesgo personal
-4. Considerar costos de transacción, slippage y taxes
-5. Monitorear constantemente el comportamiento
-
-## Desarrollo
-
-### Ejecutar Tests
-
-```bash
-pytest tests/ -v
-```
-
-### Linting
-
-```bash
-black src/
-mypy src/
-```
-
-## Launch Roadmap
+## 🛣️ Roadmap
 
 ### Completado
-- [x] Algoritmo COMPASS v8.2 validado (39 experimentos, motor LOCKED)
+- [x] Algoritmo HYDRA v8.4 LOCKED (64 experimentos)
+- [x] Sistema multi-estrategia (COMPASS + Rattlesnake + Catalyst + EFA + cash recycling)
+- [x] Backtest con corrección de survivorship bias (882 tickers PIT)
 - [x] Integración IBKR con mock mode (53 unit tests passing)
-- [x] Dashboard web en tiempo real (Flask)
-- [x] Net backtest con costos reales (17.42% CAGR neto)
-- [x] Cash yield Moody's Aaa IG Corporate (FRED variable)
-- [x] Pre-close execution model (signal 15:30 ET + MOC same-day)
+- [x] Dashboard web tiempo real (Flask + cloud deploy en Render)
+- [x] Sistema ML de logging y aprendizaje (Phase 1)
+- [x] Pre-close execution (signal 15:30 ET + MOC same-day)
+- [x] Cash yield Moody's Aaa IG (FRED variable, ~4.8% avg)
 - [x] Safety guards: paper port verification, MOC deadline, kill switch, order limits
-- [x] Position reconciliation y audit trail
+- [x] Position reconciliation + audit trail
+- [x] Live paper trading desde 2026-03-16
 
-### En Progreso
-- [ ] **Norgate Data** — S&P 500 point-in-time membership (cura survivorship bias + cross-valida yfinance)
-- [ ] **IBKR Paper Trading** — Iniciar TWS, set `ibkr_mock: false`, correr 3-6 meses minimo
+### En progreso
+- [ ] Live paper trading 3-6 meses mínimo (capturar ciclo earnings completo)
+- [ ] Sistema ML Phase 2 (~18 días para 500 decisiones)
 
 ### Pendiente
-- [ ] **Ejecucion avanzada** — Passive limits dentro de MOC window > TWAP > MOC imbalance data
-- [ ] **Optimizacion fiscal** — Operar en IRA/401(k) (~209 trades/año = short-term gains)
-- [ ] **Escalado ($500K+)** — RATTLESNAKE dual-engine + IBKR portfolio margin para Box Spread
+- [ ] Norgate Data — S&P 500 point-in-time membership
+- [ ] IBKR live paper trading (set `ibkr_mock: false` + TWS port 7497)
+- [ ] Optimización fiscal — operar en IRA/401(k) para evitar short-term gains
+- [ ] Escalado $500K+ — IBKR portfolio margin + Box Spread financing
 
-## Licencia
+---
 
-Proyecto privado - Investment Capital Firm
+## ⚠️ Disclaimer
 
-## Contacto
+Este sistema es de uso privado para investigación y trading personal. No constituye asesoramiento financiero. Trading conlleva riesgo de pérdida total del capital. Antes de operar con capital real:
 
-Para soporte o consultas, contactar al equipo de desarrollo.
+1. Backtests extensivos en distintas condiciones de mercado
+2. Paper trading mínimo 3-6 meses
+3. Validación de costos reales (slippage, commissions, taxes)
+4. Monitoreo continuo del comportamiento
+5. Ajuste de parámetros a tolerancia personal de riesgo
+
+---
+
+## 📄 Licencia
+
+Proyecto privado — OmniCapital.
