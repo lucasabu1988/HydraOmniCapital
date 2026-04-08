@@ -38,7 +38,7 @@ HYDRA combina cuatro estrategias complementarias con un sistema de reciclaje de 
 |---|---|---|
 | **COMPASS v8.4** | 42.5% | Momentum cross-sectional risk-adjusted (90d return / 63d vol) sobre 40 large-caps US. Ciclos de 5 días, vol-targeting capped 1.0x, regimen SPY SMA200 |
 | **Rattlesnake v1.0** | 42.5% | Mean-reversion dip-buying (RSI<25) sobre S&P 100 con filtro de uptrend |
-| **Catalyst** | 15% (ring-fenced) | Trend cross-asset (TLT/GLD/DBC sobre SMA200) + 5% gold permanente |
+| **Catalyst** | 15% (ring-fenced) | Trend cross-asset sobre TLT/ZROZ/GLD/DBC. Cada activo entra solo si cotiza por encima de su SMA200. GLD participa exclusivamente vía este filtro de tendencia (sin asignación permanente). |
 | **EFA** | overflow | Diversificación internacional pasiva con cash residual del recycling |
 
 **Cash recycling**: el cash idle de Rattlesnake fluye a COMPASS hasta un cap del 75%. El cash residual (post-recycling, no Catalyst) se asigna a EFA. Catalyst está aislado y nunca participa del recycling.
