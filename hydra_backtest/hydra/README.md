@@ -5,6 +5,24 @@ backtest that orchestrates all four standalone pillars (COMPASS,
 Rattlesnake, Catalyst, EFA) with HydraCapitalManager-style cash
 recycling, the Catalyst 15% ring-fence, and EFA overflow.
 
+## ⚠️ Status: Code complete, official run pending architectural fix
+
+**Tasks 1–18** of the implementation plan are complete and committed:
+the sub-package, capital model, state model, all four wrappers, the
+orchestrator, validation, Layer B helper, public API, unit tests,
+integration test, E2E tests (1-month determinism verified
+byte-identical on real data), README, and CI step. **39 unit tests +
+1 integration smoke pass.**
+
+**Task 19** (the official 2000–2026 run) is **blocked** by an
+architectural feedback loop in the budget allocation hack. See
+`docs/STATUS_v1.4_HYDRA.md` for the full diagnosis and the two
+candidate fixes (Option A: budget = `BASE_PCT * portfolio_value`;
+Option B: live HCM percentage returns with relaxed canary tolerance).
+
+The four standalone pillar backtests (v1.0 COMPASS, v1.1 Rattlesnake,
+v1.2 Catalyst, v1.3 EFA) are unaffected and continue to work.
+
 ## What this is
 
 A Python sub-package that runs the full HYDRA system from 2000 to
