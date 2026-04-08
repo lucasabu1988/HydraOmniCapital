@@ -235,10 +235,28 @@ def apply_catalyst_wrapper(
     Catalyst is ring-fenced — its budget is the catalyst_account,
     never recycles. capital_account_delta=0 because rebalance is an
     intra-bucket transfer (cash ↔ positions, both within catalyst).
-    Budget is capped at broker cash for buys.
+
+    CRITICAL: apply_catalyst_rebalance uses _mark_to_market(substate)
+    to compute the rebalance target, which is cash + positions_value.
+    To avoid double-counting we pass cash_override = catalyst_budget
+    MINUS the current value of catalyst positions held. Then
+    _mark_to_market(substate) returns exactly catalyst_budget, which
+    is the correct rebalance target. The cap by broker cash still
+    applies to prevent over-spending the physical cash.
     """
-    capped_budget = min(catalyst_budget, max(state.cash, 0.0))
-    substate = to_pillar_substate(state, 'catalyst', cash_override=capped_budget)
+    # Compute current catalyst positions market value at today's prices
+    catalyst_prices = {}
+    for sym in slice_positions_by_strategy(state.positions, 'catalyst').keys():
+        df = catalyst_assets.get(sym)
+        if df is not None and date in df.index:
+            catalyst_prices[sym] = float(df.loc[date, 'Close'])
+    catalyst_pos_value = compute_pillar_invested(
+        state.positions, 'catalyst', catalyst_prices
+    )
+    free_cash_in_bucket = max(0.0, catalyst_budget - catalyst_pos_value)
+    capped_free_cash = min(free_cash_in_bucket, max(state.cash, 0.0))
+
+    substate = to_pillar_substate(state, 'catalyst', cash_override=capped_free_cash)
     cash_before = substate.cash
     new_substate, trades, decisions = apply_catalyst_rebalance(
         substate, date, i, catalyst_assets, config, execution_mode, all_dates,
@@ -798,22 +816,47 @@ def run_hydra_backtest(
         decisions.extend(efa_decisions)
 
         # ============================================================
-        # Accounting — apply DOLLAR returns to each bucket. We diverge
-        # from live HCM here: live uses percentage returns on bucket
-        # totals (positions + implicit cash share), which causes drift
-        # between sub_sum and PV. In a backtest the cleaner model is to
-        # add the actual dollar appreciation of each pillar's positions
-        # to its bucket. This preserves sub_sum == PV by construction.
+        # Accounting — DERIVED buckets, recomputed every day from
+        # positions + cash share. This is a deeper divergence from
+        # live HCM than the dollar-return model: instead of tracking
+        # bucket values via daily updates, we treat them as derived
+        # quantities computed from the current state. The invariant
+        # sub_sum == PV holds by construction, and recycling math is
+        # handled correctly because rotated/recycled positions show
+        # up in their owning pillar's positions market value.
+        #
+        # Cash is split among compass/rattle/catalyst by initial
+        # weight (BASE_COMPASS / BASE_RATTLE / BASE_CATALYST). EFA
+        # owns no cash share — its bucket is purely positions value.
         # ============================================================
-        c_dollar = compass_invested_at_today - compass_invested_before
-        r_dollar = rattle_invested_at_today - rattle_invested_before
-        cat_dollar = catalyst_invested_at_today - catalyst_invested_before
-        e_dollar = efa_invested_at_today - efa_invested_before
+        prices_eod_for_acct = _current_prices_for_positions(
+            state, date, price_data, catalyst_assets, efa_data
+        )
+        compass_pos_value = compute_pillar_invested(
+            state.positions, 'compass', prices_eod_for_acct
+        )
+        rattle_pos_value = compute_pillar_invested(
+            state.positions, 'rattle', prices_eod_for_acct
+        )
+        catalyst_pos_value = compute_pillar_invested(
+            state.positions, 'catalyst', prices_eod_for_acct
+        )
+        efa_pos_value = compute_pillar_invested(
+            state.positions, 'efa', prices_eod_for_acct
+        )
+        cash_split_total = (
+            config.get('BASE_COMPASS_ALLOC', 0.425)
+            + config.get('BASE_RATTLE_ALLOC', 0.425)
+            + config.get('BASE_CATALYST_ALLOC', 0.15)
+        )
+        compass_cash_w = config.get('BASE_COMPASS_ALLOC', 0.425) / cash_split_total
+        rattle_cash_w = config.get('BASE_RATTLE_ALLOC', 0.425) / cash_split_total
+        catalyst_cash_w = config.get('BASE_CATALYST_ALLOC', 0.15) / cash_split_total
         new_capital = state.capital._replace(
-            compass_account=state.capital.compass_account + c_dollar,
-            rattle_account=state.capital.rattle_account + r_dollar,
-            catalyst_account=state.capital.catalyst_account + cat_dollar,
-            efa_value=state.capital.efa_value + e_dollar,
+            compass_account=compass_pos_value + state.cash * compass_cash_w,
+            rattle_account=rattle_pos_value + state.cash * rattle_cash_w,
+            catalyst_account=catalyst_pos_value + state.cash * catalyst_cash_w,
+            efa_value=efa_pos_value,
         )
         state = state._replace(capital=new_capital)
 
