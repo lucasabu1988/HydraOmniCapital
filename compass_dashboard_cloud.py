@@ -2570,6 +2570,13 @@ def api_live_chart():
         'spy': result_spy,
         'start_date': start_date,
         'update_days': update_days,
+        '_debug': {
+            'baseline_max_date': baseline_max_date,
+            'baseline_exists': os.path.exists(baseline_path),
+            'baseline_dates_count': len(hydra_data),
+            'state_files_count': len(state_files),
+            'state_files_sample': [os.path.basename(f) for f in state_files[-5:]],
+        },
     })
 
 
