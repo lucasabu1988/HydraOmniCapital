@@ -2564,12 +2564,50 @@ def api_live_chart():
             # Interpolate: use last known value
             result_spy.append(result_spy[-1] if result_spy else 100.0)
 
+    # Diagnostic: read raw baseline + state files (read fresh from disk)
+    debug_baseline = {}
+    debug_state = []
+    try:
+        if os.path.exists(baseline_path):
+            with open(baseline_path, 'r') as f:
+                bl = json.load(f)
+            pairs = list(zip(bl.get('dates', []), bl.get('values', [])))
+            debug_baseline = {
+                'total': len(pairs),
+                'note': bl.get('note', '')[:100],
+                'last5': [[d, round(v, 2)] for d, v in pairs[-5:]],
+            }
+        for sf in state_files:
+            try:
+                with open(sf, 'r') as f:
+                    s = json.load(f)
+                dt = s.get('last_trading_date')
+                if dt and dt >= '2026-04-01':
+                    debug_state.append({
+                        'f': os.path.basename(sf),
+                        'dt': dt,
+                        'pv': round(s.get('portfolio_value', 0), 2),
+                        'np': len(s.get('positions', {})),
+                    })
+            except Exception:
+                pass
+    except Exception as e:
+        debug_baseline = {'error': str(e)}
+
+    import omnicapital_live as _live
     return jsonify({
         'dates': result_dates,
         'hydra': result_hydra,
         'spy': result_spy,
         'start_date': start_date,
         'update_days': update_days,
+        '_debug': {
+            'baseline_max_date': baseline_max_date,
+            'baseline_raw': debug_baseline,
+            'state_april': debug_state,
+            'git_sync_available': getattr(_live, '_git_sync_available', None),
+            'GIT_TOKEN_set': bool(os.environ.get('GIT_TOKEN')),
+        },
     })
 
 
