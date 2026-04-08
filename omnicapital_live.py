@@ -116,14 +116,35 @@ _file_handler = RotatingFileHandler(
 )
 _file_handler.setFormatter(_log_formatter)
 
-_stream_handler = logging.StreamHandler(sys.stdout)
-_stream_handler.setFormatter(_log_formatter)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format=_log_format,
-    handlers=[_file_handler, _stream_handler]
+# Attach handlers directly to the root logger instead of using
+# logging.basicConfig(), which is a no-op when the root logger already has
+# handlers. compass_dashboard.py installs its own basicConfig in __main__
+# BEFORE importing omnicapital_live (the engine is lazy-imported in a
+# background thread), so the previous call here silently did nothing and
+# compass_live_*.log files were created but never written to for weeks.
+_root_logger = logging.getLogger()
+_compass_log_path = os.path.abspath(_file_handler.baseFilename)
+_already_attached = any(
+    os.path.abspath(getattr(h, 'baseFilename', '') or '') == _compass_log_path
+    for h in _root_logger.handlers
 )
+if not _already_attached:
+    _root_logger.addHandler(_file_handler)
+
+# Only add a console handler if the root doesn't already have one (standalone
+# runs need it; dashboard runs already installed theirs).
+_has_console_handler = any(
+    isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+    for h in _root_logger.handlers
+)
+if not _has_console_handler:
+    _stream_handler = logging.StreamHandler(sys.stdout)
+    _stream_handler.setFormatter(_log_formatter)
+    _root_logger.addHandler(_stream_handler)
+
+if _root_logger.level == logging.NOTSET or _root_logger.level > logging.INFO:
+    _root_logger.setLevel(logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 # ============================================================================

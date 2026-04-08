@@ -1,5 +1,0 @@
-variant,cagr_pct,sharpe,max_dd_pct,final_value,total_margin_cost,leveraged_days,trades,win_rate_pct,stops
-A: Broker 6.0% (current),11.48,0.56,-43.7,1696321.0,80954.0,2994,5069,54.2,12
-B: IBKR Pro (FFR+1.5%),12.52,0.613,-43.7,2161132.0,66294.0,2948,4996,54.0,13
-C: Box Spread (SOFR+50bps),12.68,0.62,-43.7,2242562.0,52261.0,2948,4996,54.0,13
-D: Box Spread (SOFR+20bps),12.73,0.623,-43.7,2267584.0,47885.0,2948,4996,54.0,13

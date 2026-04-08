@@ -1,9 +1,0 @@
-variant,cagr_pct,sharpe,final_value,total_slippage,total_commissions,total_margin,total_cash_yield,total_trades
-"1: Pure signal (Close[T], zero cost)",16.94,0.801,5893110.0,0.0,0.0,0.0,0.0,10561
-2: + MOC execution (Close[T+1]),14.02,0.683,3049664.0,0.0,0.0,0.0,0.0,10231
-3: + Slippage (2bps),12.22,0.598,2016302.0,153942.0,0.0,0.0,0.0,10139
-4: + Commissions ($0.001/sh),11.54,0.562,1718542.0,132610.0,25991.0,0.0,0.0,10143
-5: + Margin (Box SOFR+20bps),11.22,0.547,1596051.0,126019.0,25340.0,36152.0,0.0,10143
-6: + Cash yield (T-Bill) = FULL BOX,12.73,0.623,2267584.0,160675.0,28891.0,47885.0,112950.0,9997
-"7: NO LEVERAGE (max 1.0x, no margin)",12.58,0.622,2191469.0,148632.0,28109.0,0.0,100974.0,10125
-8: FULL + Broker 6% (for comparison),11.48,0.56,1696321.0,131436.0,27070.0,80954.0,87277.0,10143

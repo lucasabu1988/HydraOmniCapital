@@ -1,6 +1,0 @@
-variant,cagr_pct,sharpe,max_dd_pct,final_value,trades,win_rate_pct,stops,delta_cagr_vs_B
-A: Close[T] sig > Close[T] + 0bps (ideal),17.21,0.825,-44.3,6250046.0,5329,55.4,9,5.33
-B: Close[T] sig > Close[T+1] + 2bps (current MOC),11.88,0.585,-43.5,1860550.0,5061,54.2,12,0.0
-C: Close[T-1] sig > Close[T] + 2bps (pre-close conservative),13.1,0.636,-35.5,2466677.0,5215,54.6,11,1.22
-D: Blend sig > Close[T] + 2bps (pre-close blend),13.08,0.632,-43.1,2458275.0,5224,54.6,11,1.2
-E: Close[T-1] sig > Close[T] + 0bps (pre-close ideal),14.73,0.714,-36.4,3581797.0,5221,54.8,11,2.85

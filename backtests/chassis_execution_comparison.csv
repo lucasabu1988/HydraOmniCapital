@@ -1,8 +1,0 @@
-variant,cagr,sharpe,max_dd,final_value,trades,win_rate,stops
-A: Close[T] + 0bps (ideal),16.47,0.783,-45.1,5305856.0,5265,55.4,11
-B: Close[T] + 5bps (slip only),12.43,0.593,-49.5,2115418.0,5265,54.2,11
-C: Open[T+1] + 0bps (gap only),13.97,0.674,-42.8,3017965.0,5163,54.9,11
-D: Open[T+1] + 5bps (market order),9.76,0.473,-46.0,1129766.0,5169,53.4,11
-E: Close[T+1] + 0bps (MOC ideal),12.18,0.597,-43.3,1995300.0,5063,54.4,12
-F: Close[T+1] + 2bps (MOC real),11.48,0.56,-43.7,1696321.0,5069,54.2,12
-G: Close[T+1] + 5bps (MOC worst),10.3,0.499,-44.0,1285544.0,5000,53.5,13
