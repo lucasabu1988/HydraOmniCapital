@@ -192,7 +192,12 @@ def _update_live_chart_baseline():
             for dt, val in zip(bl.get('dates', []), bl.get('values', [])):
                 existing[dt] = val
 
-        # Overlay with current state files
+        # Overlay with current state files — only EXTEND baseline forward.
+        # Baseline is authoritative for dates it already covers (curated
+        # mark-to-market history). State files can only add dates strictly
+        # newer than the latest baseline date, and must have positions > 0
+        # (skip reset/corrupt states that would zero out recent history).
+        baseline_max = max(existing.keys()) if existing else ''
         pattern = os.path.join(_repo_dir, 'state', 'compass_state_2*.json')
         for sf in sorted(glob.glob(pattern)):
             if 'pre_rotation' in sf or 'latest' in sf:
@@ -202,7 +207,8 @@ def _update_live_chart_baseline():
                     s = json.load(f)
                 dt = s.get('last_trading_date')
                 val = s.get('portfolio_value')
-                if dt and val and val > 0:
+                n_pos = len(s.get('positions', {}))
+                if dt and val and val > 0 and n_pos > 0 and dt > baseline_max:
                     existing[dt] = val
             except Exception:
                 continue
