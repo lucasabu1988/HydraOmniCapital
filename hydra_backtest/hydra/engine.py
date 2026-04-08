@@ -70,6 +70,7 @@ from hydra_backtest.hydra.capital import (
 from hydra_backtest.hydra.state import (
     HydraBacktestState,
     compute_pillar_invested,
+    compute_pillar_invested_at_prev_close,
     merge_pillar_substate,
     slice_positions_by_strategy,
     to_pillar_substate,
@@ -103,7 +104,13 @@ def apply_compass_exits_wrapper(
     execution_mode: str,
     all_dates: list,
 ) -> Tuple[HydraBacktestState, list, list]:
-    """Wrap v1.0 apply_exits with sub-state slicing for the compass pillar."""
+    """Wrap v1.0 apply_exits with sub-state slicing for the compass pillar.
+
+    The capital_account_delta is 0 because exiting a position is an
+    intra-bucket transfer (positions → cash, both within compass).
+    The compass_account bucket only changes via update_accounts_after_day
+    at end of day, applying the daily return.
+    """
     substate = to_pillar_substate(state, 'compass')
     cash_before = substate.cash
     new_substate, trades, decisions = compass_apply_exits(
@@ -113,7 +120,7 @@ def apply_compass_exits_wrapper(
     cash_delta = new_substate.cash - cash_before
     new_state = merge_pillar_substate(
         state, new_substate, 'compass',
-        cash_delta=cash_delta, capital_account_delta=cash_delta,
+        cash_delta=cash_delta, capital_account_delta=0.0,
     )
     return new_state, trades, decisions
 
@@ -135,20 +142,22 @@ def apply_compass_entries_wrapper(
 ) -> Tuple[HydraBacktestState, list]:
     """Wrap v1.0 apply_entries with the cash-budget hack.
 
-    Builds a sub-state where cash = compass_budget (NOT broker cash),
-    runs apply_entries, and merges the diff back. Real broker cash is
-    only deducted by the amount actually spent.
+    Builds a sub-state where cash = min(compass_budget, broker_cash),
+    runs apply_entries, and merges the diff back. Capping at broker
+    cash prevents over-spending when the recycled budget exceeds the
+    physical cash on hand.
     """
-    substate = to_pillar_substate(state, 'compass', cash_override=compass_budget)
+    capped_budget = min(compass_budget, max(state.cash, 0.0))
+    substate = to_pillar_substate(state, 'compass', cash_override=capped_budget)
     new_substate, decisions = compass_apply_entries(
         substate, date, i, price_data, scores, tradeable,
         max_positions, leverage, config, sector_map, all_dates, execution_mode,
     )
-    spent = compass_budget - new_substate.cash  # positive number
+    spent = capped_budget - new_substate.cash  # positive number
     cash_delta = -spent
     new_state = merge_pillar_substate(
         state, new_substate, 'compass',
-        cash_delta=cash_delta, capital_account_delta=cash_delta,
+        cash_delta=cash_delta, capital_account_delta=0.0,
     )
     return new_state, decisions
 
@@ -162,7 +171,10 @@ def apply_rattle_exits_wrapper(
     execution_mode: str,
     all_dates: list,
 ) -> Tuple[HydraBacktestState, list, list]:
-    """Wrap v1.1 apply_rattlesnake_exits with sub-state slicing."""
+    """Wrap v1.1 apply_rattlesnake_exits with sub-state slicing.
+
+    capital_account_delta=0 — intra-bucket cash↔positions transfer.
+    """
     substate = to_pillar_substate(state, 'rattle')
     cash_before = substate.cash
     new_substate, trades, decisions = rattle_apply_exits(
@@ -171,7 +183,7 @@ def apply_rattle_exits_wrapper(
     cash_delta = new_substate.cash - cash_before
     new_state = merge_pillar_substate(
         state, new_substate, 'rattle',
-        cash_delta=cash_delta, capital_account_delta=cash_delta,
+        cash_delta=cash_delta, capital_account_delta=0.0,
     )
     return new_state, trades, decisions
 
@@ -188,17 +200,22 @@ def apply_rattle_entries_wrapper(
     execution_mode: str,
     all_dates: list,
 ) -> Tuple[HydraBacktestState, list]:
-    """Wrap v1.1 apply_rattlesnake_entries with the budget hack."""
-    substate = to_pillar_substate(state, 'rattle', cash_override=rattle_budget)
+    """Wrap v1.1 apply_rattlesnake_entries with the budget hack.
+
+    capital_account_delta=0 — intra-bucket cash→positions transfer.
+    Budget is capped at broker cash to prevent over-spending.
+    """
+    capped_budget = min(rattle_budget, max(state.cash, 0.0))
+    substate = to_pillar_substate(state, 'rattle', cash_override=capped_budget)
     new_substate, decisions = rattle_apply_entries(
         substate, date, i, price_data, candidates,
         max_positions, config, execution_mode, all_dates,
     )
-    spent = rattle_budget - new_substate.cash
+    spent = capped_budget - new_substate.cash
     cash_delta = -spent
     new_state = merge_pillar_substate(
         state, new_substate, 'rattle',
-        cash_delta=cash_delta, capital_account_delta=cash_delta,
+        cash_delta=cash_delta, capital_account_delta=0.0,
     )
     return new_state, decisions
 
@@ -216,10 +233,12 @@ def apply_catalyst_wrapper(
     """Wrap v1.2 apply_catalyst_rebalance with the budget hack.
 
     Catalyst is ring-fenced — its budget is the catalyst_account,
-    never recycles. The wrapper still uses the cash-override pattern
-    so the rebalance logic works on a sandboxed balance.
+    never recycles. capital_account_delta=0 because rebalance is an
+    intra-bucket transfer (cash ↔ positions, both within catalyst).
+    Budget is capped at broker cash for buys.
     """
-    substate = to_pillar_substate(state, 'catalyst', cash_override=catalyst_budget)
+    capped_budget = min(catalyst_budget, max(state.cash, 0.0))
+    substate = to_pillar_substate(state, 'catalyst', cash_override=capped_budget)
     cash_before = substate.cash
     new_substate, trades, decisions = apply_catalyst_rebalance(
         substate, date, i, catalyst_assets, config, execution_mode, all_dates,
@@ -227,7 +246,7 @@ def apply_catalyst_wrapper(
     cash_delta = new_substate.cash - cash_before  # may be positive (sells) or negative (buys)
     new_state = merge_pillar_substate(
         state, new_substate, 'catalyst',
-        cash_delta=cash_delta, capital_account_delta=cash_delta,
+        cash_delta=cash_delta, capital_account_delta=0.0,
     )
     return new_state, trades, decisions
 
@@ -248,6 +267,13 @@ def apply_efa_wrapper(
       - Buy is gated by efa_idle from compute_allocation_pure
       - Min buy threshold $1k
       - 90% deployment cap on idle cash
+
+    Unlike compass/rattle/catalyst, EFA is funded by transferring cash
+    from rattle's idle pool. So a buy is an INTER-bucket transfer:
+      - rattle_account decreases by `spent`
+      - efa_value increases by `spent`
+    Mirrors hydra_capital.HydraCapitalManager.buy_efa (line 139).
+    A sell does the inverse, mirroring sell_efa (line 145).
     """
     held = EFA_SYMBOL in slice_positions_by_strategy(state.positions, 'efa')
     capped_idle = min(efa_idle, max(state.cash, 0.0)) * EFA_DEPLOYMENT_CAP
@@ -265,10 +291,34 @@ def apply_efa_wrapper(
     new_substate, trades, decisions = apply_efa_decision(
         substate, date, i, efa_data, config, execution_mode, all_dates,
     )
-    cash_delta = new_substate.cash - cash_before
-    new_state = merge_pillar_substate(
-        state, new_substate, 'efa',
-        cash_delta=cash_delta, capital_account_delta=cash_delta,
+    cash_delta = new_substate.cash - cash_before  # negative for buys, positive for sells
+
+    # Inter-bucket transfer: |cash_delta| moves between rattle and efa.
+    # cash_delta < 0 (buy) → rattle -= spent, efa += spent
+    # cash_delta > 0 (sell) → efa -= proceeds, rattle += proceeds
+    transfer = -cash_delta  # positive = buy magnitude, negative = sell magnitude
+    new_capital = state.capital._replace(
+        rattle_account=state.capital.rattle_account - transfer,
+        efa_value=max(0.0, state.capital.efa_value + transfer),
+    )
+
+    # Now merge positions and update broker cash. We can't reuse
+    # merge_pillar_substate because it only updates one bucket — we
+    # already updated capital ourselves above.
+    other_positions = {
+        sym: pos for sym, pos in state.positions.items()
+        if pos.get('_strategy') != 'efa'
+    }
+    new_efa_positions = {
+        sym: {**pos, '_strategy': 'efa'}
+        for sym, pos in new_substate.positions.items()
+    }
+    merged_positions = {**other_positions, **new_efa_positions}
+
+    new_state = state._replace(
+        cash=state.cash + cash_delta,
+        positions=merged_positions,
+        capital=new_capital,
     )
     return new_state, trades, decisions
 
@@ -315,11 +365,16 @@ def apply_efa_liquidation(
         'sector': 'International Equity',
     }
     new_positions = {
-        sym: pos for sym, pos in state.positions.items()
-        if not (sym == EFA_SYMBOL and pos.get('_strategy') == 'efa')
+        s: p for s, p in state.positions.items()
+        if not (s == EFA_SYMBOL and p.get('_strategy') == 'efa')
     }
+    # Transfer the liquidated value from efa_value back to rattle_account.
+    # Mirrors hydra_capital.sell_efa (line 145): efa_value -= sell;
+    # rattle_account += sell.
+    transfer = proceeds
     new_capital = state.capital._replace(
-        efa_value=max(0.0, state.capital.efa_value - shares * pos['entry_price'])
+        efa_value=max(0.0, state.capital.efa_value - transfer),
+        rattle_account=state.capital.rattle_account + transfer,
     )
     new_state = state._replace(
         cash=state.cash + proceeds,
@@ -525,8 +580,26 @@ def run_hydra_backtest(
         else:
             daily_yield = 0.0
         if state.cash > 0 and daily_yield > 0:
-            new_cash = state.cash + state.cash * (daily_yield / 100.0 / 252)
-            state = state._replace(cash=new_cash)
+            yield_amt = state.cash * (daily_yield / 100.0 / 252)
+            new_cash = state.cash + yield_amt
+            # Distribute the yield across the four logical buckets
+            # proportionally to bucket weight, so the sub-account sum
+            # invariant continues to hold.
+            total_cap = state.capital.total_capital
+            if total_cap > 0:
+                cw = state.capital.compass_account / total_cap
+                rw = state.capital.rattle_account / total_cap
+                catw = state.capital.catalyst_account / total_cap
+                ew = state.capital.efa_value / total_cap
+                new_capital = state.capital._replace(
+                    compass_account=state.capital.compass_account + yield_amt * cw,
+                    rattle_account=state.capital.rattle_account + yield_amt * rw,
+                    catalyst_account=state.capital.catalyst_account + yield_amt * catw,
+                    efa_value=state.capital.efa_value + yield_amt * ew,
+                )
+                state = state._replace(cash=new_cash, capital=new_capital)
+            else:
+                state = state._replace(cash=new_cash)
 
         # 3. Compute COMPASS scoring inputs
         tradeable = get_tradeable_symbols(
@@ -565,12 +638,54 @@ def run_hydra_backtest(
         rattle_exposure = _rattle_exposure(state, prices_today)
         alloc = compute_allocation_pure(state.capital, rattle_exposure)
 
-        # 5. Snapshot pillar values BEFORE mutations (for pillar return calc)
-        compass_invested_before = compute_pillar_invested(
+        # 5. Compute pure price-driven daily returns BEFORE any wrapper
+        # mutates positions. The pattern is:
+        #   invested_before = sum(shares * yesterday_close)  (via _prev_close)
+        #   invested_at_today = sum(shares * today_close)    (same positions)
+        #   ret = invested_at_today / invested_before - 1
+        # This isolates price movement from trade-driven count changes.
+        compass_invested_before = compute_pillar_invested_at_prev_close(
+            state.positions, 'compass'
+        )
+        compass_invested_at_today = compute_pillar_invested(
             state.positions, 'compass', prices_today
         )
-        rattle_invested_before = compute_pillar_invested(
+        c_ret = (
+            (compass_invested_at_today / compass_invested_before - 1)
+            if compass_invested_before > 0 else 0.0
+        )
+
+        rattle_invested_before = compute_pillar_invested_at_prev_close(
+            state.positions, 'rattle'
+        )
+        rattle_invested_at_today = compute_pillar_invested(
             state.positions, 'rattle', prices_today
+        )
+        r_ret = (
+            (rattle_invested_at_today / rattle_invested_before - 1)
+            if rattle_invested_before > 0 else 0.0
+        )
+
+        catalyst_invested_before = compute_pillar_invested_at_prev_close(
+            state.positions, 'catalyst'
+        )
+        catalyst_invested_at_today = compute_pillar_invested(
+            state.positions, 'catalyst', prices_today
+        )
+        cat_ret = (
+            (catalyst_invested_at_today / catalyst_invested_before - 1)
+            if catalyst_invested_before > 0 else 0.0
+        )
+
+        efa_invested_before = compute_pillar_invested_at_prev_close(
+            state.positions, 'efa'
+        )
+        efa_invested_at_today = compute_pillar_invested(
+            state.positions, 'efa', prices_today
+        )
+        e_ret = (
+            (efa_invested_at_today / efa_invested_before - 1)
+            if efa_invested_before > 0 else 0.0
         )
 
         # ============================================================
@@ -683,30 +798,24 @@ def run_hydra_backtest(
         decisions.extend(efa_decisions)
 
         # ============================================================
-        # Accounting — update HydraCapitalState with daily returns
+        # Accounting — apply DOLLAR returns to each bucket. We diverge
+        # from live HCM here: live uses percentage returns on bucket
+        # totals (positions + implicit cash share), which causes drift
+        # between sub_sum and PV. In a backtest the cleaner model is to
+        # add the actual dollar appreciation of each pillar's positions
+        # to its bucket. This preserves sub_sum == PV by construction.
         # ============================================================
-        prices_after = _current_prices_for_positions(
-            state, date, price_data, catalyst_assets, efa_data
+        c_dollar = compass_invested_at_today - compass_invested_before
+        r_dollar = rattle_invested_at_today - rattle_invested_before
+        cat_dollar = catalyst_invested_at_today - catalyst_invested_before
+        e_dollar = efa_invested_at_today - efa_invested_before
+        new_capital = state.capital._replace(
+            compass_account=state.capital.compass_account + c_dollar,
+            rattle_account=state.capital.rattle_account + r_dollar,
+            catalyst_account=state.capital.catalyst_account + cat_dollar,
+            efa_value=state.capital.efa_value + e_dollar,
         )
-        compass_invested_after = compute_pillar_invested(
-            state.positions, 'compass', prices_after
-        )
-        rattle_invested_after = compute_pillar_invested(
-            state.positions, 'rattle', prices_after
-        )
-        c_ret = (
-            (compass_invested_after / compass_invested_before - 1)
-            if compass_invested_before > 0 else 0.0
-        )
-        r_ret = (
-            (rattle_invested_after / rattle_invested_before - 1)
-            if rattle_invested_before > 0 else 0.0
-        )
-        state = state._replace(
-            capital=update_accounts_after_day_pure(
-                state.capital, c_ret, r_ret, rattle_exposure,
-            )
-        )
+        state = state._replace(capital=new_capital)
 
         # 6. Snapshot
         pv_after = _mark_full_portfolio(
@@ -733,13 +842,24 @@ def run_hydra_backtest(
             'n_efa': len(slice_positions_by_strategy(state.positions, 'efa')),
         })
 
-        # 7. Update state tail: peak + days_held
+        # 7. Update state tail: peak + days_held + _prev_close stamping.
+        # _prev_close is the basis for the next day's daily return calculation
+        # via compute_pillar_invested_at_prev_close.
         if pv_after > state.peak_value:
             state = state._replace(peak_value=pv_after)
-        new_positions = {
-            sym: {**p, 'days_held': p.get('days_held', 0) + 1}
-            for sym, p in state.positions.items()
-        }
+        prices_eod = _current_prices_for_positions(
+            state, date, price_data, catalyst_assets, efa_data
+        )
+        new_positions = {}
+        for sym, p in state.positions.items():
+            prev_close = prices_eod.get(
+                sym, p.get('_prev_close', p.get('entry_price', 0.0))
+            )
+            new_positions[sym] = {
+                **p,
+                'days_held': p.get('days_held', 0) + 1,
+                '_prev_close': prev_close,
+            }
         state = state._replace(
             positions=new_positions,
             portfolio_value_history=state.portfolio_value_history + (pv_after,),

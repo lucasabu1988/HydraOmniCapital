@@ -144,3 +144,25 @@ def compute_pillar_invested(
         price = current_prices.get(sym, pos.get('entry_price', 0.0))
         total += pos.get('shares', 0) * price
     return total
+
+
+def compute_pillar_invested_at_prev_close(
+    positions: dict,
+    strategy: str,
+) -> float:
+    """Sum positions using each position's `_prev_close` field.
+
+    The orchestrator stamps `_prev_close = today's close` at end-of-day,
+    so on the next day this gives 'yesterday's value'. For positions
+    opened today (no `_prev_close` yet), falls back to entry_price so
+    the day-over-day return on entry day is exactly 0.
+
+    Pairs with compute_pillar_invested(at today's prices) to compute a
+    true daily return: (today_value / prev_value) - 1.
+    """
+    pillar_positions = slice_positions_by_strategy(positions, strategy)
+    total = 0.0
+    for sym, pos in pillar_positions.items():
+        prev_close = pos.get('_prev_close', pos.get('entry_price', 0.0))
+        total += pos.get('shares', 0) * prev_close
+    return total

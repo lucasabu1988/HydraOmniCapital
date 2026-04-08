@@ -35,6 +35,7 @@ from hydra_backtest.hydra.layer_b import compute_layer_b_report
 from hydra_backtest.hydra.state import (
     HydraBacktestState,
     compute_pillar_invested,
+    compute_pillar_invested_at_prev_close,
     merge_pillar_substate,
     slice_positions_by_strategy,
     to_pillar_substate,
@@ -60,6 +61,7 @@ __all__ = [
     'to_pillar_substate',
     'merge_pillar_substate',
     'compute_pillar_invested',
+    'compute_pillar_invested_at_prev_close',
     # engine
     'run_hydra_backtest',
     'apply_compass_exits_wrapper',
