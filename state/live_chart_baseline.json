@@ -10,7 +10,10 @@
     "2026-03-27",
     "2026-03-30",
     "2026-03-31",
-    "2026-04-01"
+    "2026-04-01",
+    "2026-04-02",
+    "2026-04-06",
+    "2026-04-07"
   ],
   "values": [
     100000.0,
@@ -23,8 +26,11 @@
     99126.29,
     100258.89,
     101233.17,
-    101812.58
+    101812.58,
+    101437.95,
+    101761.59,
+    101716.51
   ],
   "initial_capital": 100000.0,
-  "note": "Cleaned baseline: starts at LIVE_TEST_START_DATE, no pre-live/weekend/reset entries"
+  "note": "Cleaned baseline: starts at LIVE_TEST_START_DATE, no pre-live/weekend/reset entries. Apr 2/6/7 backfilled via mark-to-market (cycle 5 active, positions constant: GLD=24, EFA=101, DBC=180, JNJ=79, XOM=169, cash=$29,597.94)."
 }
