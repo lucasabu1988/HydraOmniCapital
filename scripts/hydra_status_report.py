@@ -59,20 +59,38 @@ def main():
 
     lines.append("Cloud: ONLINE")
 
-    # --- Engine status from /api/ml ---
-    kpis = ml.get("kpis", {}) if isinstance(ml, dict) else {}
-    engine_running = kpis.get("engine_running", "unknown")
-    current_cycle = kpis.get("current_cycle", "?")
-    portfolio_value = kpis.get("portfolio_value")
+    # --- Engine status from /api/state.engine (authoritative) ---
+    engine = state.get("engine", {}) if isinstance(state, dict) else {}
+    portfolio = state.get("portfolio", {}) if isinstance(state, dict) else {}
 
-    lines.append(f"Engine: {'RUNNING' if engine_running else 'STOPPED'}")
-    lines.append(f"Cycle: {current_cycle}")
+    running = engine.get("running") is True
+    heartbeat_age = engine.get("heartbeat_age_seconds")
+    stale = heartbeat_age is None or (isinstance(heartbeat_age, (int, float)) and heartbeat_age > 300)
+
+    if running and not stale:
+        lines.append(f"Engine: RUNNING (hb {heartbeat_age:.0f}s)")
+    elif running and stale:
+        hb_str = f"{heartbeat_age:.0f}s" if isinstance(heartbeat_age, (int, float)) else "n/a"
+        lines.append(f"Engine: STALE (hb {hb_str})")
+    else:
+        lines.append("Engine: STOPPED")
+
+    lines.append(f"Cycle: {engine.get('cycles', '?')}")
+
+    portfolio_value = portfolio.get("portfolio_value")
+    if portfolio_value is None:
+        portfolio_value = state.get("portfolio_value")
     if portfolio_value is not None:
         lines.append(f"Portfolio: {format_currency(portfolio_value)}")
+        dd = portfolio.get("drawdown")
+        daily = portfolio.get("daily_return")
+        if dd is not None or daily is not None:
+            lines.append(f"  DD: {format_pct(dd) if dd is not None else 'n/a'}  |  Daily: {format_pct(daily) if daily is not None else 'n/a'}")
 
-    # --- Portfolio & Positions from /api/state ---
-    portfolio = state.get("portfolio", {})
+    # --- Cash, regime, positions ---
     cash = portfolio.get("cash")
+    if cash is None:
+        cash = state.get("cash")
     regime = portfolio.get("regime", "unknown")
     position_details = state.get("position_details", [])
 
@@ -98,14 +116,18 @@ def main():
         lines.append("")
         lines.append(f"AI Analysis: {snippet}...")
 
-    # --- Recent cycle log ---
-    log_entries = ml.get("log_entries", []) if isinstance(ml, dict) else []
-    if log_entries:
-        last = log_entries[-1] if isinstance(log_entries[-1], dict) else {}
-        cycle_num = last.get("cycle", "?")
-        cycle_return = last.get("return_pct")
+    # --- Engine lifecycle info (from /api/state.engine) ---
+    started_at = engine.get("started_at")
+    restarts = engine.get("restarts") or []
+    last_crash_error = engine.get("last_crash_error")
+    if started_at or restarts or last_crash_error:
         lines.append("")
-        lines.append(f"Last Cycle #{cycle_num}: {format_pct(cycle_return) if cycle_return is not None else 'n/a'}")
+        if started_at:
+            lines.append(f"Engine started: {started_at}")
+        if restarts:
+            lines.append(f"Restarts: {len(restarts)} (last: {restarts[-1]})")
+        if last_crash_error:
+            lines.append(f"Last crash: {last_crash_error[:120]}")
 
     print("\n".join(lines))
 
