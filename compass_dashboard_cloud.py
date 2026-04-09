@@ -377,7 +377,14 @@ def _yf_reset_session():
 
 
 def _yf_get_session():
-    """Get or create a Yahoo Finance session with valid crumb."""
+    """Get or create a Yahoo Finance session with valid crumb.
+
+    Multi-step cookie acquisition for reliability across cloud IP ranges.
+    Some endpoints fail intermittently from Render/EC2 addresses, so we try
+    two cookie sources and two crumb hosts before giving up. Every failure
+    is logged with the status code and a short body snippet so the next
+    breakage is diagnosable instead of silent.
+    """
     global _yf_session, _yf_crumb
     with _yf_session_lock:
         if _yf_session and _yf_crumb:
@@ -385,15 +392,43 @@ def _yf_get_session():
         try:
             s = http_requests.Session()
             s.headers.update(_YF_HEADERS)
-            # Get cookie
-            s.get('https://fc.yahoo.com', timeout=5)
-            # Get crumb
-            r = s.get('https://query2.finance.yahoo.com/v1/test/getcrumb', timeout=5)
-            if r.status_code == 200 and r.text:
+            # Step 1: populate cookies. Visit the homepage first (A1/A3 cookies),
+            # then fc.yahoo.com (B cookie). Both are best-effort — don't fail
+            # the whole flow if one 404s or times out.
+            for seed_url in ('https://finance.yahoo.com/', 'https://fc.yahoo.com'):
+                try:
+                    s.get(seed_url, timeout=5, allow_redirects=True)
+                except Exception as seed_err:
+                    logger.debug('yf seed %s failed: %s', seed_url, seed_err)
+
+            # Step 2: fetch the crumb. Try query1 first (more reliable from
+            # Render in recent observations), then query2 as fallback.
+            crumb_text = None
+            for crumb_url in (
+                'https://query1.finance.yahoo.com/v1/test/getcrumb',
+                'https://query2.finance.yahoo.com/v1/test/getcrumb',
+            ):
+                try:
+                    r = s.get(crumb_url, timeout=5)
+                    body = (r.text or '').strip()
+                    # Valid crumbs are short tokens (< 50 chars). Longer bodies
+                    # usually indicate an HTML error/consent page.
+                    if r.status_code == 200 and body and len(body) < 50:
+                        crumb_text = body
+                        break
+                    logger.info(
+                        'yf crumb %s rejected: status=%s len=%d snippet=%r',
+                        crumb_url, r.status_code, len(body), body[:80],
+                    )
+                except Exception as crumb_err:
+                    logger.info('yf crumb %s request failed: %s', crumb_url, crumb_err)
+
+            if crumb_text:
                 _yf_session = s
-                _yf_crumb = r.text
+                _yf_crumb = crumb_text
                 logger.info('Yahoo Finance session established (crumb obtained)')
                 return _yf_session, _yf_crumb
+            logger.warning('Yahoo Finance crumb acquisition failed on all endpoints')
         except Exception as e:
             logger.warning('Failed to get Yahoo Finance crumb: %s', e, exc_info=True)
         return None, None
@@ -736,24 +771,27 @@ def _price_freshness_snapshot():
     with _price_cache_lock:
         cache_time = _price_cache_time
         cache_size = len(_price_cache)
-    # Fallback to the shared file cache when the in-memory value is absent.
-    # Under gunicorn --preload, each worker has its own _price_cache_time; only
-    # the engine-owning worker actually calls _fetch_prices_internal, so the
-    # serving worker's in-memory value stays None forever and /api/state.data_freshness
-    # reports 'stale' even when prices are fresh on disk. Reading the shared
-    # cache file here makes freshness reflect reality regardless of which
-    # worker serves the request.
-    if cache_time is None:
-        try:
-            shared_path = os.path.join(STATE_DIR, '.price_cache_shared.json')
-            if os.path.exists(shared_path):
-                with open(shared_path, 'r') as _f:
-                    _shared = json.load(_f)
-                cache_time = datetime.fromisoformat(_shared['ts'])
-                if cache_size == 0:
-                    cache_size = len(_shared.get('prices', {}))
-        except Exception as _e:
-            logger.debug('price freshness fallback read failed: %s', _e)
+    # Prefer the shared file cache whenever it is fresher than the in-memory
+    # value. Under gunicorn --preload each worker has its own _price_cache_time;
+    # only the engine-owning worker fetches prices actively, so a non-engine
+    # worker's in-memory timestamp can be arbitrarily stale (or None on cold
+    # start) while the shared file has fresh data. Previously this fallback
+    # only fired when cache_time was None, causing /api/state.data_freshness
+    # and /api/health to wrongly report 'stale'/'degraded' even though the
+    # shared file — and therefore the actually-served prices — were current.
+    try:
+        shared_path = os.path.join(STATE_DIR, '.price_cache_shared.json')
+        if os.path.exists(shared_path):
+            with open(shared_path, 'r') as _f:
+                _shared = json.load(_f)
+            shared_time = datetime.fromisoformat(_shared['ts'])
+            if cache_time is None or shared_time > cache_time:
+                cache_time = shared_time
+                shared_prices_count = len(_shared.get('prices', {}))
+                if cache_size < shared_prices_count:
+                    cache_size = shared_prices_count
+    except Exception as _e:
+        logger.debug('price freshness shared-cache read failed: %s', _e)
     last_price_update = cache_time.isoformat() if cache_time else None
     price_age_seconds = None
     if cache_time:
