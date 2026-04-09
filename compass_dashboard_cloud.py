@@ -468,7 +468,10 @@ def _yf_fetch_batch(symbols: List[str]) -> Dict[str, dict]:
             continue
         try:
             url = f'https://query1.finance.yahoo.com/v8/finance/chart/{sym}'
-            params = {'range': '1d', 'interval': '1m'}  # 1m interval for fresher regularMarketPrice
+            # interval='1d' — from Render's IPs, the 1m endpoint returns stale
+            # meta.regularMarketPrice (stuck at previous close until the first
+            # 1m bar for the symbol lands). 1d returns the real-time quote.
+            params = {'range': '1d', 'interval': '1d'}
             r = http_requests.get(url, params=params, headers=_YF_HEADERS, timeout=10)
             if r.status_code == 429:
                 logger.warning('Yahoo Finance rate-limited (429), stopping batch')
