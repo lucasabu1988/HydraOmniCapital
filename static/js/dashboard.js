@@ -1940,9 +1940,9 @@ async function fetchTradeAnalytics() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (data.error) {
-            showToast('Error cargando analitica de trades: ' + data.error, 'error');
+            console.warn('Trade analytics unavailable:', data.error);
             document.getElementById('ta-table-container').innerHTML =
-                '<div style="color:var(--red);font-size:12px;">Error: ' + escHtml(data.error) + '</div>';
+                '<div style="color:var(--text-dim);font-size:12px;">Trade analytics not available (backtest data missing)</div>';
             return;
         }
         taData = data;
