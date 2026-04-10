@@ -1,0 +1,65 @@
+{
+  "version": "8.4",
+  "timestamp": "2026-03-19T21:34:35.261021",
+  "cash": 100000.0,
+  "peak_value": 100000.0,
+  "portfolio_value": 100000.0,
+  "crash_cooldown": 0,
+  "portfolio_values_history": [],
+  "current_regime_score": 0.35,
+  "trading_day_counter": 42,
+  "last_trading_date": "2026-03-19",
+  "positions": {},
+  "position_meta": {},
+  "current_universe": [
+    "AAPL",
+    "MSFT"
+  ],
+  "universe_year": 2026,
+  "_universe_source": "",
+  "_daily_open_done": false,
+  "_preclose_entries_done": false,
+  "overlay": {
+    "available": true,
+    "capital_scalar": 1.0,
+    "per_overlay": {},
+    "position_floor": null,
+    "diagnostics": {}
+  },
+  "hydra": {
+    "available": true,
+    "rattle_positions": [],
+    "rattle_regime": "RISK_ON",
+    "vix_current": null,
+    "efa_position": null,
+    "catalyst_positions": [],
+    "catalyst_day_counter": 0,
+    "capital_manager": {
+      "compass_account": 42500.0,
+      "rattle_account": 42500.0,
+      "catalyst_account": 15000.0,
+      "base_compass_alloc": 0.425,
+      "base_rattle_alloc": 0.425,
+      "base_catalyst_alloc": 0.15,
+      "max_compass_alloc": 0.75,
+      "total_recycled_days": 0,
+      "total_days": 0,
+      "efa_value": 0.0
+    }
+  },
+  "_pre_rotation_positions_data": {},
+  "_pre_rotation_cash": null,
+  "_pre_rotation_value": null,
+  "stats": {
+    "cycles_completed": 0,
+    "engine_iterations": 0,
+    "uptime_minutes": 0.0010394166666666666
+  },
+  "ml_error_counts": {
+    "entry": 0,
+    "exit": 0,
+    "hold": 0,
+    "skip": 0,
+    "snapshot": 0
+  }
+}

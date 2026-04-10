@@ -1,0 +1,299 @@
+{
+  "version": "8.4",
+  "timestamp": "2026-03-26T23:05:25.756331",
+  "cash": 24753.00379330443,
+  "peak_value": 100068.7645111084,
+  "portfolio_value": 99126.29455715942,
+  "crash_cooldown": 0,
+  "portfolio_values_history": [
+    100000,
+    99999.67457580566,
+    99371.93670257568,
+    98477.98931724549,
+    98367.86747409057,
+    98876.74822665405,
+    99711.0462842102,
+    99126.29455715942
+  ],
+  "current_regime_score": 0.35323269582347744,
+  "trading_day_counter": 48,
+  "last_trading_date": "2026-03-27",
+  "positions": {
+    "GLD": {
+      "shares": 24.0,
+      "avg_cost": 444.30083475748705
+    },
+    "DBC": {
+      "shares": 180.0,
+      "avg_cost": 28.08249994659424
+    },
+    "EFA": {
+      "shares": 101.0,
+      "avg_cost": 97.83564359457186
+    },
+    "JNJ": {
+      "shares": 124,
+      "avg_cost": 239.24000549316406
+    },
+    "XOM": {
+      "shares": 97,
+      "avg_cost": 165.42999267578125
+    },
+    "GEV": {
+      "shares": 5,
+      "avg_cost": 873.1199951171875
+    }
+  },
+  "position_meta": {
+    "GLD": {
+      "entry_price": 405.1300048828125,
+      "entry_date": "2026-03-23",
+      "entry_day_index": 43,
+      "original_entry_day_index": 43,
+      "high_price": 420.5799865722656,
+      "entry_vol": 0.15,
+      "entry_daily_vol": 0.0095,
+      "sector": "Catalyst (trend+gold)",
+      "_catalyst": true,
+      "_entry_reconciled": true
+    },
+    "DBC": {
+      "entry_price": 27.65999984741211,
+      "entry_date": "2026-03-23",
+      "entry_day_index": 43,
+      "original_entry_day_index": 43,
+      "high_price": 28.649999618530273,
+      "entry_vol": 0.15,
+      "entry_daily_vol": 0.0095,
+      "sector": "Catalyst (trend)",
+      "_catalyst": true,
+      "_entry_reconciled": true
+    },
+    "EFA": {
+      "entry_price": 95.43000030517578,
+      "entry_date": "2026-03-26",
+      "entry_day_index": 47,
+      "original_entry_day_index": 47,
+      "high_price": 96.66000366210938,
+      "entry_vol": 0.15,
+      "entry_daily_vol": 0.0095,
+      "sector": "International Equity",
+      "_efa": true,
+      "_entry_reconciled": true
+    },
+    "JNJ": {
+      "entry_price": 239.24000549316406,
+      "entry_date": "2026-03-26",
+      "entry_day_index": 47,
+      "original_entry_day_index": 47,
+      "high_price": 241.60000610351562,
+      "entry_vol": 0.1702917181021859,
+      "entry_daily_vol": 0.010727369915054762,
+      "sector": "Healthcare",
+      "entry_momentum_score": 1.393208825050167,
+      "entry_momentum_rank": 1.0,
+      "_entry_reconciled": true
+    },
+    "XOM": {
+      "entry_price": 165.42999267578125,
+      "entry_date": "2026-03-26",
+      "entry_day_index": 47,
+      "original_entry_day_index": 47,
+      "high_price": 165.42999267578125,
+      "entry_vol": 0.21219927701941782,
+      "entry_daily_vol": 0.01336729798526388,
+      "sector": "Energy",
+      "entry_momentum_score": 1.2243926417431577,
+      "entry_momentum_rank": 0.9696969696969697,
+      "_entry_reconciled": true
+    },
+    "GEV": {
+      "entry_price": 873.1199951171875,
+      "entry_date": "2026-03-26",
+      "entry_day_index": 47,
+      "original_entry_day_index": 47,
+      "high_price": 915.7999877929688,
+      "entry_vol": 0.4243605510782192,
+      "entry_daily_vol": 0.026732202009030728,
+      "sector": "Industrials",
+      "entry_momentum_score": 1.0189470506762204,
+      "entry_momentum_rank": 0.9393939393939394,
+      "_entry_reconciled": true
+    }
+  },
+  "current_universe": [
+    "TSLA",
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "META",
+    "PLTR",
+    "AMZN",
+    "AMD",
+    "GOOGL",
+    "AVGO",
+    "GOOG",
+    "NFLX",
+    "ORCL",
+    "UNH",
+    "MU",
+    "HOOD",
+    "LLY",
+    "COIN",
+    "APP",
+    "INTC",
+    "JPM",
+    "BRK-B",
+    "COST",
+    "V",
+    "CRM",
+    "SMCI",
+    "WMT",
+    "BAC",
+    "XOM",
+    "UBER",
+    "BA",
+    "GEV",
+    "GS",
+    "MA",
+    "NOW",
+    "ADBE",
+    "JNJ",
+    "CRWD",
+    "AMAT",
+    "CSCO"
+  ],
+  "universe_year": 2026,
+  "_universe_source": "github",
+  "_daily_open_done": false,
+  "_preclose_entries_done": false,
+  "overlay": {
+    "available": true,
+    "capital_scalar": 1.0,
+    "per_overlay": {
+      "bso": 1.0,
+      "m2": 1.0,
+      "fomc": 1.0
+    },
+    "position_floor": null,
+    "diagnostics": {
+      "bso": {
+        "nfci": -0.47504,
+        "stlfsi": -0.3677,
+        "hy_pct": 3.19,
+        "scalar": 1.0
+      },
+      "m2": {
+        "scalar": 1.0
+      },
+      "fomc": {
+        "scalar": 1.0,
+        "surprise_active": false
+      },
+      "fed_emergency": {
+        "emergency_active": false,
+        "position_floor": null
+      }
+    }
+  },
+  "hydra": {
+    "available": true,
+    "rattle_positions": [],
+    "rattle_regime": "RISK_OFF",
+    "vix_current": 27.440000534057617,
+    "efa_position": null,
+    "catalyst_positions": [
+      {
+        "symbol": "GLD",
+        "shares": 24,
+        "entry_price": 444.30083475748705,
+        "entry_date": "2026-03-16",
+        "sub_strategy": "trend+gold"
+      },
+      {
+        "symbol": "DBC",
+        "shares": 180,
+        "entry_price": 28.08249994659424,
+        "entry_date": "2026-03-16",
+        "sub_strategy": "trend"
+      }
+    ],
+    "catalyst_day_counter": 2,
+    "capital_manager": {
+      "compass_account": 42387.3258790133,
+      "rattle_account": 32627.830730950747,
+      "catalyst_account": 14969.409953613282,
+      "base_compass_alloc": 0.425,
+      "base_rattle_alloc": 0.425,
+      "base_catalyst_alloc": 0.15,
+      "max_compass_alloc": 0.75,
+      "total_recycled_days": 23,
+      "total_days": 23,
+      "efa_value": 9560.660369873047
+    }
+  },
+  "_pre_rotation_positions_data": {
+    "GLD": {
+      "shares": 24.0,
+      "avg_cost": 444.30083475748705,
+      "entry_price": 405.1300048828125,
+      "sector": "Catalyst (trend+gold)",
+      "entry_day_index": 43,
+      "entry_date": "2026-03-23"
+    },
+    "DBC": {
+      "shares": 180.0,
+      "avg_cost": 28.08249994659424,
+      "entry_price": 27.65999984741211,
+      "sector": "Catalyst (trend)",
+      "entry_day_index": 43,
+      "entry_date": "2026-03-23"
+    },
+    "EFA": {
+      "shares": 101.0,
+      "avg_cost": 97.83564359457186,
+      "entry_price": 95.43000030517578,
+      "sector": "International Equity",
+      "entry_day_index": 47,
+      "entry_date": "2026-03-26"
+    },
+    "JNJ": {
+      "shares": 124,
+      "avg_cost": 240.5216064453125,
+      "entry_price": 240.5216064453125,
+      "sector": "Healthcare",
+      "entry_day_index": 47,
+      "entry_date": "2026-03-26"
+    },
+    "XOM": {
+      "shares": 97,
+      "avg_cost": 164.36500549316406,
+      "entry_price": 164.36500549316406,
+      "sector": "Energy",
+      "entry_day_index": 47,
+      "entry_date": "2026-03-26"
+    },
+    "GEV": {
+      "shares": 5,
+      "avg_cost": 913.739990234375,
+      "entry_price": 913.739990234375,
+      "sector": "Industrials",
+      "entry_day_index": 47,
+      "entry_date": "2026-03-26"
+    }
+  },
+  "_pre_rotation_cash": 24753.00379330443,
+  "_pre_rotation_value": 99126.29455715942,
+  "stats": {
+    "cycles_completed": 3,
+    "engine_iterations": 618,
+    "uptime_minutes": 6206.926771066666
+  },
+  "ml_error_counts": {
+    "entry": 0,
+    "exit": 0,
+    "hold": 0,
+    "skip": 0,
+    "snapshot": 0
+  }
+}
