@@ -1,26 +1,97 @@
 name: Keep Render Alive
 
+# Mission: never let the HYDRA cloud engine go cold during a trading week.
+# Render free tier sleeps after ~15 min of inactivity; without external pings
+# the engine can miss multiple trading days (see April 2026 outage: 9 days
+# without cycle close). This workflow runs on GitHub's infra (independent of
+# Render sleep state) and pings the service frequently enough that it never
+# sleeps Mon-Fri, plus a lower-frequency weekend warmup so Monday cold start
+# doesn't exceed the market-open window.
+
 on:
   schedule:
-    # Every 10 minutes during US market hours (Mon-Fri)
-    # 14:00-16:30 ET = 19:00-21:30 UTC (standard) / 18:00-20:30 UTC (DST)
-    # Using broader window to cover both: 18:00-21:30 UTC, Mon-Fri
-    - cron: '*/10 18-21 * * 1-5'
-    # Also ping at 13:30 UTC (~9:30 ET) to wake up for market open
-    - cron: '25,30,35 13-14 * * 1-5'
-  workflow_dispatch: # allow manual trigger
+    # Every 10 min Mon-Fri 12:00-22:00 UTC.
+    # Covers US market 09:30-16:00 ET in both DST and standard time (with
+    # buffer on both ends) so Render cannot fall asleep during a session.
+    - cron: '*/10 12-21 * * 1-5'
+
+    # Weekend warmup: every 2 hours Sat-Sun so the service stays warm for
+    # Monday open. Prevents the scenario where a cold start + crumb fetch +
+    # state recovery collide at 09:30 ET and miss the first rotation.
+    - cron: '0 */2 * * 6,0'
+
+  workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Ping Render to prevent sleep
+      - name: Ping /api/health and verify engine freshness
+        env:
+          URL: https://omnicapital.onrender.com/api/health
         run: |
-          echo "Pinging Render at $(date -u '+%Y-%m-%d %H:%M UTC')"
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 60 \
-            "https://omnicapital.onrender.com/api/health")
-          echo "Response: HTTP $HTTP_CODE"
-          if [ "$HTTP_CODE" -ge 500 ]; then
-            echo "::warning::Server returned $HTTP_CODE"
+          set -euo pipefail
+          echo "Pinging $URL at $(date -u '+%Y-%m-%d %H:%M UTC')"
+
+          # 150s timeout: Render cold starts can take 60-90s, plus payload
+          # includes ml_health calculations that touch decisions.jsonl.
+          HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
+            --max-time 150 \
+            --retry 2 --retry-delay 10 --retry-connrefused \
+            "$URL") || HTTP_CODE="000"
+          echo "HTTP $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Health endpoint returned HTTP $HTTP_CODE"
+            cat response.json || true
+            exit 1
           fi
+
+          # Dead-man's switch: during weekday UTC market hours (13:30-20:00)
+          # the engine should be running AND have heartbeat < 120s old.
+          # Anything else during that window means the trading thread is
+          # wedged — fail the workflow so GitHub sends the maintainer email.
+          python3 - <<'PY'
+          import json, sys
+          from datetime import datetime, timezone
+
+          with open('response.json') as f:
+              data = json.load(f)
+
+          now = datetime.now(timezone.utc)
+          weekday = now.weekday()  # 0=Mon
+          hhmm = now.hour * 100 + now.minute
+          market_hours = weekday < 5 and 1330 <= hhmm <= 2000
+
+          engine_running = bool(data.get('engine_running'))
+          heartbeat_age = data.get('engine_heartbeat_age_seconds')
+          last_cycle = data.get('last_cycle_close')
+          ml_health = (data.get('ml_health') or {}).get('status')
+          days_wo = (data.get('ml_health') or {}).get('days_without_outcome')
+
+          print(f"engine_running={engine_running} "
+                f"heartbeat_age={heartbeat_age} "
+                f"last_cycle_close={last_cycle} "
+                f"ml_health={ml_health} "
+                f"days_without_outcome={days_wo} "
+                f"market_hours={market_hours}")
+
+          problems = []
+          if market_hours:
+              if not engine_running:
+                  problems.append("engine not running during market hours")
+              if heartbeat_age is None or heartbeat_age > 120:
+                  problems.append(f"heartbeat stale: {heartbeat_age}s")
+              # days_without_outcome > 3 during market hours = engine isn't
+              # logging ML decisions — it's alive but not processing.
+              if days_wo is not None and days_wo > 3:
+                  problems.append(f"days_without_outcome={days_wo}")
+
+          if problems:
+              print("::error::HYDRA dead-man's switch tripped: "
+                    + "; ".join(problems))
+              sys.exit(1)
+
+          print("HYDRA healthy")
+          PY
