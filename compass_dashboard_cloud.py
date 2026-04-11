@@ -54,6 +54,18 @@ except ImportError:
     )
     _HAS_REQUESTS = False
 
+# curl_cffi impersonates a real Chrome TLS fingerprint, which bypasses Yahoo
+# Finance's bot detection on datacenter IPs (Render/AWS/GCP). When available,
+# we use it for the session that fetches the v7 crumb; plain `requests` gets
+# blocked intermittently from those IP ranges. Optional dependency — fall back
+# to stdlib requests if unavailable.
+try:
+    from curl_cffi import requests as curl_requests  # type: ignore
+    _HAS_CURL_CFFI = True
+except ImportError:
+    curl_requests = None  # type: ignore
+    _HAS_CURL_CFFI = False
+
 try:
     import anthropic
     _HAS_ANTHROPIC = bool(os.environ.get('ANTHROPIC_API_KEY'))
@@ -384,13 +396,22 @@ def _yf_get_session():
     two cookie sources and two crumb hosts before giving up. Every failure
     is logged with the status code and a short body snippet so the next
     breakage is diagnosable instead of silent.
+
+    When curl_cffi is available we use it with `impersonate='chrome'` so the
+    TLS/JA3 fingerprint matches a real browser. Yahoo's edge blocks plain
+    Python `requests` from datacenter IP ranges (Render, AWS, GCP) based on
+    that fingerprint, which is why the crumb handshake otherwise fails with
+    empty 200 or consent-page HTML.
     """
     global _yf_session, _yf_crumb
     with _yf_session_lock:
         if _yf_session and _yf_crumb:
             return _yf_session, _yf_crumb
         try:
-            s = http_requests.Session()
+            if _HAS_CURL_CFFI:
+                s = curl_requests.Session(impersonate='chrome')
+            else:
+                s = http_requests.Session()
             s.headers.update(_YF_HEADERS)
             # Step 1: populate cookies. Visit the homepage first (A1/A3 cookies),
             # then fc.yahoo.com (B cookie). Both are best-effort — don't fail
@@ -1129,7 +1150,11 @@ def _build_health_payload(engine, state):
     else:
         overall_status = 'degraded'
 
-    git_sync_enabled = False  # Always disabled on cloud — state persists via Render disk
+    # Cloud git sync is enabled only when GIT_TOKEN is set in the Render env
+    # (see _run_cloud_engine — it flips _engine_mod._git_sync_available). The
+    # health payload mirrors that so the dashboard shows the true state
+    # instead of a hardcoded "disabled".
+    git_sync_enabled = bool(os.environ.get('GIT_TOKEN'))
     cycles_completed, engine_iterations = _health_cycle_counts(state, engine)
     crash_count = int(engine.get('crash_count') or 0)
     last_crash_at = _coerce_health_timestamp(engine.get('last_crash_at'))
@@ -3026,6 +3051,8 @@ def api_price_debug():
     diag = {
         'server_time': datetime.now().isoformat(),
         'has_requests': _HAS_REQUESTS,
+        'has_curl_cffi': _HAS_CURL_CFFI,
+        'yf_transport': 'curl_cffi' if _HAS_CURL_CFFI else 'requests',
         'consecutive_failures': _yf_consecutive_failures,
         'cache_age_seconds': None,
         'cached_symbols': list(_price_cache.keys()),

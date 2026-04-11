@@ -3472,6 +3472,11 @@ class COMPASSLive:
             if cycle.get('status') == 'active':
                 cycle['end_date'] = today
                 cycle['status'] = 'closed'
+                # Absolute close instant so /api/health.last_cycle_close is a
+                # timestamp instead of falling back to the date-only end_date
+                # (which made the health panel appear stuck on the day of the
+                # last rotation).
+                cycle['closed_at'] = self.get_et_now().isoformat()
                 cycle['portfolio_end'] = round(close_portfolio_value, 2)
                 if spy_close and cycle.get('spy_start'):
                     cycle['spy_end'] = round(spy_close, 2)
