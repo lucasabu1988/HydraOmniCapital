@@ -2641,9 +2641,9 @@ class COMPASSLive:
         if gap <= 1:
             return 0
 
-        if gap > 5:
+        if gap > 15:
             logger.critical(
-                "Engine missed %d trading days (max 5 for auto-recovery). "
+                "Engine missed %d trading days (max 15 for auto-recovery). "
                 "Manual intervention required.", gap
             )
             return 0
