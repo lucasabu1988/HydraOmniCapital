@@ -354,8 +354,8 @@ def test_recover_no_gap(trader):
 
 
 def test_recover_exceeds_cap(trader):
-    # gap > 5 trading days, should return 0 and log CRITICAL
-    trader._recovery_gap_baseline = '2026-03-06'
+    # gap > 15 trading days, should return 0 and log CRITICAL
+    trader._recovery_gap_baseline = '2026-02-10'
     trader.get_et_now = MagicMock(return_value=datetime(2026, 3, 21, 10, 0))
     assert trader._recover_missed_days() == 0
 

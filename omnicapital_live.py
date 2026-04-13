@@ -2651,6 +2651,25 @@ class COMPASSLive:
         logger.warning("[RECOVERY] Detected %d missed trading days (%s → %s)",
                        gap - 1, last_date, today)
 
+        # Populate _hist_cache so open_new_positions() can compute momentum
+        # scores during recovery rotations.  Without this, recovery sells
+        # expired positions but cannot buy replacements — splits sells/buys
+        # across different trades_today windows and the cycle never closes.
+        if not getattr(self, '_hist_cache', None):
+            self._hist_cache = {}
+            logger.info("[RECOVERY] Populating historical cache for momentum scoring...")
+            _r_symbols = set(getattr(self, 'current_universe', [])) | set(getattr(self, 'position_meta', {}).keys())
+            for _sym in _r_symbols:
+                try:
+                    _df = yf.download(_sym, period='6mo', progress=False)
+                    if isinstance(_df.columns, pd.MultiIndex):
+                        _df.columns = [c[0] for c in _df.columns]
+                    if len(_df) > 20:
+                        self._hist_cache[_sym] = _df
+                except Exception:
+                    pass
+            logger.info("[RECOVERY] Historical cache: %d stocks", len(self._hist_cache))
+
         recovered = 0
         current = last_date + timedelta(days=1)
 
@@ -2736,6 +2755,22 @@ class COMPASSLive:
 
                 self.trades_today = []
                 if is_rotation:
+                    # Snapshot pre-rotation state so _update_cycle_log has
+                    # correct portfolio values for cycle close/open.
+                    _snap = self._safe_broker_snapshot()
+                    self._pre_rotation_positions_data = {
+                        sym: {
+                            **pos_data,
+                            'entry_price': _snap['position_meta'].get(sym, {}).get('entry_price', pos_data['avg_cost']),
+                            'sector': _snap['position_meta'].get(sym, {}).get('sector', SECTOR_MAP.get(sym, 'Unknown')),
+                            'entry_day_index': _snap['position_meta'].get(sym, {}).get('entry_day_index', self.trading_day_counter),
+                            'entry_date': _snap['position_meta'].get(sym, {}).get('entry_date'),
+                        }
+                        for sym, pos_data in _snap['positions'].items()
+                    }
+                    self._pre_rotation_cash = _snap['cash']
+                    self._pre_rotation_value = self.broker.get_portfolio().total_value
+                    self._pre_rotation_positions = list(self.broker.positions.keys())
                     self._preclose_entries_done = False
                     self.execute_preclose_entries(prices, _recovery_mode=True)
                 else:
