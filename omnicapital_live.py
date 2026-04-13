@@ -2780,6 +2780,19 @@ class COMPASSLive:
                 self.trading_day_counter += 1
                 self.last_trading_date = current
                 self.save_state()
+                # Also save a date-stamped copy for the recovered day so the
+                # /api/live-chart endpoint can read per-day values (otherwise
+                # all recovered days collapse into compass_state_<today>.json
+                # and only the last one survives, leaving gaps in the chart).
+                try:
+                    import shutil
+                    _latest = os.path.join('state', 'compass_state_latest.json')
+                    _dated = os.path.join('state', f'compass_state_{current.strftime("%Y%m%d")}.json')
+                    if os.path.exists(_latest):
+                        shutil.copy2(_latest, _dated)
+                except Exception as _copy_err:
+                    logger.warning("[RECOVERY] Failed to write dated state for %s: %s",
+                                   current, _copy_err)
                 recovered += 1
                 logger.info("[RECOVERY] Replayed %s (day %d, regime=%.3f%s)",
                             missed_str, self.trading_day_counter,
