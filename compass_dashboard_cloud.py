@@ -2512,20 +2512,53 @@ def api_live_chart():
     # mark-to-market history). State files can only add dates strictly
     # newer than the latest baseline date — this prevents the live engine
     # from clobbering historical entries with stale post-restart values.
+    # We also collect (date -> positions, cash) snapshots so gap days can
+    # be reconstructed from yfinance closes using the NEAREST PRECEDING
+    # snapshot (engine offline => positions/cash unchanged during the gap).
     baseline_max_date = max(hydra_data.keys()) if hydra_data else ''
+    position_snapshots = {}  # date_str -> {'positions': {sym: shares}, 'cash': float}
     for sf in state_files:
         try:
             with open(sf, 'r') as f:
                 s = json.load(f)
             dt = s.get('last_trading_date')
             val = s.get('portfolio_value')
-            n_pos = len(s.get('positions', {}))
+            positions = s.get('positions', {})
+            n_pos = len(positions)
+            cash = s.get('cash')
             # Skip reset/corrupt state files (0 positions with ~$100K = engine restart)
             if dt and val and val > 0 and n_pos > 0 and dt > baseline_max_date:
                 hydra_data[dt] = val
+            if dt and n_pos > 0 and cash is not None:
+                position_snapshots[dt] = {
+                    'positions': {sym: p.get('shares', 0) for sym, p in positions.items()},
+                    'cash': cash,
+                }
         except Exception as e:
             logger.warning(f"api_live_chart failed: {e}")
             continue
+
+    # Also pull compass_state_latest.json for today's live portfolio value
+    # — this file is updated every engine cycle so it reflects current mark-to-market.
+    try:
+        latest_path = os.path.join(STATE_DIR, 'compass_state_latest.json')
+        if os.path.exists(latest_path):
+            with open(latest_path, 'r') as f:
+                s_latest = json.load(f)
+            dt = s_latest.get('last_trading_date')
+            val = s_latest.get('portfolio_value')
+            positions = s_latest.get('positions', {})
+            cash = s_latest.get('cash')
+            if dt and val and val > 0 and len(positions) > 0:
+                if dt > baseline_max_date:
+                    hydra_data[dt] = val
+                if cash is not None:
+                    position_snapshots[dt] = {
+                        'positions': {sym: p.get('shares', 0) for sym, p in positions.items()},
+                        'cash': cash,
+                    }
+    except Exception as e:
+        logger.warning(f"api_live_chart latest read failed: {e}")
 
     if not hydra_data:
         return jsonify({'dates': [], 'hydra': [], 'spy': []})
@@ -2548,29 +2581,90 @@ def api_live_chart():
     # Ensure Day 1 = initial capital (positions entered at close, no P&L yet)
     hydra_data[LIVE_TEST_START_DATE] = first_value
 
-    # Build complete weekday timeline from start to last date.
-    # Gaps (missing state files) are marked as update days AND left as
-    # None so the chart draws visible gaps instead of misleading flat
-    # lines carried forward from the last known value.
+    # Build the weekday timeline. For gap days (no state file saved that day),
+    # reconstruct the portfolio value from the most recent preceding
+    # (positions, cash) snapshot + historical closes from yfinance. Positions
+    # and cash don't change when the engine is offline, so this produces a
+    # correct mark-to-market instead of a misleading flat line.
     last_date = date.fromisoformat(data_dates[-1])
     dates = []
-    hydra_values_by_date = {}  # date_str -> value or None
-    update_days = []  # indices of days with no data (algorithm updates)
+    update_days = []  # indices of days where value was reconstructed from closes
     d = date.fromisoformat(LIVE_TEST_START_DATE)
+
+    # Collect gap weekdays up front so we can batch the yfinance download
+    gap_days = []
+    all_weekdays = []
     while d <= last_date:
-        if d.weekday() < 5:  # weekday
-            dt_str = d.isoformat()
-            dates.append(dt_str)
-            if dt_str in hydra_data:
-                hydra_values_by_date[dt_str] = hydra_data[dt_str]
-            else:
-                # Gap: no real data — leave as None (chart shows gap) and
-                # mark the index so the yellow "update" band still renders.
-                hydra_values_by_date[dt_str] = None
-                update_days.append(len(dates) - 1)
+        if d.weekday() < 5:
+            all_weekdays.append(d.isoformat())
+            if d.isoformat() not in hydra_data:
+                gap_days.append(d.isoformat())
         d += timedelta(days=1)
-    # Overwrite hydra_data so downstream code sees None on gap days.
-    hydra_data = hydra_values_by_date
+
+    # Reconstruct gap values: for each gap day, find the nearest PRECEDING
+    # (positions, cash) snapshot and value-at-close the held positions.
+    # Assumption: the engine was offline during the gap, so positions/cash
+    # are frozen at the preceding snapshot — a correct mark-to-market.
+    def _snapshot_for(day_str):
+        preceding = [d for d in position_snapshots.keys() if d <= day_str]
+        if not preceding:
+            return None
+        return position_snapshots[max(preceding)]
+
+    if gap_days and position_snapshots and _HAS_YFINANCE:
+        try:
+            # Union of all symbols across relevant snapshots (batched download)
+            all_symbols = set()
+            for g_dt in gap_days:
+                snap = _snapshot_for(g_dt)
+                if snap:
+                    all_symbols.update(snap['positions'].keys())
+            symbols = sorted(all_symbols)
+            closes_by_sym = {}
+            if symbols:
+                fetch_start = min(gap_days)
+                fetch_end = (date.fromisoformat(max(gap_days)) + timedelta(days=3)).isoformat()
+                hist = yf.download(symbols, start=fetch_start, end=fetch_end,
+                                   progress=False, auto_adjust=True, group_by='ticker')
+                if hist is not None and len(hist) > 0:
+                    if isinstance(hist.columns, pd.MultiIndex):
+                        for sym in symbols:
+                            if sym in hist.columns.get_level_values(0):
+                                s_close = hist[sym]['Close']
+                                closes_by_sym[sym] = {idx.strftime('%Y-%m-%d'): float(v)
+                                                     for idx, v in s_close.items() if pd.notna(v)}
+                    else:
+                        sym = symbols[0]
+                        s_close = hist['Close']
+                        closes_by_sym[sym] = {idx.strftime('%Y-%m-%d'): float(v)
+                                             for idx, v in s_close.items() if pd.notna(v)}
+            for g_dt in gap_days:
+                snap = _snapshot_for(g_dt)
+                if not snap:
+                    continue
+                invested = 0.0
+                have_all = True
+                for sym, shares in snap['positions'].items():
+                    px = closes_by_sym.get(sym, {}).get(g_dt)
+                    if px is None:
+                        have_all = False
+                        break
+                    invested += shares * px
+                if have_all:
+                    hydra_data[g_dt] = snap['cash'] + invested
+        except Exception as e:
+            logger.warning(f"api_live_chart gap reconstruction failed: {e}")
+
+    # Now emit the timeline. Any remaining gaps (reconstruction failed)
+    # get carried forward but are flagged so the chart can highlight them.
+    last_known_val = first_value
+    for dt_str in all_weekdays:
+        dates.append(dt_str)
+        if dt_str in hydra_data:
+            last_known_val = hydra_data[dt_str]
+        else:
+            hydra_data[dt_str] = last_known_val
+            update_days.append(len(dates) - 1)
 
     start_date = dates[0]
 
@@ -2623,12 +2717,9 @@ def api_live_chart():
 
     for dt in dates:
         hydra_val = hydra_data[dt]
+        hydra_indexed = (hydra_val / first_value) * 100
         result_dates.append(dt)
-        if hydra_val is None:
-            # Gap day — let Chart.js draw a break in the line.
-            result_hydra.append(None)
-        else:
-            result_hydra.append(round((hydra_val / first_value) * 100, 2))
+        result_hydra.append(round(hydra_indexed, 2))
 
         spy_val = spy_data.get(dt)
         if spy_val and spy_first:
