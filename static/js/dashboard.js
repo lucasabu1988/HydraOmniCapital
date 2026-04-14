@@ -2930,8 +2930,9 @@ function renderLiveCompChart(data) {
     var rawSpy = (data.spy || []).slice(0, cutoff);
     if (!rawHydra || dates.length < 2) return;
     var updateDays = (data.update_days || []).filter(function(i) { return i < cutoff; });
-    var hydra = rawHydra.map(function(v) { return +(v - 100).toFixed(2); });
-    var spy = rawSpy.map(function(v) { return +(v - 100).toFixed(2); });
+    // Preserve nulls (gap days) — Chart.js will draw breaks in the line.
+    var hydra = rawHydra.map(function(v) { return (v == null) ? null : +(v - 100).toFixed(2); });
+    var spy = rawSpy.map(function(v) { return (v == null) ? null : +(v - 100).toFixed(2); });
 
     // Adaptive x-axis labels based on data density
     var tradingDays = dates.length;
@@ -3031,6 +3032,9 @@ function renderLiveCompChart(data) {
                             return isUpdate ? title + '  \u00b7  \u2191 update' : title;
                         },
                         label: function(ctx) {
+                            if (ctx.parsed.y == null || isNaN(ctx.parsed.y)) {
+                                return ' ' + ctx.dataset.label + ':  (sin datos)';
+                            }
                             var sign = ctx.parsed.y >= 0 ? '+' : '';
                             var suffix = updateDays.indexOf(ctx.dataIndex) >= 0 ? '  (sin cambio)' : '';
                             return ' ' + ctx.dataset.label + ':  ' + sign + ctx.parsed.y.toFixed(2) + '%' + suffix;

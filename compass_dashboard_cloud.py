@@ -2548,24 +2548,29 @@ def api_live_chart():
     # Ensure Day 1 = initial capital (positions entered at close, no P&L yet)
     hydra_data[LIVE_TEST_START_DATE] = first_value
 
-    # Build complete weekday timeline from start to last date, filling gaps
-    # with carry-forward values and marking update periods.
+    # Build complete weekday timeline from start to last date.
+    # Gaps (missing state files) are marked as update days AND left as
+    # None so the chart draws visible gaps instead of misleading flat
+    # lines carried forward from the last known value.
     last_date = date.fromisoformat(data_dates[-1])
     dates = []
+    hydra_values_by_date = {}  # date_str -> value or None
     update_days = []  # indices of days with no data (algorithm updates)
     d = date.fromisoformat(LIVE_TEST_START_DATE)
-    last_known_val = first_value
     while d <= last_date:
         if d.weekday() < 5:  # weekday
             dt_str = d.isoformat()
             dates.append(dt_str)
             if dt_str in hydra_data:
-                last_known_val = hydra_data[dt_str]
+                hydra_values_by_date[dt_str] = hydra_data[dt_str]
             else:
-                # Gap: carry forward last known value, mark as update
-                hydra_data[dt_str] = last_known_val
+                # Gap: no real data — leave as None (chart shows gap) and
+                # mark the index so the yellow "update" band still renders.
+                hydra_values_by_date[dt_str] = None
                 update_days.append(len(dates) - 1)
         d += timedelta(days=1)
+    # Overwrite hydra_data so downstream code sees None on gap days.
+    hydra_data = hydra_values_by_date
 
     start_date = dates[0]
 
@@ -2618,10 +2623,12 @@ def api_live_chart():
 
     for dt in dates:
         hydra_val = hydra_data[dt]
-        hydra_indexed = (hydra_val / first_value) * 100
-
         result_dates.append(dt)
-        result_hydra.append(round(hydra_indexed, 2))
+        if hydra_val is None:
+            # Gap day — let Chart.js draw a break in the line.
+            result_hydra.append(None)
+        else:
+            result_hydra.append(round((hydra_val / first_value) * 100, 2))
 
         spy_val = spy_data.get(dt)
         if spy_val and spy_first:
