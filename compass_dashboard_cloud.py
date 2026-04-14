@@ -2601,15 +2601,31 @@ def api_live_chart():
                 gap_days.append(d.isoformat())
         d += timedelta(days=1)
 
-    # Reconstruct gap values: for each gap day, find the nearest PRECEDING
-    # (positions, cash) snapshot and value-at-close the held positions.
-    # Assumption: the engine was offline during the gap, so positions/cash
-    # are frozen at the preceding snapshot — a correct mark-to-market.
+    # Reconstruct gap values: for each gap day, pick the closest available
+    # (positions, cash) snapshot (prefer preceding; fall back to the nearest
+    # following if no preceding exists). During an outage, positions/cash are
+    # frozen, so the adjacent snapshot is a correct mark-to-market.  When
+    # only older snapshots exist on disk (e.g. Render only has early dated
+    # state files), the nearest *following* snapshot from compass_state_latest
+    # is typically a better proxy than stale-by-weeks positions.
+    _snapshot_dates_sorted = sorted(position_snapshots.keys())
+
     def _snapshot_for(day_str):
-        preceding = [d for d in position_snapshots.keys() if d <= day_str]
-        if not preceding:
+        if not _snapshot_dates_sorted:
             return None
-        return position_snapshots[max(preceding)]
+        preceding = [d for d in _snapshot_dates_sorted if d <= day_str]
+        following = [d for d in _snapshot_dates_sorted if d > day_str]
+        # Prefer a preceding snapshot within 10 days; otherwise fall back to
+        # the closest snapshot (by absolute day delta) across all available.
+        if preceding:
+            pre_dt = max(preceding)
+            days_back = (date.fromisoformat(day_str) - date.fromisoformat(pre_dt)).days
+            if days_back <= 10:
+                return position_snapshots[pre_dt]
+        # Closest by absolute distance
+        best = min(_snapshot_dates_sorted,
+                   key=lambda d: abs((date.fromisoformat(d) - date.fromisoformat(day_str)).days))
+        return position_snapshots[best]
 
     if gap_days and position_snapshots and _HAS_YFINANCE:
         try:
