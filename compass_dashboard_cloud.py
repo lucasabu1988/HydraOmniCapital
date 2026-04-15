@@ -2671,6 +2671,27 @@ def api_live_chart():
         except Exception as e:
             logger.warning(f"api_live_chart gap reconstruction failed: {e}")
 
+    # Override today's value with a live mark-to-market so the chart stays
+    # in sync with the KPIs (api/state recomputes portfolio_value from live
+    # prices every request; compass_state_latest.json only persists on cycle
+    # boundaries, so reading its portfolio_value lags the engine by minutes).
+    today_str_live = date.today().strftime('%Y-%m-%d')
+    if today_str_live in all_weekdays:
+        snap_today = position_snapshots.get(today_str_live) or _snapshot_for(today_str_live)
+        if snap_today and snap_today.get('positions') and snap_today.get('cash') is not None:
+            try:
+                live_syms = sorted(snap_today['positions'].keys())
+                live_px = fetch_live_prices(live_syms)
+                if all(sym in live_px for sym in live_syms):
+                    live_mtm = snap_today['cash'] + sum(
+                        shares * live_px[sym]
+                        for sym, shares in snap_today['positions'].items()
+                    )
+                    if live_mtm > 0:
+                        hydra_data[today_str_live] = live_mtm
+            except Exception as e:
+                logger.warning(f"api_live_chart live MtM override failed: {e}")
+
     # Now emit the timeline. Any remaining gaps (reconstruction failed)
     # get carried forward but are flagged so the chart can highlight them.
     last_known_val = first_value
