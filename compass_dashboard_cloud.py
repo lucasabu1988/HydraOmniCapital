@@ -2675,7 +2675,15 @@ def api_live_chart():
     # in sync with the KPIs (api/state recomputes portfolio_value from live
     # prices every request; compass_state_latest.json only persists on cycle
     # boundaries, so reading its portfolio_value lags the engine by minutes).
-    today_str_live = date.today().strftime('%Y-%m-%d')
+    # Use ET date — Render runs UTC and after 20:00 ET the dates diverge.
+    try:
+        today_str_live = datetime.now(ZoneInfo('America/New_York')).date().isoformat()
+    except Exception:
+        today_str_live = date.today().isoformat()
+    # Fallback: if ET today isn't in the chart (pre-market, weekend, etc.),
+    # override the last available weekday instead so the chart still syncs.
+    if today_str_live not in all_weekdays and all_weekdays:
+        today_str_live = all_weekdays[-1]
     if today_str_live in all_weekdays:
         snap_today = position_snapshots.get(today_str_live) or _snapshot_for(today_str_live)
         if snap_today and snap_today.get('positions') and snap_today.get('cash') is not None:
