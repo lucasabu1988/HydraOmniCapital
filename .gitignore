@@ -1,1 +1,42 @@
-Nothing should be ignored based on the provided file changes. The only modified file is 'tests/test_live_system.py', which is a Python source file and should not be ignored. No build artifacts, dependencies, or temporary files are present in the changes.
+```gitignore
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Data cache (assuming these are generated/intermediate files)
+data_cache/
+
+# Dependencies and virtual environments
+venv/
+.venv/
+.env
+.env.local
+*.env.*
+
+# Build artifacts
+build/
+dist/
+target/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+```
