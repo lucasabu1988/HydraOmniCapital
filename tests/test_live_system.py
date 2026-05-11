@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from omnicapital_live import (
     COMPASSLive, CONFIG, BROAD_POOL,
     compute_momentum_scores, compute_volatility_weights,
-    compute_dynamic_leverage, compute_live_regime
+    compute_dynamic_leverage, compute_live_regime_score as compute_live_regime
 )
 from omnicapital_broker import PaperBroker, Order, Position
 from omnicapital_notifications import EmailNotifier
