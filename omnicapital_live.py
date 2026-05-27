@@ -75,6 +75,7 @@ try:
         check_rattlesnake_regime, compute_rattlesnake_exposure,
     )
     from hydra_capital import HydraCapitalManager
+    from regime import detect_regime, get_regime_description
     _hydra_available = True
 except ImportError:
     _hydra_available = False
@@ -957,6 +958,9 @@ class COMPASSLive:
         self.rattle_regime = 'RISK_ON'
         self._vix_current: Optional[float] = None
         self.hydra_capital = None
+
+        # Regime-aware capital allocation (May 2026 improvement)
+        self._current_regime = "neutral"  # "neutral", "strong_us_momentum", "risk_off"
         self._efa_hist: Optional[pd.DataFrame] = None
         # Catalyst 4th pillar
         self.catalyst_positions: List[dict] = []  # {symbol, shares, entry_price, sub_strategy}
@@ -1409,6 +1413,33 @@ class COMPASSLive:
                 spy_price = self._spy_hist['Close'].iloc[-1]
                 sma = self._spy_hist['Close'].rolling(200).mean().iloc[-1]
                 self.notifier.send_regime_change_alert(new_risk_on, spy_price, sma)
+
+        # === NEW: Discrete regime for capital allocation (May 2026) ===
+        try:
+            from regime import detect_regime, get_regime_description
+
+            spy_close = float(self._spy_hist['Close'].iloc[-1])
+            sma200 = float(self._spy_hist['Close'].iloc[-200:].mean())
+            spy_above_sma = spy_close > sma200
+
+            # Simple 20-day return approximation
+            if len(self._spy_hist) >= 20:
+                recent_return = (spy_close / float(self._spy_hist['Close'].iloc[-20]) - 1.0)
+            else:
+                recent_return = 0.0
+
+            vix = self._vix_current if self._vix_current else 20.0
+
+            old_regime = self._current_regime
+            new_regime = detect_regime(spy_above_sma, recent_return, vix)
+
+            if new_regime != old_regime:
+                self._current_regime = new_regime
+                desc = get_regime_description(new_regime)
+                logger.info(f"HYDRA CAPITAL REGIME -> {new_regime.upper()} | {desc}")
+        except Exception as e:
+            # Never let regime detection break the engine
+            logger.debug(f"Regime detection (capital allocation) skipped: {e}")
 
     # ------------------------------------------------------------------
     # Leverage computation
@@ -1918,11 +1949,16 @@ class COMPASSLive:
             r_exposure = compute_rattlesnake_exposure(
                 self.rattle_positions, prices, self.hydra_capital.rattle_account
             )
-            alloc = self.hydra_capital.compute_allocation(r_exposure)
+
+            # Regime-aware capital allocation (May 2026 improvement)
+            current_regime = getattr(self, '_current_regime', 'neutral')
+            alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime)
+
             compass_cash = min(portfolio.cash, alloc['compass_budget'])
             logger.info(f"HYDRA budget: COMPASS=${alloc['compass_budget']:,.0f} | "
                        f"Rattlesnake=${alloc['rattle_budget']:,.0f} | "
-                       f"recycled=${alloc['recycled_amount']:,.0f} ({alloc['recycled_pct']:.0%})")
+                       f"recycled=${alloc['recycled_amount']:,.0f} ({alloc['recycled_pct']:.0%}) | "
+                       f"regime={current_regime}")
 
         for symbol in selected:
             price = prices.get(symbol)
@@ -1936,7 +1972,8 @@ class COMPASSLive:
                 r_exposure = compute_rattlesnake_exposure(
                     self.rattle_positions, prices, self.hydra_capital.rattle_account
                 )
-                alloc = self.hydra_capital.compute_allocation(r_exposure)
+                current_regime = getattr(self, '_current_regime', 'neutral')
+                alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime)
                 compass_cash = min(portfolio.cash, alloc['compass_budget'])
             effective_capital = compass_cash * current_leverage * 0.95 * damped_scalar
 
@@ -2155,11 +2192,12 @@ class COMPASSLive:
             top.get('rsi', 0.0),
         )
 
-        # Compute Rattlesnake budget
+        # Compute Rattlesnake budget (regime-aware)
         r_exposure = compute_rattlesnake_exposure(
             self.rattle_positions, prices, self.hydra_capital.rattle_account
         )
-        alloc = self.hydra_capital.compute_allocation(r_exposure)
+        current_regime = getattr(self, '_current_regime', 'neutral')
+        alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime)
         r_budget = alloc['rattle_budget']
 
         for cand in candidates:
@@ -2280,7 +2318,15 @@ class COMPASSLive:
                             self.position_meta.pop(sym, None)
 
         # 2. Buy new targets or adjust up
+        current_regime = getattr(self, '_current_regime', 'neutral')
+
         for sym, target in target_map.items():
+            # Regime-aware gate (May 2026 improvement)
+            if self.hydra_capital and not self.hydra_capital.should_allow_new_catalyst_entries(current_regime):
+                if target_map:  # only log once
+                    logger.info(f"Catalyst new entries blocked due to regime: {current_regime}")
+                break  # skip all new Catalyst buys this cycle
+
             current_shares = 0
             for cp in self.catalyst_positions:
                 if cp['symbol'] == sym:
@@ -2484,7 +2530,8 @@ class COMPASSLive:
         r_exposure = compute_rattlesnake_exposure(
             self.rattle_positions, prices, self.hydra_capital.rattle_account
         )
-        alloc = self.hydra_capital.compute_allocation(r_exposure)
+        current_regime = getattr(self, '_current_regime', 'neutral')
+        alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime)
         portfolio = self.broker.get_portfolio()
         # efa_idle = remaining Rattlesnake idle cash after recycling to COMPASS
         # Cap by actual broker cash to avoid over-allocation
@@ -2498,6 +2545,12 @@ class COMPASSLive:
 
         if idle_cash < EFA_MIN_BUY:
             logger.info(f"EFA: skipped (idle=${idle_cash:,.0f} < min=${EFA_MIN_BUY})")
+            return
+
+        # Regime-aware gate for new EFA buys (May 2026)
+        current_regime = getattr(self, '_current_regime', 'neutral')
+        if self.hydra_capital and not self.hydra_capital.should_allow_new_efa_buys(current_regime):
+            logger.info(f"EFA new buys blocked due to regime: {current_regime}")
             return
 
         shares = int(idle_cash / efa_price)
@@ -2571,20 +2624,44 @@ class COMPASSLive:
         if portfolio.cash >= avg_position_cost:
             return  # Enough cash already, keep EFA
 
-        # Liquidate EFA
-        shares = efa_pos.shares
+        # === Regime-aware EFA selling (May 2026 improvement) ===
+        current_regime = getattr(self, '_current_regime', 'neutral')
+        sell_mult = 1.0
+        if self.hydra_capital:
+            sell_mult = self.hydra_capital.get_efa_sell_multiplier(current_regime)
+
+        # Determine how much to sell based on regime aggressiveness
+        total_efa_shares = efa_pos.shares
+        if sell_mult >= 1.4:
+            shares_to_sell = total_efa_shares  # Very aggressive (strong bull)
+        elif sell_mult >= 1.0:
+            shares_to_sell = int(total_efa_shares * 0.75)  # Moderately aggressive
+        else:
+            shares_to_sell = int(total_efa_shares * 0.50)  # Conservative in risk_off
+
+        shares_to_sell = max(1, min(shares_to_sell, total_efa_shares))
+
+        # Liquidate EFA (partial or full depending on regime)
         efa_entry = self.position_meta.get(EFA_SYMBOL, {}).get('entry_price', efa_pos.avg_cost)
-        pnl = (efa_price - efa_entry) * shares
+        pnl = (efa_price - efa_entry) * shares_to_sell
         reason = "COMPASS" if compass_needed > 0 else "Rattlesnake"
         order = Order(symbol=EFA_SYMBOL, action='SELL',
-                      quantity=shares, order_type='MARKET',
+                      quantity=shares_to_sell, order_type='MARKET',
                       decision_price=efa_price)
         result = self._submit_order(order, prices)
         if result.status == 'FILLED':
-            proceeds = result.filled_price * shares
-            logger.info(f"EFA LIQUIDATE ({reason} needs capital): {shares} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f} (PnL: ${pnl:+,.0f})")
+            proceeds = result.filled_price * shares_to_sell
+            logger.info(
+                f"EFA LIQUIDATE ({reason} needs capital, regime={current_regime}, mult={sell_mult:.1f}): "
+                f"{shares_to_sell} shares @ ${result.filled_price:.2f} = ${proceeds:,.0f} (PnL: ${pnl:+,.0f})"
+            )
             with self._data_lock:
-                self.position_meta.pop(EFA_SYMBOL, None)
+                if shares_to_sell >= total_efa_shares:
+                    self.position_meta.pop(EFA_SYMBOL, None)
+                else:
+                    # Partial sale - update meta
+                    if EFA_SYMBOL in self.position_meta:
+                        self.position_meta[EFA_SYMBOL]['shares'] = total_efa_shares - shares_to_sell
             if self.hydra_capital:
                 self.hydra_capital.sell_efa(proceeds)
 

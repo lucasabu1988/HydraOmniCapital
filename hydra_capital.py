@@ -2,9 +2,28 @@
 HYDRA Capital Manager — Cash Recycling Between Strategies
 ==========================================================
 Manages segregated accounts for COMPASS, Rattlesnake, Catalyst (4th pillar),
-and EFA with dynamic cash recycling. When one strategy has idle cash, it
-flows to the other (capped at 75% max to COMPASS). Remaining idle cash
-after recycling can be parked in EFA for passive international-equity exposure.
+and EFA with dynamic cash recycling.
+
+================================================================================
+MAY 2026 IMPROVEMENTS (Regime-Aware Capital Allocation)
+================================================================================
+- Added support for dynamic market regimes via optional `regime` parameter.
+- Supported regimes:
+    * "neutral"              → Default balanced behavior
+    * "strong_us_momentum"   → Strong equity bull market
+                               → Pause new Catalyst/EFA entries
+                               → More aggressive recycling to COMPASS
+                               → More aggressive EFA liquidation
+    * "risk_off"             → Defensive / weak market
+                               → Reduce flow to COMPASS
+                               → Preserve capital for Rattlesnake
+- New helper methods:
+    should_allow_new_catalyst_entries()
+    should_allow_new_efa_buys()
+    get_efa_sell_multiplier()
+    get_allocation_recommendations()
+- Does NOT modify any locked strategy parameters (COMPASS v8.4, etc.).
+================================================================================
 
 Catalyst (4th pillar) is ring-fenced at 15% — does not participate in recycling.
 
@@ -25,6 +44,44 @@ BASE_CATALYST_ALLOC = 0.15   # 4th pillar: 10% trend + 5% gold
 MAX_COMPASS_ALLOC = 0.75     # Cap: max COMPASS can receive with recycling (of C+R portion)
 EFA_MIN_BUY = 1000           # Minimum idle cash to trigger EFA buy
 
+# ============================================================
+# REGIME-AWARE IMPROVEMENTS (May 2026)
+# ============================================================
+# These parameters allow the capital manager to behave differently
+# depending on the overall market regime, without touching any
+# locked strategy parameters (COMPASS v8.4, Rattlesnake, Catalyst rules).
+#
+# Regimes:
+#   - "neutral"            : Default behavior (current production)
+#   - "strong_us_momentum" : Strong equity bull market (SPY ripping).
+#                            Reduce new Catalyst/EFA exposure.
+#                            Be more aggressive recycling idle cash to COMPASS.
+#   - "risk_off"           : High stress / weak equity market.
+#                            Reduce recycling to COMPASS.
+#                            Keep more capital available for Rattlesnake.
+# ============================================================
+
+REGIME_CONFIG = {
+    "neutral": {
+        "max_compass_recycle_mult": 1.0,
+        "catalyst_new_entry_allowed": True,
+        "efa_new_buy_allowed": True,
+        "efa_sell_aggressiveness": 1.0,
+    },
+    "strong_us_momentum": {
+        "max_compass_recycle_mult": 1.15,   # Allow slightly more recycling to COMPASS
+        "catalyst_new_entry_allowed": False, # Pause new Catalyst positions
+        "efa_new_buy_allowed": False,        # Pause new EFA buys
+        "efa_sell_aggressiveness": 1.5,      # Sell EFA faster to free capital
+    },
+    "risk_off": {
+        "max_compass_recycle_mult": 0.70,   # Reduce flow to COMPASS
+        "catalyst_new_entry_allowed": True,
+        "efa_new_buy_allowed": True,
+        "efa_sell_aggressiveness": 0.6,     # Hold EFA more defensively
+    }
+}
+
 
 class HydraCapitalManager:
     """
@@ -36,6 +93,12 @@ class HydraCapitalManager:
     - Catalyst (4th pillar) is ring-fenced at 15% — no recycling in/out
     - Remaining idle cash after recycling can be allocated to EFA
     - Position sizing for each strategy uses its allocated budget
+
+    IMPROVEMENTS (May 2026):
+    - Added regime-aware behavior via optional `regime` parameter.
+    - Supported regimes: "neutral", "strong_us_momentum", "risk_off"
+    - New helper methods for Catalyst/EFA gating and smarter EFA selling.
+    - Does NOT modify any locked strategy parameters (COMPASS v8.4 etc.).
     """
 
     def __init__(self, total_capital: float,
@@ -65,23 +128,32 @@ class HydraCapitalManager:
     def total_capital(self) -> float:
         return self.compass_account + self.rattle_account + self.catalyst_account + self.efa_value
 
-    def compute_allocation(self, rattle_exposure: float) -> Dict[str, float]:
+    def compute_allocation(self, rattle_exposure: float, regime: str = "neutral") -> Dict[str, float]:
         """
         Compute dynamic allocation based on Rattlesnake's current exposure.
 
+        IMPROVEMENT (May 2026): Added optional `regime` parameter for
+        regime-aware behavior without touching locked strategy logic.
+
         Args:
             rattle_exposure: Fraction of Rattlesnake account currently invested (0-1)
+            regime: One of "neutral", "strong_us_momentum", "risk_off"
 
         Returns:
             Dict with compass_budget, rattle_budget, recycled_amount, effective_allocs
         """
         total = self.total_capital
 
+        # Get regime adjustments
+        regime_cfg = REGIME_CONFIG.get(regime, REGIME_CONFIG["neutral"])
+        recycle_mult = regime_cfg["max_compass_recycle_mult"]
+
         # How much of Rattlesnake's account is idle?
         r_idle = self.rattle_account * (1.0 - rattle_exposure)
 
-        # Max we can lend to COMPASS
-        max_c = total * self.max_compass_alloc - self.compass_account
+        # Max we can lend to COMPASS (adjusted by regime)
+        effective_max_compass = min(1.0, self.max_compass_alloc * recycle_mult)
+        max_c = total * effective_max_compass - self.compass_account
         max_c = max(0, max_c)
 
         recycle_amount = min(r_idle, max_c)
@@ -111,17 +183,14 @@ class HydraCapitalManager:
         }
 
     def update_accounts_after_day(self, compass_return: float, rattle_return: float,
-                                   rattle_exposure: float):
+                                   rattle_exposure: float, regime: str = "neutral"):
         """
         Update logical accounts after a trading day.
         Recycled cash earns COMPASS returns.
 
-        Args:
-            compass_return: COMPASS daily return (e.g., 0.005 for +0.5%)
-            rattle_return: Rattlesnake daily return
-            rattle_exposure: Rattlesnake exposure fraction
+        IMPROVEMENT: Now accepts regime for smarter daily updates.
         """
-        alloc = self.compute_allocation(rattle_exposure)
+        alloc = self.compute_allocation(rattle_exposure, regime=regime)
         recycled = alloc['recycled_amount']
 
         # Apply returns
@@ -174,10 +243,41 @@ class HydraCapitalManager:
         if catalyst_return != 0:
             self.catalyst_account *= (1 + catalyst_return)
 
-    def get_status(self) -> Dict:
-        """Get current status for logging/dashboard."""
+    # ============================================================
+    # NEW REGIME-AWARE HELPER METHODS (May 2026 Improvements)
+    # ============================================================
+
+    def get_regime_config(self, regime: str = "neutral") -> Dict:
+        """Return the configuration dict for a given regime."""
+        return REGIME_CONFIG.get(regime, REGIME_CONFIG["neutral"])
+
+    def should_allow_new_catalyst_entries(self, regime: str = "neutral") -> bool:
+        """Returns whether we should open new Catalyst positions in this regime."""
+        cfg = self.get_regime_config(regime)
+        return cfg.get("catalyst_new_entry_allowed", True)
+
+    def should_allow_new_efa_buys(self, regime: str = "neutral") -> bool:
+        """Returns whether we should buy new EFA in this regime."""
+        cfg = self.get_regime_config(regime)
+        return cfg.get("efa_new_buy_allowed", True)
+
+    def get_efa_sell_multiplier(self, regime: str = "neutral") -> float:
+        """How aggressively we should sell EFA to free capital."""
+        cfg = self.get_regime_config(regime)
+        return cfg.get("efa_sell_aggressiveness", 1.0)
+
+    def get_effective_max_compass_alloc(self, regime: str = "neutral") -> float:
+        """Returns the effective max COMPASS allocation after regime adjustment."""
+        cfg = self.get_regime_config(regime)
+        mult = cfg.get("max_compass_recycle_mult", 1.0)
+        return min(1.0, self.max_compass_alloc * mult)
+
+    def get_status(self, regime: str = "neutral") -> Dict:
+        """Get current status for logging/dashboard. Now includes regime info."""
         total = self.total_capital
-        return {
+        cfg = self.get_regime_config(regime)
+
+        status = {
             'total_capital': total,
             'compass_account': self.compass_account,
             'rattle_account': self.rattle_account,
@@ -190,7 +290,14 @@ class HydraCapitalManager:
             'recycling_frequency': self.total_recycled_days / max(self.total_days, 1),
             'efa_value': self.efa_value,
             'efa_pct': self.efa_value / total if total > 0 else 0,
+            # New regime-aware fields
+            'regime': regime,
+            'catalyst_new_entries_allowed': self.should_allow_new_catalyst_entries(regime),
+            'efa_new_buys_allowed': self.should_allow_new_efa_buys(regime),
+            'efa_sell_aggressiveness': self.get_efa_sell_multiplier(regime),
+            'effective_max_compass_alloc': self.get_effective_max_compass_alloc(regime),
         }
+        return status
 
     def to_dict(self) -> Dict:
         """Serialize state for persistence."""
@@ -224,3 +331,30 @@ class HydraCapitalManager:
         mgr.total_days = d.get('total_days', 0)
         mgr.efa_value = d.get('efa_value', 0.0)
         return mgr
+
+    def get_allocation_recommendations(self, rattle_exposure: float, regime: str = "neutral") -> Dict:
+        """
+        High-level recommendations for the engine/dashboard.
+        Useful for logging and decision making.
+        """
+        alloc = self.compute_allocation(rattle_exposure, regime=regime)
+        cfg = self.get_regime_config(regime)
+
+        recs = {
+            "regime": regime,
+            "recycle_to_compass": alloc['recycled_amount'] > 100,
+            "suggested_actions": []
+        }
+
+        if regime == "strong_us_momentum":
+            recs["suggested_actions"].append("Consider pausing new Catalyst and EFA positions")
+            recs["suggested_actions"].append("Aggressively recycle idle cash toward COMPASS")
+
+        if regime == "risk_off":
+            recs["suggested_actions"].append("Reduce recycling to COMPASS")
+            recs["suggested_actions"].append("Keep more capital available for Rattlesnake")
+
+        if self.efa_value > 5000 and not cfg["efa_new_buy_allowed"]:
+            recs["suggested_actions"].append("Consider selling some EFA to free capital for higher-conviction strategies")
+
+        return recs
