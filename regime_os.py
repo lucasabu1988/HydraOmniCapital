@@ -123,6 +123,26 @@ class RegimeScores:
     mean_reversion_opportunity: float = 0.5
 
 
+
+@dataclass(frozen=True)
+class StabilityParams:
+    """Tunable stability parameters for the Meta-Mode Classifier.
+
+    These control how aggressively the classifier resists rapid mode changes.
+    All values have conservative Phase 1 defaults.
+    """
+
+    ema_alpha: float = 0.35          # smoothing factor (higher = more responsive)
+    min_bars_in_mode: int = 4        # minimum consecutive bars before allowing exit
+    cooldown_bars: int = 3           # bars after exit before re-entry allowed
+
+    # Hysteresis deltas (enter threshold is stricter than exit by this amount)
+    hysteresis_mom: float = 0.08
+    hysteresis_breadth: float = 0.10
+    hysteresis_stress: float = 0.07
+    hysteresis_vol: float = 0.08
+
+
 class MetaMode(str, Enum):
     """Discrete high-level Meta-Modes produced by the Regime OS.
 
@@ -549,6 +569,9 @@ class BasicRegimeOS:
             'spy_close': pd.Series (or 'spy' DataFrame)
             'vix': pd.Series
             'breadth_metrics': dict from compute_breadth_metrics or equivalent
+
+        stability_params: optional StabilityParams for hysteresis, min duration,
+            cooldown, and EMA tuning (defaults to conservative Phase 1 values).
             (For Task 1.2 the as_of support is basic/latest-only; full
              historical slicing support will be hardened for Task 1.4.)
 
@@ -571,7 +594,11 @@ class BasicRegimeOS:
     + @runtime_checkable.
     """
 
-    def __init__(self, market_data: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        market_data: Optional[Dict[str, Any]] = None,
+        stability_params: Optional["StabilityParams"] = None,
+    ):
         self._market_data: Dict[str, Any] = market_data or {}
         # ---------------------------------------------------------------------
         # Task 1.3: Stateful stability machinery (live path only)
@@ -586,16 +613,19 @@ class BasicRegimeOS:
             "mom": 0.5, "breadth": 0.5, "stress": 0.5, "vol": 0.5,
             "liq": 0.5, "meanrev": 0.5,
         }
-        self._ema_alpha: float = 0.35  # moderate smoothing (higher = more responsive but still damped)
+        # Stability configuration (Task 1.3 polish)
+        if stability_params is None:
+            stability_params = StabilityParams()
+        self.stability = stability_params
 
-        # Tunable (but documented & conservative) stability parameters
-        self._MIN_BARS_IN_MODE: int = 4          # minimum consecutive bars before allowing exit
-        self._CONFIRM_BARS: int = 2              # confirmation window for entry after smoothing
-        self._COOLDOWN_BARS: int = 3             # bars after exit before re-entry allowed for same mode
-        self._HYSTERESIS_MOM: float = 0.08       # mom enter high, exit = enter - delta
-        self._HYSTERESIS_BREADTH: float = 0.10
-        self._HYSTERESIS_STRESS: float = 0.07
-        self._HYSTERESIS_VOL: float = 0.08
+        # Back-compat aliases (used by existing methods)
+        self._ema_alpha = self.stability.ema_alpha
+        self._MIN_BARS_IN_MODE = self.stability.min_bars_in_mode
+        self._COOLDOWN_BARS = self.stability.cooldown_bars
+        self._HYSTERESIS_MOM = self.stability.hysteresis_mom
+        self._HYSTERESIS_BREADTH = self.stability.hysteresis_breadth
+        self._HYSTERESIS_STRESS = self.stability.hysteresis_stress
+        self._HYSTERESIS_VOL = self.stability.hysteresis_vol
 
     def _get_latest_inputs(self) -> Dict[str, Any]:
         """Extract latest usable inputs (latest-only for Task 1.2)."""
