@@ -64,7 +64,26 @@ Task 2.2 (COMPLETE):
   full green + zero regressions on Stub / original contract.
 - StubMetaLayer left 100% untouched as the safe default.
 
-References now also include Task 2.2 tests and clarifications.
+Task 2.3 (IN PROGRESS — TDD red phase first):
+- New dedicated `PillarMultiplierParams` dataclass (per clarification) with
+  full tables for mode-driven scalers, score blend weights, per-pillar clamps,
+  and recycling rules (heavily parameterized, documented, versioned).
+- `RiskBudgetParams` now composes `pillar_params` (preferred source).
+- `compute_decision` signature extended with optional `active_modes` param
+  (default=None for 100% backward compat). Protocol + both implementations
+  updated.
+- Rich mapping (MetaModes + scores → pillar multipliers in ~[0.55,1.65] and
+  recycling_multiplier as direct scalar) implemented only AFTER writing
+  comprehensive failing behavioral tests (this file + test_meta_layer_risk.py).
+- Current RiskBudgetMetaLayer still emits the old minimal starters so the new
+  2.3 tests will start RED (strict TDD).
+- No changes to StubMetaLayer behavior.
+- No special behavioral modes (Task 2.4 scope).
+- Light HydraCapital compatibility notes only; full integration is Phase 4.
+- Per user: proposed full documented regime→pillar table lives in the test
+  module (as executable expectations) + implementation comments.
+
+References now also include Task 2.3 (this work) + user clarifications.
 """
 
 from dataclasses import dataclass, field
@@ -266,6 +285,175 @@ class RiskStabilityState:
     prev_gross: float
 
 
+# =============================================================================
+# TASK 2.3: PILLAR MULTIPLIER & RECYCLING PARAMS (NEW dedicated dataclass)
+# =============================================================================
+
+@dataclass(frozen=True)
+class PillarMultiplierParams:
+    """Heavily parameterized, interpretable configuration for pillar allocation
+    multipliers (COMPASS, Rattlesnake, Catalyst, EFA) and recycling intensity
+    modulation (Task 2.3).
+
+    This dataclass is the central tuning surface for the improved regime-aware
+    pillar logic. All thresholds, boosts, clamps, and blend weights live here
+    so behavior can be validated, swept in Task 5 harnesses, and evolved safely.
+
+    Design (per clarifications + design spec principles):
+    - Independent scalers (neutral = 1.0) in approximately [0.55, 1.65] range.
+    - Primary drivers: passed active MetaModes (preferred) + continuous scores.
+    - Fallback derivation of modes (using similar conservative thresholds to
+      RiskBudget's _get_mode_cap) when active_modes is None or empty.
+    - Blends discrete mode adjustments + continuous score contributions for
+      smooth, non-binary behavior.
+    - Recycling_multiplier is a direct scalar intended to compose (multiply)
+      with or eventually supersede the coarse REGIME_CONFIG in HydraCapitalManager.
+    - Conservative bias overall: large upside boosts only in high-conviction
+      favorable regimes; defensive reductions are present but not extreme.
+    - Full auditability via rich rationale in the returned Decision.
+    - No special behavioral modes (deferred to Task 2.4).
+
+    Versioning: travels in MetaLayerDecision and layer version string.
+
+    References:
+    - docs/superpowers/specs/2026-06-05-hydra-meta-layer-v1-design.md §6
+    - Task 2.3 approved implementation approach (clarified via ask_user_question)
+    - Existing starter logic in RiskBudgetMetaLayer (lines ~755) is replaced
+      by the rich mapping once tests are green.
+    """
+
+    # --- Versioning ---
+    version: str = "pillar-v1.0-multi-recycle-202606"
+    """Bumped for any material change to tables, weights, or clamps."""
+
+    # --- Mode-driven base adjustments (multiplicative scalers; 1.0 = neutral) ---
+    # These are applied when the corresponding MetaMode is active (or derived).
+    # Values chosen conservatively; larger moves only where regime strongly
+    # justifies (e.g. momentum pillars in strong broad momentum).
+    # Missing keys default to 1.0 inside the implementation.
+    mode_compass_mult: Dict[str, float] = field(
+        default_factory=lambda: {
+            "STRONG_BROAD_MOMENTUM": 1.29,
+            "POST_CRISIS_RECOVERY": 1.09,
+            "NARROW_MOMENTUM": 1.01,
+            "CRISIS_ACUTE": 0.82,
+            "ELEVATED_VOL_DEFENSIVE": 0.93,
+            "LIQUIDITY_STRESS": 0.95,
+            "MEAN_REVERSION_RICH": 0.90,
+        }
+    )
+    mode_rattlesnake_mult: Dict[str, float] = field(
+        default_factory=lambda: {
+            "MEAN_REVERSION_RICH": 1.42,
+            "ELEVATED_VOL_DEFENSIVE": 1.18,
+            "LIQUIDITY_STRESS": 1.12,
+            "POST_CRISIS_RECOVERY": 1.08,
+            "STRONG_BROAD_MOMENTUM": 0.84,
+            "CRISIS_ACUTE": 0.92,
+            "NARROW_MOMENTUM": 0.97,
+        }
+    )
+    mode_catalyst_mult: Dict[str, float] = field(
+        default_factory=lambda: {
+            "STRONG_BROAD_MOMENTUM": 0.72,
+            "NARROW_MOMENTUM": 0.88,
+            "CRISIS_ACUTE": 1.06,
+            "ELEVATED_VOL_DEFENSIVE": 1.09,
+            "LIQUIDITY_STRESS": 1.04,
+            "POST_CRISIS_RECOVERY": 0.95,
+            "MEAN_REVERSION_RICH": 0.98,
+        }
+    )
+    mode_efa_mult: Dict[str, float] = field(
+        default_factory=lambda: {
+            "STRONG_BROAD_MOMENTUM": 0.78,
+            "NARROW_MOMENTUM": 0.91,
+            "CRISIS_ACUTE": 1.03,
+            "ELEVATED_VOL_DEFENSIVE": 1.11,
+            "LIQUIDITY_STRESS": 1.07,
+            "POST_CRISIS_RECOVERY": 0.97,
+            "MEAN_REVERSION_RICH": 1.01,
+        }
+    )
+
+    # --- Continuous score blend coefficients (additive lift on top of mode base) ---
+    # Even when no exact mode fires, scores produce smooth modulation.
+    # Weights are small so mode signals dominate when present; normalized later.
+    score_compass_mom_weight: float = 0.38
+    score_compass_breadth_weight: float = 0.22
+    score_compass_inv_stress_weight: float = 0.25
+    score_compass_inv_vol_weight: float = 0.12
+
+    score_rattlesnake_mr_weight: float = 0.48
+    score_rattlesnake_inv_mom_weight: float = 0.28
+    score_rattlesnake_stress_weight: float = 0.12   # mild positive in stress (dips)
+
+    score_catalyst_inv_mom_weight: float = 0.35
+    score_catalyst_stress_weight: float = 0.30
+    score_catalyst_liq_weight: float = 0.18
+
+    score_efa_inv_mom_weight: float = 0.32
+    score_efa_stress_weight: float = 0.28
+    score_efa_liq_weight: float = 0.22
+
+    # Unified lift scale applied to all score-driven adjustments (Task 2.3 Code Quality polish)
+    # Promotes full parameterization and makes future tuning / harness sweeps much easier.
+    score_lift_scale: float = 0.42
+
+    # --- Per-pillar hard clamps (enforced after all adjustments) ---
+    compass_min: float = 0.55
+    compass_max: float = 1.58
+    rattlesnake_min: float = 0.58
+    rattlesnake_max: float = 1.62
+    catalyst_min: float = 0.60
+    catalyst_max: float = 1.25   # ring-fenced pillar; more conservative range
+    efa_min: float = 0.62
+    efa_max: float = 1.22
+
+    # --- Recycling modulation parameters (regime-aware intensity) ---
+    # recycling_multiplier = base * score_factor * mode_factor, then clamped.
+    # Intended as direct scalar (multiply with or supersede coarse REGIME_CONFIG).
+    recycle_conviction_high: float = 0.58
+    recycle_mom_high: float = 0.72
+    recycle_stress_high: float = 0.62
+    recycle_mr_high: float = 0.55
+    recycle_breadth_high: float = 0.60
+
+    recycle_favorable_base: float = 1.28
+    """Aggressive recycling when momentum/breadth strong + stress low."""
+    recycle_defensive_base: float = 0.71
+    """Conservative recycling in stress / crisis (preserve for Rattlesnake)."""
+    recycle_recovery_boost: float = 1.15
+    """Slight extra recycling in Post-Crisis Recovery to accelerate redeployment."""
+    recycle_mr_rich_dampen: float = 0.82
+    """Dampen recycling into COMPASS when mean-reversion environment is rich."""
+
+    recycle_min: float = 0.58
+    recycle_max: float = 1.48
+
+    # --- Derivation thresholds (for internal fallback mode list when not passed) ---
+    # Kept in sync with (but independent from) RiskBudgetParams.derivation for
+    # clean separation of the pillar sub-system.
+    derivation: Dict[str, float] = field(
+        default_factory=lambda: {
+            "strong_mom": 0.76,
+            "strong_breadth": 0.63,
+            "strong_stress_max": 0.32,
+            "strong_vol_max": 0.42,
+            "narrow_mom": 0.62,
+            "narrow_breadth_max": 0.40,
+            "crisis_stress": 0.78,
+            "elev_vol_or_stress": 0.59,
+            "recovery_stress_max": 0.58,
+            "recovery_mom_min": 0.48,
+            "recovery_mr_min": 0.44,
+            "liq_max": 0.35,
+            "mr_rich_mr_min": 0.51,
+            "mr_rich_mom_max": 0.52,
+        }
+    )
+
+
 @dataclass(frozen=True)
 class RiskBudgetParams:
     """All tunable parameters for asymmetric risk budgeting, Recovery Mode,
@@ -412,10 +600,25 @@ class RiskBudgetParams:
     """
 
     # --- Recycling & multiplier starters (Task 2.2 minimal; full in 2.3) ---
+    # NOTE (Task 2.3): The rich pillar + recycling logic now lives in the
+    # dedicated PillarMultiplierParams (composed below). These two legacy
+    # scalars are retained only for backward compatibility of existing
+    # RiskBudgetParams construction in tests; the RiskBudgetMetaLayer now
+    # prefers self.params.pillar_params for all multiplier/recycle decisions.
     base_recycle_mult_favorable: float = 1.12
-    """Recycling intensity when conditions are strongly favorable."""
+    """Legacy (Task 2.2). Rich behavior uses pillar_params.recycle_* fields."""
     base_recycle_mult_defensive: float = 0.78
-    """Recycling intensity when conditions are defensive/stressful."""
+    """Legacy (Task 2.2). Rich behavior uses pillar_params.recycle_* fields."""
+
+    # --- Task 2.3 composition: dedicated pillar/recycling config (preferred) ---
+    pillar_params: "PillarMultiplierParams" = field(
+        default_factory=lambda: PillarMultiplierParams()
+    )
+    """All pillar multiplier tables, score blend weights, clamps, and recycling
+    rules. New dedicated dataclass per clarification for separation of concerns.
+    RiskBudgetMetaLayer reads from here (not the legacy recycle scalars) when
+    computing the improved multipliers and recycling_multiplier.
+    """
 
 
 # =============================================================================
@@ -453,18 +656,27 @@ class MetaLayer(Protocol):
         scores: RegimeScores,
         portfolio: PortfolioState,
         performance: Optional[Dict[str, Any]] = None,
+        active_modes: Optional[List[Union[MetaMode, str]]] = None,
     ) -> MetaLayerDecision:
         """Produce a high-level allocation and risk directive.
 
         Args:
-            scores: The latest RegimeScores + active MetaModes from the
-                    upstream Regime OS (Phase 1). Never None.
+            scores: The latest RegimeScores from the upstream Regime OS (Phase 1).
+                    Never None.
             portfolio: Current portfolio snapshot (see PortfolioState).
                        Callers must not pass mutated objects.
             performance: Optional recent performance metrics (e.g.
                          {"ret_5d": -0.02, "sharpe_20d": 0.8, ...}).
                          May be None or a partial dict. Implementations must
                          degrade gracefully.
+            active_modes: Optional list of active MetaModes (or str risk tags)
+                          from RegimeOS.compute_regime(). When provided, the
+                          pillar multiplier logic (Task 2.3) uses these directly
+                          for the regime → multiplier mapping. When None or
+                          empty, the implementation falls back to internal
+                          score-driven derivation (compatible with pre-2.3
+                          callers). Added in Task 2.3; default preserves full
+                          backward compatibility for all existing call sites.
 
         Returns:
             A frozen MetaLayerDecision with directives for gross exposure,
@@ -481,6 +693,8 @@ class MetaLayer(Protocol):
             - The object must be safe to JSON-serialize for state/logs.
             - Must be deterministic given identical inputs (modulo any
               documented controlled randomness using SEED).
+            - (Task 2.3) When active_modes is supplied it takes precedence for
+              pillar/recycling decisions; derivation fallback is deterministic.
         """
         ...  # Protocol stub
 
@@ -533,8 +747,12 @@ class StubMetaLayer:
         scores: RegimeScores,
         portfolio: PortfolioState,
         performance: Optional[Dict[str, Any]] = None,
+        active_modes: Optional[List[Union[MetaMode, str]]] = None,
     ) -> MetaLayerDecision:
-        """Return the fixed neutral conservative decision (ignores inputs)."""
+        """Return the fixed neutral conservative decision (ignores inputs).
+        Task 2.3: accepts (and completely ignores) the new optional active_modes
+        argument for signature compatibility. Stub behavior is untouched.
+        """
         # Intentionally no logic, no use of inputs, no randomness.
         # All paths lead to the same safe default.
         try:
@@ -542,6 +760,7 @@ class StubMetaLayer:
             _ = scores  # touch to satisfy linters; value unused
             _ = portfolio
             _ = performance
+            _ = active_modes
         except Exception:
             pass  # never let bad data escape
 
@@ -608,8 +827,12 @@ class RiskBudgetMetaLayer:
         self._stable_bars: int = 0
 
     def get_version(self) -> str:
-        """Return implementation + params version for auditability."""
-        return f"0.2-risk-{self.params.version}"
+        """Return implementation + params version for auditability.
+        Task 2.3: includes pillar params version for full traceability.
+        """
+        pillar_v = getattr(self.params, "pillar_params", None)
+        pillar_str = pillar_v.version if pillar_v else "no-pillar"
+        return f"0.3-risk-pillar-{self.params.version}+{pillar_str}"
 
     @property
     def risk_stability_state(self) -> RiskStabilityState:
@@ -680,14 +903,192 @@ class RiskBudgetMetaLayer:
                 mom >= p.recovery_requires_mom and
                 (mr > 0.42 or portfolio.recent_return_5d > -0.03))
 
+    # -------------------------------------------------------------------------
+    # TASK 2.3 PRIVATE HELPERS: Pillar multiplier & recycling mapping
+    # -------------------------------------------------------------------------
+
+    def _derive_active_modes_for_pillars(self, scores: RegimeScores) -> List[str]:
+        """Internal conservative derivation (fallback when active_modes not supplied).
+        Mirrors the spirit of RiskBudget._get_mode_cap thresholds but uses the
+        dedicated PillarMultiplierParams.derivation for clean separation.
+        Returns list of upper-case mode name strings for table lookup.
+        """
+        p = self.params.pillar_params
+        d = p.derivation
+        mom = scores.equity_momentum_strength
+        br = scores.breadth_participation
+        stress = scores.stress_crisis_probability
+        vol = scores.volatility_regime
+        liq = scores.liquidity_macro_stance
+        mr = scores.mean_reversion_opportunity
+
+        modes: List[str] = []
+        if (mom > d.get("strong_mom", 0.76) and
+                br > d.get("strong_breadth", 0.63) and
+                stress < d.get("strong_stress_max", 0.32) and
+                vol < d.get("strong_vol_max", 0.42)):
+            modes.append("STRONG_BROAD_MOMENTUM")
+        if mom > d.get("narrow_mom", 0.62) and br < d.get("narrow_breadth_max", 0.40):
+            modes.append("NARROW_MOMENTUM")
+        if stress > d.get("crisis_stress", 0.78):
+            modes.append("CRISIS_ACUTE")
+        if stress > d.get("elev_vol_or_stress", 0.59) or vol > d.get("elev_vol_or_stress", 0.59):
+            modes.append("ELEVATED_VOL_DEFENSIVE")
+        if (stress < d.get("recovery_stress_max", 0.58) and
+                mom > d.get("recovery_mom_min", 0.48) and
+                mr > d.get("recovery_mr_min", 0.44)):
+            modes.append("POST_CRISIS_RECOVERY")
+        if liq < d.get("liq_max", 0.35):
+            modes.append("LIQUIDITY_STRESS")
+        if (mr > d.get("mr_rich_mr_min", 0.51) and
+                mom < d.get("mr_rich_mom_max", 0.52)):
+            modes.append("MEAN_REVERSION_RICH")
+        # Dedup preserving order
+        seen = set()
+        uniq = []
+        for m in modes:
+            if m not in seen:
+                seen.add(m)
+                uniq.append(m)
+        return uniq
+
+    def _compute_pillar_multipliers_and_recycle(
+        self,
+        scores: RegimeScores,
+        active_modes: List[Union[MetaMode, str]],
+        pillar_p: PillarMultiplierParams,
+    ) -> tuple:
+        """Core Task 2.3: produce multipliers dict + recycling_multiplier + rationale snippet.
+        Uses passed modes (preferred) or derivation fallback + continuous score blends.
+        All heavily parameterized via pillar_p. Returns (mults, recycle, rationale_part).
+        """
+        # Normalize incoming modes to upper string keys for table lookup
+        mode_names: List[str] = []
+        for m in (active_modes or []):
+            name = str(m).upper().replace(" ", "_") if not isinstance(m, str) else m.upper().replace(" ", "_")
+            if name not in mode_names:
+                mode_names.append(name)
+
+        # Fallback derivation if nothing supplied
+        if not mode_names:
+            mode_names = self._derive_active_modes_for_pillars(scores)
+
+        mom = scores.equity_momentum_strength
+        br = scores.breadth_participation
+        stress = scores.stress_crisis_probability
+        vol = scores.volatility_regime
+        liq = scores.liquidity_macro_stance
+        mr = scores.mean_reversion_opportunity
+
+        # Start neutral
+        mults = {
+            "COMPASS": 1.0,
+            "Rattlesnake": 1.0,
+            "Catalyst": 1.0,
+            "EFA": 1.0,
+        }
+
+        # 1. Apply discrete mode-driven scalers (multiplicative)
+        for pillar_key, table in [
+            ("COMPASS", pillar_p.mode_compass_mult),
+            ("Rattlesnake", pillar_p.mode_rattlesnake_mult),
+            ("Catalyst", pillar_p.mode_catalyst_mult),
+            ("EFA", pillar_p.mode_efa_mult),
+        ]:
+            for mname in mode_names:
+                if mname in table:
+                    mults[pillar_key] *= table[mname]
+
+        # 2. Continuous score-driven additive lifts (small, smooth, always-on)
+        # COMPASS
+        compass_lift = (
+            pillar_p.score_compass_mom_weight * (mom - 0.5) * 2.0 +
+            pillar_p.score_compass_breadth_weight * (br - 0.5) * 2.0 +
+            pillar_p.score_compass_inv_stress_weight * (0.5 - stress) * 2.0 +
+            pillar_p.score_compass_inv_vol_weight * (0.5 - vol) * 2.0
+        )
+        mults["COMPASS"] = mults["COMPASS"] * (1.0 + compass_lift * pillar_p.score_lift_scale)
+
+        # Rattlesnake
+        rattle_lift = (
+            pillar_p.score_rattlesnake_mr_weight * (mr - 0.5) * 2.0 +
+            pillar_p.score_rattlesnake_inv_mom_weight * (0.5 - mom) * 2.0 +
+            pillar_p.score_rattlesnake_stress_weight * (stress - 0.5) * 1.2
+        )
+        mults["Rattlesnake"] = mults["Rattlesnake"] * (1.0 + rattle_lift * pillar_p.score_lift_scale)
+
+        # Catalyst
+        cat_lift = (
+            pillar_p.score_catalyst_inv_mom_weight * (0.5 - mom) * 2.0 +
+            pillar_p.score_catalyst_stress_weight * (stress - 0.4) * 1.3 +
+            pillar_p.score_catalyst_liq_weight * (0.5 - liq) * 1.8
+        )
+        mults["Catalyst"] = mults["Catalyst"] * (1.0 + cat_lift * pillar_p.score_lift_scale)
+
+        # EFA
+        efa_lift = (
+            pillar_p.score_efa_inv_mom_weight * (0.5 - mom) * 2.0 +
+            pillar_p.score_efa_stress_weight * (stress - 0.4) * 1.3 +
+            pillar_p.score_efa_liq_weight * (0.5 - liq) * 1.6
+        )
+        mults["EFA"] = mults["EFA"] * (1.0 + efa_lift * pillar_p.score_lift_scale)
+
+        # 3. Clamps (per pillar)
+        mults["COMPASS"] = max(pillar_p.compass_min, min(pillar_p.compass_max, mults["COMPASS"]))
+        mults["Rattlesnake"] = max(pillar_p.rattlesnake_min, min(pillar_p.rattlesnake_max, mults["Rattlesnake"]))
+        mults["Catalyst"] = max(pillar_p.catalyst_min, min(pillar_p.catalyst_max, mults["Catalyst"]))
+        mults["EFA"] = max(pillar_p.efa_min, min(pillar_p.efa_max, mults["EFA"]))
+
+        # 4. Recycling intensity (regime-aware direct scalar)
+        # Base selection
+        conviction = (0.40 * mom + 0.30 * br + 0.20 * (1.0 - stress) + 0.10 * (1.0 - vol))
+        conviction = max(0.0, min(1.0, conviction))
+
+        if conviction >= pillar_p.recycle_conviction_high and stress < pillar_p.recycle_stress_high:
+            recycle = pillar_p.recycle_favorable_base
+        else:
+            recycle = pillar_p.recycle_defensive_base
+
+        # Score adjustments
+        if mom > pillar_p.recycle_mom_high and br > pillar_p.recycle_breadth_high:
+            recycle *= 1.05
+        if mr > pillar_p.recycle_mr_high and mom < 0.55:
+            recycle *= pillar_p.recycle_mr_rich_dampen
+        if stress > 0.70:
+            recycle *= 0.91
+        if "POST_CRISIS_RECOVERY" in mode_names or "RECOVERY" in " ".join(mode_names):
+            recycle *= pillar_p.recycle_recovery_boost
+
+        recycle = max(pillar_p.recycle_min, min(pillar_p.recycle_max, recycle))
+
+        # 5. Rationale snippet (interpretable)
+        mode_str = ", ".join(mode_names) if mode_names else "derived-neutral"
+        rat_parts = [
+            f"PILLARS: COMPASS {mults['COMPASS']:.2f} RATTLESNAKE {mults['Rattlesnake']:.2f} "
+            f"CATALYST {mults['Catalyst']:.2f} EFA {mults['EFA']:.2f} (modes: {mode_str})",
+            f"RECYCLE {recycle:.2f} (conv={conviction:.2f} mom={mom:.2f} stress={stress:.2f} mr={mr:.2f})",
+        ]
+        rat_part = "; ".join(rat_parts)
+
+        return mults, round(recycle, 3), rat_part
+
     def compute_decision(
         self,
         scores: RegimeScores,
         portfolio: PortfolioState,
         performance: Optional[Dict[str, Any]] = None,
+        active_modes: Optional[List[Union[MetaMode, str]]] = None,
     ) -> MetaLayerDecision:
-        """Core Task 2.2 risk logic — fully parameterized and fail-safe."""
+        """Core risk + (Task 2.3) pillar multiplier & recycling logic.
+
+        Task 2.3 extension: accepts optional active_modes (from RegimeOS).
+        When supplied, they drive the rich pillar/recycling mapping via
+        PillarMultiplierParams. When absent, internal derivation is used.
+        The improved mapping (replacing the 2.2 starter block) is implemented
+        after the TDD red phase for the new behavioral tests.
+        """
         p = self.params
+        pillar_p = getattr(p, "pillar_params", PillarMultiplierParams())
         try:
             # Touch inputs for safety (never trust caller data)
             if scores is None:
@@ -696,6 +1097,8 @@ class RiskBudgetMetaLayer:
                 portfolio = PortfolioState()
             if performance is None:
                 performance = {}
+            if active_modes is None:
+                active_modes = []
 
             # 1. Base cap from regime-dependent budgets
             base_cap = self._get_mode_cap(scores)
@@ -752,14 +1155,13 @@ class RiskBudgetMetaLayer:
             self._prev_gross = target
             self._stable_bars = self._stable_bars + 1 if abs(target - raw_target) < 0.015 else 0
 
-            # 7. Simple pillar/recycling modulation (starters for 2.3; conservative)
-            recycle_mult = p.base_recycle_mult_favorable if conviction > 0.55 else p.base_recycle_mult_defensive
-            mults = {
-                "COMPASS": 1.0,
-                "Rattlesnake": 1.05 if (scores.mean_reversion_opportunity > 0.55) else 0.95,
-                "Catalyst": 0.85 if stress > 0.60 else 1.0,
-                "EFA": 0.80 if stress > 0.55 else 1.0,
-            }
+            # 7. Task 2.3: Rich pillar multiplier + recycling modulation
+            # Uses passed active_modes (from RegimeOS) or internal derivation +
+            # continuous score blends. Fully parameterized via pillar_p.
+            # Replaces the old 2.2 starter block.
+            mults, recycle_mult, pillar_rat = self._compute_pillar_multipliers_and_recycle(
+                scores, active_modes, pillar_p
+            )
 
             # 8. Active modes / risk tags (support str tags per clarification)
             tags: List[Union[MetaMode, str]] = []
@@ -774,8 +1176,14 @@ class RiskBudgetMetaLayer:
             conf = 0.45 + 0.35 * abs(conviction - 0.5) * 2 + 0.20 * (1.0 - min(1.0, velocity * 30))
             conf = max(0.25, min(0.92, conf))
 
+            # Merge pillar modes (Task 2.3) into active_modes for audit (keep risk tags)
+            for mname in (active_modes or []):
+                if mname not in tags:
+                    tags.append(mname)
+
             rationale = "; ".join(rationale_parts) or "Neutral risk budget (no special rule dominant)"
             rationale += f" | cap={base_cap:.2f} vel={velocity:.3f} conv={conviction:.2f}"
+            rationale += f" || {pillar_rat}"
 
             return MetaLayerDecision(
                 gross_exposure=round(target, 4),
@@ -813,6 +1221,7 @@ __all__ = [
     "StubMetaLayer",
     "RiskBudgetParams",
     "RiskBudgetMetaLayer",
+    "PillarMultiplierParams",   # NEW Task 2.3
     "SEED",
 ]
 
