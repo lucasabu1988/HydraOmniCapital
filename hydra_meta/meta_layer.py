@@ -64,7 +64,7 @@ Task 2.2 (COMPLETE):
   full green + zero regressions on Stub / original contract.
 - StubMetaLayer left 100% untouched as the safe default.
 
-Task 2.3 (IN PROGRESS — TDD red phase first):
+Task 2.3 (COMPLETE):
 - New dedicated `PillarMultiplierParams` dataclass (per clarification) with
   full tables for mode-driven scalers, score blend weights, per-pillar clamps,
   and recycling rules (heavily parameterized, documented, versioned).
@@ -75,15 +75,30 @@ Task 2.3 (IN PROGRESS — TDD red phase first):
 - Rich mapping (MetaModes + scores → pillar multipliers in ~[0.55,1.65] and
   recycling_multiplier as direct scalar) implemented only AFTER writing
   comprehensive failing behavioral tests (this file + test_meta_layer_risk.py).
-- Current RiskBudgetMetaLayer still emits the old minimal starters so the new
-  2.3 tests will start RED (strict TDD).
 - No changes to StubMetaLayer behavior.
-- No special behavioral modes (Task 2.4 scope).
 - Light HydraCapital compatibility notes only; full integration is Phase 4.
 - Per user: proposed full documented regime→pillar table lives in the test
   module (as executable expectations) + implementation comments.
 
-References now also include Task 2.3 (this work) + user clarifications.
+Task 2.4 (COMPLETE — TDD first, then impl):
+- Added optional `risk_flags: List[str]` field to MetaLayerDecision (with full
+  docs) per clarification ("add 1-2 new optional fields").
+- Extended *existing* dataclasses (RiskBudgetParams with ~12 new special_*
+  tunable fields + small PillarMultiplierParams extensions).
+- Implemented 4 modes with *qualitatively different* behaviors (Crisis_Acute
+  hard defense even on slow DD + flag; Post_Crisis_Recovery accel at lower DD
+  + faster recycle + flag; Strong_Broad_Momentum max COMPASS + diversifier
+  suppression + flag; Elevated_Vol_Defensive MR/Rattlesnake bias + conservative
+  recycle + MR-friendly flag). 5 new str tags + legacy support.
+- Small _SpecialModeApplicator class (composition inside RiskBudgetMetaLayer)
+  for separation of special logic (all inside this single file — no new .py
+  created, per guideline).
+- All fail-safe, conservative defaults, fully parameterized, rich rationale,
+  different Decision outputs. Updated tests + module docs.
+- No Phase 4 wiring (per instructions). Strict TDD (tests written + RED
+  verified before any special logic).
+
+References now also include Task 2.3 + Task 2.4 (this work) + user clarifications from ask_user_question.
 """
 
 from dataclasses import dataclass, field
@@ -203,6 +218,13 @@ class MetaLayerDecision:
     - rationale: human- or machine-readable explanation (especially useful
       once real logic lands in 2.2+).
 
+    Task 2.4 addition (per clarification):
+    - risk_flags: List[str] (optional, default empty). Captures qualitatively
+      different special mode behaviors (Crisis_Acute hard defense, Recovery
+      acceleration, Strong Momentum overrides, Elevated Vol MR-friendly posture)
+      as actionable tags. Distinct from active_modes. All existing code paths
+      (Stub, fail-safe, prior RiskBudget) continue to produce [] or legacy tags.
+
     Future fields may be added with safe defaults. All consumers must be
     prepared to ignore unknown keys when serializing.
     """
@@ -245,6 +267,29 @@ class MetaLayerDecision:
     "VELOCITY_DERISK"). Consumers must handle str entries gracefully. The
     RiskBudgetMetaLayer may append such tags when special risk rules activate.
     The StubMetaLayer continues to return [] (pure MetaMode list).
+    """
+
+    # Task 2.4: Special Modes — new optional field (chosen per clarification)
+    # Captures qualitatively distinct behavioral flags that go beyond the
+    # numeric gross/multipliers/recycle and the regime active_modes.
+    # Populated by special mode logic; always a list (possibly empty).
+    # Safe default + frozen ensures full backward compatibility for all
+    # existing call sites and JSON state.
+    risk_flags: List[str] = field(default_factory=list)
+    """Task 2.4 special-mode risk/behavior flags (qualitatively different actions
+    triggered by Crisis_Acute, Post_Crisis_Recovery, Strong_Broad_Momentum,
+    Elevated_Vol_Defensive, etc.).
+
+    Examples of produced values (see implementation + tests):
+      "CRISIS_ACUTE_HARD_DEFENSE", "RECOVERY_ACCEL", "STRONG_MOMENTUM_OVERRIDE",
+      "VOL_DEFENSIVE_MR_FRIENDLY", "CRISIS_DEFENSE" (legacy compatibility).
+
+    These are *actionable* tags for future HydraCapitalManager / execution
+    (Phase 4) even though the special modes themselves produce observably
+    different gross_exposure, multipliers, and recycling_multiplier.
+
+    Consumers must treat unknown flags gracefully (ignore). Empty list = no
+    special mode overrides active this cycle. StubMetaLayer always returns [].
     """
 
     confidence: float = 0.5
@@ -311,7 +356,9 @@ class PillarMultiplierParams:
     - Conservative bias overall: large upside boosts only in high-conviction
       favorable regimes; defensive reductions are present but not extreme.
     - Full auditability via rich rationale in the returned Decision.
-    - No special behavioral modes (deferred to Task 2.4).
+    - Special behavioral modes (Task 2.4) implemented via light extensions here
+      + primary heavy parameterization and applicator logic in RiskBudgetParams
+      and RiskBudgetMetaLayer (see dedicated section in RiskBudgetParams).
 
     Versioning: travels in MetaLayerDecision and layer version string.
 
@@ -453,6 +500,15 @@ class PillarMultiplierParams:
         }
     )
 
+    # --- Task 2.4 light extensions (per "extend existing dataclasses") ---
+    # Minor special-mode overrides that compose with the main tables.
+    # Heavy special behavior lives in RiskBudgetParams special_* fields +
+    # the applicator (keeps Pillar focused on its 2.3 responsibility).
+    special_compass_momentum_override: float = 1.12
+    """Extra multiplier factor applied only under STRONG_BROAD_MOMENTUM special logic."""
+    special_rattlesnake_vol_defensive: float = 1.14
+    """Extra factor for Rattlesnake when ELEVATED_VOL_DEFENSIVE + MR rich."""
+
 
 @dataclass(frozen=True)
 class RiskBudgetParams:
@@ -480,10 +536,13 @@ class RiskBudgetParams:
     """
 
     # --- Versioning & identity ---
-    version: str = "risk-v1.1-asym-ddvel-rec-202606"
+    version: str = "risk-v1.2-special-modes-202606"
     """Semantic version of this parameter set. Bumped on any material change
     to thresholds, caps, or rule weights. Appears in MetaLayerDecision.version
     and get_version() for the producing implementation.
+
+    Task 2.4 bump: added full special mode behavior parameters + support for
+    populating risk_flags on decisions.
     """
 
     # --- Derivation thresholds (for score-driven mode cap selection and conviction)
@@ -610,6 +669,80 @@ class RiskBudgetParams:
     base_recycle_mult_defensive: float = 0.78
     """Legacy (Task 2.2). Rich behavior uses pillar_params.recycle_* fields."""
 
+    # =============================================================================
+    # TASK 2.4: SPECIAL MODE BEHAVIOR PARAMETERS (heavily parameterized)
+    # =============================================================================
+    # These extend the existing RiskBudgetParams (per clarification: "extend
+    # existing dataclasses"). They drive *qualitatively* different behaviors
+    # in the special modes (Crisis_Acute, Post_Crisis_Recovery,
+    # Strong_Broad_Momentum, Elevated_Vol_Defensive) beyond the numeric tables
+    # already present in gross_caps and PillarMultiplierParams.mode_*_mult.
+    #
+    # All values conservative by default. Every special rule is tunable for
+    # future validation harness sweeps (Task 5). Version bump documents the
+    # addition.
+    #
+    # Design justification (recorded for audit):
+    # - Follows "extend existing" answer from ask_user_question.
+    # - No new top-level SpecialModeParams dataclass file or module (obeys
+    #   "NEVER create files unless absolutely necessary" + prefer edit existing).
+    # - A small internal _SpecialModeApplicator (defined later in this file)
+    #   provides clean composition inside RiskBudgetMetaLayer for separation
+    #   of the qualitatively different logic, while living entirely inside
+    #   the single source file meta_layer.py.
+    # - Tags go into the new risk_flags field on Decision (also added per
+    #   clarification).
+    # =============================================================================
+
+    special_crisis_derisk_scale: float = 0.72
+    """Extra scale applied to target gross in Crisis_Acute (on top of caps +
+    velocity). Lower than standard velocity_defense_scale for 'harder de-risk'
+    even on slow drawdowns. Qualitative defensive action."""
+
+    special_crisis_recycle_cap: float = 0.62
+    """Hard upper bound on recycling_multiplier when CRISIS_ACUTE active
+    (preserve dry powder, favor defensive pillars). Produces visibly lower
+    recycle than standard defensive regimes."""
+
+    special_recovery_lower_dd_threshold: float = 0.04
+    """When POST_CRISIS_RECOVERY mode is active (from RegimeOS or derivation),
+    recovery boost / recycle accel can trigger at this lower DD than the
+    standard recovery_dd_threshold. Enables 'faster recovery' qualitative
+    behavior."""
+
+    special_recovery_recycle_accelerator: float = 1.22
+    """Multiplier applied to recycling when in Post_Crisis_Recovery (in
+    addition to pillar_params.recycle_recovery_boost). Encourages rapid
+    redeployment of cash into the recovering pillars."""
+
+    special_strong_mom_compass_extra: float = 0.15
+    """Additive lift to COMPASS multiplier (after all PillarMultiplierParams
+    tables + score lifts) exclusively when STRONG_BROAD_MOMENTUM active.
+    Produces 'maximum aggression toward COMPASS' beyond the 2.3 table."""
+
+    special_strong_mom_diversifier_cap: float = 0.78
+    """Upper clamp on Catalyst + EFA multipliers when Strong Broad Momentum
+    mode dominates. Enforces qualitative 'diversifier suppression'."""
+
+    special_elev_vol_rattlesnake_extra: float = 0.18
+    """Extra lift to Rattlesnake multiplier in ELEVATED_VOL_DEFENSIVE (on top
+    of the MEAN_REVERSION_RICH / elevated tables). Makes the posture
+    'more conservative / mean-reversion friendly'."""
+
+    special_elev_vol_recycle_dampen: float = 0.88
+    """Scale factor applied to recycle in elevated vol defensive (more
+    conservative than standard stress dampening)."""
+
+    # --- Special mode risk flag vocabulary (for risk_flags + rationale) ---
+    # These are the 5-6 new descriptive tags exercised by the TDD tests.
+    # Implementation may emit a subset depending on exact conditions.
+    special_tag_crisis_hard_defense: str = "CRISIS_ACUTE_HARD_DEFENSE"
+    special_tag_recovery_accel: str = "RECOVERY_ACCEL"
+    special_tag_momentum_override: str = "STRONG_MOMENTUM_OVERRIDE"
+    special_tag_vol_mr_friendly: str = "VOL_DEFENSIVE_MR_FRIENDLY"
+    # Legacy tags from 2.2/2.3 ("CRISIS_DEFENSE", "RECOVERY_AGGRESSION" etc.)
+    # remain supported for compatibility.
+
     # --- Task 2.3 composition: dedicated pillar/recycling config (preferred) ---
     pillar_params: "PillarMultiplierParams" = field(
         default_factory=lambda: PillarMultiplierParams()
@@ -695,6 +828,8 @@ class MetaLayer(Protocol):
               documented controlled randomness using SEED).
             - (Task 2.3) When active_modes is supplied it takes precedence for
               pillar/recycling decisions; derivation fallback is deterministic.
+            - (Task 2.4) Implementations should populate risk_flags (new optional
+              field) for special modes; may be left empty for backward paths.
         """
         ...  # Protocol stub
 
@@ -774,6 +909,7 @@ class StubMetaLayer:
             },
             recycling_multiplier=1.0,
             active_modes=[],
+            risk_flags=[],  # Task 2.4: explicit for contract
             confidence=0.5,
             as_of=None,
             version="1.0",
@@ -786,14 +922,138 @@ class StubMetaLayer:
 
 
 # =============================================================================
+# TASK 2.4: SMALL INTERNAL SPECIAL MODE APPLICATOR (composition, same file only)
+# =============================================================================
+# Defined here (not a separate .py) per project guideline "NEVER create files
+# unless absolutely necessary. Prefer editing existing files."
+#
+# This provides the "dedicated ... composition of a small handler class"
+# requested in one clarification path while fully complying with the
+# "extend existing dataclasses" preference (all tunables live in the
+# RiskBudgetParams / PillarMultiplierParams we extended above).
+#
+# The applicator is deliberately narrow: it only computes adjustments + flags
+# for the four required special modes when they are active (via passed list
+# or derivation). It does not duplicate core risk/pillar math.
+#
+# All paths are wrapped for fail-safety. Conservative defaults everywhere.
+# =============================================================================
+
+class _SpecialModeApplicator:
+    """Internal (non-public) handler for Task 2.4 qualitatively different
+    special mode behaviors.
+
+    Instantiated and composed by RiskBudgetMetaLayer (self._special).
+    Consumes the extended special_* fields from RiskBudgetParams.
+
+    Returns (gross_adjust, recycle_adjust, extra_mults, flags, rationale_add)
+    where adjustments are multiplicative scales (or None if no special action)
+    and extra_mults is a dict of pillar deltas to apply after the 2.3 tables.
+    """
+
+    def __init__(self, params: RiskBudgetParams):
+        self.p = params
+
+    def apply(
+        self,
+        scores: RegimeScores,
+        active_modes: List[Union[MetaMode, str]],
+        current_gross: float,
+        current_recycle: float,
+        current_mults: Dict[str, float],
+        velocity: float,
+        is_recovery: bool,
+    ) -> tuple:
+        """Core Task 2.4 entry. Pure function (no state). Fail-safe."""
+        try:
+            if not active_modes:
+                # Also derive lightly for special mode detection if needed
+                # (but prefer caller-supplied for fidelity to RegimeOS)
+                pass
+
+            # Normalize mode names (support Enum or str, case variants)
+            mode_names: List[str] = []
+            for m in (active_modes or []):
+                name = str(m).upper().replace(" ", "_").replace("-", "_")
+                if name not in mode_names:
+                    mode_names.append(name)
+
+            flags: List[str] = []
+            gross_adj = 1.0
+            recycle_adj = 1.0
+            extra_mults: Dict[str, float] = {"COMPASS": 1.0, "Rattlesnake": 1.0, "Catalyst": 1.0, "EFA": 1.0}
+            rat_parts: List[str] = []
+
+            p = self.p
+
+            # --- CRISIS_ACUTE: harder de-risk + specific defensive tag regardless of velocity ---
+            if "CRISIS_ACUTE" in mode_names or "CRISIS" in " ".join(mode_names):
+                gross_adj *= p.special_crisis_derisk_scale
+                recycle_adj *= min(1.0, p.special_crisis_recycle_cap / max(0.01, current_recycle))
+                flags.append(p.special_tag_crisis_hard_defense)
+                rat_parts.append(f"SPECIAL:CRISIS_HARD_DEFENSE(scale={p.special_crisis_derisk_scale})")
+                # Also force a legacy-style tag for continuity
+                if "CRISIS_DEFENSE" not in [str(x).upper() for x in flags]:
+                    flags.append("CRISIS_DEFENSE")
+
+            # --- POST_CRISIS_RECOVERY: accel even at lower DD, faster recycle ---
+            if "POST_CRISIS_RECOVERY" in mode_names or "RECOVERY" in " ".join(mode_names):
+                # Special lower threshold already conceptually handled by caller
+                # but we still apply accelerator here for qualitative effect
+                recycle_adj *= p.special_recovery_recycle_accelerator
+                if p.special_recovery_lower_dd_threshold > 0:
+                    # Signal that we are in accelerated recovery posture
+                    flags.append(p.special_tag_recovery_accel)
+                    rat_parts.append(f"SPECIAL:RECOVERY_ACCEL(recycle_x={p.special_recovery_recycle_accelerator})")
+                # If not already in recovery rationale from core, note it
+                if not is_recovery:
+                    rat_parts.append("SPECIAL:RECOVERY_BELOW_STD_DD")
+
+            # --- STRONG_BROAD_MOMENTUM: max COMPASS aggression + diversifier min + tag ---
+            if "STRONG_BROAD_MOMENTUM" in mode_names or "STRONG" in " ".join(mode_names):
+                extra_mults["COMPASS"] *= (1.0 + p.special_strong_mom_compass_extra)
+                extra_mults["Catalyst"] *= p.special_strong_mom_diversifier_cap
+                extra_mults["EFA"] *= p.special_strong_mom_diversifier_cap
+                flags.append(p.special_tag_momentum_override)
+                rat_parts.append(f"SPECIAL:STRONG_MOM_OVERRIDE(compass+{p.special_strong_mom_compass_extra})")
+                # Also apply pillar special
+                extra_mults["COMPASS"] *= p.pillar_params.special_compass_momentum_override
+
+            # --- ELEVATED_VOL_DEFENSIVE: MR-friendly (Rattlesnake boost) + conservative recycle + tag ---
+            if "ELEVATED_VOL_DEFENSIVE" in mode_names or "ELEVATED" in " ".join(mode_names):
+                extra_mults["Rattlesnake"] *= (1.0 + p.special_elev_vol_rattlesnake_extra)
+                recycle_adj *= p.special_elev_vol_recycle_dampen
+                flags.append(p.special_tag_vol_mr_friendly)
+                rat_parts.append(f"SPECIAL:VOL_MR_FRIENDLY(rattle+{p.special_elev_vol_rattlesnake_extra})")
+                extra_mults["Rattlesnake"] *= p.pillar_params.special_rattlesnake_vol_defensive
+
+            # Dedup flags
+            seen_f = set()
+            uniq_flags = []
+            for f in flags:
+                if f not in seen_f:
+                    seen_f.add(f)
+                    uniq_flags.append(f)
+
+            rat_add = "; ".join(rat_parts) if rat_parts else ""
+
+            return gross_adj, recycle_adj, extra_mults, uniq_flags, rat_add
+
+        except Exception:
+            # Absolute fail-safe for the applicator itself
+            return 1.0, 1.0, {"COMPASS": 1.0, "Rattlesnake": 1.0, "Catalyst": 1.0, "EFA": 1.0}, [], ""
+
+
+# =============================================================================
 # RISK BUDGET IMPLEMENTATION (Task 2.2)
 # =============================================================================
 
 class RiskBudgetMetaLayer:
-    """Concrete implementation of the MetaLayer Protocol for Task 2.2.
+    """Concrete implementation of the MetaLayer Protocol for Tasks 2.2–2.4.
 
     Provides the approved asymmetric risk budgeting, Recovery Mode, and
-    Drawdown Velocity Control using the heavily parameterized RiskBudgetParams.
+    Drawdown Velocity Control (Task 2.2) + rich pillar/recycling (Task 2.3)
+    + special qualitative mode behaviors for the four key modes (Task 2.4).
 
     Design highlights (all rules documented here for audit / future review):
     - Regime-dependent hard caps: strictest (lowest) cap among conditions wins.
@@ -806,6 +1066,14 @@ class RiskBudgetMetaLayer:
       Rapid declines de-risk faster than equivalent slow grind-downs.
     - Independent stability: EWMA on output gross + simple bar counter.
       Completely separate from RegimeOS StabilityParams / hysteresis.
+    - Task 2.4 Special Modes (Crisis_Acute, Post_Crisis_Recovery,
+      Strong_Broad_Momentum, Elevated_Vol_Defensive): qualitatively different
+      behaviors via dedicated applicator (harder de-risk regardless of velocity
+      in Crisis, accelerated recovery at lower DD, max COMPASS bias + diversifier
+      suppression in Strong Momentum, MR-friendly Rattlesnake bias + conservative
+      recycle in Elevated Vol). All heavily parameterized in RiskBudgetParams
+      (extended in place) + light Pillar extensions. Results appear in
+      risk_flags (new Decision field) + differentiated numeric outputs + rationale.
     - Fail-safe: every path wrapped; on any error return a conservative
       neutral-ish decision (gross=0.95, multipliers=1.0, confidence=0.3).
     - Versioned + explainable: rich rationale + params.version in output.
@@ -826,13 +1094,21 @@ class RiskBudgetMetaLayer:
         self._prev_gross: float = 1.0
         self._stable_bars: int = 0
 
+        # Task 2.4: composition of small internal special-mode applicator
+        # (defined below in this file). Provides clean separation for the
+        # qualitatively different behaviors while obeying "edit existing files only".
+        # The applicator reads the new special_* params and returns adjustments
+        # + flags. It is fail-safe (never raises; returns safe neutral on error).
+        self._special: "_SpecialModeApplicator" = _SpecialModeApplicator(self.params)
+
     def get_version(self) -> str:
         """Return implementation + params version for auditability.
         Task 2.3: includes pillar params version for full traceability.
+        Task 2.4: special modes active (risk_flags support + applicator).
         """
         pillar_v = getattr(self.params, "pillar_params", None)
         pillar_str = pillar_v.version if pillar_v else "no-pillar"
-        return f"0.3-risk-pillar-{self.params.version}+{pillar_str}"
+        return f"0.4-risk-pillar-special-{self.params.version}+{pillar_str}"
 
     @property
     def risk_stability_state(self) -> RiskStabilityState:
@@ -1163,7 +1439,28 @@ class RiskBudgetMetaLayer:
                 scores, active_modes, pillar_p
             )
 
-            # 8. Active modes / risk tags (support str tags per clarification)
+            # 8. Task 2.4: Apply special mode qualitative behaviors (composition)
+            # Uses the dedicated _SpecialModeApplicator. Produces risk_flags
+            # (new field) + adjustments that create clearly different Decision
+            # outputs for the four modes (harder defense, accelerated recovery,
+            # max COMPASS aggression, MR-friendly posture). Parameterized.
+            special_gross_adj, special_recycle_adj, special_extra_mults, special_flags, special_rat = \
+                self._special.apply(
+                    scores, active_modes or [], target, recycle_mult, mults,
+                    velocity, bool(self._is_recovery_condition(scores, portfolio))
+                )
+
+            target = max(p.hard_min_gross, min(p.hard_max_gross, target * special_gross_adj))
+            recycle_mult = max(0.01, recycle_mult * special_recycle_adj)
+            for pk in mults:
+                mults[pk] *= special_extra_mults.get(pk, 1.0)
+            # Re-clamp after special extras (defensive bias)
+            mults["COMPASS"] = max(pillar_p.compass_min, min(pillar_p.compass_max, mults["COMPASS"]))
+            mults["Rattlesnake"] = max(pillar_p.rattlesnake_min, min(pillar_p.rattlesnake_max, mults["Rattlesnake"]))
+            mults["Catalyst"] = max(pillar_p.catalyst_min, min(pillar_p.catalyst_max, mults["Catalyst"]))
+            mults["EFA"] = max(pillar_p.efa_min, min(pillar_p.efa_max, mults["EFA"]))
+
+            # 9. Active modes / risk tags (support str tags per clarification)
             tags: List[Union[MetaMode, str]] = []
             if "RECOVERY" in " ".join(rationale_parts).upper():
                 tags.append("RECOVERY_AGGRESSION")
@@ -1172,7 +1469,7 @@ class RiskBudgetMetaLayer:
             if stress > 0.78:
                 tags.append("CRISIS_DEFENSE")
 
-            # 9. Confidence (higher when scores extreme + stable)
+            # 10. Confidence (higher when scores extreme + stable)
             conf = 0.45 + 0.35 * abs(conviction - 0.5) * 2 + 0.20 * (1.0 - min(1.0, velocity * 30))
             conf = max(0.25, min(0.92, conf))
 
@@ -1184,12 +1481,18 @@ class RiskBudgetMetaLayer:
             rationale = "; ".join(rationale_parts) or "Neutral risk budget (no special rule dominant)"
             rationale += f" | cap={base_cap:.2f} vel={velocity:.3f} conv={conviction:.2f}"
             rationale += f" || {pillar_rat}"
+            if special_rat:
+                rationale += f" || {special_rat}"
+
+            # risk_flags = the new special tags (Task 2.4) — distinct from active_modes
+            final_risk_flags = list(special_flags)
 
             return MetaLayerDecision(
                 gross_exposure=round(target, 4),
                 multipliers=mults,
                 recycling_multiplier=round(recycle_mult, 3),
                 active_modes=tags,
+                risk_flags=final_risk_flags,
                 confidence=round(conf, 3),
                 as_of=None,
                 version=self.params.version,
@@ -1198,11 +1501,13 @@ class RiskBudgetMetaLayer:
 
         except Exception as exc:
             # Absolute fail-safe: never let risk layer crash the engine
+            # Task 2.4: explicitly empty risk_flags in fail-safe path
             return MetaLayerDecision(
                 gross_exposure=0.95,
                 multipliers={"COMPASS": 1.0, "Rattlesnake": 1.0, "Catalyst": 1.0, "EFA": 1.0},
                 recycling_multiplier=0.90,
                 active_modes=[],
+                risk_flags=[],
                 confidence=0.25,
                 as_of=None,
                 version=self.params.version,

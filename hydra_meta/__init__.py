@@ -13,6 +13,8 @@ Exports:
 - MetaLayerDecision (frozen output contract)
 - MetaLayer (runtime_checkable Protocol)
 - StubMetaLayer (minimal neutral implementation for safe defaults)
+- RiskBudgetParams + RiskBudgetMetaLayer (Task 2.2)
+- PillarMultiplierParams (Task 2.3 dedicated config)
 - SEED (project convention)
 
 See:
@@ -27,6 +29,9 @@ from .meta_layer import (
     MetaLayerDecision,
     MetaLayer,
     StubMetaLayer,
+    RiskBudgetParams,
+    RiskBudgetMetaLayer,
+    PillarMultiplierParams,  # NEW Task 2.3
     SEED,
 )
 
@@ -35,5 +40,8 @@ __all__ = [
     "MetaLayerDecision",
     "MetaLayer",
     "StubMetaLayer",
+    "RiskBudgetParams",
+    "RiskBudgetMetaLayer",
+    "PillarMultiplierParams",  # NEW Task 2.3
     "SEED",
 ]
