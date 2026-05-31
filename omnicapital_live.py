@@ -4761,6 +4761,39 @@ class COMPASSLive:
         except Exception:
             return None
 
+    def _get_meta_layer_decision(self, scores=None, portfolio_snapshot=None):
+        """PHASE 4: Safe accessor for Meta-Layer decision.
+
+        Returns a MetaLayerDecision (or equivalent dict) when enabled,
+        otherwise returns None (caller must treat as 'use neutral defaults').
+
+        Currently a stub that always returns None (conservative).
+        Real implementation will be added after Task 3.2 stabilizes and
+        HydraCapitalManager is extended (Task 4.1).
+        """
+        if not getattr(self, '_meta_layer_enabled', False):
+            return None
+
+        # TODO (next wiring slice): actually call self.regime_os + self.meta_layer
+        # For now we stay in 'shadow' / conservative mode.
+        try:
+            self._meta_error_count = getattr(self, '_meta_error_count', 0)
+            # Placeholder decision for logging / future use
+            decision = {
+                'gross_exposure': 1.0,
+                'multipliers': {'COMPASS': 1.0, 'Rattlesnake': 1.0, 'Catalyst': 1.0, 'EFA': 1.0},
+                'recycling_multiplier': 1.0,
+                'active_modes': [],
+                'confidence': 0.5,
+                'rationale': 'Phase 4 skeleton (neutral defaults while wiring)',
+            }
+            self._last_meta_decision = decision
+            return decision
+        except Exception as e:
+            self._meta_error_count += 1
+            logger.warning("Meta-Layer decision failed (returning neutral): %s", e)
+            return None
+
     def _safe_broker_snapshot(self):
         with self._data_lock:
             return {
