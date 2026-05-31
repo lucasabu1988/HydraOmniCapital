@@ -47,6 +47,56 @@ HYDRA combina cuatro estrategias complementarias con un sistema de reciclaje de 
 
 ---
 
+## 🧠 Meta-Layer v1 (Presupuesto de Riesgo + Adaptación) / Meta-Layer v1 (Risk Budgeting + Adaptation)
+
+**Nuevo sistema de control de riesgo a nivel de portfolio** que se activa de forma segura mediante variable de entorno.
+
+**Feature flag**: `ENABLE_META_LAYER=0` (por defecto) | `1` (activo) | `shadow` (observabilidad sin impacto en capital)
+
+- **Modo Shadow (recomendado para rollout inicial)**: Calcula decisiones reales cada ciclo y las registra con detalle (multiplicadores por pilar, reciclaje, modos especiales, boost de recuperación), pero **nunca modifica** la asignación de capital. Comportamiento idéntico al baseline.
+- **Modo Live**: Aplica multiplicadores conservadores por estrategia (COMPASS / Rattlesnake / Catalyst / EFA) y modula el reciclaje de efectivo según el régimen de mercado.
+- **Task 3.2 - Recovery Adaptation Controller**: Boost limitado y muy conservador (rango duro `[0.98, 1.12]`) que solo actúa en fases de recuperación post-crisis. Incluye inercia, decaimiento automático y tags de auditoría (ADAPT / DECAY / MANUAL_OVERRIDE).
+
+**Validación**:
+- Prueba A/B exitosa en el año COVID 2020 (2020-01-01 → 2020-12-31).
+- Meta ON mostró +2.21 pp de CAGR y mejora en Calmar (2.426 vs 2.393) y Sharpe (1.533 vs 1.512) respecto al baseline sin Meta-Layer.
+- Toda la lógica es **fail-safe**: cualquier error devuelve multiplicadores neutros (sin impacto).
+
+**Archivos clave**:
+- `omnicapital_live.py` — orquestación y flag
+- `hydra_capital.py` — aplicación de decisiones en asignación
+- `hydra_meta/meta_layer.py` — `RiskBudgetMetaLayer` + `_RecoveryAdaptationController`
+- `regime_os.py` — `BasicRegimeOS`
+
+Actualmente en despliegue en **shadow mode** en [omnicapital.onrender.com](https://omnicapital.onrender.com) para observación en mercado real antes de activación controlada.
+
+---
+
+## 🧠 Meta-Layer v1 (Risk Budgeting + Adaptation)
+
+**New portfolio-level risk control system** that can be safely activated via environment variable.
+
+**Feature flag**: `ENABLE_META_LAYER=0` (default) | `1` (live) | `shadow` (observability with zero risk)
+
+- **Shadow Mode (recommended for initial rollout)**: Computes real decisions every cycle and logs them in rich detail (pillar multipliers, recycling, special modes, recovery boost), but **never changes** capital allocation. Behavior is identical to baseline.
+- **Live Mode**: Applies conservative per-strategy multipliers (COMPASS / Rattlesnake / Catalyst / EFA) and modulates cash recycling according to market regime.
+- **Task 3.2 - Recovery Adaptation Controller**: Very conservative limited boost (hard bounds `[0.98, 1.12]`) that only activates during post-crisis recovery phases. Includes inertia, automatic decay, and full audit tags (ADAPT / DECAY / MANUAL_OVERRIDE).
+
+**Validation**:
+- Successful A/B test during the 2020 COVID year.
+- Meta ON delivered +2.21 pp higher CAGR and better risk-adjusted metrics (Calmar 2.426 vs 2.393, Sharpe 1.533 vs 1.512).
+- All paths are **fail-safe**: any error returns neutral multipliers (no capital impact).
+
+**Key files**:
+- `omnicapital_live.py`
+- `hydra_capital.py`
+- `hydra_meta/meta_layer.py`
+- `regime_os.py`
+
+Currently being rolled out in **shadow mode** on [omnicapital.onrender.com](https://omnicapital.onrender.com) for real-market observation before controlled activation.
+
+---
+
 ## 🏗️ Arquitectura
 
 ```
@@ -168,9 +218,10 @@ CI corre en GitHub Actions con coverage mínimo del 50% en módulos críticos: `
 
 ## 🛣️ Roadmap
 
-### Completado
+### Completado / Completed
 - [x] Algoritmo HYDRA v8.4 LOCKED (64 experimentos)
 - [x] Sistema multi-estrategia (COMPASS + Rattlesnake + Catalyst + EFA + cash recycling)
+- [x] Meta-Layer v1 (RiskBudgetMetaLayer + BasicRegimeOS + Recovery Adaptation Controller) — ENABLE_META_LAYER flag + shadow deployment
 - [x] Backtest con corrección de survivorship bias (882 tickers PIT)
 - [x] Integración IBKR con mock mode (53 unit tests passing)
 - [x] Dashboard web tiempo real (Flask + cloud deploy en Render)
@@ -181,7 +232,7 @@ CI corre en GitHub Actions con coverage mínimo del 50% en módulos críticos: `
 - [x] Position reconciliation + audit trail
 - [x] Live paper trading desde 2026-03-16
 
-### En progreso
+### En progreso / In Progress
 - [ ] Live paper trading 3-6 meses mínimo (capturar ciclo earnings completo)
 - [ ] Sistema ML Phase 2 (~18 días para 500 decisiones)
 
