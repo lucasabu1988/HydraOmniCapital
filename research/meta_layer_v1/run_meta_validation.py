@@ -17,7 +17,15 @@ from typing import Dict, Any
 
 import pandas as pd
 
-# Try to import the harness (works when running from project root with proper env)
+# Robust import for the hydra_backtest harness
+import sys
+from pathlib import Path
+
+# When running this script from research/meta_layer_v1/, add the project root
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 try:
     from hydra_backtest import (
         load_catalyst_assets,
@@ -31,10 +39,10 @@ try:
     )
     from hydra_backtest.hydra import run_hydra_backtest
     HARNESS_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     HARNESS_AVAILABLE = False
-    print("WARNING: hydra_backtest package not importable in current env. "
-          "Run from project root with the package installed or PYTHONPATH set.")
+    print(f"WARNING: hydra_backtest package not importable: {e}")
+    print("Make sure you are running from the project root or have the package in PYTHONPATH.")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -101,6 +109,10 @@ def run_ab_backtest(
         "timestamp": datetime.now().isoformat(),
     }
 
+    if not HARNESS_AVAILABLE:
+        logger.error("Cannot run real backtests — harness not importable. Exiting.")
+        return results
+
     for use_meta, label in [(False, "meta_off"), (True, "meta_on")]:
         logger.info(f"Running {label} (use_meta_layer={use_meta}) ...")
 
@@ -154,28 +166,68 @@ def main():
     parser.add_argument("--end", required=True, help="End date YYYY-MM-DD")
     parser.add_argument("--output-dir", default="research/meta_layer_v1/runs/dev", help="Where to write outputs")
     parser.add_argument("--full-validation", action="store_true", help="Mark this as part of the full 4-layer protocol run")
+    parser.add_argument("--data-dir", default="data_cache", help="Directory containing the required .pkl/.csv data files")
     args = parser.parse_args()
 
     out_dir = Path(args.output_dir) / f"{args.start}_to_{args.end}".replace("-", "")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Use the same base config as the official harness
+    data_dir = Path(args.data_dir)
+
+    # Production-like config
     config = {
         "INITIAL_CAPITAL": 100_000,
         "BASE_COMPASS_ALLOC": 0.425,
         "BASE_RATTLE_ALLOC": 0.425,
         "BASE_CATALYST_ALLOC": 0.15,
-        # Add other required keys from the full config if needed for the run
-        # For short windows many defaults are fine.
+        "MOMENTUM_LOOKBACK": 90,
+        "MOMENTUM_SKIP": 5,
+        "NUM_POSITIONS": 5,
+        "NUM_POSITIONS_RISK_OFF": 2,
+        "HOLD_DAYS": 5,
+        "HOLD_DAYS_MAX": 10,
+        "RENEWAL_PROFIT_MIN": 0.04,
+        "POSITION_STOP_LOSS": -0.08,
+        "TRAILING_ACTIVATION": 0.05,
+        "TRAILING_STOP_PCT": 0.03,
+        "STOP_DAILY_VOL_MULT": 2.5,
+        "BULL_OVERRIDE_THRESHOLD": 0.03,
+        "MAX_PER_SECTOR": 3,
+        "DD_SCALE_TIER1": -0.10,
+        "DD_SCALE_TIER2": -0.20,
+        "DD_SCALE_TIER3": -0.35,
+        "LEV_FULL": 1.0,
+        "LEV_MID": 0.60,
+        "LEV_FLOOR": 0.30,
+        "CRASH_VEL_5D": -0.06,
+        "CRASH_VEL_10D": -0.10,
+        "CRASH_LEVERAGE": 0.15,
+        "CRASH_COOLDOWN": 10,
+        "QUALITY_VOL_MAX": 0.60,
+        "QUALITY_VOL_LOOKBACK": 63,
+        "TARGET_VOL": 0.15,
+        "LEVERAGE_MAX": 1.0,
+        "VOL_LOOKBACK": 20,
+        "TOP_N": 40,
+        "MIN_AGE_DAYS": 63,
+        "COMMISSION_PER_SHARE": 0.001,
+        "EFA_MIN_BUY": 1000.0,
+        "EFA_DEPLOYMENT_CAP": 0.90,
     }
 
     logger.info(f"Starting Phase 5 A/B validation run: {args.start} → {args.end}")
     if args.full_validation:
         logger.info("Marked as FULL validation protocol run")
 
-    results = run_ab_backtest(config, args.start, args.end, out_dir)
+    # Build full paths for the loaders
+    data_paths = {
+        "pit_universe": str(data_dir / "sp500_constituents_history.pkl"),
+        "price_history": str(data_dir / "sp500_universe_prices.pkl"),
+        # Add other expected files here as needed by the loaders
+    }
 
-    # Print quick comparison
+    results = run_ab_backtest(config, args.start, args.end, out_dir, data_paths=data_paths)
+
     off = results["meta_off"]["metrics"]
     on = results["meta_on"]["metrics"]
     print("\n=== A/B Quick Comparison ===")

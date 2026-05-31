@@ -136,3 +136,21 @@ python research/meta_layer_v1/run_meta_validation.py \
     --start 2019-07-01 --end 2020-06-30 \
     --output-dir research/meta_layer_v1/runs/2019_2020_covid
 `
+
+### Recommended Commands for Longer Windows (for serious validation)
+
+`ash
+# Strong 10-year window (2015-2025) — COVID + 2022 + recovery
+python research/meta_layer_v1/run_meta_validation.py \
+    --start 2015-01-01 --end 2025-01-01 \
+    --output-dir research/meta_layer_v1/runs/2015_2025_10yr \
+    --full-validation
+
+# Very long window (2010-2025)
+python research/meta_layer_v1/run_meta_validation.py \
+    --start 2010-01-01 --end 2025-01-01 \
+    --output-dir research/meta_layer_v1/runs/2010_2025_long \
+    --full-validation
+`
+
+After running, the b_validation_summary.json in the output directory contains the metrics to paste into the tables above.
