@@ -191,6 +191,18 @@
 
 ### Task 4.2: Wire Regime OS + Meta-Layer into omnicapital_live.py
 
+**Progress as of 2026-05-31 (user-driven 1-2-3-4 sequence):**
+- ENABLE_META_LAYER flag + full import guards + component instantiation implemented.
+- `_get_meta_layer_decision` now performs real calls to BasicRegimeOS + RiskBudgetMetaLayer (incl. Task 3.2 adaptation).
+- Key `compute_allocation` call sites wired to pass decisions (3 main paths updated).
+- PortfolioState construction improved with live drawdown.
+- RegimeScores now correctly obtained via `compute_regime()` (was broken placeholder).
+- Recovery adaptation state has proper persistence hook.
+- Rich logging when decisions are generated or applied.
+- All changes gated behind the feature flag; fully backward compatible.
+
+**Current state:** Substantial wiring complete for decision flow and capital modulation. Ready for shadow testing when flag is turned on. Gross exposure control and full market data feeding for scores remain for follow-up slices.
+
 **Files:**
 - Modify: `omnicapital_live.py`
 

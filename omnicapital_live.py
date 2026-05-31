@@ -4795,15 +4795,30 @@ class COMPASSLive:
 
             # PHASE 4 REAL WIRING (now that Task 3.2 recovery adaptation is complete)
             if self.regime_os is not None and self.meta_layer is not None:
-                # Build minimal PortfolioState for the meta layer (extend as needed in later slices)
+                # Build better PortfolioState using live engine data when available
+                total_equity = getattr(self, 'peak_value', 100000.0) or 100000.0
+                try:
+                    current_value = self.broker.get_portfolio().total_value if hasattr(self, 'broker') else total_equity
+                except Exception:
+                    current_value = total_equity
+                drawdown = max(0.0, (total_equity - current_value) / total_equity) if total_equity > 0 else 0.0
+
                 port = PortfolioState(
-                    total_equity=getattr(self, 'peak_value', 100000.0) or 100000.0,
-                    cash=getattr(self.broker, 'cash', 30000.0),
-                    drawdown_pct=max(0.0, (getattr(self, 'peak_value', 100000.0) or 100000.0) - (self.broker.get_portfolio().total_value if hasattr(self, 'broker') else 100000.0)) / (getattr(self, 'peak_value', 100000.0) or 100000.0),
+                    total_equity=total_equity,
+                    cash=getattr(getattr(self, 'broker', None), 'cash', 30000.0),
+                    drawdown_pct=drawdown,
+                    # Add 5d ago drawdown if we have history (helps recovery adaptation)
+                    drawdown_5d_ago=0.0,  # Can be improved with actual history later
                 )
 
-                # Get fresh regime scores (Phase 1)
-                scores = self.regime_os.compute_scores() if hasattr(self.regime_os, 'compute_scores') else None
+                # Get fresh regime scores (Phase 1) - use actual API
+                scores = None
+                try:
+                    res = self.regime_os.compute_regime() if hasattr(self.regime_os, 'compute_regime') else None
+                    if isinstance(res, (list, tuple)) and len(res) > 0:
+                        scores = res[0]  # First element is RegimeScores
+                except Exception:
+                    scores = None
 
                 # Get the decision (this now includes Task 3.2 limited recovery adaptation when enabled in params)
                 decision = self.meta_layer.compute_decision(scores=scores, portfolio=port)
