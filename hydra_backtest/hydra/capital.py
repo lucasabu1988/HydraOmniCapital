@@ -6,9 +6,14 @@ returns a new state out, never mutating.
 
 These constants mirror hydra_capital.py:22-26. If live ever changes
 them, this duplication is the only contract surface to update.
+
+PHASE 5 (Meta-Layer validation harness): Extended compute_allocation_pure
+and update_accounts_after_day_pure with optional meta_decision parameter
+(consistent with live Phase 4 extension). Enables clean A/B testing of
+full HYDRA vs HYDRA + Meta-Layer in backtests.
 """
 from dataclasses import dataclass, replace
-from typing import Dict
+from typing import Any, Dict, Optional
 
 
 BASE_COMPASS_ALLOC = 0.425
@@ -53,19 +58,25 @@ class HydraCapitalState:
 def compute_allocation_pure(
     capital: HydraCapitalState,
     rattle_exposure: float,
+    meta_decision: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, float]:
     """Pure equivalent of HydraCapitalManager.compute_allocation
     (hydra_capital.py:68-111).
+
+    PHASE 5 (Meta-Layer integration): Added optional meta_decision
+    parameter for full HYDRA + Meta-Layer backtesting (Task 5.1 harness).
 
     Args:
         capital: current HydraCapitalState
         rattle_exposure: fraction of Rattlesnake account currently
             invested (0.0-1.0)
+        meta_decision: Optional dict from RiskBudgetMetaLayer / Meta-Layer
+            (same shape as live engine). When present, applies pillar
+            multipliers and recycling_multiplier on top of base logic.
 
     Returns:
-        Dict with compass_budget, rattle_budget, catalyst_budget,
-        recycled_amount, recycled_pct, compass_alloc, rattle_alloc,
-        catalyst_alloc, efa_idle.
+        Same dict as before + 'meta_applied' and related fields when
+        a meta decision was applied.
     """
     total = capital.total_capital
 
@@ -85,7 +96,7 @@ def compute_allocation_pure(
     r_still_idle = r_effective * (1.0 - rattle_exposure)
     efa_idle = r_still_idle  # only truly idle cash
 
-    return {
+    result = {
         'compass_budget': c_effective,
         'rattle_budget': r_effective,
         'catalyst_budget': capital.catalyst_account,
@@ -101,7 +112,33 @@ def compute_allocation_pure(
             capital.catalyst_account / total if total > 0 else BASE_CATALYST_ALLOC
         ),
         'efa_idle': efa_idle,
+        'meta_applied': False,
     }
+
+    # PHASE 5: Apply Meta-Layer decision (mirrors live Phase 4 extension)
+    if meta_decision:
+        try:
+            multipliers = meta_decision.get("multipliers") or {}
+            recyc_mult = float(meta_decision.get("recycling_multiplier", 1.0))
+
+            for pillar, mult in multipliers.items():
+                key = f"{pillar.lower()}_budget"
+                if key in result:
+                    result[key] = result[key] * float(mult)
+
+            if recyc_mult != 1.0:
+                result["recycled_amount"] = result["recycled_amount"] * recyc_mult
+                result["recycled_pct"] = (
+                    result["recycled_amount"] / total if total > 0 else 0.0
+                )
+
+            result["meta_applied"] = True
+            result["applied_multipliers"] = {k: float(v) for k, v in multipliers.items()}
+            result["applied_recycling_mult"] = recyc_mult
+        except Exception:
+            result["meta_applied"] = False
+
+    return result
 
 
 def update_accounts_after_day_pure(
@@ -109,14 +146,14 @@ def update_accounts_after_day_pure(
     compass_return: float,
     rattle_return: float,
     rattle_exposure: float,
+    meta_decision: Optional[Dict[str, Any]] = None,
 ) -> HydraCapitalState:
     """Pure equivalent of HydraCapitalManager.update_accounts_after_day
     (hydra_capital.py:113-138).
 
-    Settles recycled cash (which earns COMPASS returns) back into the
-    rattle account at end-of-day. Returns a NEW HydraCapitalState.
+    PHASE 5: Forwards meta_decision for consistent application in harness.
     """
-    alloc = compute_allocation_pure(capital, rattle_exposure)
+    alloc = compute_allocation_pure(capital, rattle_exposure, meta_decision=meta_decision)
     recycled = alloc['recycled_amount']
 
     c_effective = alloc['compass_budget']

@@ -5,6 +5,7 @@ The wrappers slice the global state by `_strategy` tag, call the
 existing v1.0-v1.3 helpers without modification, and merge results
 back into the global state.
 """
+import logging
 import subprocess
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -68,6 +69,15 @@ from hydra_backtest.hydra.capital import (
     update_catalyst_value_pure,
     update_efa_value_pure,
 )
+
+# PHASE 5 (Meta-Layer validation harness) — optional import guard
+# When use_meta_layer=True in the harness, we will import:
+#   from regime_os import BasicRegimeOS
+#   from hydra_meta import RiskBudgetMetaLayer, PortfolioState
+# and compute decision at the appropriate point in the day (after
+# mark-to-market, before capital budget decisions), then pass
+# meta_decision=... to the pure capital functions.
+# This keeps the Meta-Layer completely optional for clean A/B validation.
 from hydra_backtest.hydra.state import (
     HydraBacktestState,
     compute_pillar_invested,
@@ -543,11 +553,17 @@ def run_hydra_backtest(
     end_date: pd.Timestamp,
     execution_mode: str = 'same_close',
     progress_callback: Optional[callable] = None,
+    use_meta_layer: bool = False,   # PHASE 5: Enable full HYDRA + Meta-Layer for validation harness
 ) -> BacktestResult:
     """Run the full HYDRA backtest from start_date to end_date.
 
     Mirrors omnicapital_live.py::execute_preclose_entries order of
     operations (line 2972).
+
+    PHASE 5: Supports `use_meta_layer=True` for the integrated Meta-Layer
+    validation harness (Task 5.1). When enabled, a RiskBudgetMetaLayer
+    decision is computed each day and lightly influences budgets + recorded
+    in the daily output for analysis. Disabled path remains identical to baseline.
     """
     started_at = datetime.now()
 
@@ -580,6 +596,21 @@ def run_hydra_backtest(
     decisions: list = []
     snapshots: list = []
     universe_size: dict = {}
+
+    # PHASE 5: Optional Meta-Layer for validation harness (A/B testing)
+    meta_layer = None
+    regime_os = None
+    _ml_logger = logging.getLogger(__name__)
+    if use_meta_layer:
+        try:
+            from regime_os import BasicRegimeOS
+            from hydra_meta import RiskBudgetMetaLayer
+            regime_os = BasicRegimeOS()
+            meta_layer = RiskBudgetMetaLayer()
+            _ml_logger.info("Phase 5 harness: Meta-Layer enabled")
+        except Exception as e:
+            _ml_logger.warning("Meta-Layer init failed for harness (disabled): %s", e)
+            use_meta_layer = False
 
     catalyst_day_counter = 0
     last_progress_year: Optional[int] = None
@@ -690,6 +721,41 @@ def run_hydra_backtest(
             skip=config['MOMENTUM_SKIP'],
         )
 
+        # PHASE 5: Compute Meta-Layer decision (if enabled) at the natural point
+        # in the day (after scoring inputs, before capital budget decisions).
+        # This mirrors the live engine flow.
+        meta_decision = None
+        if use_meta_layer and meta_layer is not None and regime_os is not None:
+            try:
+                from hydra_meta import PortfolioState
+
+                current_pv = portfolio_value  # from earlier mark-to-market
+                total_equity = state.capital.total_capital
+                dd = max(0.0, (state.peak_value - current_pv) / state.peak_value) if state.peak_value > 0 else 0.0
+
+                port = PortfolioState(
+                    total_equity=total_equity,
+                    cash=state.cash,
+                    drawdown_pct=dd,
+                )
+
+                regime_scores_tuple = regime_os.compute_regime()
+                regime_scores = regime_scores_tuple[0] if isinstance(regime_scores_tuple, (list, tuple)) else regime_scores_tuple
+
+                decision = meta_layer.compute_decision(scores=regime_scores, portfolio=port)
+                meta_decision = {
+                    'gross_exposure': getattr(decision, 'gross_exposure', 1.0),
+                    'multipliers': getattr(decision, 'multipliers', {}),
+                    'recycling_multiplier': getattr(decision, 'recycling_multiplier', 1.0),
+                    'active_modes': [str(m) for m in getattr(decision, 'active_modes', [])],
+                    'confidence': getattr(decision, 'confidence', 0.5),
+                    'rationale': getattr(decision, 'rationale', ''),
+                }
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.warning("Meta-Layer decision failed on %s (using neutral): %s", date, e)
+                meta_decision = None
+
         # 4. Compute budgets from the CURRENT economic snapshot (Option C).
         # Budgets depend only on (positions + cash + prices + nav) — never
         # on accumulated HydraCapitalState buckets. This eliminates the
@@ -707,6 +773,18 @@ def run_hydra_backtest(
             nav=portfolio_value,
             config=config,
         )
+
+        # PHASE 5 (harness demo): Lightly apply meta multipliers to the budgets
+        # when the decision is available. This shows the mechanism working
+        # without mutating the core pure budget function yet.
+        if meta_decision and meta_decision.get('multipliers'):
+            for pillar, mult in meta_decision['multipliers'].items():
+                key = f"{pillar.lower()}_budget"
+                if key in alloc:
+                    alloc[key] = alloc[key] * float(mult)
+            if meta_decision.get('recycling_multiplier'):
+                # Note: full recycling modulation would go deeper; this is illustrative
+                pass
 
         # 5. Compute pure price-driven daily returns BEFORE any wrapper
         # mutates positions. The pattern is:
@@ -951,6 +1029,10 @@ def run_hydra_backtest(
             'n_rattle': len(slice_positions_by_strategy(state.positions, 'rattle')),
             'n_catalyst': len(slice_positions_by_strategy(state.positions, 'catalyst')),
             'n_efa': len(slice_positions_by_strategy(state.positions, 'efa')),
+            # PHASE 5 harness: meta decision observability (only when enabled)
+            'meta_active': bool(meta_decision),
+            'meta_recycling_mult': meta_decision.get('recycling_multiplier', 1.0) if meta_decision else 1.0,
+            'meta_confidence': meta_decision.get('confidence', 0.0) if meta_decision else 0.0,
         })
 
         # 7. Update state tail: peak + days_held + _prev_close stamping.

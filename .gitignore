@@ -63,3 +63,7 @@ state/intelligence/
 
 # Playwright MCP cache
 .playwright-mcp/
+
+# Isolated git worktrees (for subagent-driven development)
+.worktrees/
+
