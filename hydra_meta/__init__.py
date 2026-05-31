@@ -22,6 +22,15 @@ See:
 - docs/superpowers/plans/2026-06-05-hydra-meta-layer-v1-implementation.md (Task 2.1)
 - docs/superpowers/specs/2026-06-05-hydra-meta-layer-v1-design.md (Section 6)
 - regime_os.py for the upstream Regime OS types this depends on
+
+PHASE 4 PREP (2026-05-31):
+- Detailed integration plan + exact code locations now in:
+  docs/superpowers/plans/2026-05-31-phase4-meta-layer-integration-prep.md
+- Feature flag design, state schema, HydraCapitalManager extension points,
+  and wiring locations in omnicapital_live.py have been identified via live inspection.
+- All Phase 4 work must remain behind ENABLE_META_LAYER flag (default OFF).
+- This __init__ will be extended later to export the flag constants and
+  top-level convenience functions once wiring begins.
 """
 
 from .meta_layer import (
