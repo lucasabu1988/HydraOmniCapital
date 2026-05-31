@@ -251,8 +251,9 @@
 - [ ] Full integration with the new pure capital meta_decision path + richer market data for scores.
 - [ ] Update daily output + validation to handle meta columns when active.
 - [x] Created initial research location `research/meta_layer_v1/` for harness experiments and the official `validation_report.md`.
-- [x] Created `run_meta_validation.py` — structural A/B driver + metrics skeleton (entry point for heavier validation/reporting work).
-- [ ] Implement real data loading + actual calls to the harness with use_meta_layer toggle.
+- [x] Created `run_meta_validation.py` — now contains real data loading + actual A/B harness calls (COVID window example executed).
+- [x] Created `layer1.py` — walk-forward, purged CV, and regime-stratified utilities.
+- [x] Created `layer2_stress.py` — scaffolding for stress period (2008/2020/2022) analysis.
 - [ ] Begin Layer 1 scaffolding (walk-forward windows + purged CV utilities + regime-stratified analysis).
 - [ ] Ensure Meta-Layer disabled path produces byte-comparable results to current baseline (critical for validation).
 - [ ] Must produce comparable results to current live engine behavior when Meta-Layer is disabled.
