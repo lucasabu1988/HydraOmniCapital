@@ -251,17 +251,24 @@
 - [ ] Full integration with the new pure capital meta_decision path + richer market data for scores.
 - [ ] Update daily output + validation to handle meta columns when active.
 - [x] Created initial research location `research/meta_layer_v1/` for harness experiments and the official `validation_report.md`.
+- [x] Created `run_meta_validation.py` — structural A/B driver + metrics skeleton (entry point for heavier validation/reporting work).
+- [ ] Implement real data loading + actual calls to the harness with use_meta_layer toggle.
+- [ ] Begin Layer 1 scaffolding (walk-forward windows + purged CV utilities + regime-stratified analysis).
 - [ ] Ensure Meta-Layer disabled path produces byte-comparable results to current baseline (critical for validation).
 - [ ] Must produce comparable results to current live engine behavior when Meta-Layer is disabled.
 
-### Task 5.2: Execute the Full Validation Protocol
+### Task 5.2: Execute the Full Validation Protocol (Heavier work started)
 
-- Run the entire 4-layer validation process defined in the spec.
-- Document all results in `research/meta_layer_v1/validation_report.md`.
+- [x] Created professional `validation_report.md` skeleton with all 4 layers + success criteria structure.
+- [ ] Implement walk-forward + purged CV execution engine.
+- [ ] Run full multi-layer protocol on meaningful windows.
+- [ ] Populate `research/meta_layer_v1/validation_report.md` with real results.
 
-### Task 5.3: Stress Testing & Sensitivity
+### Task 5.3: Stress Testing & Sensitivity (Heavier work started)
 
-- Specific deep dives into 2008, 2020, 2022, and any other difficult periods.
+- [ ] Specific deep dives into 2008, 2020, 2022 (and 2000-02) using the new harness.
+- [ ] Monte Carlo / block bootstrap framework.
+- [ ] Sensitivity analysis on Meta-Layer parameters (especially recovery adaptation).
 
 ---
 
