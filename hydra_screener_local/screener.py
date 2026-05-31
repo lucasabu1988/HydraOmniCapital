@@ -10,6 +10,7 @@ from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FUL
 from data.universe import get_universe
 from data.fetch import fetch_prices, fetch_spy
 from core.signals import generate_daily_candidates, compute_regime_score
+from core.history import save_daily_run
 from utils.display import print_header, print_candidates_table, print_summary, print_footer
 
 
@@ -52,12 +53,30 @@ def main():
     print_candidates_table(candidates, top_n=TOP_CANDIDATES)
     print_summary(regime_score, len(candidates), meta_info, pillar_mults)
     
-    # 5. Exportar
+    # 5. Exportar Excel
+    today = datetime.now().strftime("%Y%m%d")
     if EXPORT_EXCEL:
-        today = datetime.now().strftime("%Y%m%d")
         filename = f"output/{OUTPUT_FILENAME_PREFIX}_{today}.xlsx"
         candidates.to_excel(filename, index=False)
         print(f"\n[green]✓[/green] Exportado a: {filename}")
+
+    # 6. Guardar histórico para análisis de rendimiento (persistencia)
+    try:
+        top_for_history = candidates.head(20).to_dict("records")
+        meta_rationale = candidates.iloc[0]["reason"] if len(candidates) > 0 else ""
+
+        save_daily_run(
+            date=today,
+            regime_score=regime_score,
+            regime_type=meta_info.get("regime_type", ""),
+            special_modes=[],  # podemos mejorarlo después
+            pillar_multipliers=pillar_mults,
+            top_candidates=top_for_history,
+            meta_rationale=meta_rationale
+        )
+        print(f"[green]✓[/green] Histórico guardado en history/{today}.json")
+    except Exception as e:
+        print(f"[yellow]⚠[/yellow] No se pudo guardar histórico: {e}")
     
     print_footer()
 

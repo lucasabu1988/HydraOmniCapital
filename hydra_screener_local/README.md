@@ -37,11 +37,23 @@ USE_FULL_SP500 = False
 - Empezamos con el S&P 500 completo (puedes reducirlo fácilmente)
 - Rápido de ejecutar manualmente antes / durante / después de la apertura
 
+## Histórico y Análisis
+
+El screener guarda automáticamente cada corrida en `history/`.
+
+Para revisar el histórico:
+
+```bash
+python analyze_history.py
+```
+
+Esto es la base para medir win-rate y éxito de la estrategia a lo largo del tiempo.
+
 ## Próximos pasos (cuando quieras)
 
-- Integrar la Meta-Layer completa
-- Agregar lógica de Catalyst y Rattlesnake
-- Mejor ranking combinado
-- Filtros adicionales (volatilidad, sector, etc.)
+- Calcular rendimiento real de los candidatos recomendados (5d/10d)
+- Reportes de win-rate por tipo de régimen y Special Mode
+- Mejor uso de los Pillar Multipliers en el ranking
+- Filtros adicionales
 
 ¡Listo para usar!
