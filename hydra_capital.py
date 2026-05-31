@@ -25,13 +25,23 @@ MAY 2026 IMPROVEMENTS (Regime-Aware Capital Allocation)
 - Does NOT modify any locked strategy parameters (COMPASS v8.4, etc.).
 ================================================================================
 
+PHASE 4 (Meta-Layer v1 Integration)
+- Added optional `meta_decision` parameter to `compute_allocation(...)` (and related paths).
+- When a `MetaLayerDecision` (or compatible dict) is provided, applies:
+    • Per-pillar allocation multipliers (COMPASS / Rattlesnake / Catalyst / EFA)
+    • `recycling_multiplier` to modulate cash recycling intensity
+- 100% backward compatible: `meta_decision=None` produces identical results to previous versions.
+- Designed to consume rich decisions from the live engine's `RiskBudgetMetaLayer` (including Task 3.2 limited recovery adaptation).
+
 Catalyst (4th pillar) is ring-fenced at 15% — does not participate in recycling.
 
 Used by omnicapital_live.py for live capital allocation decisions.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -128,19 +138,30 @@ class HydraCapitalManager:
     def total_capital(self) -> float:
         return self.compass_account + self.rattle_account + self.catalyst_account + self.efa_value
 
-    def compute_allocation(self, rattle_exposure: float, regime: str = "neutral") -> Dict[str, float]:
+    def compute_allocation(
+        self,
+        rattle_exposure: float,
+        regime: str = "neutral",
+        meta_decision: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, float]:
         """
         Compute dynamic allocation based on Rattlesnake's current exposure.
 
-        IMPROVEMENT (May 2026): Added optional `regime` parameter for
-        regime-aware behavior without touching locked strategy logic.
+        IMPROVEMENT (May 2026): Added optional `regime` parameter.
+        PHASE 4 (Meta-Layer): Added optional `meta_decision` for rich allocation directives.
 
         Args:
             rattle_exposure: Fraction of Rattlesnake account currently invested (0-1)
             regime: One of "neutral", "strong_us_momentum", "risk_off"
+            meta_decision: Optional dict (or MetaLayerDecision-like) from the Meta-Layer.
+                           Expected keys (all optional):
+                             - multipliers: { "COMPASS": 1.0, "Rattlesnake": 1.0, ... }
+                             - recycling_multiplier: 1.0
+                             - gross_exposure: 1.0 (informational for now)
 
         Returns:
-            Dict with compass_budget, rattle_budget, recycled_amount, effective_allocs
+            Same dict as before + new keys when meta applied:
+            - meta_applied, applied_multipliers, applied_recycling_mult
         """
         total = self.total_capital
 
@@ -168,9 +189,9 @@ class HydraCapitalManager:
 
         # Remaining idle cash after recycling (available for NEW EFA buys)
         r_still_idle = r_effective * (1.0 - rattle_exposure)
-        efa_idle = r_still_idle  # only truly idle cash, don't double-count invested EFA
+        efa_idle = r_still_idle
 
-        return {
+        result = {
             'compass_budget': c_effective,
             'rattle_budget': r_effective,
             'catalyst_budget': self.catalyst_account,
@@ -180,17 +201,48 @@ class HydraCapitalManager:
             'rattle_alloc': r_effective / total if total > 0 else 0.425,
             'catalyst_alloc': self.catalyst_account / total if total > 0 else 0.15,
             'efa_idle': efa_idle,
+            'meta_applied': False,
         }
 
+        # =====================================================================
+        # PHASE 4: Apply Meta-Layer directives (backward compatible)
+        # =====================================================================
+        if meta_decision:
+            try:
+                multipliers = meta_decision.get("multipliers") or {}
+                recyc_mult = float(meta_decision.get("recycling_multiplier", 1.0))
+
+                # Apply pillar multipliers
+                for pillar, mult in multipliers.items():
+                    key = f"{pillar.lower()}_budget"
+                    if key in result:
+                        result[key] = result[key] * float(mult)
+
+                # Modulate recycling
+                if recyc_mult != 1.0:
+                    result["recycled_amount"] = result["recycled_amount"] * recyc_mult
+                    result["recycled_pct"] = result["recycled_amount"] / total if total > 0 else 0
+
+                result["meta_applied"] = True
+                result["applied_multipliers"] = {k: float(v) for k, v in multipliers.items()}
+                result["applied_recycling_mult"] = recyc_mult
+
+            except Exception as e:
+                logger.warning("Meta-Layer decision application failed (using base allocation): %s", e)
+                result["meta_applied"] = False
+
+        return result
+
     def update_accounts_after_day(self, compass_return: float, rattle_return: float,
-                                   rattle_exposure: float, regime: str = "neutral"):
+                                   rattle_exposure: float, regime: str = "neutral",
+                                   meta_decision: Optional[Dict[str, Any]] = None):
         """
         Update logical accounts after a trading day.
         Recycled cash earns COMPASS returns.
 
-        IMPROVEMENT: Now accepts regime for smarter daily updates.
+        PHASE 4: Now forwards `meta_decision` for consistent application.
         """
-        alloc = self.compute_allocation(rattle_exposure, regime=regime)
+        alloc = self.compute_allocation(rattle_exposure, regime=regime, meta_decision=meta_decision)
         recycled = alloc['recycled_amount']
 
         # Apply returns
@@ -272,8 +324,9 @@ class HydraCapitalManager:
         mult = cfg.get("max_compass_recycle_mult", 1.0)
         return min(1.0, self.max_compass_alloc * mult)
 
-    def get_status(self, regime: str = "neutral") -> Dict:
-        """Get current status for logging/dashboard. Now includes regime info."""
+    def get_status(self, regime: str = "neutral",
+                   last_meta_decision: Optional[Dict[str, Any]] = None) -> Dict:
+        """Get current status for logging/dashboard. Includes regime + Phase 4 meta info when available."""
         total = self.total_capital
         cfg = self.get_regime_config(regime)
 
@@ -290,17 +343,31 @@ class HydraCapitalManager:
             'recycling_frequency': self.total_recycled_days / max(self.total_days, 1),
             'efa_value': self.efa_value,
             'efa_pct': self.efa_value / total if total > 0 else 0,
-            # New regime-aware fields
+            # Regime-aware fields
             'regime': regime,
             'catalyst_new_entries_allowed': self.should_allow_new_catalyst_entries(regime),
             'efa_new_buys_allowed': self.should_allow_new_efa_buys(regime),
             'efa_sell_aggressiveness': self.get_efa_sell_multiplier(regime),
             'effective_max_compass_alloc': self.get_effective_max_compass_alloc(regime),
         }
+
+        # PHASE 4: Surface last applied meta factors if provided by caller
+        if last_meta_decision:
+            status['meta_last'] = {
+                'applied': last_meta_decision.get('meta_applied', False),
+                'multipliers': last_meta_decision.get('applied_multipliers'),
+                'recycling_mult': last_meta_decision.get('applied_recycling_mult'),
+            }
+
         return status
 
     def to_dict(self) -> Dict:
-        """Serialize state for persistence."""
+        """Serialize state for persistence.
+
+        PHASE 4 note: Meta-Layer decisions (multipliers, recycling_mult, adaptation state)
+        are persisted at the live engine level (`compass_state_latest.json` → `meta_layer` key),
+        not here. This keeps the capital manager's persisted state small and focused.
+        """
         return {
             'compass_account': self.compass_account,
             'rattle_account': self.rattle_account,

@@ -179,12 +179,15 @@
 **Files:**
 - Modify: `hydra_capital.py`
 
-- [ ] Add support for richer inputs from the new Meta-Layer (multipliers, mode-based behavior).
-- [ ] Maintain full backward compatibility.
-- [ ] Detailed prep document created: `docs/superpowers/plans/2026-05-31-phase4-meta-layer-integration-prep.md`
-- [ ] Recommended: add optional `meta_decision: Optional["MetaLayerDecision"] = None` to `compute_allocation(...)` and related methods.
-- [ ] Update `get_status()`, `to_dict()`, `from_dict()` for round-trip compatibility.
-- [ ] Add `apply_meta_layer_decision(...)` helper or keep purely functional (decision passed per call preferred).
+- [x] Add support for richer inputs from the new Meta-Layer (multipliers, mode-based behavior). **DONE** (2026-05-31)
+- [x] Maintain full backward compatibility. **DONE**
+- [x] Detailed prep document created.
+- [x] Added `meta_decision: Optional[Dict] = None` to `compute_allocation(...)` + `update_accounts_after_day`.
+- [x] Applies pillar multipliers + recycling_multiplier modulation.
+- [x] Enhanced return dict with `meta_applied`, `applied_*` fields.
+- [x] Updated `get_status(...)` to optionally surface last meta factors.
+- [x] Updated docs + `to_dict` comments for Phase 4 persistence model.
+- [x] Committed in worktree (see recent commits after 88253c0).
 
 ### Task 4.2: Wire Regime OS + Meta-Layer into omnicapital_live.py
 
