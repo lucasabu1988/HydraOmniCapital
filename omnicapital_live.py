@@ -2027,6 +2027,10 @@ class COMPASSLive:
                 meta_decision=meta_dec
             )
 
+            if meta_dec and meta_dec.get('meta_applied'):
+                logger.debug("Meta decision applied to capital allocation: multipliers=%s, recyc=%.2f",
+                             meta_dec.get('applied_multipliers'), meta_dec.get('applied_recycling_mult'))
+
             compass_cash = min(portfolio.cash, alloc['compass_budget'])
             logger.info(f"HYDRA budget: COMPASS=${alloc['compass_budget']:,.0f} | "
                        f"Rattlesnake=${alloc['rattle_budget']:,.0f} | "
@@ -4820,6 +4824,13 @@ class COMPASSLive:
                 }
 
                 self._last_meta_decision = decision_dict
+
+                if decision_dict.get('active_modes') or decision_dict.get('recovery_adaptation', {}).get('boost', 1.0) != 1.0:
+                    logger.info("Meta-Layer decision: modes=%s, recycle_mult=%.2f, recovery_boost=%.3f",
+                                decision_dict.get('active_modes'),
+                                decision_dict.get('recycling_multiplier', 1.0),
+                                decision_dict.get('recovery_adaptation', {}).get('boost', 1.0))
+
                 return decision_dict
 
             # Fallback neutral if components not ready
