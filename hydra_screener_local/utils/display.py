@@ -63,6 +63,55 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
     console.print(table)
 
 
+def print_pillar_multipliers(pillar_mults: dict):
+    """Muestra los Pillar Multipliers de forma visual y accionable."""
+    if not pillar_mults:
+        return
+
+    table = Table(
+        title="Pillar Multipliers (Meta-Layer)",
+        box=box.SIMPLE,
+        show_header=True,
+        header_style="bold cyan"
+    )
+    table.add_column("Pillar", style="bold white")
+    table.add_column("Multiplier", justify="center")
+    table.add_column("Tilt", justify="center")
+    table.add_column("Acción recomendada", style="dim")
+
+    for pillar, mult in pillar_mults.items():
+        if mult > 1.08:
+            color = "green"
+            tilt = "↑↑"
+            action = "Aumentar significativamente"
+        elif mult > 1.03:
+            color = "green"
+            tilt = "↑"
+            action = "Aumentar"
+        elif mult < 0.92:
+            color = "red"
+            tilt = "↓↓"
+            action = "Reducir significativamente"
+        elif mult < 0.97:
+            color = "red"
+            tilt = "↓"
+            action = "Reducir"
+        else:
+            color = "white"
+            tilt = "→"
+            action = "Mantener"
+
+        table.add_row(
+            pillar,
+            f"[{color}]{mult:.2f}x[/{color}]",
+            tilt,
+            action
+        )
+
+    console.print(table)
+    console.print()
+
+
 def print_summary(regime_score: float, total_candidates: int, meta_info: dict = None, pillar_mults: dict = None, recommended_count: int = None):
     """Resumen rápido con información de Meta-Layer + Pillar Multipliers."""
     color = "green" if regime_score >= 0.5 else "yellow" if regime_score >= 0.35 else "red"
@@ -70,24 +119,16 @@ def print_summary(regime_score: float, total_candidates: int, meta_info: dict = 
     content = (
         f"[bold]Régimen Score:[/bold] [{color}]{regime_score:.2f}[/{color}]  "
         f"[bold]Tipo:[/bold] {meta_info.get('regime_type', 'N/A') if meta_info else 'N/A'}\n\n"
-        f"[bold]Pillar Multipliers recomendados hoy:[/bold]\n"
+        f"[bold]Candidatos analizados:[/bold] {total_candidates}\n"
     )
-    
-    if pillar_mults:
-        for pillar, mult in pillar_mults.items():
-            arrow = "↑" if mult > 1.05 else "↓" if mult < 0.95 else "→"
-            content += f"  {pillar:12} {mult:.2f}x {arrow}\n"
-    else:
-        content += "  (No disponibles)\n"
-    
-    content += f"\n[bold]Candidatos analizados:[/bold] {total_candidates}\n"
     
     if recommended_count:
         content += f"[bold]Recomendados hoy (dinámico):[/bold] {recommended_count}"
     else:
         content += f"[bold]Top recomendados:[/bold] {min(15, total_candidates)}"
     
-    console.print(Panel.fit(content, title="Resumen del Día - Meta-Layer + Pillars", border_style="blue"))
+    console.print(Panel.fit(content, title="Resumen del Día", border_style="blue"))
+    print_pillar_multipliers(pillar_mults)
 
 
 def print_footer():
