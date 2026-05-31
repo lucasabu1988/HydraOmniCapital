@@ -70,6 +70,7 @@ def main():
     if len(candidates) > 0:
         recommended_count = int(candidates.iloc[0].get('recommended_count', TOP_CANDIDATES))
     
+    # Mostrar resumen + multipliers de forma visual
     print_summary(regime_score, len(candidates), meta_info, pillar_mults, recommended_count)
     
     # 6. Exportar Excel
