@@ -238,11 +238,15 @@
 
 ---
 
-## Phase 5: Full Validation Pipeline
+## Phase 5: Full Validation Pipeline (IN PROGRESS — foundation started)
 
-### Task 5.1: Integrated Backtest Harness
+### Task 5.1: Integrated Backtest Harness (User: "move toward")
 
-- [ ] Extend or create new harness inside `hydra_backtest/` that runs full HYDRA + new Meta-Layer.
+- [x] Extended `hydra_backtest/hydra/capital.py` pure functions (`compute_allocation_pure`, `update_accounts_after_day_pure`) with optional `meta_decision` param (mirrors live Phase 4 extension for consistency).
+- [ ] Add optional Meta-Layer instantiation + decision computation inside `hydra_backtest/hydra/engine.py` day loop (behind `use_meta_layer: bool = False` flag for clean A/B).
+- [ ] Update daily output schema to include meta decision columns when active.
+- [ ] Ensure Meta-Layer disabled path produces byte-comparable results to current baseline (critical for validation).
+- [ ] Create initial harness runner / validation entry point (e.g. in `research/meta_layer_v1/` or extend existing `hydra_backtest/hydra/validation.py`).
 - [ ] Must produce comparable results to current live engine behavior when Meta-Layer is disabled.
 
 ### Task 5.2: Execute the Full Validation Protocol
