@@ -78,19 +78,33 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
     
     df = apply_meta_to_candidates(df, meta_adj)
     
-    # Lógica de recomendación final
-    df['recommended'] = (df['rank'] <= 25) & (meta_adj.regime_score >= MIN_REGIME_SCORE * 0.9)
+    # === Número dinámico de recomendaciones basado en Pillar Multipliers ===
+    compass_mult = meta_adj.pillar_multipliers.get("COMPASS", 1.0)
+    overall_aggression = meta_adj.overall_aggression
+    
+    # Fórmula para cantidad recomendada (base 12-15, ajustado por Meta-Layer)
+    base_recommendations = 14
+    dynamic_count = int(round(base_recommendations * overall_aggression * compass_mult))
+    
+    # Límites razonables (no queremos recomendar 3 ni 45)
+    dynamic_count = max(6, min(dynamic_count, 28))
+    
+    # Lógica de recomendación final (ahora dinámica)
+    df['recommended'] = (df['rank'] <= dynamic_count) & (meta_adj.regime_score >= MIN_REGIME_SCORE * 0.85)
     df['reason'] = df.apply(
         lambda r: meta_adj.rationale if r['recommended'] else 'Filtrado por Meta-Layer', 
         axis=1
     )
     
+    # Guardamos el número dinámico para mostrarlo en el resumen
+    df['recommended_count'] = dynamic_count
+    
     final_df = df[['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
                    'meta_regime_type', 'meta_special_modes', 'aggression', 
-                   'compass_mult', 'recommended', 'reason']].copy()
+                   'compass_mult', 'recommended', 'reason', 'recommended_count']].copy()
     
     final_df.columns = ['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
                         'regime_type', 'special_modes', 'aggression', 
-                        'compass_mult', 'recommended', 'reason']
+                        'compass_mult', 'recommended', 'reason', 'recommended_count']
     
     return final_df.sort_values('meta_score', ascending=False).reset_index(drop=True)

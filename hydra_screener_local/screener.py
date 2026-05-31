@@ -51,7 +51,12 @@ def main():
     
     # 4. Mostrar resultados
     print_candidates_table(candidates, top_n=TOP_CANDIDATES)
-    print_summary(regime_score, len(candidates), meta_info, pillar_mults)
+    
+    recommended_count = None
+    if len(candidates) > 0:
+        recommended_count = int(candidates.iloc[0].get('recommended_count', TOP_CANDIDATES))
+    
+    print_summary(regime_score, len(candidates), meta_info, pillar_mults, recommended_count)
     
     # 5. Exportar Excel
     today = datetime.now().strftime("%Y%m%d")

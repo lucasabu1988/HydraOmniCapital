@@ -22,7 +22,7 @@ def print_header():
 def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
     """Muestra la tabla principal de candidatos (con ajustes de Meta-Layer)."""
     table = Table(
-        title=f"Top {top_n} Candidatos del Día (con Meta-Layer)",
+        title=f"Candidatos del Día (ranking ajustado por Meta-Layer + Pillar Multipliers)",
         box=box.ROUNDED,
         show_header=True,
         header_style="bold magenta"
@@ -63,7 +63,7 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
     console.print(table)
 
 
-def print_summary(regime_score: float, total_candidates: int, meta_info: dict = None, pillar_mults: dict = None):
+def print_summary(regime_score: float, total_candidates: int, meta_info: dict = None, pillar_mults: dict = None, recommended_count: int = None):
     """Resumen rápido con información de Meta-Layer + Pillar Multipliers."""
     color = "green" if regime_score >= 0.5 else "yellow" if regime_score >= 0.35 else "red"
     
@@ -81,7 +81,11 @@ def print_summary(regime_score: float, total_candidates: int, meta_info: dict = 
         content += "  (No disponibles)\n"
     
     content += f"\n[bold]Candidatos analizados:[/bold] {total_candidates}\n"
-    content += f"[bold]Top recomendados:[/bold] {min(15, total_candidates)}"
+    
+    if recommended_count:
+        content += f"[bold]Recomendados hoy (dinámico):[/bold] {recommended_count}"
+    else:
+        content += f"[bold]Top recomendados:[/bold] {min(15, total_candidates)}"
     
     console.print(Panel.fit(content, title="Resumen del Día - Meta-Layer + Pillars", border_style="blue"))
 
