@@ -89,6 +89,50 @@ try:
 except ImportError:
     _catalyst_available = False
 
+# ============================================================================
+# PHASE 4: HYDRA META-LAYER v1 (Regime OS + Dynamic Allocator)
+# ============================================================================
+# Feature flag + import guard for the new Meta-Layer (COMPASS v8.4 + Rattlesnake
+# + Catalyst + EFA with cash recycling).
+#
+# Design (see prep doc):
+#   ENABLE_META_LAYER=0       → completely disabled (default, zero risk)
+#   ENABLE_META_LAYER=1       → full operation (behind all safety layers)
+#   ENABLE_META_LAYER=shadow  → compute + rich log decisions, but force neutral
+#                               multipliers (1.0) and recycling_mult=1.0
+#
+# All paths are fail-safe. Any error → neutral decision + disable for cycle.
+# References:
+#   docs/superpowers/plans/2026-05-31-phase4-meta-layer-integration-prep.md
+#   docs/superpowers/plans/2026-06-05-hydra-meta-layer-v1-implementation.md (Phase 4)
+# ============================================================================
+
+_meta_layer_available = False
+_meta_layer_flag = os.environ.get('ENABLE_META_LAYER', '0').strip().lower()
+
+if _meta_layer_flag in ('1', 'true', 'yes', 'on', 'shadow'):
+    try:
+        # Lazy import only when flag allows it. This keeps the module importable
+        # even if hydra_meta has issues during early development.
+        from hydra_meta import (  # noqa: F401
+            RegimeScores,           # from regime_os (re-exported or direct)
+            MetaLayerDecision,
+            MetaLayer,
+            RiskBudgetMetaLayer,
+            # Ensemble will be added once Task 3.2 stabilizes
+        )
+        # We also need the upstream Regime OS
+        from regime_os import BasicRegimeOS, compute_regime_scores  # type: ignore
+        _meta_layer_available = True
+        logger.info("HYDRA Meta-Layer v1: GUARD LOADED (flag=%s)", _meta_layer_flag)
+    except Exception as e:
+        _meta_layer_available = False
+        logger.warning("HYDRA Meta-Layer v1: import failed (disabled): %s", e)
+else:
+    _meta_layer_available = False
+    if _meta_layer_flag not in ('0', 'false', 'no', 'off', ''):
+        logger.warning("ENABLE_META_LAYER has unknown value '%s' — treating as disabled", _meta_layer_flag)
+
 # Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
 try:
     from compass_fred_data import download_all_overlay_data
@@ -991,6 +1035,30 @@ class COMPASSLive:
         self._credit_filter = None
         self._overlay_result = {}  # Latest overlay diagnostics
         self._overlay_damping = 0.25  # Conditional damping factor
+
+        # =====================================================================
+        # PHASE 4: META-LAYER v1 (skeleton — everything disabled by default)
+        # =====================================================================
+        # See: docs/superpowers/plans/2026-05-31-phase4-meta-layer-integration-prep.md
+        self._meta_layer_available = _meta_layer_available
+        self._meta_layer_enabled = False          # final runtime decision
+        self._meta_layer_mode = "off"             # "off" | "shadow" | "live"
+        self.meta_layer = None                    # the actual MetaLayer instance (when active)
+        self.regime_os = None                     # BasicRegimeOS instance (when active)
+        self._last_meta_decision: Optional[Dict] = None  # last decision for logging/state
+        self._meta_error_count = 0
+
+        # Resolve final enablement (flag + successful import)
+        if self._meta_layer_available and _meta_layer_flag in ('1', 'true', 'yes', 'on', 'shadow'):
+            self._meta_layer_enabled = True
+            self._meta_layer_mode = "shadow" if _meta_layer_flag == "shadow" else "live"
+            logger.info(
+                "HYDRA Meta-Layer v1: ENABLED (mode=%s). All decisions start conservative.",
+                self._meta_layer_mode
+            )
+        else:
+            self._meta_layer_enabled = False
+            self._meta_layer_mode = "off"
 
         if _overlay_available:
             try:
@@ -1952,7 +2020,15 @@ class COMPASSLive:
 
             # Regime-aware capital allocation (May 2026 improvement)
             current_regime = getattr(self, '_current_regime', 'neutral')
+
+            # PHASE 4 WIRING (pilot site) — see prep doc §2.2
+            # When meta layer is active we will pass meta_decision here.
+            # For now the call is unchanged (fully backward compatible).
             alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime)
+
+            # Future (guarded):
+            # meta_dec = self._get_meta_layer_decision(...) if self._meta_layer_enabled else None
+            # alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime, meta_decision=meta_dec)
 
             compass_cash = min(portfolio.cash, alloc['compass_budget'])
             logger.info(f"HYDRA budget: COMPASS=${alloc['compass_budget']:,.0f} | "
@@ -4666,6 +4742,25 @@ class COMPASSLive:
         except Exception as e:
             logger.debug(f"Audit log write failed: {e}")
 
+    def _build_meta_layer_state_snapshot(self) -> Optional[Dict]:
+        """PHASE 4: Build compact snapshot for state file + dashboard.
+        Only called when _meta_layer_enabled is True.
+        Returns None on any error (fail-safe).
+        """
+        if not getattr(self, '_meta_layer_enabled', False):
+            return None
+        try:
+            snap = {
+                'enabled': True,
+                'mode': getattr(self, '_meta_layer_mode', 'live'),
+                'version': 'meta-v1-prep-20260531',
+                'last_decision': getattr(self, '_last_meta_decision', None),
+                'error_count': getattr(self, '_meta_error_count', 0),
+            }
+            return snap
+        except Exception:
+            return None
+
     def _safe_broker_snapshot(self):
         with self._data_lock:
             return {
@@ -4754,6 +4849,9 @@ class COMPASSLive:
                     'catalyst_positions': self.catalyst_positions,
                     'catalyst_day_counter': self._catalyst_day_counter,
                     'capital_manager': self.hydra_capital.to_dict() if self.hydra_capital else None,
+
+                    # PHASE 4 (prepared — populated only when meta layer is active this cycle)
+                    'meta_layer': self._build_meta_layer_state_snapshot() if getattr(self, '_meta_layer_enabled', False) else None,
                 },
 
                 # Pre-rotation snapshot (survives restart between execute_new_day and _update_cycle_log)
