@@ -63,23 +63,27 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
     console.print(table)
 
 
-def print_summary(regime_score: float, total_candidates: int, meta_info: dict = None):
-    """Resumen rápido con información de Meta-Layer."""
+def print_summary(regime_score: float, total_candidates: int, meta_info: dict = None, pillar_mults: dict = None):
+    """Resumen rápido con información de Meta-Layer + Pillar Multipliers."""
     color = "green" if regime_score >= 0.5 else "yellow" if regime_score >= 0.35 else "red"
     
     content = (
-        f"[bold]Régimen Score:[/bold] [{color}]{regime_score:.2f}[/{color}]\n"
-        f"[bold]Tipo de Régimen:[/bold] {meta_info.get('regime_type', 'N/A') if meta_info else 'N/A'}\n"
-        f"[bold]Candidatos analizados:[/bold] {total_candidates}\n"
-        f"[bold]Top recomendados:[/bold] {min(15, total_candidates)}"
+        f"[bold]Régimen Score:[/bold] [{color}]{regime_score:.2f}[/{color}]  "
+        f"[bold]Tipo:[/bold] {meta_info.get('regime_type', 'N/A') if meta_info else 'N/A'}\n\n"
+        f"[bold]Pillar Multipliers recomendados hoy:[/bold]\n"
     )
     
-    if meta_info:
-        content += f"\n[bold]Meta Aggression:[/bold] {meta_info.get('aggression', 1.0):.2f}"
-        if meta_info.get('recovery_boost', 1.0) > 1.0:
-            content += f"   [yellow]Recovery: {meta_info['recovery_boost']:.2f}x[/yellow]"
+    if pillar_mults:
+        for pillar, mult in pillar_mults.items():
+            arrow = "↑" if mult > 1.05 else "↓" if mult < 0.95 else "→"
+            content += f"  {pillar:12} {mult:.2f}x {arrow}\n"
+    else:
+        content += "  (No disponibles)\n"
     
-    console.print(Panel.fit(content, title="Resumen del Día (Meta-Layer)", border_style="blue"))
+    content += f"\n[bold]Candidatos analizados:[/bold] {total_candidates}\n"
+    content += f"[bold]Top recomendados:[/bold] {min(15, total_candidates)}"
+    
+    console.print(Panel.fit(content, title="Resumen del Día - Meta-Layer + Pillars", border_style="blue"))
 
 
 def print_footer():

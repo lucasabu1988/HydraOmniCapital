@@ -34,16 +34,23 @@ def main():
     
     # Extraer info de meta para el resumen
     meta_info = {}
+    pillar_mults = {}
     if len(candidates) > 0:
         meta_info = {
             'aggression': candidates.iloc[0].get('aggression', 1.0),
             'recovery_boost': candidates.iloc[0].get('recovery_boost', 1.0),
-            'regime_type': candidates.iloc[0].get('meta_regime_type', '')
+            'regime_type': candidates.iloc[0].get('regime_type', '')
         }
+        # Intentar extraer pillar multipliers del primer candidato
+        try:
+            import ast
+            pillar_mults = ast.literal_eval(candidates.iloc[0].get('pillar_multipliers', '{}'))
+        except:
+            pillar_mults = {}
     
     # 4. Mostrar resultados
     print_candidates_table(candidates, top_n=TOP_CANDIDATES)
-    print_summary(regime_score, len(candidates), meta_info)
+    print_summary(regime_score, len(candidates), meta_info, pillar_mults)
     
     # 5. Exportar
     if EXPORT_EXCEL:

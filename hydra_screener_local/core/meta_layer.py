@@ -22,6 +22,7 @@ class MetaAdjustment:
     bias_compass: float
     bias_rattlesnake: float
     bias_catalyst: float
+    pillar_multipliers: dict          # NEW: {"COMPASS": 1.15, "Rattlesnake": 0.90, "Catalyst": 0.65, "EFA": 0.80}
     risk_flags: List[str]
     rationale: str
 
@@ -111,6 +112,58 @@ class LightweightMetaLayer:
         overall_aggression = base_aggression
         rationale = " | ".join(rationale_parts) if rationale_parts else "Neutral"
 
+        # === Pillar Multipliers (la parte más potente) ===
+        multipliers = {
+            "COMPASS": 1.0,
+            "Rattlesnake": 1.0,
+            "Catalyst": 1.0,
+            "EFA": 1.0
+        }
+
+        # Base multipliers por régimen
+        if regime_type == "STRONG":
+            multipliers["COMPASS"] = 1.15
+            multipliers["Rattlesnake"] = 0.85
+            multipliers["Catalyst"] = 0.70
+            multipliers["EFA"] = 0.75
+        elif regime_type == "MODERATE":
+            multipliers["COMPASS"] = 1.05
+            multipliers["Rattlesnake"] = 0.95
+            multipliers["Catalyst"] = 0.90
+            multipliers["EFA"] = 0.92
+        elif regime_type == "CAUTIOUS":
+            multipliers["COMPASS"] = 0.88
+            multipliers["Rattlesnake"] = 1.12
+            multipliers["Catalyst"] = 0.95
+            multipliers["EFA"] = 0.98
+        else:  # WEAK
+            multipliers["COMPASS"] = 0.75
+            multipliers["Rattlesnake"] = 1.18
+            multipliers["Catalyst"] = 0.85
+            multipliers["EFA"] = 0.90
+
+        # Ajustes por Special Modes
+        for mode in special_modes:
+            if mode == "STRONG_BROAD_MOMENTUM":
+                multipliers["COMPASS"] *= 1.18
+                multipliers["Catalyst"] *= 0.60
+                multipliers["EFA"] *= 0.65
+            elif mode == "POST_CRISIS_RECOVERY":
+                multipliers["COMPASS"] *= 1.08
+                multipliers["Rattlesnake"] *= 0.95
+            elif mode == "ELEVATED_VOL_DEFENSIVE":
+                multipliers["Rattlesnake"] *= 1.15
+                multipliers["COMPASS"] *= 0.92
+            elif mode == "CRISIS_ACUTE":
+                multipliers["COMPASS"] *= 0.80
+                multipliers["Rattlesnake"] *= 0.95
+                multipliers["Catalyst"] *= 0.75
+                multipliers["EFA"] *= 0.80
+
+        # Clamp final (mantener conservador)
+        for k in multipliers:
+            multipliers[k] = round(max(0.60, min(1.45, multipliers[k])), 3)
+
         return MetaAdjustment(
             regime_score=regime_score,
             regime_type=regime_type,
@@ -120,6 +173,7 @@ class LightweightMetaLayer:
             bias_compass=round(bias_compass, 3),
             bias_rattlesnake=round(bias_rattlesnake, 3),
             bias_catalyst=round(bias_catalyst, 3),
+            pillar_multipliers=multipliers,
             risk_flags=list(set(risk_flags)),
             rationale=rationale
         )
@@ -129,6 +183,7 @@ def apply_meta_to_candidates(candidates_df, meta):
     df = candidates_df.copy()
     base = df['momentum'] * meta.overall_aggression
 
+    # Ajuste según bias + special modes
     if meta.regime_type == "STRONG" or "STRONG_BROAD_MOMENTUM" in meta.special_modes:
         final = base * (meta.bias_compass ** 0.7)
     elif meta.regime_type in ["WEAK", "CAUTIOUS"] or "ELEVATED_VOL_DEFENSIVE" in meta.special_modes:
@@ -141,6 +196,7 @@ def apply_meta_to_candidates(candidates_df, meta):
     df['meta_regime_type'] = meta.regime_type
     df['meta_special_modes'] = ", ".join(meta.special_modes) if meta.special_modes else ""
     df['meta_aggression'] = meta.overall_aggression
+    df['pillar_multipliers'] = str(meta.pillar_multipliers)
     df['meta_rationale'] = meta.rationale
 
     df = df.sort_values('meta_score', ascending=False).reset_index(drop=True)
