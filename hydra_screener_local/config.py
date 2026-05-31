@@ -36,3 +36,21 @@ EXPORT_EXCEL = True              # Guardar Excel automáticamente en /output
 
 # Nombre del archivo de salida (se agrega fecha automáticamente)
 OUTPUT_FILENAME_PREFIX = "hydra_screener"
+
+
+# ============================================
+# FILTROS PRÁCTICOS (para S&P 500)
+# ============================================
+FILTERS = {
+    # Volumen promedio mínimo de los últimos 20 días (liquidez)
+    "min_avg_volume": 1_500_000,     # 1.5 millones de acciones/día
+
+    # Precio mínimo actual
+    "min_price": 5.0,
+
+    # Precio máximo (opcional, None = sin límite)
+    "max_price": None,
+
+    # Sectores a excluir (requiere metadata de sectores - por ahora no implementado)
+    "exclude_sectors": [],           # Ejemplo: ["Financials", "Energy"]
+}
