@@ -109,8 +109,43 @@ except ImportError:
 
 _meta_layer_available = False
 _meta_layer_flag = os.environ.get('ENABLE_META_LAYER', '0').strip().lower()
+_meta_layer_mode = "off"
+
+# ============================================================
+# VERY LOUD, UNCONDITIONAL STARTUP ANNOUNCEMENT FOR META-LAYER
+# This will always appear in Render logs so we can verify the flag.
+# ============================================================
+print("=" * 70)
+print(f"[META-LAYER FLAG] ENABLE_META_LAYER = '{_meta_layer_flag}' (raw from env)")
 
 if _meta_layer_flag in ('1', 'true', 'yes', 'on', 'shadow'):
+    _meta_layer_mode = "shadow" if _meta_layer_flag == "shadow" else "live"
+    print(f"[META-LAYER] *** ACTIVATION ATTEMPTED *** mode={_meta_layer_mode}")
+    try:
+        # Lazy import only when flag allows it.
+        from hydra_meta import (  # noqa: F401
+            MetaLayerDecision,
+            MetaLayer,
+            RiskBudgetMetaLayer,
+            PortfolioState,   # needed for decision input
+        )
+        from regime_os import BasicRegimeOS  # type: ignore
+        _meta_layer_available = True
+        try:
+            logger.info("HYDRA Meta-Layer v1: GUARD LOADED (flag=%s, mode=%s)", _meta_layer_flag, _meta_layer_mode)
+        except NameError:
+            print(f"HYDRA Meta-Layer v1: GUARD LOADED (flag={_meta_layer_flag}, mode={_meta_layer_mode})")
+    except Exception as e:
+        _meta_layer_available = False
+        try:
+            logger.warning("HYDRA Meta-Layer v1: import failed (disabled): %s", e)
+        except NameError:
+            print(f"HYDRA Meta-Layer v1: import failed (disabled): {e}")
+else:
+    _meta_layer_available = False
+    print(f"[META-LAYER] Disabled (flag='{ _meta_layer_flag }') — running in baseline mode (no meta layer)")
+
+print("=" * 70)
     try:
         # Lazy import only when flag allows it.
         from hydra_meta import (  # noqa: F401
@@ -127,18 +162,6 @@ if _meta_layer_flag in ('1', 'true', 'yes', 'on', 'shadow'):
             print(f"HYDRA Meta-Layer v1: GUARD LOADED (flag={_meta_layer_flag})")
     except Exception as e:
         _meta_layer_available = False
-        try:
-            logger.warning("HYDRA Meta-Layer v1: import failed (disabled): %s", e)
-        except NameError:
-            print(f"HYDRA Meta-Layer v1: import failed (disabled): {e}")
-else:
-    _meta_layer_available = False
-    if _meta_layer_flag not in ('0', 'false', 'no', 'off', ''):
-        try:
-            logger.warning("ENABLE_META_LAYER has unknown value '%s' — treating as disabled", _meta_layer_flag)
-        except NameError:
-            print(f"ENABLE_META_LAYER has unknown value '{_meta_layer_flag}' — treating as disabled")
-
 # Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
 try:
     from compass_fred_data import download_all_overlay_data
@@ -4880,6 +4903,19 @@ class COMPASSLive:
                 # SHADOW MODE SAFETY: callers receive neutral multipliers so no capital impact,
                 # but the rich decision is still stored and was logged above.
                 if getattr(self, '_meta_layer_mode', 'live') == 'shadow':
+                    # Make it very visible in logs that we are computing real meta decisions
+                    # even though we don't apply them.
+                    try:
+                        logger.info(
+                            "[SHADOW] Meta decision computed | recycle=%.2f | boost=%.3f | modes=%s | conf=%.2f",
+                            decision_dict.get('recycling_multiplier', 1.0),
+                            (decision_dict.get('recovery_adaptation') or {}).get('boost', 1.0),
+                            decision_dict.get('active_modes', []),
+                            decision_dict.get('confidence', 0.5)
+                        )
+                    except Exception:
+                        pass
+
                     neutral = {
                         'gross_exposure': 1.0,
                         'multipliers': {'COMPASS': 1.0, 'Rattlesnake': 1.0, 'Catalyst': 1.0, 'EFA': 1.0},
