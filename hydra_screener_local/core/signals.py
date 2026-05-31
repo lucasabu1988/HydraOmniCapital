@@ -74,19 +74,19 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
     
     df = apply_meta_to_candidates(df, meta_adj)
     
-    # Lógica de recomendación final (más inteligente gracias a Meta-Layer)
-    df['recommended'] = (df['final_rank'] <= 25) & (meta_adj.regime_score >= MIN_REGIME_SCORE * 0.9)
+    # Lógica de recomendación final
+    df['recommended'] = (df['rank'] <= 25) & (meta_adj.regime_score >= MIN_REGIME_SCORE * 0.9)
     df['reason'] = df.apply(
-        lambda r: meta_adj.rationale if r['recommended'] else 'No recomendado por régimen/meta', 
+        lambda r: meta_adj.rationale if r['recommended'] else 'Filtrado por Meta-Layer', 
         axis=1
     )
     
-    # Columnas finales para mostrar
-    final_df = df[['final_rank', 'ticker', 'momentum_score', 'meta_adjusted_score', 
-                   'meta_regime', 'meta_recovery_boost', 'meta_aggression', 
+    final_df = df[['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
+                   'meta_regime_type', 'meta_special_modes', 'aggression', 
                    'recommended', 'reason']].copy()
     
     final_df.columns = ['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
-                        'recovery_boost', 'aggression', 'recommended', 'reason']
+                        'regime_type', 'special_modes', 'aggression', 
+                        'recommended', 'reason']
     
     return final_df.sort_values('meta_score', ascending=False).reset_index(drop=True)

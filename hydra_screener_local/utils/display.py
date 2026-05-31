@@ -34,7 +34,7 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
     table.add_column("Meta Score", justify="right", style="green")
     table.add_column("Régimen", justify="center")
     table.add_column("Tipo", justify="center")
-    table.add_column("Recovery", justify="center")
+    table.add_column("Special Modes", style="yellow")
     table.add_column("Agg", justify="center")
     table.add_column("Rec", justify="center")
     table.add_column("Razón", style="dim")
@@ -53,11 +53,11 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
             f"{row.get('momentum', 0):.3f}",
             f"{row.get('meta_score', 0):.3f}",
             f"[{regime_color}]{row.get('regime', 0):.2f}[/{regime_color}]",
-            str(row.get('meta_regime_type', ''))[:7],
-            recovery,
+            str(row.get('regime_type', ''))[:7],
+            str(row.get('special_modes', ''))[:22],
             f"{row.get('aggression', 1.0):.2f}",
             f"[{rec_style}]{rec}[/{rec_style}]",
-            str(row.get('reason', ''))[:40]
+            str(row.get('reason', ''))[:35]
         )
     
     console.print(table)

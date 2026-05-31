@@ -1,14 +1,11 @@
 """
-Meta-Layer Adapter para el Screener Local - Versión Potente.
+Meta-Layer Adapter - Versión Potente con Special Modes (Task 2.4)
 
-Esta es una versión más completa y fiel al RiskBudgetMetaLayer original,
-optimizada para screening diario pero con más poder de decisión.
-
-Incluye:
-- Mejor clasificación de régimen (más dimensiones)
-- Lógica de Recovery más desarrollada (Task 3.2)
-- Recomendaciones de bias por pilar (COMPASS vs Rattlesnake vs diversificadores)
-- Ajustes más agresivos pero aún conservadores
+Incluye los 4 modos especiales con comportamientos cualitativamente diferentes:
+- CRISIS_ACUTE
+- POST_CRISIS_RECOVERY
+- STRONG_BROAD_MOMENTUM
+- ELEVATED_VOL_DEFENSIVE
 """
 import numpy as np
 from dataclasses import dataclass
@@ -18,28 +15,24 @@ from typing import List
 @dataclass
 class MetaAdjustment:
     regime_score: float
-    regime_type: str                     # "STRONG", "MODERATE", "CAUTIOUS", "WEAK"
-    recovery_boost: float                # 1.0 = neutral, >1.0 = modo recuperación
+    regime_type: str
+    special_modes: List[str]
+    recovery_boost: float
     overall_aggression: float
-    bias_compass: float                  # Favor momentum
-    bias_rattlesnake: float              # Favor mean-reversion
-    bias_catalyst: float                 # Favor diversificadores macro
+    bias_compass: float
+    bias_rattlesnake: float
+    bias_catalyst: float
     risk_flags: List[str]
     rationale: str
 
 
 class LightweightMetaLayer:
-    """
-    Versión más potente del Meta-Layer para el screener.
-    Conservadora pero con más granularidad que la versión anterior.
-    """
+    """Versión potente del Meta-Layer para el screener local."""
 
     def __init__(self):
-        # Parámetros más cercanos a la versión completa
-        self.recovery_dd_threshold = 0.07
-        self.max_recovery_boost = 1.12
         self.strong_regime_threshold = 0.62
         self.weak_regime_threshold = 0.38
+        self.max_recovery_boost = 1.12
 
     def compute_adjustment(
         self,
@@ -47,118 +40,109 @@ class LightweightMetaLayer:
         recent_drawdown: float = 0.0,
         spy_20d_return: float = 0.0,
         spy_60d_return: float = 0.0,
-        volatility_level: float = 0.5,   # 0.3 calm → 0.8+ stressed
+        volatility_level: float = 0.5,
     ) -> MetaAdjustment:
-        """
-        Versión más potente de compute_adjustment.
-        """
+
         risk_flags = []
         rationale_parts = []
+        special_modes = []
 
-        # === 1. Clasificación más fina del régimen ===
+        # === Régimen Base ===
         if regime_score >= self.strong_regime_threshold:
             regime_type = "STRONG"
             base_aggression = 1.10
             bias_compass = 1.18
             bias_rattlesnake = 0.82
             bias_catalyst = 0.75
-            rationale_parts.append("Strong regime: Max COMPASS bias")
         elif regime_score >= 0.50:
             regime_type = "MODERATE"
             base_aggression = 1.04
             bias_compass = 1.08
             bias_rattlesnake = 0.95
             bias_catalyst = 0.90
-            rationale_parts.append("Moderate regime")
         elif regime_score >= self.weak_regime_threshold:
             regime_type = "CAUTIOUS"
             base_aggression = 0.93
             bias_compass = 0.85
             bias_rattlesnake = 1.12
             bias_catalyst = 1.05
-            risk_flags.append("ELEVATED_VOL_DEFENSIVE")
-            rationale_parts.append("Cautious: Rattlesnake bias")
         else:
             regime_type = "WEAK"
             base_aggression = 0.82
             bias_compass = 0.70
             bias_rattlesnake = 1.20
             bias_catalyst = 0.95
-            risk_flags.append("WEAK_REGIME")
-            rationale_parts.append("Weak regime: Strong defensive stance")
 
-        # === 2. Recovery Logic (más desarrollada) ===
-        recovery_boost = 1.0
-        is_in_drawdown = recent_drawdown >= self.recovery_dd_threshold
-        has_good_recovery = spy_20d_return > 0.025 and spy_60d_return > -0.05
+        # === Special Modes ===
+        # 1. CRISIS_ACUTE
+        if recent_drawdown >= 0.12 or (regime_score < 0.25 and volatility_level > 0.70):
+            base_aggression *= 0.82
+            bias_compass *= 0.75
+            special_modes.append("CRISIS_ACUTE")
+            risk_flags.append("CRISIS_HARD_DEFENSE")
+            rationale_parts.append("SPECIAL: Crisis Acute")
 
-        if is_in_drawdown and has_good_recovery and regime_score > 0.38:
-            depth_factor = min((recent_drawdown - 0.07) * 1.4, 0.12)
-            recovery_boost = 1.0 + depth_factor
-            recovery_boost = min(recovery_boost, self.max_recovery_boost)
+        # 2. POST_CRISIS_RECOVERY
+        has_good_recovery = spy_20d_return > 0.025 and spy_60d_return > -0.08
+        if recent_drawdown >= 0.06 and has_good_recovery and regime_score > 0.35:
+            recovery_boost = min(1.0 + (recent_drawdown - 0.06) * 1.5, self.max_recovery_boost)
+            base_aggression *= recovery_boost
+            special_modes.append("POST_CRISIS_RECOVERY")
+            risk_flags.append("RECOVERY_ACCEL")
+            rationale_parts.append(f"SPECIAL: Recovery {recovery_boost:.2f}x")
 
-            risk_flags.append("POST_CRISIS_RECOVERY")
-            rationale_parts.append(f"Recovery active (+{ (recovery_boost-1)*100 :.0f}%)")
+        # 3. STRONG_BROAD_MOMENTUM
+        if regime_score >= 0.68 and volatility_level < 0.55 and recent_drawdown < 0.06:
+            base_aggression *= 1.06
+            bias_compass *= 1.22
+            bias_catalyst *= 0.65
+            special_modes.append("STRONG_BROAD_MOMENTUM")
+            risk_flags.append("MOMENTUM_OVERRIDE")
+            rationale_parts.append("SPECIAL: Strong Momentum")
 
-        # === 3. Volatility overlay ===
+        # 4. ELEVATED_VOL_DEFENSIVE
         if volatility_level > 0.68:
-            base_aggression *= 0.90
-            bias_rattlesnake *= 1.10
-            bias_compass *= 0.92
-            risk_flags.append("HIGH_VOL")
-            rationale_parts.append("High volatility: extra defense")
+            base_aggression *= 0.91
+            bias_rattlesnake *= 1.15
+            special_modes.append("ELEVATED_VOL_DEFENSIVE")
+            risk_flags.append("VOL_MR_FRIENDLY")
+            rationale_parts.append("SPECIAL: High Vol MR bias")
 
-        # === 4. Ajuste final ===
-        overall_aggression = base_aggression * recovery_boost
-
-        rationale = " | ".join(rationale_parts) if rationale_parts else "Neutral / Balanced"
+        overall_aggression = base_aggression
+        rationale = " | ".join(rationale_parts) if rationale_parts else "Neutral"
 
         return MetaAdjustment(
             regime_score=regime_score,
             regime_type=regime_type,
-            recovery_boost=round(recovery_boost, 3),
+            special_modes=special_modes,
+            recovery_boost=1.0,
             overall_aggression=round(overall_aggression, 3),
             bias_compass=round(bias_compass, 3),
             bias_rattlesnake=round(bias_rattlesnake, 3),
             bias_catalyst=round(bias_catalyst, 3),
-            risk_flags=risk_flags,
+            risk_flags=list(set(risk_flags)),
             rationale=rationale
         )
 
 
-def apply_meta_to_candidates(
-    candidates_df: pd.DataFrame,
-    meta: MetaAdjustment
-) -> pd.DataFrame:
-    """
-    Aplica los ajustes de la Meta-Layer de forma más potente.
-    """
+def apply_meta_to_candidates(candidates_df, meta):
     df = candidates_df.copy()
-
-    # Score base ajustado por agresión general
     base = df['momentum'] * meta.overall_aggression
 
-    # Bonus adicional según bias (aproximado)
-    # Como no tenemos clasificación por estrategia por ticker aún,
-    # aplicamos un ajuste general pero más agresivo según el régimen.
-    if meta.regime_type == "STRONG":
-        # En régimen fuerte, premiamos más el momentum puro
-        final = base * (meta.bias_compass ** 0.6)
-    elif meta.regime_type == "WEAK":
-        # En régimen débil, castigamos momentum agresivo
-        final = base * (meta.bias_rattlesnake ** 0.4) * 0.95
+    if meta.regime_type == "STRONG" or "STRONG_BROAD_MOMENTUM" in meta.special_modes:
+        final = base * (meta.bias_compass ** 0.7)
+    elif meta.regime_type in ["WEAK", "CAUTIOUS"] or "ELEVATED_VOL_DEFENSIVE" in meta.special_modes:
+        final = base * (meta.bias_rattlesnake ** 0.5) * 0.96
     else:
         final = base
 
     df['meta_score'] = final.round(4)
     df['meta_regime'] = meta.regime_score
-    df['meta_recovery_boost'] = meta.recovery_boost
-    df['meta_aggression'] = meta.overall_aggression
     df['meta_regime_type'] = meta.regime_type
+    df['meta_special_modes'] = ", ".join(meta.special_modes) if meta.special_modes else ""
+    df['meta_aggression'] = meta.overall_aggression
     df['meta_rationale'] = meta.rationale
 
-    # Reordenar
     df = df.sort_values('meta_score', ascending=False).reset_index(drop=True)
     df['rank'] = range(1, len(df) + 1)
-
     return df
