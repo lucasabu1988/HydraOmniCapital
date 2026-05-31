@@ -68,6 +68,15 @@ from hydra_backtest.hydra.capital import (
     update_catalyst_value_pure,
     update_efa_value_pure,
 )
+
+# PHASE 5 (Meta-Layer validation harness) — optional import guard
+# When use_meta_layer=True in the harness, we will import:
+#   from regime_os import BasicRegimeOS
+#   from hydra_meta import RiskBudgetMetaLayer, PortfolioState
+# and compute decision at the appropriate point in the day (after
+# mark-to-market, before capital budget decisions), then pass
+# meta_decision=... to the pure capital functions.
+# This keeps the Meta-Layer completely optional for clean A/B validation.
 from hydra_backtest.hydra.state import (
     HydraBacktestState,
     compute_pillar_invested,

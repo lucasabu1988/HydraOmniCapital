@@ -18,3 +18,4 @@ See:
 - `docs/superpowers/specs/2026-06-05-hydra-meta-layer-v1-design.md`
 
 Do not commit large binary artifacts here; prefer summaries or use git LFS if needed.
+Placeholder for Phase 5 integrated validation harness experiments and the official validation_report.md (see implementation plan).
