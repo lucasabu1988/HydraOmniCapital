@@ -87,10 +87,10 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
     
     final_df = df[['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
                    'meta_regime_type', 'meta_special_modes', 'aggression', 
-                   'recommended', 'reason']].copy()
+                   'compass_mult', 'recommended', 'reason']].copy()
     
     final_df.columns = ['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
                         'regime_type', 'special_modes', 'aggression', 
-                        'recommended', 'reason']
+                        'compass_mult', 'recommended', 'reason']
     
     return final_df.sort_values('meta_score', ascending=False).reset_index(drop=True)

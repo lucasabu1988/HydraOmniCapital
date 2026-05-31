@@ -180,22 +180,31 @@ class LightweightMetaLayer:
 
 
 def apply_meta_to_candidates(candidates_df, meta):
+    """
+    Aplica los ajustes de la Meta-Layer usando activamente los Pillar Multipliers.
+    """
     df = candidates_df.copy()
     base = df['momentum'] * meta.overall_aggression
 
-    # Ajuste según bias + special modes
+    # === USO ACTIVO DE PILLAR MULTIPLIERS ===
+    # Este screener es momentum-driven → el multiplicador de COMPASS es el más relevante.
+    compass_mult = meta.pillar_multipliers.get("COMPASS", 1.0)
+
     if meta.regime_type == "STRONG" or "STRONG_BROAD_MOMENTUM" in meta.special_modes:
-        final = base * (meta.bias_compass ** 0.7)
+        pillar_factor = (compass_mult ** 0.85) * (meta.bias_compass ** 0.5)
     elif meta.regime_type in ["WEAK", "CAUTIOUS"] or "ELEVATED_VOL_DEFENSIVE" in meta.special_modes:
-        final = base * (meta.bias_rattlesnake ** 0.5) * 0.96
+        pillar_factor = (compass_mult ** 0.6) * (meta.bias_rattlesnake ** 0.4) * 0.94
     else:
-        final = base
+        pillar_factor = compass_mult ** 0.7
+
+    final = base * pillar_factor
 
     df['meta_score'] = final.round(4)
     df['meta_regime'] = meta.regime_score
     df['meta_regime_type'] = meta.regime_type
     df['meta_special_modes'] = ", ".join(meta.special_modes) if meta.special_modes else ""
     df['meta_aggression'] = meta.overall_aggression
+    df['compass_mult'] = round(compass_mult, 3)
     df['pillar_multipliers'] = str(meta.pillar_multipliers)
     df['meta_rationale'] = meta.rationale
 

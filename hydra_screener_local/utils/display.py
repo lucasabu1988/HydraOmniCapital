@@ -32,7 +32,7 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
     table.add_column("Ticker", style="bold white")
     table.add_column("Momentum", justify="right")
     table.add_column("Meta Score", justify="right", style="green")
-    table.add_column("Régimen", justify="center")
+    table.add_column("COMPASS×", justify="center", style="yellow")  # Pillar multiplier effect
     table.add_column("Tipo", justify="center")
     table.add_column("Special Modes", style="yellow")
     table.add_column("Agg", justify="center")
@@ -52,12 +52,12 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
             row['ticker'],
             f"{row.get('momentum', 0):.3f}",
             f"{row.get('meta_score', 0):.3f}",
-            f"[{regime_color}]{row.get('regime', 0):.2f}[/{regime_color}]",
+            f"{row.get('compass_mult', 1.0):.2f}x",   # Shows how much the pillar multiplier affected the score
             str(row.get('regime_type', ''))[:7],
-            str(row.get('special_modes', ''))[:22],
+            str(row.get('special_modes', ''))[:20],
             f"{row.get('aggression', 1.0):.2f}",
             f"[{rec_style}]{rec}[/{rec_style}]",
-            str(row.get('reason', ''))[:35]
+            str(row.get('reason', ''))[:32]
         )
     
     console.print(table)
