@@ -1058,6 +1058,24 @@ class COMPASSLive:
             self._meta_layer_enabled = False
             self._meta_layer_mode = "off"
 
+        # PHASE 4/6: Instantiate real Meta-Layer components for omnicapital.onrender.com
+        # Safe even in shadow: decisions are computed + logged, but allocation sites
+        # will neutralize impact when mode=="shadow".
+        if self._meta_layer_enabled:
+            try:
+                self.regime_os = BasicRegimeOS(market_data={})  # live prices fed via decision path
+                self.meta_layer = RiskBudgetMetaLayer()         # conservative RiskBudgetParams defaults
+                logger.info(
+                    "Meta-Layer v1 INSTANTIATED for %s (RiskBudgetMetaLayer + BasicRegimeOS).",
+                    self._meta_layer_mode.upper()
+                )
+            except Exception as e:
+                logger.error("Meta-Layer instantiation failed — forcing OFF for safety: %s", e)
+                self._meta_layer_enabled = False
+                self._meta_layer_mode = "off"
+                self.regime_os = None
+                self.meta_layer = None
+
         if _overlay_available:
             try:
                 self._fred_data = download_all_overlay_data()
@@ -2028,8 +2046,12 @@ class COMPASSLive:
             )
 
             if meta_dec and meta_dec.get('meta_applied'):
-                logger.debug("Meta decision applied to capital allocation: multipliers=%s, recyc=%.2f",
-                             meta_dec.get('applied_multipliers'), meta_dec.get('applied_recycling_mult'))
+                logger.info("Meta-Layer APPLIED (live mode): mults=%s, recyc=%.2f",
+                            meta_dec.get('applied_multipliers'), meta_dec.get('applied_recycling_mult'))
+            elif meta_dec and self._meta_layer_mode == 'shadow':
+                logger.debug("Meta-Layer computed in SHADOW (no allocation impact): real_modes=%s, real_recyc=%.2f",
+                             (meta_dec.get('_real_decision') or meta_dec).get('active_modes'),
+                             (meta_dec.get('_real_decision') or meta_dec).get('recycling_multiplier'))
 
             compass_cash = min(portfolio.cash, alloc['compass_budget'])
             logger.info(f"HYDRA budget: COMPASS=${alloc['compass_budget']:,.0f} | "
@@ -4778,14 +4800,14 @@ class COMPASSLive:
             return None
 
     def _get_meta_layer_decision(self, scores=None, portfolio_snapshot=None):
-        """PHASE 4: Safe accessor for Meta-Layer decision.
+        """PHASE 4/6: Safe accessor for Meta-Layer decision (live on omnicapital.onrender.com).
 
-        Returns a MetaLayerDecision (or equivalent dict) when enabled,
-        otherwise returns None (caller must treat as 'use neutral defaults').
-
-        Currently a stub that always returns None (conservative).
-        Real implementation will be added after Task 3.2 stabilizes and
-        HydraCapitalManager is extended (Task 4.1).
+        - When ENABLE_META_LAYER=shadow: always compute + rich-log the real decision,
+          but return a fully neutralized dict to allocation sites (zero capital impact).
+        - When ENABLE_META_LAYER=1 (live): return the real decision (multipliers + recycling
+          can deviate from 1.0 within the conservative bounds of RiskBudgetMetaLayer).
+        - All errors degrade to neutral (baseline behavior preserved).
+        - _last_meta_decision always holds the rich computed version for dashboard/state.
         """
         if not getattr(self, '_meta_layer_enabled', False):
             return None
@@ -4793,9 +4815,8 @@ class COMPASSLive:
         try:
             self._meta_error_count = getattr(self, '_meta_error_count', 0)
 
-            # PHASE 4 REAL WIRING (now that Task 3.2 recovery adaptation is complete)
             if self.regime_os is not None and self.meta_layer is not None:
-                # Build better PortfolioState using live engine data when available
+                # Build live PortfolioState snapshot
                 total_equity = getattr(self, 'peak_value', 100000.0) or 100000.0
                 try:
                     current_value = self.broker.get_portfolio().total_value if hasattr(self, 'broker') else total_equity
@@ -4807,23 +4828,22 @@ class COMPASSLive:
                     total_equity=total_equity,
                     cash=getattr(getattr(self, 'broker', None), 'cash', 30000.0),
                     drawdown_pct=drawdown,
-                    # Add 5d ago drawdown if we have history (helps recovery adaptation)
-                    drawdown_5d_ago=0.0,  # Can be improved with actual history later
+                    drawdown_5d_ago=0.0,
                 )
 
-                # Get fresh regime scores (Phase 1) - use actual API
+                # Regime scores (Phase 1)
                 scores = None
                 try:
                     res = self.regime_os.compute_regime() if hasattr(self.regime_os, 'compute_regime') else None
                     if isinstance(res, (list, tuple)) and len(res) > 0:
-                        scores = res[0]  # First element is RegimeScores
+                        scores = res[0]
                 except Exception:
                     scores = None
 
-                # Get the decision (this now includes Task 3.2 limited recovery adaptation when enabled in params)
+                # Real decision (includes Task 3.2 recovery adaptation when conditions met)
                 decision = self.meta_layer.compute_decision(scores=scores, portfolio=port)
 
-                # Convert to simple dict for logging/state (rich rationale preserved)
+                # Rich dict for logging / dashboard / persistence (always the true computed values)
                 decision_dict = {
                     'gross_exposure': getattr(decision, 'gross_exposure', 1.0),
                     'multipliers': getattr(decision, 'multipliers', {}),
@@ -4836,33 +4856,55 @@ class COMPASSLive:
                         'boost': getattr(getattr(self.meta_layer, 'recovery_adaptation_state', None), 'current_boost', 1.0),
                         'consec_good': getattr(getattr(self.meta_layer, 'recovery_adaptation_state', None), 'consecutive_good_bars', 0),
                     } if getattr(self.meta_layer, 'recovery_adaptation_state', None) else None,
+                    'meta_applied': True,
                 }
 
                 self._last_meta_decision = decision_dict
 
+                # Interesting decisions get INFO log (recovery boost, special modes, etc.)
                 if decision_dict.get('active_modes') or decision_dict.get('recovery_adaptation', {}).get('boost', 1.0) != 1.0:
-                    logger.info("Meta-Layer decision: modes=%s, recycle_mult=%.2f, recovery_boost=%.3f",
+                    logger.info("Meta-Layer decision: modes=%s, recycle_mult=%.2f, recovery_boost=%.3f, conf=%.2f",
                                 decision_dict.get('active_modes'),
                                 decision_dict.get('recycling_multiplier', 1.0),
-                                decision_dict.get('recovery_adaptation', {}).get('boost', 1.0))
+                                decision_dict.get('recovery_adaptation', {}).get('boost', 1.0),
+                                decision_dict.get('confidence', 0.5))
 
+                # SHADOW MODE SAFETY: callers receive neutral multipliers so no capital impact,
+                # but the rich decision is still stored and was logged above.
+                if getattr(self, '_meta_layer_mode', 'live') == 'shadow':
+                    neutral = {
+                        'gross_exposure': 1.0,
+                        'multipliers': {'COMPASS': 1.0, 'Rattlesnake': 1.0, 'Catalyst': 1.0, 'EFA': 1.0},
+                        'recycling_multiplier': 1.0,
+                        'active_modes': decision_dict.get('active_modes', []),
+                        'risk_flags': decision_dict.get('risk_flags', []),
+                        'confidence': decision_dict.get('confidence', 0.5),
+                        'rationale': '[SHADOW] ' + decision_dict.get('rationale', ''),
+                        'recovery_adaptation': decision_dict.get('recovery_adaptation'),
+                        'meta_applied': False,   # signals to allocation that no change was made
+                        '_real_decision': decision_dict,  # preserved for advanced dashboard use
+                    }
+                    return neutral
+
+                # LIVE mode: the real (potentially non-neutral) decision is applied
                 return decision_dict
 
-            # Fallback neutral if components not ready
+            # Components not ready → neutral (baseline)
             decision = {
                 'gross_exposure': 1.0,
                 'multipliers': {'COMPASS': 1.0, 'Rattlesnake': 1.0, 'Catalyst': 1.0, 'EFA': 1.0},
                 'recycling_multiplier': 1.0,
                 'active_modes': [],
                 'confidence': 0.5,
-                'rationale': 'Phase 4 wiring (components not yet ready)',
+                'rationale': 'Meta-Layer components not initialized',
+                'meta_applied': False,
             }
             self._last_meta_decision = decision
             return decision
 
         except Exception as e:
             self._meta_error_count += 1
-            logger.warning("Meta-Layer decision failed (returning neutral): %s", e)
+            logger.warning("Meta-Layer decision failed (returning neutral, baseline preserved): %s", e)
             return None
 
     def _safe_broker_snapshot(self):

@@ -5,6 +5,7 @@ The wrappers slice the global state by `_strategy` tag, call the
 existing v1.0-v1.3 helpers without modification, and merge results
 back into the global state.
 """
+import logging
 import subprocess
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -599,17 +600,16 @@ def run_hydra_backtest(
     # PHASE 5: Optional Meta-Layer for validation harness (A/B testing)
     meta_layer = None
     regime_os = None
+    _ml_logger = logging.getLogger(__name__)
     if use_meta_layer:
         try:
             from regime_os import BasicRegimeOS
             from hydra_meta import RiskBudgetMetaLayer
             regime_os = BasicRegimeOS()
             meta_layer = RiskBudgetMetaLayer()
-            logger = logging.getLogger(__name__)
-            logger.info("Phase 5 harness: Meta-Layer enabled")
+            _ml_logger.info("Phase 5 harness: Meta-Layer enabled")
         except Exception as e:
-            logger = logging.getLogger(__name__)
-            logger.warning("Meta-Layer init failed for harness (disabled): %s", e)
+            _ml_logger.warning("Meta-Layer init failed for harness (disabled): %s", e)
             use_meta_layer = False
 
     catalyst_day_counter = 0

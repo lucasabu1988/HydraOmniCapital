@@ -56,7 +56,16 @@ def compute_metrics(daily: pd.DataFrame, initial_capital: float = 100_000.0) -> 
     equity = daily['portfolio_value'].astype(float)
     returns = equity.pct_change().dropna()
 
-    years = max((equity.index[-1] - equity.index[0]).days / 365.25, 0.01)
+    # Robust year calculation - handle both DatetimeIndex and integer index
+    try:
+        if pd.api.types.is_datetime64_any_dtype(equity.index):
+            years = max((equity.index[-1] - equity.index[0]).days / 365.25, 0.01)
+        else:
+            # Fallback for integer or other index types (e.g. day count)
+            years = max(len(returns) / 252.0, 0.01)
+    except Exception:
+        years = max(len(returns) / 252.0, 0.01)
+
     cagr = (equity.iloc[-1] / initial_capital) ** (1 / years) - 1
     total_return = equity.iloc[-1] / initial_capital - 1
 
@@ -85,22 +94,46 @@ def run_ab_backtest(
     start: str,
     end: str,
     out_dir: Path,
-    use_real_data: bool = True,
+    data_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Run A/B (meta off vs on) and return structured results."""
     out_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Loading data for {start} to {end}...")
 
-    # Load data (same as the official hydra harness)
-    pit_universe = load_pit_universe()
-    price_data = load_price_history()
-    spy_data = load_spy_data()
-    vix_data = load_vix_series()
-    catalyst_assets = load_catalyst_assets()
-    efa_data = load_efa_series()
-    cash_yield = load_yield_series()
-    sector_map = load_sector_map()
+    data_dir = data_dir or Path("data_cache")
+
+    # Load using current project data layout (broad_pool pickle is the modern source)
+    broad_pool_path = data_dir / "broad_pool_2000-01-01_2026-02-09.pkl"
+    if broad_pool_path.exists():
+        import pickle
+        with open(broad_pool_path, 'rb') as f:
+            price_data = pickle.load(f)
+        logger.info(f"Loaded {len(price_data)} tickers from broad_pool pickle")
+    else:
+        price_data = load_price_history(str(data_dir / "sp500_universe_prices.pkl"))
+
+    # Simplified PIT universe for longer validation runs (all tickers active in recent years)
+    recent_tickers = list(price_data.keys())[:800]  # cap for performance
+    pit_universe = {year: recent_tickers for year in range(2010, 2027)}
+
+    spy_path = data_dir / "SPY_2000-01-01_2026-02-09.csv"
+    spy_data = load_spy_data(str(spy_path)) if spy_path.exists() else load_spy_data(str(data_dir / "SPY_2000-01-01_2027-01-01.csv"))
+
+    vix_path = data_dir / "vix_history.csv"
+    vix_data = load_vix_series(str(vix_path)) if vix_path.exists() else pd.Series(dtype=float)
+
+    cat_path = data_dir / "catalyst_assets.pkl"
+    catalyst_assets = load_catalyst_assets(str(cat_path)) if cat_path.exists() else {}
+
+    efa_path = data_dir / "efa_history.pkl"
+    efa_data = load_efa_series(str(efa_path)) if efa_path.exists() else pd.DataFrame()
+
+    yield_path = data_dir / "moody_aaa_yield.csv"
+    cash_yield = load_yield_series(str(yield_path)) if yield_path.exists() else pd.Series(dtype=float)
+
+    sector_path = data_dir / "sp500_sector_map.json"
+    sector_map = load_sector_map(str(sector_path)) if sector_path.exists() else {}
 
     results = {
         "meta_off": {},
@@ -112,6 +145,51 @@ def run_ab_backtest(
     if not HARNESS_AVAILABLE:
         logger.error("Cannot run real backtests — harness not importable. Exiting.")
         return results
+
+    # Comprehensive defaults for all known required keys in the HYDRA engine (prevents KeyError on long runs)
+    defaults = {
+        'BULL_OVERRIDE_MIN_SCORE': 0.40,
+        'BULL_OVERRIDE_THRESHOLD': 0.03,
+        'QUALITY_MAX_SINGLE_DAY': 0.50,
+        'QUALITY_VOL_MAX': 0.60,
+        'QUALITY_VOL_LOOKBACK': 63,
+        'CRASH_VEL_5D': -0.06,
+        'CRASH_VEL_10D': -0.10,
+        'CRASH_LEVERAGE': 0.15,
+        'CRASH_COOLDOWN': 10,
+        'MARGIN_RATE': 0.06,
+        'TARGET_VOL': 0.15,
+        'VOL_LOOKBACK': 20,
+        'LEV_FLOOR': 0.30,
+        'LEVERAGE_MAX': 1.0,
+        'MIN_AGE_DAYS': 63,
+        'NUM_POSITIONS': 5,
+        'NUM_POSITIONS_RISK_OFF': 2,
+        'HOLD_DAYS': 5,
+        'HOLD_DAYS_MAX': 10,
+        'RENEWAL_PROFIT_MIN': 0.04,
+        'MOMENTUM_RENEWAL_THRESHOLD': 0.85,
+        'POSITION_STOP_LOSS': -0.08,
+        'TRAILING_ACTIVATION': 0.05,
+        'TRAILING_STOP_PCT': 0.03,
+        'STOP_DAILY_VOL_MULT': 2.5,
+        'STOP_FLOOR': -0.06,
+        'STOP_CEILING': -0.15,
+        'TRAILING_VOL_BASELINE': 0.25,
+        'MAX_PER_SECTOR': 3,
+        'DD_SCALE_TIER1': -0.10,
+        'DD_SCALE_TIER2': -0.20,
+        'DD_SCALE_TIER3': -0.35,
+        'LEV_FULL': 1.0,
+        'LEV_MID': 0.60,
+        'COMMISSION_PER_SHARE': 0.001,
+        'EFA_MIN_BUY': 1000.0,
+        'EFA_DEPLOYMENT_CAP': 0.90,
+        'MIN_MOMENTUM_STOCKS': 20,
+        'MOMENTUM_RENEWAL_THRESHOLD': 0.85,
+    }
+    for k, v in defaults.items():
+        config.setdefault(k, v)
 
     for use_meta, label in [(False, "meta_off"), (True, "meta_on")]:
         logger.info(f"Running {label} (use_meta_layer={use_meta}) ...")
@@ -174,22 +252,28 @@ def main():
 
     data_dir = Path(args.data_dir)
 
-    # Production-like config
-    config = {
-        "INITIAL_CAPITAL": 100_000,
-        "BASE_COMPASS_ALLOC": 0.425,
-        "BASE_RATTLE_ALLOC": 0.425,
-        "BASE_CATALYST_ALLOC": 0.15,
-        "MOMENTUM_LOOKBACK": 90,
-        "MOMENTUM_SKIP": 5,
-        "NUM_POSITIONS": 5,
-        "NUM_POSITIONS_RISK_OFF": 2,
-        "HOLD_DAYS": 5,
-        "HOLD_DAYS_MAX": 10,
-        "RENEWAL_PROFIT_MIN": 0.04,
-        "POSITION_STOP_LOSS": -0.08,
-        "TRAILING_ACTIVATION": 0.05,
-        "TRAILING_STOP_PCT": 0.03,
+    # Try to load the full project default config (best for long runs)
+    try:
+        from hydra_backtest.hydra.__main__ import _CONFIG as PROJECT_CONFIG
+        config = dict(PROJECT_CONFIG)
+        logger.info("Loaded complete project default config")
+    except Exception:
+        logger.warning("Could not import project _CONFIG, using fallback (may miss keys)")
+        config = {
+            "INITIAL_CAPITAL": 100_000,
+            "BASE_COMPASS_ALLOC": 0.425,
+            "BASE_RATTLE_ALLOC": 0.425,
+            "BASE_CATALYST_ALLOC": 0.15,
+            "MOMENTUM_LOOKBACK": 90,
+            "MOMENTUM_SKIP": 5,
+            "NUM_POSITIONS": 5,
+            "NUM_POSITIONS_RISK_OFF": 2,
+            "HOLD_DAYS": 5,
+            "HOLD_DAYS_MAX": 10,
+            "RENEWAL_PROFIT_MIN": 0.04,
+            "POSITION_STOP_LOSS": -0.08,
+            "TRAILING_ACTIVATION": 0.05,
+            "TRAILING_STOP_PCT": 0.03,
         "STOP_DAILY_VOL_MULT": 2.5,
         "BULL_OVERRIDE_THRESHOLD": 0.03,
         "MAX_PER_SECTOR": 3,
@@ -213,20 +297,22 @@ def main():
         "COMMISSION_PER_SHARE": 0.001,
         "EFA_MIN_BUY": 1000.0,
         "EFA_DEPLOYMENT_CAP": 0.90,
+
+        # Missing keys from previous runs
+        "BULL_OVERRIDE_MIN_SCORE": 0.40,
+        "MARGIN_RATE": 0.06,
+        "COMMISSION_PER_SHARE": 0.001,
+        "TARGET_VOL": 0.15,
+        "VOL_LOOKBACK": 20,
+        "LEV_FLOOR": 0.30,
+        "LEVERAGE_MAX": 1.0,
     }
 
-    logger.info(f"Starting Phase 5 A/B validation run: {args.start} → {args.end}")
+    logger.info(f"Starting Phase 5 A/B validation run: {args.start} to {args.end}")
     if args.full_validation:
         logger.info("Marked as FULL validation protocol run")
 
-    # Build full paths for the loaders
-    data_paths = {
-        "pit_universe": str(data_dir / "sp500_constituents_history.pkl"),
-        "price_history": str(data_dir / "sp500_universe_prices.pkl"),
-        # Add other expected files here as needed by the loaders
-    }
-
-    results = run_ab_backtest(config, args.start, args.end, out_dir, data_paths=data_paths)
+    results = run_ab_backtest(config, args.start, args.end, out_dir, data_dir=data_dir)
 
     off = results["meta_off"]["metrics"]
     on = results["meta_on"]["metrics"]
