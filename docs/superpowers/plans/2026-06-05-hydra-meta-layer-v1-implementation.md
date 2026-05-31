@@ -19,7 +19,7 @@
 
 ---
 
-## Phase 0: Foundations & Research Setup
+## Phase 0: Foundations & Research Setup (COMPLETE)
 
 ### Task 0.1: Project Setup & Documentation
 
@@ -77,7 +77,7 @@
 
 ---
 
-## Phase 1: Regime OS Core (Isolated & Testable)
+## Phase 1: Regime OS Core (Isolated & Testable) (COMPLETE)
 
 ### Task 1.1: Define Regime OS Interface
 
@@ -114,7 +114,7 @@
 
 ---
 
-## Phase 2: Meta-Layer Core Logic
+## Phase 2: Meta-Layer Core Logic (COMPLETE — Tasks 2.1-2.4)
 
 ### Task 2.1: Meta-Layer Decision Engine Interface
 
@@ -147,7 +147,7 @@
 
 ---
 
-## Phase 3: Controlled ML / Adaptive Components
+## Phase 3: Controlled ML / Adaptive Components (IN PROGRESS — Task 3.1 starter committed)
 
 ### Task 3.1: Ensemble Regime Predictor (Optional but Planned)
 
@@ -171,6 +171,10 @@
 
 - [ ] Add support for richer inputs from the new Meta-Layer (multipliers, mode-based behavior).
 - [ ] Maintain full backward compatibility.
+- [ ] Detailed prep document created: `docs/superpowers/plans/2026-05-31-phase4-meta-layer-integration-prep.md`
+- [ ] Recommended: add optional `meta_decision: Optional["MetaLayerDecision"] = None` to `compute_allocation(...)` and related methods.
+- [ ] Update `get_status()`, `to_dict()`, `from_dict()` for round-trip compatibility.
+- [ ] Add `apply_meta_layer_decision(...)` helper or keep purely functional (decision passed per call preferred).
 
 ### Task 4.2: Wire Regime OS + Meta-Layer into omnicapital_live.py
 
@@ -180,17 +184,33 @@
 - [ ] Add initialization of the new components (behind feature flag).
 - [ ] Call them at the appropriate point in the daily cycle.
 - [ ] Persist new state fields using atomic write pattern.
+- [ ] **Exact locations identified** (live inspection 2026-05-31):
+  - Init: ~line 971 (after HydraCapitalManager creation)
+  - Allocation calls: multiple sites (~1955, 1976, 2200, etc.) — pass `meta_decision` when active
+  - State save: `save_state()` after line 4684 (atomic write pattern must be followed exactly)
+- [ ] Copy existing import guard pattern (`_hydra_available`, etc.)
+- [ ] Recommended flag: `ENABLE_META_LAYER` env var (0 / 1 / shadow) + config fallback
+- [ ] See prep doc §2.2 and §5 for concrete insertion points and pilot strategy (wire one call site first).
 
 ### Task 4.3: State & Logging
 
 - [ ] Define new fields for `compass_state_latest.json`.
 - [ ] Implement rich decision logging (what regime was seen, what decision was made, why).
+- [ ] **Proposed schema** (see prep doc §4): nested `meta_layer` object with `last_decision`, `regime_scores`, `enabled`, `mode`, `version`, `confidence`, `rationale`, etc.
+- [ ] Lightweight top-level fields for quick dashboard consumption optional.
+- [ ] Only write meta fields when the layer was active in that cycle.
+- [ ] Rich cycle log entries (new or extend existing `_append_audit_log` / cycle log).
 
 ### Task 4.4: Feature Flag & Safety Layer
 
 - [ ] Implement clean on/off switch for the entire Meta-Layer.
 - [ ] Implement per-mode overrides.
 - [ ] Graceful degradation when Meta-Layer is disabled or errors.
+- [ ] **Recommended flag**: `ENABLE_META_LAYER=0|1|shadow` (env var, default 0 = fully disabled).
+- [ ] Shadow mode: compute + log everything, but force neutral multipliers (1.0) and recycling_mult=1.0.
+- [ ] Full degradation matrix defined in prep doc §3.3.
+- [ ] Runtime override knobs in state (manual gross exposure, manual recycling mult).
+- [ ] All errors in meta path → neutral decision + disable for the cycle + logging (never crash engine).
 
 ---
 
