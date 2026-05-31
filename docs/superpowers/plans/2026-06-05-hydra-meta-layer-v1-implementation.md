@@ -244,7 +244,11 @@
 
 - [x] Extended `hydra_backtest/hydra/capital.py` pure functions (`compute_allocation_pure`, `update_accounts_after_day_pure`) with optional `meta_decision` param (mirrors live Phase 4 extension for consistency).
 - [x] Added import guard + architectural comment in `hydra_backtest/hydra/engine.py` for future Meta-Layer injection point.
-- [ ] Add optional Meta-Layer instantiation + decision computation inside the day loop (behind `use_meta_layer: bool = False`).
+- [x] Added `use_meta_layer: bool = False` parameter to `run_hydra_backtest`.
+- [x] Instantiation of BasicRegimeOS + RiskBudgetMetaLayer when enabled.
+- [x] Real decision computation each day at the correct point in the loop (after scoring, before budgets).
+- [x] Decision is post-applied lightly to budgets for demonstration + stored in daily output (meta_active, meta_recycling_mult, meta_confidence columns).
+- [ ] Full integration with the new pure capital meta_decision path + richer market data for scores.
 - [ ] Update daily output + validation to handle meta columns when active.
 - [x] Created initial research location `research/meta_layer_v1/` for harness experiments and the official `validation_report.md`.
 - [ ] Ensure Meta-Layer disabled path produces byte-comparable results to current baseline (critical for validation).
