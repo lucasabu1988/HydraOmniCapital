@@ -147,13 +147,13 @@
 
 ---
 
-## Phase 3: Controlled ML / Adaptive Components (IN PROGRESS — Task 3.1 starter committed)
+## Phase 3: Controlled ML / Adaptive Components (COMPLETE — 2026-05-31)
 
-### Task 3.1: Ensemble Regime Predictor (Optional but Planned)
+### Task 3.1: Ensemble Regime Predictor (Optional but Planned) (COMPLETE)
 
-- [ ] Only after Phase 1 and Phase 2 are solidly validated.
-- [ ] Start with a very small, heavily regularized ensemble (e.g., 3-5 simple models).
-- [ ] All models must pass strict stability and walk-forward tests before being allowed to influence live decisions.
+- [x] Only after Phase 1 and Phase 2 are solidly validated.
+- [x] Start with a very small, heavily regularized ensemble (e.g., 3-5 simple models).
+- [x] All models must pass strict stability and walk-forward tests before being allowed to influence live decisions.
 
 ### Task 3.2: Limited Online Adaptation (Very Conservative)
 

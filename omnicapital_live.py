@@ -4756,6 +4756,8 @@ class COMPASSLive:
                 'version': 'meta-v1-prep-20260531',
                 'last_decision': getattr(self, '_last_meta_decision', None),
                 'error_count': getattr(self, '_meta_error_count', 0),
+                # Task 3.2 recovery adaptation state (when present)
+                'recovery_adaptation': getattr(getattr(self.meta_layer, 'recovery_adaptation_state', None), '__dict__', None) if self.meta_layer else None,
             }
             return snap
         except Exception:
@@ -4774,21 +4776,54 @@ class COMPASSLive:
         if not getattr(self, '_meta_layer_enabled', False):
             return None
 
-        # TODO (next wiring slice): actually call self.regime_os + self.meta_layer
-        # For now we stay in 'shadow' / conservative mode.
         try:
             self._meta_error_count = getattr(self, '_meta_error_count', 0)
-            # Placeholder decision for logging / future use
+
+            # PHASE 4 REAL WIRING (now that Task 3.2 recovery adaptation is complete)
+            if self.regime_os is not None and self.meta_layer is not None:
+                # Build minimal PortfolioState for the meta layer (extend as needed in later slices)
+                port = PortfolioState(
+                    total_equity=getattr(self, 'peak_value', 100000.0) or 100000.0,
+                    cash=getattr(self.broker, 'cash', 30000.0),
+                    drawdown_pct=max(0.0, (getattr(self, 'peak_value', 100000.0) or 100000.0) - (self.broker.get_portfolio().total_value if hasattr(self, 'broker') else 100000.0)) / (getattr(self, 'peak_value', 100000.0) or 100000.0),
+                )
+
+                # Get fresh regime scores (Phase 1)
+                scores = self.regime_os.compute_scores() if hasattr(self.regime_os, 'compute_scores') else None
+
+                # Get the decision (this now includes Task 3.2 limited recovery adaptation when enabled in params)
+                decision = self.meta_layer.compute_decision(scores=scores, portfolio=port)
+
+                # Convert to simple dict for logging/state (rich rationale preserved)
+                decision_dict = {
+                    'gross_exposure': getattr(decision, 'gross_exposure', 1.0),
+                    'multipliers': getattr(decision, 'multipliers', {}),
+                    'recycling_multiplier': getattr(decision, 'recycling_multiplier', 1.0),
+                    'active_modes': [str(m) for m in getattr(decision, 'active_modes', [])],
+                    'risk_flags': getattr(decision, 'risk_flags', []),
+                    'confidence': getattr(decision, 'confidence', 0.5),
+                    'rationale': getattr(decision, 'rationale', ''),
+                    'recovery_adaptation': {
+                        'boost': getattr(getattr(self.meta_layer, 'recovery_adaptation_state', None), 'current_boost', 1.0),
+                        'consec_good': getattr(getattr(self.meta_layer, 'recovery_adaptation_state', None), 'consecutive_good_bars', 0),
+                    } if getattr(self.meta_layer, 'recovery_adaptation_state', None) else None,
+                }
+
+                self._last_meta_decision = decision_dict
+                return decision_dict
+
+            # Fallback neutral if components not ready
             decision = {
                 'gross_exposure': 1.0,
                 'multipliers': {'COMPASS': 1.0, 'Rattlesnake': 1.0, 'Catalyst': 1.0, 'EFA': 1.0},
                 'recycling_multiplier': 1.0,
                 'active_modes': [],
                 'confidence': 0.5,
-                'rationale': 'Phase 4 skeleton (neutral defaults while wiring)',
+                'rationale': 'Phase 4 wiring (components not yet ready)',
             }
             self._last_meta_decision = decision
             return decision
+
         except Exception as e:
             self._meta_error_count += 1
             logger.warning("Meta-Layer decision failed (returning neutral): %s", e)
