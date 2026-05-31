@@ -4755,9 +4755,20 @@ class COMPASSLive:
                 'version': 'meta-v1-prep-20260531',
                 'last_decision': getattr(self, '_last_meta_decision', None),
                 'error_count': getattr(self, '_meta_error_count', 0),
-                # Task 3.2 recovery adaptation state (when present)
-                'recovery_adaptation': getattr(getattr(self.meta_layer, 'recovery_adaptation_state', None), '__dict__', None) if self.meta_layer else None,
+                # Task 3.2 recovery adaptation state (proper persistence hook from controller)
+                'recovery_adaptation': None,
             }
+
+            if self.meta_layer is not None:
+                try:
+                    adapter = getattr(self.meta_layer, '_recovery_adapter', None)
+                    if adapter and hasattr(adapter, 'to_dict'):
+                        snap['recovery_adaptation'] = adapter.to_dict()
+                    else:
+                        snap['recovery_adaptation'] = getattr(getattr(self.meta_layer, 'recovery_adaptation_state', None), '__dict__', None)
+                except Exception:
+                    pass
+
             return snap
         except Exception:
             return None
