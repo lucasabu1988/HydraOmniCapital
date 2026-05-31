@@ -98,12 +98,30 @@ Task 2.4 (COMPLETE — TDD first, then impl):
 - No Phase 4 wiring (per instructions). Strict TDD (tests written + RED
   verified before any special logic).
 
+Task 3.2 (COMPLETE — strict TDD first):
+- Added *narrow* limited online adaptation ONLY for recovery aggression
+  (one scalar recovery_aggression_boost multiplier on top of the static
+  recovery_boost_factor; zero impact on non-recovery regimes, caps, or pillars).
+- All spec requirements met: disabled by default (feature flag), strong
+  guardrails (hard bounds 0.98-1.12 default, slow step + min_good inertia,
+  half-life decay on exit), human override via manual_recovery_aggression
+  knob (freezes + documents), fully rationale-logged ("ADAPT"/"MANUAL"),
+  fail-safe (nan/err → neutral 1.0, never increases risk), in-memory state
+  only (safe conservative reset; atomic hooks prepared but not activated
+  to obey NEVER create files + Phase 4 territory).
+- Tiny private _RecoveryAdaptationController (stateful but pure-Python,
+  deterministic, uses project SEED convention) + RecoveryAdaptationState view
+  (parallel to risk_stability_state). All inside this single file.
+- 10 new TDD tests on synthetic recovery trajectories (RED verified first).
+- Version bumped; no contracts changed for Phase 1/2; all prior tests green.
+
 References now also include Task 2.3 + Task 2.4 (this work) + user clarifications from ask_user_question.
 """
 
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
+import math
 
 # Upstream Regime OS types (Phase 1 — do not modify)
 from regime_os import RegimeScores, MetaMode
@@ -331,6 +349,26 @@ class RiskStabilityState:
 
 
 # =============================================================================
+# TASK 3.2: RECOVERY ADAPTATION STATE VIEW (narrow, for diagnostics only)
+# =============================================================================
+
+@dataclass(frozen=True)
+class RecoveryAdaptationState:
+    """Minimal read-only snapshot of the limited recovery adaptation controller.
+
+    Exposed via RiskBudgetMetaLayer.recovery_adaptation_state (parallel to
+    risk_stability_state). Used by TDD tests and future Phase 5/6 observability.
+    In-memory only for Task 3.2 (resets to neutral 1.0 on new instance = safe).
+    """
+    current_boost: float = 1.0
+    consecutive_good_bars: int = 0
+    last_mode_was_recovery: bool = False
+    adaptation_active: bool = False
+    manual_override: Optional[float] = None
+    rationale_last: str = ""
+
+
+# =============================================================================
 # TASK 2.3: PILLAR MULTIPLIER & RECYCLING PARAMS (NEW dedicated dataclass)
 # =============================================================================
 
@@ -536,13 +574,16 @@ class RiskBudgetParams:
     """
 
     # --- Versioning & identity ---
-    version: str = "risk-v1.2-special-modes-202606"
+    version: str = "risk-v1.3-limited-recovery-adapt-202606"
     """Semantic version of this parameter set. Bumped on any material change
     to thresholds, caps, or rule weights. Appears in MetaLayerDecision.version
     and get_version() for the producing implementation.
 
     Task 2.4 bump: added full special mode behavior parameters + support for
     populating risk_flags on decisions.
+    Task 3.2 bump: added recovery_adaptation_* guarded fields (disabled by
+    default) + controller for limited conservative online adaptation of
+    recovery aggression only.
     """
 
     # --- Derivation thresholds (for score-driven mode cap selection and conviction)
@@ -742,6 +783,73 @@ class RiskBudgetParams:
     special_tag_vol_mr_friendly: str = "VOL_DEFENSIVE_MR_FRIENDLY"
     # Legacy tags from 2.2/2.3 ("CRISIS_DEFENSE", "RECOVERY_AGGRESSION" etc.)
     # remain supported for compatibility.
+
+    # =============================================================================
+    # TASK 3.2: LIMITED ONLINE ADAPTATION — RECOVERY AGGRESSION ONLY (very conservative)
+    # =============================================================================
+    # Narrow, heavily guarded online adaptation of a *single* scalar that modulates
+    # ONLY the existing recovery boost (multiplicative on recovery_boost_factor).
+    # Zero effect on gross_caps, pillar tables, non-recovery regimes, or locked
+    # COMPASS v8.4.
+    #
+    # Guardrails (non-negotiable per spec):
+    # - recovery_adaptation_enabled=False by default (opt-in only after Phase 5)
+    # - manual_recovery_aggression (human override) freezes value + documents
+    # - Hard bounds [min, max] with conservative defaults ~[0.98, 1.12]
+    # - Slow step + large inertia (min_good_bars) + decay_rate toward 1.0
+    # - Full rationale logging ("RECOVERY_ADAPT(boost=1.07, consec=4)")
+    # - Fail-safe: any exception/nan → force 1.0 (neutral, never higher risk)
+    # - In-memory only (resets safe); atomic persistence prepared for Phase 4
+    #   but deliberately not activated here (obeys NEVER create files rule).
+    # - Uses project SEED convention (no randomness actually required for this
+    #   deterministic step/EWMA controller).
+    #
+    # The adaptation controller lives as a tiny private _RecoveryAdaptationController
+    # composed inside RiskBudgetMetaLayer (exactly like _SpecialModeApplicator).
+    # =============================================================================
+
+    recovery_adaptation_enabled: bool = False
+    """Master on/off for limited recovery aggression adaptation.
+    MUST remain False in all production / validation runs until the component
+    has survived the full Phase 5 harness + human review.
+    """
+
+    recovery_adaptation_manual_override: Optional[float] = None
+    """Human override / freeze knob. When not None, the effective boost
+    multiplier is clamped to this value on every recovery decision and the
+    automatic ratchet/decay is bypassed. Primary mechanism for 'strong guardrails
+    and human override'. Must be in ~[0.90, 1.20] or ignored (fail-safe).
+    Example: set to 1.00 to force baseline recovery behavior even if enabled.
+    """
+
+    recovery_adaptation_bounds: tuple = (0.98, 1.12)
+    """(min, max) hard clamp for the adapted recovery_aggression_boost scalar.
+    The final multiplier applied to recovery_boost_factor is always
+    max(min, min(max, adapted)). Conservative defaults favor modest upside only.
+    """
+
+    recovery_adaptation_step: float = 0.015
+    """Maximum upward (or downward) step per good (or bad) bar while in recovery.
+    Deliberately small for 'slowly changing' requirement. Combined with
+    min_good_bars this gives large inertia.
+    """
+
+    recovery_adaptation_decay_rate: float = 0.09
+    """Per-bar decay factor applied to (current_boost - 1.0) when NOT in an
+    active recovery condition. Implements half-life style return to neutral 1.0.
+    E.g. 0.09 means ~7-8 bars to halve any deviation.
+    """
+
+    recovery_adaptation_min_good_bars: int = 3
+    """Inertia: number of consecutive good recovery outcomes required before
+    the controller will apply any upward ratchet step. Protects against noise.
+    """
+
+    recovery_adaptation_good_return_threshold: float = 0.008
+    """Threshold for 'positive outcome' while in recovery (used with performance
+    dict preferentially, falling back to PortfolioState.recent_return_5d).
+    recent_return >= threshold counts as good for ratcheting.
+    """
 
     # --- Task 2.3 composition: dedicated pillar/recycling config (preferred) ---
     pillar_params: "PillarMultiplierParams" = field(
@@ -1045,6 +1153,192 @@ class _SpecialModeApplicator:
 
 
 # =============================================================================
+# TASK 3.2: TINY INTERNAL RECOVERY ADAPTATION CONTROLLER (same file only)
+# =============================================================================
+# Defined here (not a separate .py) per project guideline "NEVER create files
+# unless absolutely necessary. Prefer editing existing files."
+#
+# Extremely narrow scope: ONE slowly adapting scalar (recovery_aggression_boost)
+# that ONLY multiplies the *existing* recovery_boost_factor when the recovery
+# condition (or POST_CRISIS_RECOVERY special mode) is active.
+#
+# All requirements from Task 3.2 + design spec + user clarifications:
+# - Heavily regularized / limited: step 0.015 default, min 3 good bars inertia,
+#   explicit hard bounds, decay to 1.0 on exit (no persistence outside mode).
+# - Strong guardrails + human override: enabled flag (default OFF), manual knob.
+# - Fail-safe at every layer: try/except → force 1.0 neutral. NaN/Inf → 1.0.
+# - Fully logged with rationale (why moved, on what evidence).
+# - Zero impact on non-recovery paths.
+# - Deterministic (SEED present for convention; no random used).
+# - In-memory only for this task (conservative: restarts at 1.0). to_dict() hook
+#   prepared for future atomic JSON in Phase 4 but NOT activated (no files created).
+# =============================================================================
+
+class _RecoveryAdaptationController:
+    """Internal stateful but tiny controller for limited conservative adaptation
+    of recovery aggression.
+
+    Lives only inside RiskBudgetMetaLayer (composition). Never exposed publicly.
+    Every public method is wrapped for fail-safety and returns safe neutral.
+    """
+
+    def __init__(self, params: RiskBudgetParams):
+        self.p = params
+        self._current_boost: float = 1.0
+        self._consecutive_good: int = 0
+        self._last_was_recovery: bool = False
+        self._rationale_last: str = ""
+
+    def _clip(self, x: float, lo: float, hi: float) -> float:
+        try:
+            return max(lo, min(hi, float(x)))
+        except Exception:
+            return 1.0
+
+    def _safe_float(self, v: Any, default: float = 0.0) -> float:
+        try:
+            f = float(v)
+            if math.isnan(f) or math.isinf(f):
+                return default
+            return f
+        except Exception:
+            return default
+
+    def reset(self) -> None:
+        """Test / error recovery hook. Returns controller to neutral safe state."""
+        self._current_boost = 1.0
+        self._consecutive_good = 0
+        self._last_was_recovery = False
+        self._rationale_last = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Prepared hook for future atomic persistence (Phase 4). Not used now."""
+        return {
+            "current_boost": self._current_boost,
+            "consecutive_good_bars": self._consecutive_good,
+            "last_was_recovery": self._last_was_recovery,
+            "rationale_last": self._rationale_last,
+            "enabled": bool(self.p.recovery_adaptation_enabled),
+        }
+
+    def update_and_get_boost(
+        self,
+        is_recovery: bool,
+        performance: Optional[Dict[str, Any]],
+        portfolio: PortfolioState,
+    ) -> float:
+        """Core entry. Returns the current (possibly adapted) multiplier to apply
+        on top of the static recovery_boost_factor.
+
+        Always safe: on any error path returns exactly 1.0 (neutral, never higher risk).
+        """
+        try:
+            enabled = bool(getattr(self.p, "recovery_adaptation_enabled", False))
+            manual = getattr(self.p, "recovery_adaptation_manual_override", None)
+            bounds = getattr(self.p, "recovery_adaptation_bounds", (0.98, 1.12))
+            step = float(getattr(self.p, "recovery_adaptation_step", 0.015))
+            decay = float(getattr(self.p, "recovery_adaptation_decay_rate", 0.09))
+            min_good = int(getattr(self.p, "recovery_adaptation_min_good_bars", 3))
+            good_thresh = float(getattr(self.p, "recovery_adaptation_good_return_threshold", 0.008))
+
+            # Human override takes absolute precedence (strong guardrail)
+            if manual is not None:
+                try:
+                    forced = self._clip(float(manual), 0.90, 1.20)
+                    self._current_boost = forced
+                    self._consecutive_good = 0
+                    self._rationale_last = f"MANUAL_OVERRIDE(aggr={forced:.3f})"
+                    self._last_was_recovery = bool(is_recovery)
+                    return forced
+                except Exception:
+                    pass  # fall through to neutral
+
+            if not enabled:
+                # Fast path: identical to pre-3.2 behavior — emit *nothing* in rationale
+                self._current_boost = 1.0
+                self._consecutive_good = 0
+                self._rationale_last = ""
+                self._last_was_recovery = bool(is_recovery)
+                return 1.0
+
+            # Derive good outcome signal (performance dict preferred per spec/clarification)
+            ret = None
+            if performance and isinstance(performance, dict):
+                ret = performance.get("recent_return_5d") or performance.get("portfolio_return_5d") or performance.get("return_5d")
+            if ret is None:
+                ret = getattr(portfolio, "recent_return_5d", 0.0)
+
+            ret = self._safe_float(ret, 0.0)
+            is_good = bool(is_recovery) and (ret >= good_thresh)
+
+            min_b, max_b = 0.98, 1.12
+            try:
+                if isinstance(bounds, (list, tuple)) and len(bounds) == 2:
+                    min_b, max_b = float(bounds[0]), float(bounds[1])
+            except Exception:
+                pass
+
+            # Decay toward 1.0 whenever we are not (or no longer) in recovery
+            if not is_recovery:
+                dev = self._current_boost - 1.0
+                self._current_boost = 1.0 + dev * (1.0 - decay)
+                self._consecutive_good = 0
+                self._last_was_recovery = False
+                self._current_boost = self._clip(self._current_boost, min_b, max_b)
+                if abs(self._current_boost - 1.0) < 0.001:
+                    self._current_boost = 1.0
+                    self._rationale_last = ""  # silent when fully neutral
+                else:
+                    self._rationale_last = f"ADAPT_DECAY(boost={self._current_boost:.3f})"
+                return self._current_boost
+
+            # We are in a recovery condition this bar
+            if is_good:
+                self._consecutive_good += 1
+                if self._consecutive_good >= max(1, min_good):
+                    self._current_boost = self._clip(self._current_boost + step, min_b, max_b)
+                    self._rationale_last = (
+                        f"RECOVERY_ADAPT(boost={self._current_boost:.3f}, consec={self._consecutive_good}, "
+                        f"good_ret={ret:.4f})"
+                    )
+                else:
+                    self._rationale_last = f"RECOVERY_ADAPT_INERTIA(consec={self._consecutive_good}<{min_good})"
+            else:
+                # Bad or neutral bar while still in recovery DD → slight conservative pull + reset streak
+                self._consecutive_good = 0
+                dev = self._current_boost - 1.0
+                if dev > 0:
+                    self._current_boost = self._clip(1.0 + dev * 0.6, min_b, max_b)
+                self._rationale_last = f"RECOVERY_ADAPT_NO_RATCHET(ret={ret:.4f})"
+
+            self._last_was_recovery = True
+            return self._current_boost
+
+        except Exception:
+            # Ultimate fail-safe — never let adaptation increase risk
+            self._current_boost = 1.0
+            self._consecutive_good = 0
+            self._rationale_last = "RECOVERY_ADAPT_SAFE_FALLBACK(error_path)"
+            return 1.0
+
+    def get_state(self) -> RecoveryAdaptationState:
+        """Read-only view for diagnostics / tests."""
+        try:
+            enabled = bool(getattr(self.p, "recovery_adaptation_enabled", False))
+            manual = getattr(self.p, "recovery_adaptation_manual_override", None)
+            return RecoveryAdaptationState(
+                current_boost=float(self._current_boost),
+                consecutive_good_bars=int(self._consecutive_good),
+                last_mode_was_recovery=bool(self._last_was_recovery),
+                adaptation_active=enabled,
+                manual_override=float(manual) if manual is not None else None,
+                rationale_last=str(self._rationale_last),
+            )
+        except Exception:
+            return RecoveryAdaptationState()
+
+
+# =============================================================================
 # RISK BUDGET IMPLEMENTATION (Task 2.2)
 # =============================================================================
 
@@ -1101,14 +1395,20 @@ class RiskBudgetMetaLayer:
         # + flags. It is fail-safe (never raises; returns safe neutral on error).
         self._special: "_SpecialModeApplicator" = _SpecialModeApplicator(self.params)
 
+        # Task 3.2: composition of tiny limited recovery adaptation controller
+        # (defined later in this file). Narrow, heavily guarded, disabled by default.
+        # Only ever affects recovery boost path. Fail-safe by construction.
+        self._recovery_adapter: "_RecoveryAdaptationController" = _RecoveryAdaptationController(self.params)
+
     def get_version(self) -> str:
         """Return implementation + params version for auditability.
         Task 2.3: includes pillar params version for full traceability.
         Task 2.4: special modes active (risk_flags support + applicator).
+        Task 3.2: limited recovery adaptation (when enabled in params).
         """
         pillar_v = getattr(self.params, "pillar_params", None)
         pillar_str = pillar_v.version if pillar_v else "no-pillar"
-        return f"0.4-risk-pillar-special-{self.params.version}+{pillar_str}"
+        return f"0.5-risk-pillar-special-adapt-{self.params.version}+{pillar_str}"
 
     @property
     def risk_stability_state(self) -> RiskStabilityState:
@@ -1118,6 +1418,27 @@ class RiskBudgetMetaLayer:
             stable_bars=self._stable_bars,
             prev_gross=self._prev_gross,
         )
+
+    @property
+    def recovery_adaptation_state(self) -> RecoveryAdaptationState:
+        """Read-only view of the Task 3.2 limited recovery adaptation controller.
+
+        Returns safe neutral defaults if adaptation disabled or on any internal error.
+        Parallel contract to risk_stability_state for consistency.
+        """
+        try:
+            return self._recovery_adapter.get_state()
+        except Exception:
+            return RecoveryAdaptationState()
+
+    def reset_adaptation_state(self) -> None:
+        """Test / diagnostic helper. Resets only the recovery adaptation controller
+        to neutral 1.0 (does not touch gross EWMA stability state).
+        """
+        try:
+            self._recovery_adapter.reset()
+        except Exception:
+            pass
 
     def _get_mode_cap(self, scores: RegimeScores) -> float:
         """Select the strictest gross cap based on score-driven regime signals.
@@ -1376,6 +1697,15 @@ class RiskBudgetMetaLayer:
             if active_modes is None:
                 active_modes = []
 
+            # Task 3.2: always tick the (narrow, guarded) recovery adaptation controller
+            # for decay when outside recovery and ratchet when inside + good outcomes.
+            # This call is cheap and fail-safe; result only used in recovery block below.
+            is_rec_now = self._is_recovery_condition(scores, portfolio)
+            adapted_boost = self._recovery_adapter.update_and_get_boost(
+                is_rec_now, performance, portfolio
+            )
+            adapter_rat = getattr(self._recovery_adapter, "_rationale_last", "") or ""
+
             # 1. Base cap from regime-dependent budgets
             base_cap = self._get_mode_cap(scores)
 
@@ -1399,14 +1729,21 @@ class RiskBudgetMetaLayer:
                 target = max(p.hard_min_gross, target - p.asym_down_defense * (0.6 - conviction) * 1.6)
 
             # 4. Recovery Mode boost (after material DD)
+            # Task 3.2: the adapted_boost (from controller) multiplies the static factor.
+            # Only active when recovery condition true; 1.0 (neutral) otherwise.
+            # This is the sole surface where limited online adaptation influences decisions.
             rationale_parts: List[str] = []
-            if self._is_recovery_condition(scores, portfolio):
-                boosted = min(p.hard_max_gross, target * p.recovery_boost_factor)
+            if is_rec_now:
+                eff_boost = p.recovery_boost_factor * adapted_boost
+                boosted = min(p.hard_max_gross, target * eff_boost)
                 if boosted > target:
                     target = boosted
-                    rationale_parts.append(
-                        f"RECOVERY boost x{p.recovery_boost_factor:.2f} (DD={portfolio.drawdown_pct:.1%}>=thresh)"
-                    )
+                    rat_note = f"RECOVERY boost x{eff_boost:.2f} (DD={portfolio.drawdown_pct:.1%}>=thresh)"
+                    if adapted_boost < 0.995 or adapted_boost > 1.005:
+                        rat_note += f" [ADAPT x{adapted_boost:.3f}]"
+                    if adapter_rat:
+                        rat_note += f" {adapter_rat}"
+                    rationale_parts.append(rat_note)
 
             # 5. Drawdown Velocity Control (rapid vs slow)
             velocity = self._compute_velocity(portfolio)
@@ -1447,7 +1784,7 @@ class RiskBudgetMetaLayer:
             special_gross_adj, special_recycle_adj, special_extra_mults, special_flags, special_rat = \
                 self._special.apply(
                     scores, active_modes or [], target, recycle_mult, mults,
-                    velocity, bool(self._is_recovery_condition(scores, portfolio))
+                    velocity, bool(is_rec_now)
                 )
 
             target = max(p.hard_min_gross, min(p.hard_max_gross, target * special_gross_adj))
@@ -1483,6 +1820,8 @@ class RiskBudgetMetaLayer:
             rationale += f" || {pillar_rat}"
             if special_rat:
                 rationale += f" || {special_rat}"
+            if adapter_rat and ("ADAPT" in adapter_rat.upper() or "MANUAL" in adapter_rat.upper()):
+                rationale += f" || {adapter_rat}"
 
             # risk_flags = the new special tags (Task 2.4) — distinct from active_modes
             final_risk_flags = list(special_flags)

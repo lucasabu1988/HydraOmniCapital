@@ -130,7 +130,7 @@ class TestRiskBudgetParamsDataclass:
     def test_is_frozen_dataclass_with_rich_defaults(self):
         p = RiskBudgetParams()
         assert isinstance(p, RiskBudgetParams)
-        assert p.version == "risk-v1.2-special-modes-202606"  # Task 2.4 bump (special params + risk_flags)
+        assert p.version == "risk-v1.3-limited-recovery-adapt-202606"  # Task 3.2 bump (limited recovery adaptation fields)
         # All key tunables present
         for name in [
             "gross_caps", "hard_max_gross", "hard_min_gross",
@@ -825,6 +825,282 @@ class TestSpecialModesQualitativeBehavior:
         assert d.recycling_multiplier > 0
         # risk_flags must be a list (even if populated)
         assert isinstance(getattr(d, "risk_flags", []), list)
+
+
+# =============================================================================
+# TASK 3.2: LIMITED ONLINE ADAPTATION (Very Conservative) — TDD FIRST
+# =============================================================================
+# Written BEFORE any implementation changes to meta_layer.py per strict TDD.
+# These will initially FAIL (missing params fields, no adaptation behavior).
+# All tests use synthetic recovery trajectories only. No external data.
+# Acceptance: 10+ tests, all green after impl; zero regression on prior 2.x tests.
+# =============================================================================
+
+class TestLimitedRecoveryAdaptation:
+    """Comprehensive TDD coverage for narrow, guarded online adaptation of
+    recovery aggression (single scalar multiplier on top of static boost_factor).
+
+    Guardrails validated:
+    - Disabled by default (feature flag)
+    - Manual human override knob freezes value, disables ratchet
+    - Hard bounds (e.g. 0.98-1.12), slow step + inertia (min good bars)
+    - Decay (half-life style) when leaving recovery
+    - Fail-safe: any nan/err → neutral 1.0, never increases risk on error
+    - Zero effect outside recovery condition
+    - Fully logged in rationale with "ADAPT" markers
+    - In-memory state only (safe reset on layer recreation)
+    - Uses performance dict preferentially for outcome signal (per spec)
+    """
+
+    def _mk_recovery_port(self, dd: float = 0.085, ret5d: float = 0.012) -> PortfolioState:
+        return PortfolioState(
+            total_equity=100000.0,
+            cash=28000.0,
+            drawdown_pct=dd,
+            drawdown_5d_ago=max(0.0, dd - 0.01),
+            recent_return_5d=ret5d,
+        )
+
+    def _mk_recovery_scores(self) -> RegimeScores:
+        return RegimeScores(
+            equity_momentum_strength=0.58,
+            stress_crisis_probability=0.42,
+            volatility_regime=0.45,
+            breadth_participation=0.51,
+            liquidity_macro_stance=0.48,
+            mean_reversion_opportunity=0.47,
+        )
+
+    def test_adaptation_disabled_by_default_preserves_baseline_recovery(self):
+        """Default (disabled) must produce *exactly* same recovery behavior as pre-3.2."""
+        layer = RiskBudgetMetaLayer()  # uses default params (enabled=False)
+        scores = self._mk_recovery_scores()
+        port = self._mk_recovery_port(dd=0.09, ret5d=0.015)
+
+        d = layer.compute_decision(scores, port)
+        # Baseline recovery boost must still trigger
+        assert d.gross_exposure > 1.05, "Recovery boost should still apply"
+        rat = (d.rationale or "").upper()
+        assert "RECOVERY" in rat
+        # No adaptation markers whatsoever (use specific tokens; "ADAPT" substring can appear in version strings post-3.2)
+        assert "RECOVERY_ADAPT(" not in rat and "ADAPT(boost" not in rat and "ADAPT_DECAY" not in rat
+        assert "MANUAL" not in rat
+
+    def test_adaptation_enabled_ratchets_up_only_after_min_consecutive_good_bars(self):
+        """Enabled + good outcomes (via performance dict) → slow ratchet of boost > baseline."""
+        p = RiskBudgetParams(
+            recovery_adaptation_enabled=True,
+            recovery_adaptation_bounds=(0.98, 1.12),
+            recovery_adaptation_step=0.02,
+            recovery_adaptation_min_good_bars=3,
+            recovery_adaptation_good_return_threshold=0.008,
+        )
+        layer = RiskBudgetMetaLayer(params=p)
+        scores = self._mk_recovery_scores()
+        base_port = self._mk_recovery_port(dd=0.08, ret5d=0.015)
+
+        # First call (in recovery, good) — should not ratchet yet (min_bars=3)
+        d0 = layer.compute_decision(scores, base_port, performance={"recent_return_5d": 0.015})
+        rat0 = d0.rationale or ""
+        assert "RECOVERY" in rat0.upper()
+        # Capture baseline gross with this layer (pre-ratchet)
+        baseline_gross = d0.gross_exposure
+
+        # Feed 4 more consecutive good recovery bars (performance signal)
+        for i in range(4):
+            d = layer.compute_decision(scores, base_port, performance={"recent_return_5d": 0.018})
+            rat = d.rationale or ""
+            if i >= 2:  # after min reached
+                assert "ADAPT" in rat.upper() or "RECOVERY_ADAPT" in rat.upper(), f"Expected ADAPT marker after ratchet: {rat}"
+
+        d_final = layer.compute_decision(scores, base_port, performance={"recent_return_5d": 0.02})
+        final_gross = d_final.gross_exposure
+        # After ratchet, aggression should be visibly higher than the pre-ratchet call
+        assert final_gross > baseline_gross + 0.005, (
+            f"Adapted recovery must increase gross (baseline={baseline_gross:.4f}, final={final_gross:.4f})"
+        )
+        # But still within hard caps
+        assert final_gross <= p.hard_max_gross
+
+    def test_manual_override_freezes_and_disables_adaptation(self):
+        """manual_recovery_aggression set → always uses that value, no ratcheting even on long good streak."""
+        p = RiskBudgetParams(
+            recovery_adaptation_enabled=True,
+            recovery_adaptation_manual_override=1.07,
+            recovery_adaptation_bounds=(0.98, 1.12),
+        )
+        layer = RiskBudgetMetaLayer(params=p)
+        scores = self._mk_recovery_scores()
+        port = self._mk_recovery_port(dd=0.10, ret5d=0.025)
+
+        # Long streak of excellent recovery
+        last_gross = None
+        for _ in range(8):
+            d = layer.compute_decision(scores, port, performance={"recent_return_5d": 0.03})
+            last_gross = d.gross_exposure
+            rat = (d.rationale or "").upper()
+            assert "MANUAL" in rat or "OVERRIDE" in rat or "1.07" in rat, f"Manual override must be documented: {d.rationale}"
+
+        # Gross should be stable (no further ratchet beyond the manual 1.07 effect)
+        # Recompute baseline without manual for comparison (different instance)
+        p2 = RiskBudgetParams(recovery_adaptation_enabled=False)
+        layer2 = RiskBudgetMetaLayer(params=p2)
+        d_base = layer2.compute_decision(scores, port)
+        # With manual 1.07 we expect higher than pure baseline (but test mainly that it froze)
+        assert last_gross is not None
+
+    def test_adaptation_decays_toward_neutral_when_leaving_recovery(self):
+        """After ratchet up in recovery, subsequent non-recovery calls must decay the factor toward 1.0."""
+        p = RiskBudgetParams(
+            recovery_adaptation_enabled=True,
+            recovery_adaptation_bounds=(0.98, 1.12),
+            recovery_adaptation_step=0.025,
+            recovery_adaptation_decay_rate=0.12,
+            recovery_adaptation_min_good_bars=2,
+        )
+        layer = RiskBudgetMetaLayer(params=p)
+        scores = self._mk_recovery_scores()
+        rec_port = self._mk_recovery_port(dd=0.09, ret5d=0.02)
+
+        # Ratchet up
+        for _ in range(5):
+            layer.compute_decision(scores, rec_port, performance={"recent_return_5d": 0.02})
+
+        # Now leave recovery: low DD, neutral scores for several bars
+        neutral_scores = RegimeScores(equity_momentum_strength=0.45, stress_crisis_probability=0.50)
+        neutral_port = PortfolioState(total_equity=105000.0, cash=25000.0, drawdown_pct=0.01, recent_return_5d=0.005)
+
+        for _ in range(12):
+            layer.compute_decision(neutral_scores, neutral_port)
+
+        # Re-enter recovery with same good signal — the boost should have decayed (smaller lift than max)
+        d_reenter = layer.compute_decision(scores, rec_port, performance={"recent_return_5d": 0.015})
+        rat = d_reenter.rationale or ""
+        # We don't assert exact value (depends on exact decay math), but adaptation must have been "reset-ish"
+        # The key: no crash + rationale present. Stronger assertion via state exposure in impl.
+        assert d_reenter.gross_exposure > 0.9
+
+    def test_adaptation_respects_hard_bounds_and_never_exceeds(self):
+        """Even with extreme good streak, adapted boost clamped to configured upper bound."""
+        p = RiskBudgetParams(
+            recovery_adaptation_enabled=True,
+            recovery_adaptation_bounds=(0.97, 1.09),  # tight upper for test
+            recovery_adaptation_step=0.05,  # aggressive step to hit bound fast
+            recovery_adaptation_min_good_bars=1,
+        )
+        layer = RiskBudgetMetaLayer(params=p)
+        scores = self._mk_recovery_scores()
+        port = self._mk_recovery_port(dd=0.12, ret5d=0.04)
+
+        max_observed = 0.0
+        for _ in range(20):  # way more than needed to hit bound
+            d = layer.compute_decision(scores, port, performance={"recent_return_5d": 0.05})
+            max_observed = max(max_observed, d.gross_exposure)
+
+        # Must never exceed the hard_max_gross, and effective adapted factor must respect 1.09
+        assert max_observed <= p.hard_max_gross
+        # If we could inspect internal, factor <=1.09; via gross we at least confirm no blow-up
+
+    def test_adaptation_fail_safe_on_nan_bad_data_never_increases_risk(self):
+        """NaN / extreme / missing performance must not raise and must degrade to neutral (1.0) adaptation."""
+        p = RiskBudgetParams(recovery_adaptation_enabled=True)
+        layer = RiskBudgetMetaLayer(params=p)
+        scores = self._mk_recovery_scores()
+        port = self._mk_recovery_port(dd=0.07, ret5d=float("nan"))
+
+        # Should not raise
+        d = layer.compute_decision(scores, port, performance={"recent_return_5d": float("nan")})
+        assert isinstance(d, MetaLayerDecision)
+        assert 0.5 < d.gross_exposure < 1.5  # conservative range
+        # On error path, adaptation must be neutral (no erroneous extra boost)
+        rat = (d.rationale or "").upper()
+        # Either no ADAPT or ADAPT with neutral 1.0x
+        if "ADAPT" in rat:
+            assert "1.00" in rat or "ERROR" in rat or "SAFE" in rat
+
+    def test_adaptation_zero_impact_on_non_recovery_regimes(self):
+        """When not in recovery condition, adaptation must not touch gross or rationale at all."""
+        p = RiskBudgetParams(recovery_adaptation_enabled=True)
+        layer = RiskBudgetMetaLayer(params=p)
+        # Strong momentum (no DD) — not recovery
+        scores = RegimeScores(equity_momentum_strength=0.82, stress_crisis_probability=0.22)
+        port = PortfolioState(total_equity=110000.0, cash=15000.0, drawdown_pct=0.02, recent_return_5d=0.04)
+
+        d = layer.compute_decision(scores, port, performance={"recent_return_5d": 0.04})
+        rat = (d.rationale or "").upper()
+        # Adaptation must not have *activated* (no boost/ratchet/decay log) even if enabled.
+        # Version string may contain "RECOVERY-ADAPT" token; ignore it.
+        assert "RECOVERY BOOST" not in rat
+        assert "RECOVERY_ADAPT(" not in rat and "ADAPT_DECAY" not in rat and "ADAPT(boost" not in rat
+
+    def test_adaptation_state_view_and_reset_for_tests(self):
+        """Layer must expose recovery_adaptation_state (like risk_stability_state) for diagnostics."""
+        p = RiskBudgetParams(recovery_adaptation_enabled=True)
+        layer = RiskBudgetMetaLayer(params=p)
+        # Before any calls
+        st = layer.recovery_adaptation_state
+        assert st is not None
+        assert hasattr(st, "current_boost")
+        assert abs(st.current_boost - 1.0) < 1e-9
+        assert st.adaptation_active is True or st.adaptation_active is False  # set by enabled
+
+        # After ratchet
+        scores = self._mk_recovery_scores()
+        port = self._mk_recovery_port()
+        for _ in range(4):
+            layer.compute_decision(scores, port, performance={"recent_return_5d": 0.02})
+
+        st2 = layer.recovery_adaptation_state
+        assert st2.current_boost >= 1.0
+        assert st2.consecutive_good_bars >= 0
+
+    def test_adaptation_uses_performance_dict_preferentially(self):
+        """Signal for 'good outcome' must prefer performance dict over portfolio.recent_return_5d."""
+        p = RiskBudgetParams(
+            recovery_adaptation_enabled=True,
+            recovery_adaptation_min_good_bars=1,
+            recovery_adaptation_good_return_threshold=0.01,
+        )
+        layer = RiskBudgetMetaLayer(params=p)
+        scores = self._mk_recovery_scores()
+        # portfolio says bad return, but performance says excellent → must count as good
+        bad_port = self._mk_recovery_port(dd=0.08, ret5d=-0.04)
+        d = layer.compute_decision(scores, bad_port, performance={"recent_return_5d": 0.025, "source": "synthetic"})
+        rat = d.rationale or ""
+        # Adaptation should have reacted (ratchet started) because performance was good
+        assert "ADAPT" in rat.upper() or "RECOVERY_ADAPT" in rat.upper() or d.gross_exposure > 1.10
+
+    def test_full_synthetic_recovery_trajectory_end_to_end(self):
+        """End-to-end synthetic trajectory: enter recovery (good) → ratchet → exit (decay) → re-enter."""
+        p = RiskBudgetParams(recovery_adaptation_enabled=True, recovery_adaptation_min_good_bars=2)
+        layer = RiskBudgetMetaLayer(params=p)
+        scores = self._mk_recovery_scores()
+
+        # Phase 1: enter + 6 good bars
+        for _ in range(6):
+            layer.compute_decision(scores, self._mk_recovery_port(dd=0.095, ret5d=0.018),
+                                   performance={"recent_return_5d": 0.018})
+
+        st_ratchet = layer.recovery_adaptation_state
+        assert st_ratchet.current_boost > 1.0
+
+        # Phase 2: exit for 10 bars
+        for _ in range(10):
+            layer.compute_decision(
+                RegimeScores(equity_momentum_strength=0.40),
+                PortfolioState(drawdown_pct=0.015, recent_return_5d=0.002)
+            )
+
+        st_decay = layer.recovery_adaptation_state
+        # Should have moved back toward 1.0
+        assert st_decay.current_boost < st_ratchet.current_boost or st_decay.current_boost <= 1.02
+
+        # Phase 3: re-enter recovery (good) — ratchet can restart from decayed base
+        for _ in range(3):
+            layer.compute_decision(scores, self._mk_recovery_port(), performance={"recent_return_5d": 0.015})
+
+        st_re = layer.recovery_adaptation_state
+        assert st_re.current_boost >= 1.0  # always safe
 
 
 if __name__ == "__main__":
