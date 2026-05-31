@@ -112,17 +112,15 @@ _meta_layer_flag = os.environ.get('ENABLE_META_LAYER', '0').strip().lower()
 
 if _meta_layer_flag in ('1', 'true', 'yes', 'on', 'shadow'):
     try:
-        # Lazy import only when flag allows it. This keeps the module importable
-        # even if hydra_meta has issues during early development.
+        # Lazy import only when flag allows it.
         from hydra_meta import (  # noqa: F401
-            RegimeScores,           # from regime_os (re-exported or direct)
+            RegimeScores,
             MetaLayerDecision,
             MetaLayer,
             RiskBudgetMetaLayer,
-            # Ensemble will be added once Task 3.2 stabilizes
+            PortfolioState,   # needed for decision input
         )
-        # We also need the upstream Regime OS
-        from regime_os import BasicRegimeOS, compute_regime_scores  # type: ignore
+        from regime_os import BasicRegimeOS  # type: ignore
         _meta_layer_available = True
         logger.info("HYDRA Meta-Layer v1: GUARD LOADED (flag=%s)", _meta_layer_flag)
     except Exception as e:
@@ -2021,14 +2019,13 @@ class COMPASSLive:
             # Regime-aware capital allocation (May 2026 improvement)
             current_regime = getattr(self, '_current_regime', 'neutral')
 
-            # PHASE 4 WIRING (pilot site) — see prep doc §2.2
-            # When meta layer is active we will pass meta_decision here.
-            # For now the call is unchanged (fully backward compatible).
-            alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime)
-
-            # Future (guarded):
-            # meta_dec = self._get_meta_layer_decision(...) if self._meta_layer_enabled else None
-            # alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime, meta_decision=meta_dec)
+            # PHASE 4 WIRING — now active when flag is on
+            meta_dec = self._get_meta_layer_decision() if self._meta_layer_enabled else None
+            alloc = self.hydra_capital.compute_allocation(
+                r_exposure, 
+                regime=current_regime, 
+                meta_decision=meta_dec
+            )
 
             compass_cash = min(portfolio.cash, alloc['compass_budget'])
             logger.info(f"HYDRA budget: COMPASS=${alloc['compass_budget']:,.0f} | "
@@ -2273,7 +2270,8 @@ class COMPASSLive:
             self.rattle_positions, prices, self.hydra_capital.rattle_account
         )
         current_regime = getattr(self, '_current_regime', 'neutral')
-        alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime)
+        meta_dec = self._get_meta_layer_decision() if self._meta_layer_enabled else None
+        alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime, meta_decision=meta_dec)
         r_budget = alloc['rattle_budget']
 
         for cand in candidates:
@@ -2607,7 +2605,8 @@ class COMPASSLive:
             self.rattle_positions, prices, self.hydra_capital.rattle_account
         )
         current_regime = getattr(self, '_current_regime', 'neutral')
-        alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime)
+        meta_dec = self._get_meta_layer_decision() if self._meta_layer_enabled else None
+        alloc = self.hydra_capital.compute_allocation(r_exposure, regime=current_regime, meta_decision=meta_dec)
         portfolio = self.broker.get_portfolio()
         # efa_idle = remaining Rattlesnake idle cash after recycling to COMPASS
         # Cap by actual broker cash to avoid over-allocation
