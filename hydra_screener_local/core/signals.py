@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from config import MOMENTUM_LOOKBACK, MOMENTUM_SKIP, REGIME_SMA, MIN_REGIME_SCORE
 from .meta_layer import LightweightMetaLayer, apply_meta_to_candidates
+from .regime import compute_rich_regime_scores
 
 
 def compute_momentum_score(prices: pd.DataFrame) -> pd.Series:
@@ -44,10 +45,13 @@ def compute_regime_score(spy: pd.Series) -> float:
 
 def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFrame:
     """
-    Genera candidatos diarios aplicando momentum + Meta-Layer.
+    Genera candidatos diarios aplicando momentum + Meta-Layer con régimen rico.
     """
     momentum = compute_momentum_score(prices)
-    regime_score = compute_regime_score(spy)
+    
+    # Régimen más rico (múltiples dimensiones)
+    rich_regime = compute_rich_regime_scores(spy, prices)
+    regime_score = rich_regime.overall
     
     df = pd.DataFrame({
         'ticker': momentum.index,
@@ -62,7 +66,7 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
     spy_20d_ret = (spy.iloc[-1] / spy.iloc[-20] - 1) if len(spy) >= 20 else 0.0
     spy_60d_ret = (spy.iloc[-1] / spy.iloc[-60] - 1) if len(spy) >= 60 else 0.0
     vol_level = float(spy.pct_change().rolling(20).std().iloc[-1] * np.sqrt(252)) if len(spy) > 20 else 0.5
-    vol_level = min(max(vol_level / 0.25, 0.3), 0.9)  # normalización burda
+    vol_level = min(max(vol_level / 0.25, 0.3), 0.9)
     
     meta_adj = meta_layer.compute_adjustment(
         regime_score=regime_score,
