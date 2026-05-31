@@ -28,13 +28,21 @@ def main():
         print("⚠️  Datos insuficientes. Intenta más tarde o reduce el universo.")
         return
     
-    # 3. Generar candidatos
+    # 3. Generar candidatos (ya incluye Meta-Layer)
     candidates = generate_daily_candidates(prices, spy)
     regime_score = compute_regime_score(spy)
     
+    # Extraer info de meta para el resumen (del primer candidato)
+    meta_info = {}
+    if len(candidates) > 0:
+        meta_info = {
+            'aggression': candidates.iloc[0].get('aggression', 1.0),
+            'recovery_boost': candidates.iloc[0].get('recovery_boost', 1.0)
+        }
+    
     # 4. Mostrar resultados
     print_candidates_table(candidates, top_n=TOP_CANDIDATES)
-    print_summary(regime_score, len(candidates))
+    print_summary(regime_score, len(candidates), meta_info)
     
     # 5. Exportar
     if EXPORT_EXCEL:

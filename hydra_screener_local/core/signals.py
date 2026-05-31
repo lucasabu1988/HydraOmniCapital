@@ -1,10 +1,11 @@
 """
 Lógica de señales para el Screener HYDRA Local.
-Versión inicial limpia y extensible.
+Incluye integración con Meta-Layer.
 """
 import pandas as pd
 import numpy as np
 from config import MOMENTUM_LOOKBACK, MOMENTUM_SKIP, REGIME_SMA, MIN_REGIME_SCORE
+from .meta_layer import LightweightMetaLayer, apply_meta_to_candidates
 
 
 def compute_momentum_score(prices: pd.DataFrame) -> pd.Series:
@@ -34,9 +35,8 @@ def compute_regime_score(spy: pd.Series) -> float:
     
     trend = 1 if current > sma200 else 0
     
-    # Momentum reciente (20 días)
     ret_20d = (current / spy.iloc[-20] - 1) if len(spy) >= 20 else 0
-    mom_score = np.clip((ret_20d + 0.05) / 0.15, 0, 1)  # normalización burda
+    mom_score = np.clip((ret_20d + 0.05) / 0.15, 0, 1)
     
     regime = (0.7 * trend) + (0.3 * mom_score)
     return round(float(regime), 3)
@@ -44,27 +44,46 @@ def compute_regime_score(spy: pd.Series) -> float:
 
 def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFrame:
     """
-    Genera el ranking diario de candidatos.
-    Por ahora usa momentum + filtro de régimen básico.
+    Genera candidatos diarios aplicando momentum + Meta-Layer.
     """
     momentum = compute_momentum_score(prices)
     regime_score = compute_regime_score(spy)
     
     df = pd.DataFrame({
         'ticker': momentum.index,
-        'momentum_score': momentum.values
+        'momentum_score': momentum.values,
+        'rank': range(1, len(momentum) + 1)
     })
     
-    df = df.sort_values('momentum_score', ascending=False).reset_index(drop=True)
-    df['rank'] = range(1, len(df) + 1)
-    df['regime_score'] = regime_score
+    # === Integración de Meta-Layer ===
+    meta_layer = LightweightMetaLayer()
     
-    # Filtro simple de régimen
-    if regime_score < MIN_REGIME_SCORE:
-        df['recommended'] = False
-        df['reason'] = 'Régimen débil'
-    else:
-        df['recommended'] = df['rank'] <= 20
-        df['reason'] = 'Top momentum'
+    # Estimamos drawdown reciente y retorno de recuperación (simplificado)
+    recent_dd = max(0.0, (spy.rolling(60).max().iloc[-1] - spy.iloc[-1]) / spy.rolling(60).max().iloc[-1])
+    spy_20d_ret = (spy.iloc[-1] / spy.iloc[-20] - 1) if len(spy) >= 20 else 0.0
     
-    return df[['rank', 'ticker', 'momentum_score', 'regime_score', 'recommended', 'reason']]
+    meta_adj = meta_layer.compute_adjustment(
+        regime_score=regime_score,
+        recent_drawdown=recent_dd,
+        spy_20d_return=spy_20d_ret
+    )
+    
+    # Aplicamos los ajustes de la Meta-Layer
+    df = apply_meta_to_candidates(df, meta_adj)
+    
+    # Lógica de recomendación final (más inteligente gracias a Meta-Layer)
+    df['recommended'] = (df['final_rank'] <= 25) & (meta_adj.regime_score >= MIN_REGIME_SCORE * 0.9)
+    df['reason'] = df.apply(
+        lambda r: meta_adj.rationale if r['recommended'] else 'No recomendado por régimen/meta', 
+        axis=1
+    )
+    
+    # Columnas finales para mostrar
+    final_df = df[['final_rank', 'ticker', 'momentum_score', 'meta_adjusted_score', 
+                   'meta_regime', 'meta_recovery_boost', 'meta_aggression', 
+                   'recommended', 'reason']].copy()
+    
+    final_df.columns = ['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
+                        'recovery_boost', 'aggression', 'recommended', 'reason']
+    
+    return final_df.sort_values('meta_score', ascending=False).reset_index(drop=True)
