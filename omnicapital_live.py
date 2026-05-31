@@ -114,7 +114,6 @@ if _meta_layer_flag in ('1', 'true', 'yes', 'on', 'shadow'):
     try:
         # Lazy import only when flag allows it.
         from hydra_meta import (  # noqa: F401
-            RegimeScores,
             MetaLayerDecision,
             MetaLayer,
             RiskBudgetMetaLayer,
@@ -122,14 +121,23 @@ if _meta_layer_flag in ('1', 'true', 'yes', 'on', 'shadow'):
         )
         from regime_os import BasicRegimeOS  # type: ignore
         _meta_layer_available = True
-        logger.info("HYDRA Meta-Layer v1: GUARD LOADED (flag=%s)", _meta_layer_flag)
+        try:
+            logger.info("HYDRA Meta-Layer v1: GUARD LOADED (flag=%s)", _meta_layer_flag)
+        except NameError:
+            print(f"HYDRA Meta-Layer v1: GUARD LOADED (flag={_meta_layer_flag})")
     except Exception as e:
         _meta_layer_available = False
-        logger.warning("HYDRA Meta-Layer v1: import failed (disabled): %s", e)
+        try:
+            logger.warning("HYDRA Meta-Layer v1: import failed (disabled): %s", e)
+        except NameError:
+            print(f"HYDRA Meta-Layer v1: import failed (disabled): {e}")
 else:
     _meta_layer_available = False
     if _meta_layer_flag not in ('0', 'false', 'no', 'off', ''):
-        logger.warning("ENABLE_META_LAYER has unknown value '%s' — treating as disabled", _meta_layer_flag)
+        try:
+            logger.warning("ENABLE_META_LAYER has unknown value '%s' — treating as disabled", _meta_layer_flag)
+        except NameError:
+            print(f"ENABLE_META_LAYER has unknown value '{_meta_layer_flag}' — treating as disabled")
 
 # Overlay system (v3: BSO + M2 + FOMC + FedEmergency + CreditFilter)
 try:
