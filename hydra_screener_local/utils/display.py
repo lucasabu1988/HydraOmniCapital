@@ -33,6 +33,7 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
     table.add_column("Momentum", justify="right")
     table.add_column("Meta Score", justify="right", style="green")
     table.add_column("Régimen", justify="center")
+    table.add_column("Tipo", justify="center")
     table.add_column("Recovery", justify="center")
     table.add_column("Agg", justify="center")
     table.add_column("Rec", justify="center")
@@ -52,10 +53,11 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
             f"{row.get('momentum', 0):.3f}",
             f"{row.get('meta_score', 0):.3f}",
             f"[{regime_color}]{row.get('regime', 0):.2f}[/{regime_color}]",
+            str(row.get('meta_regime_type', ''))[:7],
             recovery,
             f"{row.get('aggression', 1.0):.2f}",
             f"[{rec_style}]{rec}[/{rec_style}]",
-            str(row.get('reason', ''))[:45]
+            str(row.get('reason', ''))[:40]
         )
     
     console.print(table)
@@ -67,6 +69,7 @@ def print_summary(regime_score: float, total_candidates: int, meta_info: dict = 
     
     content = (
         f"[bold]Régimen Score:[/bold] [{color}]{regime_score:.2f}[/{color}]\n"
+        f"[bold]Tipo de Régimen:[/bold] {meta_info.get('regime_type', 'N/A') if meta_info else 'N/A'}\n"
         f"[bold]Candidatos analizados:[/bold] {total_candidates}\n"
         f"[bold]Top recomendados:[/bold] {min(15, total_candidates)}"
     )
@@ -74,9 +77,9 @@ def print_summary(regime_score: float, total_candidates: int, meta_info: dict = 
     if meta_info:
         content += f"\n[bold]Meta Aggression:[/bold] {meta_info.get('aggression', 1.0):.2f}"
         if meta_info.get('recovery_boost', 1.0) > 1.0:
-            content += f"  [yellow]Recovery Boost: {meta_info['recovery_boost']:.2f}[/yellow]"
+            content += f"   [yellow]Recovery: {meta_info['recovery_boost']:.2f}x[/yellow]"
     
-    console.print(Panel.fit(content, title="Resumen del Día", border_style="blue"))
+    console.print(Panel.fit(content, title="Resumen del Día (Meta-Layer)", border_style="blue"))
 
 
 def print_footer():

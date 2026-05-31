@@ -55,20 +55,23 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
         'rank': range(1, len(momentum) + 1)
     })
     
-    # === Integración de Meta-Layer ===
+    # === Integración de Meta-Layer (versión más potente) ===
     meta_layer = LightweightMetaLayer()
     
-    # Estimamos drawdown reciente y retorno de recuperación (simplificado)
     recent_dd = max(0.0, (spy.rolling(60).max().iloc[-1] - spy.iloc[-1]) / spy.rolling(60).max().iloc[-1])
     spy_20d_ret = (spy.iloc[-1] / spy.iloc[-20] - 1) if len(spy) >= 20 else 0.0
+    spy_60d_ret = (spy.iloc[-1] / spy.iloc[-60] - 1) if len(spy) >= 60 else 0.0
+    vol_level = float(spy.pct_change().rolling(20).std().iloc[-1] * np.sqrt(252)) if len(spy) > 20 else 0.5
+    vol_level = min(max(vol_level / 0.25, 0.3), 0.9)  # normalización burda
     
     meta_adj = meta_layer.compute_adjustment(
         regime_score=regime_score,
         recent_drawdown=recent_dd,
-        spy_20d_return=spy_20d_ret
+        spy_20d_return=spy_20d_ret,
+        spy_60d_return=spy_60d_ret,
+        volatility_level=vol_level
     )
     
-    # Aplicamos los ajustes de la Meta-Layer
     df = apply_meta_to_candidates(df, meta_adj)
     
     # Lógica de recomendación final (más inteligente gracias a Meta-Layer)

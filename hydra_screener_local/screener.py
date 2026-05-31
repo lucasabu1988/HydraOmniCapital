@@ -32,12 +32,13 @@ def main():
     candidates = generate_daily_candidates(prices, spy)
     regime_score = compute_regime_score(spy)
     
-    # Extraer info de meta para el resumen (del primer candidato)
+    # Extraer info de meta para el resumen
     meta_info = {}
     if len(candidates) > 0:
         meta_info = {
             'aggression': candidates.iloc[0].get('aggression', 1.0),
-            'recovery_boost': candidates.iloc[0].get('recovery_boost', 1.0)
+            'recovery_boost': candidates.iloc[0].get('recovery_boost', 1.0),
+            'regime_type': candidates.iloc[0].get('meta_regime_type', '')
         }
     
     # 4. Mostrar resultados
