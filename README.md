@@ -3,30 +3,36 @@
 </p>
 
 <h1 align="center">OmniCapital HYDRA</h1>
-<h3 align="center">Sistema multi-estrategia de trading cuantitativo</h3>
+<h3 align="center">Local Screener + Meta-Layer para trading cuantitativo</h3>
 
 <p align="center">
-  <strong>14.45% CAGR</strong> | <strong>0.91 Sharpe</strong> | <strong>-27.0% Max DD</strong> | <strong>$100k → $3.3M</strong> (2000-2026, survivorship-corrected)
+  <strong>Lightweight • 100% Local en Windows • Sin dependencias en la nube</strong>
 </p>
 
 <p align="center">
-  <a href="https://omnicapital.onrender.com">🌐 Dashboard en vivo</a>
+  <a href="#-screener-local">📥 Screener Local</a> • 
+  <a href="#-meta-layer">🧠 Meta-Layer</a> • 
+  <a href="https://github.com/lucasabu1988/HydraOmniCapital/tree/feature/hydra-local-screener">Feature Branch</a>
 </p>
 
 ---
 
-## 🎯 Estado actual
+## 🎯 Enfoque Actual
 
-**Paper trading en vivo desde el 16 de marzo de 2026.** 18 días de trading completados al 8 de abril de 2026.
+**HYDRA Screener Local** — Herramienta ligera y 100% local para Windows.
 
-| Métrica | Backtest (2000-2026) | Live (Mar 16 - Apr 8 2026) |
-|---|---|---|
-| CAGR esperado | 14.45% | en curso |
-| Sharpe | 0.91 | en curso |
-| Max Drawdown | -27.0% | -1.49% |
-| Final value | $3.3M (de $100k) | $100,400 (de $100k) |
+El proyecto ha evolucionado hacia un **screener local ligero** que genera candidatos de compra diarios usando la lógica completa de HYDRA + Meta-Layer, sin depender de servidores en la nube.
 
-Backtest corrido sobre **882 tickers point-in-time** del S&P 500 (multi-source pipeline: yfinance + Tiingo + Stooq + Wayback Machine), recuperando incluso bancarrotas históricas (Lehman, Bear Stearns, Merrill, Wachovia, Eastman Kodak, Nortel, Countrywide).
+### Características principales del Screener Local
+
+- Corre completamente en Windows (sin Render, Flask ni gunicorn)
+- Usa el S&P 500 completo (o lista reducida)
+- Integra Meta-Layer con Special Modes y Pillar Multipliers
+- Número de recomendaciones dinámico según el régimen
+- Guarda histórico automático para análisis de rendimiento
+- Muy rápido de ejecutar manualmente (antes, durante y después de la apertura)
+
+Ver instrucciones completas más abajo en la sección **Screener Local**.
 
 ---
 
@@ -43,7 +49,34 @@ HYDRA combina cuatro estrategias complementarias con un sistema de reciclaje de 
 
 **Cash recycling**: el cash idle de Rattlesnake fluye a COMPASS hasta un cap del 75%. El cash residual (post-recycling, no Catalyst) se asigna a EFA. Catalyst está aislado y nunca participa del recycling.
 
-**Algorithm LOCKED**: 64 experimentos corridos. El motor está congelado; cualquier cambio paramétrico degrada performance. La inelasticidad fue confirmada empíricamente.
+**Algorithm LOCKED**: 64 experimentos corridos. El motor está congelado; cualquier cambio paramétrico degrada performance.
+
+---
+
+## 📥 Screener Local (Recomendado)
+
+Versión ligera y moderna que corre 100% local en Windows.
+
+```bash
+cd hydra_screener_local
+pip install -r requirements.txt
+python screener.py
+```
+
+**Características:**
+- Soporta S&P 500 completo
+- Filtros de liquidez y precio configurables
+- Meta-Layer con los 4 Special Modes
+- Pillar Multipliers que afectan el ranking
+- Número de recomendaciones dinámico
+- Guarda histórico automáticamente en `history/`
+
+Para analizar el histórico:
+```bash
+python analyze_history.py
+```
+
+Todo el código está en la carpeta `hydra_screener_local/`.
 
 ---
 
