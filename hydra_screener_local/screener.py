@@ -50,6 +50,7 @@ def main():
     # Extraer info de meta para el resumen
     meta_info = {}
     pillar_mults = {}
+    special_modes_list = []
     if len(candidates) > 0:
         meta_info = {
             'aggression': candidates.iloc[0].get('aggression', 1.0),
@@ -62,6 +63,12 @@ def main():
             pillar_mults = ast.literal_eval(candidates.iloc[0].get('pillar_multipliers', '{}'))
         except:
             pillar_mults = {}
+        # Special modes reales para guardar en history
+        sm_raw = candidates.iloc[0].get('special_modes', '')
+        if isinstance(sm_raw, str) and sm_raw:
+            special_modes_list = [m.strip() for m in sm_raw.split(',') if m.strip()]
+        elif isinstance(sm_raw, (list, tuple)):
+            special_modes_list = list(sm_raw)
     
     # 5. Mostrar resultados
     print_candidates_table(candidates, top_n=TOP_CANDIDATES)
@@ -89,7 +96,7 @@ def main():
             date=today,
             regime_score=regime_score,
             regime_type=meta_info.get("regime_type", ""),
-            special_modes=[],  # podemos mejorarlo después
+            special_modes=special_modes_list,
             pillar_multipliers=pillar_mults,
             top_candidates=top_for_history,
             meta_rationale=meta_rationale

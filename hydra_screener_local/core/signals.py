@@ -58,6 +58,8 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
         'momentum_score': momentum.values,
         'rank': range(1, len(momentum) + 1)
     })
+    # Normalize name for apply_meta + final output contract
+    df = df.rename(columns={'momentum_score': 'momentum'})
     
     # === Integración de Meta-Layer (versión más potente) ===
     meta_layer = LightweightMetaLayer()
@@ -101,10 +103,12 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
     
     final_df = df[['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
                    'meta_regime_type', 'meta_special_modes', 'aggression', 
-                   'compass_mult', 'recommended', 'reason', 'recommended_count']].copy()
+                   'compass_mult', 'recommended', 'reason', 'recommended_count',
+                   'pillar_multipliers', 'recovery_boost']].copy()
     
     final_df.columns = ['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
                         'regime_type', 'special_modes', 'aggression', 
-                        'compass_mult', 'recommended', 'reason', 'recommended_count']
+                        'compass_mult', 'recommended', 'reason', 'recommended_count',
+                        'pillar_multipliers', 'recovery_boost']
     
     return final_df.sort_values('meta_score', ascending=False).reset_index(drop=True)

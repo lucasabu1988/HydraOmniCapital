@@ -45,8 +45,6 @@ def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
         rec = "✅" if row.get('recommended', False) else "❌"
         rec_style = "green" if row.get('recommended', False) else "red"
         
-        recovery = f"{row.get('recovery_boost', 1.0):.2f}"
-        
         table.add_row(
             str(int(row['rank'])),
             row['ticker'],

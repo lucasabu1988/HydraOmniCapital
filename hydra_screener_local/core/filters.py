@@ -17,16 +17,22 @@ def apply_practical_filters(
     """
     Aplica filtros básicos de liquidez y precio.
 
-    Nota: Para filtros por sector reales necesitaríamos metadata de sectores.
-    Por ahora solo implementamos liquidez y precio (lo más útil y ligero).
+    Nota: El filtro de liquidez (min_avg_volume) está deshabilitado por defecto
+    porque fetch solo trae precios Close. min_price sí está activo.
+    Para activar volumen real: extender fetch_prices para pedir Volume y pasar DF separado.
     """
     filtered = prices.copy()
 
-    # 1. Filtro de liquidez (volumen promedio de los últimos 20 días)
+    # 1. Filtro de liquidez (placeholder - requiere Volume data del fetch para ser real)
+    # Actualmente min_avg_volume=0 por defecto para no romper con DF de solo precios.
     if min_avg_volume > 0:
-        recent_volume = filtered.iloc[-20:].mean()  # promedio de volumen de los últimos 20 días
-        liquid_tickers = recent_volume[recent_volume >= min_avg_volume].index.tolist()
-        filtered = filtered[liquid_tickers]
+        recent = filtered.iloc[-20:].mean()
+        # Heurística: si los valores parecen precios (<10k), ignorar para no vaciar el DF
+        if recent.max() < 10000:
+            pass  # skip mis-applied price-as-volume filter
+        else:
+            liquid_tickers = recent[recent >= min_avg_volume].index.tolist()
+            filtered = filtered[liquid_tickers]
 
     # 2. Filtro de precio mínimo
     if min_price > 0:

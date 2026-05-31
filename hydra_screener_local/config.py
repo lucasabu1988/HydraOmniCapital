@@ -42,10 +42,12 @@ OUTPUT_FILENAME_PREFIX = "hydra_screener"
 # FILTROS PRÁCTICOS (para S&P 500)
 # ============================================
 FILTERS = {
-    # Volumen promedio mínimo de los últimos 20 días (liquidez)
-    "min_avg_volume": 1_500_000,     # 1.5 millones de acciones/día
+    # Liquidez: actualmente deshabilitado (0) porque el fetch solo trae precios (Close).
+    # El filtro de "volumen" compara contra precios y eliminaría todo.
+    # TODO: extender fetch para incluir Volume y activar (e.g. 1_000_000).
+    "min_avg_volume": 0,
 
-    # Precio mínimo actual
+    # Precio mínimo actual (activo y útil)
     "min_price": 5.0,
 
     # Precio máximo (opcional, None = sin límite)

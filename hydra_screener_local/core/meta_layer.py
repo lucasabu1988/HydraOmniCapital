@@ -47,6 +47,7 @@ class LightweightMetaLayer:
         risk_flags = []
         rationale_parts = []
         special_modes = []
+        recovery_boost = 1.0
 
         # === Régimen Base ===
         if regime_score >= self.strong_regime_threshold:
@@ -168,7 +169,7 @@ class LightweightMetaLayer:
             regime_score=regime_score,
             regime_type=regime_type,
             special_modes=special_modes,
-            recovery_boost=1.0,
+            recovery_boost=round(recovery_boost, 3),
             overall_aggression=round(overall_aggression, 3),
             bias_compass=round(bias_compass, 3),
             bias_rattlesnake=round(bias_rattlesnake, 3),
@@ -207,6 +208,12 @@ def apply_meta_to_candidates(candidates_df, meta):
     df['compass_mult'] = round(compass_mult, 3)
     df['pillar_multipliers'] = str(meta.pillar_multipliers)
     df['meta_rationale'] = meta.rationale
+
+    # Clean aliases for downstream consumers (display, screener main, history)
+    df['aggression'] = meta.overall_aggression
+    df['recovery_boost'] = meta.recovery_boost
+    df['regime'] = meta.regime_score
+    df['special_modes'] = df['meta_special_modes']
 
     df = df.sort_values('meta_score', ascending=False).reset_index(drop=True)
     df['rank'] = range(1, len(df) + 1)
