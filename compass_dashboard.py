@@ -11,6 +11,7 @@ View: http://localhost:5000
 """
 
 from flask import Flask, jsonify, render_template, request
+from functools import wraps
 import json
 import os
 import sys
@@ -38,17 +39,45 @@ logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(32).hex()
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 
 
 @app.after_request
-def add_no_cache_headers(response):
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'"
+    )
     if request.path.startswith('/api/'):
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
     return response
+
+
+_ADMIN_TOKEN = os.environ.get('HYDRA_ADMIN_TOKEN', '')
+
+
+def _require_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not _ADMIN_TOKEN:
+            return jsonify({'error': 'HYDRA_ADMIN_TOKEN not configured'}), 403
+        auth = request.headers.get('Authorization', '')
+        if auth != f'Bearer {_ADMIN_TOKEN}':
+            return jsonify({'error': 'unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 
 def _load_json_with_invalid_constants(path):
@@ -2375,6 +2404,7 @@ def api_execution_microstructure():
 # ============================================================================
 
 @app.route('/api/engine/start', methods=['POST'])
+@_require_admin
 def api_engine_start():
     """Start the live trading engine."""
     ok, msg = start_engine()
@@ -2382,6 +2412,7 @@ def api_engine_start():
 
 
 @app.route('/api/engine/stop', methods=['POST'])
+@_require_admin
 def api_engine_stop():
     """Stop the live trading engine."""
     ok, msg = stop_engine()

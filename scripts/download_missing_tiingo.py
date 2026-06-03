@@ -28,7 +28,7 @@ MISSING_FILE = os.path.join(BASE_DIR, 'data_sources', 'missing_tickers_master.js
 OUTPUT_DIR = os.path.join(BASE_DIR, 'data_sources', 'tiingo_bulk')
 STATE_FILE = os.path.join(BASE_DIR, 'data_sources', 'tiingo_download_state.json')
 
-TIINGO_TOKEN_FALLBACK = '2b4b5626b2849123c9dac0769e418f9b0ccd2a56'
+TIINGO_TOKEN_FALLBACK = os.environ.get('TIINGO_TOKEN', '')
 TIINGO_BASE = 'https://api.tiingo.com/tiingo/daily'
 SLEEP_BETWEEN_DEFAULT = 3.0  # seconds — keeps us at ~1200/hr, well under 500/hr hard limit
 SLEEP_BETWEEN = SLEEP_BETWEEN_DEFAULT

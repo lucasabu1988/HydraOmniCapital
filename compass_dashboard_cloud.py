@@ -13,6 +13,7 @@ Deploy: git push to GitHub → auto-deploy on Render.
 """
 
 from flask import Flask, jsonify, render_template, request
+from functools import wraps
 import gzip
 import json
 import os
@@ -90,10 +91,26 @@ except ImportError as e:
     )
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(32).hex()
 logger = logging.getLogger(__name__)
 
 # Env vars whose values must be masked in logs
-_SECRET_ENV_VARS = {'ANTHROPIC_API_KEY', 'GIT_TOKEN', 'SECRET_KEY', 'API_KEY'}
+_SECRET_ENV_VARS = {'ANTHROPIC_API_KEY', 'GIT_TOKEN', 'SECRET_KEY', 'API_KEY',
+                    'HYDRA_ADMIN_TOKEN', 'FLASK_SECRET_KEY'}
+
+_ADMIN_TOKEN = os.environ.get('HYDRA_ADMIN_TOKEN', '')
+
+
+def _require_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not _ADMIN_TOKEN:
+            return jsonify({'error': 'HYDRA_ADMIN_TOKEN not configured'}), 403
+        auth = request.headers.get('Authorization', '')
+        if auth != f'Bearer {_ADMIN_TOKEN}':
+            return jsonify({'error': 'unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 
 def _validate_environment():
@@ -3247,6 +3264,7 @@ def api_price_debug():
 
 
 @app.route('/api/engine/start', methods=['POST'])
+@_require_admin
 def api_engine_start():
     # Cloud engine auto-starts — manual start not needed
     running = _cloud_engine is not None
@@ -3254,6 +3272,7 @@ def api_engine_start():
 
 
 @app.route('/api/engine/stop', methods=['POST'])
+@_require_admin
 def api_engine_stop():
     return jsonify({'ok': False, 'message': 'Cloud engine cannot be stopped via API (auto-managed)'})
 
@@ -3292,7 +3311,7 @@ def api_preflight():
     engine = _cloud_engine
     return jsonify({
         'ready': engine is not None,
-        'checks': {'mode': 'cloud-live', 'engine': engine is not None, 'git_sync': bool(os.environ.get('GIT_TOKEN'))},
+        'checks': {'mode': 'cloud-live', 'engine': engine is not None},
         'server_time': datetime.now().isoformat(),
     })
 

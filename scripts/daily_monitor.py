@@ -17,7 +17,7 @@ class DailyMonitor:
         self.config_file = config_file
         self.state = None
         self.load_state()
-        
+
     def load_state(self):
         """Carga estado actual del sistema"""
         if os.path.exists(self.config_file):
@@ -25,40 +25,40 @@ class DailyMonitor:
                 self.state = json.load(f)
         else:
             self.state = {}
-    
+
     def generate_daily_report(self):
         """Genera reporte del dia"""
-        
+
         report = []
         report.append("="*60)
         report.append("OMNICAPITAL v8.2 COMPASS - DAILY REPORT")
         report.append("="*60)
         report.append(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         report.append("")
-        
+
         # Estado del portfolio
         if 'portfolio_value' in self.state:
             report.append("--- ESTADO DEL PORTFOLIO ---")
             report.append(f"Valor actual: ${self.state.get('portfolio_value', 0):,.2f}")
             report.append(f"Cash: ${self.state.get('cash', 0):,.2f}")
             report.append(f"Peak value: ${self.state.get('peak_value', 0):,.2f}")
-            
+
             # Calcular drawdown
             peak = self.state.get('peak_value', 1)
             current = self.state.get('portfolio_value', 0)
             drawdown = (current - peak) / peak if peak > 0 else 0
             report.append(f"Drawdown actual: {drawdown:.2%}")
             report.append("")
-        
+
         # Posiciones
         positions = self.state.get('positions', {})
         report.append("--- POSICIONES ---")
         report.append(f"Numero de posiciones: {len(positions)}")
-        
+
         for symbol, pos in positions.items():
             report.append(f"  {symbol}: {pos.get('shares', 0):.2f} shares @ ${pos.get('entry_price', 0):.2f}")
         report.append("")
-        
+
         # Estado del sistema
         report.append("--- ESTADO DEL SISTEMA ---")
         report.append(f"En proteccion: {self.state.get('in_protection', False)}")
@@ -70,7 +70,7 @@ class DailyMonitor:
         report.append(f"Trading day: {self.state.get('trading_day_counter', 0)}")
         report.append(f"Stop events historicos: {len(self.state.get('stop_events', []))}")
         report.append("")
-        
+
         # Alertas
         report.append("--- ALERTAS ---")
         alerts = self.check_alerts()
@@ -80,7 +80,7 @@ class DailyMonitor:
         else:
             report.append("✓ No hay alertas")
         report.append("")
-        
+
         # Recomendaciones
         report.append("--- RECOMENDACIONES ---")
         if self.state.get('in_protection'):
@@ -97,60 +97,63 @@ class DailyMonitor:
 
         if drawdown < -0.12:
             report.append("• Drawdown cercano a -15% - Stop loss proximo")
-        
+
         report.append("")
         report.append("="*60)
-        
+
         return "\n".join(report)
-    
+
     def check_alerts(self):
         """Verifica condiciones de alerta"""
         alerts = []
-        
+
         if not self.state:
             alerts.append("No se encontro estado del sistema")
             return alerts
-        
+
         # Alerta: Drawdown cercano a stop loss
         peak = self.state.get('peak_value', 1)
         current = self.state.get('portfolio_value', 0)
         drawdown = (current - peak) / peak if peak > 0 else 0
-        
+
         if drawdown < -0.12:
             alerts.append(f"Drawdown {drawdown:.1%} - Cerca de stop loss (-15%)")
-        
+
         # Alerta: En proteccion
         if self.state.get('in_protection'):
             alerts.append("Sistema en MODO PROTECCION - Leverage reducido a 1:1")
-        
+
         # Alerta: Numero de posiciones bajo
         positions = self.state.get('positions', {})
         if len(positions) < 3 and not self.state.get('in_protection'):
             alerts.append(f"Solo {len(positions)} posiciones (esperado: 5)")
-        
+
         # Alerta: Cash bajo
         portfolio = self.state.get('portfolio_value', 0)
         cash = self.state.get('cash', 0)
         if portfolio > 0 and cash / portfolio < 0.05:
             alerts.append("Cash bajo (< 5% del portfolio)")
-        
+
         return alerts
-    
+
     def send_email(self, subject, body, to_email):
         """Envia reporte por email"""
-        # Configurar con tus credenciales
         smtp_server = "smtp.gmail.com"
         smtp_port = 587
-        from_email = "tu_email@gmail.com"
-        password = "tu_password"
-        
+        from_email = os.environ.get('SMTP_FROM_EMAIL', '')
+        password = os.environ.get('SMTP_PASSWORD', '')
+
+        if not from_email or not password:
+            print("SMTP_FROM_EMAIL or SMTP_PASSWORD not set — skipping email send")
+            return
+
         msg = MIMEMultipart()
         msg['From'] = from_email
         msg['To'] = to_email
         msg['Subject'] = subject
-        
+
         msg.attach(MIMEText(body, 'plain'))
-        
+
         try:
             server = smtplib.SMTP(smtp_server, smtp_port)
             server.starttls()
@@ -160,37 +163,37 @@ class DailyMonitor:
             print(f"Email enviado a {to_email}")
         except Exception as e:
             print(f"Error enviando email: {e}")
-    
+
     def save_report(self, report):
         """Guarda reporte en archivo"""
         date_str = datetime.now().strftime('%Y%m%d')
         filename = f'daily_reports/report_{date_str}.txt'
-        
+
         # Crear directorio si no existe
         os.makedirs('daily_reports', exist_ok=True)
-        
+
         with open(filename, 'w') as f:
             f.write(report)
-        
+
         print(f"Reporte guardado: {filename}")
-    
+
     def run(self):
         """Ejecuta monitoreo diario"""
         print("Generando reporte diario...")
-        
+
         report = self.generate_daily_report()
         print(report)
-        
+
         # Guardar
         self.save_report(report)
-        
+
         # Enviar email (opcional)
         # self.send_email("OmniCapital Daily Report", report, "tu@email.com")
-        
+
         # Verificar si hay alertas criticas
         alerts = self.check_alerts()
         critical = [a for a in alerts if "proteccion" in a.lower() or "stop loss" in a.lower()]
-        
+
         if critical:
             print("\n" + "!"*60)
             print("ALERTAS CRITICAS DETECTADAS")
@@ -199,7 +202,7 @@ class DailyMonitor:
                 print(f"  ⚠ {alert}")
             print("\nRevisar sistema inmediatamente")
             return 1
-        
+
         return 0
 
 

@@ -41,6 +41,7 @@ OUTPUT:
 import argparse
 import json
 import os
+import sys
 import time
 import requests
 from datetime import datetime, timedelta
@@ -49,8 +50,7 @@ from datetime import datetime, timedelta
 # CONFIGURATION
 # ---------------------------------------------------------------------------
 
-# Hardcoded fallback from omnicapital_v8_compass_tiingo.py (already in project)
-TIINGO_API_KEY_FALLBACK = '2b4b5626b2849123c9dac0769e418f9b0ccd2a56'
+TIINGO_API_KEY_FALLBACK = os.environ.get('TIINGO_TOKEN', '')
 
 TIINGO_BASE_URL = 'https://api.tiingo.com/tiingo/daily'
 
@@ -474,9 +474,10 @@ def main():
         or TIINGO_API_KEY_FALLBACK
     )
 
-    if token == TIINGO_API_KEY_FALLBACK:
-        print('\n  [INFO] Using hardcoded token from omnicapital_v8_compass_tiingo.py')
-        print('         Set TIINGO_TOKEN env var or --token to use a different token.')
+    if not token:
+        print('\n  [ERROR] No Tiingo token found.')
+        print('         Set TIINGO_TOKEN env var or pass --token.')
+        sys.exit(1)
 
     sleep_secs = args.sleep
     print_rate_capacity_analysis()
