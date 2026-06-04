@@ -31,12 +31,12 @@ def compute_regime_score(spy: pd.Series) -> float:
     if len(spy) < REGIME_SMA:
         return 0.5
     
-    current = spy.iloc[-1]
-    sma200 = spy.rolling(REGIME_SMA).mean().iloc[-1]
+    current = float(spy.iloc[-1])
+    sma200 = float(spy.rolling(REGIME_SMA).mean().iloc[-1])
     
     trend = 1 if current > sma200 else 0
     
-    ret_20d = (current / spy.iloc[-20] - 1) if len(spy) >= 20 else 0
+    ret_20d = (current / float(spy.iloc[-20]) - 1) if len(spy) >= 20 else 0
     mom_score = np.clip((ret_20d + 0.05) / 0.15, 0, 1)
     
     regime = (0.7 * trend) + (0.3 * mom_score)
@@ -62,9 +62,10 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
     # === Integración de Meta-Layer (versión más potente) ===
     meta_layer = LightweightMetaLayer()
     
-    recent_dd = max(0.0, (spy.rolling(60).max().iloc[-1] - spy.iloc[-1]) / spy.rolling(60).max().iloc[-1])
-    spy_20d_ret = (spy.iloc[-1] / spy.iloc[-20] - 1) if len(spy) >= 20 else 0.0
-    spy_60d_ret = (spy.iloc[-1] / spy.iloc[-60] - 1) if len(spy) >= 60 else 0.0
+    spy_current = float(spy.iloc[-1])
+    recent_dd = max(0.0, (float(spy.rolling(60).max().iloc[-1]) - spy_current) / float(spy.rolling(60).max().iloc[-1]))
+    spy_20d_ret = (spy_current / float(spy.iloc[-20]) - 1) if len(spy) >= 20 else 0.0
+    spy_60d_ret = (spy_current / float(spy.iloc[-60]) - 1) if len(spy) >= 60 else 0.0
     vol_level = float(spy.pct_change().rolling(20).std().iloc[-1] * np.sqrt(252)) if len(spy) > 20 else 0.5
     vol_level = min(max(vol_level / 0.25, 0.3), 0.9)
     
@@ -99,12 +100,12 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series) -> pd.DataFr
     # Guardamos el número dinámico para mostrarlo en el resumen
     df['recommended_count'] = dynamic_count
     
-    final_df = df[['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
-                   'meta_regime_type', 'meta_special_modes', 'aggression', 
-                   'compass_mult', 'recommended', 'reason', 'recommended_count']].copy()
+    final_df = df[['rank', 'ticker', 'momentum_score', 'meta_score', 'meta_regime', 
+                   'meta_regime_type', 'meta_special_modes', 'meta_aggression', 
+                   'compass_mult', 'pillar_multipliers', 'recommended', 'reason', 'recommended_count']].copy()
     
     final_df.columns = ['rank', 'ticker', 'momentum', 'meta_score', 'regime', 
                         'regime_type', 'special_modes', 'aggression', 
-                        'compass_mult', 'recommended', 'reason', 'recommended_count']
+                        'compass_mult', 'pillar_multipliers', 'recommended', 'reason', 'recommended_count']
     
     return final_df.sort_values('meta_score', ascending=False).reset_index(drop=True)

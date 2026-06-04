@@ -27,20 +27,23 @@ def get_sp500_tickers(use_cache: bool = True) -> list[str]:
     print("Descargando lista actualizada del S&P 500 desde Wikipedia...", end=" ", flush=True)
     try:
         url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        response = requests.get(url, timeout=15)
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        response = requests.get(url, timeout=15, headers=headers)
         tables = pd.read_html(StringIO(response.text))
         df = tables[0]
         tickers = df['Symbol'].tolist()
+        # Yahoo Finance usa guion en lugar de punto para algunos tickers
+        tickers = [t.replace('.', '-') for t in tickers]
 
         # Guardar caché
         os.makedirs("output", exist_ok=True)
         pd.DataFrame({"ticker": tickers}).to_csv(CACHE_PATH, index=False)
 
-        print(f"✓ {len(tickers)} tickers")
+        print(f"OK: {len(tickers)} tickers")
         return tickers
 
     except Exception as e:
-        print(f"✗ Error descargando lista ({e})")
+        print(f"ERROR descargando lista ({e})")
         print("Usando lista de respaldo (puede estar desactualizada).")
         return get_fallback_sp500_tickers()
 
