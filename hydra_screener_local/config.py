@@ -68,7 +68,7 @@ FILTERS = {
 # de yfinance (ej: SNDK delisted 2016, BRK.B mal mapeado a veces, etc.).
 # Se filtran lo antes posible para evitar descargas inutiles y contaminacion del ranking.
 DELISTED_OR_BAD_TICKERS = {
-    "SNDK",      # SanDisk - delisted 2016 (adquirida por WDC). Zombie data frecuente.
+    # "SNDK",    # Dejamos activo para que aparezca en el analisis general
     "BRK.B",     # A menudo falla o se confunde con BRK-B. Usar BRK-B en listas.
     "BF.B",      # Brown-Forman clase B - problemas de mapeo comunes.
     "FB",        # Viejo ticker de Meta, ahora META.

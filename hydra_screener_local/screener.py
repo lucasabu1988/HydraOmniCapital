@@ -84,17 +84,27 @@ def main():
             pillar_mults = {}
     
     # 5. Mostrar resultados
-    # Mostrar todos los recomendados (o top N si no hay recomendados marcados)
-    n_recommended = int(candidates['recommended'].sum()) if 'recommended' in candidates.columns else TOP_CANDIDATES
-    display_n = max(n_recommended, TOP_CANDIDATES)
-    print_candidates_table(candidates, top_n=display_n)
+    total_candidates = len(candidates)
+    recommended_df = candidates[candidates['recommended'] == True].copy() if 'recommended' in candidates.columns else candidates.head(TOP_CANDIDATES)
+    n_recommended = len(recommended_df)
     
-    recommended_count = None
-    if len(candidates) > 0:
-        recommended_count = int(candidates.iloc[0].get('recommended_count', TOP_CANDIDATES))
+    # 5a. Mostrar TODOS los candidatos rankeados
+    print(f"\n{'='*70}")
+    print(f"   ANALISIS COMPLETO: {total_candidates} CANDIDATOS RANKEADOS")
+    print(f"{'='*70}")
+    print_candidates_table(candidates, top_n=total_candidates)
+    
+    # 5b. Mostrar solo RECOMENDADOS
+    if n_recommended > 0:
+        print(f"\n{'='*70}")
+        print(f"   RECOMENDADOS HOY: {n_recommended} CANDIDATOS")
+        print(f"{'='*70}")
+        print_candidates_table(recommended_df, top_n=n_recommended)
+    
+    recommended_count = n_recommended if n_recommended > 0 else None
     
     # Mostrar resumen + multipliers de forma visual
-    print_summary(regime_score, len(candidates), meta_info, pillar_mults, recommended_count)
+    print_summary(regime_score, total_candidates, meta_info, pillar_mults, recommended_count)
     
     # 6. Exportar Excel
     today = datetime.now().strftime("%Y%m%d")
@@ -105,6 +115,7 @@ def main():
 
     # 7. Guardar histórico para análisis de rendimiento (persistencia)
     try:
+        # Guardar top 20 del ranking completo + marcar cuales fueron recomendados
         top_for_history = candidates.head(20).to_dict("records")
         meta_rationale = candidates.iloc[0]["reason"] if len(candidates) > 0 else ""
 
