@@ -67,3 +67,8 @@ state/intelligence/
 # Isolated git worktrees (for subagent-driven development)
 .worktrees/
 
+# Local screener runtime artifacts
+hydra_screener_local/history/
+hydra_screener_local/output/
+hydra_screener_local/*.xlsx
+
