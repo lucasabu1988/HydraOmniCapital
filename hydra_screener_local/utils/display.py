@@ -1,135 +1,97 @@
 """
-Salida bonita con Rich para el Screener HYDRA Local.
+Salida limpia con print() para el Screener HYDRA Local.
+Compatible con cualquier terminal Windows sin dependencias de Unicode.
 """
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich import box
-import pandas as pd
 from datetime import datetime
-
-console = Console()
 
 
 def print_header():
-    console.print(Panel.fit(
-        "[bold cyan]HYDRA SCREENER LOCAL[/bold cyan]\n"
-        f"[dim]{datetime.now().strftime('%Y-%m-%d %H:%M')} | Modo Manual[/dim]",
-        border_style="cyan"
-    ))
+    line = "+" + "-" * 34 + "+"
+    print(line)
+    print("| HYDRA SCREENER LOCAL" + " " * 13 + "|")
+    print(f"| {datetime.now().strftime('%Y-%m-%d %H:%M')} | Modo Manual" + " " * 9 + "|")
+    print(line)
 
 
-def print_candidates_table(df: pd.DataFrame, top_n: int = 15):
-    """Muestra la tabla principal de candidatos (con ajustes de Meta-Layer)."""
-    table = Table(
-        title=f"Candidatos del Día (ranking ajustado por Meta-Layer + Pillar Multipliers)",
-        box=box.ROUNDED,
-        show_header=True,
-        header_style="bold magenta"
-    )
-    
-    table.add_column("Rank", justify="center", style="cyan")
-    table.add_column("Ticker", style="bold white")
-    table.add_column("Momentum", justify="right")
-    table.add_column("Meta Score", justify="right", style="green")
-    table.add_column("COMPASS×", justify="center", style="yellow")  # Pillar multiplier effect
-    table.add_column("Tipo", justify="center")
-    table.add_column("Special Modes", style="yellow")
-    table.add_column("Agg", justify="center")
-    table.add_column("Rec", justify="center")
-    table.add_column("Razón", style="dim")
-    
+def print_candidates_table(df, top_n: int = 15):
+    """Muestra la tabla principal de candidatos en formato texto plano."""
+    print(f"\n   Candidatos del Dia (Meta-Layer + Pillar Multipliers)")
+    print("-" * 95)
+    print(f"{'Rank':>5} {'Ticker':<8} {'Mom':>7} {'Meta':>7} {'Mult':>7} {'Tipo':<8} {'Mode':<16} {'Agg':>5} {'Rec':>4} {'Razon'}")
+    print("-" * 95)
+
     for _, row in df.head(top_n).iterrows():
-        regime_color = "green" if row.get('regime', 0) >= 0.5 else "yellow" if row.get('regime', 0) >= 0.35 else "red"
-        
-        rec = "✅" if row.get('recommended', False) else "❌"
-        rec_style = "green" if row.get('recommended', False) else "red"
-        
-        recovery = f"{row.get('recovery_boost', 1.0):.2f}"
-        
-        table.add_row(
-            str(int(row['rank'])),
-            row['ticker'],
-            f"{row.get('momentum', 0):.3f}",
-            f"{row.get('meta_score', 0):.3f}",
-            f"{row.get('compass_mult', 1.0):.2f}x",   # Shows how much the pillar multiplier affected the score
-            str(row.get('regime_type', ''))[:7],
-            str(row.get('special_modes', ''))[:20],
-            f"{row.get('aggression', 1.0):.2f}",
-            f"[{rec_style}]{rec}[/{rec_style}]",
-            str(row.get('reason', ''))[:32]
+        rec = "SI" if row.get('recommended', False) else "NO"
+        reason = str(row.get('reason', ''))[:28]
+        mode = str(row.get('special_modes', ''))[:14]
+        print(
+            f"{int(row['rank']):>5} "
+            f"{row['ticker']:<8} "
+            f"{row.get('momentum', 0):>7.2f} "
+            f"{row.get('meta_score', 0):>7.2f} "
+            f"{row.get('compass_mult', 1.0):>6.2f}x "
+            f"{str(row.get('regime_type', '')):<8} "
+            f"{mode:<16} "
+            f"{row.get('aggression', 1.0):>5.2f} "
+            f"{rec:>4} "
+            f"{reason}"
         )
-    
-    console.print(table)
+
+    print("-" * 95)
 
 
 def print_pillar_multipliers(pillar_mults: dict):
-    """Muestra los Pillar Multipliers de forma visual y accionable."""
+    """Muestra los Pillar Multipliers de forma textual."""
     if not pillar_mults:
         return
 
-    table = Table(
-        title="Pillar Multipliers (Meta-Layer)",
-        box=box.SIMPLE,
-        show_header=True,
-        header_style="bold cyan"
-    )
-    table.add_column("Pillar", style="bold white")
-    table.add_column("Multiplier", justify="center")
-    table.add_column("Tilt", justify="center")
-    table.add_column("Acción recomendada", style="dim")
+    print("\n   Pillar Multipliers (Meta-Layer)")
+    print("-" * 65)
+    print(f"{'Pillar':<14} {'Mult':>8} {'Tilt':>6} {'Accion'}")
+    print("-" * 65)
 
     for pillar, mult in pillar_mults.items():
         if mult > 1.08:
-            color = "green"
-            tilt = "↑↑"
+            tilt = "++"
             action = "Aumentar significativamente"
         elif mult > 1.03:
-            color = "green"
-            tilt = "↑"
+            tilt = "+"
             action = "Aumentar"
         elif mult < 0.92:
-            color = "red"
-            tilt = "↓↓"
+            tilt = "--"
             action = "Reducir significativamente"
         elif mult < 0.97:
-            color = "red"
-            tilt = "↓"
+            tilt = "-"
             action = "Reducir"
         else:
-            color = "white"
-            tilt = "→"
+            tilt = "="
             action = "Mantener"
 
-        table.add_row(
-            pillar,
-            f"[{color}]{mult:.2f}x[/{color}]",
-            tilt,
-            action
-        )
+        print(f"{pillar:<14} {mult:>7.2f}x {tilt:>6} {action}")
 
-    console.print(table)
-    console.print()
+    print("-" * 65)
 
 
 def print_summary(regime_score: float, total_candidates: int, meta_info: dict = None, pillar_mults: dict = None, recommended_count: int = None):
-    """Resumen rápido con información de Meta-Layer + Pillar Multipliers."""
-    color = "green" if regime_score >= 0.5 else "yellow" if regime_score >= 0.35 else "red"
-    
-    content = (
-        f"[bold]Régimen Score:[/bold] [{color}]{regime_score:.2f}[/{color}]  "
-        f"[bold]Tipo:[/bold] {meta_info.get('regime_type', 'N/A') if meta_info else 'N/A'}\n\n"
-        f"[bold]Candidatos analizados:[/bold] {total_candidates}\n"
-    )
-    
-    if recommended_count:
-        content += f"[bold]Recomendados hoy (dinámico):[/bold] {recommended_count}"
+    """Resumen rapido con informacion de Meta-Layer + Pillar Multipliers."""
+    print("\n+" + "-" * 35 + "+")
+    if regime_score >= 0.5:
+        color_word = "STRONG"
+    elif regime_score >= 0.35:
+        color_word = "MODERATE"
     else:
-        content += f"[bold]Top recomendados:[/bold] {min(15, total_candidates)}"
-    
-    console.print(Panel.fit(content, title="Resumen del Día", border_style="blue"))
+        color_word = "WEAK"
+
+    print(f"| Regimen Score: {regime_score:.2f}  Tipo: {meta_info.get('regime_type', color_word) if meta_info else color_word:<8} |")
+    print("|" + " " * 35 + "|")
+    print(f"| Candidatos analizados: {total_candidates:<17} |")
+    if recommended_count:
+        print(f"| Recomendados hoy (dinamico): {recommended_count:<10} |")
+    else:
+        print(f"| Top recomendados: {min(15, total_candidates):<23} |")
+    print("+" + "-" * 35 + "+")
     print_pillar_multipliers(pillar_mults)
 
 
 def print_footer():
-    console.print("\n[dim]Ejecuta de nuevo cuando quieras. Los datos son de Yahoo Finance.[/dim]")
+    print("\nEjecuta de nuevo cuando quieras. Datos de Yahoo Finance.")
