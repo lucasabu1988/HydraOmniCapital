@@ -6,11 +6,11 @@ Soporta universo pequeño o S&P 500 completo.
 """
 from datetime import datetime
 
-from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS
+from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS, UNIVERSE
 from data.universe import get_universe
 from data.fetch import fetch_prices, fetch_spy
 from core.signals import generate_daily_candidates, compute_regime_score
-from core.filters import apply_practical_filters
+from core.filters import apply_practical_filters, remove_zombie_tickers
 from core.history import save_daily_run
 from utils.display import print_header, print_candidates_table, print_summary, print_footer
 
@@ -19,8 +19,12 @@ def main():
     print_header()
     
     # 1. Definir universo
-    tickers = get_universe(full_sp500=USE_FULL_SP500)
-    print(f"Universo seleccionado: {'S&P 500 completo' if USE_FULL_SP500 else 'Lista reducida'} ({len(tickers)} tickers)\n")
+    effective_universe = UNIVERSE if UNIVERSE else ("sp500" if USE_FULL_SP500 else "custom")
+    tickers = get_universe(universe=effective_universe, full_sp500=USE_FULL_SP500)
+    if effective_universe.lower() == "all":
+        print(f"Universo seleccionado: COMBINADO AMPLIADO (SP500 + Nasdaq100 + Dow30 + R1000 + R2000) -> {len(tickers)} tickers unicos\n")
+    else:
+        print(f"Universo seleccionado: {effective_universe.upper()} ({len(tickers)} tickers)\n")
     
     # 2. Obtener datos
     prices, volumes = fetch_prices(tickers)
@@ -52,6 +56,12 @@ def main():
     if parts:
         print(f"  Breakdown: {', '.join(parts)}")
     print()
+
+    # Defensa adicional contra tickers zombie (delistados / datos planos)
+    prices = remove_zombie_tickers(prices)
+    if len(prices.columns) < filter_breakdown['remaining']:
+        z_removed = filter_breakdown['remaining'] - len(prices.columns)
+        print(f"   [DATA QUALITY] + sanity zombie -> {len(prices.columns)} restantes ({z_removed} adicionales)\n")
     
     # 4. Generar candidatos (ya incluye Meta-Layer)
     candidates = generate_daily_candidates(prices, spy)

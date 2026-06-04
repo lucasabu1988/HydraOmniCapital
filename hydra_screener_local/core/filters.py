@@ -76,3 +76,49 @@ def get_filter_summary(original_count: int, filtered_df: pd.DataFrame) -> Dict:
         "removed": removed,
         "removal_pct": round(removed / original_count * 100, 1) if original_count > 0 else 0
     }
+
+
+def remove_zombie_tickers(prices: pd.DataFrame, max_flat_days: int = 5, min_price: float = 0.01) -> pd.DataFrame:
+    """
+    Defensa contra tickers 'zombie' (delistados o con datos corruptos de yfinance).
+
+    Detecta series que en los ultimos dias tienen:
+    - Precio extremadamente bajo o cero
+    - O precio completamente plano (retorno cero) por varios dias seguidos
+      (sintoma tipico de tickers delistados que yfinance sigue devolviendo).
+    """
+    if prices.empty:
+        return prices
+
+    filtered = prices.copy()
+    to_drop = []
+
+    for ticker in filtered.columns:
+        series = filtered[ticker].dropna()
+        if len(series) < 2:
+            to_drop.append(ticker)
+            continue
+
+        last_price = float(series.iloc[-1])
+
+        # Precio invalido o demasiado bajo
+        if last_price < min_price:
+            to_drop.append(ticker)
+            continue
+
+        # Precio completamente plano en los ultimos N dias (zombie signal)
+        if len(series) >= max_flat_days:
+            recent = series.iloc[-max_flat_days:]
+            if recent.nunique() == 1:
+                to_drop.append(ticker)
+                continue
+
+            recent_rets = recent.pct_change().dropna()
+            if len(recent_rets) > 0 and (recent_rets.abs() < 1e-9).all():
+                to_drop.append(ticker)
+
+    if to_drop:
+        filtered = filtered.drop(columns=to_drop, errors="ignore")
+        print(f"   [DATA QUALITY] Eliminados {len(to_drop)} tickers zombie/planos: {to_drop[:6]}{'...' if len(to_drop)>6 else ''}")
+
+    return filtered
