@@ -1,24 +1,25 @@
 """
-Analizador de Histórico del Screener HYDRA Local.
+Analizador de Historico del Screener HYDRA Local.
 
 Permite ver el rendimiento de las recomendaciones pasadas.
 """
 import pandas as pd
 from core.history import get_recent_runs, list_available_dates
+from core.tracking import aggregate_winrate, print_winrate_report, get_detailed_trades, print_detailed_report
 
 
 def show_summary():
     dates = list_available_dates()
-    print(f"\n=== Histórico disponible ===")
-    print(f"Total de días guardados: {len(dates)}")
+    print("\n=== Historico disponible ===")
+    print(f"Total de dias guardados: {len(dates)}")
     if dates:
-        print(f"Rango: {dates[0]} → {dates[-1]}")
+        print(f"Rango: {dates[0]} -> {dates[-1]}")
     print()
 
 
 def show_last_runs(limit: int = 10):
     runs = get_recent_runs(limit)
-    print(f"\n=== Últimos {len(runs)} días ===\n")
+    print(f"\n=== Ultimos {len(runs)} dias ===\n")
 
     for run in runs:
         date = run["date"]
@@ -26,8 +27,8 @@ def show_last_runs(limit: int = 10):
         pillars = run.get("pillar_multipliers", {})
         candidates = run.get("top_candidates", [])
 
-        print(f"📅 {date}")
-        print(f"   Régimen: {regime.get('score', 0):.2f} ({regime.get('type', '')})")
+        print(f"[FECHA] {date}")
+        print(f"   Regimen: {regime.get('score', 0):.2f} ({regime.get('type', '')})")
         if regime.get("special_modes"):
             print(f"   Special Modes: {', '.join(regime['special_modes'])}")
 
@@ -39,14 +40,22 @@ def show_last_runs(limit: int = 10):
 
         if candidates:
             recs = [c for c in candidates if c.get("recommended")]
-            print(f"   Recomendados ese día: {len(recs)}")
+            print(f"   Recomendados ese dia: {len(recs)}")
         print()
 
 
+def show_winrate():
+    report = aggregate_winrate()
+    print_winrate_report(report)
+    trades_df = get_detailed_trades()
+    print_detailed_report(trades_df)
+
+
 if __name__ == "__main__":
-    print("=== HYDRA Screener - Analizador de Histórico ===\n")
+    print("=== HYDRA Screener - Analizador de Historico ===\n")
     show_summary()
     show_last_runs(15)
+    show_winrate()
 
-    print("\nNota: Esta es una versión inicial.")
-    print("Próximamente se podrá calcular win-rate real una vez que tengamos precios forward.")
+    print("\nNota: El win-rate requiere tracking de retornos forward.")
+    print("Ejecuta 'python track_performance.py' para actualizarlos.")
