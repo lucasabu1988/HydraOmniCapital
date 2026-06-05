@@ -51,6 +51,8 @@ i_max_watchlist      = input.int(15, "Max symbols in table (performance)", minva
 i_show_table         = input.bool(true, "Show Watchlist Dashboard Table", group="Watchlist Dashboard")
 i_color_rows         = input.bool(true, "Color rows by Regime / Strict", group="Watchlist Dashboard")
 
+i_summary_json       = input.string("", "Optional: paste FULL content of pine/hydra_last_summary.json (for richer global header + pillars)", group="Watchlist Dashboard")
+
 i_show_pillars       = input.bool(true, "Show Pillar Multipliers on Chart", group="Visuals")
 i_show_special       = input.bool(true, "Show Special Mode Labels", group="Visuals")
 
@@ -58,6 +60,44 @@ i_show_special       = input.bool(true, "Show Special Mode Labels", group="Visua
 var float STRICT_BONUS = 0.18
 var float SHORT_BOOST  = 0.35
 var float MIN_VOL_TH   = 1.0
+
+// --- Parse optional summary JSON for global info (rationale, pillars, regime) ---
+// Crude parser since Pine has no native JSON. Looks for "key": value patterns.
+var string summary_rationale = ""
+var string summary_pillars = ""
+var string summary_regime = ""
+var float summary_regime_score = 0.0
+
+if i_summary_json != ""
+    // Extract rationale
+    rationale_start = str.pos(i_summary_json, '"rationale": "')
+    if rationale_start >= 0
+        rationale_end = str.pos(i_summary_json, '",', rationale_start + 14)
+        if rationale_end > 0
+            summary_rationale := str.substring(i_summary_json, rationale_start + 14, rationale_end)
+
+    // Extract regime
+    regime_start = str.pos(i_summary_json, '"regime":')
+    if regime_start >= 0
+        // simple: look for score and type nearby
+        score_start = str.pos(i_summary_json, '"score":', regime_start)
+        if score_start >= 0
+            score_end = str.pos(i_summary_json, ',', score_start)
+            if score_end > 0
+                summary_regime_score := tonumber(str.substring(i_summary_json, score_start + 8, score_end))
+
+        type_start = str.pos(i_summary_json, '"type": "', regime_start)
+        if type_start >= 0
+            type_end = str.pos(i_summary_json, '"', type_start + 9)
+            if type_end > 0
+                summary_regime := str.substring(i_summary_json, type_start + 9, type_end)
+
+    // Extract pillars (simple)
+    pillars_start = str.pos(i_summary_json, '"pillars": {')
+    if pillars_start >= 0
+        pillars_end = str.pos(i_summary_json, '}', pillars_start)
+        if pillars_end > 0
+            summary_pillars := str.substring(i_summary_json, pillars_start + 12, pillars_end)
 
 // --- Regime Type Enum (for colors/logic) ---
 f_regime_type(_score) =>
@@ -376,6 +416,15 @@ if barstate.islast
     label.new(bar_index, high * 1.01, info, 
               style=label.style_label_down, color=color.new(color.black, 40), 
               textcolor=color.white, size=size.small)
+
+    // If summary JSON provided, show richer global header (rationale + pillars from Python side)
+    if i_summary_json != "" and (summary_rationale != "" or summary_pillars != "")
+        header = "GLOBAL FROM PYTHON: " + (summary_regime != "" ? "Regime " + summary_regime + " (" + str.tostring(summary_regime_score) + ") | " : "")
+        header += (summary_pillars != "" ? "Pillars: " + summary_pillars + " | " : "")
+        header += (summary_rationale != "" ? summary_rationale : "")
+        label.new(bar_index, high * 1.03, header, 
+                  style=label.style_label_down, color=color.new(color.orange, 50), 
+                  textcolor=color.white, size=size.small)
 
 // Note at bottom (SPEC aligned)
 // For best results with large universes (hybrid flow):

@@ -164,6 +164,56 @@ def send_to_discord(webhook_url: str, message: str, summary: Dict) -> bool:
         return False
 
 
+def send_to_telegram(bot_token: str, chat_id: str, message: str, summary: Dict) -> bool:
+    """Send to Telegram bot. Returns True on success."""
+    if not bot_token or not chat_id:
+        return False
+    if requests is None:
+        print("[WARN] 'requests' not installed — cannot send to Telegram. pip install requests")
+        return False
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message[:4000],  # Telegram limit
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }
+
+    try:
+        resp = requests.post(url, json=payload, timeout=10)
+        if resp.status_code == 200:
+            print("[OK] Sent to Telegram")
+            return True
+        else:
+            print(f"[WARN] Telegram API returned {resp.status_code}: {resp.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"[WARN] Failed to send Telegram: {e}")
+        return False
+
+
+def send_to_generic_webhook(url: str, summary: Dict) -> bool:
+    """POST the full summary JSON to a generic webhook (for custom bots, Zapier, etc.)."""
+    if not url:
+        return False
+    if requests is None:
+        print("[WARN] 'requests' not installed — cannot send generic webhook. pip install requests")
+        return False
+
+    try:
+        resp = requests.post(url, json=summary, timeout=10, headers={"Content-Type": "application/json"})
+        if resp.status_code in (200, 201, 202, 204):
+            print("[OK] Sent to generic webhook")
+            return True
+        else:
+            print(f"[WARN] Generic webhook returned {resp.status_code}: {resp.text[:200]}")
+            return False
+    except Exception as e:
+        print(f"[WARN] Failed to send generic webhook: {e}")
+        return False
+
+
 def save_artifacts(summary: Dict, message: str):
     """Write JSON and TXT artifacts for other tools / manual inspection."""
     SUMMARY_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -203,14 +253,24 @@ def run_sender(top_n: int = DEFAULT_TOP, history_dir: str = "history", silent: b
 
     save_artifacts(summary, message)
 
-    # Webhook (optional)
-    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL") or os.environ.get("HYDRA_WEBHOOK_URL")
-    if webhook_url:
-        send_to_discord(webhook_url, message, summary)
-    else:
-        if not silent:
-            print("[INFO] No DISCORD_WEBHOOK_URL env var set — skipping webhook send.")
-            print("       Set the env var or call from launcher with it exported.")
+    # Webhooks (optional - Discord, Telegram, generic)
+    sent = False
+    discord_url = os.environ.get("DISCORD_WEBHOOK_URL") or os.environ.get("HYDRA_DISCORD_WEBHOOK")
+    if discord_url:
+        sent = send_to_discord(discord_url, message, summary) or sent
+
+    telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("HYDRA_TELEGRAM_BOT_TOKEN")
+    telegram_chat = os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("HYDRA_TELEGRAM_CHAT_ID")
+    if telegram_token and telegram_chat:
+        sent = send_to_telegram(telegram_token, telegram_chat, message, summary) or sent
+
+    generic_url = os.environ.get("GENERIC_WEBHOOK_URL") or os.environ.get("HYDRA_GENERIC_WEBHOOK")
+    if generic_url:
+        sent = send_to_generic_webhook(generic_url, summary) or sent
+
+    if not sent and not silent:
+        print("[INFO] No webhook env vars set (DISCORD_WEBHOOK_URL, TELEGRAM_BOT_TOKEN+TELEGRAM_CHAT_ID, or GENERIC_WEBHOOK_URL).")
+        print("       Set them to enable notifications. Artifacts are always saved locally.")
 
     if not silent:
         print("\n[OK] HYDRA summary ready for hybrid use (Python → user / webhook → TradingView watchlist)")
