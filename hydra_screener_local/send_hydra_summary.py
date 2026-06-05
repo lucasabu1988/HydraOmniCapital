@@ -14,7 +14,13 @@ Usage:
     python send_hydra_summary.py --top 10
     DISCORD_WEBHOOK_URL="https://..." python send_hydra_summary.py
 
+    # With .env (recommended):
+    #   cp .env.example .env
+    #   edit .env
+    #   python send_hydra_summary.py
+
 Intended to be called at the end of screener.py or via the .bat launcher.
+A simple .env loader (with optional python-dotenv fallback) runs on import.
 """
 
 import argparse
@@ -28,6 +34,44 @@ try:
     import requests  # optional, only used if webhook configured
 except ImportError:
     requests = None  # type: ignore
+
+# --- Simple .env loader (no new hard dependency) ---
+# Tries python-dotenv if installed (for full features like export etc), else minimal parser.
+# Supports KEY=val , ignores # comments and blank lines. Safe to call multiple times.
+def _load_env_file(env_path: Path = Path(".env")) -> int:
+    """Load vars from .env into os.environ (does not override existing). Returns count loaded."""
+    if not env_path.exists():
+        return 0
+    loaded = 0
+    try:
+        # Prefer real dotenv if user pip-installed it
+        from dotenv import load_dotenv  # type: ignore
+        load_dotenv(dotenv_path=str(env_path), override=False)
+        # We don't know exact count, but mark at least 1
+        return 1
+    except Exception:
+        pass
+    # Fallback: very small parser (no quotes handling beyond strip, no export, good enough for webhook urls/tokens)
+    try:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k = k.strip()
+            v = v.strip().strip('"').strip("'")
+            if k and k not in os.environ:  # do not override shell-provided
+                os.environ[k] = v
+                loaded += 1
+        return loaded
+    except Exception as e:
+        print(f"[WARN] Could not parse .env fallback: {e}")
+        return 0
+
+# Auto-load on import (so scripts and direct runs benefit; called before getenv below)
+_load_env_file()
 
 
 from generate_pine_watchlist import (
@@ -270,7 +314,7 @@ def run_sender(top_n: int = DEFAULT_TOP, history_dir: str = "history", silent: b
 
     if not sent and not silent:
         print("[INFO] No webhook env vars set (DISCORD_WEBHOOK_URL / HYDRA_DISCORD_WEBHOOK, TELEGRAM_BOT_TOKEN+TELEGRAM_CHAT_ID, or GENERIC_WEBHOOK_URL / HYDRA_GENERIC_WEBHOOK).")
-        print("       Set them to enable notifications. Artifacts are always saved locally.")
+        print("       Tip: copy .env.example -> .env , fill values, and re-run (auto-loaded). Artifacts always saved locally to pine/ .")
 
     if not silent:
         print("\n[OK] HYDRA summary ready for hybrid use (Python → user / webhook → TradingView watchlist)")

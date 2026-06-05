@@ -124,7 +124,8 @@ Resumen rápido:
 - Python hace el scan pesado diario + genera `pine/watchlist.txt` automáticamente (al final de screener.py / run_real_full_sp500.py).
 - Pega esa lista en el Pine `HYDRA_Screener.pine` (input "Watchlist Symbols").
 - El Pine muestra una tabla bonita con scoring por símbolo + alerts.
-- `send_hydra_summary.py` (llamado automáticamente) genera resumen rico + puede enviar a Discord si configuras `DISCORD_WEBHOOK_URL`.
+- `send_hydra_summary.py` (llamado automáticamente) genera resumen rico + puede enviar a Discord/Telegram/generic si configuras vars o usas `.env` (copia `.env.example`).
+- El parser mejorado en Pine ahora consume `top_details` del JSON para que la tabla use los valores exactos de Python (composite, strict, special) cuando pegas el json completo.
 
 Esto combina lo mejor de ambos mundos: poder de cálculo en Python + visualización/alertas en TradingView.
 

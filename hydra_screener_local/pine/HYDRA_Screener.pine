@@ -61,43 +61,129 @@ var float STRICT_BONUS = 0.18
 var float SHORT_BOOST  = 0.35
 var float MIN_VOL_TH   = 1.0
 
-// --- Parse optional summary JSON for global info (rationale, pillars, regime) ---
-// Crude parser since Pine has no native JSON. Looks for "key": value patterns.
+// --- Parse optional summary JSON for global info (rationale, pillars, regime) and top_details ---
+// Robust crude parser (no native JSON in Pine v5). String find/substring/split/replace.
+// Designed for the exact output of send_hydra_summary.py + build_rich_summary (see SPEC + HYBRID_USAGE).
+// - Rationale extracted BEFORE space-strip so internal spaces/punctuation preserved.
+// - Regime scoped to its object.
+// - top_details parsed into parallel arrays (ticker -> composite/momentum/passes_strict/special_modes).
+// - Field extraction tolerant to last-property (uses closing quote for strings, , or } for nums/bools).
 var string summary_rationale = ""
-var string summary_pillars = ""
+var string summary_pillars_str = ""
 var string summary_regime = ""
 var float summary_regime_score = 0.0
 
+// For per-ticker enrichment from top_details (Python exact values win over local approx)
+var string[] detail_tickers = array.new_string()
+var float[] detail_composites = array.new_float()
+var float[] detail_momentums = array.new_float()
+var bool[] detail_stricts = array.new_bool()
+var string[] detail_specials = array.new_string()
+
 if i_summary_json != ""
-    // Extract rationale
-    rationale_start = str.pos(i_summary_json, '"rationale": "')
-    if rationale_start >= 0
-        rationale_end = str.pos(i_summary_json, '",', rationale_start + 14)
-        if rationale_end > 0
-            summary_rationale := str.substring(i_summary_json, rationale_start + 14, rationale_end)
+    src = str.replace_all(i_summary_json, "\n", "")
 
-    // Extract regime
-    regime_start = str.pos(i_summary_json, '"regime":')
-    if regime_start >= 0
-        // simple: look for score and type nearby
-        score_start = str.pos(i_summary_json, '"score":', regime_start)
-        if score_start >= 0
-            score_end = str.pos(i_summary_json, ',', score_start)
-            if score_end > 0
-                summary_regime_score := tonumber(str.substring(i_summary_json, score_start + 8, score_end))
+    // Rationale first (preserve spaces inside value, e.g. "SPECIAL: Strong Momentum")
+    rat_key = '"rationale":"'
+    rat_pos = str.pos(src, rat_key)
+    if rat_pos >= 0
+        rat_val_start = rat_pos + str.length(rat_key)
+        rat_val_end = str.pos(src, '"', rat_val_start)
+        if rat_val_end > rat_val_start
+            summary_rationale := str.substring(src, rat_val_start, rat_val_end)
 
-        type_start = str.pos(i_summary_json, '"type": "', regime_start)
-        if type_start >= 0
-            type_end = str.pos(i_summary_json, '"', type_start + 9)
-            if type_end > 0
-                summary_regime := str.substring(i_summary_json, type_start + 9, type_end)
+    // Compact version for keys, numbers, bools, ID strings (safe: tickers/specials have no spaces)
+    cleaned := str.replace_all(src, " ", "")
 
-    // Extract pillars (simple)
-    pillars_start = str.pos(i_summary_json, '"pillars": {')
-    if pillars_start >= 0
-        pillars_end = str.pos(i_summary_json, '}', pillars_start)
-        if pillars_end > 0
-            summary_pillars := str.substring(i_summary_json, pillars_start + 12, pillars_end)
+    // Regime: score + type (scoped search from regime block)
+    reg_pos = str.pos(cleaned, '"regime":{"score":')
+    if reg_pos >= 0
+        sc_start = reg_pos + 18
+        sc_end = str.pos(cleaned, ',', sc_start)
+        if sc_end > sc_start
+            summary_regime_score := tonumber(str.substring(cleaned, sc_start, sc_end))
+        // type inside this regime object
+        tp = str.pos(cleaned, '"type":"', reg_pos)
+        if tp >= reg_pos
+            tp_val = tp + 8
+            tp_end = str.pos(cleaned, '"', tp_val)
+            if tp_end > tp_val
+                summary_regime := str.substring(cleaned, tp_val, tp_end)
+
+    // Pillars dict as raw string for display label
+    pil_pos = str.pos(cleaned, '"pillars":{')
+    if pil_pos >= 0
+        pil_end = str.pos(cleaned, '}', pil_pos)
+        if pil_end > pil_pos
+            summary_pillars_str := str.substring(cleaned, pil_pos + 11, pil_end)
+
+    // top_details: [ {..}, {..} ... ]  -- split tolerant, enrich table rows with Python truth
+    td_key = '"top_details":['
+    td_pos = str.pos(cleaned, td_key)
+    if td_pos >= 0
+        td_start = td_pos + str.length(td_key)
+        td_end = str.pos(cleaned, ']', td_start)
+        if td_end > td_start
+            dstr = str.substring(cleaned, td_start, td_end)
+            objs = str.split(dstr, '},{')
+            for ii = 0 to array.size(objs) - 1
+                o = array.get(objs, ii)
+                o := str.replace(o, '{', '')
+                o := str.replace(o, '}', '')
+                // ticker (string, use closing " for value)
+                tkp = str.pos(o, '"ticker":"')
+                if tkp >= 0
+                    tks = tkp + 10
+                    tke = str.pos(o, '"', tks)
+                    if tke > tks
+                        array.push(detail_tickers, str.substring(o, tks, tke))
+                // composite (num)
+                cp = str.pos(o, '"composite":')
+                if cp >= 0
+                    cs = cp + 12
+                    ce1 = str.pos(o, ',', cs)
+                    ce2 = str.pos(o, '}', cs)
+                    ce = ce1 > 0 ? (ce2 > 0 ? math.min(ce1, ce2) : ce1) : ce2
+                    if ce > cs
+                        array.push(detail_composites, tonumber(str.substring(o, cs, ce)))
+                // momentum (num, optional)
+                mp = str.pos(o, '"momentum":')
+                if mp >= 0
+                    ms = mp + 11
+                    me1 = str.pos(o, ',', ms)
+                    me2 = str.pos(o, '}', ms)
+                    me = me1 > 0 ? (me2 > 0 ? math.min(me1, me2) : me1) : me2
+                    if me > ms
+                        array.push(detail_momentums, tonumber(str.substring(o, ms, me)))
+                    else
+                        array.push(detail_momentums, na)
+                else
+                    array.push(detail_momentums, na)
+                // passes_strict (bool)
+                sp = str.pos(o, '"passes_strict":')
+                if sp >= 0
+                    ss = sp + 16
+                    se1 = str.pos(o, ',', ss)
+                    se2 = str.pos(o, '}', ss)
+                    se = se1 > 0 ? (se2 > 0 ? math.min(se1, se2) : se1) : se2
+                    if se > ss
+                        sraw = str.substring(o, ss, se)
+                        array.push(detail_stricts, sraw == "true")
+                    else
+                        array.push(detail_stricts, false)
+                else
+                    array.push(detail_stricts, false)
+                // special_modes (string, last field often, use closing ")
+                smp = str.pos(o, '"special_modes":"')
+                if smp >= 0
+                    sms = smp + 17
+                    sme = str.pos(o, '"', sms)
+                    if sme > sms
+                        array.push(detail_specials, str.substring(o, sms, sme))
+                    else
+                        array.push(detail_specials, "")
+                else
+                    array.push(detail_specials, "")
 
 // --- Regime Type Enum (for colors/logic) ---
 f_regime_type(_score) =>
@@ -321,14 +407,41 @@ if barstate.islast and i_show_table
             comp *= (1 + STRICT_BONUS)
         comp *= compass_m
 
-        array.push(tickers, sym)
-        array.push(comps, comp)
-        array.push(moms, m)
-        array.push(rets, rs)
-        array.push(dists, dh)
-        array.push(vrs, vr)
-        array.push(stricts, ps)
-        array.push(specials, special_m)  // market level for now
+        // Enrich/override with Python top_details if this ticker is present.
+        // Python values are preferred: they reflect full SPEC (sector control 4.6, exact dynamic ranking, full history, etc.)
+        // Local request.security is only approx for the pasted watchlist symbols.
+        enriched = false
+        for j = 0 to array.size(detail_tickers) - 1
+            if array.get(detail_tickers, j) == sym
+                py_c = array.get(detail_composites, j)
+                if not na(py_c)
+                    comp := py_c
+                py_m = array.get(detail_momentums, j)
+                if not na(py_m)
+                    m := py_m
+                ps := array.get(detail_stricts, j)
+                py_sm = array.get(detail_specials, j)
+                use_sm = py_sm != "" ? py_sm : special_m
+                array.push(tickers, sym)
+                array.push(comps, comp)
+                array.push(moms, m)
+                array.push(rets, rs)
+                array.push(dists, dh)
+                array.push(vrs, vr)
+                array.push(stricts, ps)
+                array.push(specials, use_sm)
+                enriched := true
+                break
+        if not enriched
+            // no python detail match for this sym, use local calc + market special
+            array.push(tickers, sym)
+            array.push(comps, comp)
+            array.push(moms, m)
+            array.push(rets, rs)
+            array.push(dists, dh)
+            array.push(vrs, vr)
+            array.push(stricts, ps)
+            array.push(specials, special_m)  // market level for now
 
     // Sort by composite descending (SPEC ranking)
     // Pine arrays: create indices, sort by comp
@@ -375,9 +488,9 @@ if barstate.islast and i_show_table
                 row_bg := color.new(color.red, 85)
 
         mode_color = color.white
-        if sm == "MOMENTUM" or ps
+        if ps or sm == "STRONG_BROAD_MOMENTUM" or sm == "MOMENTUM"
             mode_color := color.lime
-        else if sm == "CRISIS" or sm == "DEFENSIVE" or sm == "VOL_DEF"
+        else if sm == "CRISIS_ACUTE" or sm == "CRISIS" or sm == "ELEVATED_VOL_DEFENSIVE" or sm == "DEFENSIVE" or sm == "VOL_DEF"
             mode_color := color.orange
 
         rec_str = is_rec ? "✓" : ""
@@ -395,7 +508,7 @@ if barstate.islast and i_show_table
         table.cell(t, 10, rank, rec_str, text_size=size.tiny, bgcolor=row_bg, text_color=is_rec ? color.lime : color.gray)
 
     // Footer
-    table.cell(t, 0, n+1, "Ranked by Composite | Rec = recommended per SPEC 4.7 | Full sector in Python", 
+    table.cell(t, 0, n+1, "Ranked by Composite (Python top_details preferred when i_summary_json provided) | Rec≈SPEC 4.7 | Sector/full in Python", 
                text_size=size.tiny, text_color=color.gray, colspan=11)
 
 // --- Alerts (webhook friendly) ---
@@ -403,7 +516,7 @@ alertcondition(strict_main and comp_main > 0.7,
                "HYDRA: Strict + Strong Composite", 
                "HYDRA ALERT: {{ticker}} | Comp={{close}} | Regime=" + regime_t + " | Strict=YES | COMPASS×" + str.tostring(compass_m))
 
-alertcondition(regime_t == "STRONG" and special_m == "MOMENTUM", 
+alertcondition(regime_t == "STRONG" and (special_m == "STRONG_BROAD_MOMENTUM" or special_m == "MOMENTUM"), 
                "HYDRA: Strong Broad Momentum Regime", 
                "HYDRA: Market in STRONG_BROAD_MOMENTUM - favor COMPASS stocks")
 
@@ -418,9 +531,9 @@ if barstate.islast
               textcolor=color.white, size=size.small)
 
     // If summary JSON provided, show richer global header (rationale + pillars from Python side)
-    if i_summary_json != "" and (summary_rationale != "" or summary_pillars != "")
+    if i_summary_json != "" and (summary_rationale != "" or summary_pillars_str != "")
         header = "GLOBAL FROM PYTHON: " + (summary_regime != "" ? "Regime " + summary_regime + " (" + str.tostring(summary_regime_score) + ") | " : "")
-        header += (summary_pillars != "" ? "Pillars: " + summary_pillars + " | " : "")
+        header += (summary_pillars_str != "" ? "Pillars: " + summary_pillars_str + " | " : "")
         header += (summary_rationale != "" ? summary_rationale : "")
         label.new(bar_index, high * 1.03, header, 
                   style=label.style_label_down, color=color.new(color.orange, 50), 
@@ -431,8 +544,10 @@ if barstate.islast
 // 1. Run Python screener daily with UNIVERSE="all" (full SPEC logic + history)
 // 2. The Python auto-generates pine/watchlist.txt + pine/hydra_last_summary.json (via integration in screener.py / run_real...)
 // 3. Paste the watchlist string into "Watchlist Symbols".
-// 4. (Recommended) Paste the FULL content of hydra_last_summary.json into "i_summary_json" input → richer global header on chart (rationale, pillars, regime from Python side, per SPEC).
-// 5. Use the ranked table as daily HYDRA dashboard (SPEC 4.5/4.7 ranking + recommended flag).
+// 4. (Recommended) Paste the FULL content of hydra_last_summary.json into "i_summary_json" input → richer global header (rationale/pillars/regime) + per-row enrichment in the table:
+//      - Composite, Momentum, Strict (✓), Special mode come from Python's exact top_details (full SPEC 4.1-4.7 incl. sector control).
+//      - Local Pine calc is used only as fallback for symbols not in the top_details or when no JSON pasted.
+// 5. Use the ranked table as daily HYDRA dashboard (Python order when enriched; approx rec flag).
 // 6. Set alerts (e.g. "HYDRA: Strict + Strong Composite") and forward via TV webhooks or the Python sender (Discord/Telegram/generic).
 
 // Per-symbol calculations match SPEC 4.1-4.5 closely. Full sector (4.6) and exact dynamic count for 2500+ stay in Python (heavy lifter).

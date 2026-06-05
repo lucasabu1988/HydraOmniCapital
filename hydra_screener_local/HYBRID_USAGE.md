@@ -21,15 +21,18 @@ This document describes the complete hybrid architecture:
    - If `DISCORD_WEBHOOK_URL` env var is set, sends the summary to Discord.
 
 2. (Optional but recommended) Review the artifacts:
-   - `pine/watchlist.txt` — ready to paste
-   - `pine/hydra_last_summary.txt` — human readable
-   - `pine/hydra_last_summary.json` — for bots/other tools
+   - `pine/watchlist.txt` — ready to paste into Pine watchlist input
+   - `pine/hydra_last_summary.txt` — human readable (pillars, rationale, top with strict flags)
+   - `pine/hydra_last_summary.json` — full machine data (regime, pillars, rationale, top_details with composites/strict/special per ticker). Paste *full* into Pine's i_summary_json input for:
+     * global header labels on chart (rationale + pillars + regime)
+     * per-row table enrichment (exact Python Comp/Mom/Strict/Special override the local approximations for those symbols)
 
 3. In TradingView:
    - Edit the indicator `HYDRA_Screener [Hybrid v1.2]` (from `pine/HYDRA_Screener.pine`)
    - Paste the content of `pine/watchlist.txt` into the **"Watchlist Symbols (comma separated - paste from Python)"** input.
+   - (Recommended for fidelity) Also paste the *full contents* of `pine/hydra_last_summary.json` into the **"Optional: paste FULL content of ... hydra_last_summary.json"** input.
    - Apply the script to any chart (ideally one from your watchlist, or as a separate "dashboard" chart).
-   - The table will show the ranked list with full HYDRA details (composite, momentum, regime, special modes, strict flag, COMPASS multiplier, etc.).
+   - The table will show the ranked list (Python composites/strict/specials used for matching tickers in top_details; local calc fallback). Global labels show Python regime/pillars/rationale.
    - Set alerts on the script (e.g. "HYDRA: Strict + Strong Composite") and forward them via TradingView webhooks if desired.
 
 4. Optional: use the summary for alerts
@@ -43,16 +46,21 @@ This document describes the complete hybrid architecture:
 - `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (or HYDRA_ variants) — daily summary to Telegram.
 - `GENERIC_WEBHOOK_URL` (or `HYDRA_GENERIC_WEBHOOK`) — POST the full JSON summary (for your own bots, n8n, Zapier, etc.).
 
-Example (PowerShell):
+Example (PowerShell one-off):
 ```powershell
 $env:DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/..."
-# or for Telegram:
 $env:TELEGRAM_BOT_TOKEN = "123456:ABC-DEF..."
 $env:TELEGRAM_CHAT_ID = "-1001234567890"
 python screener.py
 ```
 
-The sender always saves local artifacts even if no webhooks configured.
+### Using .env for persistent config (recommended)
+1. Copy: `cp .env.example .env`
+2. Edit `.env`, fill the hook(s) you want (supports the names or HYDRA_ prefixed).
+3. Just run normally — loader runs on sender import (python-dotenv if present, else tiny pure-python parser). No need to export vars each time.
+4. `.env` ignored by git.
+
+The sender always saves local artifacts (`pine/hydra_last_summary.json` etc.) even if no webhooks configured.
 
 ## Files involved in the hybrid layer
 
