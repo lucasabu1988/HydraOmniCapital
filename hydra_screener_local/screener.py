@@ -36,13 +36,14 @@ def main():
     spy = fetch_spy()
     
     if len(prices) < 50:
-        print("⚠️  Datos insuficientes. Intenta más tarde o reduce el universo.")
+        print("(!) Datos insuficientes. Intenta mas tarde o reduce el universo.")
         return
 
     # 3. Aplicar filtros prácticos (liquidez, precio, etc.)
     original_count = len(prices.columns)
-    prices = apply_practical_filters(
+    prices, filter_breakdown = apply_practical_filters(
         prices,
+        volumes=volumes,
         min_avg_volume=FILTERS.get("min_avg_volume", 1_000_000),
         min_price=FILTERS.get("min_price", 5.0),
         max_price=FILTERS.get("max_price"),
@@ -86,14 +87,27 @@ def main():
             special_modes_list = list(sm_raw)
     
     # 5. Mostrar resultados
-    print_candidates_table(candidates, top_n=TOP_CANDIDATES)
+    total_candidates = len(candidates)
+    recommended_df = candidates[candidates['recommended'] == True].copy() if 'recommended' in candidates.columns else candidates.head(TOP_CANDIDATES)
+    n_recommended = len(recommended_df)
     
-    recommended_count = None
-    if len(candidates) > 0:
-        recommended_count = int(candidates.iloc[0].get('recommended_count', TOP_CANDIDATES))
+    # 5a. Mostrar TODOS los candidatos rankeados
+    print(f"\n{'='*70}")
+    print(f"   ANALISIS COMPLETO: {total_candidates} CANDIDATOS RANKEADOS")
+    print(f"{'='*70}")
+    print_candidates_table(candidates, top_n=total_candidates)
+    
+    # 5b. Mostrar solo RECOMENDADOS
+    if n_recommended > 0:
+        print(f"\n{'='*70}")
+        print(f"   RECOMENDADOS HOY: {n_recommended} CANDIDATOS")
+        print(f"{'='*70}")
+        print_candidates_table(recommended_df, top_n=n_recommended)
+    
+    recommended_count = n_recommended if n_recommended > 0 else None
     
     # Mostrar resumen + multipliers de forma visual
-    print_summary(regime_score, len(candidates), meta_info, pillar_mults, recommended_count)
+    print_summary(regime_score, total_candidates, meta_info, pillar_mults, recommended_count)
     
     # 6. Exportar Excel (con ruta robusta)
     today = datetime.now().strftime("%Y%m%d")
@@ -101,13 +115,15 @@ def main():
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         filename = os.path.join(OUTPUT_DIR, f"{OUTPUT_FILENAME_PREFIX}_{today}.xlsx")
         candidates.to_excel(filename, index=False)
-        print(f"\n[green]✓[/green] Exportado a: {filename}")
+        print(f"\n[OK] Exportado a: {filename}")
 
     # 7. Guardar histórico para análisis de rendimiento (persistencia)
     try:
+        # Guardar top 20 del ranking completo + marcar cuales fueron recomendados
         top_for_history = candidates.head(20).to_dict("records")
         meta_rationale = candidates.iloc[0]["reason"] if len(candidates) > 0 else ""
 
+        special_modes = (candidates.iloc[0].get('special_modes') or '').split(', ') if len(candidates) > 0 else []
         save_daily_run(
             date=today,
             regime_score=regime_score,
@@ -117,7 +133,7 @@ def main():
             top_candidates=top_for_history,
             meta_rationale=meta_rationale
         )
-        print(f"[green]✓[/green] Histórico guardado en history/{today}.json")
+        print(f"[OK] Historico guardado en history/{today}.json")
     except Exception as e:
         print(f"[yellow]⚠[/yellow] No se pudo guardar histórico: {e}")
 

@@ -185,7 +185,7 @@ def apply_meta_to_candidates(candidates_df, meta):
     Aplica los ajustes de la Meta-Layer usando activamente los Pillar Multipliers.
     """
     df = candidates_df.copy()
-    base = df['momentum'] * meta.overall_aggression
+    base = df['momentum_score'] * meta.overall_aggression
 
     # === USO ACTIVO DE PILLAR MULTIPLIERS ===
     # Este screener es momentum-driven → el multiplicador de COMPASS es el más relevante.

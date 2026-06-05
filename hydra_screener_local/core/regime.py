@@ -33,6 +33,8 @@ def compute_rich_regime_scores(
         return RegimeScores(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
 
     current = float(spy.iloc[-1])
+
+    # 1. Trend (SPY vs SMA200 + pendiente reciente)
     sma200 = float(spy.rolling(lookback).mean().iloc[-1])
     trend_strength = 1.0 if current > sma200 else 0.0
     
@@ -41,8 +43,8 @@ def compute_rich_regime_scores(
     trend_strength = (trend_strength * 0.6) + (np.clip(ret_20 + 0.04, -0.1, 0.15) / 0.15 * 0.4)
 
     # 2. Volatility Regime (vol actual vs vol histórica)
-    vol_20 = spy.pct_change().rolling(20).std().iloc[-1] * np.sqrt(252)
-    vol_200 = spy.pct_change().rolling(lookback).std().iloc[-1] * np.sqrt(252)
+    vol_20 = float(spy.pct_change().rolling(20).std().iloc[-1]) * np.sqrt(252)
+    vol_200 = float(spy.pct_change().rolling(lookback).std().iloc[-1]) * np.sqrt(252)
     vol_ratio = vol_20 / max(vol_200, 0.01)
     volatility_score = np.clip(1 - (vol_ratio - 0.8) / 1.2, 0, 1)  # menor = mejor (menos vol)
 
@@ -51,7 +53,7 @@ def compute_rich_regime_scores(
     momentum_score = np.clip((ret_20 * 0.6 + ret_60 * 0.4 + 0.05) / 0.20, 0, 1)
 
     # 4. Drawdown Velocity (qué tan rápido fue el drawdown reciente)
-    rolling_max = spy.rolling(60).max().iloc[-1]
+    rolling_max = float(spy.rolling(60).max().iloc[-1])
     current_dd = max(0.0, (rolling_max - current) / rolling_max)
     dd_20d_ago = max(0.0, (rolling_max - float(spy.iloc[-20])) / rolling_max) if len(spy) >= 20 else current_dd
     velocity = max(0.0, current_dd - dd_20d_ago) / 20.0   # velocidad promedio por día

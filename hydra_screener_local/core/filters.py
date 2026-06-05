@@ -12,44 +12,63 @@ from config import (
 
 def apply_practical_filters(
     prices: pd.DataFrame,
+    volumes: pd.DataFrame = None,
     min_avg_volume: int = 1_000_000,
     min_price: float = 5.0,
     max_price: float = None,
     exclude_sectors: List[str] = None,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, Dict]:
     """
     Aplica filtros básicos de liquidez y precio.
+    Retorna (DataFrame filtrado, breakdown dict).
 
     Nota: El filtro de liquidez (min_avg_volume) está deshabilitado por defecto
     porque fetch solo trae precios Close. min_price sí está activo.
     Para activar volumen real: extender fetch_prices para pedir Volume y pasar DF separado.
     """
+    original_tickers = set(prices.columns)
     filtered = prices.copy()
+    breakdown = {}
 
     # 1. Filtro de liquidez (placeholder - requiere Volume data del fetch para ser real)
     # Actualmente min_avg_volume=0 por defecto para no romper con DF de solo precios.
+    # Cuando se pasa volumes= (de fetch_prices_and_volume), se activa el filtro real.
     if min_avg_volume > 0:
-        recent = filtered.iloc[-20:].mean()
-        # Heurística: si los valores parecen precios (<10k), ignorar para no vaciar el DF
-        if recent.max() < 10000:
-            pass  # skip mis-applied price-as-volume filter
-        else:
-            liquid_tickers = recent[recent >= min_avg_volume].index.tolist()
+        if volumes is not None:
+            aligned_vol = volumes[filtered.columns]
+            recent_volume = aligned_vol.iloc[-20:].mean()
+            liquid_tickers = recent_volume[recent_volume >= min_avg_volume].index.tolist()
+            removed_vol = len(filtered.columns) - len(liquid_tickers)
             filtered = filtered[liquid_tickers]
+            breakdown["volume"] = removed_vol
+        else:
+            breakdown["volume"] = 0
+    else:
+        breakdown["volume"] = 0
 
     # 2. Filtro de precio mínimo
     if min_price > 0:
+        before = len(filtered.columns)
         current_prices = filtered.iloc[-1]
         valid_price = current_prices[current_prices >= min_price].index.tolist()
         filtered = filtered[valid_price]
+        breakdown["min_price"] = before - len(filtered.columns)
+    else:
+        breakdown["min_price"] = 0
 
     # 3. Filtro de precio máximo (opcional)
     if max_price is not None and max_price > 0:
+        before = len(filtered.columns)
         current_prices = filtered.iloc[-1]
         valid_price = current_prices[current_prices <= max_price].index.tolist()
         filtered = filtered[valid_price]
+        breakdown["max_price"] = before - len(filtered.columns)
+    else:
+        breakdown["max_price"] = 0
 
-    return filtered
+    breakdown["total_removed"] = len(original_tickers) - len(filtered.columns)
+    breakdown["remaining"] = len(filtered.columns)
+    return filtered, breakdown
 
 
 def get_filter_summary(original_count: int, filtered_df: pd.DataFrame) -> Dict:

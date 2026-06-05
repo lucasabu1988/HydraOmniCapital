@@ -27,6 +27,7 @@ UNIVERSE = "all"
 USE_FULL_SP500 = True
 
 # Lista pequeña / custom (usada cuando UNIVERSE="custom" o USE_FULL_SP500=False)
+# (comentarios actualizados para soportar multi-universe)
 INITIAL_UNIVERSE = [
     'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'AVGO', 'TSLA',
     'JPM', 'V', 'MA', 'XOM', 'UNH', 'JNJ', 'PG', 'COST', 'HD', 'MRK',
@@ -173,4 +174,19 @@ FILTERS = {
 
     # Sectores a excluir (requiere metadata de sectores - por ahora no implementado)
     "exclude_sectors": [],           # Ejemplo: ["Financials", "Energy"]
+}
+
+# ============================================
+# TICKERS PROBLEMATICOS / ZOMBIES
+# ============================================
+# Hard blacklist de tickers que ya no existen o devuelven datos corruptos/zombies
+# de yfinance (ej: SNDK delisted 2016, BRK.B mal mapeado a veces, etc.).
+# Se filtran lo antes posible para evitar descargas inutiles y contaminacion del ranking.
+DELISTED_OR_BAD_TICKERS = {
+    # "SNDK",    # Dejamos activo para que aparezca en el analisis general
+    "BRK.B",     # A menudo falla o se confunde con BRK-B. Usar BRK-B en listas.
+    "BF.B",      # Brown-Forman clase B - problemas de mapeo comunes.
+    "FB",        # Viejo ticker de Meta, ahora META.
+    "TWTR",      # Delisted 2022 (adquirida por X).
+    "SCTY",      # SolarCity - delisted.
 }

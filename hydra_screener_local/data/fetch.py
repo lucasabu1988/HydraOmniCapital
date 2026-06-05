@@ -13,9 +13,9 @@ from config import DELISTED_OR_BAD_TICKERS
 warnings.filterwarnings("ignore")
 
 
-def fetch_prices(tickers: list[str], period: str = "1y", batch_size: int = 75) -> pd.DataFrame:
+def fetch_prices(tickers: list[str], period: str = "1y", batch_size: int = 75) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Descarga precios de cierre ajustados.
+    Descarga precios de cierre ajustados y volumen.
     Divide en lotes para evitar rate limits cuando el universo es grande (S&P 500).
 
     Aplica automáticamente el filtro de DELISTED_OR_BAD_TICKERS de config.py
@@ -37,7 +37,8 @@ def fetch_prices(tickers: list[str], period: str = "1y", batch_size: int = 75) -
 
     print(f"Descargando datos de {len(tickers)} tickers (en lotes de ~{batch_size})...")
     
-    all_data = []
+    all_close = []
+    all_volume = []
     
     for i in range(0, len(tickers), batch_size):
         batch = tickers[i:i + batch_size]
@@ -54,35 +55,38 @@ def fetch_prices(tickers: list[str], period: str = "1y", batch_size: int = 75) -
             
             if isinstance(data.columns, pd.MultiIndex):
                 close = data['Close']
+                volume = data['Volume'] if 'Volume' in data.columns else pd.DataFrame(index=data.index)
             else:
                 close = data[['Close']].rename(columns={'Close': batch[0]})
+                volume = data[['Volume']].rename(columns={'Volume': batch[0]}) if 'Volume' in data.columns else pd.DataFrame(index=data.index)
             
-            all_data.append(close)
-            try:
-                print("✓")
-            except UnicodeEncodeError:
-                print("[OK]")
+            all_close.append(close)
+            all_volume.append(volume)
+            print("OK")
             
             # Pequeña pausa para no saturar Yahoo
             if i + batch_size < len(tickers):
                 time.sleep(1.0)
                 
         except Exception as e:
-            try:
-                print(f"✗ Error: {e}")
-            except UnicodeEncodeError:
-                print(f"[ERR] {e}")
+            print(f"ERROR: {e}")
             continue
     
-    if not all_data:
-        return pd.DataFrame()
+    if not all_close:
+        return pd.DataFrame(), pd.DataFrame()
     
     # Unir todos los lotes
-    combined = pd.concat(all_data, axis=1)
-    combined = combined.dropna(axis=1, how='all')
+    combined_close = pd.concat(all_close, axis=1)
+    combined_close = combined_close.dropna(axis=1, how='all')
     
-    print(f"\nDescarga completada: {len(combined.columns)} tickers con datos.\n")
-    return combined
+    combined_volume = pd.concat(all_volume, axis=1)
+    combined_volume = combined_volume.dropna(axis=1, how='all')
+    
+    # Alinear volumen con los tickers de precios
+    combined_volume = combined_volume.reindex(columns=combined_close.columns)
+    
+    print(f"\nDescarga completada: {len(combined_close.columns)} tickers con datos.\n")
+    return combined_close, combined_volume
 
 
 def fetch_prices_and_volume(tickers: list[str], period: str = "1y", batch_size: int = 75):
@@ -171,9 +175,13 @@ def fetch_spy(period: str = "1y") -> pd.Series:
     """Descarga solo SPY para cálculo de régimen. Siempre devuelve Series limpia."""
     spy = yf.download("SPY", period=period, progress=False, auto_adjust=True)
     if isinstance(spy, pd.DataFrame):
-        if 'Close' in spy.columns:
-            s = spy['Close']
-        else:
-            s = spy.iloc[:, 0]  # fallback
-        return s.squeeze().dropna()
-    return pd.Series(spy).squeeze().dropna() if spy is not None else pd.Series(dtype=float)
+        s = spy['Close'] if 'Close' in spy.columns else spy.iloc[:, 0]
+        # yfinance puede retornar MultiIndex incluso para 1 ticker, haciendo que s sea DataFrame
+        if isinstance(s, pd.DataFrame):
+            s = s.iloc[:, 0]
+    else:
+        s = spy
+    # Asegurar que siempre sea una Serie
+    if isinstance(s, pd.Series):
+        return s
+    return pd.Series([s]) if s is not None else pd.Series(dtype=float)

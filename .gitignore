@@ -68,13 +68,12 @@ state/intelligence/
 .worktrees/
 
 # Local screener runtime artifacts (data from runs - keep repo clean)
-# These match what origin/main already ignores
+# These match what origin/main already ignores + backtest/ for current local experiments
 hydra_screener_local/history/
 hydra_screener_local/output/
 hydra_screener_local/backtest/
 hydra_screener_local/*.xlsx
 
-# Note: experiment scripts (analysis_experiments.py, run_real_*.py, backtest_*.py, comparison_table.py, etc.)
-# are left un-ignored for now so they remain visible in git status.
-# You can add them individually later or ignore specific ones if they are one-off.
-
+# Note: experiment/launch scripts (analysis_experiments.py, run_real_*.py, backtest_*.py,
+# comparison_table.py, log_*, launch_*.bat, test_*) are left visible in git status for now.
+# Add them to git (or ignore) individually when you decide they are permanent tools.

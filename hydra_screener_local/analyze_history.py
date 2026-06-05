@@ -1,5 +1,5 @@
 """
-Analizador de Histórico del Screener HYDRA Local.
+Analizador de Historico del Screener HYDRA Local.
 
 Permite ver el rendimiento de las recomendaciones pasadas.
 Incluye backtest persistente de las reglas nuevas (composite + short-term boost)
@@ -14,6 +14,7 @@ import numpy as np
 
 from core.history import get_recent_runs, list_available_dates
 from config import GEOPOLITICAL_RISK_LEVEL, GEO_VOL_THRESHOLD_ADJUST, VOL_SURGE_THRESHOLD, MIN_VOL_THRESHOLD
+from core.tracking import aggregate_winrate, print_winrate_report, get_detailed_trades, print_detailed_report
 
 BACKTEST_DIR = "backtest"
 BACKTEST_FILE = os.path.join(BACKTEST_DIR, "backtest_results.json")
@@ -21,8 +22,8 @@ BACKTEST_FILE = os.path.join(BACKTEST_DIR, "backtest_results.json")
 
 def show_summary():
     dates = list_available_dates()
-    print(f"\n=== Histórico disponible ===")
-    print(f"Total de días guardados: {len(dates)}")
+    print("\n=== Historico disponible ===")
+    print(f"Total de dias guardados: {len(dates)}")
     if dates:
         print(f"Rango: {dates[0]} -> {dates[-1]}")
     print()
@@ -30,7 +31,7 @@ def show_summary():
 
 def show_last_runs(limit: int = 10):
     runs = get_recent_runs(limit)
-    print(f"\n=== Últimos {len(runs)} días ===\n")
+    print(f"\n=== Ultimos {len(runs)} dias ===\n")
 
     for run in runs:
         date = run["date"]
@@ -51,7 +52,7 @@ def show_last_runs(limit: int = 10):
 
         if candidates:
             recs = [c for c in candidates if c.get("recommended")]
-            print(f"   Recomendados ese día: {len(recs)}")
+            print(f"   Recomendados ese dia: {len(recs)}")
         print()
 
 
@@ -271,15 +272,31 @@ def run_and_save_backtest():
     return load_backtest_results()
 
 
+    if bt and bt.get("summary"):
+        s = bt["summary"]
+        print(f"\nResumen acumulado:")
+        print(f"  Días evaluados: {s.get('total_signal_days')}")
+        print(f"  Promedio Original (Top10): {s.get('avg_original_1d')}%")
+        print(f"  Promedio Nuevas Reglas (Top10): {s.get('avg_new_1d')}%")
+
+        strict = s.get("strict_filter", {})
+        if strict.get("avg_1d_when_used"):
+            print(f"  Strict Filter - Promedio cuando aplicó: {strict['avg_1d_when_used']}% "
+                  f"(sobre {strict.get('total_names_passed_across_days', 0)} nombres en {strict.get('days_with_strict_hits', 0)} días)")
+
+    print("\n(Win-rate forward disponible via track_performance.py + core/tracking si se actualiza el historial.)")
+
+
 if __name__ == "__main__":
-    print("=== HYDRA Screener - Analizador de Histórico ===\n")
+    print("=== HYDRA Screener - Analizador de Historico ===\n")
     show_summary()
     show_last_runs(15)
+    show_winrate()
 
     print("\n--- Backtest con reglas nuevas ---")
     bt = run_and_save_backtest()
 
-    if bt.get("summary"):
+    if bt and bt.get("summary"):
         s = bt["summary"]
         print(f"\nResumen acumulado:")
         print(f"  Días evaluados: {s.get('total_signal_days')}")
