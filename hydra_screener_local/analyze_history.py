@@ -2,11 +2,22 @@
 Analizador de Historico del Screener HYDRA Local.
 
 Permite ver el rendimiento de las recomendaciones pasadas.
-Incluye backtest persistente de las reglas nuevas (composite + short-term boost)
-vs el método original.
+Incluye:
+- Resumen de corridas recientes
+- Backtest persistente de las reglas nuevas (composite + short-term boost + strict filter)
+  vs el método original (meta_score)
+- Integración con Forward Win-Rate Tracking (5d/10d por régimen y Special Mode)
+- Export a Excel (--export-excel) que ahora incluye también los últimos runs del historial
+  (hojas: Summary, PerDay, RecentRuns, RecentRecommended, Raw)
+
+Uso:
+    python analyze_history.py
+    python analyze_history.py --days 7 --export-excel
+    python analyze_history.py --recompute --no-yf
 """
 import json
 import os
+import argparse
 from datetime import datetime, timedelta
 import pandas as pd
 import yfinance as yf
@@ -71,6 +82,23 @@ def save_backtest_results(results: dict):
     with open(BACKTEST_FILE, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
     print(f"  [OK] Backtest guardado en {BACKTEST_FILE}")
+
+
+def print_backtest_summary(bt):
+    """Imprime el resumen acumulado del backtest de forma clara."""
+    if not bt or not bt.get("summary"):
+        print("No hay datos de backtest disponibles.")
+        return
+    s = bt["summary"]
+    print(f"\nResumen acumulado:")
+    print(f"  Días evaluados: {s.get('total_signal_days')}")
+    print(f"  Promedio Original (Top10): {s.get('avg_original_1d')}%")
+    print(f"  Promedio Nuevas Reglas (Top10): {s.get('avg_new_1d')}%")
+
+    strict = s.get("strict_filter", {})
+    if strict.get("avg_1d_when_used") is not None:
+        print(f"  Strict Filter - Promedio cuando aplicó: {strict['avg_1d_when_used']}% "
+              f"(sobre {strict.get('total_names_passed_across_days', 0)} nombres en {strict.get('days_with_strict_hits', 0)} días)")
 
 
 def evaluate_signal_day(signal_date: str, forward_days: int = 1):
@@ -211,22 +239,41 @@ def evaluate_signal_day(signal_date: str, forward_days: int = 1):
     }
 
 
-def run_and_save_backtest():
-    """Ejecuta el backtest sobre todo el histórico disponible y guarda resultados."""
+def run_and_save_backtest(recompute: bool = False, max_days: int = None, 
+                            forward_days: int = 1, skip_yf: bool = False):
+    """
+    Ejecuta el backtest sobre el histórico (o parte de él) y guarda resultados.
+
+    Args:
+        recompute: Si True, re-evalúa incluso días ya cacheados.
+        max_days: Solo procesa los últimos N días de historial.
+        forward_days: Cuántos días forward calcular (default 1).
+        skip_yf: Si True, no descarga precios forward (solo usa cache o salta evals nuevos).
+    """
     print("\n=== Ejecutando Backtest Persistente ===")
     dates = list_available_dates()
+    if max_days:
+        dates = dates[-max_days:]
     print(f"Fechas de señal encontradas: {dates}")
 
     current = load_backtest_results()
     results_by_date = current.get("results_by_date", {})
 
+    if recompute:
+        print("  --recompute: se ignorará el cache para los días seleccionados.")
+
     new_evaluations = 0
     for d in dates:
-        if d in results_by_date:
+        if not recompute and d in results_by_date:
             continue  # ya evaluado
 
-        print(f"  Evaluando {d}...")
-        eval_result = evaluate_signal_day(d, forward_days=1)
+        if skip_yf:
+            if d not in results_by_date:
+                print(f"  [skip] {d} ( --no-yf : sin descarga forward )")
+            continue
+
+        print(f"  Evaluando {d} (forward +{forward_days}d)...")
+        eval_result = evaluate_signal_day(d, forward_days=forward_days)
         if eval_result:
             results_by_date[d] = eval_result
             new_evaluations += 1
@@ -267,43 +314,256 @@ def run_and_save_backtest():
         save_backtest_results(final)
         print(f"\nBacktest actualizado. Días nuevos evaluados: {new_evaluations}")
     else:
-        print("No hay nuevos días para evaluar.")
+        if skip_yf:
+            print("No hay nuevos días para evaluar (--no-yf activo, no se descargaron forwards).")
+        else:
+            print("No hay nuevos días para evaluar.")
 
     return load_backtest_results()
 
 
-    if bt and bt.get("summary"):
-        s = bt["summary"]
-        print(f"\nResumen acumulado:")
-        print(f"  Días evaluados: {s.get('total_signal_days')}")
-        print(f"  Promedio Original (Top10): {s.get('avg_original_1d')}%")
-        print(f"  Promedio Nuevas Reglas (Top10): {s.get('avg_new_1d')}%")
+def export_backtest_to_excel(bt, output_path: str = None, recent_runs: list = None):
+    """
+    Exporta los resultados del backtest a un Excel con varias hojas.
+    Si se pasa recent_runs (lista de dicts de history), agrega hojas con los últimos runs del historial.
+    """
+    if not bt:
+        print("  No hay datos para exportar.")
+        return
 
-        strict = s.get("strict_filter", {})
-        if strict.get("avg_1d_when_used"):
-            print(f"  Strict Filter - Promedio cuando aplicó: {strict['avg_1d_when_used']}% "
-                  f"(sobre {strict.get('total_names_passed_across_days', 0)} nombres en {strict.get('days_with_strict_hits', 0)} días)")
+    if output_path is None:
+        today = datetime.now().strftime("%Y%m%d")
+        os.makedirs(BACKTEST_DIR, exist_ok=True)
+        output_path = os.path.join(BACKTEST_DIR, f"backtest_analysis_{today}.xlsx")
 
-    print("\n(Win-rate forward disponible via track_performance.py + core/tracking si se actualiza el historial.)")
+    try:
+        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+            # Hoja 1: Summary (backtest)
+            summary = bt.get("summary", {})
+            pd.DataFrame([summary]).to_excel(writer, sheet_name="Summary", index=False)
+
+            # Hoja 2: Per-day results del backtest (sin details)
+            results = bt.get("results_by_date", {})
+            if results:
+                flat_rows = []
+                for date, data in results.items():
+                    row = {"date": date}
+                    for k, v in data.items():
+                        if k != "details" and not isinstance(v, (list, dict)):
+                            row[k] = v
+                    flat_rows.append(row)
+                pd.DataFrame(flat_rows).to_excel(writer, sheet_name="PerDay", index=False)
+
+            # Hoja 3: Raw backtest
+            try:
+                raw_df = pd.json_normalize(bt)
+                raw_df.to_excel(writer, sheet_name="Raw", index=False)
+            except Exception:
+                pass
+
+            # === Nuevas hojas con los últimos runs del historial ===
+            if recent_runs:
+                runs_rows = []
+                candidates_rows = []
+
+                for run in recent_runs:
+                    date = run.get("date", "")
+                    regime = run.get("regime", {}) or {}
+                    pillars = run.get("pillar_multipliers", {}) or {}
+                    candidates = run.get("top_candidates", []) or []
+                    recs = [c for c in candidates if c.get("recommended")]
+
+                    runs_rows.append({
+                        "date": date,
+                        "regime_score": regime.get("score"),
+                        "regime_type": regime.get("type"),
+                        "special_modes": ", ".join(regime.get("special_modes", [])) if regime.get("special_modes") else "",
+                        "num_candidates": len(candidates),
+                        "num_recommended": len(recs),
+                        **{f"pillar_{k}": round(v, 4) if isinstance(v, (int, float)) else v 
+                           for k, v in pillars.items()}
+                    })
+
+                    for c in candidates:
+                        candidates_rows.append({
+                            "date": date,
+                            "ticker": c.get("ticker"),
+                            "rank": c.get("rank"),
+                            "momentum": c.get("momentum"),
+                            "meta_score": c.get("meta_score"),
+                            "composite_score": c.get("composite_score"),
+                            "recommended": bool(c.get("recommended")),
+                            "reason": str(c.get("reason", ""))[:60] if c.get("reason") else "",
+                            "aggression": c.get("aggression"),
+                            "recovery_boost": c.get("recovery_boost"),
+                            "ret_5d_10d": c.get("ret_5d_10d"),
+                            "dist_20d_high": c.get("dist_20d_high"),
+                            "short_boost": c.get("short_boost"),
+                            "vol_ratio": c.get("vol_ratio"),
+                            "passes_strict": c.get("passes_strict"),
+                            "sector": c.get("sector"),
+                        })
+
+                if runs_rows:
+                    pd.DataFrame(runs_rows).to_excel(writer, sheet_name="RecentRuns", index=False)
+
+                if candidates_rows:
+                    pd.DataFrame(candidates_rows).to_excel(writer, sheet_name="RecentRecommended", index=False)
+
+            # ============================================================
+            # FORMATO CON OPENPYXL DIRECTO (negritas, anchos, etc.)
+            # ============================================================
+            try:
+                from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+                from openpyxl.utils import get_column_letter
+
+                # Estilos comunes
+                header_font = Font(bold=True, color="FFFFFF")
+                header_fill = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
+                header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                thin_border = Border(
+                    left=Side(style="thin", color="B4B4B4"),
+                    right=Side(style="thin", color="B4B4B4"),
+                    top=Side(style="thin", color="B4B4B4"),
+                    bottom=Side(style="thin", color="B4B4B4")
+                )
+                data_alignment = Alignment(vertical="center")
+
+                for sheet_name in list(writer.sheets.keys()):
+                    ws = writer.sheets[sheet_name]
+
+                    # 1. Formatear encabezado (fila 1)
+                    for col_idx, cell in enumerate(ws[1], 1):
+                        cell.font = header_font
+                        cell.fill = header_fill
+                        cell.alignment = header_alignment
+                        cell.border = thin_border
+
+                    # 2. Congelar fila de encabezado
+                    ws.freeze_panes = "A2"
+
+                    # 3. Ajustar anchos de columna automáticamente (con límites razonables)
+                    for col_idx, column_cells in enumerate(ws.columns, 1):
+                        max_length = 0
+                        column_letter = get_column_letter(col_idx)
+                        for cell in column_cells:
+                            try:
+                                if cell.value is not None:
+                                    cell_length = len(str(cell.value))
+                                    if cell_length > max_length:
+                                        max_length = cell_length
+                            except Exception:
+                                pass
+                        # Anchos inteligentes: mínimo 10, máximo 45 (excepto para columnas de texto largo)
+                        adjusted_width = min(max(max_length + 2, 10), 45)
+                        # Hacer un poco más anchas las columnas de texto conocidas
+                        if sheet_name in ("RecentRecommended", "PerDay"):
+                            if column_letter in ("A", "B", "C"):  # date / ticker / rank suelen ser importantes
+                                adjusted_width = min(adjusted_width + 3, 50)
+                        ws.column_dimensions[column_letter].width = adjusted_width
+
+                    # 4. Bordes y alineación para filas de datos
+                    max_row = ws.max_row
+                    max_col = ws.max_column
+                    for row_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=max_row, max_col=max_col), 2):
+                        for cell in row:
+                            cell.border = thin_border
+                            cell.alignment = data_alignment
+
+                            # Formato numérico para columnas que parecen scores / porcentajes
+                            val = cell.value
+                            if isinstance(val, (int, float)) and val is not None:
+                                if -100 <= val <= 100 and abs(val) < 1000:  # típico de retornos y scores
+                                    cell.number_format = '0.00'
+                                else:
+                                    cell.number_format = '0.00'
+                                cell.alignment = Alignment(horizontal="right", vertical="center")
+
+                    # 5. Ajuste final de altura del header
+                    ws.row_dimensions[1].height = 22
+
+            except ImportError:
+                # openpyxl está disponible (porque usamos el engine), pero por si acaso
+                pass
+            except Exception:
+                # No romper la exportación por un error de formato
+                pass
+
+        print(f"  [OK] Backtest exportado a Excel: {output_path}")
+    except Exception as e:
+        print(f"  No se pudo exportar a Excel ({e}). Se guardará JSON como fallback.")
+        json_path = output_path.replace(".xlsx", ".json") if output_path.endswith(".xlsx") else output_path + ".json"
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(bt, f, indent=2, ensure_ascii=False, default=str)
+        print(f"  [OK] Fallback JSON: {json_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="HYDRA Screener - Analizador de Histórico y Backtest Persistente",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Ejemplos:
+  python analyze_history.py
+  python analyze_history.py --days 5
+  python analyze_history.py --recompute --forward-days 1
+  python analyze_history.py --no-yf --export-excel
+  python analyze_history.py --days 10 --recompute --export-excel
+        """
+    )
+    parser.add_argument("--recompute", action="store_true",
+                        help="Re-evaluar todos los días seleccionados (ignora caché del backtest)")
+    parser.add_argument("--days", type=int, default=None, metavar="N",
+                        help="Solo procesar los últimos N días del historial")
+    parser.add_argument("--no-yf", "--no-forward", action="store_true", dest="no_yf",
+                        help="No descargar precios con yfinance para cálculos forward (usa solo caché)")
+    parser.add_argument("--forward-days", type=int, default=1, metavar="D",
+                        help="Número de días forward a evaluar (default: 1)")
+    parser.add_argument("--export-excel", action="store_true",
+                        help="Exportar a Excel: incluye backtest + últimos runs del historial (hojas RecentRuns y RecentRecommended)")
+    parser.add_argument("--last-runs", type=int, default=15, metavar="N",
+                        help="Cuántos días recientes mostrar en detalle (default: 15)")
+
+    args = parser.parse_args()
+
+    print("=== HYDRA Screener - Analizador de Historico ===\n")
+
+    # Vistas rápidas del historial
+    show_summary()
+    recent_limit = args.last_runs or 15
+    show_last_runs(limit=recent_limit)
+    recent_runs = get_recent_runs(limit=recent_limit)
+
+    # Tracking forward (siempre intenta, es ligero si ya hay datos)
+    print("\n=== Forward Win-Rate Tracking (nuevo) ===")
+    try:
+        report = aggregate_winrate()
+        if report and report.get("total_recommendations", 0) > 0:
+            print_winrate_report(report)
+            trades_df = get_detailed_trades()
+            if not trades_df.empty:
+                print_detailed_report(trades_df)
+        else:
+            print("  (Sin datos de tracking forward aún)")
+            print("  Ejecuta 'python track_performance.py [--force]' para calcular retornos 5d/10d sobre el historial.")
+    except Exception as e:
+        print(f"  (No se pudo generar win-rate tracking: {e})")
+        print("  Ejecuta 'python track_performance.py' para poblar los datos.")
+
+    # Backtest local (configurable)
+    print("\n--- Backtest con reglas nuevas (local) ---")
+    bt = run_and_save_backtest(
+        recompute=args.recompute,
+        max_days=args.days,
+        forward_days=args.forward_days,
+        skip_yf=args.no_yf
+    )
+
+    print_backtest_summary(bt)
+
+    if args.export_excel:
+        export_backtest_to_excel(bt, recent_runs=recent_runs)
 
 
 if __name__ == "__main__":
-    print("=== HYDRA Screener - Analizador de Historico ===\n")
-    show_summary()
-    show_last_runs(15)
-    show_winrate()
-
-    print("\n--- Backtest con reglas nuevas ---")
-    bt = run_and_save_backtest()
-
-    if bt and bt.get("summary"):
-        s = bt["summary"]
-        print(f"\nResumen acumulado:")
-        print(f"  Días evaluados: {s.get('total_signal_days')}")
-        print(f"  Promedio Original (Top10): {s.get('avg_original_1d')}%")
-        print(f"  Promedio Nuevas Reglas (Top10): {s.get('avg_new_1d')}%")
-
-        strict = s.get("strict_filter", {})
-        if strict.get("avg_1d_when_used"):
-            print(f"  Strict Filter - Promedio cuando aplicó: {strict['avg_1d_when_used']}% "
-                  f"(sobre {strict.get('total_names_passed_across_days', 0)} nombres en {strict.get('days_with_strict_hits', 0)} días)")
+    main()
