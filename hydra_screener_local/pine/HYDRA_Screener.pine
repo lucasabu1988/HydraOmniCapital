@@ -426,15 +426,14 @@ if barstate.islast
                   style=label.style_label_down, color=color.new(color.orange, 50), 
                   textcolor=color.white, size=size.small)
 
-// Note at bottom (SPEC aligned)
-// For best results with large universes (hybrid flow):
+// Note at bottom (SPEC aligned, hybrid flow)
+// For best results with large universes:
 // 1. Run Python screener daily with UNIVERSE="all" (full SPEC logic + history)
-// 2. Copy the top 10-15 recommended tickers from output or analyze_history
-// 3. Paste them into the "Watchlist Symbols" input above
-// 4. Add this Pine to charts in your HYDRA watchlist (or one main chart)
-// 5. Use the ranked table as daily dashboard (SPEC 4.5/4.7 ranking + recommended)
-// 6. Set alerts (e.g. "HYDRA: Strict + Strong Composite") and forward via webhook to bots/alerts
+// 2. The Python auto-generates pine/watchlist.txt + pine/hydra_last_summary.json (via integration in screener.py / run_real...)
+// 3. Paste the watchlist string into "Watchlist Symbols".
+// 4. (Recommended) Paste the FULL content of hydra_last_summary.json into "i_summary_json" input → richer global header on chart (rationale, pillars, regime from Python side, per SPEC).
+// 5. Use the ranked table as daily HYDRA dashboard (SPEC 4.5/4.7 ranking + recommended flag).
+// 6. Set alerts (e.g. "HYDRA: Strict + Strong Composite") and forward via TV webhooks or the Python sender (Discord/Telegram/generic).
 
-// Per-symbol (momentum, short, strict, composite, regime, pillars, specials) match SPEC sections 4.1-4.5 as close as Pine allows.
-// Full sector (4.6), exact dynamic across large list, and full backtest/history stay in Python (heavy lifter).
-// See HYDRA_ALGORITHM_SPEC.md for exact formulas and column contract.
+// Per-symbol calculations match SPEC 4.1-4.5 closely. Full sector (4.6) and exact dynamic count for 2500+ stay in Python (heavy lifter).
+// See HYDRA_ALGORITHM_SPEC.md + HYBRID_USAGE.md for details.

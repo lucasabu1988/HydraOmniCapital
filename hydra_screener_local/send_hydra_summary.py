@@ -269,7 +269,7 @@ def run_sender(top_n: int = DEFAULT_TOP, history_dir: str = "history", silent: b
         sent = send_to_generic_webhook(generic_url, summary) or sent
 
     if not sent and not silent:
-        print("[INFO] No webhook env vars set (DISCORD_WEBHOOK_URL, TELEGRAM_BOT_TOKEN+TELEGRAM_CHAT_ID, or GENERIC_WEBHOOK_URL).")
+        print("[INFO] No webhook env vars set (DISCORD_WEBHOOK_URL / HYDRA_DISCORD_WEBHOOK, TELEGRAM_BOT_TOKEN+TELEGRAM_CHAT_ID, or GENERIC_WEBHOOK_URL / HYDRA_GENERIC_WEBHOOK).")
         print("       Set them to enable notifications. Artifacts are always saved locally.")
 
     if not silent:

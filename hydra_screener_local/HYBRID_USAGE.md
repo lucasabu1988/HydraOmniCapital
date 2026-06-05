@@ -39,13 +39,20 @@ This document describes the complete hybrid architecture:
 
 ## Environment variables for integration
 
-- `DISCORD_WEBHOOK_URL` — if set, `send_hydra_summary.py` will post the daily summary to this channel.
+- `DISCORD_WEBHOOK_URL` (or `HYDRA_DISCORD_WEBHOOK`) — daily summary to Discord.
+- `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (or HYDRA_ variants) — daily summary to Telegram.
+- `GENERIC_WEBHOOK_URL` (or `HYDRA_GENERIC_WEBHOOK`) — POST the full JSON summary (for your own bots, n8n, Zapier, etc.).
 
 Example (PowerShell):
 ```powershell
 $env:DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/..."
+# or for Telegram:
+$env:TELEGRAM_BOT_TOKEN = "123456:ABC-DEF..."
+$env:TELEGRAM_CHAT_ID = "-1001234567890"
 python screener.py
 ```
+
+The sender always saves local artifacts even if no webhooks configured.
 
 ## Files involved in the hybrid layer
 
