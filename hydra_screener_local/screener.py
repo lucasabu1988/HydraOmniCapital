@@ -4,13 +4,18 @@ Ejecutar con: python screener.py
 
 Soporta universo pequeño o S&P 500 completo.
 """
+import os
 from datetime import datetime
 
-from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS
+# Robust paths relative to this file (works from any cwd)
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(_SCRIPT_DIR, "output")
+
+from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS, UNIVERSE
 from data.universe import get_universe
-from data.fetch import fetch_prices, fetch_spy
+from data.fetch import fetch_prices_and_volume, fetch_spy
 from core.signals import generate_daily_candidates, compute_regime_score
-from core.filters import apply_practical_filters, get_filter_summary
+from core.filters import apply_practical_filters, get_filter_summary, remove_zombie_tickers
 from core.history import save_daily_run
 from utils.display import print_header, print_candidates_table, print_summary, print_footer
 
@@ -18,12 +23,16 @@ from utils.display import print_header, print_candidates_table, print_summary, p
 def main():
     print_header()
     
-    # 1. Definir universo
-    tickers = get_universe(full_sp500=USE_FULL_SP500)
-    print(f"Universo seleccionado: {'S&P 500 completo' if USE_FULL_SP500 else 'Lista reducida'} ({len(tickers)} tickers)\n")
+    # 1. Definir universo (soporta sp500, nasdaq100, dow30, "all", custom)
+    effective_universe = UNIVERSE if 'UNIVERSE' in dir() else ("sp500" if USE_FULL_SP500 else "custom")
+    tickers = get_universe(universe=effective_universe, full_sp500=USE_FULL_SP500)
+    if effective_universe.lower() == "all":
+        print(f"Universo seleccionado: COMBINADO AMPLIADO (SP500 + Nasdaq100 + Dow30 + R1000 + R2000) → {len(tickers)} tickers únicos\n")
+    else:
+        print(f"Universo seleccionado: {effective_universe.upper()} ({len(tickers)} tickers)\n")
     
-    # 2. Obtener datos
-    prices = fetch_prices(tickers)
+    # 2. Obtener datos (precios + volumen para Strict Filter)
+    prices, volumes = fetch_prices_and_volume(tickers)
     spy = fetch_spy()
     
     if len(prices) < 50:
@@ -42,9 +51,15 @@ def main():
     filter_summary = get_filter_summary(original_count, prices)
     print(f"Filtros aplicados → {filter_summary['remaining']} tickers restantes "
           f"({filter_summary['removed']} eliminados, {filter_summary['removal_pct']}%)\n")
+
+    # Defensa adicional contra zombies (hard blacklist + sanity de precios planos)
+    prices = remove_zombie_tickers(prices)
+    if len(prices.columns) < original_count:
+        zfs = get_filter_summary(original_count, prices)
+        print(f"   + sanity zombie → {zfs['remaining']} restantes ({zfs['removed']} adicionales)\n")
     
     # 4. Generar candidatos (ya incluye Meta-Layer)
-    candidates = generate_daily_candidates(prices, spy)
+    candidates = generate_daily_candidates(prices, spy, volumes=volumes)
     regime_score = compute_regime_score(spy)
     
     # Extraer info de meta para el resumen
@@ -80,10 +95,11 @@ def main():
     # Mostrar resumen + multipliers de forma visual
     print_summary(regime_score, len(candidates), meta_info, pillar_mults, recommended_count)
     
-    # 6. Exportar Excel
+    # 6. Exportar Excel (con ruta robusta)
     today = datetime.now().strftime("%Y%m%d")
     if EXPORT_EXCEL:
-        filename = f"output/{OUTPUT_FILENAME_PREFIX}_{today}.xlsx"
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        filename = os.path.join(OUTPUT_DIR, f"{OUTPUT_FILENAME_PREFIX}_{today}.xlsx")
         candidates.to_excel(filename, index=False)
         print(f"\n[green]✓[/green] Exportado a: {filename}")
 
@@ -104,6 +120,23 @@ def main():
         print(f"[green]✓[/green] Histórico guardado en history/{today}.json")
     except Exception as e:
         print(f"[yellow]⚠[/yellow] No se pudo guardar histórico: {e}")
+
+    # 8. Log the top-5 cycle for dynamic PnL tracking (entry=last close from fetch, current starts=entry, formulas for PnL)
+    # This turns every screener run (esp. UNIVERSE=all) into an auditable entry for the 5/5 rotation strategy.
+    try:
+        if len(candidates) >= 5:
+            top5 = candidates.head(5)['ticker'].tolist()
+            # entry price = most recent close used by the screener (point-in-time for signal)
+            entry_prices = {}
+            for t in top5:
+                if t in prices.columns and len(prices[t].dropna()) > 0:
+                    entry_prices[t] = float(prices[t].dropna().iloc[-1])
+            import log_cycle_positions
+            log_cycle_positions.log_cycle(datetime.now(), top5, candidates.head(20), notes=f"live run UNIVERSE={effective_universe}", entry_prices=entry_prices)
+            # Note: entry from the live prices df; current starts=entry (PnL=0), later refresh_current_prices() or manual edit current -> formulas recalc PnL for the 5
+            print(f"[CycleLog] Top5 cycle logged to backtest/portfolio_cycles.xlsx for dynamic PnL tracking")
+    except Exception as e:
+        print(f"[yellow]⚠[/yellow] Cycle PnL log skipped: {e}")
     
     print_footer()
 

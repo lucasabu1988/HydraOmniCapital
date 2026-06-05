@@ -20,12 +20,15 @@ def save_daily_run(
     special_modes: List[str],
     pillar_multipliers: Dict[str, float],
     top_candidates: List[Dict[str, Any]],
-    meta_rationale: str = ""
+    meta_rationale: str = "",
+    base_dir: str = None
 ) -> str:
     """
     Guarda el resultado completo de un día del screener.
+    base_dir: optional absolute path to use instead of the default "history" folder.
     """
-    os.makedirs(HISTORY_DIR, exist_ok=True)
+    out_dir = base_dir or HISTORY_DIR
+    os.makedirs(out_dir, exist_ok=True)
 
     record = {
         "date": date,
@@ -40,7 +43,7 @@ def save_daily_run(
         "top_candidates": top_candidates
     }
 
-    filename = os.path.join(HISTORY_DIR, f"{date}.json")
+    filename = os.path.join(out_dir, f"{date}.json")
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(record, f, indent=2, ensure_ascii=False)
 
