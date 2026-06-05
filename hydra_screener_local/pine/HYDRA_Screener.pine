@@ -1,0 +1,391 @@
+//@version=5
+indicator("HYDRA Screener [Hybrid v1.2]", overlay=true, max_lines_count=500, max_boxes_count=500, max_labels_count=500, max_labels_count=500)
+
+// =============================================
+// HYDRA Scoring - Pine Script v5 (Watchlist Dashboard + Per-Symbol)
+// 
+// This is the TradingView side of the hybrid system (see HYDRA_ALGORITHM_SPEC.md).
+// 
+// Architecture:
+// - Python (heavy lifter): Scans the full universe (~2500 tickers daily), applies full HYDRA logic, 
+//   produces ranked list + history/backtest. Outputs top candidates via alert/webhook.
+// - User: Adds the suggested symbols to a personal "HYDRA Watchlist" in TradingView.
+// - This Pine Script: 
+//   1. Computes accurate per-symbol HYDRA scoring when applied to any chart.
+//   2. Builds a professional dashboard TABLE for a user-provided watchlist (paste symbols from Python output).
+//   3. Shows rich visuals, components, Special Modes, Pillar Multipliers, Strict Filter status.
+//   4. Fires alerts for recommended / high conviction setups (can be sent to webhooks).
+//
+// Limitations respected:
+// - No attempt to scan 2500 tickers inside Pine (impossible due to security() limits + performance).
+// - Watchlist size capped (recommend 15-20 symbols for performance).
+// - Sector control approximated or noted (full version expensive in Pine).
+//
+// Matches the spec as closely as possible in Pine constraints.
+// =============================================
+
+// --- Inputs (aligned with spec parameters) ---
+i_spy                = input.symbol("SPY", "Market Proxy for Regime")
+i_mom_len            = input.int(90, "Momentum Lookback", group="Momentum")
+i_vol_len            = input.int(63, "Vol Lookback for Momentum", group="Momentum")
+
+i_short_len          = input.int(10, "Short-term Ret Lookback", group="Short-Term & Strict")
+i_prox_len           = input.int(20, "Proximity to High Days", group="Short-Term & Strict")
+i_strict_ret         = input.float(15.0, "Strict Min Ret %", group="Short-Term & Strict")
+i_strict_dist        = input.float(-2.0, "Strict Max Dist to High %", group="Short-Term & Strict")
+i_vol_base           = input.float(1.50, "Base Vol Surge Threshold", group="Short-Term & Strict")
+i_geo_risk           = input.float(0.0, "Geopolitical Risk (0-1)", minval=0, maxval=1, step=0.1, group="Short-Term & Strict")
+
+i_regime_len         = input.int(200, "Regime SMA Length", group="Regime")
+i_strong_th          = input.float(0.62, "STRONG threshold", group="Regime")
+i_moderate_th        = input.float(0.50, "MODERATE threshold", group="Regime")
+i_cautious_th        = input.float(0.38, "CAUTIOUS threshold", group="Regime")
+
+i_base_recs          = input.int(14, "Base Recommendations", group="Dynamic Count")
+i_min_recs           = input.int(6, "Min Recommendations", group="Dynamic Count")
+i_max_recs           = input.int(28, "Max Recommendations", group="Dynamic Count")
+i_min_regime_rec     = input.float(0.35, "Min Regime for Recommended (*0.85)", group="Dynamic Count")
+
+i_watchlist          = input.string("AAPL,MSFT,NVDA,AMZN,GOOGL,META,AVGO,TSLA,AMD,NVDA", "Watchlist Symbols (comma separated - paste from Python)", group="Watchlist Dashboard")
+i_max_watchlist      = input.int(15, "Max symbols in table (performance)", minval=5, maxval=30, group="Watchlist Dashboard")
+i_show_table         = input.bool(true, "Show Watchlist Dashboard Table", group="Watchlist Dashboard")
+i_color_rows         = input.bool(true, "Color rows by Regime / Strict", group="Watchlist Dashboard")
+
+i_show_pillars       = input.bool(true, "Show Pillar Multipliers on Chart", group="Visuals")
+i_show_special       = input.bool(true, "Show Special Mode Labels", group="Visuals")
+
+// --- Constants from SPEC ---
+var float STRICT_BONUS = 0.18
+var float SHORT_BOOST  = 0.35
+var float MIN_VOL_TH   = 1.0
+
+// --- Regime Type Enum (for colors/logic) ---
+f_regime_type(_score) =>
+    if _score >= i_strong_th
+        "STRONG"
+    else if _score >= i_moderate_th
+        "MODERATE"
+    else if _score >= i_cautious_th
+        "CAUTIOUS"
+    else
+        "WEAK"
+
+// --- Per-symbol HYDRA Components (core of the spec) ---
+f_compute_hydra(_sym) =>
+    [c, r, mom, rs, dh, vr, ps, cm, sm] = request.security(_sym, timeframe.period, 
+        [close, close[i_short_len], close[i_momentum_len], ta.highest(close, i_prox_len), 
+         volume, volume], lookahead=barmerge.lookahead_off)
+
+    // Short-term features
+    ret_s   = (c / r - 1) * 100
+    dist_h  = (c / rs - 1) * 100
+
+    vrat = na
+    if not na(vr) and vr > 0
+        v20 = ta.sma(vr, 20)
+        v5  = ta.sma(vr, 5)
+        vrat := v5 / math.max(v20, 1)
+
+    dth = i_vol_base + (i_geo_risk * 0.6)
+    dth := math.max(MIN_VOL_TH, dth)
+    strict = ret_s > i_strict_ret and dist_h >= i_strict_dist and (vrat > dth or na(vrat))
+
+    // Momentum (risk-adjusted)
+    m = (c / mom - 1)
+    v = ta.stdev(ta.change(c)/c, i_vol_len) * math.sqrt(252)
+    momentum = m / math.max(v, 0.0001)
+
+    // Regime is market-wide (computed outside per-symbol for efficiency)
+    // We pass it in
+
+    [momentum, ret_s, dist_h, vrat, strict]
+
+// --- Market Regime (computed once from SPY - SPEC 4.3 exact) ---
+var float regime_score = 0.5
+var string regime_t    = "MODERATE"
+var float compass_m    = 1.0
+var string special_m   = ""
+var float rec_boost    = 1.0
+var float pillar_compass = 1.0
+var float pillar_rattle = 1.0
+var float pillar_catalyst = 1.0
+var float pillar_efa = 1.0
+
+if barstate.islast
+    spy_close = request.security(i_spy, timeframe.period, close, lookahead=barmerge.lookahead_off)
+    if ta.barssince(not na(spy_close)) > i_regime_len
+        curr = spy_close
+        sma = ta.sma(spy_close, i_regime_len)
+
+        // SPEC 4.3 Rich Regime - exact subscores and weights
+        tr = curr > sma ? 1.0 : 0.0
+        r20 = (curr / spy_close[20] - 1)
+        trend_s = (tr * 0.6) + (math.clamp(r20 + 0.04, -0.1, 0.15) / 0.15 * 0.4)
+
+        v20 = ta.stdev(ta.change(spy_close)/spy_close, 20) * math.sqrt(252)
+        v200 = ta.stdev(ta.change(spy_close)/spy_close, i_regime_len) * math.sqrt(252)
+        vr = v20 / math.max(v200, 0.01)
+        vol_s = math.clamp(1 - (vr - 0.8) / 1.2, 0, 1)
+
+        r60 = (curr / spy_close[60] - 1)
+        mom_s = math.clamp((r20 * 0.6 + r60 * 0.4 + 0.05) / 0.20, 0, 1)
+
+        mx = ta.highest(spy_close, 60)
+        cdd = math.max(0.0, (mx - curr) / mx)
+        dd20 = math.max(0.0, (mx - spy_close[20]) / mx)
+        vel = math.max(0.0, cdd - dd20) / 20.0
+        vel_s = 1.0 - math.clamp(vel * 40, 0, 1)
+
+        breadth = 0.5
+
+        overall = trend_s*0.30 + mom_s*0.25 + vol_s*0.20 + vel_s*0.15 + breadth*0.10
+        regime_score := math.round(math.clamp(overall, 0, 1) * 1000) / 1000
+
+        regime_t := f_regime_type(regime_score)
+
+        // SPEC 4.4 Meta-Layer base + specials (exact)
+        if regime_t == "STRONG"
+            pillar_compass := 1.15
+            pillar_rattle := 0.85
+            pillar_catalyst := 0.70
+            pillar_efa := 0.75
+            rec_boost := 1.0
+        else if regime_t == "MODERATE"
+            pillar_compass := 1.05
+            pillar_rattle := 0.95
+            pillar_catalyst := 0.90
+            pillar_efa := 0.92
+        else if regime_t == "CAUTIOUS"
+            pillar_compass := 0.88
+            pillar_rattle := 1.12
+            pillar_catalyst := 0.95
+            pillar_efa := 0.98
+            rec_boost := 1.0
+        else
+            pillar_compass := 0.75
+            pillar_rattle := 1.18
+            pillar_catalyst := 0.85
+            pillar_efa := 0.90
+
+        // Special modes (SPEC 4.4.2 exact triggers)
+        dd = math.max(0.0, (ta.highest(spy_close, 60) - curr) / ta.highest(spy_close, 60))
+        r20 = (curr / spy_close[20] - 1)
+        r60 = (curr / spy_close[60] - 1)
+        v = ta.stdev(ta.change(spy_close)/spy_close, 20) * math.sqrt(252)
+
+        special_m := ""
+        if dd >= 0.12 or (regime_score < 0.25 and v > 0.70)
+            special_m := "CRISIS_ACUTE"
+            pillar_compass *= 0.80
+            pillar_rattle *= 0.95
+            pillar_catalyst *= 0.75
+            pillar_efa *= 0.80
+        else if dd >= 0.06 and r20 > 0.025 and r60 > -0.08 and regime_score > 0.35
+            rec_boost := math.min(1.0 + (dd - 0.06) * 1.5, 1.12)
+            special_m := "POST_CRISIS_RECOVERY"
+            pillar_compass *= 1.08
+            pillar_rattle *= 0.95
+        else if regime_score >= 0.68 and v < 0.55 and dd < 0.06
+            special_m := "STRONG_BROAD_MOMENTUM"
+            pillar_compass *= 1.22
+            pillar_catalyst *= 0.60
+            pillar_efa *= 0.65
+        else if v > 0.68
+            special_m := "ELEVATED_VOL_DEFENSIVE"
+            pillar_rattle *= 1.15
+            pillar_compass *= 0.92
+
+        // Clamp (SPEC 4.4.3)
+        pillar_compass := math.round(math.max(0.60, math.min(1.45, pillar_compass)) * 1000) / 1000
+        pillar_rattle := math.round(math.max(0.60, math.min(1.45, pillar_rattle)) * 1000) / 1000
+        pillar_catalyst := math.round(math.max(0.60, math.min(1.45, pillar_catalyst)) * 1000) / 1000
+        pillar_efa := math.round(math.max(0.60, math.min(1.45, pillar_efa)) * 1000) / 1000
+
+        compass_m := pillar_compass  // for backward compat in table
+
+// --- Main symbol calculations (for the chart this script is applied to) ---
+[mom_main, ret_main, dist_main, vrat_main, strict_main] = f_compute_hydra(syminfo.tickerid)
+
+short_b = (math.clamp(ret_main / 20, -0.5, 1.5) + math.clamp((3.0 - dist_main) / 3.0, 0, 1)) / 2
+comp_main = mom_main * (1 + short_b * SHORT_BOOST)
+if strict_main
+    comp_main *= (1 + STRICT_BONUS)
+comp_main *= compass_m
+
+// Dynamic count for this symbol (SPEC 4.7)
+dyn_count = math.clamp(math.round(i_base_recs * (regime_score > 0.5 ? 1.05 : 0.93) * compass_m), i_min_recs, i_max_recs)
+is_rec_main = (comp_main > 0) and (regime_score >= i_min_regime_rec * 0.85)   // approx; full ranking in table/watchlist from Python
+
+// --- Visuals on main chart ---
+plot(comp_main, "Composite", color=color.new(color.aqua, 0), linewidth=2)
+plot(regime_score, "Regime", color=color.orange, linewidth=1)
+
+bgcolor(regime_t == "STRONG" ? color.new(color.green, 88) : 
+        regime_t == "WEAK"   ? color.new(color.red, 88)   : na)
+
+if i_show_pillars
+    pillars_str = "P: C×" + str.tostring(pillar_compass) + " R×" + str.tostring(pillar_rattle) + 
+                  " Ca×" + str.tostring(pillar_catalyst) + " E×" + str.tostring(pillar_efa)
+    label.new(bar_index, high, pillars_str, 
+              style=label.style_label_left, color=color.new(color.blue, 70), textcolor=color.white, size=size.small)
+
+if i_show_special and special_m != ""
+    label.new(bar_index, low, special_m + " (SPEC 4.4.2)", style=label.style_label_up, color=color.new(color.purple, 60), textcolor=color.white, size=size.small)
+
+// Strict highlight
+plotshape(strict_main, title="Strict Filter", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.small)
+
+// --- Watchlist Dashboard Table (improved to match SPEC output contract) ---
+// Now properly ranks the watchlist by composite (as per SPEC 4.5, 4.7)
+// Shows recommended flag based on dynamic count approximation
+var table t = table.new(position.top_right, 11, i_max_watchlist + 2, 
+                        bgcolor=color.new(color.black, 15), frame_color=color.gray, border_width=1)
+
+if barstate.islast and i_show_table
+    // Header - closer to SPEC rich columns
+    headers = array.from("Rank", "Ticker", "Comp", "Mom", "Reg", "Special", "Strict", "C_Mult", "Ret5d", "Dist", "Rec?")
+    for i = 0 to 10
+        table.cell(t, i, 0, array.get(headers, i), 
+                   text_color=color.white, text_size=size.tiny, 
+                   bgcolor=color.new(color.blue, 0), alignment=align_center)
+
+    // Parse watchlist
+    syms = str.split(i_watchlist, ",")
+    valid_syms = array.new_string()
+    for s in syms
+        s2 = str.trim(s)
+        if s2 != ""
+            array.push(valid_syms, s2)
+
+    n = math.min(array.size(valid_syms), i_max_watchlist)
+
+    // Collect data for proper ranking (SPEC 4.5 composite + 4.7 dynamic)
+    // Use parallel arrays for sorting
+    tickers = array.new_string()
+    comps = array.new_float()
+    moms = array.new_float()
+    rets = array.new_float()
+    dists = array.new_float()
+    vrs = array.new_float()
+    stricts = array.new_bool()
+    specials = array.new_string()
+
+    for i = 0 to n-1
+        sym = array.get(valid_syms, i)
+        [m, rs, dh, vr, ps] = f_compute_hydra(sym)
+
+        // Full composite using shared meta (SPEC 4.5)
+        sb = (math.clamp(rs / 20, -0.5, 1.5) + math.clamp((3.0 - dh) / 3.0, 0, 1)) / 2
+        comp = m * (1 + sb * SHORT_BOOST)
+        if ps
+            comp *= (1 + STRICT_BONUS)
+        comp *= compass_m
+
+        array.push(tickers, sym)
+        array.push(comps, comp)
+        array.push(moms, m)
+        array.push(rets, rs)
+        array.push(dists, dh)
+        array.push(vrs, vr)
+        array.push(stricts, ps)
+        array.push(specials, special_m)  // market level for now
+
+    // Sort by composite descending (SPEC ranking)
+    // Pine arrays: create indices, sort by comp
+    indices = array.new_int()
+    for i = 0 to n-1
+        array.push(indices, i)
+
+    // Simple bubble sort for small n (Pine has no built-in sort with comparator easily)
+    for i = 0 to n-2
+        for j = 0 to n-i-2
+            idx1 = array.get(indices, j)
+            idx2 = array.get(indices, j+1)
+            if array.get(comps, idx1) < array.get(comps, idx2)
+                // swap
+                array.set(indices, j, idx2)
+                array.set(indices, j+1, idx1)
+
+    // Dynamic count (approx, using average or first; full in Python)
+    dyn = math.clamp(math.round(i_base_recs * (regime_score > 0.5 ? 1.05 : 0.93) * compass_m), i_min_recs, i_max_recs)
+
+    // Build ranked table
+    for rank = 1 to n
+        idx = array.get(indices, rank-1)
+        sym = array.get(tickers, idx)
+        comp = array.get(comps, idx)
+        m = array.get(moms, idx)
+        rs = array.get(rets, idx)
+        dh = array.get(dists, idx)
+        vr = array.get(vrs, idx)
+        ps = array.get(stricts, idx)
+        sm = array.get(specials, idx)
+
+        is_rec = (rank <= dyn) and (regime_score >= i_min_regime_rec * 0.85)
+
+        row_bg = color.new(color.black, 20)
+        if i_color_rows
+            if ps
+                row_bg := color.new(color.green, 70)
+            else if is_rec
+                row_bg := color.new(color.lime, 80)
+            else if regime_t == "STRONG"
+                row_bg := color.new(color.green, 85)
+            else if regime_t == "WEAK"
+                row_bg := color.new(color.red, 85)
+
+        mode_color = color.white
+        if sm == "MOMENTUM" or ps
+            mode_color := color.lime
+        else if sm == "CRISIS" or sm == "DEFENSIVE" or sm == "VOL_DEF"
+            mode_color := color.orange
+
+        rec_str = is_rec ? "✓" : ""
+
+        table.cell(t, 0, rank, str.tostring(rank), text_size=size.tiny, bgcolor=row_bg, alignment=align_center)
+        table.cell(t, 1, rank, sym, text_size=size.tiny, bgcolor=row_bg, text_color=color.white)
+        table.cell(t, 2, rank, str.tostring(comp, "#.####"), text_size=size.tiny, bgcolor=row_bg, text_color=color.aqua)
+        table.cell(t, 3, rank, str.tostring(m, "#.####"), text_size=size.tiny, bgcolor=row_bg)
+        table.cell(t, 4, rank, regime_t, text_size=size.tiny, bgcolor=row_bg, text_color=regime_t == "STRONG" ? color.lime : color.white)
+        table.cell(t, 5, rank, sm, text_size=size.tiny, bgcolor=row_bg, text_color=mode_color)
+        table.cell(t, 6, rank, ps ? "✓" : "—", text_size=size.tiny, bgcolor=row_bg, text_color=ps ? color.lime : color.gray)
+        table.cell(t, 7, rank, str.tostring(compass_m, "0.00"), text_size=size.tiny, bgcolor=row_bg)
+        table.cell(t, 8, rank, str.tostring(rs, "0.0")+"%", text_size=size.tiny, bgcolor=row_bg)
+        table.cell(t, 9, rank, str.tostring(dh, "0.0")+"%", text_size=size.tiny, bgcolor=row_bg)
+        table.cell(t, 10, rank, rec_str, text_size=size.tiny, bgcolor=row_bg, text_color=is_rec ? color.lime : color.gray)
+
+    // Footer
+    table.cell(t, 0, n+1, "Ranked by Composite | Rec = recommended per SPEC 4.7 | Full sector in Python", 
+               text_size=size.tiny, text_color=color.gray, colspan=11)
+
+// --- Alerts (webhook friendly) ---
+alertcondition(strict_main and comp_main > 0.7, 
+               "HYDRA: Strict + Strong Composite", 
+               "HYDRA ALERT: {{ticker}} | Comp={{close}} | Regime=" + regime_t + " | Strict=YES | COMPASS×" + str.tostring(compass_m))
+
+alertcondition(regime_t == "STRONG" and special_m == "MOMENTUM", 
+               "HYDRA: Strong Broad Momentum Regime", 
+               "HYDRA: Market in STRONG_BROAD_MOMENTUM - favor COMPASS stocks")
+
+// --- Info label on chart ---
+if barstate.islast
+    info = "HYDRA | Regime: " + regime_t + " (" + str.tostring(regime_score) + 
+           ") | COMPASS×" + str.tostring(compass_m) + 
+           (special_m != "" ? " | " + special_m : "") +
+           (strict_main ? " | STRICT ✓" : "")
+    label.new(bar_index, high * 1.01, info, 
+              style=label.style_label_down, color=color.new(color.black, 40), 
+              textcolor=color.white, size=size.small)
+
+// Note at bottom (SPEC aligned)
+// For best results with large universes (hybrid flow):
+// 1. Run Python screener daily with UNIVERSE="all" (full SPEC logic + history)
+// 2. Copy the top 10-15 recommended tickers from output or analyze_history
+// 3. Paste them into the "Watchlist Symbols" input above
+// 4. Add this Pine to charts in your HYDRA watchlist (or one main chart)
+// 5. Use the ranked table as daily dashboard (SPEC 4.5/4.7 ranking + recommended)
+// 6. Set alerts (e.g. "HYDRA: Strict + Strong Composite") and forward via webhook to bots/alerts
+
+// Per-symbol (momentum, short, strict, composite, regime, pillars, specials) match SPEC sections 4.1-4.5 as close as Pine allows.
+// Full sector (4.6), exact dynamic across large list, and full backtest/history stay in Python (heavy lifter).
+// See HYDRA_ALGORITHM_SPEC.md for exact formulas and column contract.

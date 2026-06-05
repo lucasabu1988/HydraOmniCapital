@@ -1,5 +1,9 @@
 """
 Configuración ligera del Screener HYDRA Local
+
+Todos los parámetros aquí son los valores por defecto usados en
+HYDRA_ALGORITHM_SPEC.md (v1.2). Cualquier cambio aquí debe reflejarse en el spec
+y en las implementaciones (Python + Pine).
 """
 
 # ============================================

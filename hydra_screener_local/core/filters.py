@@ -1,7 +1,12 @@
 """
-Filtros prácticos para el Screener HYDRA Local.
+Practical Filters + Sector Concentration Control
 
-Mantener la estructura ligera.
+Implements:
+- apply_practical_filters (price + volume)
+- remove_zombie_tickers
+- apply_sector_concentration_control (SPEC 4.6)
+
+Sector control is the soft penalty + re-rank logic described in the SPEC.
 """
 import pandas as pd
 from typing import List, Dict
@@ -147,15 +152,14 @@ def apply_sector_concentration_control(
     penalty: float = None,
 ) -> pd.DataFrame:
     """
-    Control ligero de concentración sectorial/temática.
+    SPEC 4.6 - Sector Concentration Control (soft penalty + re-rank)
 
-    - Aplica una penalidad suave al composite_score de los nombres que exceden el límite por bucket.
-    - También puede usarse para hard-cap al momento de seleccionar recomendados.
-
-    Retorna el DF con columnas adicionales:
-      - sector
-      - sector_rank (ranking dentro de su bucket)
-      - sector_penalty_applied
+    Exact logic from the formal specification:
+    - Assign coarse buckets from SECTOR_BUCKETS
+    - Rank within bucket
+    - If > MAX_PER_SECTOR in a bucket → apply SECTOR_OVERWEIGHT_PENALTY (default 15%)
+    - Re-sort global list and re-assign ranks
+    - Adds: sector, sector_rank, sector_penalty_applied
     """
     if not ENABLE_SECTOR_CONTROL:
         return candidates_df

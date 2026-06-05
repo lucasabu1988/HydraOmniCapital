@@ -153,6 +153,20 @@ def main():
             print(f"[CycleLog] Top5 cycle logged to backtest/portfolio_cycles.xlsx for dynamic PnL tracking")
     except Exception as e:
         print(f"[yellow]⚠[/yellow] Cycle PnL log skipped: {e}")
+
+    # 9. Hybrid integration layer (task 1+2)
+    # - Auto-generate Pine watchlist string/file
+    # - Send rich summary (Discord webhook if DISCORD_WEBHOOK_URL is set in env)
+    try:
+        print("\n[Hybrid] Generating Pine watchlist from latest history...")
+        import generate_pine_watchlist
+        generate_pine_watchlist.run_feeder(top_n=15, output_path="pine/watchlist.txt", silent=True)
+        print("[Hybrid] Sending daily HYDRA summary (webhook if configured)...")
+        import send_hydra_summary
+        send_hydra_summary.run_sender(top_n=15, silent=True)
+        print("[Hybrid] Hybrid layer complete. Check pine/watchlist.txt and pine/hydra_last_summary.*")
+    except Exception as e:
+        print(f"[yellow]⚠[/yellow] Hybrid integration skipped: {e}")
     
     print_footer()
 

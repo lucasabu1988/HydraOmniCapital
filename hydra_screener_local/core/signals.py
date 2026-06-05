@@ -1,7 +1,20 @@
 """
-Lógica de señales para el Screener HYDRA Local.
-Incluye integración con Meta-Layer.
+HYDRA Scoring Logic - Core Signals Module
+
+This module implements the scoring and ranking logic defined in:
+HYDRA_ALGORITHM_SPEC.md (version 1.2 - Expanded & Formal)
+
+See especially:
+- Section 3: Full Pipeline (formal pseudocode)
+- Section 4.1: Momentum Score
+- Section 4.2: Short-Term Features + Strict Filter
+- Section 4.5: Composite Score Assembly
+- Section 4.7: Dynamic Recommendation Count + Final Flag
+- Section 7: Output Column Contract
+
+This is the reference Python implementation of the language-agnostic spec.
 """
+
 import pandas as pd
 import numpy as np
 from config import (
@@ -96,12 +109,27 @@ def compute_regime_score(spy: pd.Series) -> float:
 
 def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame = None) -> pd.DataFrame:
     """
-    Genera candidatos diarios aplicando momentum + Meta-Layer con régimen rico.
-    Si se pasa `volumes`, calcula también el surge de volumen y marca quién pasa el Strict Filter.
+    Main entry point for daily candidate generation.
+
+    Implements the full pipeline described in HYDRA_ALGORITHM_SPEC.md Section 3.
+
+    See SPEC sections:
+    - 4.1 Momentum Score
+    - 4.2 Short-Term Features + Strict Filter (and the +18% bonus)
+    - 4.3 Rich Regime (via compute_rich_regime_scores)
+    - 4.4 Meta-Layer (via LightweightMetaLayer + apply_meta_to_candidates)
+    - 4.5 Composite Score Assembly (short-term boost + strict bonus)
+    - 4.6 Sector Concentration Control (post-processing)
+    - 4.7 Dynamic Recommendation Count + Final Flag
+    - 7 Output Column Contract (the final_df columns below)
+
+    This function produces the rich output contract expected by history, display,
+    analyze_history, tracking, and the hybrid Pine Script layer.
     """
+    # SPEC 4.1 - Momentum Score (risk-adjusted)
     momentum = compute_momentum_score(prices)
     
-    # Régimen más rico (múltiples dimensiones)
+    # SPEC 4.3 - Rich Regime (5 sub-scores + weighted overall)
     rich_regime = compute_rich_regime_scores(spy, prices)
     regime_score = rich_regime.overall
     
@@ -113,7 +141,7 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     # Normalize name for apply_meta + final output contract
     df = df.rename(columns={'momentum_score': 'momentum'})
     
-    # === Integración de Meta-Layer (versión más potente) ===
+    # SPEC 4.4 - Meta-Layer (regime type, special modes, pillar_multipliers, aggression)
     meta_layer = LightweightMetaLayer()
     
     spy_current = float(spy.iloc[-1])
@@ -133,10 +161,8 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     
     df = apply_meta_to_candidates(df, meta_adj)
 
-    # ============================================================
-    # NUEVAS REGLAS - Short Term Momentum + Proximity Boost + Volume (Strict Filter)
-    # (basado en análisis post-mortem de recomendaciones 31-may)
-    # ============================================================
+    # SPEC 4.2 - Short-Term Features + Strict Filter (ret_short >15%, dist_to_high >= -2, vol surge)
+    # +18% bonus applied later if passes_strict (see SPEC 4.5)
     short_features = compute_short_term_features(prices, volumes=volumes)
     if not short_features.empty:
         df = df.merge(short_features, on="ticker", how="left")
@@ -149,13 +175,14 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     dynamic_vol_threshold = max(MIN_VOL_THRESHOLD, dynamic_vol_threshold)
 
     df["vol_ratio"] = df.get("vol_ratio", pd.NA)
+    # Use infer_objects to avoid FutureWarning on downcasting fillna
     df["passes_strict"] = (
-        (df["ret_short"].fillna(0) > 15) &
-        (df["dist_to_high"].fillna(-100) >= -2) &
-        (df["vol_ratio"].fillna(0) > dynamic_vol_threshold)
-    ).fillna(False)
+        (df["ret_short"].fillna(0).infer_objects(copy=False) > 15) &
+        (df["dist_to_high"].fillna(-100).infer_objects(copy=False) >= -2) &
+        (df["vol_ratio"].fillna(0).infer_objects(copy=False) > dynamic_vol_threshold)
+    ).fillna(False).infer_objects(copy=False)
 
-    # Boost por momentum reciente + cercanía a máximos
+    # SPEC 4.5 - Short-term boost + composite (momentum * meta * (1 + short_boost * SHORT_TERM_BOOST))
     # - ret_short alto → positivo
     # - dist_to_high cerca de 0 (o positivo) → positivo
     short_boost = (
@@ -172,7 +199,7 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     dynamic_vol_threshold = max(MIN_VOL_THRESHOLD, dynamic_vol_threshold)
     df["dynamic_vol_threshold"] = round(dynamic_vol_threshold, 2)
 
-    # Bonus para los que pasan el Strict Filter (volumen + momentum fuerte)
+    # SPEC 4.2 + 4.5 - Strict Filter bonus (+18% / 0.18 when passes_strict)
     strict_bonus = 0.18
     if "passes_strict" in df.columns:
         df.loc[df["passes_strict"], "composite_score"] = (
@@ -183,15 +210,14 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     df = df.sort_values("composite_score", ascending=False).reset_index(drop=True)
     df["rank"] = range(1, len(df) + 1)
 
-    # === Control de concentración sectorial (nuevo) ===
-    # Aplica penalidad suave y re-ordena si hay sobre-concentración por bucket
+    # SPEC 4.6 - Sector Concentration Control (soft penalty + re-rank)
     df = apply_sector_concentration_control(df)
 
-    # === Número dinámico de recomendaciones basado en Pillar Multipliers ===
+    # SPEC 4.7 - Dynamic Recommendation Count + recommended flag
+    # (base 14 * aggression * compass_mult, clamped 6-28)
     compass_mult = meta_adj.pillar_multipliers.get("COMPASS", 1.0)
     overall_aggression = meta_adj.overall_aggression
     
-    # Fórmula para cantidad recomendada (base 12-15, ajustado por Meta-Layer)
     base_recommendations = 14
     dynamic_count = int(round(base_recommendations * overall_aggression * compass_mult))
     
@@ -208,8 +234,8 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     # Guardamos el número dinámico para mostrarlo en el resumen
     df['recommended_count'] = dynamic_count
     
-    # Rich column contract (local stabilize + extensions) - includes short term, volume strict, sector, recovery etc.
-    # Downstream (screener, display, history, analyze, tracking) expect these.
+    # SPEC 7 - Output Column Contract (rich columns for downstream consumers)
+    # This matches exactly the "Output Contract (Rich Columns)" section in the SPEC.
     final_df = df[['rank', 'ticker', 'momentum', 'meta_score', 'composite_score',
                    'ret_short', 'dist_to_high', 'short_term_boost',
                    'vol_ratio', 'passes_strict',

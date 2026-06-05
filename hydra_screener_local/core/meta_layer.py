@@ -1,11 +1,14 @@
 """
-Meta-Layer Adapter - Versión Potente con Special Modes (Task 2.4)
+Meta-Layer + Pillar Multipliers
 
-Incluye los 4 modos especiales con comportamientos cualitativamente diferentes:
-- CRISIS_ACUTE
-- POST_CRISIS_RECOVERY
-- STRONG_BROAD_MOMENTUM
-- ELEVATED_VOL_DEFENSIVE
+Implements section 4.4 of HYDRA_ALGORITHM_SPEC.md (v1.2)
+
+See SPEC:
+- 4.4.1 Base Regime Biases (table with exact values)
+- 4.4.2 Special Modes (exact triggers and multiplier adjustments)
+- 4.4.3 Pillar Multipliers (COMPASS, Rattlesnake, Catalyst, EFA + clamping [0.60, 1.45])
+
+This is the reference implementation of the MetaAdjustment logic.
 """
 import numpy as np
 from dataclasses import dataclass
@@ -49,7 +52,7 @@ class LightweightMetaLayer:
         special_modes = []
         recovery_boost = 1.0
 
-        # === Régimen Base ===
+        # === Régimen Base === (exact values from SPEC 4.4.1 table)
         if regime_score >= self.strong_regime_threshold:
             regime_type = "STRONG"
             base_aggression = 1.10
@@ -75,7 +78,7 @@ class LightweightMetaLayer:
             bias_rattlesnake = 1.20
             bias_catalyst = 0.95
 
-        # === Special Modes ===
+        # === Special Modes === (exact triggers and effects from SPEC 4.4.2)
         # 1. CRISIS_ACUTE
         if recent_drawdown >= 0.12 or (regime_score < 0.25 and volatility_level > 0.70):
             base_aggression *= 0.82
@@ -113,7 +116,8 @@ class LightweightMetaLayer:
         overall_aggression = base_aggression
         rationale = " | ".join(rationale_parts) if rationale_parts else "Neutral"
 
-        # === Pillar Multipliers (la parte más potente) ===
+        # === Pillar Multipliers (la parte más potente) === (SPEC 4.4.3)
+        # Exact base values per regime + special mode adjustments + clamp [0.60, 1.45]
         multipliers = {
             "COMPASS": 1.0,
             "Rattlesnake": 1.0,
@@ -121,7 +125,7 @@ class LightweightMetaLayer:
             "EFA": 1.0
         }
 
-        # Base multipliers por régimen
+        # Base multipliers por régimen (exact from SPEC table 4.4.1)
         if regime_type == "STRONG":
             multipliers["COMPASS"] = 1.15
             multipliers["Rattlesnake"] = 0.85
@@ -143,7 +147,7 @@ class LightweightMetaLayer:
             multipliers["Catalyst"] = 0.85
             multipliers["EFA"] = 0.90
 
-        # Ajustes por Special Modes
+        # Ajustes por Special Modes (exact from SPEC 4.4.2)
         for mode in special_modes:
             if mode == "STRONG_BROAD_MOMENTUM":
                 multipliers["COMPASS"] *= 1.18
@@ -161,7 +165,7 @@ class LightweightMetaLayer:
                 multipliers["Catalyst"] *= 0.75
                 multipliers["EFA"] *= 0.80
 
-        # Clamp final (mantener conservador)
+        # Clamp final (mantener conservador) - SPEC 4.4.3
         for k in multipliers:
             multipliers[k] = round(max(0.60, min(1.45, multipliers[k])), 3)
 
@@ -183,9 +187,15 @@ class LightweightMetaLayer:
 def apply_meta_to_candidates(candidates_df, meta):
     """
     Aplica los ajustes de la Meta-Layer usando activamente los Pillar Multipliers.
+
+    See SPEC 4.5 "Composite Score Assembly" and 4.4.
+    This is where the pillar_factor is applied on top of momentum * aggression.
     """
     df = candidates_df.copy()
-    base = df['momentum_score'] * meta.overall_aggression
+    # Use 'momentum' (after rename in signals.py for SPEC column contract)
+    # Fall back to 'momentum_score' for backward compatibility in direct calls
+    mom_col = 'momentum' if 'momentum' in df.columns else 'momentum_score'
+    base = df[mom_col] * meta.overall_aggression
 
     # === USO ACTIVO DE PILLAR MULTIPLIERS ===
     # Este screener es momentum-driven → el multiplicador de COMPASS es el más relevante.

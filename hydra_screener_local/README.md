@@ -116,6 +116,18 @@ La señal del screener está diseñada para rotaciones de **5 días de trading**
 
 El control sectorial (max 8 por bucket) ya protege contra concentración excesiva.
 
+## Hybrid Python + TradingView Flow (nuevo)
+
+Ver `HYBRID_USAGE.md` para el flujo completo.
+
+Resumen rápido:
+- Python hace el scan pesado diario + genera `pine/watchlist.txt` automáticamente (al final de screener.py / run_real_full_sp500.py).
+- Pega esa lista en el Pine `HYDRA_Screener.pine` (input "Watchlist Symbols").
+- El Pine muestra una tabla bonita con scoring por símbolo + alerts.
+- `send_hydra_summary.py` (llamado automáticamente) genera resumen rico + puede enviar a Discord si configuras `DISCORD_WEBHOOK_URL`.
+
+Esto combina lo mejor de ambos mundos: poder de cálculo en Python + visualización/alertas en TradingView.
+
 ## Backtest Histórico del Uso Recomendado (2000-presente)
 
 El proyecto tiene backtests extensos y validados del estilo **exacto** "5 posiciones hold 5 días de trading" usando la misma lógica base del screener actual (momentum 90d risk-adjusted / 63d vol, regime SMA200, etc.).
