@@ -1,0 +1,5 @@
+Legacy archival run: 2026-06-05 20:22:57
+Moved files: 94
+Deleted (nul): 0
+
+See archive/legacy/README.md for full context.
