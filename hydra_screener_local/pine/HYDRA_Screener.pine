@@ -51,7 +51,7 @@ i_max_watchlist      = input.int(15, "Max symbols in table (performance)", minva
 i_show_table         = input.bool(true, "Show Watchlist Dashboard Table", group="Watchlist Dashboard")
 i_color_rows         = input.bool(true, "Color rows by Regime / Strict", group="Watchlist Dashboard")
 
-i_summary_json       = input.string("", "Optional: paste FULL content of pine/hydra_last_summary.json (for richer global header + pillars)", group="Watchlist Dashboard")
+i_summary_json       = input.string("", "Optional: paste FULL content of pine/hydra_last_summary.json (rich header + pillars + exact Rec? from recommended_tickers)", group="Watchlist Dashboard")
 
 i_show_pillars       = input.bool(true, "Show Pillar Multipliers on Chart", group="Visuals")
 i_show_special       = input.bool(true, "Show Special Mode Labels", group="Visuals")
@@ -61,17 +61,19 @@ var float STRICT_BONUS = 0.18
 var float SHORT_BOOST  = 0.35
 var float MIN_VOL_TH   = 1.0
 
-// --- Parse optional summary JSON for global info (rationale, pillars, regime) and top_details ---
+// --- Parse optional summary JSON for global info (rationale, pillars, regime, top_details, recommended) ---
 // Robust crude parser (no native JSON in Pine v5). String find/substring/split/replace.
 // Designed for the exact output of send_hydra_summary.py + build_rich_summary (see SPEC + HYBRID_USAGE).
 // - Rationale extracted BEFORE space-strip so internal spaces/punctuation preserved.
 // - Regime scoped to its object.
 // - top_details parsed into parallel arrays (ticker -> composite/momentum/passes_strict/special_modes).
+// - recommended_count + recommended_tickers array parsed for *exact* Rec? flags in the table (when JSON pasted).
 // - Field extraction tolerant to last-property (uses closing quote for strings, , or } for nums/bools).
 var string summary_rationale = ""
 var string summary_pillars_str = ""
 var string summary_regime = ""
 var float summary_regime_score = 0.0
+var int summary_recommended_count = 0
 
 // For per-ticker enrichment from top_details (Python exact values win over local approx)
 var string[] detail_tickers = array.new_string()
@@ -79,6 +81,11 @@ var float[] detail_composites = array.new_float()
 var float[] detail_momentums = array.new_float()
 var bool[] detail_stricts = array.new_bool()
 var string[] detail_specials = array.new_string()
+var float[] detail_ranks = array.new_float()  // Python rank from top_details for exact ordering in table
+
+// Authoritative recommended list from Python (for exact "Rec?" in dashboard table)
+var string[] recommended_tickers_py = array.new_string()
+var bool has_recommended_from_py = false
 
 if i_summary_json != ""
     src = str.replace_all(i_summary_json, "\n", "")
@@ -184,6 +191,49 @@ if i_summary_json != ""
                         array.push(detail_specials, "")
                 else
                     array.push(detail_specials, "")
+
+                // rank (Python's authoritative rank in the recommended list - for exact table ordering + display)
+                rnkp = str.pos(o, '"rank":')
+                if rnkp >= 0
+                    rnks = rnkp + 7
+                    rnke1 = str.pos(o, ',', rnks)
+                    rnke2 = str.pos(o, '}', rnks)
+                    rnke = rnke1 > 0 ? (rnke2 > 0 ? math.min(rnke1, rnke2) : rnke1) : rnke2
+                    if rnke > rnks
+                        array.push(detail_ranks, math.round(tonumber(str.substring(o, rnks, rnke))))
+                    else
+                        array.push(detail_ranks, na)
+                else
+                    array.push(detail_ranks, na)
+
+    // recommended_count (top-level int from Python's final dynamic selection)
+    rc_pos = str.pos(cleaned, '"recommended_count":')
+    if rc_pos >= 0
+        rc_start = rc_pos + 20
+        rc_end = str.pos(cleaned, ',', rc_start)
+        if rc_end <= rc_start
+            rc_end = str.pos(cleaned, '}', rc_start)
+        if rc_end > rc_start
+            rc_val = str.substring(cleaned, rc_start, rc_end)
+            summary_recommended_count := math.round(tonumber(rc_val))
+
+    // recommended_tickers array (the authoritative list of tickers Python marked recommended)
+    // This lets the table show exact "Rec?" ✓ instead of local dyn approximation when full JSON is pasted.
+    rt_key = '"recommended_tickers":['
+    rt_pos = str.pos(cleaned, rt_key)
+    if rt_pos >= 0
+        rt_start = rt_pos + str.length(rt_key)
+        rt_end = str.pos(cleaned, ']', rt_start)
+        if rt_end > rt_start
+            rt_str = str.substring(cleaned, rt_start, rt_end)
+            rt_parts = str.split(rt_str, ',')
+            for jj = 0 to array.size(rt_parts) - 1
+                tkr = array.get(rt_parts, jj)
+                tkr := str.replace(tkr, '"', '')
+                tkr := str.trim(tkr)
+                if tkr != ""
+                    array.push(recommended_tickers_py, tkr)
+            has_recommended_from_py := array.size(recommended_tickers_py) > 0
 
 // --- Regime Type Enum (for colors/logic) ---
 f_regime_type(_score) =>
@@ -338,9 +388,9 @@ if strict_main
     comp_main *= (1 + STRICT_BONUS)
 comp_main *= compass_m
 
-// Dynamic count for this symbol (SPEC 4.7)
+// Dynamic count for this symbol (SPEC 4.7) - main chart is still local approx (table uses exact from JSON when provided)
 dyn_count = math.clamp(math.round(i_base_recs * (regime_score > 0.5 ? 1.05 : 0.93) * compass_m), i_min_recs, i_max_recs)
-is_rec_main = (comp_main > 0) and (regime_score >= i_min_regime_rec * 0.85)   // approx; full ranking in table/watchlist from Python
+is_rec_main = (comp_main > 0) and (regime_score >= i_min_regime_rec * 0.85)   // local approx for the chart this script is applied to; dashboard table uses Python recommended_tickers when i_summary_json provided
 
 // --- Visuals on main chart ---
 plot(comp_main, "Composite", color=color.new(color.aqua, 0), linewidth=2)
@@ -395,6 +445,7 @@ if barstate.islast and i_show_table
     vrs = array.new_float()
     stricts = array.new_bool()
     specials = array.new_string()
+    py_ranks = array.new_float()  // Python rank when available from JSON (for exact ordering/display)
 
     for i = 0 to n-1
         sym = array.get(valid_syms, i)
@@ -422,6 +473,7 @@ if barstate.islast and i_show_table
                 ps := array.get(detail_stricts, j)
                 py_sm = array.get(detail_specials, j)
                 use_sm = py_sm != "" ? py_sm : special_m
+                py_rnk = array.get(detail_ranks, j)
                 array.push(tickers, sym)
                 array.push(comps, comp)
                 array.push(moms, m)
@@ -430,6 +482,7 @@ if barstate.islast and i_show_table
                 array.push(vrs, vr)
                 array.push(stricts, ps)
                 array.push(specials, use_sm)
+                array.push(py_ranks, py_rnk)
                 enriched := true
                 break
         if not enriched
@@ -442,24 +495,43 @@ if barstate.islast and i_show_table
             array.push(vrs, vr)
             array.push(stricts, ps)
             array.push(specials, special_m)  // market level for now
+            array.push(py_ranks, na)
 
-    // Sort by composite descending (SPEC ranking)
-    // Pine arrays: create indices, sort by comp
+    // Sort logic: when full Python JSON with recommended data is provided, sort by Python's rank (exact order).
+    // Otherwise fall back to sorting by (enriched) composite.
     indices = array.new_int()
     for i = 0 to n-1
         array.push(indices, i)
 
-    // Simple bubble sort for small n (Pine has no built-in sort with comparator easily)
-    for i = 0 to n-2
-        for j = 0 to n-i-2
-            idx1 = array.get(indices, j)
-            idx2 = array.get(indices, j+1)
-            if array.get(comps, idx1) < array.get(comps, idx2)
-                // swap
-                array.set(indices, j, idx2)
-                array.set(indices, j+1, idx1)
+    if has_recommended_from_py and array.size(recommended_tickers_py) > 0
+        // Prefer Python rank order for the symbols we have data for
+        for i = 0 to n-2
+            for j = 0 to n-i-2
+                idx1 = array.get(indices, j)
+                idx2 = array.get(indices, j+1)
+                r1 = array.get(py_ranks, idx1)
+                r2 = array.get(py_ranks, idx2)
+                // lower rank number = better (1 is top). na ranks go to the end.
+                if (not na(r1) and not na(r2) and r1 > r2) or (na(r1) and not na(r2))
+                    array.set(indices, j, idx2)
+                    array.set(indices, j+1, idx1)
+                else if na(r1) and na(r2)
+                    // both local, fall back to comp
+                    if array.get(comps, idx1) < array.get(comps, idx2)
+                        array.set(indices, j, idx2)
+                        array.set(indices, j+1, idx1)
+    else
+        // Simple bubble sort for small n (Pine has no built-in sort with comparator easily)
+        for i = 0 to n-2
+            for j = 0 to n-i-2
+                idx1 = array.get(indices, j)
+                idx2 = array.get(indices, j+1)
+                if array.get(comps, idx1) < array.get(comps, idx2)
+                    // swap
+                    array.set(indices, j, idx2)
+                    array.set(indices, j+1, idx1)
 
-    // Dynamic count (approx, using average or first; full in Python)
+    // Dynamic count (used only as fallback for is_rec when no recommended_tickers from Python JSON)
     dyn = math.clamp(math.round(i_base_recs * (regime_score > 0.5 ? 1.05 : 0.93) * compass_m), i_min_recs, i_max_recs)
 
     // Build ranked table
@@ -473,8 +545,18 @@ if barstate.islast and i_show_table
         vr = array.get(vrs, idx)
         ps = array.get(stricts, idx)
         sm = array.get(specials, idx)
+        py_rnk = array.get(py_ranks, idx)
 
-        is_rec = (rank <= dyn) and (regime_score >= i_min_regime_rec * 0.85)
+        // is_rec: use exact Python recommended list when full JSON was provided (authoritative)
+        // Falls back to local dyn approximation only if no recommended_tickers in the JSON.
+        is_rec = false
+        if has_recommended_from_py and array.size(recommended_tickers_py) > 0
+            for k = 0 to array.size(recommended_tickers_py) - 1
+                if array.get(recommended_tickers_py, k) == sym
+                    is_rec := true
+                    break
+        else
+            is_rec := (rank <= dyn) and (regime_score >= i_min_regime_rec * 0.85)
 
         row_bg = color.new(color.black, 20)
         if i_color_rows
@@ -495,7 +577,10 @@ if barstate.islast and i_show_table
 
         rec_str = is_rec ? "✓" : ""
 
-        table.cell(t, 0, rank, str.tostring(rank), text_size=size.tiny, bgcolor=row_bg, alignment=align_center)
+        // Display Python rank if we have it from JSON (makes the table follow Python's exact ordering and numbering)
+        display_rank = not na(py_rnk) ? py_rnk : rank
+        rank_str = not na(py_rnk) ? str.tostring(py_rnk) : str.tostring(rank)
+        table.cell(t, 0, rank, rank_str, text_size=size.tiny, bgcolor=row_bg, alignment=align_center)
         table.cell(t, 1, rank, sym, text_size=size.tiny, bgcolor=row_bg, text_color=color.white)
         table.cell(t, 2, rank, str.tostring(comp, "#.####"), text_size=size.tiny, bgcolor=row_bg, text_color=color.aqua)
         table.cell(t, 3, rank, str.tostring(m, "#.####"), text_size=size.tiny, bgcolor=row_bg)
@@ -508,7 +593,7 @@ if barstate.islast and i_show_table
         table.cell(t, 10, rank, rec_str, text_size=size.tiny, bgcolor=row_bg, text_color=is_rec ? color.lime : color.gray)
 
     // Footer
-    table.cell(t, 0, n+1, "Ranked by Composite (Python top_details preferred when i_summary_json provided) | Rec≈SPEC 4.7 | Sector/full in Python", 
+    table.cell(t, 0, n+1, "Rank (PyRank when JSON) + exact Rec? from Python | Composite/Mom/Strict/Special from top_details when provided | Full SPEC in Python", 
                text_size=size.tiny, text_color=color.gray, colspan=11)
 
 // --- Alerts (webhook friendly) ---
@@ -530,10 +615,11 @@ if barstate.islast
               style=label.style_label_down, color=color.new(color.black, 40), 
               textcolor=color.white, size=size.small)
 
-    // If summary JSON provided, show richer global header (rationale + pillars from Python side)
+    // If summary JSON provided, show richer global header (rationale + pillars + recommended count from Python side)
     if i_summary_json != "" and (summary_rationale != "" or summary_pillars_str != "")
         header = "GLOBAL FROM PYTHON: " + (summary_regime != "" ? "Regime " + summary_regime + " (" + str.tostring(summary_regime_score) + ") | " : "")
         header += (summary_pillars_str != "" ? "Pillars: " + summary_pillars_str + " | " : "")
+        header += (summary_recommended_count > 0 ? "Recs: " + str.tostring(summary_recommended_count) + " | " : "")
         header += (summary_rationale != "" ? summary_rationale : "")
         label.new(bar_index, high * 1.03, header, 
                   style=label.style_label_down, color=color.new(color.orange, 50), 
@@ -544,10 +630,11 @@ if barstate.islast
 // 1. Run Python screener daily with UNIVERSE="all" (full SPEC logic + history)
 // 2. The Python auto-generates pine/watchlist.txt + pine/hydra_last_summary.json (via integration in screener.py / run_real...)
 // 3. Paste the watchlist string into "Watchlist Symbols".
-// 4. (Recommended) Paste the FULL content of hydra_last_summary.json into "i_summary_json" input → richer global header (rationale/pillars/regime) + per-row enrichment in the table:
-//      - Composite, Momentum, Strict (✓), Special mode come from Python's exact top_details (full SPEC 4.1-4.7 incl. sector control).
-//      - Local Pine calc is used only as fallback for symbols not in the top_details or when no JSON pasted.
-// 5. Use the ranked table as daily HYDRA dashboard (Python order when enriched; approx rec flag).
+// 4. (Recommended) Paste the FULL content of hydra_last_summary.json into "i_summary_json" input → richer global header + per-row enrichment:
+//      - Rank column shows Python rank, table is sorted by Python rank when recommended data present.
+//      - Composite, Momentum, Strict, Special, and exact "Rec?" come from Python's top_details + recommended_tickers (full SPEC).
+//      - Local Pine calculations are fallback only.
+// 5. Use the ranked table as daily HYDRA dashboard (Python ordering + values when JSON provided).
 // 6. Set alerts (e.g. "HYDRA: Strict + Strong Composite") and forward via TV webhooks or the Python sender (Discord/Telegram/generic).
 
 // Per-symbol calculations match SPEC 4.1-4.5 closely. Full sector (4.6) and exact dynamic count for 2500+ stay in Python (heavy lifter).

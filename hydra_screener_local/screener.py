@@ -11,6 +11,13 @@ from datetime import datetime
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(_SCRIPT_DIR, "output")
 
+# Load .env early (centralized loader) so any webhook or future env config is available
+try:
+    from utils.env import load_hydra_env
+    load_hydra_env()
+except Exception as _e:
+    print(f"[WARN] .env loader skipped: {_e}")
+
 from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS, UNIVERSE
 from data.universe import get_universe
 from data.fetch import fetch_prices_and_volume, fetch_spy
@@ -157,18 +164,60 @@ def main():
     # 9. Hybrid integration layer (task 1+2)
     # - Auto-generate Pine watchlist string/file
     # - Send rich summary (Discord webhook if DISCORD_WEBHOOK_URL is set in env)
-    try:
-        print("\n[Hybrid] Generating Pine watchlist from latest history...")
-        import generate_pine_watchlist
-        generate_pine_watchlist.run_feeder(top_n=15, output_path="pine/watchlist.txt", silent=True)
-        print("[Hybrid] Sending daily HYDRA summary (webhook if configured)...")
-        import send_hydra_summary
-        send_hydra_summary.run_sender(top_n=15, silent=True)
-        print("[Hybrid] Hybrid layer complete. Check pine/watchlist.txt and pine/hydra_last_summary.*")
+    if os.environ.get("HYDRA_SKIP_HYBRID", "").lower() in ("1", "true", "yes"):
+        print("\n[Hybrid] Skipped (HYDRA_SKIP_HYBRID=1) - dry-run mode for testing")
+    else:
+        try:
+            print("\n[Hybrid] Generating Pine watchlist from latest history...")
+            import generate_pine_watchlist
+            generate_pine_watchlist.run_feeder(top_n=15, output_path="pine/watchlist.txt", silent=True)
+            print("[Hybrid] Sending daily HYDRA summary (webhook if configured)...")
+            import send_hydra_summary
+            send_hydra_summary.run_sender(top_n=15, silent=True)
+            print("[Hybrid] Hybrid layer complete.")
+            print("  → pine/watchlist.txt          (paste into Pine 'Watchlist Symbols' input)")
+            print("  → pine/hydra_last_summary.json (paste FULL contents into Pine 'i_summary_json' for exact Rec? + values)")
+            print("  → pine/hydra_last_summary.txt  (human readable summary)")
+            print("  In TradingView: the dashboard table will now use Python's exact recommended_tickers for the 'Rec?' column.")
+
+        # Close the loop: also log the *exact* recommended list that was sent to Pine (the one user pastes)
+        # This allows PnL tracking specifically for the lists that appeared in the TV dashboard.
+        try:
+            rec_col = 'recommended' if 'recommended' in candidates.columns else None
+            if rec_col:
+                hybrid_recs = candidates[candidates[rec_col] == True]['ticker'].tolist()
+            else:
+                hybrid_recs = candidates.head(15)['ticker'].tolist()
+            if hybrid_recs:
+                entry_prices = {}
+                for t in hybrid_recs:
+                    if t in prices.columns and len(prices[t].dropna()) > 0:
+                        entry_prices[t] = float(prices[t].dropna().iloc[-1])
+                import log_cycle_positions
+                log_cycle_positions.log_cycle(
+                    datetime.now(), hybrid_recs, candidates,
+                    notes=f"HYBRID exact recommended list sent to Pine/TV (UNIVERSE={effective_universe})",
+                    entry_prices=entry_prices
+                )
+                print(f"[CycleLog] Exact hybrid recommended list ({len(hybrid_recs)}) logged for Pine-matched PnL tracking")
+        except Exception as e:
+            print(f"[yellow]⚠[/yellow] Hybrid recommended cycle log skipped: {e}")
     except Exception as e:
         print(f"[yellow]⚠[/yellow] Hybrid integration skipped: {e}")
     
     print_footer()
+
+    # Observable final summary for the daily run (what was sent to Pine, what was logged)
+    try:
+        rec_count = int(candidates['recommended'].sum()) if 'recommended' in candidates.columns else 0
+        print("\n=== DAILY RUN SUMMARY (observable) ===")
+        print(f"  Recommended for Pine/TV : {rec_count}")
+        print(f"  Cycle logs written      : Top5 + exact hybrid recommended list")
+        print(f"  History saved           : history/{today}.json")
+        print(f"  Artifacts for TV        : pine/watchlist.txt + pine/hydra_last_summary.json (use both for exact Rec?)")
+        print("  Use HYDRA_SKIP_HYBRID=1 to dry-run the hybrid layer (no files written for TV).")
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

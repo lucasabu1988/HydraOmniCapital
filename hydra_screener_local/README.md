@@ -125,9 +125,13 @@ Resumen rápido:
 - Pega esa lista en el Pine `HYDRA_Screener.pine` (input "Watchlist Symbols").
 - El Pine muestra una tabla bonita con scoring por símbolo + alerts.
 - `send_hydra_summary.py` (llamado automáticamente) genera resumen rico + puede enviar a Discord/Telegram/generic si configuras vars o usas `.env` (copia `.env.example`).
-- El parser mejorado en Pine ahora consume `top_details` del JSON para que la tabla use los valores exactos de Python (composite, strict, special) cuando pegas el json completo.
+- El parser en Pine consume `top_details` + `recommended_tickers` del JSON. La tabla usa valores exactos de Python (composite, momentum, strict, special) **y las flags "Rec?" exactas** de la lista recomendada por Python cuando pegas el json completo.
 
 Esto combina lo mejor de ambos mundos: poder de cálculo en Python + visualización/alertas en TradingView.
+
+**Scripts experimentales / one-off**: ver `experiments/README.md`. Los comandos diarios recomendados son los indicados arriba (screener + analyze + track).
+
+**Tests (one command)**: `python run_all_tests.py` (runs spec compliance, feeder golden, hybrid integration, screener logic). Key contract tests must stay green after any change to core or hybrid layer.
 
 ## Backtest Histórico del Uso Recomendado (2000-presente)
 

@@ -22,6 +22,13 @@ HISTORY_DIR = os.path.join(_SCRIPT_DIR, "history")
 os.chdir(_SCRIPT_DIR)
 sys.path.insert(0, '.')
 
+# Load .env early via centralized loader (webhooks, future config, etc.)
+try:
+    from utils.env import load_hydra_env
+    load_hydra_env()
+except Exception as _e:
+    print(f"[WARN] .env loader skipped: {_e}")
+
 import config
 config.USE_FULL_SP500 = True
 config.UNIVERSE = "all"               # <--- COMBINED AMPLIADO: SP500 + Nasdaq100 + Dow30 + Russell1000 (más acciones mid/large)
@@ -220,6 +227,9 @@ try:
     print("[Hybrid] Sending daily summary...")
     import send_hydra_summary
     send_hydra_summary.run_sender(top_n=15, silent=True)
-    print("[Hybrid] Done. See pine/watchlist.txt and pine/hydra_last_summary.*")
+    print("[Hybrid] Done.")
+    print("  → pine/watchlist.txt           (paste into Pine 'Watchlist Symbols')")
+    print("  → pine/hydra_last_summary.json (paste the FULL file into Pine i_summary_json input)")
+    print("     This gives you exact 'Rec?' flags from Python + enriched composite/strict/special per row.")
 except Exception as e:
     print(f"[warn] hybrid layer skipped: {e}")

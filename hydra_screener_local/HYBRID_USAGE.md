@@ -32,7 +32,7 @@ This document describes the complete hybrid architecture:
    - Paste the content of `pine/watchlist.txt` into the **"Watchlist Symbols (comma separated - paste from Python)"** input.
    - (Recommended for fidelity) Also paste the *full contents* of `pine/hydra_last_summary.json` into the **"Optional: paste FULL content of ... hydra_last_summary.json"** input.
    - Apply the script to any chart (ideally one from your watchlist, or as a separate "dashboard" chart).
-   - The table will show the ranked list (Python composites/strict/specials used for matching tickers in top_details; local calc fallback). Global labels show Python regime/pillars/rationale.
+   - The table will show the ranked list with **exact Rec? flags** from Python's `recommended_tickers` list (plus composites/strict/specials from top_details). Local calc is only fallback. Global labels include Python regime/pillars/rationale + recommended count.
    - Set alerts on the script (e.g. "HYDRA: Strict + Strong Composite") and forward them via TradingView webhooks if desired.
 
 4. Optional: use the summary for alerts
@@ -57,7 +57,7 @@ python screener.py
 ### Using .env for persistent config (recommended)
 1. Copy: `cp .env.example .env`
 2. Edit `.env`, fill the hook(s) you want (supports the names or HYDRA_ prefixed).
-3. Just run normally — loader runs on sender import (python-dotenv if present, else tiny pure-python parser). No need to export vars each time.
+3. Just run normally — the loader (in `utils/env.py`) is called early by `screener.py`, `run_real_*.py`, `analyze_history.py`, `track_performance.py`, and `send_hydra_summary.py`. Supports python-dotenv if installed, otherwise a tiny pure-Python parser. No need to `export` vars each time.
 4. `.env` ignored by git.
 
 The sender always saves local artifacts (`pine/hydra_last_summary.json` etc.) even if no webhooks configured.

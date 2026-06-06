@@ -7,6 +7,13 @@ Uso:
 """
 import argparse
 
+# Load .env early via centralized loader (for consistency across all tools)
+try:
+    from utils.env import load_hydra_env
+    load_hydra_env()
+except Exception as _e:
+    print(f"[WARN] .env loader skipped: {_e}")
+
 from core.tracking import update_tracking, aggregate_winrate, print_winrate_report, get_detailed_trades, print_detailed_report
 
 

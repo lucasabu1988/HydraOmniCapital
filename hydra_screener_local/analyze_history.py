@@ -23,6 +23,13 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 
+# Load .env early (centralized) – useful if future features or webhooks are added here
+try:
+    from utils.env import load_hydra_env
+    load_hydra_env()
+except Exception as _e:
+    print(f"[WARN] .env loader skipped: {_e}")
+
 from core.history import get_recent_runs, list_available_dates
 from config import GEOPOLITICAL_RISK_LEVEL, GEO_VOL_THRESHOLD_ADJUST, VOL_SURGE_THRESHOLD, MIN_VOL_THRESHOLD
 from core.tracking import aggregate_winrate, print_winrate_report, get_detailed_trades, print_detailed_report
