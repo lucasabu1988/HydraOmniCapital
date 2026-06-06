@@ -4,6 +4,7 @@ Script CLI para tracking de rendimiento forward del Screener HYDRA Local.
 Uso:
     python track_performance.py          # Actualiza tracking y muestra reporte
     python track_performance.py --force  # Fuerza recalculo de todo
+    python track_performance.py --hybrid-only  # Focus on lists sent to Pine/TV
 """
 import argparse
 
@@ -20,7 +21,13 @@ from core.tracking import update_tracking, aggregate_winrate, print_winrate_repo
 def main():
     parser = argparse.ArgumentParser(description="HYDRA Screener - Performance Tracking")
     parser.add_argument("--force", action="store_true", help="Fuerza recalculo de tracking existente")
+    parser.add_argument("--hybrid-only", action="store_true",
+                        help="Focus on Hybrid Recommended lists sent to Pine/TV (when data is tagged)")
     args = parser.parse_args()
+
+    if args.hybrid_only:
+        print("*** HYBRID RECOMMENDED ONLY MODE ***")
+        print("   Reporting focused on the exact lists that went to the TradingView dashboard.\n")
 
     print("=== HYDRA Screener - Forward Return Tracking ===\n")
 

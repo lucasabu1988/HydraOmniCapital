@@ -69,13 +69,17 @@ def compute_rich_regime_scores(
     velocity = max(0.0, current_dd - dd_20d_ago) / 20.0   # velocidad promedio por día
     velocity_score = 1.0 - np.clip(velocity * 40, 0, 1)    # alta velocidad = peor
 
-    # 5. Breadth Proxy (10% weight, optional)
+    # 5. Breadth Proxy (10% weight, optional) - improved with positive movers + SMA participation
     breadth_score = 0.5
     if prices is not None and len(prices.columns) > 30:
         try:
+            ret_1d = prices.pct_change().iloc[-1]
+            pct_positive = (ret_1d > 0).mean()
             above_sma50 = (prices.iloc[-1] > prices.rolling(50).mean().iloc[-1]).mean()
             above_sma200 = (prices.iloc[-1] > prices.rolling(200).mean().iloc[-1]).mean()
-            breadth_score = (above_sma50 * 0.4 + above_sma200 * 0.6)
+            # Blend: participation + momentum breadth
+            breadth_score = 0.3 * pct_positive + 0.3 * above_sma50 + 0.4 * above_sma200
+            breadth_score = max(0.0, min(1.0, breadth_score))
         except:
             breadth_score = 0.5
 

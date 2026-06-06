@@ -3,7 +3,7 @@
 Script to log ALL cycle positions from the HYDRA screener rotation into ONE Excel file.
 DYNAMIC PnL TRACKER: each position records entry_price (at signal), current_price (live-updatable),
 and PnL is calculated via Excel formulas (=current/entry-1) so the sheet stays dynamic:
-- Update current prices (manually in Excel or via refresh_current_prices())
+- Update current prices → run `python refresh_current_prices.py` (or with --lookback N)
 - PnL % and $ auto-recalculate for the 5 actions of each cycle.
 
 Usage:

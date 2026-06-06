@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hydra-screener-local"
+version = "0.2.0"
+description = "HYDRA momentum + regime equity screener (local, hybrid Python + TradingView)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pandas",
+    "numpy",
+    "yfinance",
+    "openpyxl",
+    "requests",
+]
+authors = [
+  { name="HYDRA Team" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+hydra-daily = "daily:main"
+hydra-refresh = "refresh_current_prices:main"
+hydra-watch = "live_watcher:main"
+hydra-dashboard = "generate_html_dashboard:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "data*", "utils*"]

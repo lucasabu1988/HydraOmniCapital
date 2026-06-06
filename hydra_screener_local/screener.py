@@ -200,6 +200,7 @@ def main():
                     entry_prices=entry_prices
                 )
                 print(f"[CycleLog] Exact hybrid recommended list ({len(hybrid_recs)}) logged for Pine-matched PnL tracking")
+                print("           Run: python refresh_current_prices.py --lookback 5   (to update live current prices & PnL)")
         except Exception as e:
             print(f"[yellow]⚠[/yellow] Hybrid recommended cycle log skipped: {e}")
     except Exception as e:

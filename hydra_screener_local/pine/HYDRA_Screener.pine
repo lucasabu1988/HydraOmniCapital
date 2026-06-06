@@ -52,6 +52,7 @@ i_show_table         = input.bool(true, "Show Watchlist Dashboard Table", group=
 i_color_rows         = input.bool(true, "Color rows by Regime / Strict", group="Watchlist Dashboard")
 
 i_summary_json       = input.string("", "Optional: paste FULL content of pine/hydra_last_summary.json (rich header + pillars + exact Rec? from recommended_tickers)", group="Watchlist Dashboard")
+i_only_recommended   = input.bool(false, "Filter table to Python recommended only (when JSON provided)", group="Watchlist Dashboard")
 
 i_show_pillars       = input.bool(true, "Show Pillar Multipliers on Chart", group="Visuals")
 i_show_special       = input.bool(true, "Show Special Mode Labels", group="Visuals")
@@ -86,6 +87,7 @@ var float[] detail_ranks = array.new_float()  // Python rank from top_details fo
 // Authoritative recommended list from Python (for exact "Rec?" in dashboard table)
 var string[] recommended_tickers_py = array.new_string()
 var bool has_recommended_from_py = false
+var bool use_json_global = false  // when true and regime in JSON, bypass local global regime calc (B1 JSON-slave mode)
 
 if i_summary_json != ""
     src = str.replace_all(i_summary_json, "\n", "")
@@ -235,6 +237,8 @@ if i_summary_json != ""
                     array.push(recommended_tickers_py, tkr)
             has_recommended_from_py := array.size(recommended_tickers_py) > 0
 
+use_json_global := i_summary_json != "" and summary_regime != ""
+
 // --- Regime Type Enum (for colors/logic) ---
 f_regime_type(_score) =>
     if _score >= i_strong_th
@@ -288,96 +292,103 @@ var float pillar_catalyst = 1.0
 var float pillar_efa = 1.0
 
 if barstate.islast
-    spy_close = request.security(i_spy, timeframe.period, close, lookahead=barmerge.lookahead_off)
-    if ta.barssince(not na(spy_close)) > i_regime_len
-        curr = spy_close
-        sma = ta.sma(spy_close, i_regime_len)
+    if use_json_global and summary_regime != ""
+        // B1: JSON-slave mode - bypass local global regime/special/pillar heavy calc (SPY request + subscores)
+        // when full summary JSON with regime is provided. Use Python data for global visuals/labels.
+        regime_score := summary_regime_score
+        regime_t := summary_regime
+        // pillars/special still use local derivation based on (JSON) regime_t for now; heavy local subscore calc skipped
+    else
+        spy_close = request.security(i_spy, timeframe.period, close, lookahead=barmerge.lookahead_off)
+        if ta.barssince(not na(spy_close)) > i_regime_len
+            curr = spy_close
+            sma = ta.sma(spy_close, i_regime_len)
 
-        // SPEC 4.3 Rich Regime - exact subscores and weights
-        tr = curr > sma ? 1.0 : 0.0
-        r20 = (curr / spy_close[20] - 1)
-        trend_s = (tr * 0.6) + (math.clamp(r20 + 0.04, -0.1, 0.15) / 0.15 * 0.4)
+            // SPEC 4.3 Rich Regime - exact subscores and weights
+            tr = curr > sma ? 1.0 : 0.0
+            r20 = (curr / spy_close[20] - 1)
+            trend_s = (tr * 0.6) + (math.clamp(r20 + 0.04, -0.1, 0.15) / 0.15 * 0.4)
 
-        v20 = ta.stdev(ta.change(spy_close)/spy_close, 20) * math.sqrt(252)
-        v200 = ta.stdev(ta.change(spy_close)/spy_close, i_regime_len) * math.sqrt(252)
-        vr = v20 / math.max(v200, 0.01)
-        vol_s = math.clamp(1 - (vr - 0.8) / 1.2, 0, 1)
+            v20 = ta.stdev(ta.change(spy_close)/spy_close, 20) * math.sqrt(252)
+            v200 = ta.stdev(ta.change(spy_close)/spy_close, i_regime_len) * math.sqrt(252)
+            vr = v20 / math.max(v200, 0.01)
+            vol_s = math.clamp(1 - (vr - 0.8) / 1.2, 0, 1)
 
-        r60 = (curr / spy_close[60] - 1)
-        mom_s = math.clamp((r20 * 0.6 + r60 * 0.4 + 0.05) / 0.20, 0, 1)
+            r60 = (curr / spy_close[60] - 1)
+            mom_s = math.clamp((r20 * 0.6 + r60 * 0.4 + 0.05) / 0.20, 0, 1)
 
-        mx = ta.highest(spy_close, 60)
-        cdd = math.max(0.0, (mx - curr) / mx)
-        dd20 = math.max(0.0, (mx - spy_close[20]) / mx)
-        vel = math.max(0.0, cdd - dd20) / 20.0
-        vel_s = 1.0 - math.clamp(vel * 40, 0, 1)
+            mx = ta.highest(spy_close, 60)
+            cdd = math.max(0.0, (mx - curr) / mx)
+            dd20 = math.max(0.0, (mx - spy_close[20]) / mx)
+            vel = math.max(0.0, cdd - dd20) / 20.0
+            vel_s = 1.0 - math.clamp(vel * 40, 0, 1)
 
-        breadth = 0.5
+            breadth = 0.5
 
-        overall = trend_s*0.30 + mom_s*0.25 + vol_s*0.20 + vel_s*0.15 + breadth*0.10
-        regime_score := math.round(math.clamp(overall, 0, 1) * 1000) / 1000
+            overall = trend_s*0.30 + mom_s*0.25 + vol_s*0.20 + vel_s*0.15 + breadth*0.10
+            regime_score := math.round(math.clamp(overall, 0, 1) * 1000) / 1000
 
-        regime_t := f_regime_type(regime_score)
+            regime_t := f_regime_type(regime_score)
 
-        // SPEC 4.4 Meta-Layer base + specials (exact)
-        if regime_t == "STRONG"
-            pillar_compass := 1.15
-            pillar_rattle := 0.85
-            pillar_catalyst := 0.70
-            pillar_efa := 0.75
-            rec_boost := 1.0
-        else if regime_t == "MODERATE"
-            pillar_compass := 1.05
-            pillar_rattle := 0.95
-            pillar_catalyst := 0.90
-            pillar_efa := 0.92
-        else if regime_t == "CAUTIOUS"
-            pillar_compass := 0.88
-            pillar_rattle := 1.12
-            pillar_catalyst := 0.95
-            pillar_efa := 0.98
-            rec_boost := 1.0
-        else
-            pillar_compass := 0.75
-            pillar_rattle := 1.18
-            pillar_catalyst := 0.85
-            pillar_efa := 0.90
+            // SPEC 4.4 Meta-Layer base + specials (exact)
+            if regime_t == "STRONG"
+                pillar_compass := 1.15
+                pillar_rattle := 0.85
+                pillar_catalyst := 0.70
+                pillar_efa := 0.75
+                rec_boost := 1.0
+            else if regime_t == "MODERATE"
+                pillar_compass := 1.05
+                pillar_rattle := 0.95
+                pillar_catalyst := 0.90
+                pillar_efa := 0.92
+            else if regime_t == "CAUTIOUS"
+                pillar_compass := 0.88
+                pillar_rattle := 1.12
+                pillar_catalyst := 0.95
+                pillar_efa := 0.98
+                rec_boost := 1.0
+            else
+                pillar_compass := 0.75
+                pillar_rattle := 1.18
+                pillar_catalyst := 0.85
+                pillar_efa := 0.90
 
-        // Special modes (SPEC 4.4.2 exact triggers)
-        dd = math.max(0.0, (ta.highest(spy_close, 60) - curr) / ta.highest(spy_close, 60))
-        r20 = (curr / spy_close[20] - 1)
-        r60 = (curr / spy_close[60] - 1)
-        v = ta.stdev(ta.change(spy_close)/spy_close, 20) * math.sqrt(252)
+            // Special modes (SPEC 4.4.2 exact triggers)
+            dd = math.max(0.0, (ta.highest(spy_close, 60) - curr) / ta.highest(spy_close, 60))
+            r20 = (curr / spy_close[20] - 1)
+            r60 = (curr / spy_close[60] - 1)
+            v = ta.stdev(ta.change(spy_close)/spy_close, 20) * math.sqrt(252)
 
-        special_m := ""
-        if dd >= 0.12 or (regime_score < 0.25 and v > 0.70)
-            special_m := "CRISIS_ACUTE"
-            pillar_compass *= 0.80
-            pillar_rattle *= 0.95
-            pillar_catalyst *= 0.75
-            pillar_efa *= 0.80
-        else if dd >= 0.06 and r20 > 0.025 and r60 > -0.08 and regime_score > 0.35
-            rec_boost := math.min(1.0 + (dd - 0.06) * 1.5, 1.12)
-            special_m := "POST_CRISIS_RECOVERY"
-            pillar_compass *= 1.08
-            pillar_rattle *= 0.95
-        else if regime_score >= 0.68 and v < 0.55 and dd < 0.06
-            special_m := "STRONG_BROAD_MOMENTUM"
-            pillar_compass *= 1.22
-            pillar_catalyst *= 0.60
-            pillar_efa *= 0.65
-        else if v > 0.68
-            special_m := "ELEVATED_VOL_DEFENSIVE"
-            pillar_rattle *= 1.15
-            pillar_compass *= 0.92
+            special_m := ""
+            if dd >= 0.12 or (regime_score < 0.25 and v > 0.70)
+                special_m := "CRISIS_ACUTE"
+                pillar_compass *= 0.80
+                pillar_rattle *= 0.95
+                pillar_catalyst *= 0.75
+                pillar_efa *= 0.80
+            else if dd >= 0.06 and r20 > 0.025 and r60 > -0.08 and regime_score > 0.35
+                rec_boost := math.min(1.0 + (dd - 0.06) * 1.5, 1.12)
+                special_m := "POST_CRISIS_RECOVERY"
+                pillar_compass *= 1.08
+                pillar_rattle *= 0.95
+            else if regime_score >= 0.68 and v < 0.55 and dd < 0.06
+                special_m := "STRONG_BROAD_MOMENTUM"
+                pillar_compass *= 1.22
+                pillar_catalyst *= 0.60
+                pillar_efa *= 0.65
+            else if v > 0.68
+                special_m := "ELEVATED_VOL_DEFENSIVE"
+                pillar_rattle *= 1.15
+                pillar_compass *= 0.92
 
-        // Clamp (SPEC 4.4.3)
-        pillar_compass := math.round(math.max(0.60, math.min(1.45, pillar_compass)) * 1000) / 1000
-        pillar_rattle := math.round(math.max(0.60, math.min(1.45, pillar_rattle)) * 1000) / 1000
-        pillar_catalyst := math.round(math.max(0.60, math.min(1.45, pillar_catalyst)) * 1000) / 1000
-        pillar_efa := math.round(math.max(0.60, math.min(1.45, pillar_efa)) * 1000) / 1000
+            // Clamp (SPEC 4.4.3)
+            pillar_compass := math.round(math.max(0.60, math.min(1.45, pillar_compass)) * 1000) / 1000
+            pillar_rattle := math.round(math.max(0.60, math.min(1.45, pillar_rattle)) * 1000) / 1000
+            pillar_catalyst := math.round(math.max(0.60, math.min(1.45, pillar_catalyst)) * 1000) / 1000
+            pillar_efa := math.round(math.max(0.60, math.min(1.45, pillar_efa)) * 1000) / 1000
 
-        compass_m := pillar_compass  // for backward compat in table
+    compass_m := pillar_compass  // for backward compat in table
 
 // --- Main symbol calculations (for the chart this script is applied to) ---
 [mom_main, ret_main, dist_main, vrat_main, strict_main] = f_compute_hydra(syminfo.tickerid)
@@ -400,13 +411,17 @@ bgcolor(regime_t == "STRONG" ? color.new(color.green, 88) :
         regime_t == "WEAK"   ? color.new(color.red, 88)   : na)
 
 if i_show_pillars
-    pillars_str = "P: C×" + str.tostring(pillar_compass) + " R×" + str.tostring(pillar_rattle) + 
-                  " Ca×" + str.tostring(pillar_catalyst) + " E×" + str.tostring(pillar_efa)
+    if use_json_global and summary_pillars_str != ""
+        pillars_str = "P (Python): " + summary_pillars_str
+    else
+        pillars_str = "P: C×" + str.tostring(pillar_compass) + " R×" + str.tostring(pillar_rattle) + 
+                      " Ca×" + str.tostring(pillar_catalyst) + " E×" + str.tostring(pillar_efa)
     label.new(bar_index, high, pillars_str, 
               style=label.style_label_left, color=color.new(color.blue, 70), textcolor=color.white, size=size.small)
 
 if i_show_special and special_m != ""
-    label.new(bar_index, low, special_m + " (SPEC 4.4.2)", style=label.style_label_up, color=color.new(color.purple, 60), textcolor=color.white, size=size.small)
+    suffix = use_json_global ? " (from Python)" : " (SPEC 4.4.2)"
+    label.new(bar_index, low, special_m + suffix, style=label.style_label_up, color=color.new(color.purple, 60), textcolor=color.white, size=size.small)
 
 // Strict highlight
 plotshape(strict_main, title="Strict Filter", location=location.belowbar, color=color.green, style=shape.triangleup, size=size.small)
@@ -434,6 +449,18 @@ if barstate.islast and i_show_table
             array.push(valid_syms, s2)
 
     n = math.min(array.size(valid_syms), i_max_watchlist)
+
+    // B2: optional filter to only Python recommended (when JSON and toggle)
+    if i_only_recommended and has_recommended_from_py and array.size(recommended_tickers_py) > 0
+        filtered = array.new_string()
+        for ii = 0 to array.size(valid_syms) - 1
+            s = array.get(valid_syms, ii)
+            for k = 0 to array.size(recommended_tickers_py) - 1
+                if s == array.get(recommended_tickers_py, k)
+                    array.push(filtered, s)
+                    break
+        valid_syms := filtered
+        n := math.min(array.size(valid_syms), i_max_watchlist)
 
     // Collect data for proper ranking (SPEC 4.5 composite + 4.7 dynamic)
     // Use parallel arrays for sorting
@@ -610,7 +637,8 @@ if barstate.islast
     info = "HYDRA | Regime: " + regime_t + " (" + str.tostring(regime_score) + 
            ") | COMPASS×" + str.tostring(compass_m) + 
            (special_m != "" ? " | " + special_m : "") +
-           (strict_main ? " | STRICT ✓" : "")
+           (strict_main ? " | STRICT ✓" : "") +
+           (use_json_global and summary_recommended_count > 0 ? " | Python Recs: " + str.tostring(summary_recommended_count) : "")
     label.new(bar_index, high * 1.01, info, 
               style=label.style_label_down, color=color.new(color.black, 40), 
               textcolor=color.white, size=size.small)
@@ -633,6 +661,7 @@ if barstate.islast
 // 4. (Recommended) Paste the FULL content of hydra_last_summary.json into "i_summary_json" input → richer global header + per-row enrichment:
 //      - Rank column shows Python rank, table is sorted by Python rank when recommended data present.
 //      - Composite, Momentum, Strict, Special, and exact "Rec?" come from Python's top_details + recommended_tickers (full SPEC).
+//      - When regime in JSON: bypass local global regime calc (B1 JSON-slave mode) for efficiency; visuals/labels from Python.
 //      - Local Pine calculations are fallback only.
 // 5. Use the ranked table as daily HYDRA dashboard (Python ordering + values when JSON provided).
 // 6. Set alerts (e.g. "HYDRA: Strict + Strong Composite") and forward via TV webhooks or the Python sender (Discord/Telegram/generic).

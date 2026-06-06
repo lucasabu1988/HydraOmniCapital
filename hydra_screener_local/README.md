@@ -9,8 +9,20 @@ cd hydra_screener_local
 pip install -r requirements.txt
 ```
 
-## Uso
+O con packaging (experimental, D4):
+```bash
+pip install -e .
+# Then use entrypoints: hydra-daily, hydra-refresh, hydra-watch, hydra-dashboard
+```
 
+## Uso (recomendado)
+
+```bash
+python daily.py                 # full ritual + beautiful TV instructions
+python daily.py --refresh-pnl   # also updates live PnL in the Excel tracker
+```
+
+O directamente:
 ```bash
 python screener.py
 ```
@@ -131,6 +143,8 @@ Esto combina lo mejor de ambos mundos: poder de cálculo en Python + visualizaci
 
 **Scripts experimentales / one-off**: ver `experiments/README.md`. Los comandos diarios recomendados son los indicados arriba (screener + analyze + track).
 
+**Limpieza de artefactos**: `python clean_artifacts.py --dry-run` (luego `--force`) para limpiar output/, backtest/ temporales, data_cache/, __pycache__, etc. (la mayoría ya están en .gitignore del proyecto padre).
+
 **Tests (one command)**: `python run_all_tests.py` (runs spec compliance, feeder golden, hybrid integration, screener logic). Key contract tests must stay green after any change to core or hybrid layer.
 
 ## Backtest Histórico del Uso Recomendado (2000-presente)
@@ -150,11 +164,17 @@ Los backtests usan pools amplios y la rotación idéntica a la recomendada. Las 
 
 (Equity curves detallados en backtests/hydra_clean_daily.csv y los v8/v84/v9 del proyecto.)
 
-El script `backtest_screener_top5_hold5d.py` (en este directorio) está preparado para simular el backtest usando la lógica *exacta* del screener actual (puedes correrlo localmente con buena conexión yf para datos históricos; usa el mismo sistema de cache que los backtests oficiales).
+El script `experiments/backtest_screener_top5_hold5d.py` está preparado para simular el backtest usando la lógica *exacta* del screener actual (puedes correrlo localmente con buena conexión yf para datos históricos; usa el mismo sistema de cache que los backtests oficiales). Ver `experiments/README.md` para la lista completa de scripts experimentales.
 
-**Script dedicado para guardar TODAS las posiciones de TODOS los ciclos en un único Excel:**
+**Script dedicado para guardar TODAS las posiciones de TODOS los ciclos en un único Excel (con PnL dinámico):**
 
 Ejecuta o importa `log_cycle_positions.py`.
+
+Después de un run live (especialmente con el hybrid recommended list), actualiza precios actuales con:
+```
+python refresh_current_prices.py --lookback 5
+```
+Abre el Excel: las columnas de PnL son fórmulas y se recalculan solas.
 
 Después de cada ciclo (o al final de un backtest), registra las posiciones elegidas. El archivo `backtest/portfolio_cycles.xlsx` acumula todo el historial con hojas estructuradas:
 - Cycle_Summaries

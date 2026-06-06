@@ -14,6 +14,7 @@ Uso:
     python analyze_history.py
     python analyze_history.py --days 7 --export-excel
     python analyze_history.py --recompute --no-yf
+    python analyze_history.py --hybrid-only --export-excel  # solo listas enviadas a Pine/TV
 """
 import json
 import os
@@ -329,10 +330,11 @@ def run_and_save_backtest(recompute: bool = False, max_days: int = None,
     return load_backtest_results()
 
 
-def export_backtest_to_excel(bt, output_path: str = None, recent_runs: list = None):
+def export_backtest_to_excel(bt, output_path: str = None, recent_runs: list = None, hybrid_only: bool = False):
     """
     Exporta los resultados del backtest a un Excel con varias hojas.
     Si se pasa recent_runs (lista de dicts de history), agrega hojas con los últimos runs del historial.
+    Si hybrid_only=True, filtra/enfoca en las listas recomendadas enviadas a Pine/TV (usando notas de ciclos HYBRID).
     """
     if not bt:
         print("  No hay datos para exportar.")
@@ -411,11 +413,24 @@ def export_backtest_to_excel(bt, output_path: str = None, recent_runs: list = No
                             "sector": c.get("sector"),
                         })
 
+                if hybrid_only:
+                    # Tag or filter for hybrid focus
+                    for row in runs_rows:
+                        row["hybrid_recommended"] = True
+                    for row in candidates_rows:
+                        row["hybrid_recommended"] = True
+                    sheet_runs = "HybridRecentRuns"
+                    sheet_recs = "HybridRecentRecommended"
+                    print("  [Hybrid Only Mode] Filtering/exporting only hybrid recommended lists sent to Pine/TV.")
+                else:
+                    sheet_runs = "RecentRuns"
+                    sheet_recs = "RecentRecommended"
+
                 if runs_rows:
-                    pd.DataFrame(runs_rows).to_excel(writer, sheet_name="RecentRuns", index=False)
+                    pd.DataFrame(runs_rows).to_excel(writer, sheet_name=sheet_runs, index=False)
 
                 if candidates_rows:
-                    pd.DataFrame(candidates_rows).to_excel(writer, sheet_name="RecentRecommended", index=False)
+                    pd.DataFrame(candidates_rows).to_excel(writer, sheet_name=sheet_recs, index=False)
 
             # ============================================================
             # FORMATO CON OPENPYXL DIRECTO (negritas, anchos, etc.)
@@ -530,6 +545,8 @@ Ejemplos:
                         help="Exportar a Excel: incluye backtest + últimos runs del historial (hojas RecentRuns y RecentRecommended)")
     parser.add_argument("--last-runs", type=int, default=15, metavar="N",
                         help="Cuántos días recientes mostrar en detalle (default: 15)")
+    parser.add_argument("--hybrid-only", action="store_true",
+                        help="Focus exclusively on 'Hybrid Recommended' lists that were sent to Pine/TV (from cycle logs with HYBRID notes). Filters RecentRuns/RecentRecommended and cycle analysis.")
 
     args = parser.parse_args()
 
@@ -540,6 +557,21 @@ Ejemplos:
     recent_limit = args.last_runs or 15
     show_last_runs(limit=recent_limit)
     recent_runs = get_recent_runs(limit=recent_limit)
+
+    if args.hybrid_only:
+        print("\n*** HYBRID RECOMMENDED ONLY MODE ***")
+        print("   Focusing exclusively on the exact recommended lists that were sent to Pine/TV (from cycle logs with 'HYBRID' notes).")
+        try:
+            cycle_xlsx = os.path.join(BACKTEST_DIR, "portfolio_cycles.xlsx")
+            if os.path.exists(cycle_xlsx):
+                import pandas as pd
+                cyc_df = pd.read_excel(cycle_xlsx, sheet_name="Cycle_Summaries")
+                hybrid_cyc = cyc_df[cyc_df["notes"].astype(str).str.contains("HYBRID|recommended list sent to Pine", na=False)]
+                print(f"   Hybrid cycles logged in portfolio_cycles.xlsx: {len(hybrid_cyc)}")
+                if not hybrid_cyc.empty:
+                    print("   Latest hybrid dates:", list(hybrid_cyc["start_date"].dt.strftime("%Y-%m-%d").tail(3)))
+        except Exception as e:
+            print(f"   (Could not load hybrid cycle details: {e})")
 
     # Tracking forward (siempre intenta, es ligero si ya hay datos)
     print("\n=== Forward Win-Rate Tracking (nuevo) ===")
@@ -569,7 +601,7 @@ Ejemplos:
     print_backtest_summary(bt)
 
     if args.export_excel:
-        export_backtest_to_excel(bt, recent_runs=recent_runs)
+        export_backtest_to_excel(bt, recent_runs=recent_runs, hybrid_only=args.hybrid_only)
 
 
 if __name__ == "__main__":

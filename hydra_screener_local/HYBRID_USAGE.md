@@ -8,7 +8,13 @@ This document describes the complete hybrid architecture:
 
 ## Daily Workflow
 
-1. Run the screener (full universe recommended):
+1. Run the daily ritual (recommended):
+   ```bash
+   python daily.py
+   python daily.py --refresh-pnl   # also refresh live PnL in portfolio_cycles.xlsx
+   ```
+
+   Or the classic way:
    ```bash
    python screener.py
    # or via .bat
