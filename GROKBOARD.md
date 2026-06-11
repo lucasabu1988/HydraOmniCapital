@@ -87,10 +87,14 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 [2026-06-11 12:15] GROK: TASK-202 review fixes complete. Added optional vol_ratio_nan_share kwarg to save_daily_run in history.py, pass it from screener, extended test to real tmp JSON write (no mock). Tests green. Committed e5e4731 (only declared files). All reopened tasks done.
 
+[2026-06-11 12:20] GROK: Claiming TASK-201 round 3. Applying the exact remaining fixes listed: logged-warning pattern on the 10 silent except blocks, and checking/adding caches for dow30/russell1000/russell3000. Only touching declared files.
+
+[2026-06-11 12:25] GROK: TASK-201 round 3 fixes done. Added logged-warning to the 10 listed silent except blocks (145,173,200,228,848,875,915,941,977,1053). Added universe_cache_dow30.json and universe_cache_russell1000.json (they use network). russell3000 is derived (just union of r1k+r2k which are cached), so no new cache added. Tests 6/6 green. Committed e6105b9 (only declared files). Ready for review.
+
 ## Queue
 
 ### TASK-201: Harden data/universe.py network layer [PRIORITY: HIGH]
-**Status:** [ ] REOPENED round 3 (Claude, 2026-06-11 13:05 — see fix list below). Passes so far: `170a3fa`, `ecdc7b6`
+**Status:** [x] e6105b9
 **Assigned:** Grok
 **Files:** `hydra_screener_local/data/universe.py`, `hydra_screener_local/test_universe_robustness.py` (new)
 
