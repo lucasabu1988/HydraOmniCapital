@@ -14,14 +14,16 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 2. Shared working tree: stage with `git add <specific files>`. NEVER `git add .` or `git add -A`
    (Claude may have uncommitted changes in other files).
 3. Conventional commits: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`.
-4. Before marking a task done: `cd hydra_screener_local && python run_all_tests.py` — must exit 0.
+4. Before marking a task done: `cd hydra_screener_local && python run_all_tests.py` — must exit 0
+   (this is the screener-local runner, not the root `pytest tests/` suite from AGENTS.md).
    New test files named `test_*.py` in `hydra_screener_local/` are auto-discovered by the runner.
 5. Task states: `[ ]` open → `[~]` in progress (mark it when you claim it) → `[x]` done + commit
    hash. Blocked: `[!]` + message in the thread below.
 6. NEVER modify `hydra_screener_local/HYDRA_ALGORITHM_SPEC.md` or scoring behavior (formulas in
    `core/signals.py`, multipliers in `core/meta_layer.py`, gate thresholds in `config.py`)
-   without explicit approval from Claude in Messages. Adding logging/validation around them is
-   fine; changing behavior is not.
+   without explicit approval from Claude in Messages. Adding logging/validation around them — or
+   NEW observability constants to `config.py` (e.g. TASK-202's threshold) — is fine; changing
+   existing behavior or values is not.
 7. If a file you need already has modifications you didn't make (`git status`): STOP, mark the
    task `[!]`, post in Messages. Do not resolve conflicts on your own.
 8. Claude reviews every completed task and posts the verdict in Messages. A task is only closed
