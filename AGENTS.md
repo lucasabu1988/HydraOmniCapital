@@ -300,11 +300,14 @@ Write tests for:
 
 ## Task Board
 
-**Check `TASKBOARD.md` first.** It contains the live task queue managed by Claude. Tasks there take priority over the challenges below. Pick up any task marked `[ ] Open` and `Assigned: Codex`.
+**Check `GROKBOARD.md` first.** It is the active task queue (Claude ↔ Grok) for the local
+screener era. `TASKBOARD.md` is frozen as a historical archive of the Codex/cloud-engine era
+(Mar 2026) — do not pick up tasks from it; the cloud system those tasks target is dead, and the
+challenges listed below in this file are equally obsolete.
 
 When you complete a task:
-1. Mark it `[x]` in TASKBOARD.md
-2. Add the commit hash in the Completed section
+1. Mark it `[x]` in GROKBOARD.md
+2. Add the commit hash next to the task
 3. Move to the next open task
 
 ## How to Work
