@@ -52,6 +52,10 @@ demo_state.json
 
 # External repos
 awesome-systematic-trading/
+ecdsafail/
+
+# Local Claude Code skills (live in ~/.claude/skills; this copy is local-only)
+skills/
 
 # Runtime PID files
 state/watchdog.pid
@@ -60,6 +64,8 @@ crucix/
 # Runtime state (auto-generated)
 state/agent_heartbeat.json
 state/intelligence/
+state/audit_log.jsonl
+state/compass_state_20*.json
 
 # Playwright MCP cache
 .playwright-mcp/
