@@ -23,6 +23,10 @@ import argparse
 import json
 import sys
 import time
+
+# Consolas Windows usan cp1252 por defecto y rompen con bullets/emojis UTF-8
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from datetime import datetime
 from pathlib import Path
 

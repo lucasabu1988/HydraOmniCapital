@@ -5,7 +5,8 @@ verifies columns, special modes, pillar multipliers, dynamic count, etc.
 """
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+# Este test vive en experiments/ — config y core/ están en el directorio padre
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import numpy as np
@@ -56,7 +57,7 @@ def main_test():
     
     # Filters (disabled)
     original = len(prices.columns)
-    prices_f = apply_practical_filters(prices, 0, 0, None)
+    prices_f, _ = apply_practical_filters(prices, min_avg_volume=0, min_price=0, max_price=None)
     fs = get_filter_summary(original, prices_f)
     print(f"Filters (noop): {fs['remaining']} remaining\n")
     

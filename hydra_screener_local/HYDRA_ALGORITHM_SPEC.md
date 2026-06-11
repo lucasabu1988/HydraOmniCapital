@@ -92,6 +92,9 @@ function generate_daily_candidates(prices, spy, volumes=None):
     df['recommended'] = (df.rank <= dynamic_count) & (regime_score >= 0.35 * 0.85)
     df['reason'] = if recommended then meta.rationale else "Filtrado por Meta-Layer"
 
+    # 11. Downtrend Veto Gate (SPEC 4.7) - quita el flag a acciones en caída reciente
+    df = apply_downtrend_gate(df)
+
     return df with rich columns
 ```
 
@@ -246,6 +249,31 @@ recommended = (rank <= dynamic_count)
            AND (regime_score >= 0.35 * 0.85)
 ```
 
+### 4.7 Downtrend Veto Gate (Jun 2026)
+
+**Justificación**: el momentum de 90 días tiene tanta inercia que una acción puede
+caer fuerte en los últimos días y seguir rankeando arriba. Filosofía: ranking
+relativo (cross-sectional) para elegir, filtro absoluto (time-series) para vetar —
+igual que Catalyst exige precio > SMA200 por activo.
+
+Se aplica DESPUÉS del flag `recommended` de 4.6. No altera scores ni ranks;
+solo puede quitar el flag (el conteo efectivo puede quedar < dynamic_count).
+
+```pseudocode
+in_downtrend = (dist_to_high < GATE_MAX_DIST_TO_HIGH_PCT)    # OR estricto
+            OR (ret_short  < GATE_MIN_RET_SHORT_PCT)
+# NaN en cualquiera de las features NO veta (hueco de datos ≠ señal de caída)
+
+if in_downtrend AND recommended:
+    recommended = False
+    reason = "Vetado: caída reciente (downtrend gate, SPEC 4.7)"
+```
+
+**Parameters**:
+- `ENABLE_DOWNTREND_GATE = True`
+- `GATE_MAX_DIST_TO_HIGH_PCT = -8.0` (veto si está más de 8% bajo su máximo de 20d)
+- `GATE_MIN_RET_SHORT_PCT = -5.0` (veto si el retorno de 10d es peor que -5%)
+
 ---
 
 ## 5. Edge Cases & Robustness Rules
@@ -286,6 +314,11 @@ From `config.py`:
 **Sector**
 - MAX_PER_SECTOR = 8
 - SECTOR_OVERWEIGHT_PENALTY = 0.15
+
+**Downtrend Veto Gate (SPEC 4.7)**
+- ENABLE_DOWNTREND_GATE = True
+- GATE_MAX_DIST_TO_HIGH_PCT = -8.0
+- GATE_MIN_RET_SHORT_PCT = -5.0
 
 **Dynamic Recommendations**
 - base = 14

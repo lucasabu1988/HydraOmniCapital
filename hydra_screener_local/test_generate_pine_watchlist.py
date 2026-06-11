@@ -20,6 +20,10 @@ from pathlib import Path
 # Add project root so we can import the feeder
 sys.path.insert(0, os.path.dirname(__file__))
 
+# Consolas Windows usan cp1252 por defecto y rompen con emojis UTF-8
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 from generate_pine_watchlist import (
     find_latest_history,
     load_recommended_tickers,

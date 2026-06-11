@@ -61,6 +61,18 @@ SHORT_TERM_BOOST = 0.35          # Cuánto boostear el meta_score con momentum r
 VOL_SURGE_THRESHOLD = 1.50       # Umbral base de volumen relativo (placeholder hasta extender fetch)
 
 # ============================================
+# DOWNTREND VETO GATE (nuevo Jun 2026)
+# ============================================
+# Justificación: el momentum de 90 días tiene tanta inercia que una acción puede
+# caer fuerte en los últimos días y seguir rankeando arriba ("fue la que más subió
+# en el trimestre"). El veto excluye de 'recommended' a las acciones en caída
+# reciente, sin importar su rank. Filosofía: ranking relativo para elegir,
+# filtro absoluto para vetar (igual que Catalyst exige precio > SMA200).
+ENABLE_DOWNTREND_GATE = True
+GATE_MAX_DIST_TO_HIGH_PCT = -8.0   # Veto si está más de X% debajo de su máximo de 20d
+GATE_MIN_RET_SHORT_PCT = -5.0      # Veto si el retorno de 10d es peor que X%
+
+# ============================================
 # CONFIGURACIÓN GEOPOLÍTICA (afecta umbrales dinámicos)
 # ============================================
 # 0.0 = normal / baja tensión

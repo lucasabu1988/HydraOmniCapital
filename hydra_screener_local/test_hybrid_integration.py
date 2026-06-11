@@ -21,6 +21,10 @@ from pathlib import Path
 # Make sure we can import local modules
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Consolas Windows usan cp1252 por defecto y rompen con emojis UTF-8
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 from generate_pine_watchlist import generate_watchlist_string, load_recommended_tickers
 from send_hydra_summary import build_rich_summary
 

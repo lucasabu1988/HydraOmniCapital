@@ -20,7 +20,8 @@ import numpy as np
 from config import (
     MOMENTUM_LOOKBACK, MOMENTUM_SKIP, REGIME_SMA, MIN_REGIME_SCORE,
     SHORT_TERM_LOOKBACK, PROXIMITY_HIGH_DAYS, MAX_DIST_TO_HIGH_PCT, SHORT_TERM_BOOST,
-    GEOPOLITICAL_RISK_LEVEL, GEO_VOL_THRESHOLD_ADJUST, VOL_SURGE_THRESHOLD, MIN_VOL_THRESHOLD
+    GEOPOLITICAL_RISK_LEVEL, GEO_VOL_THRESHOLD_ADJUST, VOL_SURGE_THRESHOLD, MIN_VOL_THRESHOLD,
+    ENABLE_DOWNTREND_GATE, GATE_MAX_DIST_TO_HIGH_PCT, GATE_MIN_RET_SHORT_PCT
 )
 from .meta_layer import LightweightMetaLayer, apply_meta_to_candidates
 from .regime import compute_rich_regime_scores
@@ -85,6 +86,40 @@ def compute_short_term_features(prices: pd.DataFrame, volumes: pd.DataFrame = No
             continue
 
     return pd.DataFrame(features)
+
+
+def apply_downtrend_gate(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Veto duro (SPEC 4.7): una acción en caída reciente NO puede estar en
+    'recommended', sin importar qué tan alto rankee por momentum de 90d.
+
+    Columnas disponibles en df (antes del rename final):
+    - df["ret_short"]:    retorno % de los últimos SHORT_TERM_LOOKBACK (10) días.
+                          Puede ser NaN si faltan datos.
+    - df["dist_to_high"]: distancia % al máximo de 20d. Siempre ≤ 0.
+                          Ej: -8.0 = está 8% debajo de su máximo. Puede ser NaN.
+    - df["recommended"]:  flag booleano ya calculado por rank + régimen.
+
+    Umbrales configurables en config.py:
+    - GATE_MAX_DIST_TO_HIGH_PCT (ej: -8.0)
+    - GATE_MIN_RET_SHORT_PCT    (ej: -5.0)
+
+    Regla elegida (2026-06-11): OR estricto — cualquiera de las dos condiciones
+    veta. NaN no veta (hueco de datos ≠ señal de caída; la comparación con NaN
+    da False en pandas, que es el comportamiento deseado).
+    """
+    if not ENABLE_DOWNTREND_GATE:
+        return df
+
+    in_downtrend = (
+        (df["dist_to_high"] < GATE_MAX_DIST_TO_HIGH_PCT) |
+        (df["ret_short"] < GATE_MIN_RET_SHORT_PCT)
+    ).fillna(False)
+
+    vetoed = in_downtrend & df["recommended"]
+    df.loc[vetoed, "recommended"] = False
+    df.loc[vetoed, "reason"] = "Vetado: caída reciente (downtrend gate, SPEC 4.7)"
+    return df
 
 
 def compute_regime_score(spy: pd.Series) -> float:
@@ -184,10 +219,11 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
 
     # SPEC 4.5 - Short-term boost + composite (momentum * meta * (1 + short_boost * SHORT_TERM_BOOST))
     # - ret_short alto → positivo
-    # - dist_to_high cerca de 0 (o positivo) → positivo
+    # - dist_to_high cerca de 0 → 1.0, decae a 0 cuando está más de MAX_DIST_TO_HIGH_PCT% debajo del high
+    #   (dist_to_high es ≤ 0 por construcción: precio actual vs máximo de 20d)
     short_boost = (
         (df["ret_short"].fillna(0) / 20).clip(-0.5, 1.5) +                    # normalizado
-        ((MAX_DIST_TO_HIGH_PCT - df["dist_to_high"].fillna(-10)).clip(0, MAX_DIST_TO_HIGH_PCT) / MAX_DIST_TO_HIGH_PCT)
+        ((MAX_DIST_TO_HIGH_PCT + df["dist_to_high"].fillna(-10)).clip(0, MAX_DIST_TO_HIGH_PCT) / MAX_DIST_TO_HIGH_PCT)
     ) / 2
 
     df["short_term_boost"] = short_boost.round(3)
@@ -231,7 +267,11 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
         axis=1
     )
     
+    # SPEC 4.7 - Downtrend Veto Gate (excluye acciones en caída reciente de 'recommended')
+    df = apply_downtrend_gate(df)
+
     # Guardamos el número dinámico para mostrarlo en el resumen
+    # (el gate puede reducir el conteo efectivo por debajo de dynamic_count)
     df['recommended_count'] = dynamic_count
     
     # SPEC 7 - Output Column Contract (rich columns for downstream consumers)

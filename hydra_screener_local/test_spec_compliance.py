@@ -16,6 +16,10 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
 
+# Consolas Windows usan cp1252 por defecto y rompen con emojis/bullets UTF-8
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -278,6 +282,31 @@ def test_4_7_dynamic_recommended():
     print(f"[OK] Dynamic count en [6,28] y recommended <= count (SPEC 4.7)")
     return True
 
+def test_4_7_downtrend_gate():
+    """SPEC 4.7: Downtrend Veto Gate (OR estricto, NaN no veta)"""
+    print("\n=== SPEC 4.7 Downtrend Veto Gate ===")
+    prices = make_synthetic_prices(n_tickers=10, n_days=200)
+    spy = make_synthetic_spy(200)
+
+    # Ticker 0: momentum 90d enorme pero desplome reciente (el caso DELL jun-2026):
+    # sube fuerte 90 días y cae 15% en los últimos 10 días (queda ~15% bajo su high de 20d)
+    col = prices.columns[0]
+    prices.loc[prices.index[-90]:, col] = prices[col].iloc[-90] * np.linspace(1.0, 2.2, 90)
+    prices.loc[prices.index[-10]:, col] = prices[col].iloc[-10] * np.linspace(1.0, 0.85, 10)
+
+    cands = generate_daily_candidates(prices, spy)
+    row = cands[cands['ticker'] == col].iloc[0]
+
+    assert row['ret_5d_10d'] < config.GATE_MIN_RET_SHORT_PCT or \
+           row['dist_20d_high'] < config.GATE_MAX_DIST_TO_HIGH_PCT, \
+           "El sintético no quedó en caída; revisar setup del test"
+    assert row['recommended'] == False, \
+           f"Acción en caída (ret={row['ret_5d_10d']}, dist={row['dist_20d_high']}) NO debe estar recommended"
+    assert "Vetado" in str(row['reason']) or row['reason'] == 'Filtrado por Meta-Layer'
+    print(f"[OK] Acción en caída vetada de recommended (ret_10d={row['ret_5d_10d']:.1f}%, "
+          f"dist_high={row['dist_20d_high']:.1f}%) (SPEC 4.7)")
+    return True
+
 def test_output_contract():
     """SPEC section 7: Output Column Contract"""
     print("\n=== SPEC Section 7 Output Column Contract ===")
@@ -315,6 +344,7 @@ def main():
         test_4_5_composite_and_strict_bonus,
         test_4_6_sector_control,
         test_4_7_dynamic_recommended,
+        test_4_7_downtrend_gate,
         test_output_contract,
     ]
     

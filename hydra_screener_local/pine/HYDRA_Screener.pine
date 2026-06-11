@@ -36,6 +36,11 @@ i_strict_dist        = input.float(-2.0, "Strict Max Dist to High %", group="Sho
 i_vol_base           = input.float(1.50, "Base Vol Surge Threshold", group="Short-Term & Strict")
 i_geo_risk           = input.float(0.0, "Geopolitical Risk (0-1)", minval=0, maxval=1, step=0.1, group="Short-Term & Strict")
 
+// SPEC 4.7 - Downtrend Veto Gate (OR estricto: cualquiera de las dos condiciones veta)
+i_gate_on            = input.bool(true, "Enable Downtrend Veto Gate", group="Downtrend Veto Gate (SPEC 4.7)")
+i_gate_dist          = input.float(-8.0, "Veto: Max Dist to High %", group="Downtrend Veto Gate (SPEC 4.7)")
+i_gate_ret           = input.float(-5.0, "Veto: Min Ret 10d %", group="Downtrend Veto Gate (SPEC 4.7)")
+
 i_regime_len         = input.int(200, "Regime SMA Length", group="Regime")
 i_strong_th          = input.float(0.62, "STRONG threshold", group="Regime")
 i_moderate_th        = input.float(0.50, "MODERATE threshold", group="Regime")
@@ -393,7 +398,7 @@ if barstate.islast
 // --- Main symbol calculations (for the chart this script is applied to) ---
 [mom_main, ret_main, dist_main, vrat_main, strict_main] = f_compute_hydra(syminfo.tickerid)
 
-short_b = (math.clamp(ret_main / 20, -0.5, 1.5) + math.clamp((3.0 - dist_main) / 3.0, 0, 1)) / 2
+short_b = (math.clamp(ret_main / 20, -0.5, 1.5) + math.clamp((3.0 + dist_main) / 3.0, 0, 1)) / 2
 comp_main = mom_main * (1 + short_b * SHORT_BOOST)
 if strict_main
     comp_main *= (1 + STRICT_BONUS)
@@ -401,7 +406,9 @@ comp_main *= compass_m
 
 // Dynamic count for this symbol (SPEC 4.7) - main chart is still local approx (table uses exact from JSON when provided)
 dyn_count = math.clamp(math.round(i_base_recs * (regime_score > 0.5 ? 1.05 : 0.93) * compass_m), i_min_recs, i_max_recs)
-is_rec_main = (comp_main > 0) and (regime_score >= i_min_regime_rec * 0.85)   // local approx for the chart this script is applied to; dashboard table uses Python recommended_tickers when i_summary_json provided
+// SPEC 4.7 - Downtrend Veto Gate (na no veta, igual que Python)
+in_downtrend_main = i_gate_on and ((dist_main < i_gate_dist) or (ret_main < i_gate_ret))
+is_rec_main = (comp_main > 0) and (regime_score >= i_min_regime_rec * 0.85) and not in_downtrend_main   // local approx for the chart this script is applied to; dashboard table uses Python recommended_tickers when i_summary_json provided
 
 // --- Visuals on main chart ---
 plot(comp_main, "Composite", color=color.new(color.aqua, 0), linewidth=2)
@@ -479,7 +486,7 @@ if barstate.islast and i_show_table
         [m, rs, dh, vr, ps] = f_compute_hydra(sym)
 
         // Full composite using shared meta (SPEC 4.5)
-        sb = (math.clamp(rs / 20, -0.5, 1.5) + math.clamp((3.0 - dh) / 3.0, 0, 1)) / 2
+        sb = (math.clamp(rs / 20, -0.5, 1.5) + math.clamp((3.0 + dh) / 3.0, 0, 1)) / 2
         comp = m * (1 + sb * SHORT_BOOST)
         if ps
             comp *= (1 + STRICT_BONUS)
@@ -583,7 +590,9 @@ if barstate.islast and i_show_table
                     is_rec := true
                     break
         else
-            is_rec := (rank <= dyn) and (regime_score >= i_min_regime_rec * 0.85)
+            // SPEC 4.7 - Downtrend Veto Gate también en el fallback local (na no veta)
+            in_dt = i_gate_on and ((dh < i_gate_dist) or (rs < i_gate_ret))
+            is_rec := (rank <= dyn) and (regime_score >= i_min_regime_rec * 0.85) and not in_dt
 
         row_bg = color.new(color.black, 20)
         if i_color_rows
