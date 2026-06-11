@@ -3,6 +3,7 @@ Manejo del universo de acciones.
 Soporta tanto lista pequeña como el S&P 500 completo de forma ligera.
 """
 import pandas as pd
+import re
 import requests
 from io import StringIO
 import os
@@ -863,6 +864,89 @@ def _fetch_russell1000_from_barchart(timeout: int = 25) -> list[str] | None:
         return None
 
 
+# ============================================================
+# NASDAQ screener API - universo US completo rankeado por market cap
+# (proxy metodológico de los Russell: R1000 = top 1000 por cap,
+#  R2000 = puestos 1001-3000, igual que la metodología FTSE Russell)
+# ============================================================
+
+_NASDAQ_RANKED_CACHE: list[str] | None = None  # cache en memoria por proceso
+
+
+def _fetch_us_stocks_ranked_by_marketcap(timeout: int = 60) -> list[str] | None:
+    """
+    Descarga TODAS las acciones listadas en US (NASDAQ/NYSE/AMEX, ~7000) desde
+    la API del screener de NASDAQ, en UNA sola request, y las devuelve
+    ordenadas por market cap descendente (formato Yahoo: BRK.B → BRK-B).
+
+    Excluye símbolos no estándar (warrants/units/preferred con ^ o /).
+    """
+    global _NASDAQ_RANKED_CACHE
+    if _NASDAQ_RANKED_CACHE is not None:
+        return _NASDAQ_RANKED_CACHE
+
+    url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=25&offset=0&download=true"
+    headers = {
+        "User-Agent": _get_headers()["User-Agent"],
+        "Accept": "application/json",
+        "Origin": "https://www.nasdaq.com",
+        "Referer": "https://www.nasdaq.com/",
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        rows = resp.json().get("data", {}).get("rows", [])
+    except Exception:
+        return None
+
+    parsed = []
+    for row in rows:
+        sym = (row.get("symbol") or "").strip().upper()
+        cap_raw = (row.get("marketCap") or "").replace(",", "").strip()
+        if not sym or not cap_raw:
+            continue
+        # Solo símbolos comunes (acciones + clases tipo BRK.B); fuera warrants/units/preferred
+        if not re.fullmatch(r"[A-Z]{1,5}([.\-/][A-Z])?", sym):
+            continue
+        try:
+            cap = float(cap_raw)
+        except ValueError:
+            continue
+        if cap <= 0:
+            continue
+        parsed.append((sym.replace(".", "-").replace("/", "-"), cap))
+
+    if len(parsed) < 3500:  # sanity: esperamos ~6500+ con cap
+        return None
+
+    parsed.sort(key=lambda x: -x[1])
+    # dedup conservando el de mayor cap
+    seen, ranked = set(), []
+    for sym, _ in parsed:
+        if sym not in seen:
+            seen.add(sym)
+            ranked.append(sym)
+
+    _NASDAQ_RANKED_CACHE = ranked
+    return ranked
+
+
+def _fetch_russell1000_from_nasdaq(timeout: int = 60) -> list[str] | None:
+    """Proxy Russell 1000: top 1000 acciones US por market cap."""
+    ranked = _fetch_us_stocks_ranked_by_marketcap(timeout=timeout)
+    if ranked and len(ranked) >= 3000:
+        return ranked[:1000]
+    return None
+
+
+def _fetch_russell2000_from_nasdaq(timeout: int = 60) -> list[str] | None:
+    """Proxy Russell 2000: puestos 1001-3000 por market cap (small caps)."""
+    ranked = _fetch_us_stocks_ranked_by_marketcap(timeout=timeout)
+    if ranked and len(ranked) >= 3000:
+        return ranked[1000:3000]
+    return None
+
+
 def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
     """Devuelve tickers del Russell 1000 (large + mid cap ~1000 US stocks)."""
     cache_path = _get_cache_path("russell1000")
@@ -877,6 +961,7 @@ def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
     source = None
 
     sources = [
+        ("NASDAQ marketcap top-1000", _fetch_russell1000_from_nasdaq),
         ("Slickcharts", _fetch_russell1000_from_slickcharts),
         ("Barchart", _fetch_russell1000_from_barchart),
     ]
@@ -1042,6 +1127,7 @@ def get_russell2000_tickers(use_cache: bool = True) -> list[str]:
     source = None
 
     sources = [
+        ("NASDAQ marketcap 1001-3000", _fetch_russell2000_from_nasdaq),
         ("Slickcharts", _fetch_russell2000_from_slickcharts),
         ("Barchart", _fetch_russell2000_from_barchart),
     ]
