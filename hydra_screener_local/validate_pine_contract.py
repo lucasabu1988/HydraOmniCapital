@@ -35,6 +35,7 @@ def simulate_pine_parser(json_path: str) -> dict:
     result = {
         "ok": True,
         "errors": [],
+        "contract_version": data.get("contract_version"),
         "rationale": data.get("rationale", ""),
         "regime_score": data.get("regime", {}).get("score"),
         "regime_type": data.get("regime", {}).get("type"),
@@ -46,6 +47,13 @@ def simulate_pine_parser(json_path: str) -> dict:
         "parsed_top_tickers": [],
         "sim_is_rec_matches": False,
     }
+
+    # TASK-203 contract version check
+    supported_versions = {"1.2"}
+    cv = data.get("contract_version")
+    if cv not in supported_versions:
+        result["ok"] = False
+        result["errors"].append(f"contract_version '{cv}' not in supported set {supported_versions} (missing or outdated)")
 
     top_details = data.get("top_details", [])
     for item in top_details:

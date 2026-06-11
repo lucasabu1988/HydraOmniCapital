@@ -84,6 +84,7 @@ def build_rich_summary(history_data: Dict, top_n: int = DEFAULT_TOP) -> Dict:
     watchlist_str = generate_watchlist_string(tickers)
 
     summary = {
+        "contract_version": "1.2",  # Bump ONLY when the JSON shape / top-level keys or top_details contract changes (see HYDRA_ALGORITHM_SPEC.md). Pine depends on this.
         "date": date,
         "generated_at": datetime.now().isoformat(),
         "regime": {

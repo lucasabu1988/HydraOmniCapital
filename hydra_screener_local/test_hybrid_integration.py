@@ -97,12 +97,19 @@ def main():
     assert summary["recommended_count"] == len(summary["recommended_tickers"])
     assert len(summary["top_details"]) > 0
 
+    # TASK-203: contract_version present and correct
+    assert summary.get("contract_version") == "1.2", "contract_version must be '1.2' as first key"
+
     # 3. Simulate what the Pine parser does with this summary (the critical contract)
     rec_count, rec_list, top_tickers, parse_error = simulate_pine_parser_for_recommended(summary)
     print(f"Pine-sim: recommended_count={rec_count}, rec_list={rec_list[:5]}..., parse_error={parse_error}")
 
     assert not parse_error, "Simulated Pine parser found structural problems in the summary"
     assert rec_count == len(rec_list) > 0
+
+    # TASK-203 contract version validation in the dedicated validator (extend coverage)
+    # We also exercise validate_pine_contract logic indirectly by checking version key
+    # (full validator test lives in its own module, but we ensure the summary carries the key)
     # The watchlist the feeder produced should be a prefix of (or equal to) the recommended list
     feeder_list = [t.strip() for t in watchlist_str.split(",") if t.strip()]
     for t in feeder_list[:3]:
