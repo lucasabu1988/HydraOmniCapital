@@ -209,9 +209,10 @@ def _fetch_sp500_from_github_saikr(timeout: int = 20) -> list[str] | None:
     Fuente GitHub adicional: saikr789 (lista SP500_TICKERS).
     """
     url = "https://raw.githubusercontent.com/saikr789/stock-market-prediction/master/data/SP500_TICKERS.csv"
+    resp = _get_with_retry(url, timeout=timeout)
+    if resp is None:
+        return None
     try:
-        resp = requests.get(url, headers=_get_headers(), timeout=timeout)
-        resp.raise_for_status()
         df = pd.read_csv(StringIO(resp.text))
         # Este archivo suele tener la columna "0" o "Symbol"
         for col in df.columns:
@@ -228,7 +229,8 @@ def _fetch_sp500_from_github_saikr(timeout: int = 20) -> list[str] | None:
                 if len(tickers) > 400:
                     return tickers
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_sp500_from_github_saikr parsing failed: %s", e)
         return None
 
 
