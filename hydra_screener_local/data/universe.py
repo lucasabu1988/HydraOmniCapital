@@ -7,7 +7,11 @@ import re
 import requests
 from io import StringIO
 import os
+import logging
+import time
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 CACHE_DAYS = 7  # refrescar la lista cada 7 días
 
@@ -38,15 +42,31 @@ def _get_headers():
     }
 
 
+def _get_with_retry(url: str, timeout: int = 20, attempts: int = 3, backoff: float = 2.0, headers: dict | None = None) -> requests.Response | None:
+    """Wrapper around requests.get with exponential backoff and logging on failure."""
+    for attempt in range(attempts):
+        try:
+            resp = requests.get(url, headers=headers or _get_headers(), timeout=timeout)
+            resp.raise_for_status()
+            return resp
+        except Exception as e:
+            logger.warning("Request to %s failed (attempt %d/%d): %s", url, attempt + 1, attempts, e)
+            if attempt < attempts - 1:
+                sleep_time = backoff ** (attempt + 1)
+                time.sleep(sleep_time)
+    return None
+
+
 def _fetch_sp500_from_slickcharts(timeout: int = 20) -> list[str] | None:
     """
     Fuente principal recomendada: Slickcharts (muy estable y limpia para S&P 500).
     https://slickcharts.com/sp500
     """
     url = "https://slickcharts.com/sp500"
+    resp = _get_with_retry(url, timeout=timeout)
+    if resp is None:
+        return None
     try:
-        resp = requests.get(url, headers=_get_headers(), timeout=timeout)
-        resp.raise_for_status()
         # Slickcharts suele tener la tabla principal como la primera o con id 'constituents'
         tables = pd.read_html(StringIO(resp.text))
         # Buscamos la tabla que tenga la columna 'Symbol'
@@ -57,7 +77,8 @@ def _fetch_sp500_from_slickcharts(timeout: int = 20) -> list[str] | None:
                 if len(tickers) > 400:  # Sanity check: S&P 500 real tiene ~503
                     return tickers
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_sp500_from_slickcharts parsing failed: %s", e)
         return None
 
 
@@ -66,10 +87,10 @@ def _fetch_sp500_from_wikipedia(timeout: int = 20) -> list[str] | None:
     Fuente secundaria: Wikipedia (mejorada con headers y parsers múltiples).
     """
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    resp = _get_with_retry(url, timeout=timeout)
+    if resp is None:
+        return None
     try:
-        resp = requests.get(url, headers=_get_headers(), timeout=timeout)
-        resp.raise_for_status()
-
         # Intentamos varios parsers (html5lib es más tolerante)
         for flavor in ["html5lib", "lxml", None]:
             try:
@@ -88,10 +109,12 @@ def _fetch_sp500_from_wikipedia(timeout: int = 20) -> list[str] | None:
                         )
                         if len(tickers) > 400:
                             return tickers
-            except Exception:
+            except Exception as e:
+                logger.warning("_fetch_sp500_from_wikipedia parser %s failed: %s", flavor, e)
                 continue
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_sp500_from_wikipedia failed: %s", e)
         return None
 
 
@@ -249,7 +272,8 @@ def get_sp500_tickers(use_cache: bool = True) -> list[str]:
             if tickers and len(tickers) > 400:
                 source = name
                 break
-        except Exception:
+        except Exception as e:
+            logger.warning("Source %s raised unexpected error: %s", name, e)
             continue
 
     if tickers:
@@ -261,12 +285,37 @@ def get_sp500_tickers(use_cache: bool = True) -> list[str]:
         os.makedirs(os.path.dirname(cache_path), exist_ok=True)
         pd.DataFrame({"ticker": clean}).to_csv(cache_path, index=False)
 
+        # TASK-201: write json cache for fallback observability
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        json_cache_dir = os.path.join(project_root, "data_cache")
+        os.makedirs(json_cache_dir, exist_ok=True)
+        json_cache = os.path.join(json_cache_dir, "universe_cache_sp500.json")
+        with open(json_cache, "w", encoding="utf-8") as f:
+            import json
+            json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
+
         try:
             print(f"✓ {len(clean)} tickers ({source})")
         except UnicodeEncodeError:
             print(f"[OK] {len(clean)} tickers ({source})")
 
         return clean
+
+    # TASK-201: try json cache fallback before hardcoded
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    json_cache = os.path.join(project_root, "data_cache", "universe_cache_sp500.json")
+    if os.path.exists(json_cache):
+        try:
+            import json
+            with open(json_cache, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            cached_date = data.get("date", "unknown")
+            cached_n = len(data.get("tickers", []))
+            logger.warning("using cached universe from %s (%d tickers) — all live sources failed", cached_date, cached_n)
+            print(f"WARNING: using cached universe from {cached_date} ({cached_n} tickers) — all live sources failed")
+            return data.get("tickers", [])
+        except Exception as e:
+            logger.warning("Failed to load universe cache: %s", e)
 
     # Último recurso: Fallback (nunca falla)
     try:
