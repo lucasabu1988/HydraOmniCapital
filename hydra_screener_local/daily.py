@@ -23,6 +23,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Consolas/pipes Windows usan cp1252 por defecto y rompen con flechas/emojis UTF-8
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = Path(__file__).parent
 
 def run_screener(universe: str = "all") -> int:

@@ -5,7 +5,12 @@ Ejecutar con: python screener.py
 Soporta universo pequeño o S&P 500 completo.
 """
 import os
+import sys
 from datetime import datetime
+
+# Consolas/pipes Windows usan cp1252 por defecto y rompen con flechas/emojis UTF-8
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # Robust paths relative to this file (works from any cwd)
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,7 +36,8 @@ def main():
     print_header()
     
     # 1. Definir universo (soporta sp500, nasdaq100, dow30, "all", custom)
-    effective_universe = UNIVERSE if 'UNIVERSE' in dir() else ("sp500" if USE_FULL_SP500 else "custom")
+    # Prioridad: env UNIVERSE (lo setea daily.py --universe) > config.UNIVERSE > legacy flag
+    effective_universe = os.environ.get("UNIVERSE") or UNIVERSE or ("sp500" if USE_FULL_SP500 else "custom")
     tickers = get_universe(universe=effective_universe, full_sp500=USE_FULL_SP500)
     if effective_universe.lower() == "all":
         print(f"Universo seleccionado: COMBINADO AMPLIADO (SP500 + Nasdaq100 + Dow30 + R1000 + R2000) → {len(tickers)} tickers únicos\n")
@@ -147,8 +153,13 @@ def main():
     # 8. Log the top-5 cycle for dynamic PnL tracking (entry=last close from fetch, current starts=entry, formulas for PnL)
     # This turns every screener run (esp. UNIVERSE=all) into an auditable entry for the 5/5 rotation strategy.
     try:
-        if len(candidates) >= 5:
-            top5 = candidates.head(5)['ticker'].tolist()
+        # Top5 ejecutable = top 5 de los RECOMENDADOS (post downtrend gate, SPEC 4.7).
+        # Antes usaba head(5) crudo, que podía incluir nombres vetados por caída reciente.
+        exec_pool = candidates[candidates['recommended'] == True] if 'recommended' in candidates.columns else candidates
+        if len(exec_pool) == 0:
+            exec_pool = candidates
+        if len(exec_pool) >= 5:
+            top5 = exec_pool.head(5)['ticker'].tolist()
             # entry price = most recent close used by the screener (point-in-time for signal)
             entry_prices = {}
             for t in top5:
@@ -180,31 +191,31 @@ def main():
             print("  → pine/hydra_last_summary.txt  (human readable summary)")
             print("  In TradingView: the dashboard table will now use Python's exact recommended_tickers for the 'Rec?' column.")
 
-        # Close the loop: also log the *exact* recommended list that was sent to Pine (the one user pastes)
-        # This allows PnL tracking specifically for the lists that appeared in the TV dashboard.
-        try:
-            rec_col = 'recommended' if 'recommended' in candidates.columns else None
-            if rec_col:
-                hybrid_recs = candidates[candidates[rec_col] == True]['ticker'].tolist()
-            else:
-                hybrid_recs = candidates.head(15)['ticker'].tolist()
-            if hybrid_recs:
-                entry_prices = {}
-                for t in hybrid_recs:
-                    if t in prices.columns and len(prices[t].dropna()) > 0:
-                        entry_prices[t] = float(prices[t].dropna().iloc[-1])
-                import log_cycle_positions
-                log_cycle_positions.log_cycle(
-                    datetime.now(), hybrid_recs, candidates,
-                    notes=f"HYBRID exact recommended list sent to Pine/TV (UNIVERSE={effective_universe})",
-                    entry_prices=entry_prices
-                )
-                print(f"[CycleLog] Exact hybrid recommended list ({len(hybrid_recs)}) logged for Pine-matched PnL tracking")
-                print("           Run: python refresh_current_prices.py --lookback 5   (to update live current prices & PnL)")
+            # Close the loop: also log the *exact* recommended list that was sent to Pine (the one user pastes)
+            # This allows PnL tracking specifically for the lists that appeared in the TV dashboard.
+            try:
+                rec_col = 'recommended' if 'recommended' in candidates.columns else None
+                if rec_col:
+                    hybrid_recs = candidates[candidates[rec_col] == True]['ticker'].tolist()
+                else:
+                    hybrid_recs = candidates.head(15)['ticker'].tolist()
+                if hybrid_recs:
+                    entry_prices = {}
+                    for t in hybrid_recs:
+                        if t in prices.columns and len(prices[t].dropna()) > 0:
+                            entry_prices[t] = float(prices[t].dropna().iloc[-1])
+                    import log_cycle_positions
+                    log_cycle_positions.log_cycle(
+                        datetime.now(), hybrid_recs, candidates,
+                        notes=f"HYBRID exact recommended list sent to Pine/TV (UNIVERSE={effective_universe})",
+                        entry_prices=entry_prices
+                    )
+                    print(f"[CycleLog] Exact hybrid recommended list ({len(hybrid_recs)}) logged for Pine-matched PnL tracking")
+                    print("           Run: python refresh_current_prices.py --lookback 5   (to update live current prices & PnL)")
+            except Exception as e:
+                print(f"[yellow]⚠[/yellow] Hybrid recommended cycle log skipped: {e}")
         except Exception as e:
-            print(f"[yellow]⚠[/yellow] Hybrid recommended cycle log skipped: {e}")
-    except Exception as e:
-        print(f"[yellow]⚠[/yellow] Hybrid integration skipped: {e}")
+            print(f"[yellow]⚠[/yellow] Hybrid integration skipped: {e}")
     
     print_footer()
 
