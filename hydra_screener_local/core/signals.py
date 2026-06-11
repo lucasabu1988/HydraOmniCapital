@@ -218,6 +218,10 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     dynamic_vol_threshold = max(MIN_VOL_THRESHOLD, dynamic_vol_threshold)
 
     df["vol_ratio"] = df.get("vol_ratio", pd.NA)
+    # TASK-202: compute share of tickers with missing volume data for watchdog
+    vol_ratio_nan_share = float(df["vol_ratio"].isna().mean()) if len(df) > 0 else 0.0
+    df["vol_ratio_nan_share"] = round(vol_ratio_nan_share, 4)
+
     # Use infer_objects to avoid FutureWarning on downcasting fillna
     df["passes_strict"] = (
         (df["ret_short"].fillna(0).infer_objects(copy=False) > 15) &

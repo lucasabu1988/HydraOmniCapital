@@ -60,6 +60,9 @@ MAX_DIST_TO_HIGH_PCT = 3.0       # Máximo % lejos del high para dar boost compl
 SHORT_TERM_BOOST = 0.35          # Cuánto boostear el meta_score con momentum reciente + cercanía a highs
 VOL_SURGE_THRESHOLD = 1.50       # Umbral base de volumen relativo (placeholder hasta extender fetch)
 
+# TASK-202: threshold for warning when too many tickers have NaN vol_ratio (missing volume data)
+VOL_NAN_WARN_THRESHOLD = 0.20      # max acceptable share of tickers with NaN vol_ratio before warning
+
 # ============================================
 # DOWNTREND VETO GATE (nuevo Jun 2026)
 # ============================================

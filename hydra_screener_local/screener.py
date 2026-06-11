@@ -23,7 +23,7 @@ try:
 except Exception as _e:
     print(f"[WARN] .env loader skipped: {_e}")
 
-from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS, UNIVERSE
+from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS, UNIVERSE, VOL_NAN_WARN_THRESHOLD
 from data.universe import get_universe
 from data.fetch import fetch_prices_and_volume, fetch_spy
 from core.signals import generate_daily_candidates, compute_regime_score
@@ -75,6 +75,11 @@ def main():
     # 4. Generar candidatos (ya incluye Meta-Layer)
     candidates = generate_daily_candidates(prices, spy, volumes=volumes)
     regime_score = compute_regime_score(spy)
+
+    # TASK-202: Volume data watchdog — warn if too many NaN vol_ratio (missing volume breaks strict filter)
+    nan_share = float(candidates.iloc[0].get("vol_ratio_nan_share", 0.0)) if len(candidates) > 0 else 0.0
+    if nan_share > VOL_NAN_WARN_THRESHOLD:
+        print(f"⚠ {nan_share:.0%} of tickers have no usable volume data — strict filter coverage degraded")
     
     # Extraer info de meta para el resumen
     meta_info = {}
