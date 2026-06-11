@@ -40,7 +40,8 @@ artifact. (Option B — chosen by user over reviving TASKBOARD.md or per-task sp
    - Each task declares `Files:` — Grok only touches those files while the task is active.
    - Shared working tree: stage with `git add <specific files>`, never `git add .` / `git add -A`.
    - Conventional commits (`feat:`, `fix:`, `test:`, `refactor:`).
-   - Run `python hydra_screener_local/run_all_tests.py` before marking a task done.
+   - Run `cd hydra_screener_local && python run_all_tests.py` before marking a task done
+     (the script assumes its own directory as CWD).
    - Task states: `[ ]` open → `[~]` in progress (mark when claiming) → `[x]` done + commit hash.
      Blocked: `[!]` + message in the thread.
    - Never modify `HYDRA_ALGORITHM_SPEC.md` or scoring logic without explicit approval.
