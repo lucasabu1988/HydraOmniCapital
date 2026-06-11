@@ -93,3 +93,51 @@ def test_volume_nan_share_clean_no_warning(capsys):
 
     captured = capsys.readouterr()
     assert "⚠" not in captured.out
+
+
+def test_volume_nan_share_reaches_history_json(tmp_path):
+    """Integration-style test: nan_share is passed through and lands in the actual history JSON (no mock of save_daily_run)."""
+    from core.history import save_daily_run
+    import json
+
+    test_date = "20990101"  # future date to not collide
+    test_dir = tmp_path / "history_test"
+    test_dir.mkdir()
+
+    # Call save with a non-zero nan_share
+    save_daily_run(
+        date=test_date,
+        regime_score=0.5,
+        regime_type="TEST",
+        special_modes=[],
+        pillar_multipliers={},
+        top_candidates=[{"ticker": "TEST", "rank": 1}],
+        meta_rationale="test",
+        base_dir=str(test_dir),
+        vol_ratio_nan_share=0.42
+    )
+
+    json_path = test_dir / f"{test_date}.json"
+    assert json_path.exists()
+
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    assert "vol_ratio_nan_share" in data
+    assert data["vol_ratio_nan_share"] == 0.42
+
+    # Also test default 0.0
+    save_daily_run(
+        date="20990102",
+        regime_score=0.5,
+        regime_type="TEST",
+        special_modes=[],
+        pillar_multipliers={},
+        top_candidates=[],
+        meta_rationale="",
+        base_dir=str(test_dir)
+    )
+    json_path2 = test_dir / "20990102.json"
+    with open(json_path2, "r", encoding="utf-8") as f:
+        data2 = json.load(f)
+    assert data2.get("vol_ratio_nan_share", -1) == 0.0

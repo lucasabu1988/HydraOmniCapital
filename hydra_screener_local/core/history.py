@@ -21,11 +21,13 @@ def save_daily_run(
     pillar_multipliers: Dict[str, float],
     top_candidates: List[Dict[str, Any]],
     meta_rationale: str = "",
-    base_dir: str = None
+    base_dir: str = None,
+    vol_ratio_nan_share: float = 0.0
 ) -> str:
     """
     Guarda el resultado completo de un día del screener.
     base_dir: optional absolute path to use instead of the default "history" folder.
+    vol_ratio_nan_share: from TASK-202 volume watchdog (share of tickers with missing volume data).
     """
     out_dir = base_dir or HISTORY_DIR
     os.makedirs(out_dir, exist_ok=True)
@@ -40,7 +42,8 @@ def save_daily_run(
         },
         "pillar_multipliers": pillar_multipliers,
         "meta_rationale": meta_rationale,
-        "top_candidates": top_candidates
+        "top_candidates": top_candidates,
+        "vol_ratio_nan_share": vol_ratio_nan_share
     }
 
     filename = os.path.join(out_dir, f"{date}.json")

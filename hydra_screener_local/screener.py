@@ -149,7 +149,8 @@ def main():
             special_modes=special_modes_list,
             pillar_multipliers=pillar_mults,
             top_candidates=top_for_history,
-            meta_rationale=meta_rationale
+            meta_rationale=meta_rationale,
+            vol_ratio_nan_share=nan_share
         )
         print(f"[OK] Historico guardado en history/{today}.json")
     except Exception as e:
