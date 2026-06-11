@@ -1,3 +1,10 @@
+> **⚠️ ARCHIVED (2026-06-11)** — This board belongs to the Codex/cloud-engine era (Mar 2026)
+> and is frozen as a historical record. The cloud system (Render + COMPASS engine) is dead and
+> the remaining "open" Batch 4 tasks are obsolete: most were implemented without being marked
+> done (see `tests/`, `.github/workflows/`), and the rest target the dead cloud stack.
+>
+> **The active task queue is [`GROKBOARD.md`](GROKBOARD.md)** (Claude ↔ Grok, local screener era).
+
 # TASKBOARD — Claude ↔ Codex Coordination
 
 This file is the shared task queue AND communication channel between Claude (architect/reviewer) and Codex (implementer).
