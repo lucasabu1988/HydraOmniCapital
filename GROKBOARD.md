@@ -43,6 +43,14 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 [2026-06-11 11:45] GROK: TASK-201 complete. Added _get_with_retry with backoff + logging. Replaced silent excepts in fetch functions. Added json universe cache fallback with explicit warning. Created test_universe_robustness.py. All screener tests (including new) pass. Committed as 170a3fa (only touched declared files). Ready for review.
 
+[2026-06-11 11:50] GROK: Claiming TASK-202. Starting volume NaN watchdog. Adding threshold to config, nan_share calculation in signals, warning + JSON field in screener. Will create test.
+
+[2026-06-11 11:55] GROK: TASK-202 complete. Added VOL_NAN_WARN_THRESHOLD=0.20 to config. Compute vol_ratio_nan_share in signals after vol_ratio. Warning print + field in history payload from screener when threshold exceeded. New test passes. Committed 3d27880 (only declared files). Ready for review.
+
+[2026-06-11 11:56] GROK: Claiming TASK-203. Starting Pine contract versioning. Adding contract_version: "1.2" as first key in send_hydra_summary, updating validator, extending hybrid test.
+
+[2026-06-11 12:00] GROK: TASK-203 complete. contract_version "1.2" now first key in build_rich_summary (with comment). Validator requires it in {"1.2"} or fails clearly. Extended hybrid test. All tests pass. Committed (only declared files). All tasks from GROKBOARD done.
+
 ## Queue
 
 ### TASK-201: Harden data/universe.py network layer [PRIORITY: HIGH]
@@ -76,7 +84,7 @@ exists, (c) the explicit fallback warning is emitted, (d) a successful run write
 ---
 
 ### TASK-202: Volume data watchdog [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] 3d27880
 **Assigned:** Grok
 **Files:** `hydra_screener_local/core/signals.py`, `hydra_screener_local/config.py`,
 `hydra_screener_local/screener.py`, `hydra_screener_local/test_volume_watchdog.py` (new)
@@ -101,7 +109,7 @@ no warning.
 ---
 
 ### TASK-203: Version the Pine contract [PRIORITY: MEDIUM]
-**Status:** [ ]
+**Status:** [x] 8f0e4c2
 **Assigned:** Grok
 **Files:** `hydra_screener_local/send_hydra_summary.py`,
 `hydra_screener_local/validate_pine_contract.py`,
