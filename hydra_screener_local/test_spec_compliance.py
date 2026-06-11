@@ -305,6 +305,21 @@ def test_4_7_downtrend_gate():
     assert "Vetado" in str(row['reason']) or row['reason'] == 'Filtrado por Meta-Layer'
     print(f"[OK] Acción en caída vetada de recommended (ret_10d={row['ret_5d_10d']:.1f}%, "
           f"dist_high={row['dist_20d_high']:.1f}%) (SPEC 4.7)")
+
+    # NaN también veta: sin datos frescos de corto plazo no hay recomendación
+    from core.signals import apply_downtrend_gate
+    df_nan = pd.DataFrame({
+        "ticker": ["GOOD", "NODATA"],
+        "ret_short": [5.0, np.nan],
+        "dist_to_high": [-1.0, np.nan],
+        "recommended": [True, True],
+        "reason": ["Neutral", "Neutral"],
+    })
+    df_nan = apply_downtrend_gate(df_nan)
+    assert df_nan.loc[df_nan.ticker == "GOOD", "recommended"].iloc[0] == True
+    assert df_nan.loc[df_nan.ticker == "NODATA", "recommended"].iloc[0] == False
+    assert "incompletos" in df_nan.loc[df_nan.ticker == "NODATA", "reason"].iloc[0]
+    print("[OK] NaN en features de corto plazo veta con razón 'datos incompletos' (SPEC 4.7)")
     return True
 
 def test_output_contract():

@@ -262,11 +262,16 @@ solo puede quitar el flag (el conteo efectivo puede quedar < dynamic_count).
 ```pseudocode
 in_downtrend = (dist_to_high < GATE_MAX_DIST_TO_HIGH_PCT)    # OR estricto
             OR (ret_short  < GATE_MIN_RET_SHORT_PCT)
-# NaN en cualquiera de las features NO veta (hueco de datos ≠ señal de caída)
+missing_data = isna(dist_to_high) OR isna(ret_short)
+# NaN TAMBIÉN veta: en un sistema con capital real, un dato ausente no es luz verde.
+# Con el universo ampliado (~3000 tickers) los huecos de descarga son más frecuentes.
 
-if in_downtrend AND recommended:
+if recommended AND in_downtrend:
     recommended = False
     reason = "Vetado: caída reciente (downtrend gate, SPEC 4.7)"
+elif recommended AND missing_data:
+    recommended = False
+    reason = "Vetado: datos de corto plazo incompletos (gate, SPEC 4.7)"
 ```
 
 **Parameters**:

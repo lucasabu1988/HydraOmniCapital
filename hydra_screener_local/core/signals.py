@@ -105,8 +105,10 @@ def apply_downtrend_gate(df: pd.DataFrame) -> pd.DataFrame:
     - GATE_MIN_RET_SHORT_PCT    (ej: -5.0)
 
     Regla elegida (2026-06-11): OR estricto — cualquiera de las dos condiciones
-    veta. NaN no veta (hueco de datos ≠ señal de caída; la comparación con NaN
-    da False en pandas, que es el comportamiento deseado).
+    veta. NaN TAMBIÉN veta (actualizado mismo día): en un sistema que ejecuta
+    capital real, un dato ausente no cuenta como luz verde. Con el universo
+    ampliado (~3000 tickers) los huecos de descarga de Yahoo son más frecuentes,
+    así que "sin datos frescos de corto plazo" = no recomendable hoy.
     """
     if not ENABLE_DOWNTREND_GATE:
         return df
@@ -115,10 +117,14 @@ def apply_downtrend_gate(df: pd.DataFrame) -> pd.DataFrame:
         (df["dist_to_high"] < GATE_MAX_DIST_TO_HIGH_PCT) |
         (df["ret_short"] < GATE_MIN_RET_SHORT_PCT)
     ).fillna(False)
+    # NaN < umbral da False en pandas, así que los huecos de datos se chequean aparte
+    missing_data = df["dist_to_high"].isna() | df["ret_short"].isna()
 
-    vetoed = in_downtrend & df["recommended"]
-    df.loc[vetoed, "recommended"] = False
-    df.loc[vetoed, "reason"] = "Vetado: caída reciente (downtrend gate, SPEC 4.7)"
+    veto_downtrend = in_downtrend & df["recommended"]
+    veto_missing = missing_data & df["recommended"] & ~in_downtrend
+    df.loc[veto_downtrend, "reason"] = "Vetado: caída reciente (downtrend gate, SPEC 4.7)"
+    df.loc[veto_missing, "reason"] = "Vetado: datos de corto plazo incompletos (gate, SPEC 4.7)"
+    df.loc[veto_downtrend | veto_missing, "recommended"] = False
     return df
 
 
@@ -202,8 +208,10 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     if not short_features.empty:
         df = df.merge(short_features, on="ticker", how="left")
     else:
-        df["ret_short"] = 0.0
-        df["dist_to_high"] = -10.0
+        # Sin features de corto plazo: NaN honesto → el gate los veta como
+        # "datos incompletos" (no como falsa "caída reciente" con -10 inventado)
+        df["ret_short"] = np.nan
+        df["dist_to_high"] = np.nan
 
     # Calcular si pasa el Strict Filter (ret >15%, cerca de highs, volumen surge)
     dynamic_vol_threshold = VOL_SURGE_THRESHOLD + (GEOPOLITICAL_RISK_LEVEL * GEO_VOL_THRESHOLD_ADJUST)

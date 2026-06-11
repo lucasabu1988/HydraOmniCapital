@@ -406,8 +406,8 @@ comp_main *= compass_m
 
 // Dynamic count for this symbol (SPEC 4.7) - main chart is still local approx (table uses exact from JSON when provided)
 dyn_count = math.clamp(math.round(i_base_recs * (regime_score > 0.5 ? 1.05 : 0.93) * compass_m), i_min_recs, i_max_recs)
-// SPEC 4.7 - Downtrend Veto Gate (na no veta, igual que Python)
-in_downtrend_main = i_gate_on and ((dist_main < i_gate_dist) or (ret_main < i_gate_ret))
+// SPEC 4.7 - Downtrend Veto Gate (na TAMBIÉN veta: sin datos frescos no hay recomendación, igual que Python)
+in_downtrend_main = i_gate_on and (na(dist_main) or na(ret_main) or (dist_main < i_gate_dist) or (ret_main < i_gate_ret))
 is_rec_main = (comp_main > 0) and (regime_score >= i_min_regime_rec * 0.85) and not in_downtrend_main   // local approx for the chart this script is applied to; dashboard table uses Python recommended_tickers when i_summary_json provided
 
 // --- Visuals on main chart ---
@@ -590,8 +590,8 @@ if barstate.islast and i_show_table
                     is_rec := true
                     break
         else
-            // SPEC 4.7 - Downtrend Veto Gate también en el fallback local (na no veta)
-            in_dt = i_gate_on and ((dh < i_gate_dist) or (rs < i_gate_ret))
+            // SPEC 4.7 - Downtrend Veto Gate también en el fallback local (na TAMBIÉN veta)
+            in_dt = i_gate_on and (na(dh) or na(rs) or (dh < i_gate_dist) or (rs < i_gate_ret))
             is_rec := (rank <= dyn) and (regime_score >= i_min_regime_rec * 0.85) and not in_dt
 
         row_bg = color.new(color.black, 20)
