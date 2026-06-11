@@ -142,7 +142,8 @@ def _fetch_sp500_from_github(timeout: int = 20) -> list[str] | None:
             if len(tickers) > 400:
                 return tickers
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_sp500_from_github failed: %s", e)
         return None
 
 
@@ -170,7 +171,8 @@ def _fetch_sp500_from_barchart(timeout: int = 25) -> list[str] | None:
                 if len(tickers) > 400:
                     return tickers
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_sp500_from_barchart failed: %s", e)
         return None
 
 
@@ -197,7 +199,8 @@ def _fetch_sp500_from_github_steven(timeout: int = 20) -> list[str] | None:
                 if len(tickers) > 400:
                     return tickers
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_sp500_from_github_steven failed: %s", e)
         return None
 
 
@@ -845,7 +848,8 @@ def _fetch_dow30_from_slickcharts(timeout: int = 20) -> list[str] | None:
                 if len(tickers) > 25:  # Dow has 30
                     return tickers
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_dow30_from_slickcharts failed: %s", e)
         return None
 
 
@@ -872,18 +876,43 @@ def get_dow30_tickers(use_cache: bool = True) -> list[str]:
             if tickers and len(tickers) > 25:
                 source = name
                 break
-        except Exception:
+        except Exception as e:
+            logger.warning("Source %s raised unexpected error: %s", name, e)
             continue
 
     if tickers:
         clean = sorted(list(set(str(t).strip().upper() for t in tickers if t and str(t).strip())))
         os.makedirs(os.path.dirname(cache_path), exist_ok=True)
         pd.DataFrame({"ticker": clean}).to_csv(cache_path, index=False)
+
+        # TASK-201 round 3: add json cache for dow30 (it resolves via network)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        json_cache_dir = os.path.join(project_root, "data_cache")
+        os.makedirs(json_cache_dir, exist_ok=True)
+        json_cache = os.path.join(json_cache_dir, "universe_cache_dow30.json")
+        with open(json_cache, "w", encoding="utf-8") as f:
+            json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
+
         try:
             print(f"✓ {len(clean)} tickers ({source})")
         except UnicodeEncodeError:
             print(f"[OK] {len(clean)} tickers ({source})")
         return clean
+
+    # TASK-201 round 3: json cache fallback for dow30
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    json_cache = os.path.join(project_root, "data_cache", "universe_cache_dow30.json")
+    if os.path.exists(json_cache):
+        try:
+            with open(json_cache, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            cached_date = data.get("date", "unknown")
+            cached_n = len(data.get("tickers", []))
+            logger.warning("using cached universe from %s (%d tickers) — all live sources failed", cached_date, cached_n)
+            print(f"WARNING: using cached universe from {cached_date} ({cached_n} tickers) — all live sources failed")
+            return data.get("tickers", [])
+        except Exception as e:
+            logger.warning("Failed to load universe cache: %s", e)
 
     # Reliable fallback for Dow 30 (as of mid-2026, standard components)
     print("Usando lista de respaldo para Dow 30.")
@@ -912,7 +941,8 @@ def _fetch_russell1000_from_slickcharts(timeout: int = 25) -> list[str] | None:
                 if len(tickers) > 800:  # Russell 1000 ~1000
                     return tickers
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_russell1000_from_slickcharts failed: %s", e)
         return None
 
 
@@ -938,7 +968,8 @@ def _fetch_russell1000_from_barchart(timeout: int = 25) -> list[str] | None:
                 if len(tickers) > 800:
                     return tickers
         return None
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_russell1000_from_barchart failed: %s", e)
         return None
 
 
@@ -974,7 +1005,8 @@ def _fetch_us_stocks_ranked_by_marketcap(timeout: int = 60) -> list[str] | None:
         resp = requests.get(url, headers=headers, timeout=timeout)
         resp.raise_for_status()
         rows = resp.json().get("data", {}).get("rows", [])
-    except Exception:
+    except Exception as e:
+        logger.warning("_fetch_us_stocks_ranked_by_marketcap failed: %s", e)
         return None
 
     parsed = []
@@ -1050,18 +1082,43 @@ def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
             if tickers and len(tickers) > 800:
                 source = name
                 break
-        except Exception:
+        except Exception as e:
+            logger.warning("Source %s raised unexpected error: %s", name, e)
             continue
 
     if tickers:
         clean = sorted(list(set(str(t).strip().upper() for t in tickers if t and str(t).strip())))
         os.makedirs(os.path.dirname(cache_path), exist_ok=True)
         pd.DataFrame({"ticker": clean}).to_csv(cache_path, index=False)
+
+        # TASK-201 round 3: add json cache for russell1000 (resolves via network)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        json_cache_dir = os.path.join(project_root, "data_cache")
+        os.makedirs(json_cache_dir, exist_ok=True)
+        json_cache = os.path.join(json_cache_dir, "universe_cache_russell1000.json")
+        with open(json_cache, "w", encoding="utf-8") as f:
+            json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
+
         try:
             print(f"✓ {len(clean)} tickers ({source})")
         except UnicodeEncodeError:
             print(f"[OK] {len(clean)} tickers ({source})")
         return clean
+
+    # TASK-201 round 3: json cache fallback for russell1000
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    json_cache = os.path.join(project_root, "data_cache", "universe_cache_russell1000.json")
+    if os.path.exists(json_cache):
+        try:
+            with open(json_cache, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            cached_date = data.get("date", "unknown")
+            cached_n = len(data.get("tickers", []))
+            logger.warning("using cached universe from %s (%d tickers) — all live sources failed", cached_date, cached_n)
+            print(f"WARNING: using cached universe from {cached_date} ({cached_n} tickers) — all live sources failed")
+            return data.get("tickers", [])
+        except Exception as e:
+            logger.warning("Failed to load universe cache: %s", e)
 
     # Fallback: use a broad list based on sp500 fallback + common mids (expandable)
     print("Usando lista de respaldo amplia para Russell 1000 (combinando SP500 + mids comunes).")
