@@ -71,8 +71,11 @@ VOL_NAN_WARN_THRESHOLD = 0.20      # max acceptable share of tickers with NaN vo
 # en el trimestre"). El veto excluye de 'recommended' a las acciones en caída
 # reciente, sin importar su rank. Filosofía: ranking relativo para elegir,
 # filtro absoluto para vetar (igual que Catalyst exige precio > SMA200).
+# Regla "solo en negativo" (2026-06-12): ret_10d < 0 es condición necesaria —
+# una acción con retorno reciente positivo nunca se veta aunque esté lejos de
+# su high (dip en uptrend ≠ caída). Ver experiments/backtest_gate_variants.py.
 ENABLE_DOWNTREND_GATE = True
-GATE_MAX_DIST_TO_HIGH_PCT = -8.0   # Veto si está más de X% debajo de su máximo de 20d
+GATE_MAX_DIST_TO_HIGH_PCT = -8.0   # Veto si está más de X% debajo de su máximo de 20d (solo si ret 10d < 0)
 GATE_MIN_RET_SHORT_PCT = -5.0      # Veto si el retorno de 10d es peor que X%
 
 # ============================================

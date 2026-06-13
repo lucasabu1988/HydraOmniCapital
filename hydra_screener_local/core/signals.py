@@ -104,18 +104,27 @@ def apply_downtrend_gate(df: pd.DataFrame) -> pd.DataFrame:
     - GATE_MAX_DIST_TO_HIGH_PCT (ej: -8.0)
     - GATE_MIN_RET_SHORT_PCT    (ej: -5.0)
 
-    Regla elegida (2026-06-11): OR estricto — cualquiera de las dos condiciones
-    veta. NaN TAMBIÉN veta (actualizado mismo día): en un sistema que ejecuta
-    capital real, un dato ausente no cuenta como luz verde. Con el universo
-    ampliado (~3000 tickers) los huecos de descarga de Yahoo son más frecuentes,
-    así que "sin datos frescos de corto plazo" = no recomendable hoy.
+    Regla (2026-06-12): el veto solo aplica EN NEGATIVO — `ret_short < 0` es
+    condición necesaria. Una acción con retorno reciente positivo nunca se veta,
+    aunque esté lejos de su máximo de 20d (dip dentro de un uptrend: subió fuerte,
+    retrocede del pico pero sigue neta arriba). Verificado en el replay del selloff
+    jun-2026 (experiments/backtest_gate_variants.py): la regla OR pura vetaba el
+    rebote post-crash (nombres aún positivos a 10d) y costaba retorno cada día.
+    Sobre la condición necesaria, cualquiera de las dos señales veta (OR).
+    NaN TAMBIÉN veta: en un sistema que ejecuta capital real, un dato ausente no
+    cuenta como luz verde. Con el universo ampliado (~3000 tickers) los huecos de
+    descarga de Yahoo son más frecuentes, así que "sin datos frescos de corto
+    plazo" = no recomendable hoy.
     """
     if not ENABLE_DOWNTREND_GATE:
         return df
 
     in_downtrend = (
-        (df["dist_to_high"] < GATE_MAX_DIST_TO_HIGH_PCT) |
-        (df["ret_short"] < GATE_MIN_RET_SHORT_PCT)
+        (df["ret_short"] < 0) &
+        (
+            (df["dist_to_high"] < GATE_MAX_DIST_TO_HIGH_PCT) |
+            (df["ret_short"] < GATE_MIN_RET_SHORT_PCT)
+        )
     ).fillna(False)
     # NaN < umbral da False en pandas, así que los huecos de datos se chequean aparte
     missing_data = df["dist_to_high"].isna() | df["ret_short"].isna()

@@ -36,7 +36,7 @@ i_strict_dist        = input.float(-2.0, "Strict Max Dist to High %", group="Sho
 i_vol_base           = input.float(1.50, "Base Vol Surge Threshold", group="Short-Term & Strict")
 i_geo_risk           = input.float(0.0, "Geopolitical Risk (0-1)", minval=0, maxval=1, step=0.1, group="Short-Term & Strict")
 
-// SPEC 4.7 - Downtrend Veto Gate (OR estricto: cualquiera de las dos condiciones veta)
+// SPEC 4.7 - Downtrend Veto Gate (solo-en-negativo: ret 10d < 0 es condición necesaria; sobre eso, OR de las dos señales)
 i_gate_on            = input.bool(true, "Enable Downtrend Veto Gate", group="Downtrend Veto Gate (SPEC 4.7)")
 i_gate_dist          = input.float(-8.0, "Veto: Max Dist to High %", group="Downtrend Veto Gate (SPEC 4.7)")
 i_gate_ret           = input.float(-5.0, "Veto: Min Ret 10d %", group="Downtrend Veto Gate (SPEC 4.7)")
@@ -406,8 +406,8 @@ comp_main *= compass_m
 
 // Dynamic count for this symbol (SPEC 4.7) - main chart is still local approx (table uses exact from JSON when provided)
 dyn_count = math.clamp(math.round(i_base_recs * (regime_score > 0.5 ? 1.05 : 0.93) * compass_m), i_min_recs, i_max_recs)
-// SPEC 4.7 - Downtrend Veto Gate (na TAMBIÉN veta: sin datos frescos no hay recomendación, igual que Python)
-in_downtrend_main = i_gate_on and (na(dist_main) or na(ret_main) or (dist_main < i_gate_dist) or (ret_main < i_gate_ret))
+// SPEC 4.7 - Downtrend Veto Gate (na TAMBIÉN veta; solo-en-negativo: ret >= 0 nunca se veta, igual que Python)
+in_downtrend_main = i_gate_on and (na(dist_main) or na(ret_main) or (ret_main < 0 and ((dist_main < i_gate_dist) or (ret_main < i_gate_ret))))
 is_rec_main = (comp_main > 0) and (regime_score >= i_min_regime_rec * 0.85) and not in_downtrend_main   // local approx for the chart this script is applied to; dashboard table uses Python recommended_tickers when i_summary_json provided
 
 // --- Visuals on main chart ---
@@ -590,8 +590,8 @@ if barstate.islast and i_show_table
                     is_rec := true
                     break
         else
-            // SPEC 4.7 - Downtrend Veto Gate también en el fallback local (na TAMBIÉN veta)
-            in_dt = i_gate_on and (na(dh) or na(rs) or (dh < i_gate_dist) or (rs < i_gate_ret))
+            // SPEC 4.7 - Downtrend Veto Gate también en el fallback local (na TAMBIÉN veta; solo-en-negativo)
+            in_dt = i_gate_on and (na(dh) or na(rs) or (rs < 0 and ((dh < i_gate_dist) or (rs < i_gate_ret))))
             is_rec := (rank <= dyn) and (regime_score >= i_min_regime_rec * 0.85) and not in_dt
 
         row_bg = color.new(color.black, 20)

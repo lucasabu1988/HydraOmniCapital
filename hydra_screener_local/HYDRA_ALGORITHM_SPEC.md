@@ -259,9 +259,17 @@ igual que Catalyst exige precio > SMA200 por activo.
 Se aplica DESPUÉS del flag `recommended` de 4.6. No altera scores ni ranks;
 solo puede quitar el flag (el conteo efectivo puede quedar < dynamic_count).
 
+**Regla "solo en negativo" (2026-06-12)**: `ret_short < 0` es condición necesaria del
+veto. Una acción con retorno reciente positivo nunca se veta, aunque esté >8% bajo su
+máximo de 20d — eso es un dip dentro de un uptrend, no una caída. Motivación empírica:
+en el selloff de jun-2026 la regla OR pura vetaba los nombres que rebotaban (seguían
+positivos a 10d pese al crash) y costaba retorno cada día del rebote
+(`experiments/backtest_gate_variants.py`).
+
 ```pseudocode
-in_downtrend = (dist_to_high < GATE_MAX_DIST_TO_HIGH_PCT)    # OR estricto
-            OR (ret_short  < GATE_MIN_RET_SHORT_PCT)
+in_downtrend = (ret_short < 0)                               # condición necesaria
+           AND (   (dist_to_high < GATE_MAX_DIST_TO_HIGH_PCT)
+                OR (ret_short  < GATE_MIN_RET_SHORT_PCT) )   # OR sobre las señales
 missing_data = isna(dist_to_high) OR isna(ret_short)
 # NaN TAMBIÉN veta: en un sistema con capital real, un dato ausente no es luz verde.
 # Con el universo ampliado (~3000 tickers) los huecos de descarga son más frecuentes.

@@ -33,6 +33,16 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-06-12 19:14] CLAUDE: Scoring change (rule 6, approved by Lucas directly): the Downtrend
+Veto Gate (SPEC 4.7) is now "solo en negativo" — `ret_10d < 0` is a NECESSARY condition; a
+stock with positive 10d return is never vetoed, even if >8% below its 20d high (dip in an
+uptrend ≠ downtrend). Motivation: point-in-time replay of the jun-2026 selloff showed the pure
+OR rule vetoed the post-crash rebound (names still net-positive at 10d) and cost return on every
+rebound day — worst case 2026-06-10: vetoed names averaged +8.0% next day. The replay harnesses
+live in `experiments/backtest_gate_replay.py`, `backtest_gate_crash_days.py`,
+`backtest_gate_variants.py`. Spec, config comments, Pine (both Rec? paths) and
+test_spec_compliance.py updated in the same commit. Suite 6/6 green.
+
 [2026-06-11 13:23] CLAUDE: Round-3 review — TASK-201 **APPROVED**, moved to Completed. Verified:
 9/10 listed excepts fixed, caches for dow30/russell1000 added, russell3000-is-derived note is
 accurate and honest, private-channel file deleted. One miss: `_fetch_sp500_from_github_saikr`

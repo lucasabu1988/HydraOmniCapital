@@ -283,7 +283,7 @@ def test_4_7_dynamic_recommended():
     return True
 
 def test_4_7_downtrend_gate():
-    """SPEC 4.7: Downtrend Veto Gate (OR estricto, NaN no veta)"""
+    """SPEC 4.7: Downtrend Veto Gate (solo-en-negativo: ret<0 necesario; NaN veta)"""
     print("\n=== SPEC 4.7 Downtrend Veto Gate ===")
     prices = make_synthetic_prices(n_tickers=10, n_days=200)
     spy = make_synthetic_spy(200)
@@ -320,6 +320,27 @@ def test_4_7_downtrend_gate():
     assert df_nan.loc[df_nan.ticker == "NODATA", "recommended"].iloc[0] == False
     assert "incompletos" in df_nan.loc[df_nan.ticker == "NODATA", "reason"].iloc[0]
     print("[OK] NaN en features de corto plazo veta con razón 'datos incompletos' (SPEC 4.7)")
+
+    # Solo-en-negativo (2026-06-12): con ret_short positivo NUNCA se veta,
+    # aunque esté lejos del high (dip en uptrend). Con ret negativo, cualquiera
+    # de las dos señales veta (la pata dist sola requiere ret < 0).
+    df_neg = pd.DataFrame({
+        "ticker": ["DIPUP", "FALLDIST", "FALLRET"],
+        # DIPUP: +6% en 10d pero 12% bajo su high -> NO veto (antes sí vetaba)
+        # FALLDIST: -2% en 10d (negativo suave) y 12% bajo su high -> veto por dist
+        # FALLRET: -7% en 10d, cerca de su high -> veto por ret
+        "ret_short": [6.0, -2.0, -7.0],
+        "dist_to_high": [-12.0, -12.0, -1.0],
+        "recommended": [True, True, True],
+        "reason": ["Neutral", "Neutral", "Neutral"],
+    })
+    df_neg = apply_downtrend_gate(df_neg)
+    assert df_neg.loc[df_neg.ticker == "DIPUP", "recommended"].iloc[0] == True, \
+        "ret_short positivo no puede ser vetado (regla solo-en-negativo)"
+    assert df_neg.loc[df_neg.ticker == "FALLDIST", "recommended"].iloc[0] == False
+    assert df_neg.loc[df_neg.ticker == "FALLRET", "recommended"].iloc[0] == False
+    assert "caída reciente" in df_neg.loc[df_neg.ticker == "FALLRET", "reason"].iloc[0]
+    print("[OK] Veto solo en negativo: dip con ret>0 pasa; caídas con ret<0 vetadas (SPEC 4.7)")
     return True
 
 def test_output_contract():
