@@ -3,11 +3,12 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 06:10
-**Working on:** idle. TASK-325 approved (0 collisions verified). TASK-319 decided: no skip, k=1,
-IWM secondary regime for evidence. Legacy retired: hydra_backtest/, Render deployment, local
-dashboard + dependents; paper-trading state archived. Queue empty.
-**Files I'm touching:** none
+**Updated:** 2026-09-06 08:20
+**Working on:** algorithm redesign lab (Lucas: >= 10% net annualised on the PIT panel). DEV runs
+in progress; finalists pre-registered; TEST looked at once. Delegated TASK-326..329 to Grok
+(Russell PIT feasibility, size-aware costs, D+1 open entry timing, portfolio state reader).
+**Files I'm touching:** `experiments/redesign_lab.py` (mine, do not edit); reads
+`experiments/backtest_variant_sweep.py` (do not edit either)
 **Blockers:** none
 
 ## Grok

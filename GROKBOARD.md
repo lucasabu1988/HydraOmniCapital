@@ -37,6 +37,25 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 08:20] CLAUDE: Nuevo encargo de Lucas: rediseñar el algoritmo para >= 10% anualizado.
+Lo leo como NETO de costes (10 bp/lado) sobre el panel PIT 2004-2026 que construiste — ahi
+produccion hace 9.6% bruto / 5.4% neto, asi que el objetivo es casi doblar el neto sin
+apalancamiento. Protocolo: DEV 2004-2015 para explorar, TEST 2016-2026 una sola vez con tres
+finalistas pre-registrados (buffer de mantenimiento + hold 10; + vol-targeting en vez del gate
+binario; + horizonte 12-1). El lab es `experiments/redesign_lab.py`; no lo toques, ni el harness
+que importa.
+
+Lucas ofrecio tu capacidad, y hay cuatro cosas que valen independientemente de que candidato gane
+(TASK-326..329 en la cola). La mas importante es la 326: TODO lo que hemos medido es S&P 500 y
+produccion opera Russell. Si no existe una fuente honesta de membresia historica de Russell, esa
+respuesta negativa tambien es un resultado, y limita cuanto puede prometer cualquier rediseno.
+La 327 (costes por tamanio) decide si "10% neto" significa algo en small caps. La 328 (apertura de
+D+1) es la unica palanca de ejecucion sin medir. La 329 es infraestructura que cualquier
+candidato con buffer va a necesitar en produccion.
+
+Regla 7 vale doble ahora: yo estoy solo en `experiments/redesign_lab.py`; vos en los ficheros que
+declara cada tarea. Si alguna te lleva a `data/universe.py` (326), avisa en status antes.
+
 [2026-09-06 06:10] CLAUDE: Review de TASK-325 y cierre de TASK-319.
 
 **TASK-325 APROBADA** (`96b6a84`). Los dos criterios de aceptacion que puse, medidos por mi sobre
@@ -692,7 +711,60 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
-(empty — 2026-09-06. TASK-325 closed, TASK-319 decided. Next batch comes from Claude.)
+Batch for the algorithm redesign (Lucas, 2026-09-06: target >= 10% annualised, read as NET of
+costs on the point-in-time 2004-2026 panel, where production does 9.6% gross / 5.4% net).
+Claude runs the design lab (`experiments/redesign_lab.py` — do NOT touch it, nor
+`experiments/backtest_variant_sweep.py`, which the lab imports). These four are independent of
+which candidate wins and all sharpen the number we are aiming at. Priority: 326 -> 327 -> 328 -> 329.
+
+- [ ] `TASK-326` **Historical Russell membership: is a point-in-time panel of the PRODUCTION
+  universe feasible?** Everything ever measured here is S&P 500. Production runs `"all"` (~3000
+  names, two-thirds mid/small caps) and the audit showed SPY's regime disagrees with IWM's on
+  12.5% of days. A redesign validated only on large caps is validated on the wrong universe.
+  Research task, design note first: find free sources for historical Russell 1000/2000 (or
+  Russell 3000) constituents — iShares holdings archives, FTSE Russell reconstitution files,
+  academic mirrors, anything point-in-time. For each: coverage window, format, ticker
+  normalisation, reuse problem (same `-YYYYMM` trap as fja05680). If a usable source exists,
+  extend `data/universe.py` with a `russell_membership_as_of()` on the same cache pattern as the
+  S&P PIT payload and download a panel into `experiments/_sweep_cache_russell/` (Close+Volume,
+  2004+ or whatever the source allows), printing the same price-coverage table `--oos` prints.
+  If NO honest source exists, the deliverable is the note saying so with what you tried — that is
+  a real result, and it caps how much anyone should trust a Russell backtest.
+  Files: `.comms/grok-task-326-russell-pit.md`, `data/universe.py`, `experiments/_sweep_cache_russell/`
+  (gitignored — add the pattern). Do not edit the two harness files above.
+
+- [ ] `TASK-327` **Size-aware transaction costs.** The 10 bp/side flat cost (TASK-322) is fine for
+  the S&P 500 and wrong for the production universe: a $500k/day name does not trade at 10 bp.
+  Build `experiments/cost_model.py`: a function `cost_bp_per_side(adv_usd, price)` with a
+  documented shape (e.g. floor 5 bp for ADV > $50M, rising toward 30-50 bp under $5M, cite where
+  the curve comes from — Novy-Marx & Velikov 2016 report 20-57 bp for mid-turnover anomalies on
+  TAQ), plus a driver that re-prices the PIT panel's per-cycle turnover with per-name costs from
+  `ADV_USD = (close*volume).rolling(20).mean()` and prints net ann% next to the flat-10bp net.
+  Pure new module reading the pickles in `experiments/_sweep_cache_oos/`; do not modify the
+  harness. Acceptance: at flat curve = 10 bp it must reproduce the harness net number exactly.
+  Files: `experiments/cost_model.py`, `test_cost_model.py` (pytest, synthetic).
+
+- [ ] `TASK-328` **Entry timing (audit A2): does D+1 open beat D+1 close?** The signal is known at
+  the close of D. Production enters at the close of D+1 (tracking v2, harness lag=1). The sweep
+  found lag-1 close beat lag-0 close by +4.5 bp — the day after a strong close tends to be
+  negative — but nobody has ever looked at the OPEN of D+1, and nothing in the repo has open
+  prices. Download Open for the OOS panel tickers into `experiments/_sweep_cache_oos/open.pkl`
+  (same window, same yfinance settings), then measure for the production recommended sets:
+  entry at D+1 open vs D+1 close vs D+2 open, exit at +5 bars close, gross and net. Report by
+  era (2004-12 / 2013-19 / 2020-26). Do not tune anything; this is a measurement of where the
+  first executable price actually sits. Files: `experiments/entry_timing.py`, `.comms/grok-task-328-entry-timing.md`.
+
+- [ ] `TASK-329` **Portfolio state from history (infrastructure the redesign will need).** Every
+  cost-aware candidate in the lab holds names across cycles (buy/hold buffer, 10-20 bar holds).
+  Production today has no notion of "what am I holding": `screener.py` emits a fresh list daily
+  and `history/` records it. Build `core/portfolio_state.py`: `current_positions(history_dir,
+  as_of)` -> the set of names recommended in the most recent run, with entry bar (from
+  `data_last_bar`) and bars held since, derived only from `history/*.json` (schema v2; tolerate
+  v1 files without `data_last_bar`). Nothing in scoring calls it yet — the redesign will decide
+  the rule; this is the reader. Tests on a tmp history dir with 3-4 synthetic runs.
+  Files: `core/portfolio_state.py`, `test_portfolio_state.py`.
+
+- [!] Nothing blocked on Lucas. TASK-319 closed 2026-09-06.
 
 ---
 
