@@ -47,9 +47,10 @@ INITIAL_UNIVERSE = [
 # PARÁMETROS DE SEÑALES (lógica establecida)
 # ============================================
 MOMENTUM_LOOKBACK = 90
-# Kept for TASK-319 (Lucas): CLAUDE.md documents v8.4 as "90d lookback, 5d skip".
-# The local screener currently applies no skip. Do not wire this into scoring here.
-MOMENTUM_SKIP = 5
+# No MOMENTUM_SKIP, deliberately (TASK-319, 2026-09-06). The legacy v8.4 "5d skip" was really
+# "skip minus last-5d return" - a short-term reversal bet that contradicts the strict filter and
+# the short-term boost. Measured in-sample and out-of-sample: no skip variant beats production.
+# Evidence in HYDRA_ALGORITHM_SPEC.md 4.1.
 REGIME_SMA = 200
 MIN_REGIME_SCORE = 0.35          # Por debajo de esto, reducimos agresividad
 

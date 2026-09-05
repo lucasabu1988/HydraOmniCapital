@@ -86,7 +86,7 @@ run_all_tests.py      — the test runner (see Testing)
 | Parameter | Value | Notes |
 |---|---|---|
 | `MOMENTUM_LOOKBACK` | 90 | risk-adjusted: ret90 / vol63 (annualised) |
-| `MOMENTUM_SKIP` | 5 | **defined but NOT applied**; open decision TASK-319 |
+| (no skip) | — | deliberate, decided 2026-09-06 (TASK-319): measured in- and out-of-sample, see SPEC 4.1 |
 | `SHORT_TERM_LOOKBACK` / `PROXIMITY_HIGH_DAYS` | 10 / 20 | |
 | `SHORT_TERM_BOOST` | 0.35 | strict bonus is +18% (hardcoded in signals.py) |
 | `VOL_SURGE_THRESHOLD` / `MIN_VOL_THRESHOLD` | 1.50 / 1.0 | missing volume **fails** strict (SPEC 5) |

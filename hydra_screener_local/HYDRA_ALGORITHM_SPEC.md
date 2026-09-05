@@ -119,6 +119,29 @@ return score.iloc[-1]
 - `MOMENTUM_LOOKBACK = 90`
 - Volatility window = 63 (hardcoded in current implementation)
 
+> **Decisiones cerradas (2026-09-06, delegadas por Lucas a Claude; TASK-319).**
+>
+> **Sin skip, a propósito.** El motor legacy v8.4 documentaba "90d lookback, 5d skip", pero su
+> fórmula real era `(c[t-5]/c[t-90] − 1) − (c[t]/c[t-5] − 1)`: un momentum a medio plazo que
+> además **resta** el retorno de los últimos 5 días — una apuesta de reversión de corto plazo,
+> lo contrario del strict filter y del short-term boost de este screener, que premian la
+> aceleración reciente. Medido con el pipeline actual (cap sectorial duro, gate, lag 1 día):
+>
+> ```
+>                         in-sample 2020-26 (283 ciclos)     OOS PIT 2004-26 (1088 ciclos)
+> sin skip (producción)   40.9 bp  Sharpe 1.16  maxDD -18.3%   18.6 bp  Sharpe 0.59  maxDD -44.2%
+> skip-5 puro             -4.3 bp (p=0.34)  1.01   -20.3%      -0.7 bp (p=0.70)  0.57   -43.3%
+> fórmula legacy v8.4     -5.2 bp (p=0.38)  0.97   -23.3%      -0.7 bp (p=0.77)  0.56   -45.0%
+> ```
+>
+> Ninguna variante gana en ninguna muestra ni en ninguna era (2004-12 / 2013-19 / 2020-26);
+> las dos son peores en Sharpe en ambos paneles. `MOMENTUM_SKIP` se eliminó de `config.py`.
+>
+> **Vol-scaling: k = 1 se queda** (`ret90 / vol63`). k=0 parecía +26.9 bp en 2020-26 pero era
+> beta 1.51 vs 0.95; igualando volatilidad el residuo fue +14 bp con IC95% [−4.4, +33.5]. Fuera
+> de muestra (TASK-324/325, 1088 ciclos) k=0 pierde: 20.6 vs 20.9 bp, Sharpe 0.53 vs 0.66,
+> maxDD −41.3% vs −35.3%. Cerrado en las dos direcciones.
+
 ### 4.2 Short-Term Features & Strict Filter
 
 ```pseudocode
@@ -195,6 +218,15 @@ regime_score = round(clamp(overall, 0, 1), 3)
 - MODERATE ≥ 0.50
 - CAUTIOUS ≥ 0.38
 - WEAK     <  0.38
+
+> **Nota (2026-09-06, auditoría R1).** El régimen — y con él el gate y `dynamic_count` — se
+> calcula sobre **SPY**, mientras el universo de producción (`"all"`) es ~2/3 mid/small caps.
+> 2020-2026: SPY sobre su SMA200 con IWM por debajo el 12.5% de los días (racha máxima 54
+> sesiones); el retorno 5d de IWM en esos días promedió −15.8 bp frente a +31.6 bp cuando ambos
+> coincidían. Cambiar el índice del régimen es cambio de scoring y no puede medirse hasta tener
+> un panel point-in-time del universo real (el OOS actual es solo S&P 500). Mientras, el
+> screener calcula el mismo régimen rico sobre `SECONDARY_REGIME_SYMBOL` (IWM), imprime el
+> desacuerdo y lo persiste en `history` (`regime_secondary`). Observabilidad, no scoring.
 
 ### 4.4 Meta-Layer (LightweightMetaLayer)
 
