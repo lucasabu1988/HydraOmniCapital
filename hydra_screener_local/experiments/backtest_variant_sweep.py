@@ -43,21 +43,25 @@ from core.meta_layer import LightweightMetaLayer
 from core.regime import compute_rich_regime_scores
 
 CACHE = os.path.join(ROOT, 'experiments', '_sweep_cache')
+OOS_CACHE = os.path.join(ROOT, 'experiments', '_sweep_cache_oos')
 START, END = '2020-01-01', None          # None = today
+OOS_START = '2004-01-01'
 CYCLES_PER_YEAR = 252 / 5
 
 
 # ----------------------------------------------------------------------------- data
-def download():
+def download(cache_dir=None, start=None, tickers=None):
     import yfinance as yf
     from data.universe import get_sp500_tickers
-    os.makedirs(CACHE, exist_ok=True)
-    tickers = get_sp500_tickers()
-    print(f'universe: {len(tickers)}')
+    cache_dir = cache_dir or CACHE
+    start = start or START
+    os.makedirs(cache_dir, exist_ok=True)
+    tickers = tickers or get_sp500_tickers()
+    print(f'universe: {len(tickers)}  start={start}')
     closes, vols = [], []
     for i in range(0, len(tickers), 60):
         chunk = tickers[i:i + 60]
-        d = yf.download(chunk, start=START, end=END, progress=False, auto_adjust=True, threads=True)
+        d = yf.download(chunk, start=start, end=END, progress=False, auto_adjust=True, threads=True)
         if d is None or d.empty:
             continue
         closes.append(d['Close']); vols.append(d['Volume'])
@@ -66,25 +70,28 @@ def download():
     volume = pd.concat(vols, axis=1).sort_index()
     close = close.loc[:, ~close.columns.duplicated()]
     volume = volume.loc[:, ~volume.columns.duplicated()]
-    spy = yf.download('SPY', start=START, end=END, progress=False, auto_adjust=True)['Close']
+    spy = yf.download('SPY', start=start, end=END, progress=False, auto_adjust=True)['Close']
     if hasattr(spy, 'columns'):
         spy = spy.iloc[:, 0]
-    close.to_pickle(f'{CACHE}/close.pkl')
-    volume.to_pickle(f'{CACHE}/volume.pkl')
-    spy.to_frame('SPY').to_pickle(f'{CACHE}/spy.pkl')
+    close.to_pickle(f'{cache_dir}/close.pkl')
+    volume.to_pickle(f'{cache_dir}/volume.pkl')
+    spy.to_frame('SPY').to_pickle(f'{cache_dir}/spy.pkl')
     print(f'saved {close.shape}, {close.index[0].date()} .. {close.index[-1].date()}')
 
 
 class Panels:
     """Rolling feature panels: row t holds the value computable with data up to and including t."""
 
-    def __init__(self):
-        if not os.path.exists(f'{CACHE}/close.pkl'):
+    def __init__(self, cache_dir=None, pit_payload=None):
+        cache_dir = cache_dir or CACHE
+        if not os.path.exists(f'{cache_dir}/close.pkl'):
             sys.exit('No cached data. Run with --download first.')
-        self.close = pd.read_pickle(f'{CACHE}/close.pkl')
-        self.volume = pd.read_pickle(f'{CACHE}/volume.pkl')
+        self.close = pd.read_pickle(f'{cache_dir}/close.pkl')
+        self.volume = pd.read_pickle(f'{cache_dir}/volume.pkl')
+        self.pit_payload = pit_payload
         self.close, self.volume = self.close.align(self.volume, join='inner', axis=0)
-        self.spy = pd.read_pickle(f'{CACHE}/spy.pkl')['SPY'].reindex(self.close.index).ffill()
+        spy_path = f'{cache_dir}/spy.pkl'
+        self.spy = pd.read_pickle(spy_path)['SPY'].reindex(self.close.index).ffill()
 
         c, v = self.close, self.volume
         self.rets = c.pct_change(fill_method=None)
@@ -132,6 +139,10 @@ def score_day(P, t, c):
     """Return the ranked frame for one date, or None."""
     px = P.close.iloc[t]
     elig = px.notna() & (px >= c['min_price']) & (P.VOL20M.iloc[t] >= c['min_advol']) & (P.FLAT5.iloc[t] != 1)
+    if getattr(P, 'pit_payload', None):
+        from data.universe import membership_as_of
+        members = set(membership_as_of(P.close.index[t].strftime('%Y-%m-%d'), P.pit_payload))
+        elig = elig & pd.Series([i in members for i in px.index], index=px.index)
     tk = px.index[elig.fillna(False)]
     if len(tk) < 50:
         return None, None
@@ -351,9 +362,52 @@ def risk(P):
         print(f"    {rt:<10} {row['mean']*10000:+7.1f} bp   n={int(row['count'])}")
 
 
+def oos():
+    """TASK-324: re-measure the three claims on a PIT 2004+ sample. Do not tune."""
+    from data.universe import fetch_sp500_pit_payload, membership_as_of
+    payload = fetch_sp500_pit_payload()
+    print('PIT source: wiki_changes=', payload.get('source_wiki'),
+          'github_snapshots=', payload.get('source_github'),
+          'current=', len(payload.get('current') or []),
+          'changes=', len(payload.get('changes') or []),
+          'snapshots=', len(payload.get('snapshots') or []))
+    names = set(payload.get('current') or [])
+    for lst in (payload.get('snapshots') or {}).values():
+        names.update(lst)
+    for ch in payload.get('changes') or []:
+        if ch.get('added'):
+            names.add(ch['added'])
+        if ch.get('removed'):
+            names.add(ch['removed'])
+    print('union names for download:', len(names))
+    import re as _re
+    yf_names = sorted({_re.sub(r'-\d{6}$', '', t) for t in names if t})
+    print('yahoo-sanitised names:', len(yf_names))
+    if not os.path.exists(f'{OOS_CACHE}/close.pkl'):
+        download(cache_dir=OOS_CACHE, start=OOS_START, tickers=yf_names)
+    P = Panels(cache_dir=OOS_CACHE, pit_payload=payload)
+    print(f'OOS panels: {P.close.shape}  {P.close.index[0].date()} .. {P.close.index[-1].date()}')
+    spot = '2008-09-15'
+    print('spot-check membership', spot, len(membership_as_of(spot, payload)))
+
+    claims = [
+        ('baseline k=1 + sector cap', {}, {}),
+        ('vol_exp=0', dict(vol_exp=0.0), {}),
+        ('no sector control', dict(sector_mode='off'), {}),
+        ('no regime gate', dict(regime_gate=False), {}),
+    ]
+    print('\nTASK-324 claims (gross + net). Do not tune on this sample.')
+    rows = []
+    for label, cfg, kw in claims:
+        df = run(P, cfg, start=260, **kw)
+        rows.append(stats(df, label))
+        print('  done:', label, 'cycles', len(df), flush=True)
+    print('\n' + pd.DataFrame(rows).to_string(index=False))
+
+
 def main():
     ap = argparse.ArgumentParser()
-    for f in ('download', 'validate', 'sweep', 'risk', 'all'):
+    for f in ('download', 'validate', 'sweep', 'risk', 'all', 'oos'):
         ap.add_argument(f'--{f}', action='store_true')
     a = ap.parse_args()
     if not any(vars(a).values()):
@@ -369,6 +423,8 @@ def main():
             sweep(P)
         if a.risk or a.all:
             risk(P)
+    if a.oos:
+        oos()
 
 
 if __name__ == '__main__':

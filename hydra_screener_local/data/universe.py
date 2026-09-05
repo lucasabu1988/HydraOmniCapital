@@ -1424,3 +1424,146 @@ def get_universe(full_sp500: bool = False, universe: str = None) -> list[str]:
             seen.add(t)
             unique.append(t)
     return unique
+
+
+# ---------------------------------------------------------------------------
+# TASK-324: point-in-time S&P 500 membership
+# ---------------------------------------------------------------------------
+
+def _yahoo_ticker(sym: str) -> str:
+    s = str(sym).strip().upper().replace(".", "-")
+    return s
+
+
+def _parse_wiki_change_tables(tables) -> list[dict]:
+    """Best-effort parse of Wikipedia 'Selected changes to the list'."""
+    rows = []
+    for df in tables[1:]:
+        cols = [str(c).lower() for c in df.columns]
+        flat = " ".join(cols)
+        if "added" not in flat or "removed" not in flat:
+            continue
+        # flatten multiindex
+        df = df.copy()
+        df.columns = ["_".join(str(x) for x in c if str(x) != "nan") if isinstance(c, tuple) else str(c)
+                      for c in df.columns]
+        def _col(*needles):
+            for c in df.columns:
+                cl = str(c).lower()
+                if all(n in cl for n in needles):
+                    return c
+            return None
+        date_col = _col("date")
+        add_col = _col("added", "ticker") or _col("added")
+        rem_col = _col("removed", "ticker") or _col("removed")
+        if not date_col or not add_col or not rem_col:
+            continue
+        for _, r in df.iterrows():
+            try:
+                dt = pd.to_datetime(r[date_col], errors="coerce")
+            except Exception:
+                continue
+            if pd.isna(dt):
+                continue
+            added = _yahoo_ticker(r[add_col]) if pd.notna(r[add_col]) else ""
+            removed = _yahoo_ticker(r[rem_col]) if pd.notna(r[rem_col]) else ""
+            if added in {"", "NAN", "NONE"}:
+                added = ""
+            if removed in {"", "NAN", "NONE"}:
+                removed = ""
+            if not added and not removed:
+                continue
+            rows.append({"date": dt.strftime("%Y-%m-%d"), "added": added, "removed": removed})
+        if rows:
+            break
+    return rows
+
+
+def fetch_sp500_pit_payload(timeout: int = 25) -> dict:
+    """
+    Current constituents + Wikipedia selected-changes + optional fja05680 snapshot.
+    Cached under data_cache/sp500_pit.json. Never raises.
+    """
+    cache = os.path.join(DATA_CACHE_DIR, "sp500_pit.json")
+    if os.path.exists(cache):
+        try:
+            with open(cache, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if data.get("current") and data.get("changes") is not None:
+                return data
+        except Exception as e:
+            logger.warning("PIT cache unreadable: %s", e)
+
+    current = _fetch_sp500_from_wikipedia() or get_sp500_tickers()
+    current = [_yahoo_ticker(t) for t in current]
+    changes = []
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    resp = _get_with_retry(url, timeout=timeout)
+    if resp is not None:
+        for flavor in ["lxml", "html5lib", None]:
+            try:
+                tables = pd.read_html(StringIO(resp.text), flavor=flavor)
+                changes = _parse_wiki_change_tables(tables)
+                if changes:
+                    break
+            except Exception as e:
+                logger.warning("PIT wikipedia parse flavor %s failed: %s", flavor, e)
+
+    snapshots = {}
+    gh = "https://raw.githubusercontent.com/fja05680/sp500/master/S%26P%20500%20Historical%20Components%20%26%20Changes.csv"
+    gh_resp = _get_with_retry(gh, timeout=timeout)
+    if gh_resp is not None:
+        try:
+            sdf = pd.read_csv(StringIO(gh_resp.text))
+            date_col = sdf.columns[0]
+            tickers_col = sdf.columns[1] if len(sdf.columns) > 1 else None
+            for _, r in sdf.iterrows():
+                dt = pd.to_datetime(r[date_col], errors="coerce")
+                if pd.isna(dt) or tickers_col is None:
+                    continue
+                raw = str(r[tickers_col])
+                names = [_yahoo_ticker(x) for x in raw.replace(";", ",").split(",") if x.strip()]
+                if len(names) > 50:
+                    snapshots[dt.strftime("%Y-%m-%d")] = names
+        except Exception as e:
+            logger.warning("fja05680 PIT csv parse failed: %s", e)
+
+    payload = {
+        "updated": datetime.now().isoformat(),
+        "source_wiki": bool(changes),
+        "source_github": bool(snapshots),
+        "current": current,
+        "changes": changes,
+        "snapshots": snapshots,
+    }
+    try:
+        os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+        tmp = cache + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        os.replace(tmp, cache)
+    except Exception as e:
+        logger.warning("PIT cache write failed: %s", e)
+    return payload
+
+
+def membership_as_of(as_of: str, payload: dict | None = None) -> list[str]:
+    """S&P 500 membership on as_of (YYYY-MM-DD). Prefers github snapshots; else wiki walk."""
+    payload = payload or fetch_sp500_pit_payload()
+    as_ts = pd.Timestamp(as_of)
+
+    snaps = payload.get("snapshots") or {}
+    if snaps:
+        dates = sorted(d for d in snaps if pd.Timestamp(d) <= as_ts)
+        if dates:
+            return list(snaps[dates[-1]])
+
+    members = set(payload.get("current") or [])
+    for ch in sorted(payload.get("changes") or [], key=lambda x: x["date"], reverse=True):
+        if pd.Timestamp(ch["date"]) <= as_ts:
+            continue
+        if ch.get("added"):
+            members.discard(ch["added"])
+        if ch.get("removed"):
+            members.add(ch["removed"])
+    return sorted(members)
