@@ -143,3 +143,134 @@ def fetch_index(symbol: str, period: str = "1y") -> pd.Series:
 def fetch_spy(period: str = "1y") -> pd.Series:
     """Descarga solo SPY para cálculo de régimen. Siempre devuelve Series limpia."""
     return fetch_index("SPY", period=period)
+
+
+# ----------------------------------------------------------------------------- HYDRA v9 data layer (TASK-339)
+# Stock fetch already takes `period` (default "1y"): the v8.4 call in screener.py is unchanged.
+# v9 callers pass period=V9_PRICE_PERIOD ("2y") so 12-7 momentum has 252+126+vol63 bars.
+V9_PRICE_PERIOD = "2y"
+ETF_UNIVERSE = ["SPY", "QQQ", "IWM", "EFA", "EEM", "TLT", "IEF", "GLD", "DBC", "VNQ"]
+TBILL_SYMBOL = "^IRX"
+# Isolated holiday/gap fills only. A hole longer than this stays NaN (the engine's 10-bar
+# stale carry / write-off is a holdings policy, not a fetch policy).
+FFILL_LIMIT_BARS = 3
+
+
+def _close_frame_from_yf(data, batch: list[str]) -> pd.DataFrame:
+    """Normalize a yfinance download into a Close DataFrame keyed by ticker."""
+    if data is None or getattr(data, "empty", False):
+        raise RuntimeError("empty response")
+    if isinstance(data.columns, pd.MultiIndex):
+        close = data["Close"] if "Close" in data.columns.get_level_values(0) else data.iloc[:, 0]
+        if isinstance(close, pd.Series):
+            name = batch[0] if len(batch) == 1 else (close.name if close.name in batch else batch[0])
+            close = close.to_frame(name)
+        elif isinstance(close.columns, pd.MultiIndex):
+            close.columns = close.columns.get_level_values(-1)
+    else:
+        if "Close" in data.columns:
+            close = data[["Close"]].rename(columns={"Close": batch[0]})
+        else:
+            close = data.iloc[:, [0]].copy()
+            close.columns = [batch[0]]
+        if isinstance(close, pd.Series):
+            close = close.to_frame(batch[0])
+    close.columns = [str(c) for c in close.columns]
+    return close
+
+
+def _download_close_batch(batch: list[str], period: str, *, auto_adjust: bool = True) -> pd.DataFrame:
+    data = yf.download(
+        batch, period=period, progress=False, auto_adjust=auto_adjust, threads=True,
+    )
+    return _close_frame_from_yf(data, batch)
+
+
+def _fetch_closes(tickers: list[str], period: str, *, auto_adjust: bool, report: dict | None,
+                  label: str) -> pd.DataFrame:
+    """Retry-once batch download of Close. Failures go into `report`; never raised to the caller."""
+    if report is None:
+        report = {}
+    if not tickers:
+        report.update(requested=0, downloaded=0, failed_batches=0, failed_tickers=[], missing_share=0.0)
+        return pd.DataFrame()
+
+    print(f"Descargando {label} ({len(tickers)} simbolos, period={period})...")
+    frames: list[pd.DataFrame] = []
+    failed_batches = 0
+    failed_tickers: list[str] = []
+    batch_size = max(len(tickers), 1)
+
+    for i in range(0, len(tickers), batch_size):
+        batch = tickers[i:i + batch_size]
+        last_err = None
+        for attempt in (1, 2):
+            try:
+                frames.append(_download_close_batch(batch, period, auto_adjust=auto_adjust))
+                print("[OK]" if attempt == 1 else "[OK tras reintento]")
+                break
+            except Exception as e:
+                last_err = e
+                if attempt == 1:
+                    time.sleep(3.0)
+        else:
+            failed_batches += 1
+            failed_tickers.extend(batch)
+            print(f"[ERR] {label} lote perdido tras 2 intentos: {last_err}")
+
+    if not frames:
+        report.update(requested=len(tickers), downloaded=0, failed_batches=failed_batches,
+                      failed_tickers=failed_tickers, missing_share=1.0)
+        return pd.DataFrame()
+
+    prices = pd.concat(frames, axis=1).dropna(axis=1, how="all")
+    prices = prices.ffill(limit=FFILL_LIMIT_BARS)
+    missing = [t for t in tickers if t not in prices.columns]
+    failed_tickers = list(dict.fromkeys(failed_tickers + missing))
+    downloaded = len(prices.columns)
+    requested = len(tickers)
+    missing_share = 1.0 - downloaded / requested if requested else 0.0
+    report.update(requested=requested, downloaded=downloaded, failed_batches=failed_batches,
+                  failed_tickers=failed_tickers, missing_share=round(missing_share, 4))
+    return prices
+
+
+def fetch_etf_closes(symbols: list[str] | None = None, period: str = V9_PRICE_PERIOD,
+                     report: dict | None = None) -> pd.DataFrame:
+    """Close prices for the v9 ETF sleeve. Default universe is the 10-name design list.
+
+    Gaps of at most FFILL_LIMIT_BARS (3) are forward-filled; longer holes stay NaN.
+    A Yahoo failure is recorded in `report` (same shape as fetch_prices_and_volume) and
+    not raised — the caller trades what arrived.
+    """
+    if report is None:
+        report = {}
+    symbols = list(symbols if symbols is not None else ETF_UNIVERSE)
+    prices = _fetch_closes(symbols, period, auto_adjust=True, report=report, label="ETFs")
+    if prices.empty:
+        return prices
+    ordered = [s for s in symbols if s in prices.columns]
+    return prices[ordered]
+
+
+def fetch_tbill(period: str = V9_PRICE_PERIOD, report: dict | None = None) -> pd.Series:
+    """13-week T-bill (`^IRX`) as a percent yield Series (not decimal). Empty Series on failure.
+
+    Yahoo's Close for ^IRX is the discount rate in percent (e.g. 5.2, not 0.052). auto_adjust
+    is off: this is a rate, not a total-return price. Same 3-bar ffill and report-not-raise
+    policy as fetch_etf_closes.
+    """
+    if report is None:
+        report = {}
+    px = _fetch_closes([TBILL_SYMBOL], period, auto_adjust=False, report=report, label="T-bill ^IRX")
+    if px.empty or TBILL_SYMBOL not in px.columns:
+        # yfinance sometimes names the single column "Close" — take the only column
+        if not px.empty and px.shape[1] == 1:
+            s = px.iloc[:, 0]
+        else:
+            return pd.Series(dtype=float, name=TBILL_SYMBOL)
+    else:
+        s = px[TBILL_SYMBOL]
+    s = s.rename(TBILL_SYMBOL)
+    return s
+
