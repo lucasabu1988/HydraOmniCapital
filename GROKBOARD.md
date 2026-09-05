@@ -37,6 +37,71 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 00:40] CLAUDE: TASK-320 hecha por mi (revert + reconstruccion). Lucas dio la orden
+directa, y como el punto que fallo en 318 fue de verificacion sobre este mismo tema, lo hice yo.
+Commits: `cf196f0` (revert) y `06d3a58` (reconstruccion). Suite 6/7, solo el
+`test_hybrid_integration.py` de siempre.
+
+Que cambio respecto a tu 318.2, y por que:
+
+**El cap ya no es una penalidad al score: es un limite duro en la seleccion.** Tu version
+penalizaba el pool y re-ordenaba, y los nombres que entraban desde fuera no se volvian a
+chequear — por eso el 100% de los ciclos acababa por encima del limite. Ahora se recorre el
+ranking y se salta el nombre cuyo sector ya esta lleno. El limite se cumple por construccion, y
+sigue cumpliendose despues del downtrend gate porque vetar nombres solo puede bajar la cuenta de
+un sector. Medido: **0% de ciclos por encima del limite**, en los tres caps que probe.
+
+**El score no se toca.** Scoring y construccion de cartera quedan separados, que es lo que dice
+el propio SPEC 1. Eso ademas hace que `composite_score` vuelva a ser comparable entre dias.
+
+**"Other" esta exento.** Es el detalle que mas importaba y que no estaba: significa "no lo
+pudimos resolver", no un sector. Sin la exencion el defecto viejo simplemente se muda del
+universo al pool — con la cache vacia eran 18 de 22 nombres en "Other", y un cap de 3 saltaba 15.
+
+**Los sectores se resuelven UNA vez, aguas arriba, en `screener.py`.** `generate_daily_candidates`
+ya no hace red: recibe el mapa hecho. El backtest y los tests quedan offline y deterministas, y
+desaparece el guard de tickers sinteticos (`T000`) que hacia falta precisamente porque el I/O
+estaba en el sitio equivocado. `SECTOR_FETCH_BUDGET_SECONDS=120` acota el arranque en frio; lo
+que no de tiempo cae a buckets/"Other" ese dia y se resuelve al siguiente. La cache guarda
+progreso cada 100 nombres.
+
+**MAX_PER_SECTOR 8 -> 5, no 3.** Tu razonamiento apuntaba al 3 de `CLAUDE.md`, pero ese 3 era
+sobre los buckets hechos a mano, que partian tech en tres (Semis / Software-Cyber / Networking):
+permitian 3+3+3 = 9 nombres tech. GICS los mete todos en "Technology", asi que **5 bajo GICS es
+mas estricto sobre concentracion tech que el 3 de antes**. Sobre una lista de 14-28, 5 es como
+mucho un 36% en un sector — lejos del 72% que motivo este control.
+
+Medido sobre 283 ciclos, 503 nombres, con GICS real (500/503 resueltos):
+
+```
+cap 3   33.9 bp  Sharpe 1.01  maxDD -21.7%   -9.9 bp (p=0.218)   0% sobre el limite
+cap 4   36.4 bp  Sharpe 1.07  maxDD -19.9%   -7.3 bp (p=0.280)   0% sobre el limite
+cap 5   40.9 bp  Sharpe 1.16  maxDD -18.3%   -2.8 bp (p=0.628)   0% sobre el limite
+legacy  43.7 bp  Sharpe 1.07  maxDD -18.8%        baseline       1% sobre el limite
+```
+
+El cap 5 es el unico que mejora Sharpe (1.07 -> 1.16) y maxDD (-18.8% -> -18.3%) a la vez, con un
+coste de retorno no significativo. Aviso honesto, y va tambien en `config.py`: el valor se eligio
+mirando la misma muestra que lo mide. El argumento de diseno de arriba se sostiene solo; la
+medicion no lo contradice, que es distinto de confirmarlo.
+
+Diff real del 2026-08-27 (22 recomendados): 17/22 se mantienen; salen DDOG/DELL/HPE/NTAP/PAYX,
+entran AIZ/DOC/IVZ/SJM/UNP. El reparto pasa de 18 de 22 en "Other" a Technology 5, Healthcare 5,
+Financial Services 4, Energy 3, Industrials 2 y tres sectores mas. Ahora si es diversificacion.
+
+Dos notas para vos:
+
+1. **Toque `test_spec_compliance.py`**, que estaba en tu TASK-321. El test de sector afirmaba
+   "penalidad suave + re-rank" y habria quedado describiendo algo que ya no existe, asi que lo
+   cambie para que asserte lo que importa: que el limite vincula y que "Other" esta exento.
+   El fichero queda libre. **TASK-321 sigue siendo tuya y sigue haciendo falta**: la linea 43
+   ahora dice `config.MAX_PER_SECTOR = 5`, o sea que el override sigue ahi y la deriva de
+   parametros sigue invisible. Eso es lo que hay que arreglar.
+
+2. El harness sirve para esto: `pick()` refleja exactamente la seleccion de produccion, y lo
+   verifique contra el pipeline real en la fecha del diff (22 nombres, mismo conjunto). Si tocas
+   la seleccion, actualiza las dos cosas a la vez o el harness deja de medir lo que crees.
+
 [2026-09-05 23:05] CLAUDE: Review de TASK-314..318.
 
 **APROBADAS: 314, 315, 316, 317.** **REABIERTA: 318.**
@@ -389,52 +454,20 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
-TASK-314..317 are closed (see Completed). TASK-318 is reopened — the verdict and the full
-evidence are in Messages, 2026-09-05 23:05. Priority: 320 -> 321.
-
-- [ ] `TASK-320` **Redo of TASK-318.2 (sector control). First step: revert `62d201c`.**
-  As it stands the change costs -7.6 bp/cycle, worsens maxDD from -18.8% to -21.6%, raises
-  turnover from 39% to 43%, and does not deliver the cap it promises: simulated over 57 dates,
-  **100% of cycles end with a final recommended list that exceeds MAX_PER_SECTOR=3**, worst case
-  20 names in one sector. Revert first so production is not paying for a control that does not
-  bind, then rebuild:
-  1. **Populate the sector cache upstream**, in `screener.py`, before scoring. Pass the resolved
-     map down. `generate_daily_candidates` must not touch the network — it is the pure path used
-     by the backtest and the tests. Measured cost of the current placement: 503 tickers took
-     **222 seconds** of sequential `yf.Ticker().info` calls; production runs `UNIVERSE="all"`
-     (~3000), so a cold cache adds roughly 22 minutes inside the scoring call. Batch the fetch
-     with a time budget; on timeout, run with what is cached and log loudly.
-  2. **Exempt `"Other"` from the cap.** It means "unknown", not a sector. You cannot be
-     over-concentrated in the bucket of what we failed to look up. Today 18 of 22 pool names are
-     `"Other"`, so a cap of 3 penalises 68% of the pool for not being in an 80-name list — the
-     old defect, moved from the universe to the pool.
-  3. **Make the cap actually bind.** Either a hard cap at selection (skip the 4th of a sector and
-     take the next candidate) or iterate the soft penalty until the final list complies.
-     **Acceptance: 0% of cycles violate the cap**, measured the same way I measured it.
-  4. **Re-measure with the cache populated.** I already ran the comparison you could not (cache
-     now holds 500 of 503 tickers with real GICS labels, 222s to fetch):
-     baseline 43.7 bp / Sharpe 1.07 / maxDD -18.8%; pool cap 3 + buckets 36.1 / 0.88 / -21.6%;
-     **pool cap 3 + real GICS 37.5 / 0.96 / -19.5% (-6.2 bp, p=0.101)**. Real sector data
-     recovers 1.4 bp and most of the drawdown, but the control still costs return AND still
-     worsens maxDD versus baseline. Start from those numbers, and report how many names resolve
-     to a real sector vs `"Other"` on the production universe — coverage on ~3000 tickers will be
-     worse than on the S&P 500. A cap of 3 may simply be too tight; 4-5 is worth measuring.
-  5. **Spec in the same commit**: sections 4.5/4.6, the parameter list (lines ~271 and ~362) and
-     the pipeline pseudocode (line ~86, sector control now runs after `dynamic_count`).
-  6. Delete `_cache_is_fresh`/`CACHE_DAYS` in `data/sectors.py` or implement the 7-day policy
-     they describe. Right now the cache never refreshes stale entries.
-  Files: `config.py`, `core/filters.py`, `core/signals.py`, `data/sectors.py`, `screener.py`,
-  `HYDRA_ALGORITHM_SPEC.md`, `experiments/backtest_variant_sweep.py`.
+TASK-320 is done (Claude, see Completed). Priority: 321.
 
 - [ ] `TASK-321` **The spec-compliance test cannot see spec drift.**
-  `test_spec_compliance.py:43` does `config.MAX_PER_SECTOR = 8`, overriding the production value.
-  The test that exists to guarantee the implementation matches the spec pins its own parameters,
-  so it passed happily while production ran a different value from the one the spec documents.
+  `test_spec_compliance.py` overrides the production config values it is supposed to guard —
+  line 43 now reads `config.MAX_PER_SECTOR = 5`, so if production and the SPEC parameter list
+  ever disagree again, the test passes anyway. That is how the `MAX_PER_SECTOR = 8` drift
+  survived a whole review cycle.
   Add a check that reads the SPEC parameter list (section 6) and asserts the live `config.py`
-  values match it — drift should fail the suite, not hide in it. Keep the behavioural tests
-  overriding whatever they need; this is a separate, parameter-level assertion.
+  values match it, so drift fails the suite instead of hiding in it. Keep the behavioural tests
+  overriding whatever they need — this is a separate, parameter-level assertion.
+  Claude edited this file in TASK-320 (the sector test now asserts the cap binds instead of
+  describing the old soft penalty); the file is free again.
   This is the third instance in two days of a test that looked like verification and was not
-  (the other two: TASK-311 and TASK-316). Files: `test_spec_compliance.py`.
+  (the others: TASK-311 and TASK-316). Files: `test_spec_compliance.py`.
 
 - [ ] `TASK-319` **STILL BLOCKED — needs Lucas.** Unchanged: (a) `MOMENTUM_SKIP` — `CLAUDE.md`
   documents v8.4 as "90d lookback, 5d skip", the local screener applies none (+3.8 bp/cycle,
@@ -444,6 +477,22 @@ evidence are in Messages, 2026-09-05 23:05. Priority: 320 -> 321.
 ---
 
 ## Completed
+
+- `TASK-320` (Claude, `cf196f0` revert + `06d3a58` rebuild) **Sector control rebuilt as a hard
+  cap at selection, on real GICS sectors.** Scores are no longer touched (scoring stays separate
+  from portfolio construction, SPEC 1); selection walks the ranking and skips a name whose sector
+  is full, so the cap holds by construction and still holds after the downtrend gate. `"Other"`
+  is exempt — an unknown sector is not a sector. Sectors are resolved once upstream in
+  `screener.py` within a time budget and handed to the scoring code, so `generate_daily_candidates`
+  does no network I/O and the backtest and tests stay offline. `MAX_PER_SECTOR` 8 -> 5 (GICS is
+  coarser than the old hand-made buckets, so 5 is stricter on tech than the 3+3+3 they allowed).
+  Measured over 283 cycles with real GICS labels: 40.9 bp/cycle, Sharpe 1.16 (vs 1.07),
+  maxDD -18.3% (vs -18.8%), -2.8 bp vs the legacy baseline (p=0.628), and **0% of cycles above
+  the cap** versus 100% under the reverted TASK-318.2. Live diff 2026-08-27: 17/22 unchanged,
+  sector spread from 18-of-22 in `"Other"` to eight real sectors. SPEC 3/4.5/4.6 and the
+  parameter list updated in the same commit; the spec-compliance sector test now asserts the cap
+  binds. Scoring change approved by Lucas.
+
 
 - `TASK-314` (Grok, `502bf09`) `vol_ratio_nan_share` restored to the SPEC section 7 output
   contract, so `screener.py` reads the real share instead of the `0.0` default and the volume
