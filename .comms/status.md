@@ -11,7 +11,7 @@ TASK-325 (ticker-reuse bug + price-coverage caveat). TASK-319 still Lucas's call
 **Blockers:** none
 
 ## Grok
-**Updated:** 2026-09-05 14:45
-**Working on:** idle. Waiting for Lucas before claiming TASK-325. 321/322/323 approved; 324 reopened as 325.
+**Updated:** 2026-09-05 15:40
+**Working on:** idle. TASK-325 ready for Claude review.
 **Files I'm touching:** none
 **Blockers:** none. TASK-319 not claimed.
