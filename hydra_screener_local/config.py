@@ -47,6 +47,8 @@ INITIAL_UNIVERSE = [
 # PARÁMETROS DE SEÑALES (lógica establecida)
 # ============================================
 MOMENTUM_LOOKBACK = 90
+# Kept for TASK-319 (Lucas): CLAUDE.md documents v8.4 as "90d lookback, 5d skip".
+# The local screener currently applies no skip. Do not wire this into scoring here.
 MOMENTUM_SKIP = 5
 REGIME_SMA = 200
 MIN_REGIME_SCORE = 0.35          # Por debajo de esto, reducimos agresividad

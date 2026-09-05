@@ -18,7 +18,7 @@ This is the reference Python implementation of the language-agnostic spec.
 import pandas as pd
 import numpy as np
 from config import (
-    MOMENTUM_LOOKBACK, MOMENTUM_SKIP, REGIME_SMA, MIN_REGIME_SCORE,
+    MOMENTUM_LOOKBACK, REGIME_SMA, MIN_REGIME_SCORE,
     SHORT_TERM_LOOKBACK, PROXIMITY_HIGH_DAYS, MAX_DIST_TO_HIGH_PCT, SHORT_TERM_BOOST,
     GEOPOLITICAL_RISK_LEVEL, GEO_VOL_THRESHOLD_ADJUST, VOL_SURGE_THRESHOLD, MIN_VOL_THRESHOLD,
     ENABLE_DOWNTREND_GATE, GATE_MAX_DIST_TO_HIGH_PCT, GATE_MIN_RET_SHORT_PCT
@@ -33,9 +33,8 @@ def compute_momentum_score(prices: pd.DataFrame) -> pd.Series:
     Calcula el score de momentum estilo COMPASS v8.4 simplificado:
     (retorno 90d / volatilidad 63d)
     """
-    returns = prices.pct_change()
-    
-    mom = prices.pct_change(MOMENTUM_LOOKBACK)
+    returns = prices.pct_change(fill_method=None)
+    mom = prices.pct_change(MOMENTUM_LOOKBACK, fill_method=None)
     vol = returns.rolling(63).std() * np.sqrt(252)
     
     score = mom / vol.replace(0, np.nan)
@@ -253,11 +252,6 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
 
     df["short_term_boost"] = short_boost.round(3)
     df["composite_score"] = (df["meta_score"] * (1 + df["short_term_boost"] * SHORT_TERM_BOOST)).round(4)
-
-    # === Umbral dinámico de volumen según riesgo geopolítico ===
-    # NUNCA baja de 1.0 (piso duro), independientemente del nivel de riesgo
-    dynamic_vol_threshold = VOL_SURGE_THRESHOLD + (GEOPOLITICAL_RISK_LEVEL * GEO_VOL_THRESHOLD_ADJUST)
-    dynamic_vol_threshold = max(MIN_VOL_THRESHOLD, dynamic_vol_threshold)
     df["dynamic_vol_threshold"] = round(dynamic_vol_threshold, 2)
 
     # SPEC 4.2 + 4.5 - Strict Filter bonus (+18% / 0.18 when passes_strict)
