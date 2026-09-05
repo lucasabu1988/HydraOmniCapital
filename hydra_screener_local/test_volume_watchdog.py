@@ -51,7 +51,6 @@ def test_volume_nan_share_high_emits_warning_and_field(capsys):
          patch("screener.apply_practical_filters", side_effect=lambda p, **k: (p, {})), \
          patch("screener.remove_zombie_tickers", side_effect=lambda p: p), \
          patch("screener.generate_daily_candidates", return_value=candidates), \
-         patch("screener.compute_regime_score", return_value=0.5), \
          patch("screener.print_header"), patch("screener.print_candidates_table"), \
          patch("screener.print_summary"), patch("screener.save_daily_run"), \
          patch("screener.print_footer"):

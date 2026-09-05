@@ -118,7 +118,9 @@ OUTPUT_FILENAME_PREFIX = "hydra_screener"
 # - Hard cap al seleccionar los recomendados finales.
 
 ENABLE_SECTOR_CONTROL = True
-MAX_PER_SECTOR = 8               # Máximo recomendado por bucket grueso
+# TASK-318: cap applies to the recommended pool (14-28 names), not the scored universe.
+# v8.4 / CLAUDE.md: "sector limit: max 3 per sector". 8 was a no-op on a 14-28 list.
+MAX_PER_SECTOR = 3               # Máximo en el pool candidato por sector (GICS o bucket)
 SECTOR_OVERWEIGHT_PENALTY = 0.15 # Penalidad al composite_score (15%) para nombres que exceden
 
 # Buckets gruesos (coarse buckets). Mantener pocos y estables.

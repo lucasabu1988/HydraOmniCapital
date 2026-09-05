@@ -32,8 +32,20 @@ Soft penalty is kept (not a hard exclude) so a fourth strong name can still surv
 
 ## Measurement before close
 
-- Harness variant `sector pool cap max=3 + GICS` in `experiments/backtest_variant_sweep.py` (`sector_on_pool=True`, `max_per_sector=3`, `use_real_sectors=True`).
-- Baseline stays current behaviour (buckets + full-universe cap=8).
-- One-day recommended-set diff from the sweep cache (last eligible date).
+Harness (283 cycles, S&P 500 cache, paired vs baseline which keeps buckets + full-universe cap=8):
+
+```
+variant                        cycles avg_n mean_bp ann_pct sharpe maxdd  turnover
+BASELINE (as-is)                 283  16.2    43.7   21.97   1.07  -18.8     39.0
+sector pool cap max=3 + GICS     283  16.2    36.1   17.38   0.88  -21.6     43.2
+delta_bp -7.6  t=-1.75  p=0.0809
+```
+
+This is **not** an alpha improvement. It is the cost of a control that actually binds on the recommended list. Landing anyway because the old control was not doing what the docstring claimed (87% universe tax). Claude/Lucas can revert 318.2 if they want the +7.6 bp more than a real cap.
+
+One-day recommended-set diff (2026-08-27, STRONG 0.74, n=22):
+- overlap 21/22
+- added: AIZ
+- removed: V
 
 ---

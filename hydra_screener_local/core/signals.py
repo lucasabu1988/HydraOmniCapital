@@ -265,19 +265,16 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     df = df.sort_values("composite_score", ascending=False).reset_index(drop=True)
     df["rank"] = range(1, len(df) + 1)
 
-    # SPEC 4.6 - Sector Concentration Control (soft penalty + re-rank)
-    df = apply_sector_concentration_control(df)
-
-    # SPEC 4.7 - Dynamic Recommendation Count + recommended flag
-    # (base 14 * aggression * compass_mult, clamped 6-28)
+    # SPEC 4.7 - Dynamic count first so sector control can cap the candidate pool
+    # (TASK-318: penalty on top-N, not on the whole scored universe)
     compass_mult = meta_adj.pillar_multipliers.get("COMPASS", 1.0)
     overall_aggression = meta_adj.overall_aggression
-    
     base_recommendations = 14
     dynamic_count = int(round(base_recommendations * overall_aggression * compass_mult))
-    
-    # Límites razonables (no queremos recomendar 3 ni 45)
     dynamic_count = max(6, min(dynamic_count, 28))
+
+    # SPEC 4.6 - Sector Concentration Control (soft penalty + re-rank) on the pool
+    df = apply_sector_concentration_control(df, pool_size=dynamic_count)
     
     # Lógica de recomendación final (ahora dinámica)
     df['recommended'] = (df['rank'] <= dynamic_count) & (meta_adj.regime_score >= MIN_REGIME_SCORE * 0.85)

@@ -154,16 +154,15 @@ def apply_sector_concentration_control(
     candidates_df: pd.DataFrame,
     max_per_sector: int = None,
     penalty: float = None,
+    pool_size: int = None,
 ) -> pd.DataFrame:
     """
     SPEC 4.6 - Sector Concentration Control (soft penalty + re-rank)
 
-    Exact logic from the formal specification:
-    - Assign coarse buckets from SECTOR_BUCKETS
-    - Rank within bucket
-    - If > MAX_PER_SECTOR in a bucket → apply SECTOR_OVERWEIGHT_PENALTY (default 15%)
-    - Re-sort global list and re-assign ranks
-    - Adds: sector, sector_rank, sector_penalty_applied
+    TASK-318: penalty applies only inside the candidate pool (top `pool_size`
+    names by current rank), not across the whole scored universe. Names outside
+    the pool keep their composite_score and can enter the list if a penalised
+    name falls out after re-sort.
     """
     if not ENABLE_SECTOR_CONTROL:
         return candidates_df
@@ -179,24 +178,36 @@ def apply_sector_concentration_control(
 
     df = candidates_df.copy()
     df["sector"] = df["ticker"].apply(get_sector)
+    df = df.sort_values("composite_score", ascending=False)
+    n_pool = int(pool_size) if pool_size is not None else len(df)
+    n_pool = max(0, min(n_pool, len(df)))
+    pool_idx = df.head(n_pool).index
 
-    # Calcular ranking dentro de cada sector (1 = mejor del bucket)
-    df["sector_rank"] = df.groupby("sector")["composite_score"].rank(method="first", ascending=False).astype(int)
+    df["sector_rank"] = 0
+    if n_pool > 0:
+        df.loc[pool_idx, "sector_rank"] = (
+            df.loc[pool_idx]
+            .groupby("sector")["composite_score"]
+            .rank(method="first", ascending=False)
+            .astype(int)
+        )
+    outside = df.index.difference(pool_idx)
+    if len(outside) > 0:
+        df.loc[outside, "sector_rank"] = (
+            df.loc[outside]
+            .groupby("sector")["composite_score"]
+            .rank(method="first", ascending=False)
+            .astype(int)
+        )
 
-    # Aplicar penalidad a los que exceden el límite
     df["sector_penalty_applied"] = False
+    excess = df.index.isin(pool_idx) & (df["sector_rank"] > max_per)
+    if excess.any():
+        df.loc[excess, "composite_score"] = (
+            df.loc[excess, "composite_score"] * (1 - pen)
+        ).round(4)
+        df.loc[excess, "sector_penalty_applied"] = True
 
-    for sector in df["sector"].unique():
-        sector_mask = df["sector"] == sector
-        excess = df.loc[sector_mask & (df["sector_rank"] > max_per)]
-
-        if not excess.empty:
-            df.loc[excess.index, "composite_score"] = (
-                df.loc[excess.index, "composite_score"] * (1 - pen)
-            ).round(4)
-            df.loc[excess.index, "sector_penalty_applied"] = True
-
-    # Re-ordenar después de la penalidad
     df = df.sort_values("composite_score", ascending=False).reset_index(drop=True)
     df["rank"] = range(1, len(df) + 1)
 
