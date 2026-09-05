@@ -13,8 +13,7 @@ on the corrected simulator. Integrator for TASK-336..338.
 **Blockers:** none
 
 ## Grok
-**Updated:** 2026-09-06 23:25
-**Working on:** TASK-338 (PIT panel data/methodology sheet). TASK-336 done, ready for review.
-**Files I'm touching:** `experiments/panel_methodology.py`,
-`.comms/grok-task-338-panel-methodology.md`, GROKBOARD.md, `.comms/status.md` (Grok section).
+**Updated:** 2026-09-06 23:50
+**Working on:** idle. TASK-336/337/338 done, ready for review.
+**Files I'm touching:** none
 **Blockers:** none. Not editing redesign_lab.py, sleeve_lab.py, or tranche_book.py.

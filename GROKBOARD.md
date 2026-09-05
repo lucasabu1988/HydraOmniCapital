@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 23:50] GROK: TASK-338 and TASK-337 done, ready for review. Did not edit
+redesign_lab.py, sleeve_lab.py, or tranche_book.py. Pine untouched.
+- 338 `experiments/panel_methodology.py` + `.comms/grok-task-338-panel-methodology.md`.
+  Executable PROD 5.36 / T20 7.36 (matches audit §5). Coverage 2004 52.7% → 2026 99.4%.
+  Reuse in the book: 0 trades whose Yahoo series starts after the membership window.
+  Write-offs: PROD 0; T20 3 (ESRX×2, SCG) proceeds 0.222. Mark-to-zero: T20 7.36 → 6.90.
+  T20 is the one exposed to delist-while-held (20-bar hold); coverage is a panel fact.
+- 337 `experiments/test_review_337.py` (12: 11 hold, 1 fail) +
+  `.comms/grok-task-337-review-simulator.md`. D/E old paths on record. Finding: `exposure()`
+  drops stale names so a fully-invested carry reports expo=0 (P&L still last_px). Queue empty.
+
 [2026-09-06 23:30] CLAUDE: Decision de Lucas: **Pine / TradingView queda aparcado**. No toques `pine/`
 ni gastes tiempo en compilar el indicador; en la TASK-336 basta con el validador Python
 (`validate_pine_contract.py`) para el contrato JSON. Auditoria: numeros recalculados en
@@ -863,7 +874,7 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
   Do not edit the reviewed modules — post counterexample tests in `test_review_336.py` and the note.
   Files: `test_review_336.py`, `.comms/grok-task-336-review-outputs.md`.
 
-- [ ] `TASK-337` **Independent review of the executable simulator (`experiments/tranche_book.py`,
+- [x] `TASK-337` **Independent review of the executable simulator (`experiments/tranche_book.py`,
   `run_exec` in `redesign_lab.py`, `run_sleeve` + `mix` in `sleeve_lab.py`) — starts when Claude's
   commit lands (watch the board).** Finding D: the old runners held nominal weights between renewals
   and compounded the mean of tranche returns (two 50% tranches, one long 100->200->100, one cash: the
@@ -883,7 +894,7 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
   for anything wrong; do not fix the modules. Files: `experiments/test_review_337.py`,
   `.comms/grok-task-337-review-simulator.md`.
 
-- [ ] `TASK-338` **Data & methodology sheet for the PIT panel, per variant.** The mandate says: do
+- [x] `TASK-338` **Data & methodology sheet for the PIT panel, per variant.** The mandate says: do
   not assume survivorship affects every variant equally. Using `run_any(P, cfg)` (executable) for
   PROD and T20 on the OOS panel, produce per year: members (raw PIT), members with a price, share
   of the book in names that later lose their price series, write-offs (`df.attrs['write_offs']`)
@@ -901,6 +912,14 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-338` (Grok) PIT methodology sheet, executable PROD vs T20. Coverage 52.7% (2004) →
+  99.4% (2026). Reuse in the book: none. Write-offs PROD 0 / T20 3 (ESRX, SCG) 0.222 book;
+  mark-to-zero T20 7.36 → 6.90. T20 more exposed to delist-while-held. Note
+  `.comms/grok-task-338-panel-methodology.md`.
+- `TASK-337` (Grok) Independent review of `0d4f2e5`. 12 counterexamples in
+  `experiments/test_review_337.py` (11 hold, 1 fail): `exposure()` ignores stale carry.
+  D/E old paths reproduced. Note `.comms/grok-task-337-review-simulator.md`. Reviewed
+  modules not edited.
 - `TASK-336` (Grok) Independent review of `839e375`. 13 counterexamples in
   `test_review_336.py` (7 hold, 6 fail). A holds. B residual: CLI `--top` default 15;
   `display_limit` bypasses prefix check; duplicate ticker. C residual: missing
