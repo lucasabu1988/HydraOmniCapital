@@ -65,6 +65,11 @@ VOL_SURGE_THRESHOLD = 1.50       # Umbral base de volumen relativo (placeholder 
 # TASK-202: threshold for warning when too many tickers have NaN vol_ratio (missing volume data)
 VOL_NAN_WARN_THRESHOLD = 0.20      # max acceptable share of tickers with NaN vol_ratio before warning
 
+# Data-quality guards added by the 2026-09-06 audit (D1, D2). Warnings, never blocks: a wrong
+# list is worse than a late one, but a silent one is worst.
+FETCH_MISSING_WARN_SHARE = 0.05         # warn when >5% of requested tickers came back without prices
+STALE_DATA_WARN_BUSINESS_DAYS = 1       # warn when the last bar is older than the previous session
+
 # ============================================
 # DOWNTREND VETO GATE (nuevo Jun 2026)
 # ============================================
@@ -192,6 +197,13 @@ FILTERS = {
     # Liquidity filter (Volume is fetched by data/fetch and used here when > 0).
     # 100k is a conservative default for quality; raise for stricter (e.g. 500k+ for large caps).
     "min_avg_volume": 100000,
+
+    # Dollar liquidity: 20-day mean of close x volume, USD. Shares alone let a $5 stock with
+    # $500k/day into a list that rotates ~39% a week (audit 2026-09-06, D3). $5M/day excludes
+    # the genuinely untradeable end of the Russell 2000 without gutting small caps. Selection
+    # rule, not scoring (SPEC 1). Measured on S&P 500: no effect (every name passes); the
+    # effect on the production universe is unmeasured until TASK-324's panel exists.
+    "min_dollar_volume": 5_000_000,
 
     # Precio mínimo actual (activo y útil)
     "min_price": 5.0,

@@ -352,7 +352,13 @@ elif recommended AND missing_data:
 - **NaN / Inf handling**: Replace division by zero with NaN, then drop or fill conservatively in momentum and features.
 - **Zombie / delisted tickers**: Hard blacklist in `DELISTED_OR_BAD_TICKERS` + post-filter `remove_zombie_tickers` (flat price detection).
 - **Single-ticker or very small universe**: Breadth score falls back to 0.5.
-- **Volume missing**: `vol_ratio` treated as 0 (fails strict filter).
+- **Volume missing**: `vol_ratio` treated as 0 (fails strict filter). The Pine mirror follows
+  the same rule since 2026-09-06 (it used to pass strict when volume was `na`).
+- **Liquidity (selection rule, not scoring — see §1)**: names must clear both a 20-day mean
+  share volume (`FILTERS["min_avg_volume"]`) and a 20-day mean dollar volume
+  (`FILTERS["min_dollar_volume"]`, close × volume). A name with no volume data cannot prove
+  its liquidity and is excluded. Added 2026-09-06: shares alone let $500k/day names into a
+  weekly-rotation list on the Russell-heavy production universe.
 - **Sector not mapped**: Falls into "Other" bucket.
 
 ---

@@ -23,14 +23,18 @@ def apply_practical_filters(
     min_price: float = 5.0,
     max_price: float = None,
     exclude_sectors: List[str] = None,
+    min_dollar_volume: float = None,
 ) -> tuple[pd.DataFrame, Dict]:
     """
     Aplica filtros básicos de liquidez y precio.
     Retorna (DataFrame filtrado, breakdown dict).
 
-    Nota: El filtro de liquidez (min_avg_volume) está deshabilitado por defecto
-    porque fetch solo trae precios Close. min_price sí está activo.
-    Para activar volumen real: extender fetch_prices para pedir Volume y pasar DF separado.
+    Liquidity is checked two ways when `volumes` is given:
+    - min_avg_volume: 20-day mean SHARES traded (legacy; keeps obvious ghosts out).
+    - min_dollar_volume: 20-day mean of close x volume in USD. This is the one that matters
+      for a strategy rotating ~39% of the list every week on a Russell-heavy universe: 100k
+      shares of a $5 stock is $500k/day, far too thin to trade. Selection rule, not scoring
+      (SPEC 1) - audit 2026-09-06, D3.
     """
     original_tickers = set(prices.columns)
     filtered = prices.copy()
@@ -41,8 +45,10 @@ def apply_practical_filters(
     # Cuando se pasa volumes= (de fetch_prices_and_volume), se activa el filtro real.
     if min_avg_volume > 0:
         if volumes is not None:
-            aligned_vol = volumes[filtered.columns]
-            recent_volume = aligned_vol.iloc[-20:].mean()
+            # A ticker with prices but no volume column cannot prove its liquidity: it fails.
+            # (Indexing volumes[filtered.columns] used to raise KeyError in that case.)
+            cols = filtered.columns.intersection(volumes.columns)
+            recent_volume = volumes[cols].iloc[-20:].mean()
             liquid_tickers = recent_volume[recent_volume >= min_avg_volume].index.tolist()
             removed_vol = len(filtered.columns) - len(liquid_tickers)
             filtered = filtered[liquid_tickers]
@@ -51,6 +57,17 @@ def apply_practical_filters(
             breakdown["volume"] = 0
     else:
         breakdown["volume"] = 0
+
+    # 1b. Filtro de liquidez en dólares (ADV$ 20d)
+    if min_dollar_volume and volumes is not None and len(filtered.columns) > 0:
+        cols = filtered.columns.intersection(volumes.columns)
+        adv_usd = (filtered[cols].iloc[-20:] * volumes[cols].iloc[-20:]).mean()
+        liquid = adv_usd[adv_usd >= min_dollar_volume].index.tolist()
+        # a ticker with no volume data at all cannot prove its liquidity: it does not pass
+        breakdown["dollar_volume"] = len(filtered.columns) - len(liquid)
+        filtered = filtered[liquid]
+    else:
+        breakdown["dollar_volume"] = 0
 
     # 2. Filtro de precio mínimo
     if min_price > 0:

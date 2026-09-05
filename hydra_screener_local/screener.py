@@ -24,7 +24,9 @@ except Exception as _e:
     print(f"[WARN] .env loader skipped: {_e}")
 
 from config import (TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS,
-                    UNIVERSE, VOL_NAN_WARN_THRESHOLD, MIN_REGIME_SCORE, SECTOR_FETCH_BUDGET_SECONDS)
+                    UNIVERSE, VOL_NAN_WARN_THRESHOLD, MIN_REGIME_SCORE, SECTOR_FETCH_BUDGET_SECONDS,
+                    FETCH_MISSING_WARN_SHARE, STALE_DATA_WARN_BUSINESS_DAYS)
+from utils.trading_calendar import business_days_behind
 from data.universe import get_universe
 from data.fetch import fetch_prices_and_volume, fetch_spy
 from data.sectors import resolve_sectors
@@ -47,12 +49,25 @@ def main():
         print(f"Universo seleccionado: {effective_universe.upper()} ({len(tickers)} tickers)\n")
     
     # 2. Obtener datos (precios + volumen para Strict Filter)
-    prices, volumes = fetch_prices_and_volume(tickers)
+    fetch_report = {}
+    prices, volumes = fetch_prices_and_volume(tickers, report=fetch_report)
     spy = fetch_spy()
-    
+
     if len(prices) < 50:
         print("(!) Datos insuficientes. Intenta mas tarde o reduce el universo.")
         return
+
+    # Data-quality guards (audit 2026-09-06, D1/D2). Warn loudly; never decide silently.
+    if fetch_report.get("missing_share", 0.0) > FETCH_MISSING_WARN_SHARE:
+        print(f"\n⚠ DATOS INCOMPLETOS: {fetch_report['downloaded']}/{fetch_report['requested']} tickers "
+              f"descargados ({fetch_report['missing_share']:.1%} sin precios, "
+              f"{fetch_report['failed_batches']} lote(s) perdidos). La lista de hoy se calcula sobre "
+              f"un universo recortado; los nombres perdidos no fueron descartados por señal.\n")
+    data_last_bar = prices.index[-1]
+    data_age = business_days_behind(data_last_bar)
+    if data_age > STALE_DATA_WARN_BUSINESS_DAYS:
+        print(f"\n⚠ DATOS RANCIOS: la última barra es del {data_last_bar.date()} "
+              f"({data_age} días hábiles atrás). Las señales de hoy se calculan sobre precios viejos.\n")
 
     # 3. Aplicar filtros prácticos (liquidez, precio, etc.)
     original_count = len(prices.columns)
@@ -62,6 +77,7 @@ def main():
         min_avg_volume=FILTERS.get("min_avg_volume", 1_000_000),
         min_price=FILTERS.get("min_price", 5.0),
         max_price=FILTERS.get("max_price"),
+        min_dollar_volume=FILTERS.get("min_dollar_volume"),
     )
     
     filter_summary = get_filter_summary(original_count, prices)
@@ -168,6 +184,7 @@ def main():
             meta_rationale=meta_rationale,
             vol_ratio_nan_share=nan_share,
             regime_gate_blocked=regime_gate_blocked,
+            data_last_bar=str(data_last_bar.date()),
         )
         print(f"[OK] Historico guardado en history/{today}.json")
     except Exception as e:
