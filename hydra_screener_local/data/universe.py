@@ -16,6 +16,14 @@ logger = logging.getLogger(__name__)
 
 CACHE_DAYS = 7  # refrescar la lista cada 7 días
 
+_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(_MODULE_DIR)
+DATA_CACHE_DIR = os.path.join(PROJECT_ROOT, "data_cache")
+
+
+def _json_cache_path(universe: str) -> str:
+    return os.path.join(DATA_CACHE_DIR, f"universe_cache_{universe}.json")
+
 # Cache path relativo al archivo del módulo (robusto aunque se ejecute desde otro cwd)
 def _get_cache_path(universe: str = "sp500") -> str:
     module_dir = os.path.dirname(os.path.abspath(__file__))
@@ -292,10 +300,8 @@ def get_sp500_tickers(use_cache: bool = True) -> list[str]:
         pd.DataFrame({"ticker": clean}).to_csv(cache_path, index=False)
 
         # TASK-201: write json cache for fallback observability
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        json_cache_dir = os.path.join(project_root, "data_cache")
-        os.makedirs(json_cache_dir, exist_ok=True)
-        json_cache = os.path.join(json_cache_dir, "universe_cache_sp500.json")
+        os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+        json_cache = _json_cache_path("sp500")
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
@@ -307,8 +313,7 @@ def get_sp500_tickers(use_cache: bool = True) -> list[str]:
         return clean
 
     # TASK-201: try json cache fallback before hardcoded
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    json_cache = os.path.join(project_root, "data_cache", "universe_cache_sp500.json")
+    json_cache = _json_cache_path("sp500")
     if os.path.exists(json_cache):
         try:
             with open(json_cache, "r", encoding="utf-8") as f:
@@ -786,10 +791,8 @@ def get_nasdaq100_tickers(use_cache: bool = True) -> list[str]:
         pd.DataFrame({"ticker": clean}).to_csv(cache_path, index=False)
 
         # TASK-201 review fix: extend json cache to nasdaq100
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        json_cache_dir = os.path.join(project_root, "data_cache")
-        os.makedirs(json_cache_dir, exist_ok=True)
-        json_cache = os.path.join(json_cache_dir, "universe_cache_nasdaq100.json")
+        os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+        json_cache = _json_cache_path("nasdaq100")
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
@@ -800,8 +803,7 @@ def get_nasdaq100_tickers(use_cache: bool = True) -> list[str]:
         return clean
 
     # TASK-201 review fix: json cache fallback for nasdaq100
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    json_cache = os.path.join(project_root, "data_cache", "universe_cache_nasdaq100.json")
+    json_cache = _json_cache_path("nasdaq100")
     if os.path.exists(json_cache):
         try:
             with open(json_cache, "r", encoding="utf-8") as f:
@@ -888,10 +890,8 @@ def get_dow30_tickers(use_cache: bool = True) -> list[str]:
         pd.DataFrame({"ticker": clean}).to_csv(cache_path, index=False)
 
         # TASK-201 round 3: add json cache for dow30 (it resolves via network)
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        json_cache_dir = os.path.join(project_root, "data_cache")
-        os.makedirs(json_cache_dir, exist_ok=True)
-        json_cache = os.path.join(json_cache_dir, "universe_cache_dow30.json")
+        os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+        json_cache = _json_cache_path("dow30")
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
@@ -902,8 +902,7 @@ def get_dow30_tickers(use_cache: bool = True) -> list[str]:
         return clean
 
     # TASK-201 round 3: json cache fallback for dow30
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    json_cache = os.path.join(project_root, "data_cache", "universe_cache_dow30.json")
+    json_cache = _json_cache_path("dow30")
     if os.path.exists(json_cache):
         try:
             with open(json_cache, "r", encoding="utf-8") as f:
@@ -1094,10 +1093,8 @@ def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
         pd.DataFrame({"ticker": clean}).to_csv(cache_path, index=False)
 
         # TASK-201 round 3: add json cache for russell1000 (resolves via network)
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        json_cache_dir = os.path.join(project_root, "data_cache")
-        os.makedirs(json_cache_dir, exist_ok=True)
-        json_cache = os.path.join(json_cache_dir, "universe_cache_russell1000.json")
+        os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+        json_cache = _json_cache_path("russell1000")
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
@@ -1108,8 +1105,7 @@ def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
         return clean
 
     # TASK-201 round 3: json cache fallback for russell1000
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    json_cache = os.path.join(project_root, "data_cache", "universe_cache_russell1000.json")
+    json_cache = _json_cache_path("russell1000")
     if os.path.exists(json_cache):
         try:
             with open(json_cache, "r", encoding="utf-8") as f:
@@ -1289,10 +1285,8 @@ def get_russell2000_tickers(use_cache: bool = True) -> list[str]:
         pd.DataFrame({"ticker": clean}).to_csv(cache_path, index=False)
 
         # TASK-201 review fix: extend json cache to russell2000
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        json_cache_dir = os.path.join(project_root, "data_cache")
-        os.makedirs(json_cache_dir, exist_ok=True)
-        json_cache = os.path.join(json_cache_dir, "universe_cache_russell2000.json")
+        os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+        json_cache = _json_cache_path("russell2000")
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
@@ -1303,8 +1297,7 @@ def get_russell2000_tickers(use_cache: bool = True) -> list[str]:
         return clean
 
     # TASK-201 review fix: json cache fallback for russell2000
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    json_cache = os.path.join(project_root, "data_cache", "universe_cache_russell2000.json")
+    json_cache = _json_cache_path("russell2000")
     if os.path.exists(json_cache):
         try:
             with open(json_cache, "r", encoding="utf-8") as f:
