@@ -36,7 +36,7 @@ sys.path.insert(0, ROOT)
 
 from config import (MOMENTUM_LOOKBACK, SHORT_TERM_LOOKBACK, PROXIMITY_HIGH_DAYS,
                     MAX_DIST_TO_HIGH_PCT, SHORT_TERM_BOOST, VOL_SURGE_THRESHOLD,
-                    MAX_PER_SECTOR, SECTOR_OVERWEIGHT_PENALTY, SECTOR_BUCKETS,
+                    MAX_PER_SECTOR, SECTOR_BUCKETS,
                     GATE_MAX_DIST_TO_HIGH_PCT, GATE_MIN_RET_SHORT_PCT, MIN_REGIME_SCORE)
 from core.meta_layer import LightweightMetaLayer
 from core.regime import compute_rich_regime_scores
@@ -114,8 +114,13 @@ class Panels:
         return self._cache[t]
 
 
+# sector_mode: 'hardcap'    = TASK-320 production behaviour (cap enforced while picking the
+#                             list, scores untouched, unknown sector exempt)
+#              'legacy_soft' = pre-TASK-320 behaviour, kept as the comparison baseline:
+#                             15% penalty across the WHOLE scored universe, cap 8
+#              'off'         = no sector control at all
 DEFAULTS = dict(mom='mom90', vol_exp=1.0, dist='d20', vratio='overlap', boost=SHORT_TERM_BOOST,
-                strict_bonus=0.18, combine='mult', sector_control=True, sector_skip_other=False,
+                strict_bonus=0.18, combine='mult', sector_mode='hardcap', use_real_sectors=True,
                 max_per_sector=MAX_PER_SECTOR, gate=True, regime_gate=True, gate_dist=GATE_MAX_DIST_TO_HIGH_PCT,
                 gate_ret=GATE_MIN_RET_SHORT_PCT, gate_needs_negative=True,
                 regime_thr=MIN_REGIME_SCORE * 0.85, fixed_n=None,
@@ -149,13 +154,30 @@ def score_day(P, t, c):
         comp = z + c['boost'] * boost + c['strict_bonus'] * strict.astype(float)
 
     out = pd.DataFrame({'comp': comp, 'ret': f['ret'], 'dist': f['dist']})
-    out['sector'] = [SECTOR_BUCKETS.get(x, 'Other') for x in out.index]
-    if c['sector_control']:
-        over = out.groupby('sector')['comp'].rank(method='first', ascending=False) > c['max_per_sector']
-        if c['sector_skip_other']:
-            over &= (out['sector'] != 'Other')
-        out.loc[over, 'comp'] *= (1 - SECTOR_OVERWEIGHT_PENALTY)
+    if c['use_real_sectors']:
+        from data.sectors import lookup_sector
+        out['sector'] = [lookup_sector(x) for x in out.index]
+    else:
+        out['sector'] = [SECTOR_BUCKETS.get(x, 'Other') for x in out.index]
+    if c['sector_mode'] == 'legacy_soft':
+        over = out.groupby('sector')['comp'].rank(method='first', ascending=False) > 8
+        out.loc[over, 'comp'] *= 0.85          # the old SECTOR_OVERWEIGHT_PENALTY
     return out.sort_values('comp', ascending=False), tk
+
+
+def pick(out, n, c):
+    """Select the recommended list. Mirrors filters.apply_sector_concentration_control."""
+    if c['sector_mode'] != 'hardcap':
+        return out.head(n)
+    picked, counts = [], {}
+    for idx, sector in out['sector'].items():
+        if len(picked) >= n:
+            break
+        if sector != 'Other' and counts.get(sector, 0) >= c['max_per_sector']:
+            continue
+        picked.append(idx)
+        counts[sector] = counts.get(sector, 0) + 1
+    return out.loc[picked]
 
 
 def run(P, cfg=None, start=260, step=5, hold=5, lag=1, topk=None):
@@ -168,7 +190,7 @@ def run(P, cfg=None, start=260, step=5, hold=5, lag=1, topk=None):
         m = P.meta_for(t)
         n = c['fixed_n'] or max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
         # two independent controls: the regime gate (market timing) and the downtrend gate (per name)
-        sel = out.head(n) if (not c['regime_gate'] or m.regime_score >= c['regime_thr']) else out.head(0)
+        sel = pick(out, n, c) if (not c['regime_gate'] or m.regime_score >= c['regime_thr']) else out.head(0)
         if c['gate'] and len(sel):
             neg = (sel['ret'] < 0) if c['gate_needs_negative'] else True
             veto = (neg & ((sel['dist'] < c['gate_dist']) | (sel['ret'] < c['gate_ret']))).fillna(False)
@@ -177,12 +199,15 @@ def run(P, cfg=None, start=260, step=5, hold=5, lag=1, topk=None):
         if topk:
             sel = sel.head(topk)
         cur = set(sel.index)
+        known = sel[sel['sector'] != 'Other']['sector'] if len(sel) else pd.Series(dtype=object)
+        worst = int(known.value_counts().iloc[0]) if len(known) else 0
         e, x = t + lag, t + lag + hold
         fwd = (P.close.iloc[x][sel.index] / P.close.iloc[e][sel.index] - 1).dropna() if len(sel) else pd.Series(dtype=float)
         uni = (P.close.iloc[x][tk] / P.close.iloc[e][tk] - 1).dropna()
         recs.append(dict(date=idx[t], n=len(sel), ret=float(fwd.mean()) if len(fwd) else 0.0,
                          turnover=len(cur - prev) / max(len(cur), 1) if cur else 0.0,
-                         invested=len(sel) > 0, selvol=float(P.VOL63.iloc[t][sel.index].mean()) if len(sel) else np.nan,
+                         invested=len(sel) > 0, worst_sector=worst,
+                         selvol=float(P.VOL63.iloc[t][sel.index].mean()) if len(sel) else np.nan,
                          uni=float(uni.mean()), spy=float(P.spy.iloc[x] / P.spy.iloc[e] - 1),
                          regime=m.regime_score, rtype=m.regime_type))
         prev = cur
@@ -220,11 +245,11 @@ def validate(P):
 
 VARIANTS = [
     ('BASELINE (as-is)', {}, {}),
+    ('legacy soft penalty, cap 8', dict(sector_mode='legacy_soft'), {}),
     ('no downtrend gate', dict(gate=False), {}),
     ('no regime gate', dict(regime_gate=False), {}),
     ('gate without only-negative', dict(gate_needs_negative=False), {}),
-    ('no sector control', dict(sector_control=False), {}),
-    ('sector ctrl skips Other', dict(sector_skip_other=True), {}),
+    ('no sector control', dict(sector_mode='off'), {}),
     ('momentum skip last 5d', dict(mom='mom90_skip5'), {}),
     ('momentum raw (vol_exp=0)', dict(vol_exp=0.0), {}),
     ('vol_exp=0.5', dict(vol_exp=0.5), {}),

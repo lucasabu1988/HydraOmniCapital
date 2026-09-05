@@ -113,13 +113,28 @@ OUTPUT_FILENAME_PREFIX = "hydra_screener"
 # en 1-2 temas líderes (ej: 72% Semis + Software/Cyber en mayo-jun 2026). Esto reduce
 # la diversificación efectiva aunque tengamos 22 nombres recomendados.
 #
-# Control ligero:
-# - Soft penalty en composite_score cuando un bucket excede el límite.
-# - Hard cap al seleccionar los recomendados finales.
-
+# TASK-320: el control es un LÍMITE DURO al seleccionar la lista recomendada. No toca
+# composite_score (el scoring queda separado de la construcción de cartera, SPEC 1).
+# La penalidad blanda anterior se quitó: se aplicaba sobre el universo entero (penalizaba
+# al 87% de los nombres por no estar en un mapa de 80 tickers) y, por ser blanda, nunca
+# vinculaba — el 100% de los ciclos simulados terminaba por encima del límite.
+#
+# MAX_PER_SECTOR = 5 sobre sectores GICS. GICS es más grueso que los buckets hechos a mano:
+# Semis, Software/Cyber y Networking caen todos en "Technology". Así que 5 bajo GICS es más
+# estricto sobre concentración tech que el 3 de los buckets viejos (permitía 3+3+3 = 9
+# nombres tech). Sobre una lista de 14-28, 5 es como mucho un 36% en un sector — lejos del
+# 72% que motivó este control. Coste medido: -2.8 bp/ciclo (p=0.628), Sharpe 1.07 -> 1.16,
+# maxDD -18.8% -> -18.3%, y 0% de ciclos por encima del límite. Los caps 3 y 4 vinculan
+# igual pero cuestan más (-9.9 y -7.3 bp) y empeoran el drawdown.
+# Aviso: el valor se eligió sobre la misma muestra 2020-2026 que lo mide.
 ENABLE_SECTOR_CONTROL = True
-MAX_PER_SECTOR = 8               # Máximo recomendado por bucket grueso
-SECTOR_OVERWEIGHT_PENALTY = 0.15 # Penalidad al composite_score (15%) para nombres que exceden
+MAX_PER_SECTOR = 5               # Máximo por sector GICS en la lista recomendada
+
+# Presupuesto para resolver sectores al arrancar (screener.py, aguas arriba del scoring).
+# yfinance solo expone `sector` vía el endpoint `.info`, ~0.4s por nombre desconocido: la
+# caché es lo que lo saca del camino crítico diario. Lo que no dé tiempo cae a buckets/Other
+# en ese run y se resuelve en el siguiente.
+SECTOR_FETCH_BUDGET_SECONDS = 120
 
 # Buckets gruesos (coarse buckets). Mantener pocos y estables.
 # Los tickers no listados caen en "Other".

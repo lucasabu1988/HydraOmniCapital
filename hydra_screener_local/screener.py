@@ -23,9 +23,11 @@ try:
 except Exception as _e:
     print(f"[WARN] .env loader skipped: {_e}")
 
-from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS, UNIVERSE, VOL_NAN_WARN_THRESHOLD, MIN_REGIME_SCORE
+from config import (TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS,
+                    UNIVERSE, VOL_NAN_WARN_THRESHOLD, MIN_REGIME_SCORE, SECTOR_FETCH_BUDGET_SECONDS)
 from data.universe import get_universe
 from data.fetch import fetch_prices_and_volume, fetch_spy
+from data.sectors import resolve_sectors
 from core.signals import generate_daily_candidates
 from core.filters import apply_practical_filters, get_filter_summary, remove_zombie_tickers
 from core.history import save_daily_run
@@ -72,8 +74,16 @@ def main():
         zfs = get_filter_summary(original_count, prices)
         print(f"   + sanity zombie → {zfs['remaining']} restantes ({zfs['removed']} adicionales)\n")
     
-    # 4. Generar candidatos (ya incluye Meta-Layer)
-    candidates = generate_daily_candidates(prices, spy, volumes=volumes)
+    # 4. Resolver sectores ANTES de scorear (TASK-320). El scoring no hace red: se le pasa
+    # el mapa ya resuelto, así el backtest y los tests quedan offline y deterministas.
+    sector_map = resolve_sectors(list(prices.columns), budget_seconds=SECTOR_FETCH_BUDGET_SECONDS)
+    unknown = sum(1 for v in sector_map.values() if v == "Other")
+    if unknown:
+        print(f"   [SECTOR] {len(sector_map) - unknown}/{len(sector_map)} con sector real; "
+              f"{unknown} sin resolver (exentos del límite por sector)")
+
+    # 5. Generar candidatos (ya incluye Meta-Layer)
+    candidates = generate_daily_candidates(prices, spy, volumes=volumes, sector_map=sector_map)
     # Persist the rich regime that actually drove scoring, not compute_regime_score (simple SMA).
     if len(candidates) > 0:
         regime_score = float(candidates.iloc[0]["regime"])
@@ -110,7 +120,7 @@ def main():
         elif isinstance(sm_raw, (list, tuple)):
             special_modes_list = list(sm_raw)
     
-    # 5. Mostrar resultados
+    # 6. Mostrar resultados
     total_candidates = len(candidates)
     recommended_df = candidates[candidates['recommended'] == True].copy() if 'recommended' in candidates.columns else candidates.head(TOP_CANDIDATES)
     n_recommended = len(recommended_df)
@@ -133,7 +143,7 @@ def main():
     # Mostrar resumen + multipliers de forma visual
     print_summary(regime_score, total_candidates, meta_info, pillar_mults, recommended_count)
     
-    # 6. Exportar Excel (con ruta robusta)
+    # 7. Exportar Excel (con ruta robusta)
     today = datetime.now().strftime("%Y%m%d")
     if EXPORT_EXCEL:
         os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -141,7 +151,7 @@ def main():
         candidates.to_excel(filename, index=False)
         print(f"\n[OK] Exportado a: {filename}")
 
-    # 7. Guardar histórico para análisis de rendimiento (persistencia)
+    # 8. Guardar histórico para análisis de rendimiento (persistencia)
     try:
         # Guardar top 20 del ranking completo + marcar cuales fueron recomendados
         top_for_history = candidates.head(20).to_dict("records")
@@ -163,7 +173,7 @@ def main():
     except Exception as e:
         print(f"[yellow]⚠[/yellow] No se pudo guardar histórico: {e}")
 
-    # 8. Log the top-5 cycle for dynamic PnL tracking (entry=last close from fetch, current starts=entry, formulas for PnL)
+    # 9. Log the top-5 cycle for dynamic PnL tracking (entry=last close from fetch, current starts=entry, formulas for PnL)
     # This turns every screener run (esp. UNIVERSE=all) into an auditable entry for the 5/5 rotation strategy.
     try:
         # Top5 ejecutable = top 5 de los RECOMENDADOS (post downtrend gate, SPEC 4.7).
@@ -185,7 +195,7 @@ def main():
     except Exception as e:
         print(f"[yellow]⚠[/yellow] Cycle PnL log skipped: {e}")
 
-    # 9. Hybrid integration layer (task 1+2)
+    # 10. Hybrid integration layer (task 1+2)
     # - Auto-generate Pine watchlist string/file
     # - Send rich summary (Discord webhook if DISCORD_WEBHOOK_URL is set in env)
     if os.environ.get("HYDRA_SKIP_HYBRID", "").lower() in ("1", "true", "yes"):

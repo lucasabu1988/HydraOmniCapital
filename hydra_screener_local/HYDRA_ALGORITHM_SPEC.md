@@ -18,7 +18,7 @@ HYDRA is a **momentum + regime-aware** equity selection system with the followin
 - Dynamic regime detection that changes factor biases and aggression.
 - "Special Modes" that qualitatively alter behavior in different market regimes.
 - Pillar Multipliers that tilt the scoring toward different styles (trend vs mean-reversion vs catalyst).
-- Soft risk controls (sector concentration).
+- Sector concentration capped when the recommended list is picked.
 - Dynamic number of recommendations based on overall conviction.
 
 The system is explicitly designed for **5-day trading cycles**.
@@ -82,15 +82,18 @@ function generate_daily_candidates(prices, spy, volumes=None):
     df = df.sort_values('composite_score', ascending=False).reset_index(drop=True)
     df['rank'] = 1 to N
 
-    # 9. Sector Concentration Control (soft)
-    df = apply_sector_concentration_control(df, MAX_PER_SECTOR, SECTOR_OVERWEIGHT_PENALTY)
-
-    # 10. Dynamic Recommendation Count + Flag
+    # 9. Dynamic Recommendation Count (BEFORE sector control: the cap applies to the
+    #    list being picked, not to the scored universe)
     compass_mult = meta.pillar_multipliers['COMPASS']
     dynamic_count = clamp( round(14 * meta.overall_aggression * compass_mult), 6, 28 )
 
-    df['recommended'] = (df.rank <= dynamic_count) & (regime_score >= 0.35 * 0.85)
-    df['reason'] = if recommended then meta.rationale else "Filtrado por Meta-Layer"
+    # 10. Sector Concentration Control (hard cap at selection; scores untouched)
+    df = apply_sector_concentration_control(df, dynamic_count, MAX_PER_SECTOR, sector_map)
+
+    df['recommended'] = df.sector_selected & (regime_score >= 0.35 * 0.85)
+    df['reason'] = if recommended            then meta.rationale
+                   elif sector_penalty_applied then "Filtrado: límite por sector"
+                   else                           "Filtrado por Meta-Layer"
 
     # 11. Downtrend Veto Gate (SPEC 4.7) - quita el flag a acciones en caída reciente
     df = apply_downtrend_gate(df)
@@ -252,24 +255,44 @@ regime_score = round(clamp(overall, 0, 1), 3)
 
 ### 4.5 Sector Concentration Control
 
+A **hard cap applied while picking the recommended list**. Scores are never modified:
+scoring stays separate from portfolio construction (see section 1).
+
 ```pseudocode
-df['sector'] = map_ticker_to_bucket(df.ticker, SECTOR_BUCKETS)
-df['sector_rank'] = rank_within_sector(df, 'composite_score')
+# sector_map is resolved upstream (screener.py), never inside scoring
+df['sector'] = sector_map[ticker]  or  SECTOR_BUCKETS[ticker]  or  "Other"
+df['sector_rank'] = rank_within_sector(df, 'composite_score')   # informative only
 
-for each sector:
-    excess = tickers where sector_rank > MAX_PER_SECTOR
-    if excess:
-        composite *= (1 - SECTOR_OVERWEIGHT_PENALTY)   # 0.15
-        mark sector_penalty_applied = True
+picked = []; counts = {}
+for each row in df ordered by composite_score desc:
+    if len(picked) >= dynamic_count: break
+    if row.sector != "Other" and counts[row.sector] >= MAX_PER_SECTOR:
+        mark sector_penalty_applied = True      # displaced by the cap
+        continue
+    picked.append(row); counts[row.sector] += 1
 
-re-sort entire list by new composite
-re-assign global rank
+df['sector_selected'] = index in picked
 ```
+
+The cap holds by construction, and still holds after the Downtrend Veto Gate (4.7),
+since vetoing names can only lower a sector's count.
+
+`"Other"` is **exempt**: it means "sector unknown", not a sector, and you cannot be
+over-concentrated in the unknown.
 
 **Parameters**:
 - `ENABLE_SECTOR_CONTROL = True`
-- `MAX_PER_SECTOR = 8`
-- `SECTOR_OVERWEIGHT_PENALTY = 0.15`
+- `MAX_PER_SECTOR = 5` (GICS sectors)
+- `SECTOR_FETCH_BUDGET_SECONDS = 120`
+
+> **Nota (2026-09-05, TASK-320).** Hasta esta fecha era una penalidad blanda del 15% al
+> `composite_score`, aplicada sobre el universo entero. Tenía dos defectos: penalizaba al
+> 87% de los nombres por no estar en un mapa hecho a mano de 80 tickers, y por ser blanda
+> no vinculaba nunca — el 100% de los ciclos simulados terminaba por encima del límite,
+> con hasta 20 nombres de un mismo sector. `MAX_PER_SECTOR` pasa de 8 a 5 porque GICS es
+> más grueso que aquellos buckets (Semis, Software/Cyber y Networking son todos
+> "Technology"), así que 5 bajo GICS restringe la concentración tech más que el 3 que
+> documenta `CLAUDE.md` para el motor legacy v8.4. Cambio de scoring aprobado por Lucas.
 
 ### 4.6 Final Recommended Logic (Current Implementation)
 
@@ -279,7 +302,7 @@ overall_aggression = meta.overall_aggression
 
 dynamic_count = clamp( round(14 * overall_aggression * compass_mult) , 6, 28 )
 
-recommended = (rank <= dynamic_count) 
+recommended = sector_selected            # top dynamic_count respecting MAX_PER_SECTOR (4.5)
            AND (regime_score >= 0.35 * 0.85)
 ```
 
@@ -359,8 +382,8 @@ From `config.py`:
 - moderate/cautious boundary = 0.50 / 0.38
 
 **Sector**
-- MAX_PER_SECTOR = 8
-- SECTOR_OVERWEIGHT_PENALTY = 0.15
+- MAX_PER_SECTOR = 5
+- SECTOR_FETCH_BUDGET_SECONDS = 120
 
 **Downtrend Veto Gate (SPEC 4.7)**
 - ENABLE_DOWNTREND_GATE = True

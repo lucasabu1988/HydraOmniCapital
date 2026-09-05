@@ -156,7 +156,8 @@ def compute_regime_score(spy: pd.Series) -> float:
     return round(float(regime), 3)
 
 
-def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame = None) -> pd.DataFrame:
+def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame = None,
+                             sector_map: dict = None) -> pd.DataFrame:
     """
     Main entry point for daily candidate generation.
 
@@ -174,6 +175,10 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
 
     This function produces the rich output contract expected by history, display,
     analyze_history, tracking, and the hybrid Pine Script layer.
+
+    `sector_map` ({ticker: sector}) is resolved upstream in screener.py so that scoring
+    does no network I/O — the backtest and the tests stay offline and deterministic.
+    When it is None the sector lookup falls back to the local cache and SECTOR_BUCKETS.
     """
     # SPEC 4.1 - Momentum Score (risk-adjusted)
     momentum = compute_momentum_score(prices)
@@ -265,25 +270,30 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     df = df.sort_values("composite_score", ascending=False).reset_index(drop=True)
     df["rank"] = range(1, len(df) + 1)
 
-    # SPEC 4.6 - Sector Concentration Control (soft penalty + re-rank)
-    df = apply_sector_concentration_control(df)
-
-    # SPEC 4.7 - Dynamic Recommendation Count + recommended flag
-    # (base 14 * aggression * compass_mult, clamped 6-28)
+    # SPEC 4.7 - Dynamic Recommendation Count (base 14 * aggression * compass_mult, 6-28).
+    # Computed BEFORE sector control: the cap applies to the list being picked, not to the
+    # whole scored universe (TASK-320).
     compass_mult = meta_adj.pillar_multipliers.get("COMPASS", 1.0)
     overall_aggression = meta_adj.overall_aggression
-    
+
     base_recommendations = 14
     dynamic_count = int(round(base_recommendations * overall_aggression * compass_mult))
-    
+
     # Límites razonables (no queremos recomendar 3 ni 45)
     dynamic_count = max(6, min(dynamic_count, 28))
-    
-    # Lógica de recomendación final (ahora dinámica)
-    df['recommended'] = (df['rank'] <= dynamic_count) & (meta_adj.regime_score >= MIN_REGIME_SCORE * 0.85)
-    df['reason'] = df.apply(
-        lambda r: meta_adj.rationale if r['recommended'] else 'Filtrado por Meta-Layer', 
-        axis=1
+
+    # SPEC 4.6 - Sector Concentration Control: hard cap while picking the list.
+    # Scores are not modified; the cap is a selection constraint.
+    df = apply_sector_concentration_control(df, dynamic_count, sector_map=sector_map)
+
+    # Lógica de recomendación final
+    df['recommended'] = df['sector_selected'] & (meta_adj.regime_score >= MIN_REGIME_SCORE * 0.85)
+    df['reason'] = np.where(
+        df['recommended'],
+        meta_adj.rationale,
+        np.where(df['sector_penalty_applied'],
+                 'Filtrado: límite por sector (SPEC 4.6)',
+                 'Filtrado por Meta-Layer'),
     )
     
     # SPEC 4.7 - Downtrend Veto Gate (excluye acciones en caída reciente de 'recommended')

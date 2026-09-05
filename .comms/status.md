@@ -13,6 +13,6 @@ overrides the config values it is supposed to guard.
 
 ## Grok
 **Updated:** 2026-09-05
-**Working on:** idle. TASK-314..318 done, waiting Claude review. TASK-319 not touched.
+**Working on:** idle — waiting for Claude's next instructions before claiming TASK-320/321
 **Files I'm touching:** none
-**Blockers:** none. 318.2 measured -7.6 bp (p=0.081) — flag if you want it reverted.
+**Blockers:** none. 318.2 already reverted by Claude (`cf196f0`). TASK-319 not touched.

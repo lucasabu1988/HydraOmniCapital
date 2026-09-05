@@ -40,8 +40,7 @@ config.GEO_VOL_THRESHOLD_ADJUST = 0.6
 config.MIN_VOL_THRESHOLD = 1.0
 config.REGIME_SMA = 200
 config.MIN_REGIME_SCORE = 0.35
-config.MAX_PER_SECTOR = 8
-config.SECTOR_OVERWEIGHT_PENALTY = 0.15
+config.MAX_PER_SECTOR = 5
 
 from core.signals import (
     compute_momentum_score,
@@ -249,21 +248,32 @@ def test_4_5_composite_and_strict_bonus():
     return True
 
 def test_4_6_sector_control():
-    """SPEC 4.6: Sector Concentration Control (soft penalty)"""
+    """SPEC 4.6: Sector Concentration Control - limite duro en la seleccion (TASK-320)"""
     print("\n=== SPEC 4.6 Sector Control ===")
-    prices = make_synthetic_prices(n_tickers=20, n_days=100)
+    from collections import Counter
+    prices = make_synthetic_prices(n_tickers=40, n_days=100)
     spy = make_synthetic_spy(100)
-    
-    # Asignar muchos tickers al mismo sector para forzar exceso
-    # (usamos el SECTOR_BUCKETS de config, que ya está parcheado pero usamos default buckets)
-    cands = generate_daily_candidates(prices, spy)
-    
-    if 'sector_penalty_applied' in cands.columns:
-        penalized = cands[cands['sector_penalty_applied'] == True]
-        print(f"  Penalizados por sector: {len(penalized)}")
-        if len(penalized) > 0:
-            assert (cands['composite_score'] <= cands['meta_score'] * 1.1).any()  # al menos algunos bajaron
-    print("[OK] Sector control aplicado (SPEC 4.6) - penalidad suave + re-rank")
+
+    # Forzar concentracion: media universo en un sector, el resto sin resolver ("Other")
+    sector_map = {t: ("Technology" if i % 2 == 0 else "Other")
+                  for i, t in enumerate(prices.columns)}
+    cands = generate_daily_candidates(prices, spy, sector_map=sector_map)
+    rec = cands[cands['recommended']]
+
+    assert 'sector_penalty_applied' in cands.columns
+
+    # El limite tiene que vincular de verdad — la penalidad blanda anterior nunca lo hacia
+    known = Counter(rec[rec['sector'] != 'Other']['sector'])
+    worst = max(known.values()) if known else 0
+    print(f"  recomendados: {len(rec)} | max por sector conocido: {worst} "
+          f"(limite {config.MAX_PER_SECTOR})")
+    assert worst <= config.MAX_PER_SECTOR, \
+        f"el limite por sector no vincula: {worst} > {config.MAX_PER_SECTOR}"
+
+    # "Other" (sector desconocido) esta exento: no se puede estar sobre-concentrado en lo que no se sabe
+    n_other = int((rec['sector'] == 'Other').sum())
+    print(f"  con sector desconocido en la lista: {n_other} (exentos del limite)")
+    print("[OK] Sector control aplicado (SPEC 4.6) - limite duro en la seleccion")
     return True
 
 def test_4_7_dynamic_recommended():

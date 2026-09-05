@@ -4,15 +4,16 @@ Practical Filters + Sector Concentration Control
 Implements:
 - apply_practical_filters (price + volume)
 - remove_zombie_tickers
-- apply_sector_concentration_control (SPEC 4.6)
+- apply_sector_concentration_control (SPEC 4.6, hard cap at selection)
 
-Sector control is the soft penalty + re-rank logic described in the SPEC.
+Sector control caps how many names of one sector reach the recommended list.
 """
 import pandas as pd
 from typing import List, Dict
 from config import (
-    ENABLE_SECTOR_CONTROL, MAX_PER_SECTOR, SECTOR_OVERWEIGHT_PENALTY, SECTOR_BUCKETS
+    ENABLE_SECTOR_CONTROL, MAX_PER_SECTOR, SECTOR_BUCKETS
 )
+from data.sectors import UNKNOWN_SECTOR
 
 
 def apply_practical_filters(
@@ -142,67 +143,85 @@ def remove_zombie_tickers(prices: pd.DataFrame, max_flat_days: int = 5, min_pric
 
 
 def get_sector(ticker: str) -> str:
-    """Cache GICS -> SECTOR_BUCKETS -> Other. Never raises."""
+    """Cache GICS -> SECTOR_BUCKETS -> "Other". Reads only, never touches the network."""
     try:
         from data.sectors import lookup_sector
         return lookup_sector(ticker)
     except Exception:
-        return SECTOR_BUCKETS.get(ticker, "Other")
+        return SECTOR_BUCKETS.get(ticker, UNKNOWN_SECTOR)
 
 
 def apply_sector_concentration_control(
     candidates_df: pd.DataFrame,
+    dynamic_count: int = None,
     max_per_sector: int = None,
-    penalty: float = None,
+    sector_map: dict = None,
 ) -> pd.DataFrame:
     """
-    SPEC 4.6 - Sector Concentration Control (soft penalty + re-rank)
+    SPEC 4.6 - Sector Concentration Control: a hard cap applied while picking the list.
 
-    Exact logic from the formal specification:
-    - Assign coarse buckets from SECTOR_BUCKETS
-    - Rank within bucket
-    - If > MAX_PER_SECTOR in a bucket → apply SECTOR_OVERWEIGHT_PENALTY (default 15%)
-    - Re-sort global list and re-assign ranks
-    - Adds: sector, sector_rank, sector_penalty_applied
+    TASK-320 replaced the previous soft 15% penalty, which had two defects. It was applied
+    across the whole scored universe, so with ~500 names in ~10 buckets it penalised 87%
+    of them for being 9th of 45 in their sector - a tax on not being in an 80-name
+    hardcoded map, not a concentration control. And being soft, it never actually bound:
+    penalised names were re-sorted and the replacements entering the list were never
+    re-checked, so 100% of simulated cycles ended above the cap (worst case 20 names in
+    one sector).
+
+    Now the score is left alone - scoring stays separate from portfolio construction
+    (SPEC 1) - and the cap is enforced during selection: walk down the ranking and skip a
+    name whose sector is already full. The cap holds by construction, and it still holds
+    after the downtrend gate, since vetoing names can only lower a sector's count.
+
+    `UNKNOWN_SECTOR` is exempt. It means "we failed to look this up", not a sector, and
+    you cannot be over-concentrated in the unknown. Without that exemption the old defect
+    just moves from the universe to the pool: with an empty sector cache 18 of 22 pool
+    names are "Other", and a cap of 3 would skip 15 of them.
+
+    Args:
+        candidates_df: scored frame, already sorted by composite_score descending.
+        dynamic_count: size of the list being picked. None = treat the whole frame as
+            the pool (used by experiment scripts that pass an already-selected subset).
+        sector_map: {ticker: sector} resolved upstream. None = fall back to the local
+            cache/buckets lookup, which is what keeps tests and the backtest offline.
+
+    Adds: sector, sector_rank, sector_penalty_applied (True = skipped by the cap),
+    sector_selected (the picked list, before the regime flag and the downtrend gate).
     """
-    if not ENABLE_SECTOR_CONTROL:
-        return candidates_df
+    df = candidates_df.copy()
+    if sector_map:
+        df["sector"] = [sector_map.get(t) or get_sector(t) for t in df["ticker"]]
+    else:
+        df["sector"] = df["ticker"].apply(get_sector)
 
-    try:
-        from data.sectors import refresh_sector_cache
-        refresh_sector_cache(candidates_df["ticker"].tolist())
-    except Exception as e:
-        print(f"   [SECTOR] cache refresh skipped: {e}")
+    # 1 = best of its sector. Informative only; the cap below uses the walk order.
+    df["sector_rank"] = df.groupby("sector")["composite_score"].rank(
+        method="first", ascending=False).astype(int)
+    df["sector_penalty_applied"] = False
+    df["sector_selected"] = False
+
+    n_pool = len(df) if dynamic_count is None else max(0, min(int(dynamic_count), len(df)))
+    if not ENABLE_SECTOR_CONTROL:
+        df.loc[df.index[:n_pool], "sector_selected"] = True
+        return df
 
     max_per = max_per_sector or MAX_PER_SECTOR
-    pen = penalty or SECTOR_OVERWEIGHT_PENALTY
+    picked, skipped, counts = [], [], {}
+    for idx, sector in df["sector"].items():
+        if len(picked) >= n_pool:
+            break
+        if sector != UNKNOWN_SECTOR and counts.get(sector, 0) >= max_per:
+            skipped.append(idx)
+            continue
+        picked.append(idx)
+        counts[sector] = counts.get(sector, 0) + 1
 
-    df = candidates_df.copy()
-    df["sector"] = df["ticker"].apply(get_sector)
+    df.loc[picked, "sector_selected"] = True
+    df.loc[skipped, "sector_penalty_applied"] = True
 
-    # Calcular ranking dentro de cada sector (1 = mejor del bucket)
-    df["sector_rank"] = df.groupby("sector")["composite_score"].rank(method="first", ascending=False).astype(int)
-
-    # Aplicar penalidad a los que exceden el límite
-    df["sector_penalty_applied"] = False
-
-    for sector in df["sector"].unique():
-        sector_mask = df["sector"] == sector
-        excess = df.loc[sector_mask & (df["sector_rank"] > max_per)]
-
-        if not excess.empty:
-            df.loc[excess.index, "composite_score"] = (
-                df.loc[excess.index, "composite_score"] * (1 - pen)
-            ).round(4)
-            df.loc[excess.index, "sector_penalty_applied"] = True
-
-    # Re-ordenar después de la penalidad
-    df = df.sort_values("composite_score", ascending=False).reset_index(drop=True)
-    df["rank"] = range(1, len(df) + 1)
-
-    if df["sector_penalty_applied"].any():
-        penalized = df[df["sector_penalty_applied"]]["ticker"].tolist()
-        print(f"   [SECTOR CONTROL] Penalizados {len(penalized)} nombres por sobre-concentración "
-              f"(>{max_per} por bucket): {penalized[:5]}{'...' if len(penalized)>5 else ''}")
+    if skipped:
+        names = df.loc[skipped, "ticker"].tolist()
+        print(f"   [SECTOR CONTROL] {len(names)} nombres desplazados por el limite de "
+              f"{max_per} por sector: {names[:5]}{'...' if len(names) > 5 else ''}")
 
     return df
