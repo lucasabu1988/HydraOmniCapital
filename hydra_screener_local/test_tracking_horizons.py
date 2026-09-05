@@ -70,12 +70,18 @@ def test_update_tracking_recomputes_old_schema_files(monkeypatch, tmp_path):
     monkeypatch.setattr(T, "load_daily_run", lambda d: _run(d, ("AAA",)))
     monkeypatch.setattr(T, "_fetch_prices", lambda tickers, start, end: PX)
     monkeypatch.setattr(T, "save_tracking", lambda d, data: saved.__setitem__(d, data))
+    complete = {                       # current schema, every horizon measured, same signal and set
+        "schema_version": TRACKING_SCHEMA_VERSION, "signal_date": "2026-09-08", "recommended_snapshot": ["AAA"],
+        "candidates": [{"ticker": "AAA", "returns": {"return_5d": 0.01, "return_10d": 0.02},
+                        "status": {"5d": {"state": "measured"}, "10d": {"state": "measured"}}}],
+        "omitted": [],
+    }
     existing = {
         "20260904": {"candidates": [{"ticker": "AAA"}]},                                   # v1: no version
-        "20260908": {"candidates": [{"ticker": "AAA"}], "schema_version": TRACKING_SCHEMA_VERSION},
+        "20260908": complete,
     }
     monkeypatch.setattr(T, "load_tracking", lambda d: existing[d])
 
     T.update_tracking()
     assert "20260904" in saved, "a v1 file must be recomputed even without --force"
-    assert "20260908" not in saved, "a current-schema file is left alone"
+    assert "20260908" not in saved, "a COMPLETE current-schema file is left alone (a pending one is not: test_tracking_pending)"

@@ -49,6 +49,11 @@ def discover_tests() -> list[str]:
         for f in glob.glob(pattern):
             if f not in found and not f.startswith("__"):
                 found.append(f.replace("\\", "/"))
+    # Files whose names do not match the glob (the Pine contract validator) used to be listed
+    # in ADDITIONAL_TESTS but never discovered -- a check that silently never ran (audit, step 4).
+    for t in ADDITIONAL_TESTS:
+        if t not in found and (ROOT / t).exists():
+            found.append(t)
     # Ensure order: core first, then additional
     ordered = []
     for t in CORE_TESTS + ADDITIONAL_TESTS:

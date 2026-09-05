@@ -31,32 +31,27 @@ def find_latest_history(history_dir: Path = Path("history")) -> Path:
         raise FileNotFoundError(f"No se encontraron archivos en {history_dir}")
     return max(files, key=lambda p: p.stat().st_mtime)
 
-def load_recommended_tickers(history_path: Path, top_n: int = 15) -> list[str]:
-    """Carga los tickers recomendados del history JSON (top N por rank)."""
+def load_recommended_tickers(history_path: Path, top_n: Optional[int] = None) -> list[str]:
+    """Tickers marcados `recommended` en el history JSON, ordenados por rank.
+
+    Solo los marcados: cero recomendados devuelve [] (auditoría A — el fallback anterior
+    publicaba candidatos rechazados como watchlist). `top_n` es un tope de visualización
+    explícito; por defecto se devuelve la lista completa y es Pine quien limita la tabla
+    (`i_max_watchlist`).
+    """
     with open(history_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    top_candidates = data.get("top_candidates", [])
-    if not top_candidates:
-        return []
-
-    # Preferir los que tienen recommended=True, ordenados por rank
-    recommended = [c for c in top_candidates if c.get("recommended")]
-    if recommended:
-        recommended.sort(key=lambda c: c.get("rank", 999))
-        tickers = [c["ticker"] for c in recommended[:top_n]]
-    else:
-        # Fallback: top N por rank/composite aunque no marcados recommended
-        top_candidates.sort(key=lambda c: c.get("rank", 999))
-        tickers = [c["ticker"] for c in top_candidates[:top_n]]
-
-    return tickers
+    recommended = sorted((c for c in data.get("top_candidates", []) if c.get("recommended")),
+                         key=lambda c: c.get("rank", 10**6))
+    tickers = [c["ticker"] for c in recommended]
+    return tickers[:top_n] if top_n else tickers
 
 def generate_watchlist_string(tickers: list[str]) -> str:
     """Genera el string comma-separated para el input del Pine."""
     return ",".join(tickers)
 
-def run_feeder(top_n: int = 15, output_path: Optional[str] = None, history_dir: str = "history", silent: bool = False) -> str:
+def run_feeder(top_n: Optional[int] = None, output_path: Optional[str] = None, history_dir: str = "history", silent: bool = False) -> str:
     """Core function to generate the Pine watchlist string.
 
     Returns the comma-separated watchlist string.
@@ -75,14 +70,9 @@ def run_feeder(top_n: int = 15, output_path: Optional[str] = None, history_dir: 
         print(f"Using latest history: {latest.name} (date: {datetime.fromtimestamp(latest.stat().st_mtime).strftime('%Y-%m-%d %H:%M')})")
 
     tickers = load_recommended_tickers(latest, top_n=top_n)
-    if not tickers:
-        if not silent:
-            print("[WARN] No recommended tickers found in history.")
-        # fallback to top N overall
-        with open(latest, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        top_cands = data.get("top_candidates", [])[:top_n]
-        tickers = [c["ticker"] for c in top_cands]
+    if not tickers and not silent:
+        # No fallback: an empty watchlist is the correct output of a closed cycle.
+        print("[INFO] 0 recommended tickers in the latest run - the watchlist is empty on purpose (no positions).")
 
     watchlist_str = generate_watchlist_string(tickers)
 

@@ -42,6 +42,28 @@ from core.filters import (
 from core.history import save_daily_run
 from utils.display import print_header, print_candidates_table, print_summary, print_footer
 
+HISTORY_CONTEXT_TOP = 20     # non-recommended context rows kept in history/ next to the full recommended set
+
+
+def history_records(candidates, context_top: int = HISTORY_CONTEXT_TOP) -> list:
+    """Rows persisted to history/: EVERY recommended name plus the top-`context_top` of the
+    ranking as context, in ranking order. Pure, so the contract is testable (audit finding B)."""
+    if candidates is None or len(candidates) == 0:
+        return []
+    keep = candidates.head(context_top).index
+    if 'recommended' in candidates.columns:
+        keep = keep.union(candidates.index[candidates['recommended'] == True])
+    return candidates.loc[candidates.index.isin(keep)].to_dict("records")
+
+
+def executable_top5(candidates) -> list:
+    """Top-5 executable names for the cycle log: the first five RECOMMENDED tickers, in rank
+    order. Zero recommended -> [] (no positions), never a fallback to rejected names (finding A)."""
+    if candidates is None or len(candidates) == 0 or 'recommended' not in candidates.columns:
+        return []
+    pool = candidates[candidates['recommended'] == True]
+    return pool.head(5)['ticker'].tolist() if len(pool) >= 5 else []
+
 
 def main():
     print_header()
@@ -206,8 +228,10 @@ def main():
 
     # 8. Guardar histórico para análisis de rendimiento (persistencia)
     try:
-        # Guardar top 20 del ranking completo + marcar cuales fueron recomendados
-        top_for_history = candidates.head(20).to_dict("records")
+        # Every recommended name plus the top-20 of the ranking as context. `head(20)` alone lost
+        # recommendations beyond rank 20 (the sector cap and the veto put them there): 22 in the
+        # run, 20 persisted, 15 exported (audit finding B).
+        top_for_history = history_records(candidates)
         meta_rationale = candidates.iloc[0]["reason"] if len(candidates) > 0 else ""
 
         special_modes = (candidates.iloc[0].get('special_modes') or '').split(', ') if len(candidates) > 0 else []
@@ -233,11 +257,12 @@ def main():
     try:
         # Top5 ejecutable = top 5 de los RECOMENDADOS (post downtrend gate, SPEC 4.7).
         # Antes usaba head(5) crudo, que podía incluir nombres vetados por caída reciente.
-        exec_pool = candidates[candidates['recommended'] == True] if 'recommended' in candidates.columns else candidates
-        if len(exec_pool) == 0:
-            exec_pool = candidates
-        if len(exec_pool) >= 5:
-            top5 = exec_pool.head(5)['ticker'].tolist()
+        # Zero recommended = zero positions. The old `exec_pool = candidates` fallback logged five
+        # rejected names as executed positions (audit finding A).
+        top5 = executable_top5(candidates)
+        if not top5:
+            print("[CycleLog] 0 recommended today - no Top5 cycle logged (no positions)")
+        else:
             # entry price = most recent close used by the screener (point-in-time for signal)
             entry_prices = {}
             for t in top5:
@@ -259,10 +284,11 @@ def main():
         try:
             print("\n[Hybrid] Generating Pine watchlist from latest history...")
             import generate_pine_watchlist
-            generate_pine_watchlist.run_feeder(top_n=15, output_path="pine/watchlist.txt", silent=True)
+            # Full recommended list in both artefacts; Pine's `i_max_watchlist` is the explicit display cap.
+            generate_pine_watchlist.run_feeder(top_n=None, output_path="pine/watchlist.txt", silent=True)
             print("[Hybrid] Sending daily HYDRA summary (webhook if configured)...")
             import send_hydra_summary
-            send_hydra_summary.run_sender(top_n=15, silent=True)
+            send_hydra_summary.run_sender(top_n=None, silent=True)
             print("[Hybrid] Hybrid layer complete.")
             print("  → pine/watchlist.txt          (paste into Pine 'Watchlist Symbols' input)")
             print("  → pine/hydra_last_summary.json (paste FULL contents into Pine 'i_summary_json' for exact Rec? + values)")
@@ -272,11 +298,8 @@ def main():
             # Close the loop: also log the *exact* recommended list that was sent to Pine (the one user pastes)
             # This allows PnL tracking specifically for the lists that appeared in the TV dashboard.
             try:
-                rec_col = 'recommended' if 'recommended' in candidates.columns else None
-                if rec_col:
-                    hybrid_recs = candidates[candidates[rec_col] == True]['ticker'].tolist()
-                else:
-                    hybrid_recs = candidates.head(15)['ticker'].tolist()
+                # Only flagged names; no head(15) fallback (audit finding A/B).
+                hybrid_recs = candidates[candidates['recommended'] == True]['ticker'].tolist() if 'recommended' in candidates.columns else []
                 if hybrid_recs:
                     entry_prices = {}
                     for t in hybrid_recs:

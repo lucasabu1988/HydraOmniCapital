@@ -63,10 +63,20 @@ def simulate_pine_parser(json_path: str) -> dict:
             result["ok"] = False
             result["errors"].append(f"top_details missing keys for {item.get('ticker')}: {missing}")
 
-    recs = data.get("recommended_tickers", [])
-    if not recs:
+    # An empty list is a valid result (closed cycle) - only a MISSING key or an inconsistent
+    # count is a contract error (audit finding A: empty != absent).
+    if "recommended_tickers" not in data or "recommended_count" not in data:
         result["ok"] = False
-        result["errors"].append("No recommended_tickers in JSON")
+        result["errors"].append("recommended_tickers / recommended_count missing from JSON")
+    recs = data.get("recommended_tickers", []) or []
+    if data.get("recommended_count") is not None and data.get("recommended_count") != len(recs):
+        result["ok"] = False
+        result["errors"].append(f"recommended_count {data.get('recommended_count')} != len(recommended_tickers) {len(recs)}")
+    # top_details must carry the whole list unless the producer declared an explicit display cap
+    detail_tickers = [d.get("ticker") for d in top_details]
+    if not data.get("display_limit") and detail_tickers != recs:
+        result["ok"] = False
+        result["errors"].append("top_details tickers != recommended_tickers and no display_limit declared (a consumer truncated the list)")
 
     # Simulate is_rec for the watchlist
     watchlist = data.get("watchlist_for_pine", "")
@@ -102,8 +112,9 @@ def main():
                 json_path = str(c)
                 break
     if not json_path or not Path(json_path).exists():
-        print("ERROR: No JSON file found. Provide --json or ensure artifacts exist.")
-        return 1
+        # A fresh clone has no summary artifact: that is a skip, not a contract failure.
+        print("[SKIP] No summary/history JSON found. Provide --json or run the screener first.")
+        return 0
 
     print(f"Validating Pine contract against: {json_path}")
     res = simulate_pine_parser(json_path)

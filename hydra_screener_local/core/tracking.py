@@ -7,7 +7,7 @@ reportes de win-rate por regimen y Special Mode.
 import json
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -132,11 +132,17 @@ def compute_forward_returns_for_run(run: Dict, prices_df: pd.DataFrame, horizons
         "date": run_date_str,
         "signal_date": signal_date.strftime("%Y-%m-%d"),
         "regime": run.get("regime", {}),
+        # provenance: which run produced the signal and which prices measured it, so a later
+        # update can tell "the history file changed" from "more bars arrived" (audit finding C)
+        "run_schema_version": run.get("schema_version", 1),
+        "recommended_snapshot": sorted(c["ticker"] for c in run.get("top_candidates", []) if c.get("recommended")),
+        "price_source": "yfinance",
         "candidates": [],
         "omitted": [],
     }
 
     entry_pos = first_bar_after(idx, signal_date)
+    last_pos = len(idx) - 1
 
     for c in run.get("top_candidates", []):
         if not c.get("recommended"):
@@ -161,21 +167,72 @@ def compute_forward_returns_for_run(run: Dict, prices_df: pd.DataFrame, horizons
             "entry_price": round(entry_price, 4),
             "entry_date": idx[entry_pos].strftime("%Y-%m-%d"),
             "returns": {},
+            "status": {},        # per horizon: measured | pending | unmeasurable (with reason)
         }
 
+        series = prices_df[ticker]
         for h in horizons:
+            key = f"return_{h}d"
             exit_pos = bar_ahead(idx, entry_pos, h)
-            exit_price = prices_df[ticker].iloc[exit_pos] if exit_pos is not None else None
-            if exit_pos is None or pd.isna(exit_price):
-                candidate["returns"][f"return_{h}d"] = None          # pending, or a gap
+            if exit_pos is None:
+                candidate["returns"][key] = None
+                candidate["status"][f"{h}d"] = {"state": "pending", "reason": "exit_bar_not_yet_available"}
                 continue
-            candidate["returns"][f"return_{h}d"] = round(float(exit_price) / entry_price - 1, 4)
+            exit_price = series.iloc[exit_pos]
+            if pd.isna(exit_price):
+                candidate["returns"][key] = None
+                later = series.iloc[exit_pos + 1:].notna().any()
+                if later:
+                    # the name trades again after the exit bar: this is a hole in the data, not a delisting
+                    candidate["status"][f"{h}d"] = {"state": "unmeasurable", "reason": "no_price_at_exit_bar"}
+                elif last_pos - exit_pos >= UNMEASURABLE_AFTER_BARS:
+                    candidate["status"][f"{h}d"] = {"state": "unmeasurable", "reason": "delisted_or_missing_after_exit"}
+                else:
+                    candidate["status"][f"{h}d"] = {"state": "pending", "reason": "no_price_yet_at_exit_bar"}
+                continue
+            candidate["returns"][key] = round(float(exit_price) / entry_price - 1, 4)
             candidate["returns"][f"exit_price_{h}d"] = round(float(exit_price), 4)
             candidate["returns"][f"exit_date_{h}d"] = idx[exit_pos].strftime("%Y-%m-%d")
+            candidate["status"][f"{h}d"] = {"state": "measured"}
 
         results["candidates"].append(candidate)
 
     return results
+
+
+RETRYABLE_OMISSIONS = {"no_price_data", "no_bar_after_signal_yet"}
+UNMEASURABLE_AFTER_BARS = 10     # a NaN exit bar with this many later bars and still no price = gone
+
+
+def needs_update(existing: Optional[Dict], run: Dict) -> Tuple[bool, str]:
+    """Should this run's tracking be (re)computed? Returns (decision, reason).
+
+    A v2 file used to be skipped for good as soon as it had candidates, even with every
+    horizon still None (audit finding C). Now a file is final only when nothing is pending,
+    nothing omitted is retryable, and the run it measured has not changed underneath it.
+    """
+    if not existing:
+        return True, "no_tracking_yet"
+    if existing.get("schema_version", 1) < TRACKING_SCHEMA_VERSION:
+        return True, "older_schema"
+    snapshot = sorted(c["ticker"] for c in run.get("top_candidates", []) if c.get("recommended"))
+    if existing.get("recommended_snapshot") is not None and existing["recommended_snapshot"] != snapshot:
+        return True, "history_recommended_set_changed"
+    signal_date = pd.Timestamp(run.get("data_last_bar") or datetime.strptime(run["date"], "%Y%m%d")).strftime("%Y-%m-%d")
+    if existing.get("signal_date") != signal_date:
+        return True, "signal_date_changed"
+    if any(o.get("reason") in RETRYABLE_OMISSIONS for o in existing.get("omitted", [])):
+        return True, "retryable_omissions"
+    for c in existing.get("candidates", []):
+        status = c.get("status")
+        if status is None:
+            # pre-status v2 file: any None return is pending by definition
+            if any(v is None for k, v in c.get("returns", {}).items() if k.startswith("return_")):
+                return True, "pending_returns"
+            continue
+        if any(s.get("state") == "pending" for s in status.values()):
+            return True, "pending_returns"
+    return False, "complete"
 
 
 def update_tracking(force_recompute: bool = False):
@@ -214,24 +271,29 @@ def update_tracking(force_recompute: bool = False):
     updated = 0
     skipped = 0
     omitted_total = 0
+    pending_total = 0
     for run in runs:
         date = run["date"]
         if not force_recompute:
             existing = load_tracking(date)
-            # A file from an older schema was measured with the wrong horizon: always redo it.
-            if (existing and existing.get("candidates")
-                    and existing.get("schema_version", 1) >= TRACKING_SCHEMA_VERSION):
+            redo, why = needs_update(existing, run)
+            if not redo:
                 skipped += 1
                 continue
+            if why == "history_recommended_set_changed":
+                print(f"  AVISO {date}: la lista recomendada del history cambio desde el ultimo tracking; se recalcula")
 
         result = compute_forward_returns_for_run(run, prices_df)
         save_tracking(date, result)
         updated += 1
         omitted_total += len(result["omitted"])
+        n_pending = sum(1 for c in result["candidates"] for s in c["status"].values() if s["state"] == "pending")
+        pending_total += n_pending
         omitted_note = f", {len(result['omitted'])} omitidos" if result["omitted"] else ""
-        print(f"  OK {date}: {len(result['candidates'])} candidatos trackeados{omitted_note}")
+        pending_note = f", {n_pending} horizontes pendientes" if n_pending else ""
+        print(f"  OK {date}: {len(result['candidates'])} candidatos trackeados{omitted_note}{pending_note}")
 
-    print(f"\nResumen: {updated} actualizados, {skipped} saltados (ya tenian tracking v{TRACKING_SCHEMA_VERSION})")
+    print(f"\nResumen: {updated} actualizados, {skipped} completos (sin pendientes), {pending_total} horizontes aun pendientes")
     if omitted_total:
         print(f"AVISO: {omitted_total} recomendaciones sin precio de entrada o sin datos (ver 'omitted' "
               f"en cada tracking JSON). No cuentan en el win-rate; si son delistados/adquiridos, el "

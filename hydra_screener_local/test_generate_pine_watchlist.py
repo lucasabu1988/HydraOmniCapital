@@ -71,26 +71,29 @@ def test_load_and_generate_from_known_history():
     return True
 
 
-def test_fallback_when_no_recommended():
-    """If a history has no 'recommended' flags, it should still return top N by rank."""
-    print("\n=== Test: fallback when few/no recommended ===")
+def test_zero_recommended_stays_zero():
+    """A run where every candidate was rejected must yield an EMPTY watchlist (audit finding A).
 
-    # Use the same file but ask for more than available recommended.
-    # In 20260601 there were at least 10 recommended.
-    history_file = Path("history") / "20260601.json"
-    if not history_file.exists():
-        print("[SKIP] history file not present")
-        return True
+    The previous behaviour fell back to the top N by rank and published rejected names.
+    """
+    print("\n=== Test: zero recommended stays zero (no fallback) ===")
+    import json
+    import tempfile
 
-    # Ask for a very high number – should still return what is available (capped by actual recommended or top)
-    tickers = load_recommended_tickers(history_file, top_n=999)
-    result = generate_watchlist_string(tickers)
-
-    if len(tickers) == 0:
-        print("[FAIL] expected at least some tickers from real history")
-        return False
-
-    print(f"[OK] fallback returned {len(tickers)} tickers (string length {len(result)})")
+    payload = {
+        "date": "20260904",
+        "top_candidates": [
+            {"ticker": f"T{i:02d}", "rank": i, "recommended": False, "composite_score": 1.0 / i}
+            for i in range(1, 21)
+        ],
+    }
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "20260904.json"
+        p.write_text(json.dumps(payload), encoding="utf-8")
+        assert load_recommended_tickers(p) == [], "rejected candidates leaked into the watchlist"
+        assert load_recommended_tickers(p, top_n=15) == []
+        assert generate_watchlist_string(load_recommended_tickers(p)) == ""
+    print("[OK] zero recommended -> empty watchlist")
     return True
 
 
@@ -128,7 +131,7 @@ def main():
         test_find_latest_history,
         test_generate_watchlist_string_edge_cases,
         test_load_and_generate_from_known_history,
-        test_fallback_when_no_recommended,
+        test_zero_recommended_stays_zero,
     ]
 
     all_passed = True

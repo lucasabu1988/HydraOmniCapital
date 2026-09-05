@@ -47,7 +47,7 @@ from generate_pine_watchlist import (
     generate_watchlist_string,
 )
 
-DEFAULT_TOP = 10
+DEFAULT_TOP = None   # display cap for top_details; None = the full recommended list (audit finding B)
 SUMMARY_JSON_PATH = Path("pine") / "hydra_last_summary.json"
 SUMMARY_TXT_PATH = Path("pine") / "hydra_last_summary.txt"
 
@@ -74,13 +74,14 @@ def build_rich_summary(history_data: Dict, top_n: int = DEFAULT_TOP) -> Dict:
     rationale = history_data.get("meta_rationale", "")
 
     top_candidates = history_data.get("top_candidates", [])
-    recommended = [c for c in top_candidates if c.get("recommended")]
-    if not recommended:
-        recommended = top_candidates[:top_n]
-
-    recommended = recommended[:top_n]
-
+    # Only names Python flagged. Zero recommendations is a valid, meaningful result (the regime
+    # gate or the downtrend veto closed the cycle) and must stay zero: the old fallback published
+    # rejected candidates as `recommended_tickers` and consumers traded them (audit finding A).
+    recommended = sorted((c for c in top_candidates if c.get("recommended")),
+                         key=lambda c: c.get("rank", 10**6))
     tickers = [c["ticker"] for c in recommended]
+    # `top_n` is a DISPLAY cap for `top_details` only; the list itself is never truncated here.
+    details = recommended if not top_n else recommended[:top_n]
     watchlist_str = generate_watchlist_string(tickers)
 
     summary = {
@@ -106,9 +107,11 @@ def build_rich_summary(history_data: Dict, top_n: int = DEFAULT_TOP) -> Dict:
                 "passes_strict": c.get("passes_strict", False),
                 "special_modes": c.get("special_modes", ""),
             }
-            for c in recommended
+            for c in details
         ],
     }
+    if top_n and len(details) < len(recommended):
+        summary["display_limit"] = top_n          # top_details is capped; recommended_tickers is not
     return summary
 
 
