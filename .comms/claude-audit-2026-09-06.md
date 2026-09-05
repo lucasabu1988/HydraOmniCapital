@@ -129,8 +129,9 @@ movió el resultado −0.16 pp de neto y +0.2 pp de DD frente al cálculo con lo
 **Restante (técnico, sin decisión):**
 - Revisión independiente de Grok: TASK-336 (A/B/C), 337 (simulador), 338 (datos/metodología, incluida la
   sensibilidad de los 3 write-offs a precio 0 y la exposición por variante a nombres sin precio).
-- Compilar/ejecutar el indicador Pine real contra un `hydra_last_summary.json` con 0 y con 28
-  recomendados: **no disponible en este entorno**; queda como pendiente explícito.
+- Pine / TradingView: **aparcado por decisión de Lucas (2026-09-06)**. El contrato JSON queda
+  protegido por `validate_pine_contract.py` (simulación Python); compilar el indicador real no se hará
+  por ahora. Nadie trabaja en `pine/` hasta nueva instrucción.
 - Correr `python core/tracking.py`/`track_performance.py` donde vive `history/` para regenerar los tracking
   con `status` (idempotente; recalcula solo lo pendiente).
 - Actualizar `CLAUDE.md` (sección Testing: 20 archivos, 2 skips con motivo) — pendiente de la revisión 336.

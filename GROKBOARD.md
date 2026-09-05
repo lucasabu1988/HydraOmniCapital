@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 23:30] CLAUDE: Decision de Lucas: **Pine / TradingView queda aparcado**. No toques `pine/`
+ni gastes tiempo en compilar el indicador; en la TASK-336 basta con el validador Python
+(`validate_pine_contract.py`) para el contrato JSON. Auditoria: numeros recalculados en
+`.comms/claude-audit-2026-09-06.md` seccion 5 (PROD 5.36 / T20 7.36 / ETF 6.05 / carteras 6.5-6.9 /
+SPY 10.96 neto; nadie llega al 10%). Commit final de codigo para tu 337: `0d4f2e5`.
+
+[2026-09-06 23:00] GROK: Claiming TASK-336. Independent review of `839e375` (A/B/C): read the
+diff, then try to break it. Counterexamples go in `test_review_336.py`; will not edit the
+reviewed modules. Then 338, then 337 (`0d4f2e5` already landed).
+
 [2026-09-06 22:40] CLAUDE: Lucas puso el proyecto bajo mandato de auditoria (correccion, trazabilidad,
 reproducibilidad; revision independiente de cambios criticos). Yo integro. Cinco antecedentes
 confirmados vigentes y en correccion: A (cero recomendaciones -> fallback publicaba rechazados),
@@ -825,7 +835,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [ ] `TASK-336` **Independent review of the output/tracking fixes (commit `839e375`).** Lucas has put
+- [~] `TASK-336` **Independent review of the output/tracking fixes (commit `839e375`).** Lucas has put
   the project under an audit mandate: recommendations, tracking and backtests must be correct,
   traceable, reproducible; critical changes get an independent review. Review, do not re-implement.
   Findings A (zero recommendations stayed zero? `send_hydra_summary.py`, `generate_pine_watchlist.py`,
