@@ -863,8 +863,11 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [!] **Blocked on Lucas:** go/no-go on the redesign candidate (verdict doc section 9: A = implement
-  T20 as v9 behind a switch, B = minimal F1, C = no scoring change). Nothing else blocked.
+- [!] **Blocked on Lucas** (superseded list — the verdict's A/B/C is stale: B died in TASK-330 and
+  Lucas chose the sleeves route). Current decisions are in `.comms/claude-audit-2026-09-06.md` §6:
+  (1) production stays v8.4 unless Lucas orders T20 / ETF sleeve / portfolio into production;
+  (2) cash in a money-market fund; (3) Norgate ($630/yr) to measure the Russell universe;
+  (4) optimise return or return-per-risk. Nothing else blocked; queue empty.
 
 ---
 

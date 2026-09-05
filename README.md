@@ -62,7 +62,7 @@ cd hydra_screener_local
 python run_all_tests.py            # suite del producto; debe salir 0
 ```
 
-CI (GitHub Actions): job `screener` (esta suite) y job `test` (`pytest tests/` del motor legacy, informativo).
+CI (GitHub Actions, `.github/workflows/test.yml`): un solo job, `screener`, que corre esta suite en Python 3.12. Los tests del motor legacy están archivados y no se ejecutan. La suite omite (`SKIP`, no `PASS`) los archivos que necesitan artefactos locales: `history/` y `pine/hydra_last_summary.json`.
 
 ---
 

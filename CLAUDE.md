@@ -132,9 +132,12 @@ python -m pytest test_volume_watchdog.py -q             # any single pytest-styl
   pytest — running them as scripts used to report `[PASS]` without executing anything.
 - Skips are reported separately from passes (`N passed, M skipped`). A skip is not a pass.
 - `test_hybrid_integration.py` skips when `history/` is absent.
-- CI (`.github/workflows/test.yml`) runs two jobs: `test` (frozen legacy, root `pytest tests/`,
-  informational coverage) and `screener` (`hydra_screener_local/run_all_tests.py`, since
-  2026-09-06). A red `screener` job is about this project; a red `test` job is about the legacy.
+- CI (`.github/workflows/test.yml`) runs ONE job, `screener` (`hydra_screener_local/run_all_tests.py`
+  on Python 3.12, `pytest-timeout` 30 s). The legacy `test` job was removed with the root `tests/`
+  archive on 2026-09-05; if the docs and the workflow disagree, the workflow wins. Baseline since the
+  2026-09-06 audit: 22 files pass, 2 skip (`test_hybrid_integration.py` needs `history/`,
+  `validate_pine_contract.py` needs `pine/hydra_last_summary.json`). A skip is not a pass; CI green
+  proves code regression coverage, not financial validity or a track record.
 
 ## Claude ↔ Grok protocol
 
