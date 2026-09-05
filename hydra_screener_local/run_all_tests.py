@@ -78,7 +78,7 @@ def _invocation(test_file: str) -> tuple[list[str], str]:
     return [sys.executable, str(path)], "script"
 
 
-def run_test(test_file: str, verbose: bool = False) -> tuple[bool, float]:
+def run_test(test_file: str, verbose: bool = False) -> tuple[str, float]:
     cmd, how = _invocation(test_file)
     suffix = "" if how == "script" else f"  [via {how}]"
     print(f"\n=== {test_file} ==={suffix}")
@@ -97,26 +97,35 @@ def run_test(test_file: str, verbose: bool = False) -> tuple[bool, float]:
     except subprocess.TimeoutExpired:
         duration = time.perf_counter() - start
         print(f"[TIMEOUT] {test_file} after {duration:.1f}s")
-        return False, duration
+        return "fail", duration
     except OSError as e:
         duration = time.perf_counter() - start
         print(f"[ERROR] running {test_file}: {e} ({duration:.2f}s)")
-        return False, duration
+        return "fail", duration
 
     duration = time.perf_counter() - start
     output = (result.stdout + result.stderr).strip()
     if verbose:
         print(output)
     else:
-        # Print last 6 lines for visibility
         lines = output.splitlines()
         for line in lines[-6:]:
             print(line)
+    # Whole-file skip: a [SKIP] line and no overall-pass banner (a file may skip one
+    # sub-check and still pass). Hybrid integration is the case this exists for.
+    skipped = (
+        result.returncode == 0
+        and re.search(r"^\[SKIP\]", output, re.M)
+        and not re.search(r"ALL .+ PASSED", output)
+    )
+    if skipped:
+        print(f"[SKIP] {test_file} ({duration:.2f}s)")
+        return "skip", duration
     if result.returncode == 0:
         print(f"[PASS] {test_file} ({duration:.2f}s)")
-        return True, duration
+        return "pass", duration
     print(f"[FAIL] {test_file} (exit {result.returncode}, {duration:.2f}s)")
-    return False, duration
+    return "fail", duration
 
 def main():
     parser = argparse.ArgumentParser(description="HYDRA Screener - All Tests Runner")
@@ -142,27 +151,34 @@ def main():
     print()
 
     passed = 0
+    skipped = 0
     failed = []
     total_time = 0.0
     start_all = time.perf_counter()
 
     for t in test_files:
-        ok, dur = run_test(t, verbose=args.verbose)
+        status, dur = run_test(t, verbose=args.verbose)
         total_time += dur
-        if ok:
+        if status == "pass":
             passed += 1
+        elif status == "skip":
+            skipped += 1
         else:
             failed.append(t)
 
     elapsed = time.perf_counter() - start_all
     print("\n" + "=" * 50)
-    print(f"RESULTS: {passed}/{len(test_files)} passed in {elapsed:.2f}s (tests time: {total_time:.2f}s)")
+    print(f"RESULTS: {passed} passed, {skipped} skipped in {elapsed:.2f}s "
+          f"(tests time: {total_time:.2f}s)")
     if failed:
         print("Failed tests:")
         for f in failed:
             print(f"  - {f}")
         return 1
-    print("All tests passed!")
+    if skipped:
+        print("No failures (skips are not passes).")
+    else:
+        print("All tests passed!")
     return 0
 
 if __name__ == "__main__":

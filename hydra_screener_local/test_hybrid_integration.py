@@ -28,22 +28,24 @@ if hasattr(sys.stdout, "reconfigure"):
 from generate_pine_watchlist import generate_watchlist_string, load_recommended_tickers
 from send_hydra_summary import build_rich_summary
 
-# Try to find a real history file (prefer recent ones)
-HISTORY_DIR = Path("history")
+# Paths relative to this file so cwd does not matter
+_ROOT = Path(__file__).resolve().parent
+HISTORY_DIR = _ROOT / "history"
 CANDIDATE_JSONS = [
     HISTORY_DIR / "20260601.json",
     HISTORY_DIR / "20260531.json",
-    Path("pine/hydra_last_summary.json"),  # fallback if only summary exists
+    _ROOT / "pine" / "hydra_last_summary.json",
 ]
+
 
 def find_real_history():
     for p in CANDIDATE_JSONS:
         if p.exists():
             return p
-    # last resort: any .json in history/
-    for p in sorted(HISTORY_DIR.glob("*.json"), reverse=True):
-        return p
-    raise FileNotFoundError("No history JSON found for integration test. Run a screener first.")
+    if HISTORY_DIR.is_dir():
+        for p in sorted(HISTORY_DIR.glob("*.json"), reverse=True):
+            return p
+    return None
 
 
 def simulate_pine_parser_for_recommended(summary: dict) -> tuple:
@@ -73,6 +75,9 @@ def simulate_pine_parser_for_recommended(summary: dict) -> tuple:
 def main():
     print("=== HYDRA Hybrid Integration Test ===")
     history_path = find_real_history()
+    if history_path is None:
+        print("[SKIP] needs history/ — run the screener first")
+        return 0
     print(f"Using history source: {history_path}")
 
     with open(history_path, "r", encoding="utf-8") as f:
