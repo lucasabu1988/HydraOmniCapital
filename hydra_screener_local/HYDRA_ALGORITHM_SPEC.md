@@ -449,6 +449,24 @@ compass_mult, pillar_multipliers, recommended, reason, recommended_count
 tickers whose `vol_ratio` is missing. The screener watchdog reads this column; if it is
 dropped from the contract the warning cannot fire.
 
+### 7.1 Persistence and export contract (audit 2026-09-06, findings A and B)
+
+- **`recommended` is authoritative and never substituted.** Zero recommended is a valid
+  result (regime gate or veto closed the cycle) and must stay zero in `history/`, in
+  `pine/hydra_last_summary.json`, in `pine/watchlist.txt` and in the cycle log. No consumer
+  may fall back to the top N of the ranking.
+- **`history/<date>.json` keeps every recommended row** plus the top-20 of the ranking as
+  context (`screener.history_records`). Recommendations beyond rank 20 exist (sector cap,
+  veto) and are persisted.
+- **`hydra_last_summary.json`: `recommended_tickers` and `recommended_count` are the full
+  list** (contract 1.2 unchanged). `top_details` carries the full list unless the producer
+  declares `display_limit: N`, in which case only `top_details` is capped. Display caps are
+  explicit: `display_limit` in the JSON, `i_max_watchlist` in Pine (table rows only).
+- **Watch list ≠ recommendations ≠ executed positions.** `watchlist.txt` = the recommended
+  tickers (what the user pastes); the Top5 cycle log = the first five recommended, or nothing.
+- `validate_pine_contract.py` enforces: keys present, `recommended_count == len(list)`,
+  `top_details` tickers == list unless `display_limit`. An empty list passes; a missing key fails.
+
 ---
 
 ## 8. Implementation Notes
