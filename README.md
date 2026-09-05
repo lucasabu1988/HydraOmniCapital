@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/img/omnicapital_logo.png" alt="OmniCapital Logo" width="200">
+  <img src="docs/img/omnicapital_logo.png" alt="OmniCapital Logo" width="200">
 </p>
 
 <h1 align="center">OmniCapital HYDRA</h1>
@@ -153,15 +153,12 @@ Currently being rolled out in **shadow mode** on [omnicapital.onrender.com](http
 
 | Archivo | Rol |
 |---|---|
-| `compass_dashboard.py` | Flask app local + engine runner |
 | `omnicapital_live.py` | Core engine (`COMPASSLive`) — orquesta las 4 estrategias |
 | `omnicapital_v84_compass.py` | Algoritmo COMPASS v8.4 (LOCKED) |
 | `rattlesnake_signals.py` | Señales Rattlesnake (RSI dip-buying) |
 | `catalyst_signals.py` | Señales Catalyst (trend cross-asset + gold) |
 | `hydra_capital.py` | `HydraCapitalManager` — cash recycling |
-| `compass_ml_learning.py` | Sistema ML de aprendizaje progresivo |
 | `omnicapital_broker.py` | `PaperBroker` + `IBKRBroker` (mock + live) |
-| `templates/dashboard.html` + `static/` | Frontend dashboard |
 
 ### Stack técnico
 
@@ -193,7 +190,6 @@ Toda la capa ML está envuelta en `try/except` — **nunca puede crashear el liv
 git clone https://github.com/lucasabu1988/HydraOmniCapital.git
 cd HydraOmniCapital
 pip install -r requirements.txt
-python compass_dashboard.py    # Flask en localhost:5000
 ```
 
 Para deploy cloud-style:

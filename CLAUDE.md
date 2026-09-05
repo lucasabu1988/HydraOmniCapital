@@ -18,7 +18,7 @@ TradingView (Pine) indicator. It ranks a US universe daily, flags a dynamic numb
   `pine/watchlist.txt` into `pine/HYDRA_Screener.pine`. The authoritative `Rec?` flag is
   Python's, carried in that JSON.
 
-**Everything at the repo root** (`compass_*.py`, `omnicapital_*.py`, `templates/`, `static/`,
+**Everything at the repo root** (`compass_*.py`, `omnicapital_*.py`,
 root `tests/`) is the **frozen legacy** COMPASS engine + Render dashboard. `hydra_backtest/`
 (the legacy backtest package) was deleted on 2026-09-06: it imported nine functions from
 `omnicapital_live.py`, deleted on 2026-06-05, and had not been importable since. It lives in

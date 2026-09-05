@@ -28,15 +28,8 @@ jobs:
       # not imported by anything under tests/, so total coverage was 0.00% and the job failed on
       # --cov-fail-under on every run while all 481 tests passed - a permanently red job that
       # nobody reads. Tests must still pass; the coverage report stays informational.
-      - name: Run tests with coverage
-        run: >
-          pytest tests/ -v --tb=short
-          --cov-config=.coveragerc
-          --cov=compass_api_models
-          --cov=compass_dashboard
-          --cov=compass_dashboard_cloud
-          --cov=compass_ml_learning
-          --cov-report=term-missing
+      - name: Legacy tests
+        run: pytest tests/ -v --tb=short
 
       # hydra_backtest/ (63 files, last touched 2026-05-31) imports nine signal functions from
       # omnicapital_live.py, deleted on 2026-06-05 (2742cfb). Its conftest has failed at import on
@@ -44,12 +37,6 @@ jobs:
       # steps that ran its test trees were removed on 2026-09-06 so this job reports what actually
       # runs. Whether to delete the package or restore those functions from git history is Lucas's
       # call; see .comms/claude-project-audit-2026-09-06.md follow-up.
-
-      - name: Coverage report
-        if: always()
-        run: |
-          echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
-          coverage report --format=markdown >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Coverage report unavailable" >> $GITHUB_STEP_SUMMARY
 
   # The active project. Until 2026-09-06 CI ran only the frozen legacy engine above and not a
   # single screener test (audit S1). Separate job so a legacy failure cannot mask a screener one.
