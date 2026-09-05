@@ -7,9 +7,9 @@ Checked against the code on 2026-09-06.
 
 The active project is the local screener in **`hydra_screener_local/`**: momentum + regime
 equity screener, hybrid Python + TradingView, 5-trading-day cycles, universe `"all"` (~3000 US
-names incl. Russell 2000). Everything at the repo root (`compass_*.py`, dashboards,
-root `tests/`) is the **frozen legacy** engine (`hydra_backtest/` was deleted 2026-09-06, import-dead since June) — do not revive or extend it,
-and do not take parameters from it. Its old docs are in `archive/docs-legacy-2026-09/`.
+names incl. Russell 2000). COMPASS / Render / IBKR / root `tests/` live in
+`archive/root-legacy-2026-09/` — do not revive, extend, or take parameters from them.
+Older agent docs: `archive/docs-legacy-2026-09/`.
 
 ## Locked algorithm
 
@@ -29,7 +29,7 @@ cd hydra_screener_local && python run_all_tests.py
 ```
 
 Must exit 0 before a task is marked done. pytest-style files are routed through pytest; skips
-are reported separately from passes. Root `pytest tests/` covers only the legacy.
+are reported separately from passes. CI runs only this suite (legacy root tests are archived).
 
 ## Protocol
 

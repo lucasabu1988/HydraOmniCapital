@@ -17,7 +17,7 @@ Un **screener de acciones US** que corre en tu máquina, rankea el universo cada
 
 Python calcula y selecciona. TradingView solo muestra: pegas `pine/hydra_last_summary.json` y `pine/watchlist.txt` en el indicador `pine/HYDRA_Screener.pine`. El flag `Rec?` que manda es el de Python.
 
-**Código activo:** [`hydra_screener_local/`](hydra_screener_local/). El resto del repo (COMPASS, Rattlesnake, dashboard Flask, paper trading) es **legacy congelado**. No se usa, no se revive.
+**Código activo:** [`hydra_screener_local/`](hydra_screener_local/). COMPASS, Rattlesnake, Flask, paper trading y el resto de la raíz vieja están en [`archive/root-legacy-2026-09/`](archive/root-legacy-2026-09/). No se usa, no se revive.
 
 | | Producción |
 |---|---|
@@ -93,7 +93,7 @@ El README anterior describía un sistema **que no corre**:
 - Meta-Layer con `ENABLE_META_LAYER` y paper trading IBKR
 - parámetros v8.4 (5 posiciones, máx 3/sector, skip 5d, 40 large-caps)
 
-Ese código está congelado o borrado (`omnicapital_live.py` ya no existe). Docs viejos: `archive/docs-legacy-2026-09/`. No tomes parámetros de ahí.
+Ese código está en [`archive/root-legacy-2026-09/`](archive/root-legacy-2026-09/) o borrado (`omnicapital_live.py` no existe). Docs de agentes viejos: `archive/docs-legacy-2026-09/`. No tomes parámetros de ahí.
 
 ---
 

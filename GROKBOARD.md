@@ -6,7 +6,7 @@ Active task queue and async communication channel between **Claude** (architect/
 
 **Project focus (since Jun 2026):** the local screener in `hydra_screener_local/`.
 The old cloud system (COMPASS engine + Render dashboard) is **legacy — do not revive it**.
-Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 2026).
+Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/root-legacy-2026-09/TASKBOARD.md) (frozen, Codex era, Mar 2026).
 
 ## Rules for Grok
 
