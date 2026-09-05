@@ -38,40 +38,12 @@ jobs:
           --cov=compass_ml_learning
           --cov-report=term-missing
 
-      - name: Test hydra_backtest package
-        run: >
-          pytest hydra_backtest/tests/ -v --tb=short
-          --cov=hydra_backtest
-          --cov-report=term-missing
-          -m "not slow"
-
-      - name: Test hydra_backtest.rattlesnake sub-package
-        run: >
-          pytest hydra_backtest/rattlesnake/tests/ -v --tb=short
-          --cov=hydra_backtest.rattlesnake
-          --cov-report=term-missing
-          -m "not slow"
-
-      - name: Test hydra_backtest.catalyst sub-package
-        run: >
-          pytest hydra_backtest/catalyst/tests/ -v --tb=short
-          --cov=hydra_backtest.catalyst
-          --cov-report=term-missing
-          -m "not slow"
-
-      - name: Test hydra_backtest.efa sub-package
-        run: >
-          pytest hydra_backtest/efa/tests/ -v --tb=short
-          --cov=hydra_backtest.efa
-          --cov-report=term-missing
-          -m "not slow"
-
-      - name: Test hydra_backtest.hydra sub-package
-        run: >
-          pytest hydra_backtest/hydra/tests/ -v --tb=short
-          --cov=hydra_backtest.hydra
-          --cov-report=term-missing
-          -m "not slow"
+      # hydra_backtest/ (63 files, last touched 2026-05-31) imports nine signal functions from
+      # omnicapital_live.py, deleted on 2026-06-05 (2742cfb). Its conftest has failed at import on
+      # every CI run since - hidden first by the coverage gate, then by a collection error. The five
+      # steps that ran its test trees were removed on 2026-09-06 so this job reports what actually
+      # runs. Whether to delete the package or restore those functions from git history is Lucas's
+      # call; see .comms/claude-project-audit-2026-09-06.md follow-up.
 
       - name: Coverage report
         if: always()
