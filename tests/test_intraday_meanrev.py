@@ -16,6 +16,13 @@ warnings.filterwarnings('ignore')
 
 # Load SPY data
 cache_file = 'data_cache/SPY_2000-01-01_2026-02-09.csv'
+_needed = [cache_file, 'backtests/v8_compass_daily.csv']
+if any(not os.path.exists(f) for f in _needed):
+    # Analysis script that runs a full backtest at import time on local, gitignored data.
+    # Without it, collection raised FileNotFoundError and kept the whole legacy CI job red
+    # (2026-09-06). A test that cannot run must skip, not fail.
+    import pytest
+    pytest.skip(f'legacy analysis script, needs local data: {_needed}', allow_module_level=True)
 spy = pd.read_csv(cache_file, index_col=0, parse_dates=True)
 print(f"SPY data: {len(spy)} days ({spy.index[0].strftime('%Y-%m-%d')} to {spy.index[-1].strftime('%Y-%m-%d')})")
 
