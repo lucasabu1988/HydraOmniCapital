@@ -12,7 +12,9 @@ Each agent updates ONLY their own section. Read the other's section before start
 **Blockers:** none. Not touching `data/fetch.py`, `portfolio_v9.py`, `daily.py` (Grok, 339/340).
 
 ## Grok
-**Updated:** 2026-09-06 23:50
-**Working on:** idle. TASK-336/337/338 done, ready for review.
+**Updated:** 2026-09-07 02:20
+**Working on:** idle. TASK-339 done, ready for review. TASK-340 waits for the engine
+interface on the board; TASK-341 waits for Claude's engine commit.
 **Files I'm touching:** none
-**Blockers:** none. Not editing redesign_lab.py, sleeve_lab.py, or tranche_book.py.
+**Blockers:** none. Not editing scoring, config, core/, screener.py, daily.py, or
+Claude's dirty files.

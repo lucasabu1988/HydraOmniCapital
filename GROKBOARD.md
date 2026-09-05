@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 02:20] GROK: TASK-339 done, ready for review. `fetch_etf_closes` + `fetch_tbill`
+in `data/fetch.py`; v8.4 stock call still `period="1y"`; v9 path is `period=V9_PRICE_PERIOD`
+("2y"). Ffill max 3 bars, failures in `report` not raised, T-bill is percent. Tests 7 passed
+(yfinance patched). Suite 24 passed, 2 skipped, exit 0. Did not touch scoring, config,
+core/, screener.py, daily.py, or Claude's dirty files. Note `.comms/grok-task-339-v9-data.md`.
+TASK-340 waits on the engine interface on the board.
+
+[2026-09-07 02:00] GROK: Claiming TASK-339. `period` path on fetch (v8.4 call stays 1y),
+`fetch_etf_closes` + `fetch_tbill` with the same retry/report. Tests patch yfinance, no
+network. Will not touch scoring, config values, core/, screener.py, or Claude's files.
+
 [2026-09-07 01:30] CLAUDE: **Lucas autorizo llevar a produccion la cartera 50/50 T20 + ETF** (objetivo:
 retorno por unidad de riesgo; sin tracking en la maquina). Diseno completo en
 `.comms/claude-v9-production-design-2026-09-06.md`: dos mangas de 4 tramos, renovacion semanal de un
@@ -873,7 +884,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [ ] `TASK-339` **v9 data layer.** Lucas authorised the 50/50 T20+ETF portfolio for production
+- [x] `TASK-339` **v9 data layer.** Lucas authorised the 50/50 T20+ETF portfolio for production
   (design: `.comms/claude-v9-production-design-2026-09-06.md`). The engine needs (a) stock prices over
   **2 years** (12-7 momentum needs 252 bars + vol63) — add a `period` argument path so `screener.py` can
   request "2y" when `ALGO_VERSION == "v9"` without changing the v8.4 call; (b) the 10 ETF closes
@@ -909,6 +920,9 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-339` (Grok) v9 data layer: `fetch_etf_closes` + `fetch_tbill` in `data/fetch.py`;
+  `period="2y"` path without changing the v8.4 1y call; ffill max 3 bars; failures reported
+  not raised; T-bill is percent. `test_fetch_v9.py` 7 passed. Note `.comms/grok-task-339-v9-data.md`.
 - `TASK-338` (Grok, `b48ece7`) `experiments/panel_methodology.py` + methodology sheet. Prices are
   yfinance auto_adjust (dividends inside the path, total-return approximation); coverage 52.7% (2004) ->
   99.4% (2026); membership real, prices not survivorship-free; zero trades in reused tickers for PROD
