@@ -32,16 +32,57 @@ import yfinance as yf
 import warnings
 warnings.filterwarnings('ignore')
 
+from utils.trading_calendar import first_bar_after, bar_ahead
+
 EXCEL_PATH = 'backtest/portfolio_cycles.xlsx'
 os.makedirs('backtest', exist_ok=True)
 
-def _get_next_trading_day(date):
-    """Simple next trading day (Mon-Fri). For production use a proper calendar."""
-    d = date
-    while True:
-        d += timedelta(days=1)
-        if d.weekday() < 5:  # 0-4 = Mon-Fri
-            return d
+CYCLE_BARS = 5   # hold exactly 5 trading days (SPEC 1) — bars, never weekdays
+
+
+def _download_closes(tkr: str, start, end) -> pd.Series | None:
+    """Adjusted closes for one ticker as a clean Series, None on any failure. Patched in tests."""
+    try:
+        dfp = yf.download(tkr, start=str(start), end=str(end), progress=False, auto_adjust=True)
+    except Exception:
+        return None
+    if dfp is None or dfp.empty:
+        return None
+    closes = dfp['Close']
+    if isinstance(closes, pd.DataFrame):
+        closes = closes.iloc[:, 0]
+    closes = closes.dropna()
+    return closes if len(closes) else None
+
+
+def _resolve_cycle(tkr: str, signal_date) -> dict:
+    """Entry and exit of one position on the REAL bar calendar of that ticker.
+
+    entry = close of the first bar strictly AFTER the signal date — the earliest price anyone can
+    actually get, never the close that produced the signal. end = entry bar + CYCLE_BARS bars.
+    Same rule as core/tracking.py, through utils/trading_calendar, so the Excel and the JSON
+    tracker cannot disagree (project audit 2026-09-06, S4). Holidays and gaps are handled by
+    construction because positions come from the price index, not from a weekday count.
+
+    Returns {entry_date, entry_price, end_date}; entry_* are None when the next bar does not
+    exist yet (a live run logged the same evening), end_date is None when there are not yet
+    CYCLE_BARS bars after entry. refresh_current_prices() fills both in later.
+    """
+    sig = pd.to_datetime(signal_date)
+    out = {"entry_date": None, "entry_price": None, "end_date": None}
+    closes = _download_closes(tkr, (sig - timedelta(days=5)).date(), (sig + timedelta(days=21)).date())
+    if closes is None:
+        return out
+    e = first_bar_after(closes.index, sig)
+    if e is None:
+        return out
+    out["entry_date"] = pd.Timestamp(closes.index[e]).normalize()
+    out["entry_price"] = float(closes.iloc[e])
+    x = bar_ahead(closes.index, e, CYCLE_BARS)
+    if x is not None:
+        out["end_date"] = pd.Timestamp(closes.index[x]).normalize()
+    return out
+
 
 def log_cycle(signal_date, tickers, candidates_df=None, cycle_return=None, equity_after=None, notes="",
               entry_prices: dict | None = None, realized_prices: dict | None = None):
@@ -55,10 +96,19 @@ def log_cycle(signal_date, tickers, candidates_df=None, cycle_return=None, equit
         cycle_return: the realized return for this cycle (if known...)
         equity_after: portfolio equity after this cycle
         notes: any note
-        entry_prices: optional dict {ticker: close_price_at_signal} for precise entry (backtest uses sim prices; live auto-fetches if None)
+        entry_prices: optional dict {ticker: price}. Two meanings, decided by `realized_prices`:
+            - realized_prices given (a backtest with its own fills): trusted as-is, no download.
+            - realized_prices None (a live run): only a PROVISIONAL fallback for when the bar after
+              the signal does not exist yet (logging the same evening). It is replaced by the
+              executable close as soon as refresh_current_prices() can see that bar. The close that
+              generated the signal is never the entry of record.
         realized_prices: optional dict {ticker: price} to set as current_price at log time (e.g. backtest fwd/exit price for realized PnL)
     """
-    end_date = _get_next_trading_day(_get_next_trading_day(_get_next_trading_day(_get_next_trading_day(_get_next_trading_day(signal_date)))))
+    is_backtest = realized_prices is not None
+    # Real-calendar entry/exit per ticker (see _resolve_cycle). A backtest owns its fills and its
+    # calendar, so nothing is downloaded for it.
+    resolved = {} if is_backtest else {t: _resolve_cycle(t, signal_date) for t in tickers}
+    end_date = next((r["end_date"] for r in resolved.values() if r["end_date"] is not None), None)
 
     # Load existing or create new
     if os.path.exists(EXCEL_PATH):
@@ -97,25 +147,6 @@ def log_cycle(signal_date, tickers, candidates_df=None, cycle_return=None, equit
     # PnL computed with Excel *formulas* after write for true dynamism (change current_price -> PnL updates)
     NOTIONAL_PER_POSITION = 20_000.0  # assume 100k portfolio, 5x 20% equal weight for $ PnL tracking
 
-    def _fetch_price_asof(tkr: str, asof: datetime, lookback_days: int = 7) -> float | None:
-        """Fetch adjusted close on or before asof (for entry at signal or historical fill)."""
-        try:
-            start = (asof - timedelta(days=lookback_days)).date()
-            end = (asof + timedelta(days=2)).date()
-            dfp = yf.download(tkr, start=str(start), end=str(end), progress=False, auto_adjust=True)
-            if dfp is not None and not dfp.empty:
-                closes = dfp['Close'] if isinstance(dfp.columns, pd.MultiIndex) else dfp['Close']
-                if isinstance(closes, pd.DataFrame):
-                    closes = closes.iloc[:, 0]
-                # last available <= asof
-                idx = closes.index[closes.index <= pd.to_datetime(asof)]
-                if len(idx) > 0:
-                    return float(closes.loc[idx[-1]])
-                return float(closes.iloc[-1])
-        except Exception:
-            pass
-        return None
-
     # Build positions rows (one per ticker)
     pos_rows = []
     for rank, ticker in enumerate(tickers, 1):
@@ -139,15 +170,20 @@ def log_cycle(signal_date, tickers, candidates_df=None, cycle_return=None, equit
                 row['sector_penalty_applied'] = m.get('sector_penalty_applied')
                 row['rank_at_signal'] = m.get('rank')  # overall rank in the big combined list
 
-        # Entry price (precise if passed from backtest/sim, else fetch asof signal)
+        # Entry price. Live: the executable close (bar after the signal) when it exists, else the
+        # caller's provisional price with entry_date left empty so refresh can correct it.
+        # Backtest: the caller's fill, as-is.
         ep = entry_prices
         if ep is not None and hasattr(ep, 'to_dict'):
             ep = ep.to_dict()
-        entry_p = None
-        if ep and ticker in ep and ep[ticker]:
-            entry_p = float(ep[ticker])
+        caller_p = float(ep[ticker]) if ep and ticker in ep and ep[ticker] else None
+        res = resolved.get(ticker, {})
+        if res.get("entry_price"):
+            entry_p = res["entry_price"]
+            row['entry_date'] = res["entry_date"]
         else:
-            entry_p = _fetch_price_asof(ticker, pd.to_datetime(signal_date))
+            entry_p = caller_p
+            row['entry_date'] = None
 
         row['entry_price'] = round(entry_p, 4) if entry_p and entry_p > 0 else None
 
@@ -172,7 +208,10 @@ def log_cycle(signal_date, tickers, candidates_df=None, cycle_return=None, equit
     base_pos_order = ['cycle_id', 'start_date', 'end_date', 'ticker', 'weight', 'rank_in_cycle',
                       'composite_score', 'ret_5d_10d', 'sector', 'passes_strict',
                       'sector_penalty_applied', 'rank_at_signal']
-    dyn_pos_order = ['entry_price', 'current_price', 'pnl_pct', 'pnl_usd']
+    # entry_date appended last (2026-09-06): the actual bar the position entered on. Empty means
+    # the entry is provisional and refresh_current_prices() will resolve it. Readers address
+    # columns by header, so appending is safe.
+    dyn_pos_order = ['entry_price', 'current_price', 'pnl_pct', 'pnl_usd', 'entry_date']
     for c in base_pos_order + dyn_pos_order:
         if c not in positions.columns:
             positions[c] = None
@@ -248,27 +287,9 @@ def log_cycle(signal_date, tickers, candidates_df=None, cycle_return=None, equit
                 max_len = max((len(str(c.value)) for c in col_cells if c.value), default=10)
                 ws_sum.column_dimensions[col_cells[0].column_letter].width = min(max_len + 2, 42)
 
-    print(f"[Cycle Logger] Logged cycle {cycle_id} | {pd.to_datetime(signal_date).date()} -> {pd.to_datetime(end_date).date()} | {tickers}")
+    end_txt = pd.to_datetime(end_date).date() if end_date is not None else "end pending (next bar not available yet)"
+    print(f"[Cycle Logger] Logged cycle {cycle_id} | {pd.to_datetime(signal_date).date()} -> {end_txt} | {tickers}")
     return cycle_id
-
-
-def _fetch_price_asof_for_refresh(tkr: str, asof: datetime, lookback_days: int = 7) -> float | None:
-    """Small helper for backfill during refresh (and available for log inner)."""
-    try:
-        start = (asof - timedelta(days=lookback_days)).date()
-        end = (asof + timedelta(days=2)).date()
-        dfp = yf.download(tkr, start=str(start), end=str(end), progress=False, auto_adjust=True)
-        if dfp is not None and not dfp.empty:
-            closes = dfp['Close'] if isinstance(dfp.columns, pd.MultiIndex) else dfp['Close']
-            if isinstance(closes, pd.DataFrame):
-                closes = closes.iloc[:, 0]
-            idx = closes.index[closes.index <= pd.to_datetime(asof)]
-            if len(idx) > 0:
-                return float(closes.loc[idx[-1]])
-            return float(closes.iloc[-1])
-    except Exception:
-        pass
-    return None
 
 
 # ============================================================================
@@ -307,6 +328,8 @@ def refresh_current_prices(lookback_cycles: int | None = None, excel_path: str =
     except ValueError as e:
         print(f"[refresh] Missing required columns: {e}")
         return 0
+    # Optional: files written before 2026-09-06 have no entry_date column
+    entry_date_col = headers.index('entry_date') + 1 if 'entry_date' in headers else None
 
     # Collect rows to potentially update
     rows_to_update = []  # (row_num, cycle_id, ticker, entry_val_or_None)
@@ -369,17 +392,22 @@ def refresh_current_prices(lookback_cycles: int | None = None, excel_path: str =
         if new_curr is None or new_curr <= 0:
             continue
 
-        # Backfill entry if missing (for pre-dynamic cycles or bad fetch at log)
-        if entry_val is None or entry_val <= 0:
-            # try historical asof start_date of this row
+        # Resolve the entry of record when it is missing OR still provisional (no entry_date):
+        # the executable close of the bar after the signal (start_date), same rule as log time.
+        provisional = entry_date_col is not None and not ws.cell(row=r, column=entry_date_col).value
+        if entry_val is None or entry_val <= 0 or provisional:
             try:
                 sdate = ws.cell(row=r, column=start_col).value
                 if sdate:
-                    entry_val = _fetch_price_asof_for_refresh(tkr, pd.to_datetime(sdate))  # reuse helper? inline simple
-                    if entry_val:
+                    res = _resolve_cycle(tkr, pd.to_datetime(sdate))
+                    if res["entry_price"]:
+                        entry_val = res["entry_price"]
                         ws.cell(row=r, column=entry_col).value = round(entry_val, 4)
                         ws.cell(row=r, column=entry_col).number_format = '#,##0.00'
-            except:
+                        if entry_date_col is not None:
+                            ws.cell(row=r, column=entry_date_col).value = res["entry_date"].to_pydatetime()
+                            ws.cell(row=r, column=entry_date_col).number_format = 'yyyy-mm-dd'
+            except Exception:
                 pass
 
         entry_val = entry_val or ws.cell(row=r, column=entry_col).value

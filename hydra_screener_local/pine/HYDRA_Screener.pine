@@ -256,29 +256,40 @@ f_regime_type(_score) =>
         "WEAK"
 
 // --- Per-symbol HYDRA Components (core of the spec) ---
+// Parity with Python (core/signals.py), checked 2026-09-06:
+//   mirrored     : ret_short = (close / close[10] - 1) * 100
+//                  dist_to_high vs ta.highest(close, 20), current bar included
+//                  vol_ratio = sma(volume, 5) / sma(volume, 20); na when the 20d mean is not > 0
+//                  strict = ret > 15 and dist >= -2 and vol_ratio > threshold —
+//                           MISSING VOLUME FAILS strict (SPEC 5: "vol_ratio treated as 0")
+//                  momentum = (close / close[90] - 1) / (sample stdev of pct_change, 63 bars, * sqrt(252))
+//                             na when that vol is 0 or na (Python: vol.replace(0, NaN))
+//   NOT mirrored : ranking, composite/short-term boost, dynamic_count, sector cap, Meta-Layer
+//                  scalar. Pine cannot see the cross-section; those come from the pasted JSON.
 f_compute_hydra(_sym) =>
-    [c, r, mom, rs, dh, vr, ps, cm, sm] = request.security(_sym, timeframe.period, 
-        [close, close[i_short_len], close[i_momentum_len], ta.highest(close, i_prox_len), 
-         volume, volume], lookahead=barmerge.lookahead_off)
+    [c, r, mom, rs, vr] = request.security(_sym, timeframe.period,
+        [close, close[i_short_len], close[i_mom_len], ta.highest(close, i_prox_len), volume],
+        lookahead=barmerge.lookahead_off)
 
     // Short-term features
     ret_s   = (c / r - 1) * 100
     dist_h  = (c / rs - 1) * 100
 
-    vrat = na
-    if not na(vr) and vr > 0
-        v20 = ta.sma(vr, 20)
-        v5  = ta.sma(vr, 5)
-        vrat := v5 / math.max(v20, 1)
+    // Volume ratio: ta.* calls kept outside any `if` so their history is consistent
+    v20 = ta.sma(vr, 20)
+    v5  = ta.sma(vr, 5)
+    float vrat = (not na(v20) and v20 > 0) ? v5 / v20 : na
 
     dth = i_vol_base + (i_geo_risk * 0.6)
     dth := math.max(MIN_VOL_TH, dth)
-    strict = ret_s > i_strict_ret and dist_h >= i_strict_dist and (vrat > dth or na(vrat))
+    // SPEC 5: missing volume fails the strict filter (was `or na(vrat)`, the opposite of Python)
+    strict = ret_s > i_strict_ret and dist_h >= i_strict_dist and not na(vrat) and vrat > dth
 
-    // Momentum (risk-adjusted)
+    // Momentum (risk-adjusted). pct_change divides by the PREVIOUS close; pandas .std() is the
+    // sample stdev (ddof=1), so biased=false here.
     m = (c / mom - 1)
-    v = ta.stdev(ta.change(c)/c, i_vol_len) * math.sqrt(252)
-    momentum = m / math.max(v, 0.0001)
+    v = ta.stdev(ta.change(c) / c[1], i_vol_len, false) * math.sqrt(252)
+    float momentum = (not na(v) and v > 0) ? m / v : na
 
     // Regime is market-wide (computed outside per-symbol for efficiency)
     // We pass it in
