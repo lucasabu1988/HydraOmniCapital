@@ -22,6 +22,7 @@ import argparse
 import json
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 def find_latest_history(history_dir: Path = Path("history")) -> Path:
     """Encuentra el archivo de history más reciente."""

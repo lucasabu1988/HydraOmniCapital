@@ -97,6 +97,9 @@ def test_fallback_when_no_recommended():
 def test_find_latest_history():
     """Sanity check that the finder works and returns a real file."""
     print("\n=== Test: find_latest_history ===")
+    if not Path("history").exists() or not list(Path("history").glob("*.json")):
+        print("[SKIP] no history directory or no JSON files. Run the screener first.")
+        return True
     try:
         latest = find_latest_history(Path("history"))
         print(f"[OK] latest history file found: {latest.name}")

@@ -111,14 +111,14 @@ class TestRattlesnakeSignals:
         assert regime['entries_allowed'] is True
         assert regime['max_positions'] == rattlesnake.R_MAX_POSITIONS
 
-    def test_nan_vix_is_treated_as_non_panic(self):
+    def test_nan_vix_is_treated_as_panic_fail_closed(self):
         regime = rattlesnake.check_rattlesnake_regime(
             make_spy_history(110.0),
             vix_current=float('nan'),
         )
 
-        assert regime['vix_panic'] is False
-        assert regime['entries_allowed'] is True
+        assert regime['vix_panic'] is True
+        assert regime['entries_allowed'] is False
 
     def test_buy_signal_fires_for_oversold_stock_above_sma200(self, monkeypatch):
         monkeypatch.setattr(rattlesnake, 'R_UNIVERSE', ['AAPL'])

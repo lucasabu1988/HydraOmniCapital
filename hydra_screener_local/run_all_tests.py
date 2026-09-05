@@ -55,6 +55,8 @@ def run_test(test_file: str, verbose: bool = False) -> tuple[bool, float]:
             [sys.executable, str(ROOT / test_file)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=180,
         )
         duration = time.perf_counter() - start

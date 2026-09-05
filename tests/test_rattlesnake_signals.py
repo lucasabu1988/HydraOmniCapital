@@ -534,8 +534,8 @@ class TestRegime:
         assert regime['vix_panic'] is False
         assert regime['entries_allowed'] is True
 
-    def test_none_vix_is_non_panic(self):
+    def test_none_vix_is_panic_fail_closed(self):
         spy = pd.DataFrame({'Close': [110.0] * rs.R_TREND_SMA})
         regime = rs.check_rattlesnake_regime(spy, vix_current=None)
-        assert regime['vix_panic'] is False
-        assert regime['entries_allowed'] is True
+        assert regime['vix_panic'] is True
+        assert regime['entries_allowed'] is False
