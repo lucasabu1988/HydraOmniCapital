@@ -51,8 +51,8 @@ Revisión de fechas señal/ejecución (E, inspección): `run_exec` — señal co
   Skips: `test_hybrid_integration.py` (necesita `history/`), `validate_pine_contract.py` (necesita
   `pine/hydra_last_summary.json`) — ambos ahora **descubiertos y ejecutados**, y omitidos con motivo.
 - `python -m pytest experiments/test_tranche_book.py experiments/test_mix_causality.py -q`: 9 passed.
-- **Pendiente / no disponible:** compilar o ejecutar el indicador real de TradingView. `validate_pine_contract.py`
-  simula el parser en Python; no comprueba el Pine. Queda identificado como pendiente.
+- Indicador real de TradingView: no se compila ni se ejecuta aquí (`validate_pine_contract.py` simula el
+  parser en Python). **Aparcado por decisión de Lucas (2026-09-06)**; no bloquea nada.
 - Revisión independiente en curso: TASK-336 (A/B/C), 337 (D/E), 338 (datos/metodología) — Grok.
 
 ## 5. Métricas recalculadas (simulador corregido, commit `0d4f2e5`)
