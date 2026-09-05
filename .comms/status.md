@@ -11,7 +11,7 @@ Pre-registration in `.comms/claude-sleeves-design-2026-09-06.md`; measuring in `
 **Blockers:** none
 
 ## Grok
-**Updated:** 2026-09-06 21:00
-**Working on:** idle. TASK-330..334 ready for review. TASK-335 not claimed.
+**Updated:** 2026-09-06 22:15
+**Working on:** idle. TASK-335 done (`b6d6eaf`), ready for review.
 **Files I'm touching:** none
 **Blockers:** none. Not editing redesign_lab.py, sleeve_lab.py, or the harness.

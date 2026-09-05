@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 22:15] GROK: TASK-335 done (`b6d6eaf`), ready for review. Filter only; did not
+edit redesign_lab.py, sleeve_lab.py, or the harness. Note `.comms/grok-task-335-dq-filter.md`.
+Production UNIVERSE=all (3000 downloaded, 2539 after practical): **14 names dropped**
+(DMRA, QURE, FTH, PRAX, MRNA, CRVS, OMER, OLMA, RAPP, COGT, AGL, REPL, GPCR, INBX).
+Live biotech/event days at double-digit prices, not penny artefacts. MRNA is the corpus
++177% day. Suite: 16 passed, 1 skipped.
+
+[2026-09-06 21:45] GROK: Claiming TASK-335. `apply_data_quality_filter` in `core/filters.py`,
+wired in `screener.py` right after `apply_practical_filters`. Filter only, no scoring.
+Will not edit redesign_lab.py, sleeve_lab.py, or the harness.
+
 [2026-09-06 21:20] CLAUDE: Review 330-334: **las cinco APROBADAS** (notas en Completed). La 332 es la
 que mas pesa: la ventaja de retorno de T20 sobre PROD (+2.2 pp) NO es distinguible de cero (IC 95%
 [-3.6, +5.2]); el caso de T20 es rotacion y drawdown, no alpha — lo llevo al documento de mangas. La 330
@@ -801,19 +812,6 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [ ] `TASK-335` **Data-quality filter for production (from the legacy corpus review).** `core/filters.py`
-  removes flat/zombie series but nothing filters extreme daily moves; the production universe is ~3000
-  yfinance names with no PIT membership protecting them, and the legacy project hit 25 series with fake
-  +500% days (reverse splits, delisting artefacts). Add `apply_data_quality_filter(prices, max_abs_daily_return=1.0,
-  lookback=252)` -> drops a ticker whose max |daily return| over the trailing `lookback` bars exceeds the
-  threshold (trailing window only, no look-ahead); wire it in `screener.py` right after
-  `apply_practical_filters`, report the dropped names in the run summary like the zombie filter does.
-  Measure: run the screener once on the real universe and report how many names it removes and which
-  (expect a handful; on the S&P PIT panel the same rule changed ann_net by 0.02 pp — see
-  `.comms/claude-legacy-corpus-review-2026-09-06.md` §2). Filter, not scoring (SPEC §1) — no rule-6 approval
-  needed, but say what it removed. Files: `core/filters.py`, `screener.py`, `test_liquidity_filter.py` (or a new
-  `test_data_quality_filter.py`), `.comms/grok-task-335-dq-filter.md`.
-
 - [!] **Blocked on Lucas:** go/no-go on the redesign candidate (verdict doc section 9: A = implement
   T20 as v9 behind a switch, B = minimal F1, C = no scoring change). Nothing else blocked.
 
@@ -821,6 +819,10 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-335` (Grok, `b6d6eaf`) `apply_data_quality_filter` (trailing 252, |r|>100%, no look-ahead)
+  wired after practical filters. Production UNIVERSE=all: 14/2539 dropped (DMRA 383%, QURE, FTH,
+  PRAX, MRNA +177% 2026-08-19, CRVS, OMER, OLMA, RAPP, COGT, AGL, REPL, GPCR, INBX). Live event
+  days, not penny artefacts. Filter, not scoring. Note `.comms/grok-task-335-dq-filter.md`.
 - `TASK-334` (Grok, `d05b490`) Paid Russell PIT history priced: **Norgate US Stocks Platinum, $630/yr**
   is the only retail SKU with R1000/R2000/R3000 membership time series + delisted prices + entity suffixes +
   Python API (Silver/Gold lack delisteds — the trap). FTSE official = institutional; Sharadar/EODHD = S&P
