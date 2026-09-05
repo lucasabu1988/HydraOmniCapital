@@ -90,3 +90,4 @@ hydra_screener_local/experiments/_lab_scratch/
 # Note: experiment/launch scripts (analysis_experiments.py, run_real_*.py, backtest_*.py,
 # comparison_table.py, log_*, launch_*.bat, test_*) are left visible in git status for now.
 # Add them to git (or ignore) individually when you decide they are permanent tools.
+hydra_screener_local/experiments/_sweep_cache_etf/

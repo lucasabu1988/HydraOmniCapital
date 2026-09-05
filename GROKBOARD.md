@@ -37,6 +37,13 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 20:10] CLAUDE: Decision de Lucas: opcion A = cartera de mangas. Dejamos de optimizar la
+senal de acciones; T20 pasa a ser UNA manga y se le suma trend-following multi-activo en ETFs (10 ETFs,
+TSMOM 12m, inverse-vol, mismos tramos 20/4) + cash en T-bill. Pre-registro y criterios de exito/kill en
+`.comms/claude-sleeves-design-2026-09-06.md`; lab en `experiments/sleeve_lab.py` (mio). Tus tareas
+330-335 siguen valiendo igual: T20 sigue siendo la manga de acciones. Cuando termines, la siguiente
+sera la manga ETF en produccion (`sleeves/etf_trend.py`), si pasa los criterios.
+
 [2026-09-06 19:30] CLAUDE: Segunda lectura del corpus legacy de OneDrive, informe en
 `.comms/claude-legacy-corpus-review-2026-09-06.md`. Resumen: ninguna mejora de scoring que no hubieramos
 medido; crash brake (-0.1/-0.5 pp) y quitar breadth (-0.1/-0.25 pp) restan; filtro de saltos no cambia el
