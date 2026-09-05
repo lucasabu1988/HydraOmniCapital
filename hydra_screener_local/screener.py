@@ -25,10 +25,12 @@ except Exception as _e:
 
 from config import (TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS,
                     UNIVERSE, VOL_NAN_WARN_THRESHOLD, MIN_REGIME_SCORE, SECTOR_FETCH_BUDGET_SECONDS,
-                    FETCH_MISSING_WARN_SHARE, STALE_DATA_WARN_BUSINESS_DAYS)
+                    FETCH_MISSING_WARN_SHARE, STALE_DATA_WARN_BUSINESS_DAYS, SECONDARY_REGIME_SYMBOL)
 from utils.trading_calendar import business_days_behind
+from core.regime import compute_rich_regime_scores
+from core.meta_layer import LightweightMetaLayer
 from data.universe import get_universe
-from data.fetch import fetch_prices_and_volume, fetch_spy
+from data.fetch import fetch_prices_and_volume, fetch_spy, fetch_index
 from data.sectors import resolve_sectors
 from core.signals import generate_daily_candidates
 from core.filters import apply_practical_filters, get_filter_summary, remove_zombie_tickers
@@ -52,6 +54,11 @@ def main():
     fetch_report = {}
     prices, volumes = fetch_prices_and_volume(tickers, report=fetch_report)
     spy = fetch_spy()
+    try:
+        secondary_idx = fetch_index(SECONDARY_REGIME_SYMBOL)
+    except Exception as e:                       # observability must never fail the run
+        print(f"   [REGIME] {SECONDARY_REGIME_SYMBOL} no disponible: {e}")
+        secondary_idx = None
 
     if len(prices) < 50:
         print("(!) Datos insuficientes. Intenta mas tarde o reduce el universo.")
@@ -107,6 +114,23 @@ def main():
     else:
         regime_score = 0.0
         regime_gate_blocked = False
+
+    # Secondary regime on a small-cap proxy (audit R1). Observability only: scoring uses SPY.
+    regime_secondary = None
+    if secondary_idx is not None and len(secondary_idx) >= 200:
+        try:
+            sec_score = compute_rich_regime_scores(secondary_idx, prices).overall
+            sec_type = LightweightMetaLayer().compute_adjustment(regime_score=sec_score).regime_type
+            sec_block = bool(sec_score < MIN_REGIME_SCORE * 0.85)
+            regime_secondary = {"symbol": SECONDARY_REGIME_SYMBOL, "score": sec_score,
+                                "type": sec_type, "gate_would_block": sec_block}
+            print(f"   [REGIME] SPY {regime_score:.3f} | {SECONDARY_REGIME_SYMBOL} {sec_score:.3f} ({sec_type})")
+            if sec_block and not regime_gate_blocked:
+                print(f"   ⚠ REGIMEN EN DESACUERDO: SPY abre el gate pero {SECONDARY_REGIME_SYMBOL} "
+                      f"lo cerraría ({sec_score:.3f} < {MIN_REGIME_SCORE * 0.85:.4f}). El universo es "
+                      f"mayoría small/mid caps; la lista de hoy sale con el régimen del índice que no se opera.")
+        except Exception as e:
+            print(f"   [REGIME] secundario no calculado: {e}")
 
     # TASK-202: Volume data watchdog — warn if too many NaN vol_ratio (missing volume breaks strict filter)
     nan_share = float(candidates.iloc[0].get("vol_ratio_nan_share", 0.0)) if len(candidates) > 0 else 0.0
@@ -185,6 +209,7 @@ def main():
             vol_ratio_nan_share=nan_share,
             regime_gate_blocked=regime_gate_blocked,
             data_last_bar=str(data_last_bar.date()),
+            regime_secondary=regime_secondary,
         )
         print(f"[OK] Historico guardado en history/{today}.json")
     except Exception as e:

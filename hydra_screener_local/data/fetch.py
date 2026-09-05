@@ -119,9 +119,14 @@ def fetch_prices_and_volume(tickers: list[str], period: str = "1y", batch_size: 
     return prices, volumes
 
 
-def fetch_spy(period: str = "1y") -> pd.Series:
-    """Descarga solo SPY para cálculo de régimen. Siempre devuelve Series limpia."""
-    spy = yf.download("SPY", period=period, progress=False, auto_adjust=True)
+def fetch_index(symbol: str, period: str = "1y") -> pd.Series:
+    """Descarga un solo símbolo (SPY, IWM, ...) como Serie de cierres limpia.
+
+    Added for the secondary regime (audit R1): the regime gate is computed on SPY while the
+    production universe is Russell-heavy, and in 12.5% of days SPY is above its SMA200 while
+    IWM is below. Persisting IWM's regime next to SPY's is how that gap becomes measurable.
+    """
+    spy = yf.download(symbol, period=period, progress=False, auto_adjust=True)
     if isinstance(spy, pd.DataFrame):
         s = spy['Close'] if 'Close' in spy.columns else spy.iloc[:, 0]
         # yfinance puede retornar MultiIndex incluso para 1 ticker, haciendo que s sea DataFrame
@@ -133,3 +138,8 @@ def fetch_spy(period: str = "1y") -> pd.Series:
     if isinstance(s, pd.Series):
         return s
     return pd.Series([s]) if s is not None else pd.Series(dtype=float)
+
+
+def fetch_spy(period: str = "1y") -> pd.Series:
+    """Descarga solo SPY para cálculo de régimen. Siempre devuelve Series limpia."""
+    return fetch_index("SPY", period=period)

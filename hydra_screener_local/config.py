@@ -70,6 +70,14 @@ VOL_NAN_WARN_THRESHOLD = 0.20      # max acceptable share of tickers with NaN vo
 FETCH_MISSING_WARN_SHARE = 0.05         # warn when >5% of requested tickers came back without prices
 STALE_DATA_WARN_BUSINESS_DAYS = 1       # warn when the last bar is older than the previous session
 
+# Secondary regime (audit R1, 2026-09-06). The gate is computed on SPY; the universe is ~2/3
+# mid/small caps. 2020-2026: SPY above its SMA200 while IWM was below on 12.5% of days (longest
+# streak 54 sessions), and IWM's 5d return in those days averaged -15.8 bp vs +31.6 bp otherwise.
+# Changing the gate is a scoring change that needs out-of-sample data on the real universe; until
+# then the screener computes the same rich regime on this symbol, prints the disagreement, and
+# persists it in history so the decision can eventually be made on evidence. Observability only.
+SECONDARY_REGIME_SYMBOL = "IWM"
+
 # ============================================
 # DOWNTREND VETO GATE (nuevo Jun 2026)
 # ============================================

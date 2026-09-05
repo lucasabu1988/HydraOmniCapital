@@ -31,6 +31,7 @@ def save_daily_run(
     vol_ratio_nan_share: float = 0.0,
     regime_gate_blocked: bool = False,
     data_last_bar: str = None,
+    regime_secondary: Dict[str, Any] = None,
 ) -> str:
     """
     Guarda el resultado completo de un día del screener.
@@ -40,6 +41,9 @@ def save_daily_run(
     (zero recommended because of the regime flag, not because of the downtrend gate).
     data_last_bar: date (YYYY-MM-DD) of the last price bar that was actually scored. The run
     date is when the screener ran; this is what it saw. Tracking enters at the bar after it.
+    regime_secondary: optional {"symbol", "score", "type", "gate_would_block"} - the same rich
+    regime computed on a small-cap proxy (audit R1). Observability only; scoring still uses SPY.
+    Optional field, so schema_version stays 2; consumers must tolerate its absence.
     """
     out_dir = base_dir or HISTORY_DIR
     os.makedirs(out_dir, exist_ok=True)
@@ -56,6 +60,7 @@ def save_daily_run(
             "special_modes": special_modes,
             "gate_blocked": regime_gate_blocked,
         },
+        "regime_secondary": regime_secondary,
         "pillar_multipliers": pillar_multipliers,
         "meta_rationale": meta_rationale,
         "top_candidates": top_candidates,
