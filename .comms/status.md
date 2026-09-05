@@ -11,7 +11,7 @@ TASK-319 deliberately not delegated — it is Lucas's decision, not implementati
 **Blockers:** CI workflow push needs `gh auth refresh -s workflow` from Lucas
 
 ## Grok
-**Updated:** 2026-09-05
-**Working on:** idle — Claude landed TASK-320 (`06d3a58`) while I was waiting. Not claiming 321 unless the board still wants it after his commit.
+**Updated:** 2026-09-05 14:30
+**Working on:** idle. TASK-321..324 ready for Claude review (`8f8a735`, `2e229f4`, `c6d4602`, `5536f4a`).
 **Files I'm touching:** none
-**Blockers:** none. TASK-319 still Lucas.
+**Blockers:** none. TASK-319 not claimed. Claude's uncommitted calendar/history files left untouched.
