@@ -55,8 +55,8 @@ def load_etfs(index):
     return px.reindex(index).ffill(limit=3)
 
 
-def run_sleeve(P, cfg):
-    """Same overlapping-tranche machinery as T20; per step = mean of tranche returns."""
+def run_sleeve_nominal(P, cfg):
+    """NOMINAL accounting (pre-audit, finding D). Kept for the comparison table only."""
     c = dict(SLEEVE_BASE); c.update(cfg)
     hold, K = c['hold'], c['tranches']
     step = hold // K
@@ -108,19 +108,87 @@ def run_sleeve(P, cfg):
     return pd.DataFrame(recs).set_index('date')
 
 
-def combine(a, b, mode='5050', lookback=63):
-    """Weekly net series of two sleeves on common dates -> portfolio net series (weights rebalanced each step)."""
-    df = pd.concat([a['net'].rename('a'), b['net'].rename('b')], axis=1).dropna()
-    if mode == '5050':
-        w = pd.Series(0.5, index=df.index)
-    else:  # inverse-vol risk parity on trailing steps, 0.5 until enough history
-        va = df['a'].rolling(lookback).std(); vb = df['b'].rolling(lookback).std()
-        w = (1 / va) / (1 / va + 1 / vb)
-        w = w.fillna(0.5).clip(0.2, 0.8)
-    net = w * df['a'] + (1 - w) * df['b']
-    out = pd.DataFrame({'gross': net, 'net': net, 'turnover': 0.0, 'expo': 1.0, 'n': 0.0})
-    out['w_a'] = w
+def run_sleeve(P, cfg):
+    """Executable accounting (tranche_book): weights drift, only the renewed tranche trades with
+    its own value, costs on every trade, cash at the T-bill, step return = change in book value."""
+    from tranche_book import run_book
+    c = dict(SLEEVE_BASE); c.update(cfg)
+    hold, K = c['hold'], c['tranches']
+    step = hold // K
+    px = P.ETF
+    rets = px.pct_change(fill_method=None)
+    vol63 = rets.rolling(63).std() * np.sqrt(252)
+    tb12 = (P.IRX / 252.0).rolling(252).sum()
+    mom12 = px / px.shift(252) - 1
+    sma200 = px.rolling(200).mean()
+
+    def target(t, k, held):
+        elig = px.iloc[t].notna() & px.iloc[t - 252].notna()
+        names = px.columns[elig.values]
+        if not len(names):
+            return pd.Series(dtype=float)
+        if c['signal'] == 'tsmom12':
+            on = mom12.iloc[t][names] - tb12.iloc[t] > 0
+        else:
+            on = px.iloc[t][names] > sma200.iloc[t][names]
+        if c['weights'] == 'invvol':
+            iv = (1.0 / vol63.iloc[t][names]).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+            base = iv / iv.sum() if iv.sum() > 0 else pd.Series(1.0 / len(names), index=names)
+        else:
+            base = pd.Series(1.0 / len(names), index=names)
+        w = (base * on.astype(float)).astype(float)
+        return w[w > 0]
+
+    return run_book(len(px.index), K, step, 280, 1, c['cost_bp'],
+                    price_at=lambda i: px.iloc[i], target_fn=target,
+                    rate_at=lambda t: float(P.IRX.iloc[t]), dates=px.index)
+
+
+def mix(frames, mode='equal', lookback=63, cost_bp=10.0, clip=(0.15, 0.6)):
+    """Portfolio of sleeves (audit E-compliant).
+
+    Weights for step t use only returns up to step t-1 (`shift(1)`): the old `rolling().std()`
+    included the return of the very step being weighted, and changing that one return moved the
+    weight from 50% to 20%. The mix is rebalanced to its target every step, so the sleeves drift
+    between steps and the reset trades |target - drifted| of the book, charged at `cost_bp`
+    (10 bp one-way, the stock-sleeve cost, applied to the whole shifted amount as a conservative
+    all-sleeves rate). Returns the portfolio net series plus the weights used and the cost paid."""
+    df = pd.concat([f['net'].rename(str(i)) for i, f in enumerate(frames)], axis=1).dropna()
+    n = df.shape[1]
+    if mode in ('equal', '5050'):
+        w = pd.DataFrame(1.0 / n, index=df.index, columns=df.columns)
+    else:
+        iv = 1.0 / df.rolling(lookback).std().shift(1)         # information available before the step
+        w = iv.div(iv.sum(axis=1), axis=0).fillna(1.0 / n).clip(*clip)
+        w = w.div(w.sum(axis=1), axis=0)
+    bp = cost_bp / 10000.0
+    prev = w.iloc[0].values.copy()
+    net, cost_col = [], []
+    for i in range(len(df)):
+        tgt = w.iloc[i].values
+        realloc = float(np.abs(tgt - prev).sum()) / 2.0 if i else 0.0     # one-way fraction of the book moved
+        cost = realloc * 2 * bp
+        r = float((tgt * df.iloc[i].values).sum()) - cost
+        net.append(r)
+        cost_col.append(cost)
+        grown = tgt * (1 + df.iloc[i].values)
+        prev = grown / grown.sum() if grown.sum() > 0 else tgt           # drifted weights entering the next step
+    out = pd.DataFrame({'gross': np.array(net) + np.array(cost_col), 'net': net, 'turnover': 0.0, 'expo': 1.0, 'n': 0.0}, index=df.index)
+    for j, col in enumerate(df.columns):
+        out['w_' + col] = w[col].values
+    out['realloc_cost'] = cost_col
     return out
+
+
+def combine(a, b, mode='5050', lookback=63):
+    """Two-sleeve wrapper kept for the existing call sites; see mix()."""
+    out = mix([a, b], 'equal' if mode == '5050' else 'rp', lookback, clip=(0.2, 0.8))
+    out['w_a'] = out['w_0']
+    return out
+
+
+def combine_n(frames, mode='equal', lookback=63):
+    return mix(frames, mode, lookback)
 
 
 # ----------------------------------------------------------------------------- sleeve 3: short-term mean reversion
@@ -231,25 +299,10 @@ def mr_with_gross(P, cfg):
     return out
 
 
-def combine_n(frames, mode='equal', lookback=63):
-    df = pd.concat([f['net'].rename(str(i)) for i, f in enumerate(frames)], axis=1).dropna()
-    if mode == 'equal':
-        w = pd.DataFrame(1.0 / df.shape[1], index=df.index, columns=df.columns)
-    else:
-        iv = 1.0 / df.rolling(lookback).std()
-        w = iv.div(iv.sum(axis=1), axis=0).fillna(1.0 / df.shape[1]).clip(0.15, 0.6)
-        w = w.div(w.sum(axis=1), axis=0)
-    net = (w * df).sum(axis=1)
-    out = pd.DataFrame({'gross': net, 'net': net, 'turnover': 0.0, 'expo': 1.0, 'n': 0.0})
-    for col in df.columns:
-        out['w_' + col] = w[col]
-    return out
-
-
 def sleeve3_main():
     P = L.load_panel(oos=True)
     P.ETF = load_etfs(P.close.index)
-    cache = os.path.join(ETF_CACHE, 'steps_t20_etf.pkl')
+    cache = os.path.join(ETF_CACHE, 'steps_t20_etf_exec.pkl')
     if os.path.exists(cache):
         t20, etf = pd.read_pickle(cache)
     else:

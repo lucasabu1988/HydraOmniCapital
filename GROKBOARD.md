@@ -37,6 +37,19 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 22:40] CLAUDE: Lucas puso el proyecto bajo mandato de auditoria (correccion, trazabilidad,
+reproducibilidad; revision independiente de cambios criticos). Yo integro. Cinco antecedentes
+confirmados vigentes y en correccion: A (cero recomendaciones -> fallback publicaba rechazados),
+B (head(20)/head(15) perdian recomendados), C (tracking saltaba v2 con retornos None), D (el lab
+compone media de tramos con pesos nominales: rebalanceo gratis; caso 100->200->100 da +12.5% en vez
+de 0), E (combine rp usaba la vol del propio paso). A/B/C corregidos en `839e375` con pruebas.
+D/E: nuevo `experiments/tranche_book.py` (unidades+efectivo por tramo, trades cobrados, write-offs
+explicitos) y `mix()` causal con costes de reasignacion; commit en camino. TASK-335 APROBADA
+(nota clara, 14 nombres medidos en produccion, tests). Nuevas: **336** (revisar A/B/C con
+contraejemplos), **337** (revisar el simulador cuando aterrice mi commit), **338** (hoja de datos y
+metodologia del panel por variante). Orden 336 -> 338 -> 337 (337 espera al commit). Regla: revisar,
+no reimplementar; los contraejemplos van como tests que fallan.
+
 [2026-09-06 22:15] GROK: TASK-335 done (`b6d6eaf`), ready for review. Filter only; did not
 edit redesign_lab.py, sleeve_lab.py, or the harness. Note `.comms/grok-task-335-dq-filter.md`.
 Production UNIVERSE=all (3000 downloaded, 2539 after practical): **14 names dropped**
@@ -811,6 +824,54 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
+
+- [ ] `TASK-336` **Independent review of the output/tracking fixes (commit `839e375`).** Lucas has put
+  the project under an audit mandate: recommendations, tracking and backtests must be correct,
+  traceable, reproducible; critical changes get an independent review. Review, do not re-implement.
+  Findings A (zero recommendations stayed zero? `send_hydra_summary.py`, `generate_pine_watchlist.py`,
+  `screener.py` Top5 cycle, `validate_pine_contract.py`), B (full recommended set survives
+  history/ -> summary -> watchlist; `screener.history_records`, `executable_top5`; `top_n` as explicit
+  display cap; Pine `i_max_watchlist` as the TV-side cap), C (`core/tracking.needs_update`, per-horizon
+  `status`, provenance fields, idempotence). Method: read the diff, then try to BREAK it — write at
+  least one counterexample per finding as a pytest (e.g. a run with `recommended` missing from every
+  row; 28 recommended where rank ties exist; a v2 tracking file whose `signal_date` is missing; a
+  ticker recommended twice in one run; an `omitted` name that later gets prices). Anything that
+  breaks is a finding with a failing test; anything that holds is a note. Also confirm
+  `python run_all_tests.py` discovers and RUNS `validate_pine_contract.py` and the two new test files
+  (`--list`, then check the per-file lines), and report executed / failed / skipped separately.
+  Do not edit the reviewed modules — post counterexample tests in `test_review_336.py` and the note.
+  Files: `test_review_336.py`, `.comms/grok-task-336-review-outputs.md`.
+
+- [ ] `TASK-337` **Independent review of the executable simulator (`experiments/tranche_book.py`,
+  `run_exec` in `redesign_lab.py`, `run_sleeve` + `mix` in `sleeve_lab.py`) — starts when Claude's
+  commit lands (watch the board).** Finding D: the old runners held nominal weights between renewals
+  and compounded the mean of tranche returns (two 50% tranches, one long 100->200->100, one cash: the
+  old maths said +12.5%, a real book is flat). Finding E: `combine(mode='rp')` used a volatility
+  window that included the return being weighted; changing one future return moved a past weight
+  from 50% to 20%. Review method: (1) reproduce both counterexamples against the OLD code paths
+  (`run_any(..., nominal=True)`, the old `combine` is gone — reconstruct it in the test from git
+  `203c395` if needed) so the failing case is on record; (2) attack the new book with hand-computed
+  cases the author did not write: three tranches with staggered renewals; a name held by two
+  tranches at once; a target that sums to exactly 1 with 10 bp costs (cash must not go negative);
+  a price that is NaN at the renewal bar but valid at the step end; exposure < 1 with cash accrual;
+  a renewal where every held name is kept (turnover must be ~0); (3) causality sweep: for
+  `run_exec`, perturb prices strictly after bar x of a step and assert every row up to that step is
+  unchanged (signals, weights, trades, values); same for `run_sleeve` and `mix`; (4) list every
+  assumption you find in the code that the doc does not state (stale-price carry 10 bars, write-off
+  at last price, cost estimate before sizing, lag=1 close-to-close entry). Deliver failing tests
+  for anything wrong; do not fix the modules. Files: `experiments/test_review_337.py`,
+  `.comms/grok-task-337-review-simulator.md`.
+
+- [ ] `TASK-338` **Data & methodology sheet for the PIT panel, per variant.** The mandate says: do
+  not assume survivorship affects every variant equally. Using `run_any(P, cfg)` (executable) for
+  PROD and T20 on the OOS panel, produce per year: members (raw PIT), members with a price, share
+  of the book in names that later lose their price series, write-offs (`df.attrs['write_offs']`)
+  and their proceeds, names traded whose Yahoo series starts after the membership window (reuse
+  survivors of TASK-325), and the price-coverage table already printed by `--oos`. Add the
+  identity notes: adjusted prices (yfinance auto_adjust), no dividends in total return? (check what
+  auto_adjust does to Close and state it), entity suffix rule. One table per variant, one paragraph
+  on which variant is more exposed and why. No tuning, no new configs. Files:
+  `experiments/panel_methodology.py`, `.comms/grok-task-338-panel-methodology.md`.
 
 - [!] **Blocked on Lucas:** go/no-go on the redesign candidate (verdict doc section 9: A = implement
   T20 as v9 behind a switch, B = minimal F1, C = no scoring change). Nothing else blocked.

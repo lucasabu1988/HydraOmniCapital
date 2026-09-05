@@ -242,6 +242,7 @@ def select(out, n, held, buffer):
 
 # ----------------------------------------------------------------------------- backtest
 def run(P, cfg, start=280, lag=1):
+    """NOMINAL accounting (pre-audit): kept only for the audit comparison, see run_exec."""
     c = dict(BASE); c.update(cfg)
     hold = c['hold']; idx = P.close.index
     held, prev_w, recs, port_rets = set(), pd.Series(dtype=float), [], []
@@ -303,7 +304,10 @@ def run(P, cfg, start=280, lag=1):
 
 
 def run_tranched(P, cfg, start=280, lag=1):
-    """Overlapping portfolios (Jegadeesh & Titman): K tranches, each held `hold` bars, rebalanced in
+    """NOMINAL accounting (pre-audit, audit finding D): implicit free rebalance across tranches.
+    Kept only for the comparison table; run_any() uses run_exec.
+
+    Overlapping portfolios (Jegadeesh & Titman): K tranches, each held `hold` bars, rebalanced in
     rotation every hold/K bars. The single-phase monthly result swung from 3.6% to 8.2% net on DEV
     depending on the start bar; tranching averages the phases by construction and is how a
     monthly-hold strategy is actually run. Per-step return = mean of tranche returns; only the
@@ -372,9 +376,60 @@ def run_tranched(P, cfg, start=280, lag=1):
     return pd.DataFrame(recs).set_index('date')
 
 
-def run_any(P, cfg, **kw):
+# ----------------------------------------------------------------------------- executable accounting (audit D)
+def run_exec(P, cfg, start=280, lag=1):
+    """Units-and-cash accounting via tranche_book.run_book. Same signals, same selection, same
+    exposure rules as the nominal runners; what changes is the bookkeeping: weights drift with
+    prices, only the renewed tranche trades (with its own value), every trade is charged, the
+    step return is the change in book value. `tranches=1` reproduces the single-portfolio case."""
+    from tranche_book import run_book
     c = dict(BASE); c.update(cfg)
-    return run_tranched(P, cfg, **kw) if c.get('tranches', 1) > 1 else run(P, cfg, **kw)
+    hold, K = c['hold'], c.get('tranches', 1)
+    assert hold % K == 0, 'hold must be a multiple of tranches'
+    step = hold // K
+    assert c['vol_estimator'] != 'cycles' or c['exposure'] != 'voltarget', \
+        "the 'cycles' vol estimator is not available in executable mode (use basket63)"
+
+    def target(t, k, held):
+        out = rank_day(P, t, c)
+        if out is None:
+            return None
+        m = P.meta_for(t, c['regime_breadth'])
+        n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
+        sel = select(out, n, held, c['buffer'])
+        if c['exposure'] == 'regime_gate':
+            expo = 1.0 if m.regime_score >= MIN_REGIME_SCORE * 0.85 else 0.0
+        elif c['exposure'] == 'voltarget' and len(sel):
+            basket = P.rets.iloc[t - 62:t + 1][sel.index].mean(axis=1)
+            rv = float(basket.std(ddof=1)) * np.sqrt(252)
+            expo = float(min(1.0, c['target_vol'] / rv)) if rv > 0 else 1.0
+        else:
+            expo = 1.0
+        if c['crash_brake'] and (P.SPY_R5.iloc[t] < -0.06 or P.SPY_R10.iloc[t] < -0.10):
+            expo = 0.0
+        if expo <= 0 or not len(sel):
+            return pd.Series(dtype=float)
+        if c['weights'] == 'invvol':
+            w = (1.0 / sel['vol']).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+            w = w / w.sum() if w.sum() > 0 else pd.Series(1.0 / len(sel), index=sel.index)
+        else:
+            w = pd.Series(1.0 / len(sel), index=sel.index)
+        return w * expo
+
+    rate = (lambda t: float(P.IRX.iloc[t])) if c['cash_yield'] else None
+    return run_book(len(P.close.index), K, step, start, lag, COST_BP_PER_SIDE,
+                    price_at=lambda i: P.close.iloc[i], target_fn=target, rate_at=rate,
+                    dates=P.close.index)
+
+
+def run_any(P, cfg, nominal=False, **kw):
+    """Executable accounting by default. `nominal=True` reproduces the pre-audit arithmetic
+    (weights held nominal between renewals, mean of tranche returns) for comparison only."""
+    c = dict(BASE); c.update(cfg)
+    if nominal:
+        return run_tranched(P, cfg, **kw) if c.get('tranches', 1) > 1 else run(P, cfg, **kw)
+    return run_exec(P, cfg, **kw)
+
 
 
 def step_of(cfg):
@@ -407,6 +462,7 @@ def main():
     ap.add_argument('--full', nargs='*')
     ap.add_argument('--insample', nargs='*')
     ap.add_argument('--only', nargs='*', help='restrict --dev to these config names')
+    ap.add_argument('--nominal', action='store_true', help='pre-audit nominal accounting (comparison only)')
     a = ap.parse_args()
 
     if a.dev or a.test is not None or a.full is not None:
@@ -418,7 +474,7 @@ def main():
         for name, cfg in CONFIGS.items():
             if a.only and name not in a.only:
                 continue
-            df = run_any(P, cfg)
+            df = run_any(P, cfg, nominal=a.nominal)
             rows.append(stats(df[df.index < SPLIT], step_of(cfg), name))
             print('  done', name, flush=True)
         print('\nDEV 2004-2015 (net = 10 bp/side). Explore here; do not read TEST yet.')
@@ -426,18 +482,18 @@ def main():
     if a.test:
         rows = []
         for name in a.test:
-            df = run_any(P, CONFIGS[name])
+            df = run_any(P, CONFIGS[name], nominal=a.nominal)
             rows.append(stats(df[df.index >= SPLIT], step_of(CONFIGS[name]), name))
         print('\nTEST 2016-2026 - the one look. Finalists only.')
         table(rows)
     if a.full:
         for name in a.full:
-            df = run_any(P, CONFIGS[name]); h = step_of(CONFIGS[name])
+            df = run_any(P, CONFIGS[name], nominal=a.nominal); h = step_of(CONFIGS[name])
             table([stats(df[df.index < SPLIT], h, f'{name} DEV'), stats(df[df.index >= SPLIT], h, f'{name} TEST'),
                    stats(df, h, f'{name} ALL')])
     if a.insample is not None:
         P2 = load_panel(oos=False)
-        rows = [stats(run_any(P2, CONFIGS[n]), step_of(CONFIGS[n]), f'{n} in-sample 2020-26') for n in (a.insample or ['PROD'])]
+        rows = [stats(run_any(P2, CONFIGS[n], nominal=a.nominal), step_of(CONFIGS[n]), f'{n} in-sample 2020-26') for n in (a.insample or ['PROD'])]
         table(rows)
 
 
