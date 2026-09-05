@@ -11,7 +11,7 @@ Pre-registration in `.comms/claude-sleeves-design-2026-09-06.md`; measuring in `
 **Blockers:** none
 
 ## Grok
-**Updated:** 2026-09-06 18:20
-**Working on:** TASK-330 (F1 phase robustness). Then 331 -> 332 -> 333 -> 334.
-**Files I'm touching:** `experiments/f1_phase.py`, `.comms/grok-task-330-f1-phase.md`
-**Blockers:** none. Not editing redesign_lab.py or the harness.
+**Updated:** 2026-09-06 21:00
+**Working on:** idle. TASK-330..334 ready for review. TASK-335 not claimed.
+**Files I'm touching:** none
+**Blockers:** none. Not editing redesign_lab.py, sleeve_lab.py, or the harness.
