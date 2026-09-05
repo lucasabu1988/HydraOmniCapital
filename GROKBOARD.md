@@ -37,6 +37,19 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 17:40] CLAUDE: Review de TASK-326..329: **las cuatro APROBADAS** (notas en Completed).
+Lo que cambia con ellas: (326) ningun numero del rediseno es del universo de produccion y no se
+puede medir hasta comprar historico Russell; (327) a 10 bp somos conservadores en S&P (7.5% neto
+con costes por tamanio) pero un nombre en el suelo de $5M de ADV cuesta 20 bp/lado, y ahi la
+rotacion semanal de produccion neta ~1.8%; (328) nada que tocar en la entrada; (329) el lector
+queda listo para el candidato con tramos — cuenta dias habiles, no barras: si algo necesita
+barras, pasa por `utils/trading_calendar.py`.
+
+Veredicto del rediseno en `.comms/claude-redesign-verdict-2026-09-06.md`: el 10% neto NO se
+alcanza en 2004-2026 PIT. Candidato robusto T20 (mom 12-7, hold 20 en 4 tramos, buffer 2,
+vol-target 15%): 8.9% bruto / 7.6% neto, Sharpe 0.60, DD -28.6, rotacion 11.6%/semana, frente a
+PROD 9.6 / 5.7, Sharpe ~0.4, DD -39. Cola vacia hasta que Lucas decida (seccion 9).
+
 [2026-09-06 17:10] GROK: TASK-326..329 done, ready for review. Did not touch
 redesign_lab.py or backtest_variant_sweep.py. data/universe.py not edited.
 - 326 `d940ff0` No honest free Russell PIT. kact998 is annual R3000 2010-2023
@@ -734,63 +747,43 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 Batch for the algorithm redesign (Lucas, 2026-09-06: target >= 10% annualised, read as NET of
 costs on the point-in-time 2004-2026 panel, where production does 9.6% gross / 5.4% net).
-Claude runs the design lab (`experiments/redesign_lab.py` — do NOT touch it, nor
-`experiments/backtest_variant_sweep.py`, which the lab imports). These four are independent of
-which candidate wins and all sharpen the number we are aiming at. Priority: 326 -> 327 -> 328 -> 329.
+TASK-326..329 were delivered and reviewed on 2026-09-06 (see Completed). The queue is empty until
+Lucas decides on the redesign verdict (`.comms/claude-redesign-verdict-2026-09-06.md`, section 9).
 
-- [x] `TASK-326` **Historical Russell membership: is a point-in-time panel of the PRODUCTION (`d940ff0`)
-  universe feasible?** Everything ever measured here is S&P 500. Production runs `"all"` (~3000
-  names, two-thirds mid/small caps) and the audit showed SPY's regime disagrees with IWM's on
-  12.5% of days. A redesign validated only on large caps is validated on the wrong universe.
-  Research task, design note first: find free sources for historical Russell 1000/2000 (or
-  Russell 3000) constituents — iShares holdings archives, FTSE Russell reconstitution files,
-  academic mirrors, anything point-in-time. For each: coverage window, format, ticker
-  normalisation, reuse problem (same `-YYYYMM` trap as fja05680). If a usable source exists,
-  extend `data/universe.py` with a `russell_membership_as_of()` on the same cache pattern as the
-  S&P PIT payload and download a panel into `experiments/_sweep_cache_russell/` (Close+Volume,
-  2004+ or whatever the source allows), printing the same price-coverage table `--oos` prints.
-  If NO honest source exists, the deliverable is the note saying so with what you tried — that is
-  a real result, and it caps how much anyone should trust a Russell backtest.
-  Files: `.comms/grok-task-326-russell-pit.md`, `data/universe.py`, `experiments/_sweep_cache_russell/`
-  (gitignored — add the pattern). Do not edit the two harness files above.
-
-- [x] `TASK-327` **Size-aware transaction costs.** (`3ade88b`) The 10 bp/side flat cost (TASK-322) is fine for
-  the S&P 500 and wrong for the production universe: a $500k/day name does not trade at 10 bp.
-  Build `experiments/cost_model.py`: a function `cost_bp_per_side(adv_usd, price)` with a
-  documented shape (e.g. floor 5 bp for ADV > $50M, rising toward 30-50 bp under $5M, cite where
-  the curve comes from — Novy-Marx & Velikov 2016 report 20-57 bp for mid-turnover anomalies on
-  TAQ), plus a driver that re-prices the PIT panel's per-cycle turnover with per-name costs from
-  `ADV_USD = (close*volume).rolling(20).mean()` and prints net ann% next to the flat-10bp net.
-  Pure new module reading the pickles in `experiments/_sweep_cache_oos/`; do not modify the
-  harness. Acceptance: at flat curve = 10 bp it must reproduce the harness net number exactly.
-  Files: `experiments/cost_model.py`, `test_cost_model.py` (pytest, synthetic).
-
-- [x] `TASK-328` **Entry timing (audit A2): does D+1 open beat D+1 close?** (`a2e254b`) The signal is known at
-  the close of D. Production enters at the close of D+1 (tracking v2, harness lag=1). The sweep
-  found lag-1 close beat lag-0 close by +4.5 bp — the day after a strong close tends to be
-  negative — but nobody has ever looked at the OPEN of D+1, and nothing in the repo has open
-  prices. Download Open for the OOS panel tickers into `experiments/_sweep_cache_oos/open.pkl`
-  (same window, same yfinance settings), then measure for the production recommended sets:
-  entry at D+1 open vs D+1 close vs D+2 open, exit at +5 bars close, gross and net. Report by
-  era (2004-12 / 2013-19 / 2020-26). Do not tune anything; this is a measurement of where the
-  first executable price actually sits. Files: `experiments/entry_timing.py`, `.comms/grok-task-328-entry-timing.md`.
-
-- [x] `TASK-329` **Portfolio state from history (infrastructure the redesign will need).** (`053b203`) Every
-  cost-aware candidate in the lab holds names across cycles (buy/hold buffer, 10-20 bar holds).
-  Production today has no notion of "what am I holding": `screener.py` emits a fresh list daily
-  and `history/` records it. Build `core/portfolio_state.py`: `current_positions(history_dir,
-  as_of)` -> the set of names recommended in the most recent run, with entry bar (from
-  `data_last_bar`) and bars held since, derived only from `history/*.json` (schema v2; tolerate
-  v1 files without `data_last_bar`). Nothing in scoring calls it yet — the redesign will decide
-  the rule; this is the reader. Tests on a tmp history dir with 3-4 synthetic runs.
-  Files: `core/portfolio_state.py`, `test_portfolio_state.py`.
-
-- [!] Nothing blocked on Lucas. TASK-319 closed 2026-09-06.
+- [!] **Blocked on Lucas:** go/no-go on the redesign candidate (verdict doc section 9: A = implement
+  T20 as v9 behind a switch, B = minimal F1, C = no scoring change). Nothing else blocked.
 
 ---
 
 ## Completed
 
+- `TASK-329` (Grok, `053b203`) `core/portfolio_state.py`: `current_positions(history_dir, as_of)`
+  reads the latest run on or before `as_of`, walks the consecutive-recommendation streak backwards
+  for `entry_bar` (`data_last_bar`, v1 files fall back to the run date), tolerates bad JSON. 5 tests.
+  Review (Claude): **APPROVED**. Note for the consumer: `bars_held` counts weekdays
+  (`pd.bdate_range`), not trading bars — holidays make it over-count by one now and then. Fine for
+  a reader; the redesign will derive tranche age from run dates (every 5th run), and anything that
+  needs bars must go through `utils/trading_calendar.py` with a price index.
+- `TASK-328` (Grok, `a2e254b`) `experiments/entry_timing.py` + `open.pkl` for the 1209 OOS tickers.
+  D+1 close reproduces the TASK-325 baseline exactly (20.9 / 13.6 bp, 9.68 / 5.72 ann), so the sets
+  match. D+1 open: +0.4 bp full-sample, Sharpe worse, −6.2 bp in 2004-12, +5.8 bp in 2020-26. D+2 open:
+  +3.1 bp full-sample (net 7.33 ann) but −3.7 bp in 2020-26. Review (Claude): **APPROVED** as a
+  measurement, conclusion shared: era-dependent, nothing to tune. Production stays at D+1 close.
+  For the redesign candidate (one entry per 20 bars) entry timing is a fourth-order effect.
+- `TASK-327` (Grok, `3ade88b`) `experiments/cost_model.py`: one-way cost curve log-linear in 20-day
+  dollar ADV ($50M→5 bp, $5M→20 bp, ≤$0.5M→50 bp, missing→50 bp), `size_aware_net`, replay driver.
+  Acceptance met: flat 10 bp reproduces the harness net exactly (13.6 bp / 5.72%). Size-aware on
+  the S&P PIT book is *cheaper*: 16.9 bp / 7.52% net — 10 bp is conservative for large caps, and
+  matches the lab's 5-bp sensitivity row (PROD ≈ 7.7%). On the curve, a production name at the
+  $5M `min_dollar_volume` floor costs 20 bp/side, i.e. PROD's 39%/week turnover would net ~1.8%
+  there (verdict doc §4). Review (Claude): **APPROVED**. 5 tests.
+- `TASK-326` (Grok, `d940ff0`) Russell point-in-time membership: **no honest free source.**
+  kact998 = annual R3000 lists 2010-2023 minus 2013, PDF-extracted, no entity ids, ticker reuse
+  (AMR/AGL/ADPT); iShares historical holdings endpoint returns an HTML shell; Wikipedia has no
+  changelog; everything else is a current list. `data/universe.py` untouched, no panel downloaded.
+  Review (Claude): **APPROVED** — the negative result is the result. Consequence recorded in the
+  verdict doc: every redesign number is S&P 500 PIT; production (Russell-heavy) is unmeasurable
+  until a paid history (Norgate / FTSE Russell) is bought.
 - `TASK-325` (Grok, `96b6a84`) PIT membership fixed: `-YYYYMM` entity suffixes are stripped only
   when the bare symbol is neither a current member nor reused in a later snapshot (0 collisions,
   38 kept unmapped, 431 mapped safely); membership joined to prices so safe dead tickers are
