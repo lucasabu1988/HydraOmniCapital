@@ -33,7 +33,12 @@ from data.universe import get_universe
 from data.fetch import fetch_prices_and_volume, fetch_spy, fetch_index
 from data.sectors import resolve_sectors
 from core.signals import generate_daily_candidates
-from core.filters import apply_practical_filters, get_filter_summary, remove_zombie_tickers
+from core.filters import (
+    apply_practical_filters,
+    apply_data_quality_filter,
+    get_filter_summary,
+    remove_zombie_tickers,
+)
 from core.history import save_daily_run
 from utils.display import print_header, print_candidates_table, print_summary, print_footer
 
@@ -90,6 +95,14 @@ def main():
     filter_summary = get_filter_summary(original_count, prices)
     print(f"Filtros aplicados → {filter_summary['remaining']} tickers restantes "
           f"({filter_summary['removed']} eliminados, {filter_summary['removal_pct']}%)\n")
+
+    # Extreme daily jumps (reverse splits / delisting artefacts). Trailing 252 bars,
+    # |r| > 100%. Filter, not scoring (SPEC §1). TASK-335.
+    n_after_practical = len(prices.columns)
+    prices = apply_data_quality_filter(prices, max_abs_daily_return=1.0, lookback=252)
+    if len(prices.columns) < n_after_practical:
+        dqs = get_filter_summary(n_after_practical, prices)
+        print(f"   + data-quality jump → {dqs['remaining']} restantes ({dqs['removed']} adicionales)\n")
 
     # Defensa adicional contra zombies (hard blacklist + sanity de precios planos)
     prices = remove_zombie_tickers(prices)

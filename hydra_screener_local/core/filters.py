@@ -3,6 +3,7 @@ Practical Filters + Sector Concentration Control
 
 Implements:
 - apply_practical_filters (price + volume)
+- apply_data_quality_filter (extreme daily jumps, trailing window)
 - remove_zombie_tickers
 - apply_sector_concentration_control (SPEC 4.6, hard cap at selection)
 
@@ -92,6 +93,50 @@ def apply_practical_filters(
     breakdown["total_removed"] = len(original_tickers) - len(filtered.columns)
     breakdown["remaining"] = len(filtered.columns)
     return filtered, breakdown
+
+
+def apply_data_quality_filter(
+    prices: pd.DataFrame,
+    max_abs_daily_return: float = 1.0,
+    lookback: int = 252,
+) -> pd.DataFrame:
+    """
+    Drop tickers whose max |daily return| over the trailing `lookback` bars
+    exceeds `max_abs_daily_return`. Trailing window only — last `lookback`
+    returns ending at the last bar, no look-ahead.
+
+    Filter, not scoring (SPEC §1). Defence against yfinance reverse-split /
+    delisting artefacts on the ~3000-name production universe (TASK-335).
+    Matches the lab's `P.JUMP252` / `max_jump` rule: a name is ineligible
+    while max |r| in the trailing window is strictly greater than the
+    threshold. Older jumps outside the window do not count.
+
+    A column with no valid returns (all NaN) is kept — it cannot prove a jump.
+    """
+    if prices.empty or len(prices.columns) == 0 or lookback <= 0:
+        return prices
+
+    rets = prices.pct_change(fill_method=None)
+    trailing = rets.iloc[-lookback:]
+    max_abs = trailing.abs().max()
+    to_drop = sorted(
+        c for c in max_abs.index
+        if pd.notna(max_abs[c]) and float(max_abs[c]) > max_abs_daily_return
+    )
+    if not to_drop:
+        return prices
+
+    filtered = prices.drop(columns=to_drop, errors="ignore")
+    preview = to_drop[:6]
+    suffix = "..." if len(to_drop) > 6 else ""
+    try:
+        print(
+            f"   [DATA QUALITY] Eliminados {len(to_drop)} tickers por salto diario "
+            f">{max_abs_daily_return:.0%} en {lookback} barras: {preview}{suffix}"
+        )
+    except UnicodeEncodeError:
+        print(f"   [DATA QUALITY] Eliminados {len(to_drop)} tickers por salto diario extremo.")
+    return filtered
 
 
 def get_filter_summary(original_count: int, filtered_df: pd.DataFrame) -> Dict:
