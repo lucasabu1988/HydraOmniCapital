@@ -105,21 +105,6 @@ OUTPUT_FILENAME_PREFIX = "hydra_screener"
 
 
 # ============================================
-# DATA QUALITY - Tickers problemáticos / delistados
-# ============================================
-# Hard blacklist de tickers que ya no existen o devuelven datos corruptos/zombies
-# de yfinance (ej: SNDK delisted 2016, BRK.B mal mapeado a veces, etc.).
-# Se filtran lo antes posible para evitar descargas inútiles y contaminación del ranking.
-DELISTED_OR_BAD_TICKERS = {
-    "SNDK",      # SanDisk - delisted 2016 (adquirida por WDC). Zombie data frecuente.
-    "BRK.B",     # A menudo falla o se confunde con BRK-B. Usar BRK-B en listas.
-    "BF.B",      # Brown-Forman clase B - problemas de mapeo comunes.
-    "FB",        # Viejo ticker de Meta, ahora META.
-    "TWTR",      # Delisted 2022 (adquirida por X).
-    "SCTY",      # SolarCity - delisted.
-}
-
-# ============================================
 # SECTOR / THEME CONCENTRATION CONTROL (nuevo Jun 2026)
 # ============================================
 # Justificación: En regímenes STRONG_BROAD_MOMENTUM el screener se concentra fuertemente
