@@ -99,7 +99,7 @@ jobs:
       - name: Install screener dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest
+          pip install -r requirements.txt pytest pytest-timeout   # root pytest.ini sets --timeout=30
 
       - name: Screener test suite
         run: python run_all_tests.py
