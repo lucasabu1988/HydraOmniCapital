@@ -262,9 +262,11 @@ def run(P, cfg, start=280, lag=1):
         gross = float((w * r).sum()) if len(w) else 0.0            # cash earns 0
         # one-way traded fraction of the portfolio, exposure changes included
         allw = pd.concat([prev_w, w], axis=1).fillna(0.0)
-        turnover = float(0.5 * (allw.iloc[:, 1] - allw.iloc[:, 0]).abs().sum())
+        dw = (allw.iloc[:, 1] - allw.iloc[:, 0]).abs()
+        turnover = float(0.5 * dw.sum())
         net = gross - 2.0 * COST_BP_PER_SIDE / 10000.0 * turnover
-        recs.append(dict(date=idx[t], gross=gross, net=net, turnover=turnover, expo=expo, n=len(w)))
+        recs.append(dict(date=idx[t], gross=gross, net=net, turnover=turnover, expo=expo, n=len(w),
+                         traded=dw[dw > 0].to_dict()))     # {name: |dweight|}, sums to 2*turnover
         port_rets.append(gross / expo if expo > 0 else 0.0)        # unlevered basket return for the vol estimate
         held, prev_w = set(w.index), w
     return pd.DataFrame(recs).set_index('date')
@@ -289,7 +291,7 @@ def run_tranched(P, cfg, start=280, lag=1):
     for j, t in enumerate(range(start, len(idx) - step - lag - 1, step)):
         k = j % K
         out = rank_day(P, t, c)
-        turnover = 0.0
+        turnover, traded = 0.0, {}
         if out is not None:
             m = P.meta_for(t)
             n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
@@ -314,7 +316,9 @@ def run_tranched(P, cfg, start=280, lag=1):
             else:
                 w = pd.Series(dtype=float)
             allw = pd.concat([w_k[k], w], axis=1).fillna(0.0)
-            turnover = float(0.5 * (allw.iloc[:, 1] - allw.iloc[:, 0]).abs().sum()) / K   # this tranche is 1/K of the book
+            dw = (allw.iloc[:, 1] - allw.iloc[:, 0]).abs() / K                          # this tranche is 1/K of the book
+            turnover = float(0.5 * dw.sum())
+            traded = dw[dw > 0].to_dict()
             held[k], w_k[k], expo_k[k] = set(w.index), w, expo
 
         e, x = t + lag, t + lag + step
@@ -330,7 +334,8 @@ def run_tranched(P, cfg, start=280, lag=1):
         net = gross - 2.0 * COST_BP_PER_SIDE / 10000.0 * turnover
         recs.append(dict(date=idx[t], gross=gross, net=net, turnover=turnover,
                          expo=float(np.mean(expo_k)), n=float(np.mean([len(w) for w in w_k])),
-                         distinct=float(len(set().union(*[set(w.index) for w in w_k])))))
+                         distinct=float(len(set().union(*[set(w.index) for w in w_k]))),
+                         traded=traded))
     return pd.DataFrame(recs).set_index('date')
 
 

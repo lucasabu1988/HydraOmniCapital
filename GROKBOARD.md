@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 18:05] CLAUDE: Lucas pregunto que tareas hay para vos antes de decidir A/B/C. Cola
+TASK-330..334: 330 fase de F1 (decide si la opcion B existe), 331 sensibilidad de T20 alrededor de
+sus valores pre-especificados (no es tuning: tabla completa, sin elegir), 332 bootstrap pareado
+T20-PROD y F1-PROD + Sharpe deflactado, 333 costes por tamanio sobre los candidatos del lab (el lab
+ya emite `traded` por nombre, commit posterior a b33bb9f), 334 precio de un historico Russell de
+pago. Todo importa el lab, nadie lo edita; DEV salvo donde la tarea diga lo contrario. TEST sigue
+cerrado para variantes nuevas.
+
 [2026-09-06 17:40] CLAUDE: Review de TASK-326..329: **las cuatro APROBADAS** (notas en Completed).
 Lo que cambia con ellas: (326) ningun numero del rediseno es del universo de produccion y no se
 puede medir hasta comprar historico Russell; (327) a 10 bp somos conservadores en S&P (7.5% neto
@@ -747,8 +755,59 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 Batch for the algorithm redesign (Lucas, 2026-09-06: target >= 10% annualised, read as NET of
 costs on the point-in-time 2004-2026 panel, where production does 9.6% gross / 5.4% net).
-TASK-326..329 were delivered and reviewed on 2026-09-06 (see Completed). The queue is empty until
-Lucas decides on the redesign verdict (`.comms/claude-redesign-verdict-2026-09-06.md`, section 9).
+TASK-326..329 were delivered and reviewed on 2026-09-06 (see Completed). The verdict is in
+`.comms/claude-redesign-verdict-2026-09-06.md`; Lucas has not chosen A/B/C yet. TASK-330..333 below
+are valid whatever he chooses: they harden the numbers in that document. Rules for all of them:
+**import `experiments/redesign_lab.py`, never edit it** (`import redesign_lab as L`; `L.load_panel(oos=True)`,
+`L.run_any(P, cfg, start=...)`, `L.stats(df, L.step_of(cfg), label)`, `L.CONFIGS`, `L.BASE`). Every run is
+**DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
+and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
+into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 333 -> 334.
+
+- [ ] `TASK-330` **Phase robustness of F1 (option B).** F1 = `dict(buffer=2.0, hold=10)` is a single-phase
+  10-bar rebalance; its DEV 5.64% net was measured from start bar 280 only. The 12-7 analogue swung
+  6.93 / 5.10 between phases and hold-20 swung 8.19 / 3.58, which is why T20 exists. Measure F1 at
+  `start=280+k` for k in 0..9 (DEV only) and report ann_gross/ann_net/Sharpe/maxDD per phase plus
+  mean and range. Also run `F1_ens` (same config with `mom='ens'`) at k = 0 and 5. Verdict line: is
+  F1 a strategy or a phase? If the range exceeds ~2 pp net, option B is dead and say so.
+  Files: `experiments/f1_phase.py`, `.comms/grok-task-330-f1-phase.md`.
+
+- [ ] `TASK-331` **Sensitivity of T20 around its pre-specified values (not tuning).** T20's knobs were
+  taken from the literature, not searched: target_vol 0.15, buffer 2.0, tranches 4, hold 20. Show
+  the result is not a knife edge: run T20 with target_vol in {0.12, 0.15, 0.18}, buffer in {1.5, 2.0,
+  3.0}, hold/tranches in {(20,4), (20,2), (30,6)} — one axis at a time, base values held (9 runs,
+  DEV only). Report the full table; do NOT pick the best cell, do not touch TEST. Verdict line: the
+  spread of ann_net across each axis. Files: `experiments/t20_sensitivity.py`,
+  `.comms/grok-task-331-t20-sensitivity.md`.
+
+- [ ] `TASK-332` **Paired block bootstrap: is T20 − PROD distinguishable from noise?** Both runners emit
+  weekly (5-bar) net returns on the same dates (T20 via `run_tranched`, PROD via `run`; align on
+  `date`). On the FULL sample (this is inference on already-reported series, not a new variant):
+  stationary/moving block bootstrap (block 13 weeks, 5000 draws) of the paired difference in
+  annualised net return and in Sharpe; report 90/95% intervals and P(T20 ≤ PROD). Repeat for F1 − PROD
+  (F1 is 10-bar: compound PROD to 10 bars on F1's dates first). Also print the deflated-Sharpe view:
+  with N=38 DEV trials and ρ≈0.7, what Sharpe a lucky pick would show (Bailey & López de Prado 2014).
+  Files: `experiments/bootstrap_compare.py`, `test_bootstrap_compare.py` (synthetic: identical series
+  → interval contains 0, shifted series → excludes 0), `.comms/grok-task-332-bootstrap.md`.
+
+- [ ] `TASK-333` **Size-aware costs on the lab candidates (closes the loop with TASK-327).** Both lab
+  runners now emit a `traded` column: `{name: |Δweight|}` per step, `sum/2 == turnover` exactly
+  (commit after `b33bb9f`). Price each step of PROD, F1 and T20 with `cost_model.cost_bp_per_side`
+  on `P.ADV_USD.iloc[t]` (the lab panel already has it) using the nv2016 curve, and print
+  ann_net_flat10 next to ann_net_sized for DEV, TEST and ALL — TEST is allowed here because no
+  candidate is being chosen, only re-priced. Acceptance: flat 10 reproduces the lab's ann_net to
+  2 decimals for all three. Add a second row per config with the curve shifted +10 bp everywhere
+  (the "production is Russell" stress). Files: `experiments/lab_costs.py`,
+  `.comms/grok-task-333-lab-costs.md`. Do not edit `cost_model.py`'s knots.
+
+- [ ] `TASK-334` **What would an honest Russell history cost? (research, one page).** TASK-326 says
+  the free road is closed. Price the paid ones so Lucas can decide option C with a number: Norgate
+  Data (Platinum, includes delisted + historical Russell 1000/2000/3000 constituents — plan, USD/yr,
+  format, Python API), FTSE Russell historical constituent files (how to buy, price if published),
+  Sharadar/Nasdaq Data Link (SEP + tickers with delistings; does it carry index membership?),
+  EODHD / Polygon (delisted coverage, index constituents history?). For each: PIT membership yes/no,
+  delisted prices yes/no, entity ids yes/no, price, licence for personal use. No purchases, no
+  sign-ups. Files: `.comms/grok-task-334-paid-russell.md`.
 
 - [!] **Blocked on Lucas:** go/no-go on the redesign candidate (verdict doc section 9: A = implement
   T20 as v9 behind a switch, B = minimal F1, C = no scoring change). Nothing else blocked.
