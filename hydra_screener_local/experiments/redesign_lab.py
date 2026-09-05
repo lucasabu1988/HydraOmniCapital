@@ -62,6 +62,14 @@ def load_panel(oos=True):
     P.MOM_6_1 = c.shift(21) / c.shift(126) - 1
     P.MOM_12_7 = c.shift(126) / c.shift(252) - 1     # Novy-Marx (2012): the intermediate horizon carries the effect
     P.ADV_USD = (c * P.volume).rolling(20).mean()
+    # data quality, point-in-time: legacy exp53 excluded names with a >50% single-day move (Yahoo's
+    # delisted/reused tickers carry +3000% 'returns'). Trailing window so there is no look-ahead.
+    P.JUMP252 = P.rets.abs().rolling(252, min_periods=20).max()
+    P.SPY_R5 = P.spy / P.spy.shift(5) - 1
+    irx_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '_sweep_cache_oos', 'irx.pkl')
+    irx = pd.read_pickle(irx_path) if os.path.exists(irx_path) else pd.Series(dtype=float)
+    P.IRX = irx.reindex(c.index).ffill().fillna(0.0) / 100.0      # 13-week T-bill, annualised, decimal
+    P.SPY_R10 = P.spy / P.spy.shift(10) - 1
     # legacy COMPASS EXP56 (2026-03-05 design doc): risk-adjusted momentum at 21/63/126/252 bars with a
     # 5-bar skip, percentile-ranked within the eligible universe, averaged. Taken as specified, not tuned.
     P.ENS_PARTS = {lb: (c.shift(5) / c.shift(5 + lb) - 1) for lb in ENS_LOOKBACKS}
@@ -69,11 +77,14 @@ def load_panel(oos=True):
 
     # the harness recomputes the regime on the whole panel per date: O(T*N) each. Same values
     # from the last 300 rows (SMA200 is the longest window it uses); ~40x faster.
-    def meta_fast(t, _cache=P._cache):
+    P._cache_nb = {}
+    def meta_fast(t, breadth=True, _cache=P._cache):
+        if not breadth:
+            _cache = P._cache_nb
         if t not in _cache:
             lo = max(0, t - 300)
             s = P.spy.iloc[lo:t + 1]
-            rr = compute_rich_regime_scores(s, c.iloc[lo:t + 1])
+            rr = compute_rich_regime_scores(s, c.iloc[lo:t + 1] if breadth else None)
             cur = float(s.iloc[-1]); mx = float(s.rolling(60).max().iloc[-1])
             vl = float(s.pct_change(fill_method=None).rolling(20).std().iloc[-1] * np.sqrt(252))
             _cache[t] = P.meta.compute_adjustment(
@@ -99,6 +110,10 @@ BASE = dict(
     vol_estimator='cycles', # cycles   = std of the strategy's last K cycle returns (window changes with hold!)
                             # basket63 = trailing 63-day daily vol of the basket about to be held (hold-independent)
     min_dollar_vol=5e6,     # production FILTERS since 2026-09-06
+    max_jump=None,          # exclude names whose trailing-252 max |daily ret| exceeds this (None = off, as production)
+    crash_brake=False,      # legacy v8.4: no new entries when SPY 5d < -6% or 10d < -10%
+    cash_yield=False,       # idle cash earns the 13-week T-bill (accounting fix, not a strategy lever)
+    regime_breadth=True,    # False = rich regime without the 10% breadth sub-score (legacy found breadth harmful twice)
 )
 
 CONFIGS = {
@@ -145,6 +160,15 @@ CONFIGS = {
     'PROD_ens': dict(mom='ens'),
     'T20_ens':  dict(mom='ens', hold=20, tranches=4, buffer=2.0, exposure='voltarget', vol_estimator='basket63'),
     'F1_ens':   dict(mom='ens', buffer=2.0, hold=10),
+    # legacy corpus, second pass (2026-09-06): data-quality filter (exp53) and market crash brake (v8.4)
+    'PROD_dq':  dict(max_jump=1.0),
+    'T20_dq':   dict(mom='mom12_7', hold=20, tranches=4, buffer=2.0, exposure='voltarget', vol_estimator='basket63', max_jump=1.0),
+    'T20_brake': dict(mom='mom12_7', hold=20, tranches=4, buffer=2.0, exposure='voltarget', vol_estimator='basket63', crash_brake=True),
+    'PROD_brake': dict(crash_brake=True),
+    'PROD_cy':  dict(cash_yield=True),
+    'T20_cy':   dict(mom='mom12_7', hold=20, tranches=4, buffer=2.0, exposure='voltarget', vol_estimator='basket63', cash_yield=True),
+    'PROD_nobreadth': dict(regime_breadth=False),
+    'T20_nobreadth':  dict(mom='mom12_7', hold=20, tranches=4, buffer=2.0, exposure='voltarget', vol_estimator='basket63', regime_breadth=False),
 }
 
 
@@ -154,6 +178,8 @@ def rank_day(P, t, c):
     px = P.close.iloc[t]
     elig = (px.notna() & (px >= 5.0) & (P.VOL20M.iloc[t] >= 100_000) & (P.FLAT5.iloc[t] != 1)
             & (P.ADV_USD.iloc[t] >= c['min_dollar_vol']))
+    if c['max_jump'] is not None:
+        elig &= ~(P.JUMP252.iloc[t] > c['max_jump']).fillna(False)
     if getattr(P, 'pit_payload', None):
         from data.universe import yahoo_membership_as_of
         members = set(yahoo_membership_as_of(P.close.index[t].strftime('%Y-%m-%d'), P.pit_payload))
@@ -223,7 +249,7 @@ def run(P, cfg, start=280, lag=1):
         out = rank_day(P, t, c)
         if out is None:
             continue
-        m = P.meta_for(t)
+        m = P.meta_for(t, c['regime_breadth'])
         n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
 
         sel = select(out, n, held, c['buffer'])
@@ -245,6 +271,8 @@ def run(P, cfg, start=280, lag=1):
                 expo = 1.0
         else:
             expo = 1.0
+        if c['crash_brake'] and (P.SPY_R5.iloc[t] < -0.06 or P.SPY_R10.iloc[t] < -0.10):
+            expo = 0.0
         if expo <= 0:
             sel = out.head(0)
         if len(sel):
@@ -259,7 +287,9 @@ def run(P, cfg, start=280, lag=1):
 
         e, x = t + lag, t + lag + hold
         r = (P.close.iloc[x][w.index] / P.close.iloc[e][w.index] - 1).fillna(0.0) if len(w) else pd.Series(dtype=float)
-        gross = float((w * r).sum()) if len(w) else 0.0            # cash earns 0
+        gross = float((w * r).sum()) if len(w) else 0.0            # cash earns 0 unless cash_yield
+        if c['cash_yield']:
+            gross += max(0.0, 1.0 - float(w.sum())) * float(P.IRX.iloc[t]) * hold / 252.0
         # one-way traded fraction of the portfolio, exposure changes included
         allw = pd.concat([prev_w, w], axis=1).fillna(0.0)
         dw = (allw.iloc[:, 1] - allw.iloc[:, 0]).abs()
@@ -293,7 +323,7 @@ def run_tranched(P, cfg, start=280, lag=1):
         out = rank_day(P, t, c)
         turnover, traded = 0.0, {}
         if out is not None:
-            m = P.meta_for(t)
+            m = P.meta_for(t, c['regime_breadth'])
             n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
             sel = select(out, n, held[k], c['buffer'])
             if c['exposure'] == 'regime_gate':
@@ -304,6 +334,8 @@ def run_tranched(P, cfg, start=280, lag=1):
                 expo = float(min(1.0, c['target_vol'] / rv)) if rv > 0 else 1.0
             else:
                 expo = 1.0
+            if c['crash_brake'] and (P.SPY_R5.iloc[t] < -0.06 or P.SPY_R10.iloc[t] < -0.10):
+                expo = 0.0
             if expo <= 0:
                 sel = out.head(0)
             if len(sel):
@@ -325,11 +357,12 @@ def run_tranched(P, cfg, start=280, lag=1):
         tr = []
         for kk in range(K):
             wk = w_k[kk]
+            cash_r = max(0.0, 1.0 - float(wk.sum())) * float(P.IRX.iloc[t]) * step / 252.0 if c['cash_yield'] else 0.0
             if len(wk):
                 r = (P.close.iloc[x][wk.index] / P.close.iloc[e][wk.index] - 1).fillna(0.0)
-                tr.append(float((wk * r).sum()))
+                tr.append(float((wk * r).sum()) + cash_r)
             else:
-                tr.append(0.0)
+                tr.append(cash_r)
         gross = float(np.mean(tr))
         net = gross - 2.0 * COST_BP_PER_SIDE / 10000.0 * turnover
         recs.append(dict(date=idx[t], gross=gross, net=net, turnover=turnover,

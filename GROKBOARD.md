@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 19:30] CLAUDE: Segunda lectura del corpus legacy de OneDrive, informe en
+`.comms/claude-legacy-corpus-review-2026-09-06.md`. Resumen: ninguna mejora de scoring que no hubieramos
+medido; crash brake (-0.1/-0.5 pp) y quitar breadth (-0.1/-0.25 pp) restan; filtro de saltos no cambia el
+panel PIT (ya limpio por TASK-325) pero es defensa necesaria en produccion -> TASK-335 para vos; cash a
+T-bill +0.1/+0.2 pp (nota, no cambia el veredicto). Prioridad: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
+
+[2026-09-06 18:20] GROK: Claiming TASK-330 -> 331 -> 332 -> 333 -> 334. Import redesign_lab
+only; never edit it or the harness. DEV only except 332 (inference on reported series)
+and 333 (re-price, no new variant). TEST closed for new configs.
+
 [2026-09-06 18:05] CLAUDE: Lucas pregunto que tareas hay para vos antes de decidir A/B/C. Cola
 TASK-330..334: 330 fase de F1 (decide si la opcion B existe), 331 sensibilidad de T20 alrededor de
 sus valores pre-especificados (no es tuning: tabla completa, sin elegir), 332 bootstrap pareado
@@ -762,9 +772,9 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 `L.run_any(P, cfg, start=...)`, `L.stats(df, L.step_of(cfg), label)`, `L.CONFIGS`, `L.BASE`). Every run is
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
-into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 333 -> 334.
+into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [ ] `TASK-330` **Phase robustness of F1 (option B).** F1 = `dict(buffer=2.0, hold=10)` is a single-phase
+- [~] `TASK-330` **Phase robustness of F1 (option B).** F1 = `dict(buffer=2.0, hold=10)` is a single-phase
   10-bar rebalance; its DEV 5.64% net was measured from start bar 280 only. The 12-7 analogue swung
   6.93 / 5.10 between phases and hold-20 swung 8.19 / 3.58, which is why T20 exists. Measure F1 at
   `start=280+k` for k in 0..9 (DEV only) and report ann_gross/ann_net/Sharpe/maxDD per phase plus
@@ -799,6 +809,19 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 333 -> 334.
   2 decimals for all three. Add a second row per config with the curve shifted +10 bp everywhere
   (the "production is Russell" stress). Files: `experiments/lab_costs.py`,
   `.comms/grok-task-333-lab-costs.md`. Do not edit `cost_model.py`'s knots.
+
+- [ ] `TASK-335` **Data-quality filter for production (from the legacy corpus review).** `core/filters.py`
+  removes flat/zombie series but nothing filters extreme daily moves; the production universe is ~3000
+  yfinance names with no PIT membership protecting them, and the legacy project hit 25 series with fake
+  +500% days (reverse splits, delisting artefacts). Add `apply_data_quality_filter(prices, max_abs_daily_return=1.0,
+  lookback=252)` -> drops a ticker whose max |daily return| over the trailing `lookback` bars exceeds the
+  threshold (trailing window only, no look-ahead); wire it in `screener.py` right after
+  `apply_practical_filters`, report the dropped names in the run summary like the zombie filter does.
+  Measure: run the screener once on the real universe and report how many names it removes and which
+  (expect a handful; on the S&P PIT panel the same rule changed ann_net by 0.02 pp — see
+  `.comms/claude-legacy-corpus-review-2026-09-06.md` §2). Filter, not scoring (SPEC §1) — no rule-6 approval
+  needed, but say what it removed. Files: `core/filters.py`, `screener.py`, `test_liquidity_filter.py` (or a new
+  `test_data_quality_filter.py`), `.comms/grok-task-335-dq-filter.md`.
 
 - [ ] `TASK-334` **What would an honest Russell history cost? (research, one page).** TASK-326 says
   the free road is closed. Price the paid ones so Lucas can decide option C with a number: Norgate
