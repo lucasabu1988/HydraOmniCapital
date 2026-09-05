@@ -10,7 +10,7 @@ This audit scanned the codebase for hardcoded credentials, sensitive information
 
 ### 1. Hardcoded Tiingo API Key — [CRITICAL]
 - **Location**: `omnicapital_v8_compass_tiingo.py:27`
-- **Impact**: The Tiingo API key `2b4b5626b2849123c9dac0769e418f9b0ccd2a56` is visible in the source code. This key can be used by unauthorized parties to access paid data, potentially leading to account exhaustion or data limits being reached.
+- **Impact**: A Tiingo API key was hardcoded in source. It can be used by unauthorized parties to access paid data, potentially leading to account exhaustion or data limits being reached. Redacted here; rotate the key at Tiingo.
 - **Risk**: High risk of theft if committed to a public repository.
 
 ### 2. SEC EDGAR Contact Placeholder — [MEDIUM]

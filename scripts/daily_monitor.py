@@ -141,9 +141,13 @@ class DailyMonitor:
         # Configurar con tus credenciales
         smtp_server = "smtp.gmail.com"
         smtp_port = 587
-        from_email = "tu_email@gmail.com"
-        password = "tu_password"
-        
+        from_email = os.environ.get('SMTP_FROM_EMAIL', '')
+        password = os.environ.get('SMTP_PASSWORD', '')
+
+        if not from_email or not password:
+            print("SMTP_FROM_EMAIL or SMTP_PASSWORD not set — skipping email send")
+            return
+
         msg = MIMEMultipart()
         msg['From'] = from_email
         msg['To'] = to_email

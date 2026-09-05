@@ -144,11 +144,11 @@ class DailyMonitor:
         # Configurar con tus credenciales
         smtp_server = "smtp.gmail.com"
         smtp_port = 587
-        from_email = "tu_email@gmail.com"
+        from_email = os.environ.get('SMTP_FROM_EMAIL', '')
         password = os.environ.get('SMTP_PASSWORD', '')
 
-        if not password:
-            logger.warning("SMTP_PASSWORD not set — skipping email send")
+        if not from_email or not password:
+            logger.warning("SMTP_FROM_EMAIL or SMTP_PASSWORD not set — skipping email send")
             return
 
         msg = MIMEMultipart()

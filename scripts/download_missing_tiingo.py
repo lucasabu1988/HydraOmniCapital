@@ -4,9 +4,8 @@ Focuses on tickers that yfinance CANNOT provide (truly delisted/bankrupt).
 Saves to data_sources/tiingo_bulk/ as parquet files.
 
 Usage:
-    python scripts/download_missing_tiingo.py                    # uses hardcoded token
-    python scripts/download_missing_tiingo.py --token YOUR_TOKEN
     TIINGO_TOKEN=xxx python scripts/download_missing_tiingo.py
+    python scripts/download_missing_tiingo.py --token YOUR_TOKEN
 """
 import json
 import os
@@ -28,7 +27,6 @@ MISSING_FILE = os.path.join(BASE_DIR, 'data_sources', 'missing_tickers_master.js
 OUTPUT_DIR = os.path.join(BASE_DIR, 'data_sources', 'tiingo_bulk')
 STATE_FILE = os.path.join(BASE_DIR, 'data_sources', 'tiingo_download_state.json')
 
-TIINGO_TOKEN_FALLBACK = '2b4b5626b2849123c9dac0769e418f9b0ccd2a56'
 TIINGO_BASE = 'https://api.tiingo.com/tiingo/daily'
 SLEEP_BETWEEN_DEFAULT = 3.0  # seconds — keeps us at ~1200/hr, well under 500/hr hard limit
 SLEEP_BETWEEN = SLEEP_BETWEEN_DEFAULT
@@ -142,7 +140,10 @@ def main():
     global SLEEP_BETWEEN  # noqa
     SLEEP_BETWEEN = args.sleep
 
-    token = os.environ.get('TIINGO_TOKEN') or args.token or TIINGO_TOKEN_FALLBACK
+    token = os.environ.get('TIINGO_TOKEN') or args.token or ''
+    if not token:
+        logger.error('No Tiingo token found. Set TIINGO_TOKEN or pass --token.')
+        sys.exit(1)
     logger.info(f'Using token: {token[:8]}...{token[-4:]}')
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)

@@ -29,9 +29,6 @@ USAGE:
     # Option 2: command-line argument
     python scripts/test_tiingo_delisted.py --token your_token_here
 
-    # Option 3: uses hardcoded token from omnicapital_v8_compass_tiingo.py (already in project)
-    python scripts/test_tiingo_delisted.py
-
 OUTPUT:
     - Console report for each ticker: EXISTS / NO_DATA / ERROR + date range + row count
     - Writes results/tiingo_delisted_coverage.json with full details
@@ -41,6 +38,7 @@ OUTPUT:
 import argparse
 import json
 import os
+import sys
 import time
 import requests
 from datetime import datetime, timedelta
@@ -48,9 +46,6 @@ from datetime import datetime, timedelta
 # ---------------------------------------------------------------------------
 # CONFIGURATION
 # ---------------------------------------------------------------------------
-
-# Hardcoded fallback from omnicapital_v8_compass_tiingo.py (already in project)
-TIINGO_API_KEY_FALLBACK = '2b4b5626b2849123c9dac0769e418f9b0ccd2a56'
 
 TIINGO_BASE_URL = 'https://api.tiingo.com/tiingo/daily'
 
@@ -467,16 +462,11 @@ def main():
         print_rate_capacity_analysis()
         return
 
-    # Resolve token: env var > CLI arg > hardcoded fallback
-    token = (
-        os.environ.get('TIINGO_TOKEN')
-        or args.token
-        or TIINGO_API_KEY_FALLBACK
-    )
-
-    if token == TIINGO_API_KEY_FALLBACK:
-        print('\n  [INFO] Using hardcoded token from omnicapital_v8_compass_tiingo.py')
-        print('         Set TIINGO_TOKEN env var or --token to use a different token.')
+    token = os.environ.get('TIINGO_TOKEN') or args.token or ''
+    if not token:
+        print('\n  [ERROR] No Tiingo token found.')
+        print('         Set TIINGO_TOKEN env var or pass --token.')
+        sys.exit(1)
 
     sleep_secs = args.sleep
     print_rate_capacity_analysis()
