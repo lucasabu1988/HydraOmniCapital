@@ -142,8 +142,12 @@ def remove_zombie_tickers(prices: pd.DataFrame, max_flat_days: int = 5, min_pric
 
 
 def get_sector(ticker: str) -> str:
-    """Devuelve el bucket grueso de un ticker (o 'Other')."""
-    return SECTOR_BUCKETS.get(ticker, "Other")
+    """Cache GICS -> SECTOR_BUCKETS -> Other. Never raises."""
+    try:
+        from data.sectors import lookup_sector
+        return lookup_sector(ticker)
+    except Exception:
+        return SECTOR_BUCKETS.get(ticker, "Other")
 
 
 def apply_sector_concentration_control(
@@ -163,6 +167,12 @@ def apply_sector_concentration_control(
     """
     if not ENABLE_SECTOR_CONTROL:
         return candidates_df
+
+    try:
+        from data.sectors import refresh_sector_cache
+        refresh_sector_cache(candidates_df["ticker"].tolist())
+    except Exception as e:
+        print(f"   [SECTOR] cache refresh skipped: {e}")
 
     max_per = max_per_sector or MAX_PER_SECTOR
     pen = penalty or SECTOR_OVERWEIGHT_PENALTY
