@@ -37,6 +37,35 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 19:20] CLAUDE: Deep-dive del algoritmo terminado (pedido de Lucas). Informe completo
+en `.comms/claude-algo-deep-dive-2026-09-05.md`, harness reproducible en
+`experiments/backtest_variant_sweep.py` (motor point-in-time validado contra
+`generate_daily_candidates`: top-50 idéntico, mismo set recomendado).
+
+Cola nueva: TASK-305..310. **Ninguna toca scoring** — lo que sí lo tocaría está aparcado en 310
+esperando a Lucas.
+
+Tres cosas que te van a interesar directamente:
+
+1. TASK-305/306 salen de tu territorio y están enlazadas: el watchdog de volumen de TASK-202
+   está muerto en producción (la columna se cae en el contrato de salida), y el motivo de que
+   pasara mi revisión es que `run_all_tests.py` da `[PASS]` a ficheros pytest sin bloque
+   `__main__` — no ejecutan nada y salen 0. Bajo pytest, `test_volume_watchdog.py` da 2 fallos
+   reales, que son exactamente ese bug. El test estaba bien; la infraestructura lo silenciaba.
+   Mea culpa por aprobar TASK-202 sin correr pytest.
+
+2. Tu instinto en TASK-303 (mirar quién llama antes de borrar) es justo lo que faltó en varias
+   de estas piezas. La Meta-Layer entera (~230 líneas, 4 pilares, special modes) **no cambia el
+   ranking**: multiplica a todos los tickers por el mismo escalar, Spearman 1.000 entre STRONG y
+   WEAK. Solo mueve `dynamic_count`. No es un bug, pero la documentación describe un tilt de
+   estilo que no existe.
+
+3. Resultado central del backtest: **ninguna variante de parámetros mejora de forma
+   significativa**. La que más promete (quitar el vol-scaling, +27 bp/ciclo, p=0.009) resulta ser
+   beta 1.51 vs 0.95; igualando volatilidad el residuo es +14 bp con IC95% [-4.4, +33.5] — cero
+   incluido. Con 39% de rotación por ciclo, el modelo de costes mueve más el resultado neto que
+   cualquier variante de la tabla.
+
 [2026-09-05 17:40] CLAUDE: Follow-up on the "6/7" number — heads-up for both of us.
 
 On my console `run_all_tests.py` reported **4/7**: `test_spec_compliance.py` and
@@ -165,7 +194,61 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
-(empty — next batch coming from Claude)
+Batch from the algorithm deep-dive (2026-09-05). Full analysis with the evidence for every item:
+[`.comms/claude-algo-deep-dive-2026-09-05.md`](.comms/claude-algo-deep-dive-2026-09-05.md).
+Reproduce any number with `python experiments/backtest_variant_sweep.py --validate --sweep --risk`.
+
+**None of these change scoring.** Anything that would is parked for Lucas (see TASK-310).
+Priority: 305 -> 306 -> 307 -> 308.
+
+- [ ] `TASK-305` **The TASK-202 volume watchdog never fires.** `core/signals.py:231` computes
+  `vol_ratio_nan_share` but the SPEC §7 output contract (`final_df = df[[...]]`) drops the
+  column, so `screener.py:80` always reads the `0.0` default and `history.py` records `0.0`
+  every day. Add the column to the contract and to the rename list, and add it to SPEC §7.
+  Verify by forcing NaN volume and seeing the warning actually print.
+  Files: `core/signals.py`, `HYDRA_ALGORITHM_SPEC.md`.
+
+- [ ] `TASK-306` **The runner reports untested files as green.** `run_all_tests.py` runs each
+  test as a script. `test_volume_watchdog.py` and `test_universe_robustness.py` are pytest-style
+  with no `if __name__ == "__main__"` block: they execute nothing, exit 0, and are reported
+  `[PASS]`. Under pytest, `test_volume_watchdog.py` gives 2 real failures — the ones that catch
+  TASK-305. Make the runner detect a file with no `__main__` and run it through pytest (or fail
+  loudly). Do 305 first so this test goes green for the right reason.
+  Files: `run_all_tests.py`.
+
+- [ ] `TASK-307` **The reported regime is not the regime that decides.** `screener.py:77` uses
+  `compute_regime_score` (simple `0.7*trend + 0.3*mom20`) for the printed summary and for
+  `save_daily_run(regime_score=...)`, while scoring uses `compute_rich_regime_scores`. Measured
+  on 2026-09-04: 0.793 reported vs 0.693 actually used — enough to cross a `regime_type`
+  threshold, which means the history JSON labels every run with the wrong regime and
+  `analyze_history.py` correlates outcomes against the wrong variable. Report and persist
+  `candidates['regime'].iloc[0]` instead. Do not change any scoring path.
+  Files: `screener.py`.
+
+- [ ] `TASK-308` **Dead code from the deep-dive.** (a) `MOMENTUM_SKIP` is imported in
+  `core/signals.py:21` and never used — remove the import, keep the constant in `config.py`
+  and leave a comment pointing at TASK-310. (b) `dynamic_vol_threshold` is computed twice,
+  identically, inside `generate_daily_candidates` — drop the second one.
+  Files: `core/signals.py`.
+
+- [ ] `TASK-309` **Sector control is degenerate — proposal only, do not implement yet.**
+  `SECTOR_BUCKETS` maps 80 tickers; production runs ~3000. Everything unmapped lands in
+  `"Other"`, and `MAX_PER_SECTOR=8` then penalises 15% of everything ranked >8 inside it:
+  measured 435 of 498 names penalised on the S&P 500. In practice it is a 15% tax on anything
+  outside a hardcoded 80-name list, which is close to the opposite of a diversification control.
+  Write a short proposal in `.comms/` for fetching real sectors from yfinance once a day into a
+  cached JSON (same pattern as the universe cache), with the fallback behaviour spelled out.
+  No code changes until Claude reviews the proposal.
+  Files: `.comms/` only.
+
+- [ ] `TASK-310` **BLOCKED — needs Lucas.** Scoring decisions surfaced by the deep-dive, listed
+  so they are not silently forgotten. Do not touch any of it (rule 6):
+  (a) breadth spec/code drift — SPEC §4.3 says `0.4*sma50 + 0.6*sma200`, the code uses
+  `0.3*pct_positive + 0.3*sma50 + 0.4*sma200`; recommended resolution is to update the spec,
+  not the code; (b) `MOMENTUM_SKIP` — `CLAUDE.md` documents v8.4 as "90d lookback, 5d skip"
+  and the local screener applies no skip; (c) the vol-scaling exponent. Evidence for all three
+  is in the deep-dive; the short version is that none of them showed a statistically significant
+  improvement, so the default is to change nothing and document the intent.
 
 ---
 

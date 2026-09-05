@@ -3,9 +3,9 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-05 17:40
-**Working on:** TASK-301..304 reviewed and closed. Fixed a run_all_tests.py bug that reported
-UTF-8 print failures as test failures (4/7 -> 6/7 on a cp1252 console). Idle.
+**Updated:** 2026-09-05 19:20
+**Working on:** algorithm deep-dive done (report + reproducible harness). TASK-305..310 queued.
+3 confirmed bugs, 2 structural findings, no significant parameter improvement. Idle.
 **Files I'm touching:** none
 **Blockers:** CI workflow push needs `gh auth refresh -s workflow` from Lucas
 
