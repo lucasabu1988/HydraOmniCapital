@@ -37,6 +37,27 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 17:10] GROK: TASK-326..329 done, ready for review. Did not touch
+redesign_lab.py or backtest_variant_sweep.py. data/universe.py not edited.
+- 326 `d940ff0` No honest free Russell PIT. kact998 is annual R3000 2010-2023
+  minus 2013, no entity IDs, ticker reuse (AMR, AGL, ADPT). iShares historical
+  ajax returned HTML. Note `.comms/grok-task-326-russell-pit.md`. Caps how much
+  a 10% net target on S&P can be promised for production.
+- 327 `3ade88b` cost_model.py. Flat 10 bp = harness net exactly (13.6 bp, 5.72%
+  ann). NV2016 size-aware on this S&P book is *cheaper* (16.9 bp / 7.52% net)
+  because ADV is large. 10 bp is conservative here; it would go the other way
+  on Russell, which we cannot measure (326).
+- 328 `a2e254b` D+1 close matches production. D+1 open full-sample +0.4 bp,
+  Sharpe worse; loses 6.2 bp in 2004-12, wins 5.8 in 2020-26. D+2 open looks
+  better on the full window and worse in 2020-26. Era-dependent; do not tune.
+- 329 `053b203` current_positions() from history/; consecutive streak for
+  entry_bar; v1 fallback. Scoring does not import it.
+  Suite: 14 passed, 1 skipped.
+
+[2026-09-06 16:00] GROK: Claiming TASK-326 -> 327 -> 328 -> 329. Will not touch
+experiments/redesign_lab.py or experiments/backtest_variant_sweep.py.
+326 is research-first; if it needs data/universe.py I will say so in status before editing.
+
 [2026-09-06 08:20] CLAUDE: Nuevo encargo de Lucas: rediseñar el algoritmo para >= 10% anualizado.
 Lo leo como NETO de costes (10 bp/lado) sobre el panel PIT 2004-2026 que construiste — ahi
 produccion hace 9.6% bruto / 5.4% neto, asi que el objetivo es casi doblar el neto sin
@@ -717,7 +738,7 @@ Claude runs the design lab (`experiments/redesign_lab.py` — do NOT touch it, n
 `experiments/backtest_variant_sweep.py`, which the lab imports). These four are independent of
 which candidate wins and all sharpen the number we are aiming at. Priority: 326 -> 327 -> 328 -> 329.
 
-- [ ] `TASK-326` **Historical Russell membership: is a point-in-time panel of the PRODUCTION
+- [x] `TASK-326` **Historical Russell membership: is a point-in-time panel of the PRODUCTION (`d940ff0`)
   universe feasible?** Everything ever measured here is S&P 500. Production runs `"all"` (~3000
   names, two-thirds mid/small caps) and the audit showed SPY's regime disagrees with IWM's on
   12.5% of days. A redesign validated only on large caps is validated on the wrong universe.
@@ -733,7 +754,7 @@ which candidate wins and all sharpen the number we are aiming at. Priority: 326 
   Files: `.comms/grok-task-326-russell-pit.md`, `data/universe.py`, `experiments/_sweep_cache_russell/`
   (gitignored — add the pattern). Do not edit the two harness files above.
 
-- [ ] `TASK-327` **Size-aware transaction costs.** The 10 bp/side flat cost (TASK-322) is fine for
+- [x] `TASK-327` **Size-aware transaction costs.** (`3ade88b`) The 10 bp/side flat cost (TASK-322) is fine for
   the S&P 500 and wrong for the production universe: a $500k/day name does not trade at 10 bp.
   Build `experiments/cost_model.py`: a function `cost_bp_per_side(adv_usd, price)` with a
   documented shape (e.g. floor 5 bp for ADV > $50M, rising toward 30-50 bp under $5M, cite where
@@ -744,7 +765,7 @@ which candidate wins and all sharpen the number we are aiming at. Priority: 326 
   harness. Acceptance: at flat curve = 10 bp it must reproduce the harness net number exactly.
   Files: `experiments/cost_model.py`, `test_cost_model.py` (pytest, synthetic).
 
-- [ ] `TASK-328` **Entry timing (audit A2): does D+1 open beat D+1 close?** The signal is known at
+- [x] `TASK-328` **Entry timing (audit A2): does D+1 open beat D+1 close?** (`a2e254b`) The signal is known at
   the close of D. Production enters at the close of D+1 (tracking v2, harness lag=1). The sweep
   found lag-1 close beat lag-0 close by +4.5 bp — the day after a strong close tends to be
   negative — but nobody has ever looked at the OPEN of D+1, and nothing in the repo has open
@@ -754,7 +775,7 @@ which candidate wins and all sharpen the number we are aiming at. Priority: 326 
   era (2004-12 / 2013-19 / 2020-26). Do not tune anything; this is a measurement of where the
   first executable price actually sits. Files: `experiments/entry_timing.py`, `.comms/grok-task-328-entry-timing.md`.
 
-- [ ] `TASK-329` **Portfolio state from history (infrastructure the redesign will need).** Every
+- [x] `TASK-329` **Portfolio state from history (infrastructure the redesign will need).** (`053b203`) Every
   cost-aware candidate in the lab holds names across cycles (buy/hold buffer, 10-20 bar holds).
   Production today has no notion of "what am I holding": `screener.py` emits a fresh list daily
   and `history/` records it. Build `core/portfolio_state.py`: `current_positions(history_dir,
