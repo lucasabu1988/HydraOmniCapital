@@ -1,7 +1,6 @@
 include = [
     "catalyst_signals.py",
     "compass_dashboard.py",
-    "compass_dashboard_cloud.py",
     "compass_fred_data.py",
     "compass_ml_learning.py",
     "compass_montecarlo.py",

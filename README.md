@@ -153,7 +153,6 @@ Currently being rolled out in **shadow mode** on [omnicapital.onrender.com](http
 
 | Archivo | Rol |
 |---|---|
-| `compass_dashboard_cloud.py` | Flask app cloud (Render) — entrypoint deployado |
 | `compass_dashboard.py` | Flask app local + engine runner |
 | `omnicapital_live.py` | Core engine (`COMPASSLive`) — orquesta las 4 estrategias |
 | `omnicapital_v84_compass.py` | Algoritmo COMPASS v8.4 (LOCKED) |
@@ -199,7 +198,6 @@ python compass_dashboard.py    # Flask en localhost:5000
 
 Para deploy cloud-style:
 ```bash
-gunicorn compass_dashboard_cloud:app --bind 0.0.0.0:5000 --workers 1 --threads 4 --preload
 ```
 
 ---
@@ -212,7 +210,7 @@ pytest tests/ -v --cov-fail-under=50       # Con coverage threshold (CI default)
 python tests/validate_live_system.py       # Validación end-to-end
 ```
 
-CI corre en GitHub Actions con coverage mínimo del 50% en módulos críticos: `compass_api_models`, `compass_dashboard`, `compass_dashboard_cloud`, `compass_ml_learning`, `omnicapital_broker`, `omnicapital_live`.
+CI corre en GitHub Actions con dos jobs: `test` (motor legacy congelado, `pytest tests/`, cobertura informativa) y `screener` (`hydra_screener_local/run_all_tests.py`). El despliegue en Render se retiro el 2026-09-06; el dashboard, si se usa, corre en local.
 
 53 tests unitarios para `IBKRBroker` mock mode, todos passing.
 
