@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+from config import COST_BP_PER_SIDE
 from core.history import list_available_dates, load_daily_run
 
 HISTORY_DIR = "history"
@@ -226,9 +227,15 @@ def aggregate_winrate() -> Dict:
 
     df = pd.DataFrame(rows)
 
+    rt_cost = 2.0 * COST_BP_PER_SIDE / 10000.0
     report = {
         "total_candidates_tracked": len(df),
         "unique_dates": df["date"].nunique(),
+        "cost_assumption": {
+            "bp_per_side": COST_BP_PER_SIDE,
+            "round_trip": rt_cost,
+            "label": "modelled, not fills",
+        },
         "by_horizon": {},
     }
 
@@ -244,13 +251,16 @@ def aggregate_winrate() -> Dict:
         wins = (valid[col] > 0).sum()
         losses = (valid[col] <= 0).sum()
         total = len(valid)
+        net = valid[col] - rt_cost
 
         report["by_horizon"][f"{h}d"] = {
             "total": int(total),
             "wins": int(wins),
             "losses": int(losses),
             "win_rate": round(float(wins / total), 4) if total > 0 else 0.0,
+            "win_rate_net": round(float((net > 0).mean()), 4) if total > 0 else 0.0,
             "avg_return": round(float(valid[col].mean()), 4),
+            "avg_return_net": round(float(net.mean()), 4),
             "median_return": round(float(valid[col].median()), 4),
             "std_return": round(float(valid[col].std()), 4),
             "best": round(float(valid[col].max()), 4),
@@ -337,8 +347,8 @@ def print_detailed_report(df: pd.DataFrame):
         return
 
     print("\n=== Detalle por Ticker ===\n")
-    print(f"{'Fecha':<10} {'Ticker':<8} {'Regimen':<10} {'Special Mode':<22} {'Entry':>10} {'Exit 5d':>10} {'Ret 5d':>8} {'Ret 10d':>8}")
-    print("-" * 92)
+    print(f"{'Fecha':<10} {'Ticker':<8} {'Regimen':<10} {'Special Mode':<22} {'Entry':>10} {'Exit 5d':>10} {'Ret 5d':>8} {'Net 5d':>8} {'Ret 10d':>8}")
+    print("-" * 102)
 
     for _, r in df.iterrows():
         ret_5d = r.get("return_5d")
@@ -347,11 +357,13 @@ def print_detailed_report(df: pd.DataFrame):
         exit_5d = r.get("exit_price_5d")
 
         ret_5d_str = f"{ret_5d:>7.2%}" if pd.notna(ret_5d) else "   N/A"
+        net_5d = (ret_5d - 2.0 * COST_BP_PER_SIDE / 10000.0) if pd.notna(ret_5d) else None
+        net_5d_str = f"{net_5d:>7.2%}" if net_5d is not None else "   N/A"
         ret_10d_str = f"{ret_10d:>7.2%}" if pd.notna(ret_10d) else "   N/A"
         entry_str = f"{entry:>10.2f}" if pd.notna(entry) else "      N/A"
         exit_str = f"{exit_5d:>10.2f}" if pd.notna(exit_5d) else "      N/A"
 
-        print(f"{r['date']:<10} {r['ticker']:<8} {r['regime_type']:<10} {r['special_modes']:<22} {entry_str} {exit_str} {ret_5d_str} {ret_10d_str}")
+        print(f"{r['date']:<10} {r['ticker']:<8} {r['regime_type']:<10} {r['special_modes']:<22} {entry_str} {exit_str} {ret_5d_str} {net_5d_str} {ret_10d_str}")
 
     print()
 
@@ -364,14 +376,22 @@ def print_winrate_report(report: Dict):
 
     print("\n=== HYDRA Screener - Win-Rate Report ===\n")
     print(f"Candidatos trackeados: {report['total_candidates_tracked']}")
-    print(f"Dias unicos: {report['unique_dates']}\n")
+    print(f"Dias unicos: {report['unique_dates']}")
+    cost = report.get("cost_assumption") or {}
+    if cost:
+        print(f"Cost assumption: {cost.get('bp_per_side')} bp/side "
+              f"({cost.get('label', 'modelled')}; round-trip {cost.get('round_trip', 0):.2%})\n")
+    else:
+        print()
 
     for horizon, stats in report["by_horizon"].items():
         print(f"--- Horizonte {horizon} ---")
         print(f"  Total:   {stats['total']}")
         print(f"  Wins:    {stats['wins']}  |  Losses: {stats['losses']}")
-        print(f"  Win-rate: {stats['win_rate']:.2%}")
-        print(f"  Avg ret:  {stats['avg_return']:.2%}")
+        print(f"  Win-rate: {stats['win_rate']:.2%}"
+              + (f"  |  net {stats['win_rate_net']:.2%}" if "win_rate_net" in stats else ""))
+        print(f"  Avg ret:  {stats['avg_return']:.2%}"
+              + (f"  |  net {stats['avg_return_net']:.2%}" if "avg_return_net" in stats else ""))
         print(f"  Median:   {stats['median_return']:.2%}")
         print(f"  Std:      {stats['std_return']:.2%}")
         print(f"  Best:     {stats['best']:.2%}  |  Worst: {stats['worst']:.2%}")

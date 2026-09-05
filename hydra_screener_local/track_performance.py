@@ -15,6 +15,7 @@ try:
 except Exception as _e:
     print(f"[WARN] .env loader skipped: {_e}")
 
+from config import COST_BP_PER_SIDE
 from core.tracking import update_tracking, aggregate_winrate, print_winrate_report, get_detailed_trades, print_detailed_report
 
 
@@ -29,7 +30,8 @@ def main():
         print("*** HYBRID RECOMMENDED ONLY MODE ***")
         print("   Reporting focused on the exact lists that went to the TradingView dashboard.\n")
 
-    print("=== HYDRA Screener - Forward Return Tracking ===\n")
+    print("=== HYDRA Screener - Forward Return Tracking ===")
+    print(f"Cost assumption: {COST_BP_PER_SIDE} bp/side modelled (not fills)\n")
 
     # 1. Actualizar tracking
     update_tracking(force_recompute=args.force)

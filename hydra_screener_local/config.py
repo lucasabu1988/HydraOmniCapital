@@ -96,6 +96,10 @@ GEO_VOL_THRESHOLD_ADJUST = 0.6   # el umbral puede subir hasta +0.6 en riesgo m�
 # ni en el backtest ni en el screener en vivo, independientemente del riesgo geopolítico
 MIN_VOL_THRESHOLD = 1.0
 
+# Modelled round-trip cost (TASK-322). Not fills. 10 bp per side; a name that
+# enters or exits pays two sides. Used by the variant sweep and tracking reports.
+COST_BP_PER_SIDE = 10
+
 # ============================================
 # CONFIGURACIÓN DE SALIDA
 # ============================================

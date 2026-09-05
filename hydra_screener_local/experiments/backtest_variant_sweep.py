@@ -37,7 +37,8 @@ sys.path.insert(0, ROOT)
 from config import (MOMENTUM_LOOKBACK, SHORT_TERM_LOOKBACK, PROXIMITY_HIGH_DAYS,
                     MAX_DIST_TO_HIGH_PCT, SHORT_TERM_BOOST, VOL_SURGE_THRESHOLD,
                     MAX_PER_SECTOR, SECTOR_BUCKETS,
-                    GATE_MAX_DIST_TO_HIGH_PCT, GATE_MIN_RET_SHORT_PCT, MIN_REGIME_SCORE)
+                    GATE_MAX_DIST_TO_HIGH_PCT, GATE_MIN_RET_SHORT_PCT, MIN_REGIME_SCORE,
+                    COST_BP_PER_SIDE)
 from core.meta_layer import LightweightMetaLayer
 from core.regime import compute_rich_regime_scores
 
@@ -214,15 +215,28 @@ def run(P, cfg=None, start=260, step=5, hold=5, lag=1, topk=None):
     return pd.DataFrame(recs)
 
 
-def stats(df, label=''):
+def _net_returns(df, cost_bp):
+    """Gross ret minus 2 sides * cost_bp * turnover. cost_bp=0 => net == gross."""
+    return df['ret'] - (2.0 * cost_bp / 10000.0) * df['turnover']
+
+
+def stats(df, label='', cost_bp=None):
+    if cost_bp is None:
+        cost_bp = COST_BP_PER_SIDE
     r = df['ret']
+    net = _net_returns(df, cost_bp)
     eq = (1 + r).cumprod()
+    eq_net = (1 + net).cumprod()
     return dict(variant=label, cycles=len(r), avg_n=round(df['n'].mean(), 1),
                 mean_bp=round(r.mean() * 10000, 1),
+                net_bp=round(net.mean() * 10000, 1),
                 ann_pct=round(((1 + r).prod() ** (CYCLES_PER_YEAR / len(r)) - 1) * 100, 2),
+                ann_net_pct=round(((1 + net).prod() ** (CYCLES_PER_YEAR / len(r)) - 1) * 100, 2),
                 sharpe=round(r.mean() / r.std() * np.sqrt(CYCLES_PER_YEAR), 2),
                 maxdd_pct=round(float((eq / eq.cummax() - 1).min()) * 100, 1),
-                turnover_pct=round(df['turnover'].mean() * 100, 1))
+                maxdd_net_pct=round(float((eq_net / eq_net.cummax() - 1).min()) * 100, 1),
+                turnover_pct=round(df['turnover'].mean() * 100, 1),
+                cost_bp_side=cost_bp)
 
 
 # ----------------------------------------------------------------------------- modes
@@ -271,6 +285,8 @@ def sweep(P):
         keep[label] = df
         rows.append(stats(df, label))
         print('  done:', label, flush=True)
+    print(f'\ncosts: {COST_BP_PER_SIDE} bp/side modelled (net = gross - 2*bp*turnover); '
+          f'net==gross when cost is 0')
     print('\n' + pd.DataFrame(rows).to_string(index=False))
 
     base = keep['BASELINE (as-is)']['ret'].values
