@@ -90,6 +90,26 @@ def print_tv_instructions():
     print("=" * 70 + "\n")
 
 
+def backup_history_after_run():
+    """history/ lives on one disk and is the only record of what was recommended. Copy it out.
+
+    Destination: HYDRA_BACKUP_DIR if set, else ../hydra_backups next to the repo. The default is
+    on the same disk, which protects against a bad `rm`, not against the disk dying - set the
+    env var to a synced or external folder.
+    """
+    dest = os.environ.get("HYDRA_BACKUP_DIR") or str(ROOT.parent / "hydra_backups")
+    try:
+        from core.history import backup_history
+        path = backup_history(dest, history_dir=str(ROOT / "history"))
+    except Exception as e:
+        print(f"[WARN] history backup failed: {e}")
+        return
+    if path:
+        print(f"[OK] history backed up -> {path}")
+        if not os.environ.get("HYDRA_BACKUP_DIR"):
+            print("     (same disk as the repo; set HYDRA_BACKUP_DIR to a synced/external folder)")
+
+
 def maybe_refresh_pnl(do_refresh: bool):
     if not do_refresh:
         return
@@ -124,6 +144,8 @@ def main():
     exit_code = 0
     if not args.skip_screener:
         exit_code = run_screener(args.universe)
+        if exit_code == 0:
+            backup_history_after_run()
 
     if not args.no_instructions:
         print_tv_instructions()

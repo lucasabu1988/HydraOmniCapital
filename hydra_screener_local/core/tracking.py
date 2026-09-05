@@ -15,10 +15,17 @@ import yfinance as yf
 
 from config import COST_BP_PER_SIDE
 from core.history import list_available_dates, load_daily_run
+from utils.trading_calendar import first_bar_after, bar_ahead
 
 HISTORY_DIR = "history"
 TRACKING_DIR = "history/tracking"
-DEFAULT_HORIZONS = [5, 10]
+DEFAULT_HORIZONS = [5, 10]          # TRADING days (bars), see TRACKING_SCHEMA_VERSION 2
+
+# v1 measured horizons in calendar days and entered at the observed close. On 2020-2026 data
+# that made "5d" mean 3 trading days in 65% of cycles and understated the strategy by
+# ~18 bp/cycle (audit 2026-09-06, T1). v2 counts bars and enters at the first bar after the
+# signal - the earliest price anyone can actually get. Files below this version are recomputed.
+TRACKING_SCHEMA_VERSION = 2
 
 
 def _ensure_dir(path: str):
@@ -94,54 +101,77 @@ def _nearest_price(series: pd.Series, target_date: datetime, max_offset: int = 5
 
 
 def compute_forward_returns_for_run(run: Dict, prices_df: pd.DataFrame, horizons: List[int] = None) -> Dict:
-    """Calcula retornos forward para una corrida dada."""
+    """Forward returns for one screener run, measured the way the strategy is meant to trade.
+
+    Entry  = close of the first bar strictly AFTER the signal bar (the bar the screener saw).
+    Exit   = entry bar + h BARS. Horizons are trading days by construction.
+    Both positions come from the panel index, so every ticker in a run shares the same
+    calendar and a holiday or a data gap cannot stretch one name's horizon and not another's.
+
+    Names that cannot be measured are listed under `omitted` with a reason instead of being
+    dropped silently - a delisted or acquired name vanishing from the win-rate is survivorship
+    bias in the live measurement (audit T2).
+    """
     if horizons is None:
         horizons = DEFAULT_HORIZONS
 
     run_date_str = run["date"]
     run_date = datetime.strptime(run_date_str, "%Y%m%d")
+    # Runs since history schema v2 record the last bar they actually scored. Older runs did
+    # not; the run date is the best available proxy for the signal bar.
+    signal_date = pd.Timestamp(run.get("data_last_bar") or run_date)
 
     if not isinstance(prices_df.index, pd.DatetimeIndex):
         prices_df.index = pd.to_datetime(prices_df.index)
+    idx = prices_df.index
 
     results = {
+        "schema_version": TRACKING_SCHEMA_VERSION,
+        "horizon_basis": "trading_days",
+        "entry_basis": "first_close_after_signal",
         "date": run_date_str,
+        "signal_date": signal_date.strftime("%Y-%m-%d"),
         "regime": run.get("regime", {}),
         "candidates": [],
+        "omitted": [],
     }
+
+    entry_pos = first_bar_after(idx, signal_date)
 
     for c in run.get("top_candidates", []):
         if not c.get("recommended"):
             continue
-
         ticker = c["ticker"]
+
         if ticker not in prices_df.columns:
+            results["omitted"].append({"ticker": ticker, "reason": "no_price_data"})
+            continue
+        if entry_pos is None:
+            results["omitted"].append({"ticker": ticker, "reason": "no_bar_after_signal_yet"})
             continue
 
-        series = prices_df[ticker].dropna()
-        if series.empty:
+        entry_price = prices_df[ticker].iloc[entry_pos]
+        if pd.isna(entry_price) or entry_price <= 0:
+            results["omitted"].append({"ticker": ticker, "reason": "no_entry_price"})
             continue
-
-        entry_price = _nearest_price(series, run_date, max_offset=5)
-        if entry_price is None or entry_price <= 0:
-            continue
+        entry_price = float(entry_price)
 
         candidate = {
             "ticker": ticker,
             "entry_price": round(entry_price, 4),
-            "entry_date": run_date.strftime("%Y-%m-%d"),
+            "entry_date": idx[entry_pos].strftime("%Y-%m-%d"),
             "returns": {},
         }
 
         for h in horizons:
-            target_date = run_date + timedelta(days=h)
-            exit_price = _nearest_price(series, target_date, max_offset=7)
-            if exit_price is not None:
-                ret = (exit_price / entry_price) - 1
-                candidate["returns"][f"return_{h}d"] = round(ret, 4)
-                candidate["returns"][f"exit_price_{h}d"] = round(exit_price, 4)
-            else:
-                candidate["returns"][f"return_{h}d"] = None
+            exit_pos = bar_ahead(idx, entry_pos, h)
+            exit_price = prices_df[ticker].iloc[exit_pos] if exit_pos is not None else None
+            if exit_pos is None or pd.isna(exit_price):
+                candidate["returns"][f"return_{h}d"] = None          # pending, or a gap
+                continue
+            candidate["returns"][f"return_{h}d"] = round(float(exit_price) / entry_price - 1, 4)
+            candidate["returns"][f"exit_price_{h}d"] = round(float(exit_price), 4)
+            candidate["returns"][f"exit_date_{h}d"] = idx[exit_pos].strftime("%Y-%m-%d")
 
         results["candidates"].append(candidate)
 
@@ -157,9 +187,10 @@ def update_tracking(force_recompute: bool = False):
 
     runs = [load_daily_run(d) for d in dates]
 
-    # Determinar rango de fechas necesario
+    # Determinar rango de fechas necesario. Horizons are in bars, so ask for enough calendar
+    # days to contain max(horizon) bars plus weekends/holidays with margin.
     first_date = datetime.strptime(min(dates), "%Y%m%d") - timedelta(days=10)
-    last_date = datetime.strptime(max(dates), "%Y%m%d") + timedelta(days=max(DEFAULT_HORIZONS) + 10)
+    last_date = datetime.strptime(max(dates), "%Y%m%d") + timedelta(days=max(DEFAULT_HORIZONS) * 2 + 10)
     today = datetime.now()
 
     # No pedir fechas futuras innecesarias
@@ -182,20 +213,29 @@ def update_tracking(force_recompute: bool = False):
 
     updated = 0
     skipped = 0
+    omitted_total = 0
     for run in runs:
         date = run["date"]
         if not force_recompute:
             existing = load_tracking(date)
-            if existing and existing.get("candidates"):
+            # A file from an older schema was measured with the wrong horizon: always redo it.
+            if (existing and existing.get("candidates")
+                    and existing.get("schema_version", 1) >= TRACKING_SCHEMA_VERSION):
                 skipped += 1
                 continue
 
         result = compute_forward_returns_for_run(run, prices_df)
         save_tracking(date, result)
         updated += 1
-        print(f"  OK {date}: {len(result['candidates'])} candidatos trackeados")
+        omitted_total += len(result["omitted"])
+        omitted_note = f", {len(result['omitted'])} omitidos" if result["omitted"] else ""
+        print(f"  OK {date}: {len(result['candidates'])} candidatos trackeados{omitted_note}")
 
-    print(f"\nResumen: {updated} actualizados, {skipped} saltados (ya tenian tracking)")
+    print(f"\nResumen: {updated} actualizados, {skipped} saltados (ya tenian tracking v{TRACKING_SCHEMA_VERSION})")
+    if omitted_total:
+        print(f"AVISO: {omitted_total} recomendaciones sin precio de entrada o sin datos (ver 'omitted' "
+              f"en cada tracking JSON). No cuentan en el win-rate; si son delistados/adquiridos, el "
+              f"win-rate esta sesgado por supervivencia.")
 
 
 def aggregate_winrate() -> Dict:

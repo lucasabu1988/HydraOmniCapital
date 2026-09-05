@@ -12,6 +12,12 @@ from typing import List, Dict, Any
 
 HISTORY_DIR = "history"
 
+# v1 (until 2026-09-05): no version field, regime = compute_regime_score (the simple formula,
+#    NOT the one scoring used), no record of which bar was scored.
+# v2: schema_version + regime_source + data_last_bar. Files without a version are v1; run
+#    relabel_history_regime.py to bring them forward.
+HISTORY_SCHEMA_VERSION = 2
+
 
 def save_daily_run(
     date: str,
@@ -24,6 +30,7 @@ def save_daily_run(
     base_dir: str = None,
     vol_ratio_nan_share: float = 0.0,
     regime_gate_blocked: bool = False,
+    data_last_bar: str = None,
 ) -> str:
     """
     Guarda el resultado completo de un día del screener.
@@ -31,12 +38,17 @@ def save_daily_run(
     vol_ratio_nan_share: from TASK-202 volume watchdog (share of tickers with missing volume data).
     regime_gate_blocked: True when scoring's rich regime was below MIN_REGIME_SCORE*0.85
     (zero recommended because of the regime flag, not because of the downtrend gate).
+    data_last_bar: date (YYYY-MM-DD) of the last price bar that was actually scored. The run
+    date is when the screener ran; this is what it saw. Tracking enters at the bar after it.
     """
     out_dir = base_dir or HISTORY_DIR
     os.makedirs(out_dir, exist_ok=True)
 
     record = {
+        "schema_version": HISTORY_SCHEMA_VERSION,
+        "regime_source": "rich",          # compute_rich_regime_scores, the one scoring uses
         "date": date,
+        "data_last_bar": data_last_bar,
         "timestamp": datetime.now().isoformat(),
         "regime": {
             "score": regime_score,
@@ -74,6 +86,23 @@ def list_available_dates() -> List[str]:
     files = [f for f in os.listdir(HISTORY_DIR) if f.endswith(".json")]
     dates = sorted([f.replace(".json", "") for f in files])
     return dates
+
+
+def backup_history(dest_dir: str, history_dir: str = None) -> str:
+    """Zip history/ (runs + tracking/) into dest_dir. Returns the archive path, '' if nothing to back up.
+
+    history/ is gitignored and is the only record of what the system recommended each day
+    (audit 2026-09-06, S3). Point dest_dir at something that is not this disk - a synced
+    folder or a second drive - or the backup is theatre.
+    """
+    import shutil
+    src = history_dir or HISTORY_DIR
+    if not os.path.isdir(src) or not any(f.endswith(".json") for f in os.listdir(src)):
+        return ""
+    os.makedirs(dest_dir, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base = os.path.join(dest_dir, f"hydra_history_{stamp}")
+    return shutil.make_archive(base, "zip", root_dir=src)
 
 
 def get_recent_runs(limit: int = 10) -> List[Dict[str, Any]]:
