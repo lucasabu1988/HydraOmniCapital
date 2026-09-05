@@ -227,15 +227,15 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     dynamic_vol_threshold = max(MIN_VOL_THRESHOLD, dynamic_vol_threshold)
 
     df["vol_ratio"] = df.get("vol_ratio", pd.NA)
-    # TASK-202: compute share of tickers with missing volume data for watchdog
-    vol_ratio_nan_share = float(df["vol_ratio"].isna().mean()) if len(df) > 0 else 0.0
-    df["vol_ratio_nan_share"] = round(vol_ratio_nan_share, 4)
-
     # Numeric coerce before fillna — avoids pandas FutureWarning on object downcast.
     # Fill values unchanged: ret_short 0, dist_to_high -100, vol_ratio 0 (scoring identical).
     df["ret_short"] = pd.to_numeric(df["ret_short"], errors="coerce")
     df["dist_to_high"] = pd.to_numeric(df["dist_to_high"], errors="coerce")
     df["vol_ratio"] = pd.to_numeric(df["vol_ratio"], errors="coerce")
+    # TASK-202/314: share of tickers with missing volume (after coerce so object-NaN counts).
+    # Must stay on the SPEC §7 output contract or screener.py always reads the 0.0 default.
+    vol_ratio_nan_share = float(df["vol_ratio"].isna().mean()) if len(df) > 0 else 0.0
+    df["vol_ratio_nan_share"] = round(vol_ratio_nan_share, 4)
     df["passes_strict"] = (
         (df["ret_short"].fillna(0.0) > 15) &
         (df["dist_to_high"].fillna(-100.0) >= -2) &
@@ -305,7 +305,7 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
                    'ret_short', 'dist_to_high', 'short_term_boost',
                    'vol_ratio', 'passes_strict',
                    'sector', 'sector_rank', 'sector_penalty_applied',
-                   'dynamic_vol_threshold',
+                   'dynamic_vol_threshold', 'vol_ratio_nan_share',
                    'regime', 'meta_regime_type', 'meta_special_modes', 'aggression', 
                    'compass_mult', 'recommended', 'reason', 'recommended_count',
                    'pillar_multipliers', 'recovery_boost']].copy()
@@ -314,7 +314,7 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
                         'ret_5d_10d', 'dist_20d_high', 'short_boost',
                         'vol_ratio', 'passes_strict',
                         'sector', 'sector_rank', 'sector_penalty_applied',
-                        'dynamic_vol_threshold',
+                        'dynamic_vol_threshold', 'vol_ratio_nan_share',
                         'regime', 'regime_type', 'special_modes', 'aggression', 
                         'compass_mult', 'recommended', 'reason', 'recommended_count',
                         'pillar_multipliers', 'recovery_boost']

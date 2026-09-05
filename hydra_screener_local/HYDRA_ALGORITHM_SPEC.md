@@ -379,10 +379,14 @@ The final ranked DataFrame must include (standardized names after column renamin
 
 rank, ticker, momentum, meta_score, composite_score,  
 ret_5d_10d, dist_20d_high, short_boost,  
-vol_ratio, passes_strict, dynamic_vol_threshold,  
+vol_ratio, passes_strict, dynamic_vol_threshold, vol_ratio_nan_share,  
 sector, sector_rank, sector_penalty_applied,  
 regime, regime_type, special_modes, aggression, recovery_boost,  
 compass_mult, pillar_multipliers, recommended, reason, recommended_count
+
+`vol_ratio_nan_share` is a run-level scalar (same value on every row): share of scored
+tickers whose `vol_ratio` is missing. The screener watchdog reads this column; if it is
+dropped from the contract the warning cannot fire.
 
 ---
 
