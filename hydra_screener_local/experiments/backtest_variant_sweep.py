@@ -56,7 +56,18 @@ def download(cache_dir=None, start=None, tickers=None):
     cache_dir = cache_dir or CACHE
     start = start or START
     os.makedirs(cache_dir, exist_ok=True)
-    tickers = tickers or get_sp500_tickers()
+    tickers = list(tickers or get_sp500_tickers())
+    existing_close = existing_vol = None
+    close_path = f'{cache_dir}/close.pkl'
+    if os.path.exists(close_path):
+        existing_close = pd.read_pickle(close_path)
+        existing_vol = pd.read_pickle(f'{cache_dir}/volume.pkl')
+        have = set(existing_close.columns)
+        tickers = [t for t in tickers if t not in have]
+        print(f'cache already has {len(have)} tickers; downloading {len(tickers)} missing')
+        if not tickers:
+            print(f'nothing to download, {existing_close.shape}')
+            return
     print(f'universe: {len(tickers)}  start={start}')
     closes, vols = [], []
     for i in range(0, len(tickers), 60):
@@ -66,16 +77,28 @@ def download(cache_dir=None, start=None, tickers=None):
             continue
         closes.append(d['Close']); vols.append(d['Volume'])
         print(f'  {min(i + 60, len(tickers))}/{len(tickers)}', flush=True)
+    if not closes:
+        print('download returned no panels')
+        return
     close = pd.concat(closes, axis=1).sort_index()
     volume = pd.concat(vols, axis=1).sort_index()
     close = close.loc[:, ~close.columns.duplicated()]
     volume = volume.loc[:, ~volume.columns.duplicated()]
-    spy = yf.download('SPY', start=start, end=END, progress=False, auto_adjust=True)['Close']
-    if hasattr(spy, 'columns'):
-        spy = spy.iloc[:, 0]
-    close.to_pickle(f'{cache_dir}/close.pkl')
+    if existing_close is not None:
+        close = pd.concat([existing_close, close], axis=1)
+        volume = pd.concat([existing_vol, volume], axis=1)
+        close = close.loc[:, ~close.columns.duplicated()].sort_index()
+        volume = volume.loc[:, ~volume.columns.duplicated()].sort_index()
+    spy_path = f'{cache_dir}/spy.pkl'
+    if os.path.exists(spy_path):
+        spy = pd.read_pickle(spy_path)['SPY']
+    else:
+        spy = yf.download('SPY', start=start, end=END, progress=False, auto_adjust=True)['Close']
+        if hasattr(spy, 'columns'):
+            spy = spy.iloc[:, 0]
+        spy.to_frame('SPY').to_pickle(spy_path)
+    close.to_pickle(close_path)
     volume.to_pickle(f'{cache_dir}/volume.pkl')
-    spy.to_frame('SPY').to_pickle(f'{cache_dir}/spy.pkl')
     print(f'saved {close.shape}, {close.index[0].date()} .. {close.index[-1].date()}')
 
 
@@ -140,9 +163,9 @@ def score_day(P, t, c):
     px = P.close.iloc[t]
     elig = px.notna() & (px >= c['min_price']) & (P.VOL20M.iloc[t] >= c['min_advol']) & (P.FLAT5.iloc[t] != 1)
     if getattr(P, 'pit_payload', None):
-        from data.universe import membership_as_of
-        members = set(membership_as_of(P.close.index[t].strftime('%Y-%m-%d'), P.pit_payload))
-        elig = elig & pd.Series([i in members for i in px.index], index=px.index)
+        from data.universe import yahoo_membership_as_of
+        members = set(yahoo_membership_as_of(P.close.index[t].strftime('%Y-%m-%d'), P.pit_payload))
+        elig = elig & px.index.isin(members)
     tk = px.index[elig.fillna(False)]
     if len(tk) < 50:
         return None, None
@@ -362,15 +385,75 @@ def risk(P):
         print(f"    {rt:<10} {row['mean']*10000:+7.1f} bp   n={int(row['count'])}")
 
 
+def _print_price_coverage(P, payload):
+    """TASK-325 (b): coverage of PIT members that have a valid close that day."""
+    from data.universe import membership_as_of, yahoo_membership_as_of, pit_yahoo_symbol
+    print('\nPRICE COVERAGE  (PIT members vs members with a valid close that day)')
+    print('CAVEAT: this sample has real membership but is NOT survivorship-free on prices.')
+    print('Missing names are delistings/acquisitions Yahoo dropped. Absolute ann%/Sharpe')
+    print('are not quotable without this table. k=0 still has a tailwind and is still the')
+    print('claim we re-measure; sector-cap "cheap" is not.')
+    spots = ['2005-06-30', '2008-09-15', '2011-06-30', '2014-06-30',
+             '2017-06-30', '2020-06-30', '2023-06-30']
+    print(f"{'date':<12} {'raw':>5} {'mapped':>7} {'blocked':>8} {'with_px':>8} {'pct':>6}")
+    for spot in spots:
+        raw = membership_as_of(spot, payload)
+        mapped = yahoo_membership_as_of(spot, payload)
+        blocked = sum(1 for t in raw if pit_yahoo_symbol(t, payload) is None)
+        idx = P.close.index[P.close.index <= pd.Timestamp(spot)]
+        if len(idx) == 0:
+            print(f'{spot:<12} no prices')
+            continue
+        day = P.close.loc[idx[-1]]
+        n_px = sum(1 for t in mapped if t in day.index and pd.notna(day[t]))
+        pct = 100.0 * n_px / max(len(raw), 1)
+        print(f'{spot:<12} {len(raw):5d} {len(mapped):7d} {blocked:8d} {n_px:8d} {pct:5.0f}%')
+
+
+def _count_cycle_changes(P, payload):
+    """How many weekly cycles change eligible set vs TASK-324 raw matching and vs naive strip."""
+    from data.universe import membership_as_of, yahoo_membership_as_of
+    import re as _re
+    start, step = 260, 5
+    n = 0
+    diff_raw = diff_naive = 0
+    extra_vs_raw = blocked_vs_naive = 0
+    for t in range(start, len(P.close.index) - 7, step):
+        as_of = P.close.index[t].strftime('%Y-%m-%d')
+        px = P.close.iloc[t]
+        have = set(px.index[px.notna()])
+        raw = set(membership_as_of(as_of, payload)) & have
+        mapped = set(yahoo_membership_as_of(as_of, payload)) & have
+        naive = {_re.sub(r'-\d{6}$', '', x) for x in membership_as_of(as_of, payload)} & have
+        n += 1
+        if mapped != raw:
+            diff_raw += 1
+            extra_vs_raw += len(mapped - raw)
+        if mapped != naive:
+            diff_naive += 1
+            blocked_vs_naive += len(naive - mapped)
+    print('\nCYCLE ELIGIBILITY vs previous matching rules (same panels, weekly step=5)')
+    print(f'  cycles compared          : {n}')
+    print(f'  vs TASK-324 raw names    : {diff_raw} cycles differ '
+          f'(+{extra_vs_raw} extra eligible-name slots; suffixed names now map when safe)')
+    print(f'  vs naive suffix-strip    : {diff_naive} cycles differ '
+          f'({blocked_vs_naive} name-slots blocked as ticker reuse)')
+    return n, diff_raw, diff_naive
+
+
 def oos():
-    """TASK-324: re-measure the three claims on a PIT 2004+ sample. Do not tune."""
-    from data.universe import fetch_sp500_pit_payload, membership_as_of
+    """TASK-325: re-measure the three claims on a PIT 2004+ sample. Do not tune."""
+    from data.universe import (fetch_sp500_pit_payload, membership_as_of,
+                               pit_yahoo_symbol, yahoo_membership_as_of)
     payload = fetch_sp500_pit_payload()
     print('PIT source: wiki_changes=', payload.get('source_wiki'),
-          'github_snapshots=', payload.get('source_github'),
+          'github=', payload.get('source_github'),
+          'orig_snaps=', payload.get('github_orig_snapshots'),
+          'updated_extra=', payload.get('github_updated_extra'),
           'current=', len(payload.get('current') or []),
           'changes=', len(payload.get('changes') or []),
-          'snapshots=', len(payload.get('snapshots') or []))
+          'snapshots=', len(payload.get('snapshots') or []),
+          'cache_version=', payload.get('cache_version'))
     names = set(payload.get('current') or [])
     for lst in (payload.get('snapshots') or {}).values():
         names.update(lst)
@@ -379,16 +462,26 @@ def oos():
             names.add(ch['added'])
         if ch.get('removed'):
             names.add(ch['removed'])
-    print('union names for download:', len(names))
-    import re as _re
-    yf_names = sorted({_re.sub(r'-\d{6}$', '', t) for t in names if t})
-    print('yahoo-sanitised names:', len(yf_names))
-    if not os.path.exists(f'{OOS_CACHE}/close.pkl'):
-        download(cache_dir=OOS_CACHE, start=OOS_START, tickers=yf_names)
+    print('union PIT names:', len(names))
+    yf_names, skipped = [], 0
+    seen = set()
+    for t in sorted(names):
+        y = pit_yahoo_symbol(t, payload)
+        if y is None:
+            skipped += 1
+            continue
+        if y not in seen:
+            seen.add(y)
+            yf_names.append(y)
+    print('yahoo names (reuse blocked):', len(yf_names), 'suffixes not stripped:', skipped)
+    download(cache_dir=OOS_CACHE, start=OOS_START, tickers=yf_names)
     P = Panels(cache_dir=OOS_CACHE, pit_payload=payload)
     print(f'OOS panels: {P.close.shape}  {P.close.index[0].date()} .. {P.close.index[-1].date()}')
     spot = '2008-09-15'
-    print('spot-check membership', spot, len(membership_as_of(spot, payload)))
+    print('spot-check membership', spot, 'raw', len(membership_as_of(spot, payload)),
+          'yahoo', len(yahoo_membership_as_of(spot, payload)))
+    _print_price_coverage(P, payload)
+    _count_cycle_changes(P, payload)
 
     claims = [
         ('baseline k=1 + sector cap', {}, {}),
@@ -396,13 +489,18 @@ def oos():
         ('no sector control', dict(sector_mode='off'), {}),
         ('no regime gate', dict(regime_gate=False), {}),
     ]
-    print('\nTASK-324 claims (gross + net). Do not tune on this sample.')
+    print('\nTASK-325 claims (gross + net). Do not tune on this sample.')
+    print('CAVEAT: real membership, NOT survivorship-free prices — see coverage table.')
     rows = []
+    keep = {}
     for label, cfg, kw in claims:
         df = run(P, cfg, start=260, **kw)
+        keep[label] = df
         rows.append(stats(df, label))
         print('  done:', label, 'cycles', len(df), flush=True)
     print('\n' + pd.DataFrame(rows).to_string(index=False))
+    base_n = len(keep['baseline k=1 + sector cap'])
+    print(f'\nbaseline cycles this run: {base_n}  (TASK-324 had 1088)')
 
 
 def main():

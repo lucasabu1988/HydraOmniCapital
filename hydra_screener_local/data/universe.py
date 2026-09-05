@@ -1479,9 +1479,44 @@ def _parse_wiki_change_tables(tables) -> list[dict]:
     return rows
 
 
+# TASK-325: original Clenow file keeps -YYYYMM entity IDs; the Updated file extends
+# past 2019-01-11 but strips those suffixes. Prefer original on overlap, append Updated
+# after the original's last date. Cache v2 so a v1 (original-only, ends 2019) file is
+# not reused silently.
+_PIT_CACHE_VERSION = 2
+_PIT_GITHUB_ORIG = (
+    "https://raw.githubusercontent.com/fja05680/sp500/master/"
+    "S%26P%20500%20Historical%20Components%20%26%20Changes.csv"
+)
+_PIT_GITHUB_UPDATED = (
+    "https://raw.githubusercontent.com/fja05680/sp500/master/"
+    "S%26P%20500%20Historical%20Components%20%26%20Changes%20(Updated).csv"
+)
+_DELIST_SUFFIX = re.compile(r"^(.+)-(\d{6})$")
+
+
+def _parse_fja_snapshots(text: str) -> dict:
+    """date -> list of yahoo-normalised tickers from an fja05680 components CSV."""
+    out = {}
+    sdf = pd.read_csv(StringIO(text))
+    date_col = sdf.columns[0]
+    tickers_col = sdf.columns[1] if len(sdf.columns) > 1 else None
+    if tickers_col is None:
+        return out
+    for _, r in sdf.iterrows():
+        dt = pd.to_datetime(r[date_col], errors="coerce")
+        if pd.isna(dt):
+            continue
+        raw = str(r[tickers_col])
+        names = [_yahoo_ticker(x) for x in raw.replace(";", ",").split(",") if x.strip()]
+        if len(names) > 50:
+            out[dt.strftime("%Y-%m-%d")] = names
+    return out
+
+
 def fetch_sp500_pit_payload(timeout: int = 25) -> dict:
     """
-    Current constituents + Wikipedia selected-changes + optional fja05680 snapshot.
+    Current constituents + Wikipedia selected-changes + fja05680 snapshots.
     Cached under data_cache/sp500_pit.json. Never raises.
     """
     cache = os.path.join(DATA_CACHE_DIR, "sp500_pit.json")
@@ -1489,7 +1524,12 @@ def fetch_sp500_pit_payload(timeout: int = 25) -> dict:
         try:
             with open(cache, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            if data.get("current") and data.get("changes") is not None:
+            if (
+                data.get("cache_version") == _PIT_CACHE_VERSION
+                and data.get("current")
+                and data.get("changes") is not None
+                and data.get("snapshots")
+            ):
                 return data
         except Exception as e:
             logger.warning("PIT cache unreadable: %s", e)
@@ -1500,7 +1540,9 @@ def fetch_sp500_pit_payload(timeout: int = 25) -> dict:
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     resp = _get_with_retry(url, timeout=timeout)
     if resp is not None:
-        for flavor in ["lxml", "html5lib", None]:
+        # html5lib is not a declared dependency; Wikipedia selected-changes is the
+        # fallback only. Primary path is the github snapshots.
+        for flavor in ["lxml", None]:
             try:
                 tables = pd.read_html(StringIO(resp.text), flavor=flavor)
                 changes = _parse_wiki_change_tables(tables)
@@ -1510,28 +1552,35 @@ def fetch_sp500_pit_payload(timeout: int = 25) -> dict:
                 logger.warning("PIT wikipedia parse flavor %s failed: %s", flavor, e)
 
     snapshots = {}
-    gh = "https://raw.githubusercontent.com/fja05680/sp500/master/S%26P%20500%20Historical%20Components%20%26%20Changes.csv"
-    gh_resp = _get_with_retry(gh, timeout=timeout)
-    if gh_resp is not None:
+    orig_n = 0
+    extra_n = 0
+    orig_resp = _get_with_retry(_PIT_GITHUB_ORIG, timeout=timeout)
+    if orig_resp is not None:
         try:
-            sdf = pd.read_csv(StringIO(gh_resp.text))
-            date_col = sdf.columns[0]
-            tickers_col = sdf.columns[1] if len(sdf.columns) > 1 else None
-            for _, r in sdf.iterrows():
-                dt = pd.to_datetime(r[date_col], errors="coerce")
-                if pd.isna(dt) or tickers_col is None:
-                    continue
-                raw = str(r[tickers_col])
-                names = [_yahoo_ticker(x) for x in raw.replace(";", ",").split(",") if x.strip()]
-                if len(names) > 50:
-                    snapshots[dt.strftime("%Y-%m-%d")] = names
+            snapshots = _parse_fja_snapshots(orig_resp.text)
+            orig_n = len(snapshots)
         except Exception as e:
-            logger.warning("fja05680 PIT csv parse failed: %s", e)
+            logger.warning("fja05680 original PIT csv parse failed: %s", e)
+
+    upd_resp = _get_with_retry(_PIT_GITHUB_UPDATED, timeout=timeout)
+    if upd_resp is not None:
+        try:
+            updated = _parse_fja_snapshots(upd_resp.text)
+            last_orig = max(snapshots) if snapshots else None
+            for d, names in updated.items():
+                if last_orig is None or d > last_orig:
+                    snapshots[d] = names
+                    extra_n += 1
+        except Exception as e:
+            logger.warning("fja05680 updated PIT csv parse failed: %s", e)
 
     payload = {
         "updated": datetime.now().isoformat(),
+        "cache_version": _PIT_CACHE_VERSION,
         "source_wiki": bool(changes),
         "source_github": bool(snapshots),
+        "github_orig_snapshots": orig_n,
+        "github_updated_extra": extra_n,
         "current": current,
         "changes": changes,
         "snapshots": snapshots,
@@ -1547,8 +1596,59 @@ def fetch_sp500_pit_payload(timeout: int = 25) -> dict:
     return payload
 
 
+def _blocked_strip_bares(payload: dict) -> set:
+    """Bare symbols we must not map a -YYYYMM suffix onto (live or later reused)."""
+    cached = payload.get("_blocked_bares")
+    if isinstance(cached, set):
+        return cached
+    blocked = {_yahoo_ticker(t) for t in (payload.get("current") or [])}
+    snaps = payload.get("snapshots") or {}
+    unsuffixed_dates = {}
+    suffixes = []
+    for date, names in snaps.items():
+        for raw in names:
+            m = _DELIST_SUFFIX.match(raw)
+            if m:
+                suffixes.append((m.group(1), m.group(2)))
+            else:
+                unsuffixed_dates.setdefault(raw, []).append(date)
+    for bare, yyyymm in suffixes:
+        delist = f"{yyyymm[:4]}-{yyyymm[4:6]}-01"
+        for d in unsuffixed_dates.get(bare, ()):
+            if d >= delist:
+                blocked.add(bare)
+                break
+    payload["_blocked_bares"] = blocked
+    return blocked
+
+
+def pit_yahoo_symbol(raw: str, payload: dict | None = None) -> str | None:
+    """Map a PIT member to a yfinance column, or None if that would reuse a live ticker.
+
+    Suffixed names (AAMRQ-201312) strip to the bare symbol only when that bare symbol
+    is not in `current` and does not appear unsuffixed in any snapshot on/after the
+    delist month. Better to have no prices than the prices of a different company.
+    """
+    raw = _yahoo_ticker(raw)
+    if not raw:
+        return None
+    m = _DELIST_SUFFIX.match(raw)
+    if not m:
+        return raw
+    bare = m.group(1)
+    if payload is None:
+        return None
+    if bare in _blocked_strip_bares(payload):
+        return None
+    return bare
+
+
 def membership_as_of(as_of: str, payload: dict | None = None) -> list[str]:
-    """S&P 500 membership on as_of (YYYY-MM-DD). Prefers github snapshots; else wiki walk."""
+    """S&P 500 membership on as_of (YYYY-MM-DD). Prefers github snapshots; else wiki walk.
+
+    Returns the snapshot's raw names (may include -YYYYMM entity IDs). Join to prices
+    with yahoo_membership_as_of.
+    """
     payload = payload or fetch_sp500_pit_payload()
     as_ts = pd.Timestamp(as_of)
 
@@ -1567,3 +1667,15 @@ def membership_as_of(as_of: str, payload: dict | None = None) -> list[str]:
         if ch.get("removed"):
             members.add(ch["removed"])
     return sorted(members)
+
+
+def yahoo_membership_as_of(as_of: str, payload: dict | None = None) -> list[str]:
+    """PIT members mapped to yfinance symbols; reused tickers dropped, not remapped."""
+    payload = payload or fetch_sp500_pit_payload()
+    out, seen = [], set()
+    for raw in membership_as_of(as_of, payload):
+        y = pit_yahoo_symbol(raw, payload)
+        if y and y not in seen:
+            seen.add(y)
+            out.append(y)
+    return out
