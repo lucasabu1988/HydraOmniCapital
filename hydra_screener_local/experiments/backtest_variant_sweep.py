@@ -116,8 +116,7 @@ class Panels:
 
 DEFAULTS = dict(mom='mom90', vol_exp=1.0, dist='d20', vratio='overlap', boost=SHORT_TERM_BOOST,
                 strict_bonus=0.18, combine='mult', sector_control=True, sector_skip_other=False,
-                sector_on_pool=False, use_real_sectors=False,
-                max_per_sector=8, gate=True, regime_gate=True, gate_dist=GATE_MAX_DIST_TO_HIGH_PCT,
+                max_per_sector=MAX_PER_SECTOR, gate=True, regime_gate=True, gate_dist=GATE_MAX_DIST_TO_HIGH_PCT,
                 gate_ret=GATE_MIN_RET_SHORT_PCT, gate_needs_negative=True,
                 regime_thr=MIN_REGIME_SCORE * 0.85, fixed_n=None,
                 min_price=5.0, min_advol=100_000)
@@ -150,13 +149,8 @@ def score_day(P, t, c):
         comp = z + c['boost'] * boost + c['strict_bonus'] * strict.astype(float)
 
     out = pd.DataFrame({'comp': comp, 'ret': f['ret'], 'dist': f['dist']})
-    if c.get('use_real_sectors'):
-        from data.sectors import lookup_sector
-        out['sector'] = [lookup_sector(x) for x in out.index]
-    else:
-        out['sector'] = [SECTOR_BUCKETS.get(x, 'Other') for x in out.index]
-    # Full-universe cap (legacy). Pool cap is applied in run() after n is known.
-    if c['sector_control'] and not c.get('sector_on_pool'):
+    out['sector'] = [SECTOR_BUCKETS.get(x, 'Other') for x in out.index]
+    if c['sector_control']:
         over = out.groupby('sector')['comp'].rank(method='first', ascending=False) > c['max_per_sector']
         if c['sector_skip_other']:
             over &= (out['sector'] != 'Other')
@@ -173,14 +167,6 @@ def run(P, cfg=None, start=260, step=5, hold=5, lag=1, topk=None):
             continue
         m = P.meta_for(t)
         n = c['fixed_n'] or max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
-        if c.get('sector_on_pool') and c['sector_control'] and n > 0 and len(out):
-            pool = out.iloc[:n].copy()
-            rest = out.iloc[n:]
-            over = pool.groupby('sector')['comp'].rank(method='first', ascending=False) > c['max_per_sector']
-            if c.get('sector_skip_other'):
-                over &= (pool['sector'] != 'Other')
-            pool.loc[over, 'comp'] *= (1 - SECTOR_OVERWEIGHT_PENALTY)
-            out = pd.concat([pool, rest]).sort_values('comp', ascending=False)
         # two independent controls: the regime gate (market timing) and the downtrend gate (per name)
         sel = out.head(n) if (not c['regime_gate'] or m.regime_score >= c['regime_thr']) else out.head(0)
         if c['gate'] and len(sel):
@@ -249,7 +235,6 @@ VARIANTS = [
     ('additive score (sign-safe)', dict(combine='add'), {}),
     ('fixed N=10', dict(fixed_n=10), {}),
     ('top 5 only', {}, dict(topk=5)),
-    ('sector pool cap max=3 + GICS', dict(sector_on_pool=True, max_per_sector=3, use_real_sectors=True), {}),
 ]
 
 
