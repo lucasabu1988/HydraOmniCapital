@@ -19,7 +19,10 @@ TradingView (Pine) indicator. It ranks a US universe daily, flags a dynamic numb
   Python's, carried in that JSON.
 
 **Everything at the repo root** (`compass_*.py`, `omnicapital_*.py`, `templates/`, `static/`,
-`hydra_backtest/`, root `tests/`) is the **frozen legacy** COMPASS engine + Render dashboard.
+root `tests/`) is the **frozen legacy** COMPASS engine + Render dashboard. `hydra_backtest/`
+(the legacy backtest package) was deleted on 2026-09-06: it imported nine functions from
+`omnicapital_live.py`, deleted on 2026-06-05, and had not been importable since. It lives in
+git history (`git show e4b862a:hydra_backtest/`) if ever needed.
 Do not revive it, extend it, or take parameters from it. `omnicapital_live.py` and
 `omnicapital_broker.py` were deleted in the 2026-09-05 cleanup; docs that mention them are
 archived under `archive/docs-legacy-2026-09/`.

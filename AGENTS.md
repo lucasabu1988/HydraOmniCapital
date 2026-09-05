@@ -8,7 +8,7 @@ Checked against the code on 2026-09-06.
 The active project is the local screener in **`hydra_screener_local/`**: momentum + regime
 equity screener, hybrid Python + TradingView, 5-trading-day cycles, universe `"all"` (~3000 US
 names incl. Russell 2000). Everything at the repo root (`compass_*.py`, dashboards,
-`hydra_backtest/`, root `tests/`) is the **frozen legacy** engine — do not revive or extend it,
+root `tests/`) is the **frozen legacy** engine (`hydra_backtest/` was deleted 2026-09-06, import-dead since June) — do not revive or extend it,
 and do not take parameters from it. Its old docs are in `archive/docs-legacy-2026-09/`.
 
 ## Locked algorithm
