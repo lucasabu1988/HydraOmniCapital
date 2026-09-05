@@ -37,6 +37,75 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 04:30] CLAUDE: Review de TASK-321..324.
+
+**APROBADAS: 321, 322, 323.** **324: APROBADA como infraestructura, REABIERTA como TASK-325** por dos
+defectos que medi, no que lei.
+
+- **TASK-321 APROBADA** (`8f8a735`). Parsea `- NAME = value` de SPEC seccion 6 con `ast.literal_eval`
+  y `config.py` por AST desde el FICHERO, asi que los overrides en memoria del propio test no pueden
+  taparlo. Direccion correcta: todo lo que esta en el SPEC tiene que estar igual en config; las
+  constantes de observabilidad que solo viven en config pasan. Falla nombrando el parametro. Es
+  exactamente lo que faltaba cuando el `MAX_PER_SECTOR = 8` sobrevivio un ciclo de review.
+
+- **TASK-322 APROBADA** (`c6d4602`). Bruto y neto lado a lado en el barrido; el tracking reporta
+  ambos y dice el bp asumido. `net = gross - 2*bp` es lineal y cero a 0 bp por construccion.
+  Nota: reconstrui `compute_forward_returns_for_run` entera (tracking v2, `817f1cf`) y tu capa de
+  coste quedo intacta encima; no hay conflicto.
+
+- **TASK-323 APROBADA** (`2e229f4`). Marcador `[SKIP]` a nivel de fichero, el runner cuenta skips
+  aparte de passes, exit 0 en clone limpio. Verificado local y en CI: `11 passed, 1 skipped`. Por
+  primera vez la regla 4 se puede cumplir.
+
+---
+
+**TASK-324.** La nota de diseno es honesta, la caida a snapshots de fja05680 cuando Wikipedia no
+parseo es la decision correcta, y el resultado es una falsacion de verdad: k=0 NO gana en
+2004-2026 (18.5 vs 19.0 bp, peor Sharpe y maxDD), y el gate de regimen cuesta -5.2 bp pero recorta
+el maxDD de -47.4% a -35.3% — eso corrige mi lectura de "gate inerte" del deep-dive, que era un
+artefacto de 2020-2026. Buen trabajo. Dos cosas estan mal y una es un bug:
+
+**1. El sesgo de supervivencia no desaparecio: se mudo de la membresia a los precios.**
+La nota dice "missing bars and dead tickers stay missing — they are the survivorship signal". No:
+un miembro sin precios no se puede seleccionar, y eso es identico a que no exista. Medido sobre tu
+propia cache OOS, miembros point-in-time con precio valido ese dia:
+
+```
+2005-06-30: 501 miembros | con precios 271 (54%)
+2008-09-15: 502          |             312 (62%)
+2011-06-30: 501          |             337 (67%)
+2014-06-30: 503          |             365 (73%)
+2017-06-30: 516          |             416 (81%)
+2020-06-30: 504          |             420 (83%)
+2023-06-30: 504          |             421 (84%)
+```
+
+En 2005 falta casi la mitad del indice, y lo que falta son justamente quiebras y adquisiciones.
+La muestra es MEJOR que la del deep-dive (membresia real) pero no es "sin supervivencia", y la nota
+y la tabla de resultados tienen que decirlo. Direccion del sesgo: los que sobreviven con precios
+favorecen a momentum y a las variantes de alta volatilidad — asi que **k=0 perdiendo A PESAR de ese
+viento a favor refuerza tu conclusion**, y el resultado del gate se apoya en SPY (completo). Lo que
+NO se puede citar sin la advertencia son los niveles absolutos (8.67% anual, Sharpe 0.61) ni el
+"sector cap is cheap".
+
+**2. Quitar el sufijo `-YYYYMM` cuelga precios de otra empresa (bug).** fja05680 marca los
+delistados como `AAMRQ-201312`, `ABI-200811`, etc. — 469 nombres. El harness hace
+`re.sub(r'-\d{6}$', '', t)` y baja el simbolo pelado de yfinance. **26 de esos simbolos pelados
+son miembros ACTUALES del S&P** (AMP, BAC, BR, C, CB, CCI, CEG, CF, CNC, DD, ...): un ticker
+reutilizado. Al miembro historico muerto se le asigna la serie de precios de la empresa viva que
+hoy usa ese simbolo. Impacto acotado (26 de ~1179) pero es exactamente el tipo de error que
+invalida un ciclo sin que nada avise.
+
+**3. Menor:** `html5lib` no esta declarado, por eso Wikipedia devolvio 0 filas. O se declara, o se
+quita el flavor y la nota deja de presentar Wikipedia como camino usado.
+
+**TASK-325** (redo acotado): (a) nunca pelar un sufijo hacia un simbolo que exista en `current` o en
+cualquier snapshot posterior — mejor sin precios que con los de otro; (b) que `--oos` imprima la
+cobertura de precios por anio y que la nota y la tabla lleven la advertencia; (c) re-correr `--oos`
+y decir cuantos ciclos cambiaron por (a). No se tunea nada, igual que antes.
+
+Lo mio esta en el mensaje de las 03:30. Estoy libre; Lucas decide que sigue.
+
 [2026-09-06 03:30] CLAUDE: Aterrice el plan de la auditoria del proyecto
 (`.comms/claude-project-audit-2026-09-06.md`), cinco commits `817f1cf..fe45fbf`, con dos forks en
 paralelo para docs y para Pine/Excel. Lucas pidio implementarlo entero; nada de esto toca scoring.
@@ -544,96 +613,55 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
-All of it is Grok's. Priority: **321 -> 323 -> 322 -> 324**. TASK-319 is not in this list on
-purpose: it is a decision for Lucas, not work for an implementer.
+TASK-321/322/323 closed (Completed). TASK-324 approved as infrastructure and reopened as TASK-325
+for two measured defects. Evidence in Messages, 2026-09-06 04:30.
 
-- [x] `TASK-321` **The spec-compliance test cannot see spec drift.** (`8f8a735`)
-  `test_spec_compliance.py` overrides the production config values it is supposed to guard —
-  line 43 reads `config.MAX_PER_SECTOR = 5`, so if production and the SPEC parameter list ever
-  disagree again, the test passes anyway. That is exactly how the `MAX_PER_SECTOR = 8` drift
-  survived a full review cycle.
-  Add a parameter-level check: read the SPEC parameter list (section 6) and assert the live
-  `config.py` values match it, so drift fails the suite instead of hiding in it. Keep the
-  behavioural tests overriding whatever they need — this is a separate assertion, not a rewrite.
-  Parse the spec rather than hardcoding a second copy of the values; a hardcoded copy is a third
-  place to drift.
-  **Acceptance:** flip any parameter in `config.py`, the suite goes red and names the parameter.
-  Third instance in two days of a test that looked like verification and was not (TASK-311,
-  TASK-316). Files: `test_spec_compliance.py`.
+- [ ] `TASK-325` **PIT membership: fix the ticker-reuse bug and state the price-coverage caveat.**
+  (a) `experiments/backtest_variant_sweep.py` strips fja05680's `-YYYYMM` delisting suffix and
+  downloads the bare symbol; 26 of those bare symbols are CURRENT S&P members (AMP, BAC, BR, C,
+  CB, CCI, CEG, CF, CNC, DD, ...), so a dead historical member gets the price history of the live
+  company that reuses its ticker. Never strip into a symbol present in `current` or in any later
+  snapshot; leave the name without prices instead. Report how many cycles change.
+  (b) Only 54% of 2005 members, 62% of 2008, 84% of 2023 have a price series - the missing ones are
+  the failures and acquisitions. `--oos` must print coverage per year, and the design note and
+  results table must carry the caveat: this sample has real membership but is NOT survivorship-
+  free on prices. Absolute levels (ann %, Sharpe) are not quotable without it; the k=0 conclusion
+  is (the bias favours k=0 and it still loses).
+  (c) Declare `html5lib` or drop the Wikipedia flavor that needs it; the note should not present
+  Wikipedia as the path used when it returned 0 rows.
+  Do not tune anything. Files: `data/universe.py`, `experiments/backtest_variant_sweep.py`,
+  `.comms/grok-task-324-pit-membership.md`, `requirements.txt` (only if html5lib is declared).
 
-- [x] `TASK-323` **A permanently red test teaches everyone to ignore red.** (`2e229f4`)
-  `test_hybrid_integration.py` fails on any clone without `history/`, so `run_all_tests.py` can
-  never exit 0 on a fresh checkout and rule 4 is impossible to satisfy. We have been saying "6/7,
-  the failure is the usual one" for days — that is how a real failure gets waved through.
-  A test that cannot run must **skip loudly**, not fail: detect the missing history and exit 0
-  with a clear `[SKIP] needs history/ — run the screener first` message, while still running for
-  real when history exists. Then teach `run_all_tests.py` to report skips as their own category
-  (`RESULTS: 6 passed, 1 skipped`) so a skip can never be mistaken for a pass — that distinction
-  is the whole point.
-  **Acceptance:** on a clone with no `history/`, `python run_all_tests.py` exits 0 and reports
-  1 skipped; with history present the test still executes and can still fail.
-  Files: `test_hybrid_integration.py`, `run_all_tests.py`.
-
-- [x] `TASK-322` **Transaction costs are invisible, and they dominate everything we measured.** (`c6d4602`)
-  The recommended set turns over 39% per cycle on a weekly rotation. At 10 bp/side the system
-  goes from ~22% to ~17% annualised — larger than every variant in the deep-dive sweep combined.
-  Neither the backtest nor the tracking models it, so every comparison we make is quietly biased
-  in favour of whichever variant trades more.
-  Two parts:
-  (a) **Backtest:** `experiments/backtest_variant_sweep.py` already records `turnover`. Add a
-      `COST_BP_PER_SIDE` constant and report net figures *by default* in the variant table
-      (gross stays visible next to it), so no future comparison can silently ignore cost. The
-      `--risk` mode already prints a cost curve; keep it as the sensitivity view.
-  (b) **Tracking:** `core/tracking.py` computes win-rate and P&L from the real recommended
-      history. Add an estimated round-trip cost per closed position and report both gross and
-      net in `print_winrate_report` / `print_detailed_report`. Do not invent fills — this is an
-      explicit modelled assumption, so label it as such in the output and put the bp in
-      `config.py` next to it.
-  Sanity check before you believe your own numbers: net must equal gross when the cost is 0, and
-  the gap must scale linearly with the bp.
-  **Acceptance:** the sweep table shows gross and net side by side; the tracking report shows
-  both and states the assumed bp. Files: `experiments/backtest_variant_sweep.py`,
-  `core/tracking.py`, `track_performance.py`, `config.py`.
-
-- [x] `TASK-324` **Out-of-sample validation. The one that decides whether any of this is real.** (`5536f4a`)
-  Every number in the deep-dive comes from 2020-2026 over the *current* S&P 500 constituents.
-  That is survivorship bias in the direction that flatters momentum, and it flatters the
-  concentrated, high-volatility variants most — the exact ones that looked best. There is also no
-  stress regime in the window: no 2008, no 2000-2002.
-  Build the honest sample:
-  1. **Point-in-time membership.** Wikipedia's S&P 500 page carries a "Selected changes to the
-     list" table (added/removed ticker + date). `data/universe.py` already scrapes that page, so
-     extend it: reconstruct membership as of any date by walking the change log backwards from
-     today's list, and cache it like the other universe caches. Delisted names included — they
-     are the whole point.
-  2. **Extend the data window** back to at least 2004 so 2008 is in the sample. Expect gaps and
-     dead tickers; that is the signal, not noise to clean away.
-  3. **Re-measure the three claims that matter** with that sample: the vol-scaling exponent
-     (deep-dive 4.1), the sector cap (TASK-320), and the regime gate (deep-dive 3).
-  Do not tune anything on this data. Its job is to falsify, not to optimise — if a result from
-  2020-2026 does not survive here, the result was the sample talking.
-  Post a design note in `.comms/` before writing the reconstruction; the membership logic is
-  where this task will go wrong if it goes wrong, and I would rather review it early than review
-  a backtest built on a broken universe.
-  Files: `data/universe.py`, `experiments/backtest_variant_sweep.py`, `.comms/`.
-
-- [!] `TASK-319` **BLOCKED — Lucas's decision, NOT Grok's to claim.** Kept here so it stays
-  visible rather than living only in the Messages thread. Two scoring questions, both with the
-  evidence already gathered:
-  (a) **`MOMENTUM_SKIP`.** `CLAUDE.md` documents v8.4 as "90d lookback, 5d skip"; the local
-  screener applies no skip, so it diverges from the algorithm it says it implements. Applying
-  the skip measures +3.8 bp/cycle (p=0.433, not significant) and improves maxDD from -21.7% to
-  -17.2%. Either apply it, or state in the SPEC that the local screener is deliberately
-  90d-no-skip. Doing nothing is the one option that leaves a documented contradiction standing.
-  (b) **The vol-scaling exponent** in `ret90/vol63**k`, currently k=1. My recommendation is
-  unchanged: **do not change it.** k=0 looks like +26.9 bp (p=0.009) but carries beta 1.51 vs
-  0.95; vol-matched, the residual is +14 bp with a 95% CI of [-4.4, +33.5], which includes zero.
-  Also parked here, same class: the 1-day `pct_positive` term in the regime breadth (SPEC 4.3)
-  injects daily noise into the regime. Changing it is a scoring change; the note is in the spec.
+- [!] `TASK-319` **BLOCKED - Lucas's decision, NOT Grok's to claim.** (a) `MOMENTUM_SKIP`: apply it
+  or state in the SPEC that the local screener is deliberately 90d-no-skip. (b) vol-scaling
+  exponent: keep k=1 - and TASK-324's out-of-sample run now says the same thing from the other
+  direction (k=0 does not beat k=1 on 2004-2026). Also parked: the 1-day `pct_positive` term in
+  the regime breadth (SPEC 4.3), and - new from the audit - the regime computed on SPY for a
+  Russell-heavy universe (audit R1), which is a scoring change waiting for TASK-325's panel.
 
 ---
 
 ## Completed
+
+- `TASK-321` (Grok, `8f8a735`) Parameter-level spec check: `test_spec_compliance.py` parses SPEC
+  section 6 and `config.py` from source and fails naming any drift; in-memory test overrides cannot
+  hide it. Review (Claude): **APPROVED**.
+
+- `TASK-322` (Grok, `c6d4602`) Modelled transaction cost (`COST_BP_PER_SIDE`, 10) reported gross
+  and net in the sweep table and in the tracking win-rate report, assumption stated in the output.
+  Review (Claude): **APPROVED**.
+
+- `TASK-323` (Grok, `2e229f4`) `test_hybrid_integration.py` skips loudly without `history/`; the
+  runner reports skips as their own category and exits 0 on a fresh clone. First time rule 4 is
+  satisfiable. Review (Claude): **APPROVED** - verified locally and in CI (11 passed, 1 skipped).
+
+- `TASK-324` (Grok, `5536f4a`) Point-in-time S&P 500 membership from fja05680 snapshots (Wikipedia
+  fallback), OOS sweep 2004-2026 over 1088 cycles re-measuring vol-scaling, sector cap and regime
+  gate. k=0 does not beat k=1 out of sample; the regime gate costs -5.2 bp and cuts maxDD from
+  -47.4% to -35.3%. Review (Claude): **APPROVED as infrastructure**; reopened as TASK-325 for a
+  ticker-reuse bug in suffix stripping (26 collisions with current members) and for the missing
+  price-coverage caveat (54% of 2005 members have prices).
+
 
 - `TASK-320` (Claude, `cf196f0` revert + `06d3a58` rebuild) **Sector control rebuilt as a hard
   cap at selection, on real GICS sectors.** Scores are no longer touched (scoring stays separate

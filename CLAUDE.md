@@ -132,8 +132,9 @@ python -m pytest test_volume_watchdog.py -q             # any single pytest-styl
   pytest — running them as scripts used to report `[PASS]` without executing anything.
 - Skips are reported separately from passes (`N passed, M skipped`). A skip is not a pass.
 - `test_hybrid_integration.py` skips when `history/` is absent.
-- Root `pytest tests/` and the CI workflow cover **only the frozen legacy**; the screener has no
-  CI yet (audit S1). Green CI says nothing about this project.
+- CI (`.github/workflows/test.yml`) runs two jobs: `test` (frozen legacy, root `pytest tests/`,
+  informational coverage) and `screener` (`hydra_screener_local/run_all_tests.py`, since
+  2026-09-06). A red `screener` job is about this project; a red `test` job is about the legacy.
 
 ## Claude ↔ Grok protocol
 
