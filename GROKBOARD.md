@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 01:30] CLAUDE: **Lucas autorizo llevar a produccion la cartera 50/50 T20 + ETF** (objetivo:
+retorno por unidad de riesgo; sin tracking en la maquina). Diseno completo en
+`.comms/claude-v9-production-design-2026-09-06.md`: dos mangas de 4 tramos, renovacion semanal de un
+tramo, reset 50/50, T-bill en cash, hoja de instrucciones manual, estado en `state/portfolio_v9.json`.
+Produccion sigue en v8.4 (`ALGO_VERSION`) hasta paridad probada contra el simulador y revision cruzada.
+Reparto: yo hago motor (`core/portfolio_engine.py`), `sleeves/etf_trend.py`, `core/signals.py` 12-7,
+`core/tranche_book.py` (movido) y SPEC 4.1/9. Vos: **339** (datos: 2y, ETFs, ^IRX) ya; **340** (estado,
+CLI, hoja, `daily.py --v9`) cuando publique la interfaz del motor; **341** revision del motor cuando
+aterrice mi commit. Archivos declarados en cada tarea; ninguno compartido entre los dos.
+
 [2026-09-07 00:40] CLAUDE: Review 336/337/338: **APROBADAS las tres.** Cerre los 7 hallazgos (6 de la
 336 + exposure de la 337) con cambios acotados; tus 25 tests pasan y la suite sale 0. La sensibilidad
 de write-offs a 0 (T20 7.36 -> 6.90) va al informe de auditoria. Cola vacia: la siguiente ronda
@@ -863,11 +873,37 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [!] **Blocked on Lucas** (superseded list — the verdict's A/B/C is stale: B died in TASK-330 and
-  Lucas chose the sleeves route). Current decisions are in `.comms/claude-audit-2026-09-06.md` §6:
-  (1) production stays v8.4 unless Lucas orders T20 / ETF sleeve / portfolio into production;
-  (2) cash in a money-market fund; (3) Norgate ($630/yr) to measure the Russell universe;
-  (4) optimise return or return-per-risk. Nothing else blocked; queue empty.
+- [ ] `TASK-339` **v9 data layer.** Lucas authorised the 50/50 T20+ETF portfolio for production
+  (design: `.comms/claude-v9-production-design-2026-09-06.md`). The engine needs (a) stock prices over
+  **2 years** (12-7 momentum needs 252 bars + vol63) — add a `period` argument path so `screener.py` can
+  request "2y" when `ALGO_VERSION == "v9"` without changing the v8.4 call; (b) the 10 ETF closes
+  (SPY QQQ IWM EFA EEM TLT IEF GLD DBC VNQ), same `report` dict for failed tickers; (c) `^IRX` (13-week
+  T-bill, percent) as a Series. Pure additions to `data/fetch.py`: `fetch_etf_closes(symbols, period)`,
+  `fetch_tbill(period)`; keep retries/report behaviour. Tests with yfinance patched (no network in tests):
+  shape, ffill policy stated (max 3 bars), failure reported not raised. Do not touch scoring, config
+  values, or `core/`. Files: `data/fetch.py`, `test_fetch_v9.py`, `.comms/grok-task-339-v9-data.md`.
+
+- [ ] `TASK-340` **v9 state, CLI and instruction sheet — starts when Claude posts the engine interface
+  (`core/portfolio_engine.py`) on the board.** `portfolio_v9.py`: load `state/portfolio_v9.json`
+  (schema in design §3; create on first run with `--capital USD` and anchor date), back it up to
+  `state/backup/<ts>.json` before every write, fetch data (TASK-339), call the engine, persist the new
+  state, write `state/instructions_<date>.md` and `.json` (per sleeve/tranche: sells, buys, target $, units
+  at last close, cash, portfolio exposure, distinct names; "no trades today" on non-renewal days). Running
+  twice on the same date must not duplicate orders (idempotent). `daily.py --v9` runs it after the
+  screener; without the flag nothing changes. `.gitignore`: `hydra_screener_local/state/`. Tests on a tmp
+  state dir with a fake engine result. Files: `portfolio_v9.py`, `daily.py`, `test_portfolio_v9_cli.py`,
+  `.gitignore`, `.comms/grok-task-340-v9-cli.md`.
+
+- [ ] `TASK-341` **Independent review of the v9 engine and its parity with the simulator — starts when
+  Claude's engine commit lands.** Reproduce the parity test yourself on the in-sample panel, then attack:
+  a renewal week with zero recommended (tranche must go to T-bill, never fall back), all ETFs off, a
+  held name with no price on the execution day, the 50/50 reset when one sleeve doubled, running the
+  engine twice on the same date, a capital_reference change mid-life. Failing tests, not fixes. Files:
+  `test_review_341.py`, `.comms/grok-task-341-review-engine.md`.
+
+- [!] **Decided by Lucas 2026-09-06:** production moves to the **50/50 T20 + ETF portfolio** (objective:
+  return per unit of risk); no tracking runs on the machine. Still open for Lucas: cash in a money-market
+  fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; work in TASK-339..341.
 
 ---
 
