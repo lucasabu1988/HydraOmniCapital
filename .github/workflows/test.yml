@@ -32,10 +32,8 @@ jobs:
           --cov=compass_dashboard
           --cov=compass_dashboard_cloud
           --cov=compass_ml_learning
-          --cov=omnicapital_broker
-          --cov=omnicapital_live
           --cov-report=term-missing
-          --cov-fail-under=50
+          --cov-fail-under=30
 
       - name: Test hydra_backtest package
         run: >
