@@ -37,6 +37,40 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 21:10] CLAUDE: Lucas pidio arreglar los bugs y los hallazgos estructurales.
+Reparto hecho. Yo me quedo el spec, la narrativa de diseno y la infraestructura de test; vos los
+cambios de codigo en `core/` y `screener.py`. Mis tres ya estan hechas (TASK-311..313, en
+Completed); las tuyas son TASK-314..318. La 319 sigue parada esperando a Lucas.
+
+Tres avisos antes de que empieces:
+
+1. **La suite esta en rojo a proposito.** Arregle el runner: los ficheros estilo pytest sin
+   bloque `__main__` ya no salen `[PASS]` sin ejecutar nada. Al hacerlo aparecieron DOS ficheros
+   que llevaban tiempo en falso verde y fallan de verdad: `test_volume_watchdog.py` (el bug del
+   watchdog, TASK-314) y `test_universe_robustness.py` (parchea un atributo que no existe,
+   TASK-316). Los dos vienen de tareas que YO aprobe, TASK-202 y TASK-201. La regla 4 queda
+   suspendida para esas dos: ponerlas en verde es exactamente la tarea.
+
+2. **TASK-318 es cambio de scoring y esta aprobado por Lucas**, asi que la regla 6 esta cubierta.
+   Pero leete la entrada entera antes de tocar nada: el arreglo obvio (poner sectores reales) NO
+   arregla el problema — medido, pasaria de 87.4% a 82.4% de nombres penalizados. El defecto real
+   es que el cap se aplica sobre las ~500 scoreadas en vez de sobre el pool candidato. Hay que
+   hacer las dos cosas. Y esta vez el cambio aterriza con numeros: tenes el harness en
+   `experiments/backtest_variant_sweep.py`, anadi tu variante a `VARIANTS` y medi antes/despues.
+
+3. **Lo que no se toca.** `MIN_REGIME_SCORE` no se mueve: el umbral que sale mejor en backtest
+   (0.55) se eligio mirando esos mismos datos, y eso es seleccion, no validacion. El exponente de
+   vol-scaling tampoco. Los dos estan en TASK-319 con la evidencia.
+
+Nota para los dos: de los cuatro bugs de este lote, tres estaban tapados por un test que no se
+ejecutaba o por un campo que se caia en silencio. El patron no es "codigo malo", es "verificacion
+que no verificaba". Por eso la infraestructura de test se arreglo primero.
+
+RENUMERACION: el mensaje de las 19:20 (mas abajo) hablaba de TASK-305..310. Esa cola se
+reescribio con el reparto y ya no existe. Equivalencias: 305 -> 314, 306 -> 311 (la hice yo),
+307 -> 315, 308 -> 317, 309 -> 318 (rediseñada, ahora incluye mover el cap al pool candidato),
+310 -> 319. TASK-312, 313 y 316 son nuevas. Ignora la numeracion vieja.
+
 [2026-09-05 19:20] CLAUDE: Deep-dive del algoritmo terminado (pedido de Lucas). Informe completo
 en `.comms/claude-algo-deep-dive-2026-09-05.md`, harness reproducible en
 `experiments/backtest_variant_sweep.py` (motor point-in-time validado contra
@@ -194,65 +228,148 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
-Batch from the algorithm deep-dive (2026-09-05). Full analysis with the evidence for every item:
+Batch from the algorithm deep-dive (2026-09-05). Evidence for every item:
 [`.comms/claude-algo-deep-dive-2026-09-05.md`](.comms/claude-algo-deep-dive-2026-09-05.md).
-Reproduce any number with `python experiments/backtest_variant_sweep.py --validate --sweep --risk`.
+Reproduce any number: `python experiments/backtest_variant_sweep.py --validate --sweep --risk`.
 
-**None of these change scoring.** Anything that would is parked for Lucas (see TASK-310).
-Priority: 305 -> 306 -> 307 -> 308.
+**Split of work.** Claude takes the spec, the design narrative and the test infrastructure —
+the places where the question is "what does this system mean". Grok takes the code changes in
+`core/` and `screener.py`, which are well specified and have hard acceptance criteria.
+Claude's three are already done (see Completed); Grok's are below.
 
-- [ ] `TASK-305` **The TASK-202 volume watchdog never fires.** `core/signals.py:231` computes
-  `vol_ratio_nan_share` but the SPEC §7 output contract (`final_df = df[[...]]`) drops the
-  column, so `screener.py:80` always reads the `0.0` default and `history.py` records `0.0`
-  every day. Add the column to the contract and to the rename list, and add it to SPEC §7.
-  Verify by forcing NaN volume and seeing the warning actually print.
-  Files: `core/signals.py`, `HYDRA_ALGORITHM_SPEC.md`.
+**The suite is RED right now, on purpose.** `run_all_tests.py` used to report pytest-style files
+as `[PASS]` without running them. Now it runs them, and two real failures appeared:
+`test_volume_watchdog.py` (2 fails = TASK-314) and `test_universe_robustness.py` (1 fail =
+TASK-316). Both had been hidden green. Rule 4 ("must exit 0") is suspended for TASK-314 and
+TASK-316: turning them green IS the task. `test_hybrid_integration.py` stays red on a fresh
+clone (needs `history/`) — that one is expected.
 
-- [ ] `TASK-306` **The runner reports untested files as green.** `run_all_tests.py` runs each
-  test as a script. `test_volume_watchdog.py` and `test_universe_robustness.py` are pytest-style
-  with no `if __name__ == "__main__"` block: they execute nothing, exit 0, and are reported
-  `[PASS]`. Under pytest, `test_volume_watchdog.py` gives 2 real failures — the ones that catch
-  TASK-305. Make the runner detect a file with no `__main__` and run it through pytest (or fail
-  loudly). Do 305 first so this test goes green for the right reason.
-  Files: `run_all_tests.py`.
+Priority: 314 -> 315 -> 316 -> 317 -> 318.
 
-- [ ] `TASK-307` **The reported regime is not the regime that decides.** `screener.py:77` uses
-  `compute_regime_score` (simple `0.7*trend + 0.3*mom20`) for the printed summary and for
-  `save_daily_run(regime_score=...)`, while scoring uses `compute_rich_regime_scores`. Measured
-  on 2026-09-04: 0.793 reported vs 0.693 actually used — enough to cross a `regime_type`
-  threshold, which means the history JSON labels every run with the wrong regime and
-  `analyze_history.py` correlates outcomes against the wrong variable. Report and persist
-  `candidates['regime'].iloc[0]` instead. Do not change any scoring path.
-  Files: `screener.py`.
+- [ ] `TASK-314` **The TASK-202 volume watchdog never fires.** `core/signals.py:231` computes
+  `vol_ratio_nan_share`, but the SPEC section 7 output contract (`final_df = df[[...]]`) drops
+  the column, so `screener.py:80` always reads the `0.0` default and `history.py` records `0.0`
+  every day — the "strict filter coverage degraded" warning cannot fire, ever.
+  Add the column to the contract and to the rename list, and to SPEC section 7.
+  **Acceptance:** `python -m pytest test_volume_watchdog.py -q` green (2 tests currently fail).
+  That test already existed and was already correct — the runner was hiding it.
+  Files: `core/signals.py`, `HYDRA_ALGORITHM_SPEC.md` (section 7 only).
 
-- [ ] `TASK-308` **Dead code from the deep-dive.** (a) `MOMENTUM_SKIP` is imported in
-  `core/signals.py:21` and never used — remove the import, keep the constant in `config.py`
-  and leave a comment pointing at TASK-310. (b) `dynamic_vol_threshold` is computed twice,
-  identically, inside `generate_daily_candidates` — drop the second one.
-  Files: `core/signals.py`.
+- [ ] `TASK-315` **The reported regime is not the regime that decides, + gate observability.**
+  (a) `screener.py:77` uses `compute_regime_score` (simple `0.7*trend + 0.3*mom20`) for the
+  printed summary and for `save_daily_run(regime_score=...)`, while the scoring uses
+  `compute_rich_regime_scores`. Measured 2026-09-04: 0.793 reported vs 0.693 used — enough to
+  cross a `regime_type` boundary, so every history entry is labelled with a regime that did not
+  generate those signals, and `analyze_history.py` correlates outcomes against the wrong
+  variable. Report and persist `candidates['regime'].iloc[0]` instead.
+  (b) While you are in there: persist `regime_type` and a boolean `regime_gate_blocked` (true
+  when the day produced zero recommended because of the regime flag) into the history JSON.
+  Today the history cannot tell us when the gate kept us out — which is why the exposure
+  analysis in the deep-dive had to be rebuilt from scratch in the backtest.
+  **Do not change any scoring path**, and do not touch `MIN_REGIME_SCORE` (see TASK-319).
+  Files: `screener.py`, `core/history.py`.
 
-- [ ] `TASK-309` **Sector control is degenerate — proposal only, do not implement yet.**
-  `SECTOR_BUCKETS` maps 80 tickers; production runs ~3000. Everything unmapped lands in
-  `"Other"`, and `MAX_PER_SECTOR=8` then penalises 15% of everything ranked >8 inside it:
-  measured 435 of 498 names penalised on the S&P 500. In practice it is a 15% tax on anything
-  outside a hardcoded 80-name list, which is close to the opposite of a diversification control.
-  Write a short proposal in `.comms/` for fetching real sectors from yfinance once a day into a
-  cached JSON (same pattern as the universe cache), with the fallback behaviour spelled out.
-  No code changes until Claude reviews the proposal.
-  Files: `.comms/` only.
+- [ ] `TASK-316` **`test_universe_robustness.py` is broken and nobody knew.** It patches
+  `hydra_screener_local.data.universe.data_cache`, an attribute that does not exist:
+  `AttributeError: module ... does not have the attribute 'data_cache'`. It never ran as a
+  script, so it never failed. This is TASK-201's own test — the cache path is built inside the
+  function via `os.path.join(project_root, "data_cache", ...)`, so either patch what actually
+  exists or lift the path into a module-level constant and patch that. The second is cleaner.
+  **Acceptance:** `python -m pytest test_universe_robustness.py -q` green, 3 passed.
+  Files: `test_universe_robustness.py`, optionally `data/universe.py` (path constant only).
 
-- [ ] `TASK-310` **BLOCKED — needs Lucas.** Scoring decisions surfaced by the deep-dive, listed
-  so they are not silently forgotten. Do not touch any of it (rule 6):
-  (a) breadth spec/code drift — SPEC §4.3 says `0.4*sma50 + 0.6*sma200`, the code uses
-  `0.3*pct_positive + 0.3*sma50 + 0.4*sma200`; recommended resolution is to update the spec,
-  not the code; (b) `MOMENTUM_SKIP` — `CLAUDE.md` documents v8.4 as "90d lookback, 5d skip"
-  and the local screener applies no skip; (c) the vol-scaling exponent. Evidence for all three
-  is in the deep-dive; the short version is that none of them showed a statistically significant
-  improvement, so the default is to change nothing and document the intent.
+- [ ] `TASK-317` **Dead code + a pandas 3.0 landmine.** (a) `MOMENTUM_SKIP` is imported in
+  `core/signals.py:21` and never used — drop the import, keep the constant in `config.py` with
+  a comment pointing at TASK-319. (b) `dynamic_vol_threshold` is computed twice, identically,
+  inside `generate_daily_candidates` — drop the second. (c) `prices.pct_change()` in
+  `compute_momentum_score` relies on the deprecated default `fill_method='pad'`, which pandas
+  3.0 changes. Pass `fill_method=None` explicitly. Measured impact on the current universe:
+  5 tickers with interior gaps, volatility distortion < 0.01% — a no-op today, and it must stay
+  a no-op. **Verify that:** run `test_spec_compliance.py` before and after and confirm the
+  printed momentum values are unchanged.
+  Files: `core/signals.py`, `config.py` (comment only).
+
+- [ ] `TASK-318` **Sector control redesign. SCORING CHANGE — approved by Lucas directly**
+  (2026-09-05, same route as the Jun-2026 gate change; rule 6 satisfied). Read the whole entry
+  before writing code, because the obvious fix is the wrong one.
+
+  The problem: `SECTOR_BUCKETS` maps 80 tickers, production runs ~3000, everything unmapped
+  lands in `"Other"`, and `MAX_PER_SECTOR=8` applies a 15% penalty to everything ranked below
+  8th *inside its bucket*. Measured on the S&P 500: **435 of 498 names penalised (87%)**. In
+  practice it is a 15% tax on anything outside a hardcoded 80-name list — close to the opposite
+  of a diversification control.
+
+  **The trap:** fixing only the sector map does NOT fix it. Measured, same universe:
+
+  ```
+  actual: 80 mapeados + "Other"    buckets= 10   PENALIZADOS = 87.4%
+  11 sectores reales (GICS)        buckets= 11   PENALIZADOS = 82.4%
+  24 industrias                    buckets= 24   PENALIZADOS = 61.6%
+  ```
+
+  Real sectors alone still penalise 82%. The actual defect is that the cap is applied across the
+  **whole scored universe**, where "top 8 per bucket" is meaningless: with ~500 names across ~11
+  sectors, being 9th of 45 in your sector is unremarkable, not over-concentration.
+
+  So the fix is two things, in two commits:
+  1. **Real sector data.** Fetch `sector` from yfinance once a day into a cached JSON — same
+     pattern and fallback discipline as the universe cache you built in TASK-201 (a stale cache
+     beats no data, log loudly on fallback, never let a fetch failure crash a run). Unmapped
+     tickers still fall back to `"Other"`.
+  2. **Apply the cap to the candidate pool, not to the universe.** The control exists to stop
+     the *recommended* list concentrating — the may-jun 2026 case was 72% Semis + Software among
+     the recommended names. Applying it to the top `dynamic_count` candidates is what the
+     docstring has always claimed it does.
+
+  **Calibration:** once the cap moves to a pool of 14-28 names, `MAX_PER_SECTOR=8` is barely
+  binding. `CLAUDE.md` documents legacy v8.4 as "sector limit: max 3 per sector" — that is the
+  natural anchor. Propose a value with a reason, do not just pick one.
+
+  **Required before this closes:** (a) a short design note in `.comms/` for me to review BEFORE
+  the second commit; (b) a measured before/after using `experiments/backtest_variant_sweep.py`
+  — the harness exists for exactly this, add your variant to `VARIANTS`; (c) the recommended-set
+  diff on one live run so Lucas can see which names actually change. A scoring change lands with
+  numbers attached or it does not land.
+  Files: `config.py`, `core/filters.py`, `data/` (new sector cache module),
+  `experiments/backtest_variant_sweep.py`.
+
+- [ ] `TASK-319` **STILL BLOCKED — needs Lucas.** Two scoring decisions the deep-dive surfaced
+  that are deliberately NOT in this batch, kept here so they are not silently forgotten:
+  (a) **`MOMENTUM_SKIP`** — `CLAUDE.md` documents v8.4 as "90d lookback, 5d skip"; the local
+  screener applies no skip. Measured: applying it is +3.8 bp/cycle (p=0.433, not significant)
+  but improves maxDD from -21.7% to -17.2%. Either apply the skip, or document that the local
+  screener is deliberately 90d-no-skip.
+  (b) **The vol-scaling exponent** in `ret90/vol63**k`, currently k=1. Recommendation: **do not
+  change it.** k=0 looks like +26.9 bp (p=0.009) but is beta 1.51 vs 0.95; vol-matched, the
+  residual is +14 bp with a 95% CI of [-4.4, +33.5], which includes zero.
+  Neither moves without Lucas saying so explicitly.
 
 ---
 
 ## Completed
+
+- `TASK-311` (Claude) **Test runner no longer green-lights untested files.** `run_all_tests.py`
+  ran every test file as a script, so pytest-style files with no `if __name__ == "__main__"`
+  executed nothing, exited 0 and were reported `[PASS]`. Added `_invocation()`: a file that
+  defines `test_*` functions and has no `__main__` block is routed through `python -m pytest`.
+  This immediately surfaced two genuinely failing test files that had been reporting green
+  (now TASK-314 and TASK-316).
+
+- `TASK-312` (Claude) **Spec/code drift in the breadth sub-score closed.** SPEC 4.3 documented
+  `0.4*sma50 + 0.6*sma200`; `core/regime.py` has always computed
+  `0.3*pct_positive + 0.3*sma50 + 0.4*sma200`. Spec updated to match the code (the code is the
+  source of truth per the spec header) — no scoring change. Recorded in the spec that the 1-day
+  `pct_positive` term injects daily noise into the regime and is worth revisiting, and that
+  revisiting it IS a scoring change.
+
+- `TASK-313` (Claude) **Meta-Layer documented for what it actually does.**
+  `meta_score = momentum * aggression * pillar_factor`, and both factors are the same positive
+  scalar for every ticker that day — so the Meta-Layer cannot change the cross-sectional ranking
+  (Spearman 1.000 between STRONG and WEAK). It influences exactly `dynamic_count` and the regime
+  flag; `Rattlesnake`/`Catalyst`/`EFA` never touch scoring by any code path. Written up in
+  SPEC 4.4 and in the `apply_meta_to_candidates` docstring. A real cross-sectional tilt was
+  prototyped and rejected on evidence (-0.9 bp, p=0.593; -2.9 bp, p=0.099).
+
 
 - `TASK-201` (`170a3fa` + `ecdc7b6` + `e6105b9` + Claude touch-up) Universe network layer
   hardened: module logger with warnings on every previously-silent except (one allowed

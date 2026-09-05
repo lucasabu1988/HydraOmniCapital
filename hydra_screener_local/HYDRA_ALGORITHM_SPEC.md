@@ -169,14 +169,23 @@ velocity = max(0, curr_dd - dd20) / 20
 vel_score = 1 - clamp(velocity * 40, 0, 1)
 
 # 5. Breadth (optional)
-if full_universe_prices:
-    breadth = 0.4 * pct_above_sma50 + 0.6 * pct_above_sma200
+if full_universe_prices and n_tickers > 30:
+    pct_positive  = share of tickers with a positive 1-day return
+    above_sma50   = share of tickers above their own SMA50
+    above_sma200  = share of tickers above their own SMA200
+    breadth = clamp(0.3*pct_positive + 0.3*above_sma50 + 0.4*above_sma200, 0, 1)
 else:
     breadth = 0.5
 
 overall = 0.30*trend + 0.25*mom + 0.20*vol + 0.15*vel + 0.10*breadth
 regime_score = round(clamp(overall, 0, 1), 3)
 ```
+
+> **Nota (2026-09-05).** Hasta esta fecha el spec documentaba `0.4*sma50 + 0.6*sma200`,
+> que nunca fue lo que hacía `core/regime.py`. Se corrigió el spec (el código es la fuente
+> de verdad, sección de cabecera) sin tocar el scoring. El término `pct_positive` es de un
+> solo día, así que inyecta ruido diario en el régimen: es un candidato razonable a revisar,
+> pero cambiarlo SÍ es cambio de scoring y necesita aprobación explícita.
 
 **Regime Type thresholds** (exact):
 - STRONG   ≥ 0.62
@@ -185,6 +194,31 @@ regime_score = round(clamp(overall, 0, 1), 3)
 - WEAK     <  0.38
 
 ### 4.4 Meta-Layer (LightweightMetaLayer)
+
+> **Qué hace realmente la Meta-Layer (documentado 2026-09-05).**
+>
+> `meta_score = momentum × overall_aggression × pillar_factor`. En un día dado,
+> `overall_aggression` y `pillar_factor` son **el mismo escalar positivo para todos los
+> tickers**. Un escalar positivo común no puede alterar un orden, así que
+> **la Meta-Layer NO cambia el ranking transversal**: ordenar por `composite_score` es
+> idéntico a ordenar sin ella. Verificado: Spearman = 1.000000 entre el `meta_score` de un
+> régimen STRONG y el de un WEAK_CRISIS sobre el mismo universo.
+>
+> La Meta-Layer influye exactamente en dos salidas:
+> 1. `dynamic_count` (§4.6), vía `overall_aggression` y `pillar_multipliers["COMPASS"]`.
+> 2. El flag de régimen `regime_score >= MIN_REGIME_SCORE * 0.85`.
+>
+> Corolario: los multiplicadores `Rattlesnake`, `Catalyst` y `EFA` **no participan en el
+> scoring por ningún camino de código**. `bias_rattlesnake` entra en `pillar_factor`, que
+> es global. Son observabilidad del régimen, no un tilt de estilo.
+>
+> Esto es una descripción, no un defecto: es una forma legítima de gestionar riesgo por
+> tamaño de cartera. Se documenta porque el spec anterior sugería un tilt de estilo que no
+> existe. Se probó construir ese tilt real (que el régimen cambie el *peso* de las features
+> por ticker en vez de una escala global) y **no mejora**: −0.9 bp/ciclo (p=0.593) para un
+> tilt suave y −2.9 bp (p=0.099) añadiendo sesgo mean-reversion en régimen débil, sobre
+> 283 ciclos. Ver `.comms/claude-algo-deep-dive-2026-09-05.md` §4.4 y
+> `experiments/backtest_variant_sweep.py`.
 
 **Exact base biases by regime_type** (from code):
 

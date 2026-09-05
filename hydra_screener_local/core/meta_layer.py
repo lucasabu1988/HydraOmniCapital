@@ -186,10 +186,22 @@ class LightweightMetaLayer:
 
 def apply_meta_to_candidates(candidates_df, meta):
     """
-    Aplica los ajustes de la Meta-Layer usando activamente los Pillar Multipliers.
+    Aplica los ajustes de la Meta-Layer sobre el momentum.
 
     See SPEC 4.5 "Composite Score Assembly" and 4.4.
-    This is where the pillar_factor is applied on top of momentum * aggression.
+
+    IMPORTANTE (documentado 2026-09-05): `overall_aggression` y `pillar_factor` son el
+    MISMO escalar positivo para todos los tickers del día. Un escalar positivo común no
+    altera un orden, así que esta función NO cambia el ranking transversal — solo la
+    escala de los scores. Verificado: Spearman = 1.000 entre el meta_score de un régimen
+    STRONG y el de un WEAK.
+
+    Lo que sí depende de la Meta-Layer es `dynamic_count` (vía aggression y compass_mult)
+    y el flag de régimen, ambos en signals.generate_daily_candidates.
+
+    Si algún día se quiere un tilt de estilo real (que el régimen reordene el universo),
+    tiene que entrar aquí como peso POR TICKER, no como factor global. Se probó y no
+    mejoró: ver SPEC 4.4 y .comms/claude-algo-deep-dive-2026-09-05.md.
     """
     df = candidates_df.copy()
     # Use 'momentum' (after rename in signals.py for SPEC column contract)

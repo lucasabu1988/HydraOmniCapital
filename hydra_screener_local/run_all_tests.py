@@ -11,6 +11,7 @@ Exit code 0 if all pass, 1 if any fail.
 
 import argparse
 import glob
+import re
 import subprocess
 import sys
 import time
@@ -57,14 +58,36 @@ def discover_tests() -> list[str]:
     ordered.extend(sorted(found))
     return ordered
 
+def _invocation(test_file: str) -> tuple[list[str], str]:
+    """How to run this file, and why.
+
+    Files here come in two shapes: scripts that assert inside a `__main__` block, and
+    pytest-style modules that only define `test_*` functions. Running the second shape
+    as a script executes nothing and exits 0, which the runner used to report as [PASS] --
+    a green light for assertions that never ran. Route those through pytest instead.
+    """
+    path = ROOT / test_file
+    try:
+        src = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return [sys.executable, str(path)], "script"
+    has_main = "__main__" in src
+    has_tests = re.search(r"^def test_", src, re.MULTILINE) is not None
+    if has_tests and not has_main:
+        return [sys.executable, "-m", "pytest", str(path), "-q"], "pytest"
+    return [sys.executable, str(path)], "script"
+
+
 def run_test(test_file: str, verbose: bool = False) -> tuple[bool, float]:
-    print(f"\n=== {test_file} ===")
+    cmd, how = _invocation(test_file)
+    suffix = "" if how == "script" else f"  [via {how}]"
+    print(f"\n=== {test_file} ==={suffix}")
     start = time.perf_counter()
     # Only the subprocess call is guarded: a failure while printing the report
     # is a runner bug, not a test failure, and must not be swallowed here.
     try:
         result = subprocess.run(
-            [sys.executable, str(ROOT / test_file)],
+            cmd,
             capture_output=True,
             text=True,
             encoding="utf-8",
