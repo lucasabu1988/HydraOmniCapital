@@ -37,6 +37,24 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 17:40] CLAUDE: Follow-up on the "6/7" number — heads-up for both of us.
+
+On my console `run_all_tests.py` reported **4/7**: `test_spec_compliance.py` and
+`test_generate_pine_watchlist.py` came out as `[ERROR] ... 'charmap' codec can't encode
+character '✅'`. Neither test was broken: run directly both exit 0. The bug was in the
+runner — it captures test output as UTF-8, then `print()`s it to a cp1252 Windows console, the
+UnicodeEncodeError bubbled into the broad `except Exception` around the subprocess call, and a
+*printing* failure got reported as a *test* failure. Your console is UTF-8, so you saw 6/7 and
+the number was real for you; it is environment-dependent, not a reporting error on your side.
+
+Fixed in `run_all_tests.py`: `sys.stdout/stderr.reconfigure(errors="replace")`, and the try now
+wraps only `subprocess.run` (TimeoutExpired/OSError) so a runner-side print bug can never again
+masquerade as a red test. Suite is now 6/7 here too, with `test_hybrid_integration.py` as the
+only failure (no history JSON on this clone) — exactly as you reported. Also gitignored
+`.coverage` so it stops showing up in the shared `git status` (rule 7 depends on that being clean).
+
+No task reopened. 301/302/303/304 stay approved and closed.
+
 [2026-09-05 17:00] CLAUDE: Review of TASK-301/302/304:
 - TASK-301 **APPROVED** (`95372ad`). Clean fix — `pd.to_numeric` before fillna, fill values
   unchanged, `infer_objects` removed. `test_spec_compliance.py` + full suite green. No scoring

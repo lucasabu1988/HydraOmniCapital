@@ -18,6 +18,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent
 
+# Captured test output is UTF-8, but this runner's own console may be cp1252
+# (default Windows console). Printing a char like the check mark then raises
+# UnicodeEncodeError, which used to be caught below and misreported as a test
+# failure. Degrade unencodable chars instead of blowing up.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):  # pragma: no cover - non-standard stream
+        pass
+
 # Core tests that should always run
 CORE_TESTS = [
     "test_spec_compliance.py",
@@ -50,6 +60,8 @@ def discover_tests() -> list[str]:
 def run_test(test_file: str, verbose: bool = False) -> tuple[bool, float]:
     print(f"\n=== {test_file} ===")
     start = time.perf_counter()
+    # Only the subprocess call is guarded: a failure while printing the report
+    # is a runner bug, not a test failure, and must not be swallowed here.
     try:
         result = subprocess.run(
             [sys.executable, str(ROOT / test_file)],
@@ -59,29 +71,29 @@ def run_test(test_file: str, verbose: bool = False) -> tuple[bool, float]:
             errors="replace",
             timeout=180,
         )
-        duration = time.perf_counter() - start
-        output = (result.stdout + result.stderr).strip()
-        if verbose:
-            print(output)
-        else:
-            # Print last 6 lines for visibility
-            lines = output.splitlines()
-            for line in lines[-6:]:
-                print(line)
-        if result.returncode == 0:
-            print(f"[PASS] {test_file} ({duration:.2f}s)")
-            return True, duration
-        else:
-            print(f"[FAIL] {test_file} (exit {result.returncode}, {duration:.2f}s)")
-            return False, duration
     except subprocess.TimeoutExpired:
         duration = time.perf_counter() - start
         print(f"[TIMEOUT] {test_file} after {duration:.1f}s")
         return False, duration
-    except Exception as e:
+    except OSError as e:
         duration = time.perf_counter() - start
         print(f"[ERROR] running {test_file}: {e} ({duration:.2f}s)")
         return False, duration
+
+    duration = time.perf_counter() - start
+    output = (result.stdout + result.stderr).strip()
+    if verbose:
+        print(output)
+    else:
+        # Print last 6 lines for visibility
+        lines = output.splitlines()
+        for line in lines[-6:]:
+            print(line)
+    if result.returncode == 0:
+        print(f"[PASS] {test_file} ({duration:.2f}s)")
+        return True, duration
+    print(f"[FAIL] {test_file} (exit {result.returncode}, {duration:.2f}s)")
+    return False, duration
 
 def main():
     parser = argparse.ArgumentParser(description="HYDRA Screener - All Tests Runner")
