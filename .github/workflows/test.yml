@@ -75,3 +75,31 @@ jobs:
         run: |
           echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
           coverage report --format=markdown >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Coverage report unavailable" >> $GITHUB_STEP_SUMMARY
+
+  # The active project. Until 2026-09-06 CI ran only the frozen legacy engine above and not a
+  # single screener test (audit S1). Separate job so a legacy failure cannot mask a screener one.
+  # run_all_tests.py routes pytest-style files through pytest, reports skips apart from passes,
+  # and exits non-zero on any failure. Everything it runs is offline (synthetic data, patched
+  # network); test_hybrid_integration skips without history/.
+  screener:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: hydra_screener_local
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install screener dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Screener test suite
+        run: python run_all_tests.py
