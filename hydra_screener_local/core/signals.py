@@ -231,12 +231,16 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     vol_ratio_nan_share = float(df["vol_ratio"].isna().mean()) if len(df) > 0 else 0.0
     df["vol_ratio_nan_share"] = round(vol_ratio_nan_share, 4)
 
-    # Use infer_objects to avoid FutureWarning on downcasting fillna
+    # Numeric coerce before fillna — avoids pandas FutureWarning on object downcast.
+    # Fill values unchanged: ret_short 0, dist_to_high -100, vol_ratio 0 (scoring identical).
+    df["ret_short"] = pd.to_numeric(df["ret_short"], errors="coerce")
+    df["dist_to_high"] = pd.to_numeric(df["dist_to_high"], errors="coerce")
+    df["vol_ratio"] = pd.to_numeric(df["vol_ratio"], errors="coerce")
     df["passes_strict"] = (
-        (df["ret_short"].fillna(0).infer_objects(copy=False) > 15) &
-        (df["dist_to_high"].fillna(-100).infer_objects(copy=False) >= -2) &
-        (df["vol_ratio"].fillna(0).infer_objects(copy=False) > dynamic_vol_threshold)
-    ).fillna(False).infer_objects(copy=False)
+        (df["ret_short"].fillna(0.0) > 15) &
+        (df["dist_to_high"].fillna(-100.0) >= -2) &
+        (df["vol_ratio"].fillna(0.0) > dynamic_vol_threshold)
+    ).fillna(False)
 
     # SPEC 4.5 - Short-term boost + composite (momentum * meta * (1 + short_boost * SHORT_TERM_BOOST))
     # - ret_short alto → positivo
