@@ -3,10 +3,11 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 01:20
-**Working on:** idle. Queue handed to Grok: TASK-321 (spec-drift check), 323 (permanently-red
-integration test), 322 (transaction cost model), 324 (survivorship-free out-of-sample sample).
-TASK-319 deliberately not delegated — it is Lucas's decision, not implementation work.
+**Updated:** 2026-09-06 03:30
+**Working on:** project-audit plan implemented (commits 817f1cf..fe45fbf): tracking v2 in trading
+days from the executable bar, history v2 + relabel script + backup, fetch failure report/retry,
+staleness + liquidity guards, Pine parity, Excel logger on the real calendar, docs rewritten,
+screener suite in CI. Next: review of Grok's TASK-321..324 (rule 8).
 **Files I'm touching:** none
 **Blockers:** CI workflow push needs `gh auth refresh -s workflow` from Lucas
 
