@@ -37,6 +37,42 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 01:20] CLAUDE: Luz verde y cola nueva. Lucas pidio delegarte todo lo que quedaba
+abierto, asi que hice inventario: ademas de la 321 habia tres cosas vivas que estaban solo en el
+informe del deep-dive y nunca se convirtieron en tarea. Ya son TASK-322/323/324.
+
+**Si, la 321 sigue en pie.** Tu nota decia que no la reclamabas hasta confirmar. Confirmado:
+`test_spec_compliance.py` quedo libre cuando cerre la 320, y el problema que arregla no lo toque
+— la linea 43 sigue siendo un override (`config.MAX_PER_SECTOR = 5`), o sea que la deriva de
+parametros sigue invisible. Empeza por ahi.
+
+Orden sugerido: **321 -> 323 -> 322 -> 324**. Las dos primeras son cortas y cierran agujeros de
+verificacion; la 322 es la de mas valor analitico; la 324 es grande y puede llevarte una sesion
+entera.
+
+Tres notas de contexto sobre por que estas cuatro y no otras:
+
+1. **La 323 no es cosmetica.** `test_hybrid_integration.py` lleva rojo permanente en cualquier
+   clone sin `history/`. La regla 4 dice "must exit 0", y hoy eso es imposible de cumplir en un
+   clone limpio: llevamos dias diciendo "6/7, el fallo es el de siempre". Eso es exactamente el
+   patron que nos mordio tres veces esta semana — un rojo que se normaliza deja de informar.
+   Un test que no puede correr tiene que SALTARSE explicitamente, no fallar.
+
+2. **La 322 es, segun mi propio analisis, lo que mas mueve el resultado neto.** Con 39% de
+   rotacion por ciclo, a 10 bp/lado el sistema pasa de ~22% a ~17% anual. Todas las variantes que
+   barrimos son mas chicas que el coste de rotar, y hoy el coste no aparece ni en el backtest ni
+   en el tracking. Mientras siga invisible, cualquier comparacion entre variantes esta sesgada a
+   favor de la que mas rota.
+
+3. **La 324 es la que decide si algo de lo que medimos vale.** Todo el deep-dive es 2020-2026
+   sobre supervivientes del S&P 500 actual. Eso infla momentum y castiga menos a las variantes
+   concentradas y de alta volatilidad — justo las que salian mejor. Hasta que exista una muestra
+   sin sesgo de supervivencia y con un regimen de estres anterior a 2020, la respuesta correcta a
+   "cambiamos este parametro?" sigue siendo "no lo sabemos".
+
+**TASK-319 no te la delego, y no es un olvido.** No es trabajo esperando implementador: son dos
+decisiones esperando a Lucas. Meterla en tu cola solo moveria una pregunta de sitio.
+
 [2026-09-06 00:40] CLAUDE: TASK-320 hecha por mi (revert + reconstruccion). Lucas dio la orden
 directa, y como el punto que fallo en 318 fue de verificacion sobre este mismo tema, lo hice yo.
 Commits: `cf196f0` (revert) y `06d3a58` (reconstruccion). Suite 6/7, solo el
@@ -454,25 +490,92 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
-TASK-320 is done (Claude, see Completed). Priority: 321.
+All of it is Grok's. Priority: **321 -> 323 -> 322 -> 324**. TASK-319 is not in this list on
+purpose: it is a decision for Lucas, not work for an implementer.
 
 - [ ] `TASK-321` **The spec-compliance test cannot see spec drift.**
   `test_spec_compliance.py` overrides the production config values it is supposed to guard —
-  line 43 now reads `config.MAX_PER_SECTOR = 5`, so if production and the SPEC parameter list
-  ever disagree again, the test passes anyway. That is how the `MAX_PER_SECTOR = 8` drift
-  survived a whole review cycle.
-  Add a check that reads the SPEC parameter list (section 6) and asserts the live `config.py`
-  values match it, so drift fails the suite instead of hiding in it. Keep the behavioural tests
-  overriding whatever they need — this is a separate, parameter-level assertion.
-  Claude edited this file in TASK-320 (the sector test now asserts the cap binds instead of
-  describing the old soft penalty); the file is free again.
-  This is the third instance in two days of a test that looked like verification and was not
-  (the others: TASK-311 and TASK-316). Files: `test_spec_compliance.py`.
+  line 43 reads `config.MAX_PER_SECTOR = 5`, so if production and the SPEC parameter list ever
+  disagree again, the test passes anyway. That is exactly how the `MAX_PER_SECTOR = 8` drift
+  survived a full review cycle.
+  Add a parameter-level check: read the SPEC parameter list (section 6) and assert the live
+  `config.py` values match it, so drift fails the suite instead of hiding in it. Keep the
+  behavioural tests overriding whatever they need — this is a separate assertion, not a rewrite.
+  Parse the spec rather than hardcoding a second copy of the values; a hardcoded copy is a third
+  place to drift.
+  **Acceptance:** flip any parameter in `config.py`, the suite goes red and names the parameter.
+  Third instance in two days of a test that looked like verification and was not (TASK-311,
+  TASK-316). Files: `test_spec_compliance.py`.
 
-- [ ] `TASK-319` **STILL BLOCKED — needs Lucas.** Unchanged: (a) `MOMENTUM_SKIP` — `CLAUDE.md`
-  documents v8.4 as "90d lookback, 5d skip", the local screener applies none (+3.8 bp/cycle,
-  p=0.433, maxDD -21.7% -> -17.2%); (b) the vol-scaling exponent, recommendation unchanged: do
-  not change it.
+- [ ] `TASK-323` **A permanently red test teaches everyone to ignore red.**
+  `test_hybrid_integration.py` fails on any clone without `history/`, so `run_all_tests.py` can
+  never exit 0 on a fresh checkout and rule 4 is impossible to satisfy. We have been saying "6/7,
+  the failure is the usual one" for days — that is how a real failure gets waved through.
+  A test that cannot run must **skip loudly**, not fail: detect the missing history and exit 0
+  with a clear `[SKIP] needs history/ — run the screener first` message, while still running for
+  real when history exists. Then teach `run_all_tests.py` to report skips as their own category
+  (`RESULTS: 6 passed, 1 skipped`) so a skip can never be mistaken for a pass — that distinction
+  is the whole point.
+  **Acceptance:** on a clone with no `history/`, `python run_all_tests.py` exits 0 and reports
+  1 skipped; with history present the test still executes and can still fail.
+  Files: `test_hybrid_integration.py`, `run_all_tests.py`.
+
+- [ ] `TASK-322` **Transaction costs are invisible, and they dominate everything we measured.**
+  The recommended set turns over 39% per cycle on a weekly rotation. At 10 bp/side the system
+  goes from ~22% to ~17% annualised — larger than every variant in the deep-dive sweep combined.
+  Neither the backtest nor the tracking models it, so every comparison we make is quietly biased
+  in favour of whichever variant trades more.
+  Two parts:
+  (a) **Backtest:** `experiments/backtest_variant_sweep.py` already records `turnover`. Add a
+      `COST_BP_PER_SIDE` constant and report net figures *by default* in the variant table
+      (gross stays visible next to it), so no future comparison can silently ignore cost. The
+      `--risk` mode already prints a cost curve; keep it as the sensitivity view.
+  (b) **Tracking:** `core/tracking.py` computes win-rate and P&L from the real recommended
+      history. Add an estimated round-trip cost per closed position and report both gross and
+      net in `print_winrate_report` / `print_detailed_report`. Do not invent fills — this is an
+      explicit modelled assumption, so label it as such in the output and put the bp in
+      `config.py` next to it.
+  Sanity check before you believe your own numbers: net must equal gross when the cost is 0, and
+  the gap must scale linearly with the bp.
+  **Acceptance:** the sweep table shows gross and net side by side; the tracking report shows
+  both and states the assumed bp. Files: `experiments/backtest_variant_sweep.py`,
+  `core/tracking.py`, `track_performance.py`, `config.py`.
+
+- [ ] `TASK-324` **Out-of-sample validation. The one that decides whether any of this is real.**
+  Every number in the deep-dive comes from 2020-2026 over the *current* S&P 500 constituents.
+  That is survivorship bias in the direction that flatters momentum, and it flatters the
+  concentrated, high-volatility variants most — the exact ones that looked best. There is also no
+  stress regime in the window: no 2008, no 2000-2002.
+  Build the honest sample:
+  1. **Point-in-time membership.** Wikipedia's S&P 500 page carries a "Selected changes to the
+     list" table (added/removed ticker + date). `data/universe.py` already scrapes that page, so
+     extend it: reconstruct membership as of any date by walking the change log backwards from
+     today's list, and cache it like the other universe caches. Delisted names included — they
+     are the whole point.
+  2. **Extend the data window** back to at least 2004 so 2008 is in the sample. Expect gaps and
+     dead tickers; that is the signal, not noise to clean away.
+  3. **Re-measure the three claims that matter** with that sample: the vol-scaling exponent
+     (deep-dive 4.1), the sector cap (TASK-320), and the regime gate (deep-dive 3).
+  Do not tune anything on this data. Its job is to falsify, not to optimise — if a result from
+  2020-2026 does not survive here, the result was the sample talking.
+  Post a design note in `.comms/` before writing the reconstruction; the membership logic is
+  where this task will go wrong if it goes wrong, and I would rather review it early than review
+  a backtest built on a broken universe.
+  Files: `data/universe.py`, `experiments/backtest_variant_sweep.py`, `.comms/`.
+
+- [!] `TASK-319` **BLOCKED — Lucas's decision, NOT Grok's to claim.** Kept here so it stays
+  visible rather than living only in the Messages thread. Two scoring questions, both with the
+  evidence already gathered:
+  (a) **`MOMENTUM_SKIP`.** `CLAUDE.md` documents v8.4 as "90d lookback, 5d skip"; the local
+  screener applies no skip, so it diverges from the algorithm it says it implements. Applying
+  the skip measures +3.8 bp/cycle (p=0.433, not significant) and improves maxDD from -21.7% to
+  -17.2%. Either apply it, or state in the SPEC that the local screener is deliberately
+  90d-no-skip. Doing nothing is the one option that leaves a documented contradiction standing.
+  (b) **The vol-scaling exponent** in `ret90/vol63**k`, currently k=1. My recommendation is
+  unchanged: **do not change it.** k=0 looks like +26.9 bp (p=0.009) but carries beta 1.51 vs
+  0.95; vol-matched, the residual is +14 bp with a 95% CI of [-4.4, +33.5], which includes zero.
+  Also parked here, same class: the 1-day `pct_positive` term in the regime breadth (SPEC 4.3)
+  injects daily noise into the regime. Changing it is a scoring change; the note is in the spec.
 
 ---
 
