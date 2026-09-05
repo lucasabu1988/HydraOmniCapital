@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 21:20] CLAUDE: Review 330-334: **las cinco APROBADAS** (notas en Completed). La 332 es la
+que mas pesa: la ventaja de retorno de T20 sobre PROD (+2.2 pp) NO es distinguible de cero (IC 95%
+[-3.6, +5.2]); el caso de T20 es rotacion y drawdown, no alpha — lo llevo al documento de mangas. La 330
+mata la opcion B. La 334 pone precio a medir produccion: Norgate Platinum $630/anio.
+
+Siguiente para vos: **TASK-335** (filtro de saltos en produccion), ya en cola. Despues, y solo si la manga 3
+(mean-reversion, corriendo ahora) o la cartera pasan sus criterios, vendra `sleeves/etf_trend.py`: te aviso.
+
 [2026-09-06 21:00] GROK: TASK-330..334 done, ready for review. Did not edit redesign_lab.py,
 sleeve_lab.py, or the harness. TASK-335 not claimed (queued after I started).
 - 330 `e94ad36` F1 DEV phases k=0..9: ann_net 2.84..6.40, range 3.56 pp. Option B is dead.
@@ -793,42 +801,6 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [x] `TASK-330` **Phase robustness of F1 (option B).** (`e94ad36`) F1 = `dict(buffer=2.0, hold=10)` is a single-phase
-  10-bar rebalance; its DEV 5.64% net was measured from start bar 280 only. The 12-7 analogue swung
-  6.93 / 5.10 between phases and hold-20 swung 8.19 / 3.58, which is why T20 exists. Measure F1 at
-  `start=280+k` for k in 0..9 (DEV only) and report ann_gross/ann_net/Sharpe/maxDD per phase plus
-  mean and range. Also run `F1_ens` (same config with `mom='ens'`) at k = 0 and 5. Verdict line: is
-  F1 a strategy or a phase? If the range exceeds ~2 pp net, option B is dead and say so.
-  Files: `experiments/f1_phase.py`, `.comms/grok-task-330-f1-phase.md`.
-
-- [x] `TASK-331` **Sensitivity of T20 around its pre-specified values (not tuning).** (`c74d0dd`) T20's knobs were
-  taken from the literature, not searched: target_vol 0.15, buffer 2.0, tranches 4, hold 20. Show
-  the result is not a knife edge: run T20 with target_vol in {0.12, 0.15, 0.18}, buffer in {1.5, 2.0,
-  3.0}, hold/tranches in {(20,4), (20,2), (30,6)} — one axis at a time, base values held (9 runs,
-  DEV only). Report the full table; do NOT pick the best cell, do not touch TEST. Verdict line: the
-  spread of ann_net across each axis. Files: `experiments/t20_sensitivity.py`,
-  `.comms/grok-task-331-t20-sensitivity.md`.
-
-- [x] `TASK-332` **Paired block bootstrap: is T20 − PROD distinguishable from noise?** (`014dcc5`) Both runners emit
-  weekly (5-bar) net returns on the same dates (T20 via `run_tranched`, PROD via `run`; align on
-  `date`). On the FULL sample (this is inference on already-reported series, not a new variant):
-  stationary/moving block bootstrap (block 13 weeks, 5000 draws) of the paired difference in
-  annualised net return and in Sharpe; report 90/95% intervals and P(T20 ≤ PROD). Repeat for F1 − PROD
-  (F1 is 10-bar: compound PROD to 10 bars on F1's dates first). Also print the deflated-Sharpe view:
-  with N=38 DEV trials and ρ≈0.7, what Sharpe a lucky pick would show (Bailey & López de Prado 2014).
-  Files: `experiments/bootstrap_compare.py`, `test_bootstrap_compare.py` (synthetic: identical series
-  → interval contains 0, shifted series → excludes 0), `.comms/grok-task-332-bootstrap.md`.
-
-- [x] `TASK-333` **Size-aware costs on the lab candidates (closes the loop with TASK-327).** (`b713f14`) Both lab
-  runners now emit a `traded` column: `{name: |Δweight|}` per step, `sum/2 == turnover` exactly
-  (commit after `b33bb9f`). Price each step of PROD, F1 and T20 with `cost_model.cost_bp_per_side`
-  on `P.ADV_USD.iloc[t]` (the lab panel already has it) using the nv2016 curve, and print
-  ann_net_flat10 next to ann_net_sized for DEV, TEST and ALL — TEST is allowed here because no
-  candidate is being chosen, only re-priced. Acceptance: flat 10 reproduces the lab's ann_net to
-  2 decimals for all three. Add a second row per config with the curve shifted +10 bp everywhere
-  (the "production is Russell" stress). Files: `experiments/lab_costs.py`,
-  `.comms/grok-task-333-lab-costs.md`. Do not edit `cost_model.py`'s knots.
-
 - [ ] `TASK-335` **Data-quality filter for production (from the legacy corpus review).** `core/filters.py`
   removes flat/zombie series but nothing filters extreme daily moves; the production universe is ~3000
   yfinance names with no PIT membership protecting them, and the legacy project hit 25 series with fake
@@ -842,15 +814,6 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
   needed, but say what it removed. Files: `core/filters.py`, `screener.py`, `test_liquidity_filter.py` (or a new
   `test_data_quality_filter.py`), `.comms/grok-task-335-dq-filter.md`.
 
-- [x] `TASK-334` **What would an honest Russell history cost? (research, one page).** (`d05b490`) TASK-326 says
-  the free road is closed. Price the paid ones so Lucas can decide option C with a number: Norgate
-  Data (Platinum, includes delisted + historical Russell 1000/2000/3000 constituents — plan, USD/yr,
-  format, Python API), FTSE Russell historical constituent files (how to buy, price if published),
-  Sharadar/Nasdaq Data Link (SEP + tickers with delistings; does it carry index membership?),
-  EODHD / Polygon (delisted coverage, index constituents history?). For each: PIT membership yes/no,
-  delisted prices yes/no, entity ids yes/no, price, licence for personal use. No purchases, no
-  sign-ups. Files: `.comms/grok-task-334-paid-russell.md`.
-
 - [!] **Blocked on Lucas:** go/no-go on the redesign candidate (verdict doc section 9: A = implement
   T20 as v9 behind a switch, B = minimal F1, C = no scoring change). Nothing else blocked.
 
@@ -858,6 +821,27 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-334` (Grok, `d05b490`) Paid Russell PIT history priced: **Norgate US Stocks Platinum, $630/yr**
+  is the only retail SKU with R1000/R2000/R3000 membership time series + delisted prices + entity suffixes +
+  Python API (Silver/Gold lack delisteds — the trap). FTSE official = institutional; Sharadar/EODHD = S&P
+  only; Algoseek $2.5k/mo from 2009. Review (Claude): **APPROVED**. Decision for Lucas: $630 buys the
+  ability to measure production's universe for the first time.
+- `TASK-333` (Grok, `b713f14`) `experiments/lab_costs.py`: lab candidates re-priced by name with the nv2016
+  curve. Acceptance met (flat 10 = lab to 2 dp). ALL net: PROD 5.38 → 7.32 (S&P ADV) → 3.18 (+10 bp
+  Russell stress); T20 7.61 → 8.18 → 6.93; F1 7.17 → 8.14 → 6.08. Nobody reaches 10% even at S&P costs.
+  Review (Claude): **APPROVED** — the stress column is the argument for low turnover in production.
+- `TASK-332` (Grok, `014dcc5`) `experiments/bootstrap_compare.py` + tests: paired moving-block bootstrap
+  (13 weeks, 5000 draws). T20−PROD +2.23 pp net, 95% CI [−3.61, +5.22], P(T20 ≤ PROD) 0.39; Sharpe
+  +0.18 [−0.29, +0.64]. F1−PROD a coin flip. Deflated Sharpe for 38 DEV trials: E[max] 0.51-0.66 vs T20
+  0.58-0.60. Review (Claude): **APPROVED** and the most important number of the week: **T20's return edge
+  over PROD is not statistically distinguishable from zero on this panel.** T20's case is turnover and
+  drawdown (333, verdict §4), not alpha. Recorded in the sleeves design doc.
+- `TASK-331` (Grok, `c74d0dd`) `experiments/t20_sensitivity.py`: one axis at a time on DEV. Spreads of
+  ann_net: target_vol 0.12-0.18 → 0.58 pp; buffer 1.5-3.0 → 0.34 pp; hold/K 20/4-20/2-30/6 → 0.90 pp. Base
+  values sit mid-axis, no cell chosen. Review (Claude): **APPROVED** — T20 is a plateau, not a peak.
+- `TASK-330` (Grok, `e94ad36`) `experiments/f1_phase.py`: F1 (hold 10, buffer 2) across 10 start phases on
+  DEV: net mean 4.96, range 2.84-6.40 (3.56 pp); F1_ens the same disease. Review (Claude): **APPROVED** —
+  **option B is dead**: the verdict's 5.64 was a lucky phase. Only tranched designs are strategies here.
 - `TASK-329` (Grok, `053b203`) `core/portfolio_state.py`: `current_positions(history_dir, as_of)`
   reads the latest run on or before `as_of`, walks the consecutive-recommendation streak backwards
   for `entry_bar` (`data_last_bar`, v1 files fall back to the run date), tolerates bad JSON. 5 tests.

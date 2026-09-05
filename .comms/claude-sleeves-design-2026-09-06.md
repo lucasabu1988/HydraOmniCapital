@@ -113,6 +113,36 @@ precio es 2013 (26.6 → 17.0) y 2024 (28.4 → 18.8).
 3. Producción: `sleeves/etf_trend.py` (Grok, tras 330-335), tramos vía `portfolio_state`, tracking v2 mide
    las dos mangas por separado y la cartera.
 
+## 4. Manga 3 — mean-reversion de corto plazo: pre-registro (escrito antes de ver ningún resultado)
+
+**Decisión de Lucas (2026-09-06):** "proceder" con la manga 3 tras los resultados de §2.
+
+**Regla:** la del Rattlesnake v1.0 legacy, sin retocar (MANIFESTO §3.2, `hydra_soul.md`):
+- Universo: el legacy usaba el S&P 100 actual (sesgado). Aquí: **los 100 miembros PIT del S&P 500 con mayor
+  dollar-ADV a 20 días cada día** — el proxy honesto del OEX.
+- Entrada (señal al cierre de D, ejecución al cierre de D+1): retorno 5 días ≤ −8 %, RSI(5) Wilder < 25, cierre >
+  SMA200 de la acción; régimen: SPY > SMA200 → hasta 5 posiciones, SPY < SMA200 → hasta 2; **VIX > 35 bloquea
+  entradas**. Si hay más candidatos que huecos, entran los de menor RSI.
+- Tamaño: 20 % del capital de la manga por posición; lo no invertido, en T-bill.
+- Salida (evaluada y ejecutada al cierre): beneficio ≥ +4 %, pérdida ≤ −5 %, o 8 días de tenencia. Sin
+  intradía: los stops se ven al cierre, así que la pérdida real puede ser algo mayor que −5 %.
+- Costes: 10 bp/lado (acciones, como T20).
+
+**Variantes pre-registradas (2):** sin filtro VIX; universo top-200 por ADV. Se reportan las tres.
+
+**Agregación:** la manga es diaria; para correlaciones y cartera se compone su curva diaria en la misma
+rejilla de 5 barras y con la misma convención de entrada (cierre t+1 → cierre t+6) que T20 y ETF.
+
+**Criterios de éxito:** manga sola Sharpe ≥ 0.5 en DEV y TEST, maxDD ≤ −20 %; correlación semanal con la
+cartera 50/50 (T20+ETF) < 0.4; cartera de tres (1/3 cada una, y paridad de riesgo) Sharpe ≥ 0.85, neto ≥ 7 %,
+DD mejor que −19.6 %. **Kill:** Sharpe < 0.3 en DEV → no se combina.
+
+**Multiplicidad acumulada en esta línea:** 4 mangas ETF + 3 MR + 4 combinaciones. TEST se mira una vez por manga.
+
+### 4.1 Resultados
+
+PENDIENTE.
+
 ## 3. Camino a producción (si pasa)
 
 `hydra_screener_local/sleeves/etf_trend.py` (señales mensuales, salida JSON junto a la lista de acciones),

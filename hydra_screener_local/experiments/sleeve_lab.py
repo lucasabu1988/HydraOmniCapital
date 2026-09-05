@@ -23,6 +23,14 @@ UNIVERSE = ['SPY', 'QQQ', 'IWM', 'EFA', 'EEM', 'TLT', 'IEF', 'GLD', 'DBC', 'VNQ'
 ETF_COST_BP = 5.0
 
 SLEEVE_BASE = dict(signal='tsmom12', weights='invvol', hold=20, tranches=4, cost_bp=ETF_COST_BP)
+MR_BASE = dict(top_adv=100, drop5=-0.08, rsi_max=25.0, take=0.04, stop=-0.05, max_days=8,
+               pos_on=5, pos_off=2, size=0.20, vix_block=35.0, cost_bp=10.0)
+MR_SLEEVES = {
+    'MR':        {},                          # primary: legacy Rattlesnake v1.0 rule on the PIT top-100-ADV universe
+    'MR_novix':  dict(vix_block=None),
+    'MR_top200': dict(top_adv=200),
+}
+
 SLEEVES = {
     'ETF':          {},                                    # primary
     'ETF_ew':       dict(weights='equal'),
@@ -115,7 +123,173 @@ def combine(a, b, mode='5050', lookback=63):
     return out
 
 
+# ----------------------------------------------------------------------------- sleeve 3: short-term mean reversion
+def _rsi(px, n=5):
+    d = px.diff()
+    up = d.clip(lower=0.0); dn = (-d).clip(lower=0.0)
+    au = up.ewm(alpha=1.0 / n, adjust=False, min_periods=n).mean()      # Wilder smoothing
+    ad = dn.ewm(alpha=1.0 / n, adjust=False, min_periods=n).mean()
+    rs = au / ad.replace(0, np.nan)
+    return 100 - 100 / (1 + rs)
+
+
+def load_vix(index):
+    path = os.path.join(ETF_CACHE, 'vix.pkl')
+    v = pd.read_pickle(path) if os.path.exists(path) else pd.Series(dtype=float)
+    return v.reindex(index).ffill()
+
+
+def run_mr(P, cfg, start=280, cost_bp=None):
+    """Daily event-driven simulation of the legacy Rattlesnake rule. Returns (daily equity, step frame)."""
+    from data.universe import yahoo_membership_as_of
+    c = dict(MR_BASE); c.update(cfg)
+    if cost_bp is not None:
+        c['cost_bp'] = cost_bp
+    px = P.close; idx = px.index
+    ret5 = px / px.shift(5) - 1
+    rsi5 = _rsi(px, 5)
+    above200 = px > px.rolling(200).mean()
+    spy_on = (P.spy > P.spy.rolling(200).mean()).values
+    vix = load_vix(idx).values
+    irx_d = (P.IRX / 252.0).values
+    adv = P.ADV_USD
+    mem_cache = {}
+    payload = getattr(P, 'pit_payload', None)
+
+    def members(t):
+        d = idx[t].strftime('%Y-%m-%d')
+        if d not in mem_cache:
+            mem_cache[d] = set(yahoo_membership_as_of(d, payload)) if payload else set(px.columns)
+        return mem_cache[d]
+
+    equity = 1.0; cash = 1.0
+    pos = {}            # ticker -> dict(shares, entry_px, entry_t)
+    pending = []        # tickers signalled at t, bought at t+1
+    eq = np.full(len(idx), np.nan)
+    traded = np.zeros(len(idx))
+    npos = np.zeros(len(idx))
+    bp = c['cost_bp'] / 10000.0
+    for t in range(start, len(idx) - 1):
+        row = px.iloc[t]
+        for tk in pending:                                   # 1) buy yesterday's signals at today's close
+            p0 = row.get(tk, np.nan)
+            if not np.isfinite(p0) or tk in pos:
+                continue
+            amt = min(c['size'] * equity, cash)
+            if amt <= 0:
+                continue
+            pos[tk] = dict(shares=amt * (1 - bp) / p0, entry_px=p0, entry_t=t)
+            cash -= amt; traded[t] += amt
+        pending = []
+        for tk in list(pos):                                 # 2) exits at today's close
+            p0 = row.get(tk, np.nan)
+            if not np.isfinite(p0):
+                continue
+            r = p0 / pos[tk]['entry_px'] - 1
+            if r >= c['take'] or r <= c['stop'] or (t - pos[tk]['entry_t']) >= c['max_days']:
+                val = pos[tk]['shares'] * p0
+                cash += val * (1 - bp); traded[t] += val
+                del pos[tk]
+        cash *= (1 + irx_d[t])                               # 3) mark to market, cash earns T-bill
+        mtm = 0.0
+        for tk, v in pos.items():
+            p0 = row.get(tk, np.nan)
+            mtm += v['shares'] * (p0 if np.isfinite(p0) else v['entry_px'])
+        equity = cash + mtm
+        eq[t] = equity; npos[t] = len(pos)
+        if c['vix_block'] is not None and np.isfinite(vix[t]) and vix[t] > c['vix_block']:
+            continue                                         # 4) signals at today's close for tomorrow
+        cap = c['pos_on'] if spy_on[t] else c['pos_off']
+        slots = cap - len(pos)
+        if slots <= 0:
+            continue
+        mem = members(t)
+        a = adv.iloc[t]
+        elig = row.notna() & (row >= 5.0) & a.notna() & row.index.isin(mem)
+        top = a[elig].nlargest(c['top_adv']).index
+        sig = (ret5.iloc[t][top] <= c['drop5']) & (rsi5.iloc[t][top] < c['rsi_max']) & above200.iloc[t][top]
+        cands = rsi5.iloc[t][top][sig.fillna(False)].sort_values()
+        pending = [tk for tk in cands.index if tk not in pos][:slots]
+    eq_s = pd.Series(eq, index=idx)
+    recs = []                                                # 5-bar grid, entry convention close t+1 -> close t+6
+    for t in range(start, len(idx) - 5 - 1 - 1, 5):
+        e, x = t + 1, t + 1 + 5
+        if not (np.isfinite(eq[e]) and np.isfinite(eq[x])):
+            continue
+        r = eq[x] / eq[e] - 1
+        recs.append(dict(date=idx[t], gross=r, net=r, turnover=traded[e + 1:x + 1].sum() / eq[e] / 2.0,
+                         expo=float(1.0), n=float(npos[e:x + 1].mean())))
+    return eq_s, pd.DataFrame(recs).set_index('date')
+
+
+def mr_with_gross(P, cfg):
+    """net run + a zero-cost twin so stats() shows gross and net."""
+    _, net = run_mr(P, cfg)
+    _, gross = run_mr(P, cfg, cost_bp=0.0)
+    out = net.copy()
+    out['gross'] = gross['gross'].reindex(out.index)
+    return out
+
+
+def combine_n(frames, mode='equal', lookback=63):
+    df = pd.concat([f['net'].rename(str(i)) for i, f in enumerate(frames)], axis=1).dropna()
+    if mode == 'equal':
+        w = pd.DataFrame(1.0 / df.shape[1], index=df.index, columns=df.columns)
+    else:
+        iv = 1.0 / df.rolling(lookback).std()
+        w = iv.div(iv.sum(axis=1), axis=0).fillna(1.0 / df.shape[1]).clip(0.15, 0.6)
+        w = w.div(w.sum(axis=1), axis=0)
+    net = (w * df).sum(axis=1)
+    out = pd.DataFrame({'gross': net, 'net': net, 'turnover': 0.0, 'expo': 1.0, 'n': 0.0})
+    for col in df.columns:
+        out['w_' + col] = w[col]
+    return out
+
+
+def sleeve3_main():
+    P = L.load_panel(oos=True)
+    P.ETF = load_etfs(P.close.index)
+    cache = os.path.join(ETF_CACHE, 'steps_t20_etf.pkl')
+    if os.path.exists(cache):
+        t20, etf = pd.read_pickle(cache)
+    else:
+        t20 = L.run_any(P, dict(L.CONFIGS['T20'], cash_yield=True))
+        etf = run_sleeve(P, SLEEVES['ETF'])
+        pd.to_pickle((t20, etf), cache)
+    print('  T20/ETF step frames ready', flush=True)
+
+    def rows(df, name):
+        return [L.stats(df[df.index < L.SPLIT], 5, f'{name} DEV'), L.stats(df[df.index >= L.SPLIT], 5, f'{name} TEST'), L.stats(df, 5, f'{name} ALL')]
+
+    res, out = {}, []
+    for name, cfg in MR_SLEEVES.items():
+        res[name] = mr_with_gross(P, cfg)
+        out += rows(res[name], name)
+        print('  done', name, flush=True)
+    print('\nMEAN-REVERSION SLEEVE (legacy Rattlesnake rule, PIT top-ADV universe), net 10 bp/side, cash at T-bill')
+    L.table(out)
+
+    mr = res['MR']
+    p2 = combine(t20, etf, '5050')
+    common = pd.concat([t20['net'].rename('T20'), etf['net'].rename('ETF'), mr['net'].rename('MR'), p2['net'].rename('P_5050')], axis=1).dropna()
+    print('\nweekly net correlations (ALL):'); print(common.corr().round(2).to_string())
+    print('MR vs P_5050: DEV %.2f  TEST %.2f' % (common[common.index < L.SPLIT][['MR', 'P_5050']].corr().iloc[0, 1],
+                                                 common[common.index >= L.SPLIT][['MR', 'P_5050']].corr().iloc[0, 1]))
+    print('\nPORTFOLIOS')
+    out = rows(p2, 'P_5050 (T20+ETF)')
+    out += rows(combine_n([t20, etf, mr], 'equal'), 'P3_equal')
+    out += rows(combine_n([t20, etf, mr], 'rp'), 'P3_rp')
+    L.table(out)
+    p3 = combine_n([t20, etf, mr], 'rp')
+    print('\nrisk-parity mean weights T20/ETF/MR: %.2f / %.2f / %.2f' % (p3['w_0'].mean(), p3['w_1'].mean(), p3['w_2'].mean()))
+    yr = pd.DataFrame({'T20': t20['net'], 'ETF': etf['net'], 'MR': mr['net'], 'P3_equal': combine_n([t20, etf, mr], 'equal')['net']}).dropna()
+    print('\nyearly net (%)'); print(yr.groupby(yr.index.year).apply(lambda g: ((1 + g).prod() - 1) * 100).round(1).to_string())
+    pd.to_pickle(res, os.path.join(ETF_CACHE, 'steps_mr.pkl'))
+
+
 def main():
+    if '--mr' in sys.argv:
+        return sleeve3_main()
     P = L.load_panel(oos=True)
     P.ETF = load_etfs(P.close.index)
     print('ETF panel', P.ETF.shape, 'first valid:', {c: str(P.ETF[c].first_valid_index().date()) for c in P.ETF.columns}, flush=True)
