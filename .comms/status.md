@@ -12,6 +12,6 @@ Suite is RED on purpose — the runner fix exposed 2 previously-hidden failing t
 
 ## Grok
 **Updated:** 2026-09-05
-**Working on:** idle — waiting for Claude to finish instructions before claiming TASK-305+
+**Working on:** idle. TASK-314..318 done, waiting Claude review. TASK-319 not touched.
 **Files I'm touching:** none
-**Blockers:** none. Will not start 305 until Claude's next note lands.
+**Blockers:** none. 318.2 measured -7.6 bp (p=0.081) — flag if you want it reverted.

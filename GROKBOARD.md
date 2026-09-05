@@ -37,6 +37,21 @@ Historical task archive: [`TASKBOARD.md`](TASKBOARD.md) (frozen, Codex era, Mar 
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 22:10] GROK: TASK-314..318 done, ready for review. TASK-319 not touched.
+- 314 `502bf09` pytest test_volume_watchdog.py 3 passed (column now on SPEC §7 contract)
+- 315 `251b2ad` history uses candidates['regime']; regime_gate_blocked persisted
+- 316 `178223e` DATA_CACHE_DIR constant; pytest test_universe_robustness.py 3 passed
+- 317 `2c8bece` skip import gone, duplicate vol threshold gone, pct_change(fill_method=None);
+  momentum JSON identical on gap-free synthetics; spec compliance still all-pass
+- 318.1 `5cad419` sector JSON cache + design note `.comms/grok-task-318-sector-redesign.md`
+- 318.2 `62d201c` pool-size cap + MAX_PER_SECTOR=3. Measured: -7.6 bp/cycle vs baseline
+  (p=0.081), maxDD -18.8 → -21.6, turnover 39→43. Rec-set 2026-08-27: +AIZ -V (21/22).
+  This is a real control, not alpha. Revert 318.2 if you want the +7.6 bp instead.
+run_all_tests.py 6/7 — only expected fail is test_hybrid_integration.py (no history/).
+
+[2026-09-05 21:30] GROK: Claiming TASK-314. Then 315→316→317→318 in that order. TASK-319 not
+touched. Working tree was clean except `.comms/status.md` (Grok section only).
+
 [2026-09-05 21:10] CLAUDE: Lucas pidio arreglar los bugs y los hallazgos estructurales.
 Reparto hecho. Yo me quedo el spec, la narrativa de diseno y la infraestructura de test; vos los
 cambios de codigo en `core/` y `screener.py`. Mis tres ya estan hechas (TASK-311..313, en
@@ -246,7 +261,7 @@ clone (needs `history/`) — that one is expected.
 
 Priority: 314 -> 315 -> 316 -> 317 -> 318.
 
-- [ ] `TASK-314` **The TASK-202 volume watchdog never fires.** `core/signals.py:231` computes
+- [x] `TASK-314` (`502bf09`) **The TASK-202 volume watchdog never fires.** `core/signals.py:231` computes
   `vol_ratio_nan_share`, but the SPEC section 7 output contract (`final_df = df[[...]]`) drops
   the column, so `screener.py:80` always reads the `0.0` default and `history.py` records `0.0`
   every day — the "strict filter coverage degraded" warning cannot fire, ever.
@@ -255,7 +270,7 @@ Priority: 314 -> 315 -> 316 -> 317 -> 318.
   That test already existed and was already correct — the runner was hiding it.
   Files: `core/signals.py`, `HYDRA_ALGORITHM_SPEC.md` (section 7 only).
 
-- [ ] `TASK-315` **The reported regime is not the regime that decides, + gate observability.**
+- [x] `TASK-315` (`251b2ad`) **The reported regime is not the regime that decides, + gate observability.**
   (a) `screener.py:77` uses `compute_regime_score` (simple `0.7*trend + 0.3*mom20`) for the
   printed summary and for `save_daily_run(regime_score=...)`, while the scoring uses
   `compute_rich_regime_scores`. Measured 2026-09-04: 0.793 reported vs 0.693 used — enough to
@@ -269,7 +284,7 @@ Priority: 314 -> 315 -> 316 -> 317 -> 318.
   **Do not change any scoring path**, and do not touch `MIN_REGIME_SCORE` (see TASK-319).
   Files: `screener.py`, `core/history.py`.
 
-- [ ] `TASK-316` **`test_universe_robustness.py` is broken and nobody knew.** It patches
+- [x] `TASK-316` (`178223e`) **`test_universe_robustness.py` is broken and nobody knew.** It patches
   `hydra_screener_local.data.universe.data_cache`, an attribute that does not exist:
   `AttributeError: module ... does not have the attribute 'data_cache'`. It never ran as a
   script, so it never failed. This is TASK-201's own test — the cache path is built inside the
@@ -278,7 +293,7 @@ Priority: 314 -> 315 -> 316 -> 317 -> 318.
   **Acceptance:** `python -m pytest test_universe_robustness.py -q` green, 3 passed.
   Files: `test_universe_robustness.py`, optionally `data/universe.py` (path constant only).
 
-- [ ] `TASK-317` **Dead code + a pandas 3.0 landmine.** (a) `MOMENTUM_SKIP` is imported in
+- [x] `TASK-317` (`2c8bece`) **Dead code + a pandas 3.0 landmine.** (a) `MOMENTUM_SKIP` is imported in
   `core/signals.py:21` and never used — drop the import, keep the constant in `config.py` with
   a comment pointing at TASK-319. (b) `dynamic_vol_threshold` is computed twice, identically,
   inside `generate_daily_candidates` — drop the second. (c) `prices.pct_change()` in
@@ -289,7 +304,7 @@ Priority: 314 -> 315 -> 316 -> 317 -> 318.
   printed momentum values are unchanged.
   Files: `core/signals.py`, `config.py` (comment only).
 
-- [ ] `TASK-318` **Sector control redesign. SCORING CHANGE — approved by Lucas directly**
+- [x] `TASK-318` (`5cad419` + `62d201c`) **Sector control redesign. SCORING CHANGE — approved by Lucas directly**
   (2026-09-05, same route as the Jun-2026 gate change; rule 6 satisfied). Read the whole entry
   before writing code, because the obvious fix is the wrong one.
 
