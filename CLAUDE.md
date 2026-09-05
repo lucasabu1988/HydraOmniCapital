@@ -1,224 +1,178 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code working in this repository. Every fact here was checked against the
+code on 2026-09-06; when this file and the code disagree, the code wins — then fix this file.
 
-# OmniCapital HYDRA — Project Guidelines
+# HYDRA — Local Screener
 
-## Project Overview
-Quantitative momentum trading system for S&P 500 large-caps. Live paper trading since Mar 16, 2026 (current algorithm; see `LIVE_TEST_START_DATE` in `compass_dashboard_cloud.py`).
-- **Algorithm**: HYDRA v8.4 (adaptive stops, bull override, sector limits, Rattlesnake + EFA + cash recycling)
-- **Dashboard**: Flask @ localhost:5000 (`compass_dashboard.py`)
-- **Live engine**: `omnicapital_live.py` (COMPASSLive class)
-- **ML system**: `compass_ml_learning.py` (decision logging + progressive learning)
-- **Cloud**: Render.com (`compass_dashboard_cloud.py` via gunicorn)
+## What this project is
 
-### Multi-Strategy System (HYDRA)
-- **COMPASS v8.4** — S&P 500 cross-sectional momentum (primary strategy)
-- **Rattlesnake v1.0** — Mean-reversion dip-buying
-- **Catalyst** — Cross-asset trend (TLT/ZROZ/GLD/DBC above SMA200, 15% budget)
-- **EFA** — International diversification
-- **Cash Recycling** — COMPASS ↔ Rattlesnake capital flow (cap 75%)
+A **momentum + regime-aware equity screener** that runs locally and hands its output to a
+TradingView (Pine) indicator. It ranks a US universe daily, flags a dynamic number of names as
+`recommended`, and is designed around **5-trading-day cycles**.
 
-### ML Learning System (3 phases)
-- **Phase 1** (< 100 decisions): DecisionLogger logs every signal, entry, exit, skip
-- **Phase 2** (100–500 decisions): FeatureStore builds feature vectors, OutcomeTracker resolves P&L
-- **Phase 3** (> 500 decisions): LearningEngine trains models, InsightReporter surfaces parameter suggestions
-- All ML code is fail-safe (try/except) — never crashes the live engine
+- Active code: `hydra_screener_local/` — everything you touch lives here.
+- Universe in production: `UNIVERSE="all"` (S&P 500 ∪ Nasdaq-100 ∪ Dow ∪ Russell 1000 ∪ Russell
+  2000, ~3000 names — roughly two-thirds mid/small caps).
+- Hybrid flow: Python scores and selects; the user pastes `pine/hydra_last_summary.json` and
+  `pine/watchlist.txt` into `pine/HYDRA_Screener.pine`. The authoritative `Rec?` flag is
+  Python's, carried in that JSON.
 
-## Critical Rules
-- **ALGORITHM IS LOCKED** — 40 experiments, 36 failed. Do NOT modify signal logic in `omnicapital_v8_compass.py` or `omnicapital_v84_compass.py`
-- **LEVERAGE_MAX = 1.0** — broker margin at 6% destroys value. Never enable leverage
-- **Seed 666** — use whenever randomness is needed
-- **No secrets in commits** — `.env`, `omnicapital_config.json` are gitignored
-- **ML hooks are fail-safe** — all ML logging wrapped in try/except, never crash the live engine
-- **State files are critical** — `state/compass_state_latest.json` is the source of truth for live positions
+**Everything at the repo root** (`compass_*.py`, `omnicapital_*.py`, `templates/`, `static/`,
+`hydra_backtest/`, root `tests/`) is the **frozen legacy** COMPASS engine + Render dashboard.
+Do not revive it, extend it, or take parameters from it. `omnicapital_live.py` and
+`omnicapital_broker.py` were deleted in the 2026-09-05 cleanup; docs that mention them are
+archived under `archive/docs-legacy-2026-09/`.
 
-## Architecture
+## Critical rules
+
+1. **The scoring algorithm is locked.** Formulas in `core/signals.py`, multipliers in
+   `core/meta_layer.py`, gate thresholds in `config.py`, and `HYDRA_ALGORITHM_SPEC.md` change
+   **only with Lucas's explicit approval** (GROKBOARD rule 6). The spec is the source of truth;
+   `test_spec_compliance.py` enforces both the formulas and, since TASK-321, the parameter values
+   in `config.py` against SPEC section 6. A scoring change lands with the spec updated in the
+   same commit and measured numbers attached, or it does not land.
+2. **Filters and selection rules are not scoring.** SPEC section 1 leaves them
+   "implementation-specific": liquidity/price filters, the sector cap, zombie removal. They can
+   change without a rule-6 approval, but they still change the recommended list — say so and
+   measure it.
+3. **Never anchor screener parameters on the legacy engine.** The old v8.4 list (5 positions,
+   max 3 per sector, 90d momentum with a 5-day skip, adaptive stops) belongs to the frozen
+   COMPASS engine and used a different sector taxonomy. Using it as a reference already caused
+   one wrong change (TASK-318). Read `hydra_screener_local/config.py` instead.
+4. **Verify, don't trust.** Three times in one week a test reported green without running, or a
+   field was silently dropped, or a measurement ran on the wrong data. Before claiming a fix
+   works: run the check that could actually fail, on real data where it exists.
+5. **No secrets in commits.** `.env` and anything with credentials are gitignored.
+
+## Architecture (`hydra_screener_local/`)
+
 ```
-compass_dashboard.py    — Flask dashboard + live trading engine (main entry)
-omnicapital_live.py     — COMPASSLive class (broker, signals, execution)
-compass_ml_learning.py  — ML orchestrator (logging, learning, insights)
-omnicapital_v84_compass.py — Backtest algorithm (v8.4 parameters)
-static/js/dashboard.js  — Frontend JS (charts, cycle log, analytics)
-static/css/dashboard.css — Dashboard styles
-templates/dashboard.html — Dashboard HTML template
-state/                  — Runtime state (JSON), cycle log, ML learning data
-backtests/              — CSV results, backtest outputs
-config/                 — Strategy YAML, broker config
-compass/                — Python package (notifications, git_sync)
+screener.py           — daily entry point: universe → fetch → filters → sectors → scoring → history/Pine
+daily.py              — one-command ritual: runs screener.py, prints TradingView paste instructions
+config.py             — all parameters (see below); SECTOR_BUCKETS fallback map; FILTERS; blacklist
+HYDRA_ALGORITHM_SPEC.md — the algorithm, language-agnostic. Source of truth.
+
+core/signals.py       — momentum, short-term features, strict filter, composite, dynamic count,
+                        downtrend gate, output contract (SPEC 7)
+core/meta_layer.py    — regime → aggression + pillar multipliers (see "facts" below)
+core/regime.py        — rich regime from SPY (5 sub-scores, 30/25/20/15/10)
+core/filters.py       — practical filters, zombie removal, sector cap at selection
+core/history.py       — one JSON per run in history/ (gitignored)
+core/tracking.py      — forward returns of recommended names, win-rate report (history/tracking/)
+
+data/fetch.py         — batched yfinance download (prices + volume), 1y window
+data/universe.py      — index constituents from several sources with JSON caches
+data/sectors.py       — GICS sector cache; resolved once upstream in screener.py, never in core/
+
+utils/display.py      — console tables
+utils/trading_calendar.py — trading-day helpers shared by tracking and the Excel logger
+
+pine/HYDRA_Screener.pine   — per-symbol Pine reimplementation + JSON parser (display layer)
+generate_pine_watchlist.py, send_hydra_summary.py, validate_pine_contract.py — the hybrid bridge
+log_cycle_positions.py, refresh_current_prices.py — Excel P&L tracker (backtest/portfolio_cycles.xlsx)
+analyze_history.py, track_performance.py — reports over history/
+
+experiments/backtest_variant_sweep.py — the validated point-in-time harness. `--validate`
+                        proves it replicates generate_daily_candidates before any number is trusted.
+run_all_tests.py      — the test runner (see Testing)
 ```
 
-## Key Parameters (v8.4)
-- Momentum: 90d lookback, 5d skip, 5d hold
-- Positions: 5 (risk-on), adjustable by regime
-- Adaptive stops: -6% to -15% (vol-scaled per position)
-- Trailing: +5% / -3% (vol-scaled)
-- Bull override: SPY > SMA200*103% & score>40% → +1 position
-- Sector limit: max 3 per sector
-- DD tiers: T1=-10%, T2=-20%, T3=-35%
-- Crash brake: 5d=-6% or 10d=-10% → 15% leverage
-- Exit renewal: max 10d, min profit 4%, momentum pctl 85%
+## Key parameters (from `config.py`, 2026-09-06)
 
-## Coding Conventions
-- **Language**: Python 3.14.2 (Windows 11)
-- **Style**: PEP 8, snake_case functions/variables, UPPER_CASE constants
-- **Logging**: `logging` module, logger per module (`logger = logging.getLogger(__name__)`)
-- **Error handling**: try/except for external calls (broker, data feeds, ML hooks). Never crash the live engine
-- **Imports**: stdlib → third-party → local. Optional imports with `_available` flag pattern
-- **State persistence**: JSON files in `state/`. Always `json.dump` with indent=2
-- **Data**: pandas DataFrames for time series, dicts for state/config
-- **No type annotations** on existing code — don't add them unless writing new modules
-- **No docstrings** on existing functions — don't add them retroactively
-- **Commit style**: conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`)
+| Parameter | Value | Notes |
+|---|---|---|
+| `MOMENTUM_LOOKBACK` | 90 | risk-adjusted: ret90 / vol63 (annualised) |
+| `MOMENTUM_SKIP` | 5 | **defined but NOT applied**; open decision TASK-319 |
+| `SHORT_TERM_LOOKBACK` / `PROXIMITY_HIGH_DAYS` | 10 / 20 | |
+| `SHORT_TERM_BOOST` | 0.35 | strict bonus is +18% (hardcoded in signals.py) |
+| `VOL_SURGE_THRESHOLD` / `MIN_VOL_THRESHOLD` | 1.50 / 1.0 | missing volume **fails** strict (SPEC 5) |
+| `REGIME_SMA` / `MIN_REGIME_SCORE` | 200 / 0.35 | gate flag is `regime >= 0.35 * 0.85` |
+| `ENABLE_DOWNTREND_GATE`, `GATE_MAX_DIST_TO_HIGH_PCT`, `GATE_MIN_RET_SHORT_PCT` | True, -8.0, -5.0 | "only-negative" rule: `ret_10d < 0` is necessary |
+| `ENABLE_SECTOR_CONTROL` / `MAX_PER_SECTOR` | True / 5 | hard cap on **GICS** sectors at selection |
+| `SECTOR_FETCH_BUDGET_SECONDS` | 120 | sector resolution upstream, time-boxed |
+| dynamic count | `clamp(round(14 × aggression × compass), 6, 28)` | hardcoded in signals.py |
+| `COST_BP_PER_SIDE` | 10 | modelled cost for sweep and tracking reports |
+| `FILTERS` | min_avg_volume 100000 shares, min_price 5.0 | |
+| `UNIVERSE` | "all" | |
+
+If you need a value, read `config.py`. This table exists to stop legacy numbers being reused,
+not to be copied from.
+
+## Facts agents keep getting wrong
+
+- **The Meta-Layer does not change the ranking.** `aggression` and `pillar_factor` are one
+  positive scalar for every ticker that day (Spearman 1.000 between regimes). It only moves
+  `dynamic_count` and the regime flag. `Rattlesnake`/`Catalyst`/`EFA` multipliers never reach
+  scoring. Documented in SPEC 4.4; do not describe it as a style tilt.
+- **Sector control is a hard cap at selection**, not a score penalty. Scores are untouched;
+  the list is picked walking down the ranking and skipping a full sector. `"Other"` (unknown
+  sector) is exempt. Sectors come from `data/sectors.py` and are resolved **once in
+  screener.py** — `core/` does no network I/O.
+- **Horizons are trading days.** The system is a 5-trading-day cycle; anything measuring in
+  calendar days is a bug (the audit found tracking doing exactly that).
+- **Entry is the first executable price** (the bar after the signal), never the close that
+  generated the signal.
+- **Regime is computed on SPY** while the universe is Russell-heavy. Known weakness (audit R1);
+  changing it is a scoring change and waits for out-of-sample data (TASK-324).
+- **`history/` is gitignored and exists on one disk.** It is the only record of what was
+  recommended. Do not assume a fresh clone has it; tests that need it must skip, not fail.
+- **The measurement harness is only S&P 500, 2020-2026, current constituents.** Survivorship
+  bias in the direction that flatters momentum. Every number from it carries that caveat.
 
 ## Testing
+
 ```bash
-pytest tests/ -v                          # Unit tests
-pytest tests/ -v -k "test_name"           # Single test
-pytest tests/ -v --cov-fail-under=50      # With coverage threshold (CI default)
-python tests/validate_live_system.py      # System validation
-python scripts/simulate_live_trading.py   # Offline simulation
+cd hydra_screener_local && python run_all_tests.py      # the suite that matters
+python run_all_tests.py --list                          # what it discovers
+python -m pytest test_volume_watchdog.py -q             # any single pytest-style file
 ```
-- Tests use pytest. Mock broker with `PaperBroker` or `IBKRBroker(mock=True)`
-- 53 IBKR unit tests (all passing)
-- Test files: `tests/test_*.py`, `tests/validate_*.py`
-- **CI**: GitHub Actions runs `pytest` with coverage on push/PR to `main` (min 50% coverage)
-- Coverage modules: compass_api_models, compass_dashboard, compass_dashboard_cloud, compass_ml_learning, omnicapital_broker, omnicapital_live
 
-## Dashboard API Endpoints
-- `/api/state` — current positions, cash, regime
-- `/api/cycle-log` — 5-day rotation cycles
-- `/api/equity` — equity curve data
-- `/api/annual-returns` — COMPASS vs SPY bar chart
-- `/api/trade-analytics` — win rate, profit factor
+- The runner routes files that define `test_*` functions but have no `__main__` block through
+  pytest — running them as scripts used to report `[PASS]` without executing anything.
+- Skips are reported separately from passes (`N passed, M skipped`). A skip is not a pass.
+- `test_hybrid_integration.py` skips when `history/` is absent.
+- Root `pytest tests/` and the CI workflow cover **only the frozen legacy**; the screener has no
+  CI yet (audit S1). Green CI says nothing about this project.
 
-## Deployment
-- **Local**: `python compass_dashboard.py` → Flask on port 5000
-- **Cloud**: `render.yaml` → gunicorn on Render.com (health check: `/api/health`)
-- **Docker**: Python 3.11-slim, gunicorn on port 10000
-- **compass/**: Python package only (notifications, git_sync) — no file syncing needed
-- **Data sources**: yfinance (primary, cached in `data_cache/`), Tiingo (optional), FRED (cash yield)
+## Claude ↔ Grok protocol
 
-## Git Workflow
-- Branch: `main` (single branch)
-- Remote: `origin` → GitHub (lucasabu1988/HydraOmniCapital)
-- Commit messages: conventional commits, Co-Authored-By for AI
-- Push after each logical change set
+Two agents share this working tree: **Claude** (architect/reviewer) and **Grok** (implementer).
 
-## Skills
-- **hydra-ops**: Operations skill for HYDRA system — deploy, debug, troubleshoot. Located at `~/.claude/skills/hydra-ops/SKILL.md`
+- `GROKBOARD.md` is the formal task board (queue, messages newest-first, completed). `.comms/`
+  holds coordination notes, design notes and audits; each agent edits only its own section of
+  `.comms/status.md`.
+- Rules 1-9 on the board, in short: touch only a task's declared `Files:`; stage specific files,
+  never `git add -A`; conventional commits; the suite must exit 0 before marking done; task
+  states `[ ]`/`[~]`/`[x]`/`[!]`; no scoring or spec changes without approval; if a file you
+  need has someone else's uncommitted changes, **stop and post**; every completed task is closed
+  only after Claude's review note.
+- Read all of `.comms/` at session start.
 
-## Planning & Documentation
-- Design docs: `docs/plans/YYYY-MM-DD-<topic>-design.md`
-- Implementation plans: `docs/plans/YYYY-MM-DD-<topic>-implementation.md`
-- Use brainstorming skill for new features before coding
-- Use writing-plans skill after design is approved
-- Project docs: `docs/` (deployment guide, implementation guide, manifesto)
+## Conventions
 
-## Debugging
-**Log locations:**
-- Live engine: `logs/compass_live_YYYYMMDD.log`
-- State snapshots: `state/compass_state_YYYYMMDD.json`
-- ML decisions: `state/ml_learning/decisions.jsonl`
-- Broker audit: `logs/ibkr_audit_YYYYMMDD.json`
+- Python 3.14 on Windows 11. PEP 8, snake_case, UPPER_CASE constants. Match the surrounding
+  file: no retroactive type annotations or docstrings on old code.
+- `pct_change(fill_method=None)` always — the pandas default is deprecated and pads gaps.
+- External calls (yfinance, HTTP) are wrapped and never crash a run; the scoring path stays
+  pure and offline.
+- Windows consoles are cp1252: never let a UTF-8 print take down a runner or a test.
+- Commits: conventional (`feat:`, `fix:`, `test:`, `refactor:`, `docs:`), body explains why and
+  cites measured numbers when behaviour changes, `Co-Authored-By` for AI.
+- Language: prompts in Spanish, code and commits in English.
 
-**Common issues and diagnosis:**
-- **Dashboard 404**: check Flask routes in `compass_dashboard.py`, verify endpoint exists
-- **Sector "Unknown"**: check `position_meta` in state JSON has `sector` field
-- **Cycle log not updating**: check `_update_cycle_log()` and `_ensure_active_cycle()` in `omnicapital_live.py`
-- **ML not logging**: verify `_ml_available` is True, check `compass_ml_learning.py` imports
-- **State corruption**: compare `compass_state_latest.json` vs dated backup, check JSON validity
-- **Data feed timeout**: yfinance rate limits — check `data_cache/` for stale cache
-- **Stop not firing**: check `entry_vol`/`entry_daily_vol` in position_meta (adaptive stop depends on these)
+## Careful action protocol
 
-**Debugging workflow:**
-1. Check logs first (`logs/compass_live_*.log`)
-2. Validate state JSON (`python -c "import json; json.load(open('state/compass_state_latest.json'))"`)
-3. Use Playwright for visual dashboard issues
-4. Never modify live state without backup
+- Free: local, reversible edits; running tests; reading logs and history.
+- Commit and push after each logical change set — the user does not want to be asked.
+- Confirm first: deleting files or branches, `reset --hard`, force-push, anything that reverses
+  a decision Lucas made explicitly.
+- Never `--no-verify`; never resolve someone else's uncommitted work by discarding it.
+- Authorization for one change does not extend to similar ones.
 
-## Code Review Checklist
-Before completing any code change:
-1. **Syntax check**: `python -c "import py_compile; py_compile.compile('file.py')"`
-2. **State validation**: if state JSON modified, verify valid JSON
-3. **No sync needed**: compass/ is now a pure Python package
-4. **Visual check**: if frontend changed, verify with Playwright screenshot
-5. **No debug code**: remove any temporary `print()` or test code
-6. **ML fail-safe**: any new ML hooks must be wrapped in try/except
+## Post-implementation
 
-## Post-Implementation Workflow
-After finishing any implementation:
-1. **Simplify** — review changed code for reuse, quality, and efficiency; fix issues found
-2. **Run tests** — `pytest tests/ -v` (unit) + syntax check on modified files
-3. **Verify end-to-end** — if dashboard changed, Playwright screenshot; if live engine changed, validate state JSON
-4. **Commit** — conventional commit with clear message, push if requested
-
-## Subagent & Fork Strategy
-- **Fork (no subagent_type)** for open-ended research — inherits context, shares cache. Use for: "what's the state of X", audit questions, investigation
-- **Subagent (with type)** for fresh-perspective tasks — starts clean. Use for: code review, independent analysis
-- **Parallel forks** when research splits into independent questions (launch all in one message)
-- **Never peek** at fork output mid-flight — wait for completion notification
-- **Never fabricate** fork results — if user asks before fork returns, say "still running"
-- **Brief subagents fully** — they have zero context, explain what/why/what's been tried
-
-## Simplify Reviews (3-agent parallel)
-When reviewing code changes, launch 3 parallel review agents:
-1. **Code Reuse** — search for existing utilities that could replace new code; flag duplicated functionality
-2. **Code Quality** — redundant state, parameter sprawl, copy-paste, leaky abstractions, stringly-typed code
-3. **Efficiency** — unnecessary work, missed concurrency, hot-path bloat, recurring no-op updates, memory leaks, overly broad operations
-Fix real issues, skip false positives without arguing.
-
-## Verification Plans
-For non-trivial changes, create structured verification plans:
-- Store in `~/.claude/plans/<slug>.md`
-- Include: metadata, files being verified, preconditions, setup steps, verification steps with expected outcomes, cleanup
-- Execute steps in order, report PASS/FAIL for each
-- Stop on first FAIL — don't round up "almost working" to PASS
-
-## Hookify Rules (active)
-- `protect-state-files` — warns before editing live state JSON
-- `block-algorithm-modification` — blocks edits to locked algorithm files
-- `protect-secrets` — blocks edits to .env/config with credentials
-- `verify-before-complete` — pre-completion verification checklist
-
-## Autonomous Operations Mode
-When performing ops tasks (deploy, debug, troubleshoot):
-1. **Execute immediately** — make reasonable assumptions, don't block on ambiguity
-2. **Minimize interruptions** — only ask when genuinely cannot proceed (e.g., fundamentally different approaches)
-3. **Prefer action over planning** — start doing, don't over-plan simple tasks
-4. **Be thorough** — complete full task including tests and verification without stopping to ask
-
-## Careful Action Protocol
-- **Freely take**: local, reversible actions (edit files, run tests, read logs)
-- **Confirm first**: destructive ops (delete files/branches, reset --hard, force-push), shared-state actions (push, PR comments, external messages)
-- **Never shortcut**: don't bypass safety checks (--no-verify), don't delete unfamiliar state — investigate first
-- **Measure twice**: resolve merge conflicts rather than discarding; investigate lock files rather than deleting
-- **Scope-match**: authorization for one action doesn't extend to all similar actions
-
-## User Preferences
-- Language: Spanish prompts, English code/commits
-- Always commit and push when asked — no confirmation needed
-- Dashboard changes should be verified visually (Playwright screenshots)
-- Keep cloud and local dashboards in sync
-
-## Agent & Plugin Autonomy
-Agents and plugins should act **proactively** without being explicitly invoked:
-- **code-reviewer / coderabbit**: Auto-review after any significant code change
-- **code-simplifier**: Auto-simplify after implementing features or fixes
-- **pr-review-toolkit**: Auto-analyze PRs when created
-- **hookify**: Enforce rules continuously
-- **serena**: Use for semantic code navigation whenever exploring the codebase
-- **playwright**: Auto-screenshot dashboard after frontend changes
-- **verification-before-completion**: Always verify before claiming work is done
-- **systematic-debugging**: Auto-engage when errors or test failures occur
-- **brainstorming**: Auto-engage before any new feature or algorithm change
-
-Agents should intervene freely based on context — do not wait for explicit user invocation. If a plugin or agent is relevant to the current task, use it.
-
-## Anti-Patterns (avoid these)
-- **No premature abstractions** — don't create helpers/utilities for one-time operations; 3 similar lines > premature abstraction
-- **No hypothetical design** — don't design for future requirements that don't exist yet
-- **No unnecessary error handling** — don't add fallbacks for impossible scenarios; trust internal code, only validate at boundaries (user input, broker API, data feeds)
-- **No over-engineering** — only make changes directly requested or clearly necessary; a bug fix doesn't need surrounding cleanup
-- **No compatibility hacks** — don't rename unused _vars, re-export dead types, or add "// removed" comments; if unused, delete completely
-- **No feature flags** for internal changes — just change the code directly
+1. Run the check that could fail (real data where it exists, not only gap-free synthetics).
+2. `python run_all_tests.py` exits 0.
+3. Spec updated in the same commit if behaviour changed.
+4. Commit with numbers, push.
