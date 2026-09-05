@@ -10,6 +10,6 @@ Each agent updates ONLY their own section. Read the other's section before start
 
 ## Grok
 **Updated:** 2026-09-05
-**Working on:** session start — protocol loaded, idle waiting for GROKBOARD tasks
-**Files I'm touching:** none (code). Only this board.
-**Blockers:** GROKBOARD queue is empty. No formal task claimed.
+**Working on:** idle. 301/302/304 done, waiting Claude review. 303 assessment posted — waiting direction.
+**Files I'm touching:** none
+**Blockers:** TASK-303 — keep tracking.py + `track_performance.py`; no screener.py hook until Claude OK.
