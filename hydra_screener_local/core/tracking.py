@@ -135,7 +135,7 @@ def compute_forward_returns_for_run(run: Dict, prices_df: pd.DataFrame, horizons
         # provenance: which run produced the signal and which prices measured it, so a later
         # update can tell "the history file changed" from "more bars arrived" (audit finding C)
         "run_schema_version": run.get("schema_version", 1),
-        "recommended_snapshot": sorted(c["ticker"] for c in run.get("top_candidates", []) if c.get("recommended")),
+        "recommended_snapshot": sorted({c["ticker"] for c in run.get("top_candidates", []) if c.get("recommended")}),
         "price_source": "yfinance",
         "candidates": [],
         "omitted": [],
@@ -144,10 +144,14 @@ def compute_forward_returns_for_run(run: Dict, prices_df: pd.DataFrame, horizons
     entry_pos = first_bar_after(idx, signal_date)
     last_pos = len(idx) - 1
 
+    seen = set()
     for c in run.get("top_candidates", []):
         if not c.get("recommended"):
             continue
         ticker = c["ticker"]
+        if ticker in seen:
+            continue                      # malformed history: measure a ticker once (review 336)
+        seen.add(ticker)
 
         if ticker not in prices_df.columns:
             results["omitted"].append({"ticker": ticker, "reason": "no_price_data"})
@@ -200,7 +204,7 @@ def compute_forward_returns_for_run(run: Dict, prices_df: pd.DataFrame, horizons
     return results
 
 
-RETRYABLE_OMISSIONS = {"no_price_data", "no_bar_after_signal_yet"}
+RETRYABLE_OMISSIONS = {"no_price_data", "no_bar_after_signal_yet", "no_entry_price"}   # holes a later download can fill
 UNMEASURABLE_AFTER_BARS = 10     # a NaN exit bar with this many later bars and still no price = gone
 
 
@@ -215,8 +219,12 @@ def needs_update(existing: Optional[Dict], run: Dict) -> Tuple[bool, str]:
         return True, "no_tracking_yet"
     if existing.get("schema_version", 1) < TRACKING_SCHEMA_VERSION:
         return True, "older_schema"
-    snapshot = sorted(c["ticker"] for c in run.get("top_candidates", []) if c.get("recommended"))
-    if existing.get("recommended_snapshot") is not None and existing["recommended_snapshot"] != snapshot:
+    snapshot = sorted({c["ticker"] for c in run.get("top_candidates", []) if c.get("recommended")})
+    known = existing.get("recommended_snapshot")
+    if known is None:
+        # pre-provenance v2 file: the set it measured is what it lists (candidates + omitted)
+        known = sorted({c["ticker"] for c in existing.get("candidates", [])} | {o["ticker"] for o in existing.get("omitted", [])})
+    if sorted(known) != snapshot:
         return True, "history_recommended_set_changed"
     signal_date = pd.Timestamp(run.get("data_last_bar") or datetime.strptime(run["date"], "%Y%m%d")).strftime("%Y-%m-%d")
     if existing.get("signal_date") != signal_date:

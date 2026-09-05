@@ -77,8 +77,11 @@ def build_rich_summary(history_data: Dict, top_n: int = DEFAULT_TOP) -> Dict:
     # Only names Python flagged. Zero recommendations is a valid, meaningful result (the regime
     # gate or the downtrend veto closed the cycle) and must stay zero: the old fallback published
     # rejected candidates as `recommended_tickers` and consumers traded them (audit finding A).
-    recommended = sorted((c for c in top_candidates if c.get("recommended")),
-                         key=lambda c: c.get("rank", 10**6))
+    recommended, seen = [], set()
+    for c in sorted((c for c in top_candidates if c.get("recommended")), key=lambda c: c.get("rank", 10**6)):
+        if c["ticker"] in seen:
+            continue                      # malformed history: one entry per ticker (review 336)
+        seen.add(c["ticker"]); recommended.append(c)
     tickers = [c["ticker"] for c in recommended]
     # `top_n` is a DISPLAY cap for `top_details` only; the list itself is never truncated here.
     details = recommended if not top_n else recommended[:top_n]

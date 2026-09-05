@@ -74,9 +74,13 @@ def simulate_pine_parser(json_path: str) -> dict:
         result["errors"].append(f"recommended_count {data.get('recommended_count')} != len(recommended_tickers) {len(recs)}")
     # top_details must carry the whole list unless the producer declared an explicit display cap
     detail_tickers = [d.get("ticker") for d in top_details]
-    if not data.get("display_limit") and detail_tickers != recs:
+    limit = data.get("display_limit")
+    if not limit and detail_tickers != recs:
         result["ok"] = False
         result["errors"].append("top_details tickers != recommended_tickers and no display_limit declared (a consumer truncated the list)")
+    if limit and detail_tickers != recs[:int(limit)]:
+        result["ok"] = False
+        result["errors"].append(f"display_limit={limit} but top_details is not the first {limit} of recommended_tickers (review 336)")
 
     # Simulate is_rec for the watchlist
     watchlist = data.get("watchlist_for_pine", "")

@@ -13,7 +13,7 @@ El output es algo como:
 AAPL,MSFT,NVDA,AMD,AVGO,...
 
 Opciones:
-  --top N     : número máximo de tickers recomendados a incluir (default 15)
+  --top N     : tope de visualización explícito (default: lista completa; Pine i_max_watchlist limita la tabla)
   --output F  : escribir a archivo en vez de solo imprimir
   --latest    : forzar usar el history más reciente (default)
 """
@@ -44,7 +44,7 @@ def load_recommended_tickers(history_path: Path, top_n: Optional[int] = None) ->
 
     recommended = sorted((c for c in data.get("top_candidates", []) if c.get("recommended")),
                          key=lambda c: c.get("rank", 10**6))
-    tickers = [c["ticker"] for c in recommended]
+    tickers = list(dict.fromkeys(c["ticker"] for c in recommended))     # one entry per ticker, best rank first
     return tickers[:top_n] if top_n else tickers
 
 def generate_watchlist_string(tickers: list[str]) -> str:
@@ -94,7 +94,7 @@ def run_feeder(top_n: Optional[int] = None, output_path: Optional[str] = None, h
 
 def main():
     parser = argparse.ArgumentParser(description="Genera watchlist para el Pine HYDRA_Screener.pine")
-    parser.add_argument("--top", type=int, default=15, help="Máximo de tickers recomendados (default 15)")
+    parser.add_argument("--top", type=int, default=None, help="Tope de visualización explícito; por defecto la lista completa (Pine i_max_watchlist limita la tabla)")
     parser.add_argument("--output", type=str, default=None, help="Archivo de salida (ej: pine/watchlist.txt). Si no se da, solo imprime.")
     parser.add_argument("--history-dir", type=str, default="history", help="Directorio de history (default: history)")
     args = parser.parse_args()

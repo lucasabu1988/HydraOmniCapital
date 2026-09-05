@@ -14,6 +14,17 @@ cash and value per tranche so that:
 - a name that stops printing prices is carried at its last price for up to `max_stale_bars`
   bars and then written off at that price (explicit policy; see `write_offs`).
 
+Assumptions that are not obvious from the interface (review 337):
+- a write-off is NOT a trade: converting the last price into cash costs 0; marking to zero
+  instead is the pessimistic sensitivity (T20: -0.46 pp, TASK-338);
+- staleness is aged at the step END, so a name without a print at its renewal bar cannot be
+  sold there; it waits for a later print or for the write-off;
+- target weights summing above 1 are renormalised to 1, below 1 leave cash (that is how
+  vol-targeting and "off" ETF names get into the book);
+- the renewed tranche's `held` set is what the caller uses for buy/hold buffers; run_sleeve
+  ignores it (no buffer on the ETF sleeve by design);
+- exposure() and P&L both value stale names at last price; n / distinct count units.
+
 Pure python/pandas, no market data access: the labs pass prices in.
 """
 from __future__ import annotations
@@ -69,8 +80,11 @@ class TrancheBook:
         return float(sum(t.value(px) for t in self.tranches))
 
     def exposure(self, px: pd.Series) -> float:
-        v = self.value(px)
-        return float(sum(t.invested(px) for t in self.tranches) / v) if v > 0 else 0.0
+        """Invested share of the book, valuing stale names at their last price like P&L does
+        (review 337: value() dropped them and a fully-invested book read expo=0 during a carry)."""
+        v = self.value_with_stale(px)
+        cash = sum(t.cash for t in self.tranches)
+        return float((v - cash) / v) if v > 0 else 0.0
 
     def held(self, k: int) -> set:
         return {tk for tk, u in self.tranches[k].units.items() if u > 0}

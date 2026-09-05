@@ -73,5 +73,10 @@ def test_changed_history_or_old_schema_forces_recompute():
     assert needs_update(None, run) == (True, "no_tracking_yet")
     # a pre-status v2 file with a None return is pending, not final (the exact bug of finding C)
     legacy_v2 = {"schema_version": TRACKING_SCHEMA_VERSION, "signal_date": "2026-09-03",
-                 "candidates": [{"ticker": "AAA", "returns": {"return_5d": None, "return_10d": 0.01}}], "omitted": []}
+                 "candidates": [{"ticker": "AAA", "returns": {"return_5d": None, "return_10d": 0.01}},
+                                {"ticker": "BBB", "returns": {"return_5d": 0.01, "return_10d": 0.01}}],
+                 "omitted": [{"ticker": "GAP", "reason": "no_price_at_exit_bar"}]}
     assert needs_update(legacy_v2, run) == (True, "pending_returns")
+    # a pre-provenance file whose own set (candidates + omitted) is smaller than history's is re-measured (review 336)
+    smaller = dict(legacy_v2, candidates=legacy_v2["candidates"][:1], omitted=[])
+    assert needs_update(smaller, run) == (True, "history_recommended_set_changed")

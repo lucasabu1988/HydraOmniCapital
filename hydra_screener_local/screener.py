@@ -50,6 +50,8 @@ def history_records(candidates, context_top: int = HISTORY_CONTEXT_TOP) -> list:
     ranking as context, in ranking order. Pure, so the contract is testable (audit finding B)."""
     if candidates is None or len(candidates) == 0:
         return []
+    if 'ticker' in candidates.columns:
+        candidates = candidates.drop_duplicates(subset='ticker', keep='first')   # one row per ticker (review 336)
     keep = candidates.head(context_top).index
     if 'recommended' in candidates.columns:
         keep = keep.union(candidates.index[candidates['recommended'] == True])

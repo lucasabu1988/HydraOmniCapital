@@ -16,7 +16,7 @@ evaluar, no una cifra a fabricar.
 | Producto activo | `hydra_screener_local/` (screener Python + TradingView, universo `"all"` ~3000, ciclos de 5 sesiones). COMPASS/Render/IBKR archivados. **T20, manga ETF y manga MR son experimentos**; producción sigue en v8.4 sin cambio de scoring. Verificado en `CLAUDE.md`, `AGENTS.md`, `config.py`, `screener.py`. |
 | Spec vs código | `test_spec_compliance.py` (10 tests) pasa: fórmulas y parámetros de `config.py` coinciden con SPEC §6. |
 | Comunicaciones leídas | `GROKBOARD.md`, `.comms/*` (todas), notas de Grok 326-335 |
-| Versión final evaluada | **`0d4f2e5`** (código) — los números de §5 se producen con ese commit; ver §5 para el estado de la corrida |
+| Versión final evaluada | números de §5 producidos con **`0d4f2e5`**; correcciones de la revisión independiente en el commit final (ver §2.1). La revisión no cambió ninguna cifra de §5 salvo la exposición en pasos con nombres en carry (T20, 3 episodios) |
 
 ## 2. Revalidación de los cinco antecedentes
 
@@ -27,6 +27,14 @@ evaluar, no una cifra a fabricar.
 | C | Tracking saltaba v2 con retornos nulos | **Vigente**: `core/tracking.py:221-225` saltaba cualquier v2 con candidatos | **Corregido** `839e375`: `needs_update()`; `status` por horizonte {measured, pending, unmeasurable+motivo}; `recommended_snapshot`, `run_schema_version`, `price_source`; idempotente | `test_tracking_pending.py` (4; parcial → completo → idéntico; hueco vs delistado; history editado / fecha de señal / esquema viejo) |
 | D | Tramos con pesos nominales; rotación solo al tramo renovado | **Vigente** en `run_tranched()` y `run_sleeve()` (mi código): caso 100→200→100 daba +12.5 % con rotación 0 | **Corregido** `0d4f2e5`: `experiments/tranche_book.py` (unidades, efectivo, valor y operaciones por tramo; write-offs explícitos), `run_exec`, `run_sleeve`; los runners nominales se conservan solo para la tabla comparativa (`nominal=True`) | `experiments/test_tranche_book.py` (6): el caso de referencia da 0 % y documenta el +12.5 % antiguo; conservación de valor − costes; drift no rebalanceado gratis; reset registra y cobra; renovación con valor propio; cash remunerado; write-off registrado |
 | E | `combine(mode='rp')` usaba la vol del propio paso | **Vigente** en `sleeve_lab.py` | **Corregido** `0d4f2e5`: `mix()` con `shift(1)` + costes de reasignación y de reset del mix drifteado | `experiments/test_mix_causality.py` (3): un shock en el paso *i* no cambia pesos ≤ *i* y sí el *i+1*; coste de reset calculado a mano |
+
+### 2.1 Revisión independiente (Grok, TASK-336/337/338) y cierre
+
+| Revisión | Resultado | Cierre (Claude) |
+|---|---|---|
+| 336 — A/B/C (`test_review_336.py`, 13 tests: 7 sostienen, 6 rompen) | A resiste todos los ataques. B: CLI `--top` seguía en 15; el validador no exigía que `top_details` fuera el prefijo bajo `display_limit`; un ticker duplicado se publicaba dos veces. C: un v2 completo sin `recommended_snapshot` ignoraba un history con más recomendados; `no_entry_price` no se reintentaba; ticker duplicado medido dos veces | Los 6 corregidos con cambios acotados (CLI default `None`; validador exige prefijo; dedupe en summary/watchlist/`history_records`; ficheros sin procedencia se comparan con su propio conjunto candidatos+omitidos; `no_entry_price` reintentable; medición única). 13/13 verdes |
+| 337 — simulador (`experiments/test_review_337.py`, 12: 11 sostienen, 1 rompe) | D y E reproducidos sobre el código viejo (+12.5 % / peso con look-ahead). Hallazgo: `exposure()` ignoraba nombres en carry (valorados a último precio en P&L) → expo 0 en esos pasos. 10 supuestos no documentados | `exposure()` valora igual que el P&L; supuestos añadidos a la cabecera de `tranche_book.py`. 12/12 verdes. Efecto sobre §5: solo la columna exposición de T20 en 3 pasos |
+| 338 — datos/metodología (`experiments/panel_methodology.py`) | Precios `auto_adjust` = retorno total aproximado; cobertura 52.7 → 99.4 %; 0 operaciones en tickers reutilizados; T20 expuesto a delisting-en-cartera (ESRX ×2, SCG, 2019); **write-offs a 0 → T20 7.36 → 6.90 (−0.46 pp)**; PROD sin write-offs | Aprobada; sensibilidad incorporada en §5.1 |
 
 Revisión de fechas señal/ejecución (E, inspección): `run_exec` — señal con datos hasta el cierre *t* (ranking, vol63, ADV, JUMP252, régimen, vol de la cesta), ejecución al cierre *t+1*, medición *t+1 → t+1+paso*; ETF — mom12/SMA200/tb12 en *t*, ejecución *t+1*; T-bill del paso tomado en *t*. Manga MR: señal al cierre *t*, entrada al cierre *t+1*; **salidas evaluadas y ejecutadas al mismo cierre** (supuesto MOC sobre el precio observado; declarado, no probado con lag 1 — la manga está muerta por pre-registro y no se usa).
 
@@ -47,13 +55,13 @@ Revisión de fechas señal/ejecución (E, inspección): `run_exec` — señal co
 
 ## 4. Comandos y resultados
 
-- `cd hydra_screener_local && python run_all_tests.py` (tras `839e375`): **18 archivos PASS, 2 SKIP, 0 FAIL**.
+- `cd hydra_screener_local && python run_all_tests.py` (versión final, con los 25 tests de revisión de Grok): **22 archivos PASS, 2 SKIP, 0 FAIL** (44.6 s). Tras `839e375` eran 18/2/0.
   Skips: `test_hybrid_integration.py` (necesita `history/`), `validate_pine_contract.py` (necesita
   `pine/hydra_last_summary.json`) — ambos ahora **descubiertos y ejecutados**, y omitidos con motivo.
 - `python -m pytest experiments/test_tranche_book.py experiments/test_mix_causality.py -q`: 9 passed.
 - Indicador real de TradingView: no se compila ni se ejecuta aquí (`validate_pine_contract.py` simula el
   parser en Python). **Aparcado por decisión de Lucas (2026-09-06)**; no bloquea nada.
-- Revisión independiente en curso: TASK-336 (A/B/C), 337 (D/E), 338 (datos/metodología) — Grok.
+- Revisión independiente completada: TASK-336/337/338 (Grok), ver §2.1.
 
 ## 5. Métricas recalculadas (simulador corregido, commit `0d4f2e5`)
 
@@ -87,8 +95,9 @@ Lectura: la contabilidad nominal **no cambiaba PROD** (un solo tramo, rebalanceo
 único error era la rotación medida contra pesos objetivo en vez de drifteados, 39.0 → 39.1) y **favorecía
 a T20 en +0.25 pp de neto y ~1 pp de DD** (el rebalanceo implícito gratuito entre tramos). En el ETF el
 efecto es nulo (2 % de rotación). Operaciones registradas 2004-2026: PROD 24 286, T20 26 557, ETF 7 681.
-Write-offs: PROD 0, T20 **3** (nombres que dejaron de cotizar en cartera; dados de baja al último precio,
-0.22 en unidades de libro — sensibilidad a darlos de baja a 0: pendiente en TASK-338), ETF 0.
+Write-offs: PROD 0, T20 **3** (ESRX ×2 y SCG, 2019: adquiridas; dadas de baja al último precio, 0.22 en
+unidades de libro inicial). **Sensibilidad (TASK-338): marcadas a 0, T20 pasa de 7.36 a 6.90 % neto (−0.46 pp)**;
+es el precio de mantener 20 barras con 4 tramos frente al rebalanceo total cada 5 de PROD. ETF 0.
 
 ### 5.2 Carteras de mangas (mangas ejecutables, pesos causales, costes de reasignación cobrados)
 
@@ -127,8 +136,7 @@ movió el resultado −0.16 pp de neto y +0.2 pp de DD frente al cálculo con lo
 ## 6. Trabajo restante y decisiones para Lucas
 
 **Restante (técnico, sin decisión):**
-- Revisión independiente de Grok: TASK-336 (A/B/C), 337 (simulador), 338 (datos/metodología, incluida la
-  sensibilidad de los 3 write-offs a precio 0 y la exposición por variante a nombres sin precio).
+- (Revisión independiente completada; nada abierto de 336-338.)
 - Pine / TradingView: **aparcado por decisión de Lucas (2026-09-06)**. El contrato JSON queda
   protegido por `validate_pine_contract.py` (simulación Python); compilar el indicador real no se hará
   por ahora. Nadie trabaja en `pine/` hasta nueva instrucción.
