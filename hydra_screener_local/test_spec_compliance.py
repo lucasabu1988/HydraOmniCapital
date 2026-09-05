@@ -20,6 +20,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+import ast
+import re
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -353,6 +355,68 @@ def test_4_7_downtrend_gate():
     print("[OK] Veto solo en negativo: dip con ret>0 pasa; caídas con ret<0 vetadas (SPEC 4.7)")
     return True
 
+def _parse_spec_section_6(text: str) -> dict:
+    """NAME = value pairs from SPEC section 6. Skips unnamed bullets (strong, base, ...)."""
+    m = re.search(r"^## 6\. Complete Parameter List.*?(?=^## |\Z)", text, re.M | re.S)
+    if not m:
+        raise AssertionError("SPEC section 6 not found")
+    out = {}
+    for line in m.group(0).splitlines():
+        mm = re.match(r"^-\s+([A-Z][A-Z0-9_]*)\s*=\s*(.+?)\s*$", line.strip())
+        if not mm:
+            continue
+        name, raw = mm.group(1), mm.group(2)
+        try:
+            out[name] = ast.literal_eval(raw)
+        except (ValueError, SyntaxError) as e:
+            raise AssertionError(f"SPEC section 6: cannot parse {name} = {raw!r}: {e}")
+    return out
+
+
+def _parse_config_py_constants(text: str) -> dict:
+    """Module-level UPPER_CASE assignments in config.py (source file, not the mutated module)."""
+    tree = ast.parse(text)
+    out = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name) or not target.id.isupper():
+            continue
+        try:
+            out[target.id] = ast.literal_eval(node.value)
+        except (ValueError, TypeError):
+            continue
+    return out
+
+
+def test_config_matches_spec_section_6():
+    """TASK-321: production config.py must match SPEC section 6. Reads files, ignores test overrides."""
+    print("\n=== SPEC Section 6 vs config.py (no overrides) ===")
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = open(os.path.join(here, "HYDRA_ALGORITHM_SPEC.md"), encoding="utf-8").read()
+    cfg_src = open(os.path.join(here, "config.py"), encoding="utf-8").read()
+    spec_params = _parse_spec_section_6(spec)
+    cfg_params = _parse_config_py_constants(cfg_src)
+    assert spec_params, "parsed zero parameters from SPEC section 6"
+    missing = [n for n in spec_params if n not in cfg_params]
+    if missing:
+        print(f"[FAIL] SPEC names not in config.py: {missing}")
+        return False
+    drifted = []
+    for name, spec_val in spec_params.items():
+        live = cfg_params[name]
+        if live != spec_val:
+            drifted.append(f"{name}: config.py={live!r} SPEC={spec_val!r}")
+    if drifted:
+        print("[FAIL] config.py drifted from SPEC section 6:")
+        for d in drifted:
+            print(f"       {d}")
+        return False
+    print(f"[OK] {len(spec_params)} SPEC section 6 parameters match live config.py")
+    return True
+
+
 def test_output_contract():
     """SPEC section 7: Output Column Contract"""
     print("\n=== SPEC Section 7 Output Column Contract ===")
@@ -383,6 +447,7 @@ def main():
     print("Validando que la implementación coincide con las fórmulas y comportamientos del SPEC.\n")
     
     tests = [
+        test_config_matches_spec_section_6,
         test_4_1_momentum_score,
         test_4_2_short_term_and_strict,
         test_4_3_rich_regime,
