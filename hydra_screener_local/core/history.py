@@ -22,12 +22,15 @@ def save_daily_run(
     top_candidates: List[Dict[str, Any]],
     meta_rationale: str = "",
     base_dir: str = None,
-    vol_ratio_nan_share: float = 0.0
+    vol_ratio_nan_share: float = 0.0,
+    regime_gate_blocked: bool = False,
 ) -> str:
     """
     Guarda el resultado completo de un día del screener.
     base_dir: optional absolute path to use instead of the default "history" folder.
     vol_ratio_nan_share: from TASK-202 volume watchdog (share of tickers with missing volume data).
+    regime_gate_blocked: True when scoring's rich regime was below MIN_REGIME_SCORE*0.85
+    (zero recommended because of the regime flag, not because of the downtrend gate).
     """
     out_dir = base_dir or HISTORY_DIR
     os.makedirs(out_dir, exist_ok=True)
@@ -39,11 +42,13 @@ def save_daily_run(
             "score": regime_score,
             "type": regime_type,
             "special_modes": special_modes,
+            "gate_blocked": regime_gate_blocked,
         },
         "pillar_multipliers": pillar_multipliers,
         "meta_rationale": meta_rationale,
         "top_candidates": top_candidates,
-        "vol_ratio_nan_share": vol_ratio_nan_share
+        "vol_ratio_nan_share": vol_ratio_nan_share,
+        "regime_gate_blocked": regime_gate_blocked,
     }
 
     filename = os.path.join(out_dir, f"{date}.json")

@@ -23,10 +23,10 @@ try:
 except Exception as _e:
     print(f"[WARN] .env loader skipped: {_e}")
 
-from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS, UNIVERSE, VOL_NAN_WARN_THRESHOLD
+from config import TOP_CANDIDATES, EXPORT_EXCEL, OUTPUT_FILENAME_PREFIX, USE_FULL_SP500, FILTERS, UNIVERSE, VOL_NAN_WARN_THRESHOLD, MIN_REGIME_SCORE
 from data.universe import get_universe
 from data.fetch import fetch_prices_and_volume, fetch_spy
-from core.signals import generate_daily_candidates, compute_regime_score
+from core.signals import generate_daily_candidates
 from core.filters import apply_practical_filters, get_filter_summary, remove_zombie_tickers
 from core.history import save_daily_run
 from utils.display import print_header, print_candidates_table, print_summary, print_footer
@@ -74,7 +74,13 @@ def main():
     
     # 4. Generar candidatos (ya incluye Meta-Layer)
     candidates = generate_daily_candidates(prices, spy, volumes=volumes)
-    regime_score = compute_regime_score(spy)
+    # Persist the rich regime that actually drove scoring, not compute_regime_score (simple SMA).
+    if len(candidates) > 0:
+        regime_score = float(candidates.iloc[0]["regime"])
+        regime_gate_blocked = bool(regime_score < MIN_REGIME_SCORE * 0.85)
+    else:
+        regime_score = 0.0
+        regime_gate_blocked = False
 
     # TASK-202: Volume data watchdog — warn if too many NaN vol_ratio (missing volume breaks strict filter)
     nan_share = float(candidates.iloc[0].get("vol_ratio_nan_share", 0.0)) if len(candidates) > 0 else 0.0
@@ -150,7 +156,8 @@ def main():
             pillar_multipliers=pillar_mults,
             top_candidates=top_for_history,
             meta_rationale=meta_rationale,
-            vol_ratio_nan_share=nan_share
+            vol_ratio_nan_share=nan_share,
+            regime_gate_blocked=regime_gate_blocked,
         )
         print(f"[OK] Historico guardado en history/{today}.json")
     except Exception as e:
