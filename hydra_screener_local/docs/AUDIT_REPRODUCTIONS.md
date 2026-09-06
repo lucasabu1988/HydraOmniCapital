@@ -202,3 +202,22 @@ The eight snapshots already in `data_cache/pit/` were re-read after the rewrite:
 sp500 = 503 names, all = 3002, sectors = 2897, no fallback. Their identity honestly
 reports `recorded_sha256=None, verified=False` — they predate content addressing, and
 saying so is the point.
+
+## Phase 7 — universe and methodology
+
+| id | phase | defect | reproduction | fixed in |
+|---|---|---|---|---|
+| R-701 | 7.1/7.3 | **a market-cap ranking was called "Russell".** The primary source for `russell1000`/`russell2000` is a NASDAQ cap ranking, and the code said "Russell 1000" in docstrings, in console output, and in a comment asserting the method was "igual que la metodología FTSE Russell" | `test_universe_registry.py::test_r701_*` | `docs: name the cap-rank proxy universes and document provenance` |
+| R-702 | 7.2 | no universe carried a documented source, definition, membership method, exclusion list, coverage or hash | `test_universe_registry.py::test_r702_*` | same |
+| R-703 | 7.5/7.6 | PIT / current / proxy / fallback were not distinguished anywhere, and no bias statement travelled with a universe | `test_universe_registry.py::test_r703_*` | same |
+| R-704 | 7.4 | nothing excluded warrants, units, rights, preferreds or malformed symbols | `test_universe_registry.py::test_r704_*` | same |
+
+Measured, not assumed: `exclude_non_common()` against the live `all` universe on
+2026-09-06 (3002 names) removes **zero** names — the sources already return common
+stock only. The guard is there so a warrant cannot enter unnoticed later, and
+production behaviour is unchanged.
+
+One real finding surfaced by `duplicate_share_classes()`: the live universe holds
+**`BRK-A`, `BRK-B` and `BRK.B`** — the last two are the same security under two
+spellings, i.e. one company counted twice with two price series. Reported, not
+silently deduped: deduping it changes the recommended list and needs a measurement.
