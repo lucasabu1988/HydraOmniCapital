@@ -61,6 +61,7 @@ from core.dividends import (  # noqa: E402
 from dashboard_v9 import summarize_interest  # noqa: E402
 from data.dividends import fetch_dividends  # noqa: E402
 from data.universe import get_universe  # noqa: E402
+from data.universe_registry import universe_report  # noqa: E402
 import preflight as PF  # noqa: E402
 
 STATE_NAME = "portfolio_v9.json"
@@ -144,10 +145,22 @@ def save_state(path: Path, state: dict) -> Path | None:
     return backup_path
 
 
+def resolve_universe(universe: str | None = None) -> tuple[str, str]:
+    """(requested, effective) universe key.
+
+    Audit phase 9.1/9.2: `--universe` reaches every stage explicitly and the effective
+    value is recorded, instead of each stage re-deriving it from the environment and
+    nobody knowing which one actually ran.
+    """
+    requested = universe if universe is not None else None
+    effective = universe or os.environ.get("UNIVERSE") or UNIVERSE
+    return (str(requested) if requested is not None else "(unset)"), str(effective)
+
+
 def fetch_v9_market(universe: str = None) -> dict:
     """Prices for the engine. Stocks/ETFs use V9['price_period']; T-bill stays percent until /100."""
     period = V9["price_period"]
-    uni = universe or os.environ.get("UNIVERSE") or UNIVERSE
+    requested, uni = resolve_universe(universe)
     tickers = get_universe(universe=uni)
     stock_report, etf_report, irx_report = {}, {}, {}
     prices, volumes = fetch_prices_and_volume(tickers, period=period, report=stock_report)
@@ -155,10 +168,15 @@ def fetch_v9_market(universe: str = None) -> dict:
     etf = fetch_etf_closes(list(V9["etf_universe"]), period=period, report=etf_report)
     irx = fetch_tbill(period=period, report=irx_report)
     return dict(prices=prices, volumes=volumes, spy=spy, etf=etf, irx=irx,
-                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report)
+                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report,
+                universe_requested=requested, universe_effective=uni,
+                universe_tickers=list(tickers))
 
 
-def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -> pd.DataFrame:
+def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame,
+                  universe: str | None = None) -> pd.DataFrame:
+    """Rank the fetched names. `universe` is accepted so the stage can record which
+    universe it was handed rather than re-deriving one (audit phase 9.2)."""
     prices, _ = apply_practical_filters(
         prices, volumes=volumes,
         min_avg_volume=FILTERS.get("min_avg_volume", 1_000_000),
@@ -176,6 +194,19 @@ def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -
         prices, spy, volumes=volumes, sector_map=sector_map,
         momentum_window=V9["stock_momentum_window"],
     )
+
+
+def _rank(rank_fn, prices, spy, volumes, universe_effective):
+    """Call the ranking stage, passing the universe when the callee accepts it.
+
+    Injected test doubles take three positional arguments; the real `build_ranking`
+    takes the universe too (phase 9.2).
+    """
+    fn = rank_fn or build_ranking
+    try:
+        return fn(prices, spy, volumes, universe_effective)
+    except TypeError:
+        return fn(prices, spy, volumes)
 
 
 def _last_date(frame) -> str:
@@ -406,9 +437,24 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         if not silent:
             print(f"[v9] new state capital={cap:.2f} anchor={state['anchor_date']}")
 
+    # phase 9.2: the effective universe, recorded once and carried, not re-derived
+    universe_requested = data.get("universe_requested")
+    universe_effective = data.get("universe_effective")
+    if universe_effective is None:
+        universe_requested, universe_effective = resolve_universe(universe)
+    universe_tickers = data.get("universe_tickers")
+    uni_report = None
+    if universe_tickers is not None:
+        uni_report = universe_report(universe_effective, universe_tickers, date=None,
+                                     requested=len(universe_tickers))
+    if not silent:
+        print(f"[v9] universe requested={universe_requested} effective={universe_effective}"
+              + (f" ({uni_report['n']} names, {uni_report['kind']}"
+                 + (", PROXY" if uni_report["is_proxy"] else "") + ")" if uni_report else ""))
+
     ranking = None
     if not state.get("pending"):
-        ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+        ranking = _rank(rank_fn, prices, spy, volumes, universe_effective)
     # Injected fetch (tests) uses the fixture's last bar as the session so the suite
     # does not depend on the wall clock. Live fetch compares to the last weekday.
     pf = PF.evaluate(
@@ -477,7 +523,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     orders = []
     if not state.get("pending"):
         if ranking is None:
-            ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+            ranking = _rank(rank_fn, prices, spy, volumes, universe_effective)
         state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, V9)
         if not silent:
             print(f"[v9] plan {today}: {len(orders)} order(s)")
@@ -537,6 +583,8 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         today=today, orders=orders, fills=fills, state_path=str(state_path),
         instructions_md=str(md_path), no_trades=len(orders) == 0,
         run_id=tx.run_id, run_status=tx.status, commit_record=record,
+        universe_requested=universe_requested, universe_effective=universe_effective,
+        universe_report=uni_report,
         dividend_report=dividend_report,
         dividend_gaps=pending_gaps(state),
         dividend_coverage_complete=coverage_is_complete(state, today),

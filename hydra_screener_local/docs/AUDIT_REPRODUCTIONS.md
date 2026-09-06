@@ -267,3 +267,40 @@ change is purely the new persisted fields. Verified before regenerating:
   last_renewal   before='2021-07-22'       after='2021-07-22'       SAME
   order lists byte-identical: True
 ```
+
+## Phase 9 — CLI, journal and operation
+
+| id | phase | defect | reproduction | fixed in |
+|---|---|---|---|---|
+| R-901 | 9.5 | **a rerun of the same day replaced the evidence.** `journal/<date>.json` was rewritten in place, so what the earlier run of that day recommended was gone | `test_journal_revisions.py::test_r901_*` | `fix: propagate universe and make journal append-only` |
+| R-902 | 9.4 | **an error deleted the successful record.** `append_error()` went through the same in-place write: a book total of 123,456 became 0.0 | `test_journal_revisions.py::test_r902_*` | same |
+| R-903 | 9.3 | records carried no run_id, revision, parent_run_id, status, error, inputs, outputs or timestamps | `test_journal_revisions.py::test_r903_*` | same |
+| R-904 | 9.1/9.2 | each stage re-derived the universe from the environment and nothing recorded which one actually ran | `test_journal_revisions.py::test_r904_*` | same |
+| R-905 | 9.8 | nothing surfaced stale data, a missing sheet, unreconciled cash or a partial execution as an operational alert | `test_journal_revisions.py::test_r905_*` | same |
+
+Recorded at the base commit:
+
+```
+R-901  after run 1: {'n_orders': 13}
+       after run 2: {'n_orders': 0}          <- run 1 gone
+       files: ['2026-09-04.json', 'JOURNAL.md']
+R-902  before:             {'total': 123456.0}
+       after append_error: {'total': 0.0, ...}
+       the successful total is gone: True
+R-903  keys in the record: ['algo_version','book','date','did','expectation',
+                            'observations','process','schema','seen']
+```
+
+A further gap was found *by* the phase-9 tests rather than by the probe: a day that
+only ever failed writes a book total of 0.0, and `prior_total` / the equity curve read
+it as a valuation, inventing a -100% step. `successful_records()` now filters those
+out — a failure is evidence of a failure, not a valuation.
+
+### Phase 9.6 — the scheduler
+
+Not implemented here, and not claimed. `utils/trading_calendar.py` gained
+`nyse_sessions_between()` in phase 2 and the preflight uses the market calendar, the
+timezone is recorded in the run manifest (phase 6), and the last observed close is
+now a first-class concept (`data/quality.py`). Wiring those into the Windows scheduled
+task lives on `post-freeze-wiring` (TASK-364), which this branch does not merge — see
+the final report.
