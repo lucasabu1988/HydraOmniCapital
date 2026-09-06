@@ -37,6 +37,12 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 13:10] CLAUDE: Lucas pidio convertir los dos seguimientos en tareas: **TASK-385** (store con ajuste local,
+primero las guardas que dejo la 377: cache distingue 'sin dividendos' de 'fetch fallido', `--verify N` rojo ante 1e-5,
+comparacion de solape sobre raw; default sigue `yahoo` hasta una semana de verificaciones limpias) y **TASK-386**
+(motor de N sleeves segun el diseno de la 366, en rama tras el merge; aceptacion = golden sin regenerar + OOS
+7.10/0.75/-17.8 identicos + test de tres sleeves). Para Grok cuando vuelvan los creditos, o para mi.
+
 [2026-09-06 12:50] CLAUDE: **H-003 ACEPTADA por Lucas** (splits en el libro, contabilidad). `APPLY_SPLITS = True` y el
 parrafo de la SPEC 9.3 estan en la rama `post-freeze-wiring` (`4a77d6f`); entran en produccion con el merge tras el
 settle del martes. Registro actualizado en `.comms/hypotheses.md`.
@@ -1378,6 +1384,43 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
+### Follow-up tasks from the closed queue (Claude, 2026-09-06 13:10) — TASK-385, TASK-386
+
+For Grok when credits return, or for Claude. Purpose stated first, as always; the freeze rule and the
+flag-with-parity rule still apply.
+
+- [ ] `TASK-385` **Bar store: derive the adjusted close locally, drop the daily readjust.** TASK-377 proved
+  `data/adjust.py` reproduces Yahoo's `Adj Close` to 3e-7 on 59/60 names; the one miss was a dividend table
+  that came back empty after a rate-limited fetch — a silently wrong series. So the switch needs its guards first:
+  (1) `data/dividends.py` cache distinguishes "fetched, no dividends" (`[]` + `updated_by_ticker` stamp) from
+  "fetch failed" (no stamp, name in `report["failed_tickers"]`, retried next run); (2) `store_cli.py --verify N`
+  compares the locally derived series against a fresh Yahoo `Adj Close` for N random names and exits 1 on any
+  relative diff > 1e-5, printing the names; (3) `fetch_prices_and_volume_cached(adjust="local")`: `closes`
+  come from `close_raw x factors(dividends)` and the overlap comparison is done on **raw** closes (they only
+  change on a split, so the daily readjust of dozens of names disappears); default stays `adjust="yahoo"`
+  (today's path) until Claude flips it after a week of clean `--verify 50` runs logged in the note. Splits:
+  Yahoo's raw is split-adjusted, no factor; document it. Tests with the fake provider: failed vs empty dividend
+  fetch, `--verify` red on an injected 1e-3 error, local path == yahoo path within 1e-6 on synthetic data with
+  two dividends. Files: `data/dividends.py`, `data/fetch.py` (cached path only), `data/adjust.py`, `store_cli.py`,
+  `test_bar_store.py`, `test_dividends.py`, `test_adjust.py`, `.comms/grok-task-385-local-adjust-switch.md`.
+
+- [ ] `TASK-386` **Engine iterates N sleeves from the registry (design 366, sections 3-8).** Today
+  `core/portfolio_engine.py` hardcodes `SLEEVES = ("stocks", "etf")`, two target functions and a pair reset.
+  Implement the design on a branch off `post-freeze-wiring` after the merge (the engine is on the live path):
+  `plan()/settle()/mark()` iterate `sleeves.registry.build(cfg)`; the mix vector `cfg["mix"]` sizes the
+  bundle reset proportionally (legs net to zero — assert, TASK-347 invariant); `mark_frame` on the Sleeve
+  protocol (question 1); one calendar (2); mix 0 keeps empty tranches (3); `held` always passed (6); cash stays
+  per sleeve (5); negative transient cash allowed (7); registry = name list + `cfg["mix"]` (8). State schema:
+  `mix` persisted, `schema_version` 2 with a migration in `core/state_migrations.py` that fills 50/50.
+  **Parity is the acceptance test:** with the default cfg (two names, 50/50) `test_engine_golden.py` must pass
+  against the existing fixture **without regeneration**, `test_portfolio_engine.py` unchanged, and
+  `engine_backtest.py --check --oos` must reproduce 7.10 / 0.75 / -17.8 with the same transfer legs; add a
+  three-sleeve synthetic test (third sleeve = a second `EtfTrend` instance with `cost_bp` 3) proving the
+  bundle reset conserves the book. No new sleeve type, no scoring (protocol 10.3). Files: `core/portfolio_engine.py`,
+  `core/state_migrations.py`, `sleeves/base.py`, `sleeves/registry.py`, `test_engine_golden.py` (fixture untouched),
+  `test_portfolio_engine.py`, `test_sleeve_registry.py`, `HYDRA_ALGORITHM_SPEC.md` 9.1/9.4 (state schema only),
+  `.comms/grok-task-386-n-sleeve-engine.md`.
+
 ### Follow-up batch (Claude, 2026-09-06 17:30) — TASK-369..375
 
 Purpose of the batch: turn the six modules reviewed today into things production can trust (proof on real history,
@@ -1916,7 +1959,7 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
-  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; **queue empty** — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) ACCEPTED 2026-09-06, flag on in the branch.
+  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; queue = TASK-385 (store, freeze-safe) and TASK-386 (engine, after the merge) — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) ACCEPTED 2026-09-06, flag on in the branch.
 
 ---
 
