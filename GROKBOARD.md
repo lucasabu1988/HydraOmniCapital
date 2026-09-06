@@ -37,6 +37,12 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 07:10] CLAUDE: **TASK-342 APROBADA** — dashboard correcto y acotado como se pidio; lo probe offline
+sobre el estado real de la primera corrida. Un seguimiento pequeno: **TASK-343** (una fila de curva por
+refresco de cotizaciones, no por poll). Aviso operativo: la primera corrida v9 se va a repetir con la cache
+de sectores completa (el cap sectorial no actuo porque 1750/2027 nombres cayeron a "Other" por el
+presupuesto de 120 s); nada se ha ejecutado aun.
+
 [2026-09-07 07:10] GROK: TASK-342 done, ready for review. `dashboard_v9.py` +
 `dashboard/index.html`. Snapshot is pure (avg-cost rule in the module docstring);
 quotes fall back to last_px/stale; HTTP stdlib on 127.0.0.1:8765; only write is
@@ -970,31 +976,11 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [x] `TASK-342` **Local live dashboard for the v9 portfolio (Lucas, 2026-09-07).** Requirements from
-  Lucas: monitor portfolio performance, update live, keep a log of buys/sells, show P&L. Constraints
-  (non-negotiable): **local only** (bind 127.0.0.1, no Render/cloud, no auth needed), **read-only over
-  `state/portfolio_v9.json`** — the dashboard never mutates the state, never places orders, never
-  sends webhooks; the only file it may write is an append-only `state/equity_curve.csv` (one row per
-  mark: timestamp, total, stocks, etf, cash, spy_close) so the curve survives restarts. No scoring.
-  Build `dashboard_v9.py`: (a) a pure data builder `build_snapshot(state, quotes, spy) -> dict` with
-  unit tests (no network) — positions per sleeve/tranche/ticker with units, cost basis derived from the
-  ledger fills (average cost; write the rule down), last price, market value, unrealised P&L,
-  realised P&L per closed lot, fees paid, cash per tranche, sleeve shares vs the 50/50 target,
-  exposure, distinct names, pending orders with their execution date, transfers, write-offs; (b) a
-  quotes layer using yfinance intraday last price for the held names + SPY, refreshed every
-  `--refresh` seconds (default 300), falling back to `last_px` from the state and flagging the quote
-  as stale; (c) a tiny local HTTP server (stdlib `http.server` or Flask if already in requirements —
-  no new heavy deps) serving one HTML page that polls `/api/snapshot` and renders: header (total,
-  day P&L, since-inception P&L in USD and %, vs SPY since anchor), equity curve, sleeve panels,
-  positions table, **trade log** (every ledger fill: date, sleeve, tranche, side, ticker, units,
-  price, $, cost, status — filled / not_filled / noted), pending orders, and a banner that says
-  "fills presumidos — simulación de ejecución al cierre; no es un extracto del bróker". Start with
-  `python dashboard_v9.py` (prints the URL). Tests: snapshot arithmetic on a synthetic state (a buy,
-  a partial sell, a not_filled, a transfer; check cost basis, realised/unrealised, totals reconcile
-  with `summary_table`), stale-quote fallback, equity_curve append is idempotent per timestamp.
-  Files: `dashboard_v9.py`, `dashboard/index.html`, `test_dashboard_v9.py`, `.comms/grok-task-342-dashboard.md`,
-  `.gitignore` (equity_curve is under state/, already ignored). Do not touch `portfolio_v9.py`,
-  `core/`, `daily.py`. Claude reviews.
+- [ ] `TASK-343` **Dashboard: one equity-curve row per quote refresh, not per poll.** `live_snapshot()`
+  calls `append_curve` on every `/api/snapshot` request with `as_of = now`, so a page polling every N
+  seconds writes a row each time even when quotes did not change. Append only when `cached_quotes`
+  actually refreshed (or when the last row is older than `--refresh`), keep idempotence per timestamp,
+  and add a test with two polls inside the TTL -> one row. Files: `dashboard_v9.py`, `test_dashboard_v9.py`.
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; queue empty.
@@ -1003,6 +989,15 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-342` (Grok, `2ed8ed2`) `dashboard_v9.py` + `dashboard/index.html` + 6 tests. Read-only over
+  `state/portfolio_v9.json`, binds 127.0.0.1 only (refuses other hosts), no orders, no webhooks; only
+  write = append-only `state/equity_curve.csv`. Pure `build_snapshot` with average-cost lots from the
+  ledger (rule written down), realised/unrealised/fees, sleeve shares vs 50/50, pending, transfers,
+  write-offs, trade log; yfinance quotes with `last_px` fallback flagged stale; mandatory banner.
+  Verified by Claude: tests green, suite 27/2/0, snapshot builds offline on the real first-run state
+  (30 pending orders, 100k cash). Review (Claude): **APPROVED**. Follow-up (TASK-343): `live_snapshot`
+  appends a curve row on every page poll (timestamp changes each call), so the CSV grows with polling
+  rather than with quote refreshes — append only when the quote cache actually refreshed.
 - `TASK-342` (Grok) Local live dashboard: `dashboard_v9.py` + `dashboard/index.html`.
   Read-only over state/; 127.0.0.1; append-only equity_curve.csv. Avg-cost snapshot tested
   against summary_table. Note `.comms/grok-task-342-dashboard.md`.
