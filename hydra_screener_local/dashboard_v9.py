@@ -143,7 +143,39 @@ def _quote_price(quotes: dict, ticker: str, fallback: float | None) -> tuple[flo
     return None, True
 
 
-def build_snapshot(state: dict, quotes: dict, spy=None) -> dict:
+def exec_date_for(planned, state_dir: Path | None = None):
+    """Execution day of an order planned at the close of `planned`: the sheet's `exec_date`
+    (state/instructions_<planned>.json) when it exists, else the next business day."""
+    if not planned:
+        return None
+    if state_dir is not None:
+        sheet = Path(state_dir) / f"instructions_{str(planned).replace('-', '')}.json"
+        if sheet.exists():
+            try:
+                with sheet.open("r", encoding="utf-8") as f:
+                    ex = json.load(f).get("exec_date")
+                if ex:
+                    return str(ex)
+            except (OSError, ValueError):
+                pass
+    import pandas as pd
+    return str((pd.Timestamp(planned) + pd.offsets.BDay(1)).date())
+
+
+def ny_day(ts) -> str:
+    """Calendar day in America/New_York of an ISO timestamp (the marks are stored in UTC, and a
+    US evening sits past UTC midnight: the day P/L must not reset at 20:00 ET)."""
+    import pandas as pd
+    try:
+        t = pd.Timestamp(str(ts).replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.tz_localize("UTC")
+        return str(t.tz_convert("America/New_York").date())
+    except (TypeError, ValueError):
+        return str(ts)[:10]
+
+
+def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None = None) -> dict:
     """Pure. `quotes` maps ticker -> float or {price, stale}. `spy` is the same for SPY."""
     if not state:
         return {"ok": False, "error": "no state"}
@@ -226,7 +258,8 @@ def build_snapshot(state: dict, quotes: dict, spy=None) -> dict:
     pending = []
     for o in state.get("pending") or []:
         pending.append({
-            "planned": o.get("planned"), "exec_date": o.get("exec_date"),
+            "planned": o.get("planned"),
+            "exec_date": o.get("exec_date") or exec_date_for(o.get("planned"), state_dir),
             "sleeve": o.get("sleeve"), "tranche": o.get("tranche"),
             "side": o.get("side"), "ticker": o.get("ticker"),
             "dollars": _f(o.get("dollars")), "est_units": o.get("est_units"),
@@ -394,16 +427,16 @@ def annotate_performance(snap: dict, curve: list[dict]) -> dict:
     total = _f(snap.get("total"))
     if curve:
         prev = curve[-1]
-        # day P&L vs last mark on a previous UTC date, else vs previous mark
-        today = (snap.get("as_of") or "")[:10]
+        # day P&L vs the last mark on a previous New York date, else vs previous mark
+        today = ny_day(snap.get("as_of") or "")
         day_base = None
         for r in reversed(curve):
-            if str(r.get("timestamp", ""))[:10] != today:
+            if ny_day(r.get("timestamp", "")) != today:
                 day_base = _f(r.get("total"))
                 break
         if day_base is None and len(curve) >= 1:
             # intra-day: vs first mark today if any, else last
-            first_today = next((r for r in curve if str(r.get("timestamp", ""))[:10] == today), None)
+            first_today = next((r for r in curve if ny_day(r.get("timestamp", "")) == today), None)
             day_base = _f((first_today or prev).get("total"))
         snap["day_pnl_usd"] = total - day_base
         snap["day_pnl_pct"] = (total - day_base) / day_base if day_base else 0.0
@@ -445,7 +478,7 @@ def live_snapshot(state_dir: Path) -> dict:
     tickers = sorted(set(fallback) | {"SPY"})
     quotes, refreshed = cached_quotes(tickers, fallback)
     spy = quotes.get("SPY")
-    snap = build_snapshot(state, quotes, spy)
+    snap = build_snapshot(state, quotes, spy, state_dir=Path(state_dir))
     curve_path = Path(state_dir) / "equity_curve.csv"
     curve = read_curve(curve_path)
     should_append = refreshed or not curve

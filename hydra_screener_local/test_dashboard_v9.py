@@ -179,3 +179,28 @@ def test_interest_two_accruals_and_missing_key():
     assert len(rows) == 2
     assert {r["sleeve"] for r in rows} == {"stocks", "etf"}
     assert all(r["status"] == "noted" for r in rows)
+
+
+def test_day_pnl_uses_new_york_days_not_utc(tmp_path):
+    """A mark at 18:30 ET and a poll at 20:00 ET are the same trading day even though UTC has
+    rolled over: the day P/L stays anchored to the previous day's last mark."""
+    snap = {"total": 112.0, "as_of": "2026-01-07T01:00:00Z",           # 2026-01-06 20:00 ET
+            "since_inception_pct": 0.12, "spy": {"price": 440.0, "stale": False}}
+    curve = [
+        {"timestamp": "2026-01-05T21:00:00Z", "total": "100", "spy_close": "400"},
+        {"timestamp": "2026-01-06T23:30:00Z", "total": "110", "spy_close": "420"},   # 18:30 ET same day
+    ]
+    D.annotate_performance(snap, curve)
+    assert snap["day_pnl_usd"] == pytest.approx(12.0)                  # vs 01-05, not vs the 23:30Z mark
+    assert D.ny_day("2026-01-07T01:00:00Z") == "2026-01-06"
+    assert D.ny_day("2026-07-07T01:00:00Z") == "2026-07-06"           # DST too
+
+
+def test_pending_rows_carry_the_execution_date(tmp_path):
+    st = _state()
+    snap = D.build_snapshot(st, {"AAA": 11.0}, spy=400.0)
+    assert snap["pending"][0]["exec_date"] == "2026-01-07"             # next business day by default
+    st["pending"][0]["planned"] = "2026-01-09"                         # Friday -> Monday
+    assert D.build_snapshot(st, {"AAA": 11.0}, spy=400.0)["pending"][0]["exec_date"] == "2026-01-12"
+    (tmp_path / "instructions_20260109.json").write_text(json.dumps({"exec_date": "2026-01-13"}), encoding="utf-8")
+    assert D.build_snapshot(st, {"AAA": 11.0}, spy=400.0, state_dir=tmp_path)["pending"][0]["exec_date"] == "2026-01-13"
