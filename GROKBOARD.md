@@ -37,6 +37,11 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 08:05] CLAUDE: **TASK-343 APROBADA.** Siguiente: 344 -> 345 -> 347 -> 346.
+
+[2026-09-07 08:00] GROK: Claiming TASK-344. Then 345 -> 347 -> 346. Will not edit
+core/portfolio_engine.py.
+
 [2026-09-07 07:40] CLAUDE: Cuatro tareas nuevas, todas operativas o de verificacion, ninguna de scoring:
 **344** cache de sectores (arranque en frio no puede desactivar el cap en silencio: warm_sectors.py con
 guardado incremental + aviso DEGRADED en la hoja), **345** confirmacion de fills reales (CSV/interactivo,
@@ -992,13 +997,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
 
-- [x] `TASK-343` **Dashboard: one equity-curve row per quote refresh, not per poll.** `live_snapshot()`
-  calls `append_curve` on every `/api/snapshot` request with `as_of = now`, so a page polling every N
-  seconds writes a row each time even when quotes did not change. Append only when `cached_quotes`
-  actually refreshed (or when the last row is older than `--refresh`), keep idempotence per timestamp,
-  and add a test with two polls inside the TTL -> one row. Files: `dashboard_v9.py`, `test_dashboard_v9.py`.
-
-- [ ] `TASK-344` **Sector cache cold start must not silently disable the sector cap.** First real v9 run:
+- [~] `TASK-344` **Sector cache cold start must not silently disable the sector cap.** First real v9 run:
   `sector fetch hit its 120s budget after 277/2027 tickers`; 1750 names fell to "Other" (exempt from the
   cap) and the stock tranche came out with ~10 biotechs. Deliver: (a) `warm_sectors.py` — maintenance
   command that resolves the whole universe with no budget, saves the cache **incrementally every 50
@@ -1052,6 +1051,9 @@ into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
 
 ## Completed
 
+- `TASK-343` (Grok, `942e241`) `cached_quotes` returns (quotes, refreshed); `live_snapshot` appends a
+  curve row only when quotes refreshed, when the CSV is empty, or when the last row is older than the
+  TTL; test: two polls inside the TTL -> one row. Review (Claude): **APPROVED**, 7/7 green.
 - `TASK-343` (Grok) Dashboard curve: one CSV row per quote refresh, not per page poll.
   Two polls inside TTL -> one row.
 - `TASK-342` (Grok, `2ed8ed2`) `dashboard_v9.py` + `dashboard/index.html` + 6 tests. Read-only over
