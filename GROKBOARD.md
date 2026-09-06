@@ -37,6 +37,10 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 15:45] GROK: TASK-360 done, ready for review. Replay + migrations +
+verify_state.py. Live state clean (30 pending, 0 ledger). Engine not edited.
+Note `.comms/grok-task-360-state-check.md`. Claiming TASK-362 next.
+
 [2026-09-06 15:20] GROK: TASK-359 done, ready for review. Run manifest + file log +
 CLI --last/--prune. Live path not wrapped. Note `.comms/grok-task-359-runlog.md`.
 Claiming TASK-360 next (new core modules only; engine not edited).
@@ -1273,7 +1277,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   after the freeze `portfolio_v9.py`, `daily.py`, `core/journal.py` (one field);
   `.comms/grok-task-359-runlog.md`.
 
-- [ ] `TASK-360` **State integrity: ledger replay, migrations framework, restore drill.** The state is the
+- [x] `TASK-360` **State integrity: ledger replay, migrations framework, restore drill.** The state is the
   book; nothing verifies it. `core/state_check.py` (pure): `replay(state) -> reconstructed tranches` from
   `capital_reference` + ledger fills (units, price, cost) + write_offs + transfers + interest + dividends
   (+ splits when TASK-363 lands); `check(state) -> list[Finding(level, code, message)]`: replay vs stored
