@@ -187,6 +187,30 @@ def test_readjust_refetches_full_history(tmp_path):
     store.close()
 
 
+def test_readjust_three_tickers_one_batched_fetch(tmp_path):
+    store = BarStore(tmp_path / "bars.sqlite")
+    frame = _long(("AAA", "BBB", "CCC"))
+    provider = FakeProvider(frame)
+    fetch_prices_and_volume_cached(
+        ["AAA", "BBB", "CCC"], period="1y", provider=provider, store=store, asof=ASOF,
+    )
+    n_after_seed = len(provider.calls)
+    bump = IDX[-5]
+    for t in ("AAA", "BBB", "CCC"):
+        mask = (provider.df["ticker"] == t) & (pd.to_datetime(provider.df["date"]) == bump)
+        provider.df.loc[mask, "close_adj"] = provider.df.loc[mask, "close_adj"] * 1.01
+    report = {}
+    fetch_prices_and_volume_cached(
+        ["AAA", "BBB", "CCC"], period="1y", report=report, provider=provider, store=store, asof=ASOF,
+    )
+    extra = provider.calls[n_after_seed:]
+    assert set(report["readjusted"]) == {"AAA", "BBB", "CCC"}
+    full = [c for c in extra if set(c[0]) == {"AAA", "BBB", "CCC"} and c[1] == period_to_start("1y", ASOF)]
+    assert len(full) == 1, extra
+    assert store.stats()["readjusted_last_run"] == 3
+    store.close()
+
+
 def test_live_fetch_does_not_construct_the_store(monkeypatch):
     opened = []
 

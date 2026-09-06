@@ -12,8 +12,7 @@ gaps, universe fetch tests, no permanent skips). Live path still FROZEN until "f
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 20:00
-**Working on:** TASK-373 done, claiming TASK-371 (batch readjust). Then 370.
-**Files I'm touching:** data/fetch.py (cached path), data/store.py, store_cli.py,
-test_bar_store.py
+**Updated:** 2026-09-06 20:20
+**Working on:** TASK-371 done, claiming TASK-370 (store seed + parity).
+**Files I'm touching:** experiments/store_parity.py, store_cli backfill
 **Blockers:** none.

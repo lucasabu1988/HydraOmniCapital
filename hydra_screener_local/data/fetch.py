@@ -398,6 +398,7 @@ def fetch_prices_and_volume_cached(
     lasts = store.last_dates(tickers)
     missing = [t for t in tickers if t not in lasts]
     present = [t for t in tickers if t in lasts]
+    t0 = time.perf_counter()
 
     if missing:
         print(f"   [bar store] full fetch {len(missing)} ticker(s) {start.date()} -> {end.date()}")
@@ -422,22 +423,41 @@ def fetch_prices_and_volume_cached(
             report["failed_tickers"].extend(present)
             print(f"   [bar store] tail fetch failed: {e}")
             tail = pd.DataFrame()
+        mismatches: list[str] = []
+        matched: list[pd.DataFrame] = []
         if tail is not None and not getattr(tail, "empty", True):
             for t in present:
                 incoming = _adj_series(tail, t)
                 stored = store.closes([t], ostarts[t], lasts[t], adjusted=True)
                 stored_s = stored[t] if (not stored.empty and t in stored.columns) else pd.Series(dtype=float)
                 if _relative_mismatch(stored_s, incoming):
-                    print(f"   [bar store] readjust {t}: overlap differs, refetching {start.date()} -> {end.date()}")
-                    try:
-                        full = provider.fetch([t], start, end)
-                        store.replace_ticker(t, full)
-                        report["readjusted"].append(t)
-                    except Exception as e:
-                        report["failed_tickers"].append(t)
-                        print(f"   [bar store] readjust refetch failed for {t}: {e}")
-                else:
-                    store.upsert(tail[tail["ticker"].astype(str) == t] if "ticker" in tail.columns else tail)
+                    mismatches.append(t)
+                elif "ticker" in tail.columns:
+                    matched.append(tail[tail["ticker"].astype(str) == t])
+        if matched:
+            store.upsert(pd.concat(matched, ignore_index=True))
+        if mismatches:
+            print(f"   [bar store] readjust {len(mismatches)} ticker(s) batched {start.date()} -> {end.date()}")
+            try:
+                full = provider.fetch(mismatches, start, end)
+                for t in mismatches:
+                    piece = full[full["ticker"].astype(str) == t] if (full is not None and not full.empty and "ticker" in full.columns) else pd.DataFrame()
+                    store.replace_ticker(t, piece)
+                    report["readjusted"].append(t)
+            except Exception as e:
+                report["failed_tickers"].extend(mismatches)
+                print(f"   [bar store] readjust batch failed: {e}")
+
+    elapsed = time.perf_counter() - t0
+    try:
+        store.record_run(
+            tickers_requested=len(tickers),
+            tail=len(present),
+            readjusted=len(report.get("readjusted") or []),
+            seconds=elapsed,
+        )
+    except Exception:
+        pass
 
     prices = store.closes(tickers, start, end, adjusted=True)
     volumes = store.volumes(tickers, start, end)

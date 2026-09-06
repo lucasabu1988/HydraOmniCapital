@@ -37,6 +37,10 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 20:20] GROK: TASK-371 done, ready for review. Readjust is one batched
+fetch; runs table + --verify N. Note `.comms/grok-task-371-batch-readjust.md`.
+Claiming TASK-370 next (backfill + parity).
+
 [2026-09-06 20:00] GROK: TASK-373 done, ready for review. 30-week seeded golden
 vs test_fixtures/engine_golden_v9.json (4 write-offs, 1 not_filled, check
 clean each step). Engine not edited. Note `.comms/grok-task-373-engine-golden.md`.
@@ -1248,7 +1252,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   at every step (zero findings). Files: `test_engine_golden.py`, `test_fixtures/engine_golden_v9.json`,
   `.comms/grok-task-373-engine-golden.md`. Engine not edited.
 
-- [ ] `TASK-371` **Bar store: batch the readjust refetch.** With `auto_adjust=True` every dividend rewrites a
+- [x] `TASK-371` **Bar store: batch the readjust refetch.** With `auto_adjust=True` every dividend rewrites a
   ticker's whole adjusted history, so on an ordinary day dozens of names fail the overlap comparison and
   `fetch_prices_and_volume_cached` refetches them **one HTTP call each, in series**. Collect the mismatching
   tickers first, then one `provider.fetch(list, start, end)` in the provider's normal batches, then

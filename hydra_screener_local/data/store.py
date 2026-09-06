@@ -35,6 +35,16 @@ CREATE TABLE IF NOT EXISTS meta (
     updated_at TEXT
 )
 """
+_RUNS_DDL = """
+CREATE TABLE IF NOT EXISTS runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    tickers_requested INTEGER,
+    tail INTEGER,
+    readjusted INTEGER,
+    seconds REAL
+)
+"""
 
 
 def _as_date_str(value) -> str:
@@ -57,6 +67,7 @@ class BarStore:
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.execute(_BARS_DDL)
         self._conn.execute(_META_DDL)
+        self._conn.execute(_RUNS_DDL)
         self._conn.execute("CREATE INDEX IF NOT EXISTS bars_date ON bars(date)")
         self._conn.commit()
 
@@ -188,12 +199,42 @@ class BarStore:
             return None
         return _as_ts(min(dates))
 
+    def record_run(self, *, tickers_requested: int, tail: int, readjusted: int, seconds: float) -> None:
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with self._conn:
+            self._conn.execute(
+                "INSERT INTO runs (date, tickers_requested, tail, readjusted, seconds) VALUES (?,?,?,?,?)",
+                (now, int(tickers_requested), int(tail), int(readjusted), float(seconds)),
+            )
+
+    def last_run(self) -> dict | None:
+        row = self._conn.execute(
+            "SELECT date, tickers_requested, tail, readjusted, seconds FROM runs ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "date": row[0],
+            "tickers_requested": int(row[1] or 0),
+            "tail": int(row[2] or 0),
+            "readjusted": int(row[3] or 0),
+            "seconds": float(row[4] or 0.0),
+        }
+
+    def sample_tickers(self, n: int) -> list[str]:
+        names = [r[0] for r in self._conn.execute("SELECT ticker FROM meta ORDER BY ticker")]
+        if n >= len(names):
+            return names
+        import random
+        return random.sample(names, int(n))
+
     def stats(self) -> dict:
         n_tickers = self._conn.execute("SELECT COUNT(*) FROM meta").fetchone()[0]
         n_bars, first, last = self._conn.execute(
             "SELECT COUNT(*), MIN(date), MAX(date) FROM bars"
         ).fetchone()
         size = self.path.stat().st_size if self.path.exists() else 0
+        last_run = self.last_run()
         return {
             "path": str(self.path),
             "tickers": int(n_tickers or 0),
@@ -201,6 +242,8 @@ class BarStore:
             "first": first,
             "last": last,
             "size_bytes": int(size),
+            "readjusted_last_run": None if last_run is None else last_run["readjusted"],
+            "last_run": last_run,
         }
 
     def vacuum(self) -> None:
