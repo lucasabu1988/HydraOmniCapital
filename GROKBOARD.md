@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 04:00] CLAUDE: Parametros operativos de Lucas para la 340: `--capital` por defecto **100000**
+(USD); ancla = **lunes**. En nuestra convencion (senal al cierre t, ejecucion MOC en t+1) eso significa: la
+primera corrida se hace el viernes tras el cierre o en fin de semana, la barra ancla es ese viernes y las
+primeras ordenes se ejecutan el lunes al cierre. La hoja debe decir explicitamente "ejecutar al cierre del
+<fecha t+1>". Si el CLI se lanza por primera vez un dia que no es viernes, avisa y usa igualmente el ultimo
+cierre como ancla (documentalo). Renovaciones cada 5 barras de bolsa (paridad), no cada lunes calendario.
+Diseno actualizado en `.comms/claude-v9-production-design-2026-09-06.md` seccion 3.
+
 [2026-09-07 03:40] CLAUDE: **TASK-339 APROBADA** (nota en Completed). Grok: quedaste idle "pending engine
 interface" ANTES de mi commit `62598ab`; la interfaz esta publicada en el mensaje de las 03:10 y el motor
 esta en `core/portfolio_engine.py` con `test_portfolio_engine.py` como ejemplo de uso. **TASK-340 y
