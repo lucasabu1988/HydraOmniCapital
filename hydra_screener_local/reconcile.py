@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from core.ledger import moves_book
+
 ROOT = Path(__file__).resolve().parent
 DEFAULT_STATE = ROOT / "state" / "portfolio_v9.json"
 QTY_TOL = 1e-6
@@ -83,13 +85,16 @@ def explanations(state: dict) -> dict:
     interest = sum(_f(x.get("dollars")) for x in (state.get("interest") or []))
     dividends = sum(_f(x.get("dollars")) for x in (state.get("dividends") or []))
     fees = sum(_f(f.get("cost")) for f in (state.get("ledger") or [])
-               if f.get("status") in ("filled", "confirmed", "confirmed_unplanned"))
+               if moves_book(f.get("status")))
     pending = list(state.get("pending") or [])
     pending_buys = sum(_f(o.get("dollars")) for o in pending if o.get("side") == "buy")
     pending_sells = sum(_f(o.get("dollars")) for o in pending if o.get("side") == "sell")
+    splits = list(state.get("splits") or [])
     return dict(
         interest_recorded=round(interest, 4),
         dividends_recorded=round(dividends, 4),
+        splits_recorded=len(splits),
+        splits_detail=[f"{s.get('date')} {s.get('ticker')} x{s.get('ratio')}" for s in splits[-5:]],
         fees_recorded=round(fees, 4),
         pending_buys=round(pending_buys, 4),
         pending_sells=round(pending_sells, 4),
@@ -194,6 +199,8 @@ def format_report(rep: dict) -> str:
         f"  interest recorded   {rep['explanations']['interest_recorded']:,.4f}",
         f"  dividends recorded  {rep['explanations']['dividends_recorded']:,.4f}",
         f"  fees recorded       {rep['explanations']['fees_recorded']:,.4f}",
+        f"  splits recorded     {rep['explanations'].get('splits_recorded', 0)}"
+        + (f"  ({', '.join(rep['explanations'].get('splits_detail') or [])})" if rep['explanations'].get('splits_recorded') else ""),
         f"  pending buys        {rep['explanations']['pending_buys']:,.4f}",
         f"  pending sells       {rep['explanations']['pending_sells']:,.4f}",
         f"  {rep['explanations']['note']}",
@@ -209,25 +216,53 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Reconcile broker CSV vs v9 state (read-only)")
     p.add_argument("positions", help="CSV with ticker,units")
     p.add_argument("--state", default=str(DEFAULT_STATE))
+    p.add_argument("--portfolio", default=None, help="Book from portfolios.toml (TASK-365)")
     p.add_argument("--cash-total", type=float, default=None)
     p.add_argument("--cash-stocks", type=float, default=None)
     p.add_argument("--cash-etf", type=float, default=None)
     args = p.parse_args(argv)
+    # Audit phase 5.7: a reconciliation that could not be performed must exit
+    # non-zero with an actionable message. Every path here used to `return 0`,
+    # including the bare `except Exception`, so an unattended run read a broken
+    # CSV as a clean reconciliation (repro R-507).
+    if args.cash_total is None and args.cash_stocks is None and args.cash_etf is None:
+        print("[v9] reconcile: pass --cash-total or --cash-stocks/--cash-etf "
+              "(the broker cash balance is required to reconcile)")
+        return 2
+    st_path = Path(args.state)
+    if args.portfolio:                                    # TASK-365: a named book brings its own state dir
+        from core.portfolios import resolve
+        st_path = resolve(args.portfolio, allow_disabled=True).state_dir / "portfolio_v9.json"
+    if not st_path.exists():
+        print(f"[v9] reconcile: state not found: {st_path} "
+              f"(run portfolio_v9.py first, or pass --state)")
+        return 2
+    csv_path = Path(args.positions)
+    if not csv_path.exists():
+        print(f"[v9] reconcile: positions CSV not found: {csv_path}")
+        return 2
     try:
-        if args.cash_total is None and args.cash_stocks is None and args.cash_etf is None:
-            print("[v9] reconcile: pass --cash-total or --cash-stocks/--cash-etf")
-            return 0
-        st_path = Path(args.state)
-        if not st_path.exists():
-            print(f"[v9] reconcile: state not found: {st_path}")
-            return 0
         state = json.loads(st_path.read_text(encoding="utf-8"))
-        broker = load_positions_csv(Path(args.positions))
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"[v9] reconcile: cannot read the state at {st_path}: {e}")
+        return 2
+    try:
+        broker = load_positions_csv(csv_path)
+    except Exception as e:
+        print(f"[v9] reconcile: cannot read {csv_path}: {e} "
+              f"(the CSV needs a ticker column and a units/qty/shares column)")
+        return 2
+    if not broker:
+        print(f"[v9] reconcile: {csv_path} parsed but held no positions — "
+              f"check the column names and that the rows are not all zero")
+        return 2
+    try:
         rep = compare(state, broker, cash_total=args.cash_total,
                       cash_stocks=args.cash_stocks, cash_etf=args.cash_etf)
-        print(format_report(rep))
     except Exception as e:
-        print(f"[v9] reconcile: {e}")
+        print(f"[v9] reconcile: comparison failed: {e}")
+        return 2
+    print(format_report(rep))
     return 0
 
 

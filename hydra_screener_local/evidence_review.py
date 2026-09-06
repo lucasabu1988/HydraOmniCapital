@@ -274,6 +274,13 @@ def main(argv=None) -> int:
     print(f"wrote {out}")
     for t in rep["triggers"]:
         print(f"TRIGGER {t['kind']}: {t['detail']}")
+    if rep["triggers"]:
+        try:
+            from utils.notify import notify
+            notify("ALERT", f"evidence {label}: {len(rep['triggers'])} trigger(s)",
+                   "\n".join(f"{t['kind']}: {t['detail']}" for t in rep["triggers"]) + f"\nreport: {out}")
+        except Exception as e:  # never fail the review on a notification
+            print(f"[notify] skip: {e}")
     return 0
 
 

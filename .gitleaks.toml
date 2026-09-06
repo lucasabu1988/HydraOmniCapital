@@ -1,0 +1,17 @@
+# Audit phase 10.6. Extends the default gitleaks rules with the two allowances this
+# repository legitimately needs, and nothing else.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "files whose purpose is to show the shape of a secret, not to hold one"
+paths = [
+    '''hydra_screener_local/\.env\.example''',
+    '''hydra_screener_local/tools/check_secrets\.py''',
+    '''hydra_screener_local/test_packaging\.py''',
+    '''SECURITY\.md''',
+    '''archive/.*''',
+]
+regexes = [
+    '''(?i)(your[_-]?|example|placeholder|changeme|redacted|dummy|sample|fake|token_here)''',
+]

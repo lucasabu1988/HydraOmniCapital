@@ -1,7 +1,13 @@
+# Production install. Kept in step with pyproject.toml [project].dependencies by
+# test_packaging.py, which fails when the two diverge (audit phase 10.3).
+#
+# Lower bounds only. The exact set that produced a given result is recorded per run
+# in the manifest (utils/runlog.py -> versions), which is what reproducibility needs;
+# pinning here would freeze Lucas's local install instead.
 pandas>=2.0
 numpy>=1.24
 yfinance>=0.2.40
-rich>=13.7
+requests>=2.31
+openpyxl>=3.1   # solo para exportar a Excel facilmente
 python-dateutil>=2.8
-openpyxl>=3.1   # solo para exportar a Excel fácilmente
 scipy>=1.11     # experiments/backtest_variant_sweep.py (t-tests, bootstrap)

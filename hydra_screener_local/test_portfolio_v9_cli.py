@@ -48,7 +48,11 @@ class FakeEngine:
         self.settles += 1
         fills = list(state.get("pending") or [])
         for f in fills:
-            f.update(exec_date=exec_date, status="filled")
+            # units/price like the real settle(): a "filled" event with neither is
+            # not a fill, and core.ledger.check_invariants now says so
+            f.update(exec_date=exec_date, status="filled",
+                     units=f.get("est_units"), price=f.get("est_price"),
+                     dollars=f.get("dollars"), cost=0.0)
         state["ledger"] = state.get("ledger", []) + fills
         state["pending"] = []
         return fills
@@ -114,8 +118,11 @@ def test_second_run_same_date_does_not_duplicate_orders(tmp_path):
     text = Path(out["instructions_md"]).read_text(encoding="utf-8")
     assert "No trades today" not in text
     assert "| sleeve | tranche | side |" in text
-    backups = list((tmp_path / "backup").glob("*.json"))
-    assert len(backups) == 1
+    # backups are grouped per run id now (backup/<run_id>/<file>), and every live
+    # file the run replaces is copied, not just the state (audit phase 3.5/3.6)
+    backups = list((tmp_path / "backup").rglob("*.json"))
+    assert [b.name for b in backups if b.name == "portfolio_v9.json"], backups
+    assert len({b.parent for b in backups}) == 1, "one backup directory for this rerun"
     state = json.loads(Path(tmp_path / "portfolio_v9.json").read_text(encoding="utf-8"))
     assert len(state["pending"]) == 1
 
@@ -163,7 +170,6 @@ def test_daily_auto_runs_v9_when_flag_is_v9(monkeypatch):
     monkeypatch.setattr(daily_mod, "run_screener", lambda universe: 0)
     monkeypatch.setattr(daily_mod, "backup_history_after_run", lambda: None)
     monkeypatch.setattr(daily_mod, "print_tv_instructions", lambda: None)
-    monkeypatch.setattr(daily_mod, "maybe_refresh_pnl", lambda x: None)
     monkeypatch.setattr("portfolio_v9.run", lambda *a, **k: called.append(1))
     rc = daily_mod.main(["--skip-screener", "--no-instructions"])
     assert rc == 0 and called == [1]
@@ -177,7 +183,6 @@ def test_daily_without_v9_flag_does_not_call_cli(monkeypatch):
     monkeypatch.setattr(daily_mod, "run_screener", lambda universe: 0)
     monkeypatch.setattr(daily_mod, "backup_history_after_run", lambda: None)
     monkeypatch.setattr(daily_mod, "print_tv_instructions", lambda: None)
-    monkeypatch.setattr(daily_mod, "maybe_refresh_pnl", lambda x: None)
 
     def boom(*a, **k):
         called.append(1)
@@ -194,7 +199,6 @@ def test_daily_v9_flag_invokes_cli(monkeypatch, tmp_path):
     monkeypatch.setattr(daily_mod, "run_screener", lambda universe: 0)
     monkeypatch.setattr(daily_mod, "backup_history_after_run", lambda: None)
     monkeypatch.setattr(daily_mod, "print_tv_instructions", lambda: None)
-    monkeypatch.setattr(daily_mod, "maybe_refresh_pnl", lambda x: None)
 
     def fake_run(capital=None, **k):
         seen["capital"] = capital

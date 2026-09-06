@@ -8,12 +8,14 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, cast
 
 import numpy as np
 import pandas as pd
 
 from config import V9
+from core.dividends import etf_universe
+from core.ledger import CONFIRMED_STATUSES, PRESUMED_STATUSES, moves_book
 from data.sectors import sector_degraded_message
 
 _HERE = Path(__file__).resolve().parent
@@ -48,7 +50,7 @@ def _first(ranking: pd.DataFrame | None, col: str, default=None):
 
 def _held_units(state: dict) -> dict[str, dict[str, float]]:
     """sleeve -> {ticker: units} aggregated across tranches."""
-    out = {"stocks": {}, "etf": {}}
+    out: dict[str, dict[str, float]] = {"stocks": {}, "etf": {}}
     for sleeve, blob in (state.get("sleeves") or {}).items():
         acc = out.setdefault(sleeve, {})
         for tr in blob.get("tranches") or []:
@@ -81,7 +83,9 @@ def basket_vol63(prices: pd.DataFrame | None, tickers: Iterable[str]) -> float |
 def _slippage_bp(fills: list) -> dict:
     rows = []
     for f in fills or []:
-        if f.get("status") not in ("filled", "confirmed"):
+        # canonical projection: `("filled", "confirmed")` dropped confirmed_unplanned,
+        # so slippage on a fill Lucas made off-sheet was invisible
+        if not moves_book(f.get("status")):
             continue
         if f.get("side") not in ("buy", "sell"):
             continue
@@ -94,7 +98,7 @@ def _slippage_bp(fills: list) -> dict:
         rows.append(dict(sleeve=f.get("sleeve"), ticker=f.get("ticker"), side=f.get("side"),
                          slippage_bp=round(adverse, 2), modelled_bp=modelled,
                          vs_modelled_bp=round(adverse - modelled, 2)))
-    by_s = {}
+    by_s: dict[str, list[float]] = {}
     for r in rows:
         by_s.setdefault(r["sleeve"], []).append(r["slippage_bp"])
     return {
@@ -189,6 +193,7 @@ def build_record(
     errors: list | None = None,
     observations: list | None = None,
     last_bars: dict | None = None,
+    manifest_path: str | None = None,
 ) -> dict:
     """One journal record. Missing pieces become None / empty, never a crash."""
     state = state or {}
@@ -207,7 +212,7 @@ def build_record(
     displaced = []
     if ranking is not None and "sector_penalty_applied" in ranking.columns:
         flag = ranking["sector_penalty_applied"].fillna(False).astype(bool)
-        tickers = ranking["ticker"] if "ticker" in ranking.columns else ranking.index
+        tickers = ranking["ticker"] if "ticker" in ranking.columns else pd.Series(ranking.index)
         sectors = ranking["sector"] if "sector" in ranking.columns else None
         for i, on in enumerate(flag.tolist()):
             if not on:
@@ -227,11 +232,11 @@ def build_record(
         px = _last_px(state, "etf", t)
         if etf_val > 0 and px is not None:
             etf_w[t] = round(u * px / etf_val, 4)
-    etf_off = [t for t in V9["etf_universe"] if t not in etf_on]
+    etf_off = [t for t in etf_universe() if t not in etf_on]
 
     stock_expo = _f((sleeves.get("stocks") or {}).get("exposure"))
     vol = basket_vol63(prices, held.get("stocks", {}).keys())
-    target = V9.get("stock_target_vol", 0.15)
+    target = float(cast(float, V9.get("stock_target_vol", 0.15)))
     expo_rule = None if vol is None or vol <= 0 else round(min(1.0, target / vol), 4)
 
     coverage = None
@@ -246,8 +251,8 @@ def build_record(
             return str(pd.Timestamp(frame.index[-1]).date())
         bars = {"stocks": _ld(prices), "etf": _ld(etf), "^IRX": _ld(irx)}
 
-    presumed = [f for f in fills if f.get("status") == "filled"]
-    confirmed = [f for f in fills if str(f.get("status", "")).startswith("confirmed")]
+    presumed = [f for f in fills if str(f.get("status") or "") in PRESUMED_STATUSES]
+    confirmed = [f for f in fills if str(f.get("status") or "") in CONFIRMED_STATUSES]
     interest_today = [x for x in (state.get("interest") or []) if str(x.get("date")) == date]
     interest_dollars = round(sum(_f(x.get("dollars")) for x in interest_today), 6)
     wo = [w for w in (state.get("write_offs") or []) if str(w.get("date")) == date]
@@ -271,7 +276,10 @@ def build_record(
 
     seen = dict(
         regime_score=_first(ranking, "regime"),
-        regime_label=_first(ranking, "meta_regime_type"),
+        # the ranking contract (SPEC 7) names the column `regime_type`; the pre-rename name is kept
+        # as a fallback (found by the TASK-383 rehearsal: the label was always None)
+        regime_label=_first(ranking, "regime_type") if _first(ranking, "regime_type") is not None
+        else _first(ranking, "meta_regime_type"),
         recommended_count=rec_n,
         recommended_n=int(ranking["recommended"].sum()) if ranking is not None and "recommended" in ranking.columns else None,
         stock_exposure=stock_expo,
@@ -327,6 +335,7 @@ def build_record(
         },
         reconcile_residual=None if reconcile is None else reconcile.get("residual"),
         errors=list(errors or []),
+        manifest_path=manifest_path,      # TASK-359: which run produced this record
     )
     return dict(
         date=date,
@@ -337,8 +346,21 @@ def build_record(
         book=book,
         expectation=expectation,
         process=process,
+        attribution=_attribution_block(state),
         observations=list(observations or []),
     )
+
+
+def _attribution_block(state: dict) -> dict | None:
+    """TASK-367: cumulative components (no per-position list). None for an empty state."""
+    if not state or not state.get("sleeves"):
+        return None
+    try:
+        from analytics.attribution import attribution
+        block = attribution(state)
+    except Exception:
+        return None
+    return {k: v for k, v in block.items() if k != "positions"}
 
 
 def render_markdown(records: list[dict]) -> str:

@@ -23,7 +23,6 @@ ignore = [
 # Legacy scripts and Pine tools: not in the lint surface.
 "screener.py" = ["E", "F", "I", "B"]
 "analyze_history.py" = ["E", "F", "I", "B"]
-"log_cycle_positions.py" = ["E", "F", "I", "B"]
 "generate_pine_watchlist.py" = ["E", "F", "I", "B"]
 "validate_pine_contract.py" = ["E", "F", "I", "B"]
 "pine/**" = ["E", "F", "I", "B"]

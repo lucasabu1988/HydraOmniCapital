@@ -215,15 +215,6 @@ def run_backtest(prices: pd.DataFrame, spy: pd.Series):
             'equity': new_equity
         })
 
-        # Log this cycle to the master positions Excel (using the dedicated logger) -- now with entry + realized for dynamic PnL
-        try:
-            cands_for_log = candidates if 'candidates' in locals() and candidates is not None else None
-            import log_cycle_positions
-            log_cycle_positions.log_cycle(sig_date, top5, cands_for_log, cycle_return=cycle_ret, equity_after=new_equity, notes="backtest simulation",
-                                          entry_prices=entry_prices, realized_prices=fwd_prices)
-        except Exception as log_err:
-            pass  # logger is optional, don't break the backtest
-
     # Results
     equity_curve = pd.Series(equity, index=equity_dates)
     total_return = (equity[-1] / INITIAL_CAPITAL - 1)
@@ -420,5 +411,3 @@ if __name__ == "__main__":
 
     run_backtest(prices, spy)
     print("\nDone.")
-    print("All cycle positions (historical simulation) have been logged to backtest/portfolio_cycles.xlsx via log_cycle_positions.py")
-    print("This Excel accumulates every position from every 5-day cycle in dedicated sheets.")

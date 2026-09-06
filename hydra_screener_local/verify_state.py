@@ -45,11 +45,15 @@ def _report(label: str, state: dict) -> tuple[str, bool]:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="HYDRA state integrity")
     p.add_argument("--state", default=str(DEFAULT_STATE))
+    p.add_argument("--portfolio", default=None, help="Book from portfolios.toml (TASK-365)")
     p.add_argument("--restore", default=None, help="backup JSON to copy over the state")
     p.add_argument("--yes", action="store_true", help="required to actually restore")
     args = p.parse_args(argv)
 
     state_path = Path(args.state)
+    if args.portfolio:
+        from core.portfolios import resolve
+        state_path = resolve(args.portfolio, allow_disabled=True).state_dir / "portfolio_v9.json"
     if not state_path.exists():
         print(f"state not found: {state_path}")
         return 1

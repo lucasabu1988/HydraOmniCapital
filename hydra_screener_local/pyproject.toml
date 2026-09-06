@@ -4,16 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hydra-screener-local"
-version = "0.2.0"
+version = "0.3.0"
 description = "HYDRA momentum + regime equity screener (local, hybrid Python + TradingView)"
 readme = "README.md"
-requires-python = ">=3.9"
+# 3.10 is the real floor: the tree uses zip(..., strict=True) and PEP 604 unions at
+# runtime. The declared ">=3.9" was wrong (audit phase 10.3); CI runs 3.12 and Lucas
+# runs 3.14.
+requires-python = ">=3.10"
+# Kept in step with requirements.txt by test_packaging.py, which fails when the two
+# diverge. Lower bounds only: this is a library install, and the reproducible set is
+# recorded per run in the manifest (utils/runlog.py) rather than frozen here.
 dependencies = [
-    "pandas",
-    "numpy",
-    "yfinance",
-    "openpyxl",
-    "requests",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "yfinance>=0.2.40",
+    "requests>=2.31",
+    "openpyxl>=3.1",
+    "python-dateutil>=2.8",
+    "scipy>=1.11",
 ]
 authors = [
   { name="HYDRA Team" }
@@ -24,13 +32,53 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+# The `rich` extra is gone with console_dashboard.py, its only importer. R-1002 stands
+# on the record: it was a hard requirement nobody installed and nothing needed.
+dev = [
+    "pytest>=8.0",
+    "pytest-timeout>=2.3",
+    "pytest-cov>=5.0",
+    "ruff>=0.8",
+    "pre-commit>=4.0",
+]
+
 [project.scripts]
 hydra-daily = "daily:main"
-hydra-refresh = "refresh_current_prices:main"
-hydra-watch = "live_watcher:main"
-hydra-dashboard = "generate_html_dashboard:main"
-hydra-console = "console_dashboard:main"
+hydra-store = "store_cli:main"
+hydra-journal = "journal:main"
+hydra-reconcile = "reconcile:main"
+hydra-confirm = "confirm_fills:main"
+hydra-runlog = "runlog_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*", "data*", "utils*"]
+include = ["analytics*", "core*", "data*", "sleeves*", "utils*"]
+
+# The console scripts are top-level modules, not package members, and so is `config`,
+# which every package module imports. The wheel shipped none of them, so all five
+# scripts were broken on an installed wheel and `import core.signals` failed on
+# `from config import ...` (audit phase 10.1, repro R-1001).
+#
+# This list is the import closure of the entry points plus whatever the shipped
+# packages import from the top level. test_packaging.py recomputes that closure and
+# fails if it drifts, so a new top-level import cannot silently break the wheel again.
+[tool.setuptools]
+py-modules = [
+    "config",
+    "confirm_fills",
+    "daily",
+    "dashboard_v9",
+    "generate_pine_watchlist",
+    "journal",
+    "portfolio_v9",
+    "preflight",
+    "reconcile",
+    "runlog_cli",
+    "screener",
+    "send_hydra_summary",
+    "snapshot_universe",
+    "store_cli",
+    "verify_state",
+    "warm_sectors",
+]

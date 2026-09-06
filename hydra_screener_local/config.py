@@ -104,6 +104,11 @@ STALE_DATA_WARN_BUSINESS_DAYS = 1       # warn when the last bar is older than t
 # New observability constant (rule 6); no live caller reads the store while this is False.
 USE_BAR_STORE = False
 
+# TASK-363 (H-003, ACCEPTED by Lucas 2026-09-06): stock splits scale the book's units on the
+# effective date. Accounting parity with split-adjusted closes, same principle as dividends (H-001).
+# core/splits.py, data/splits.py; SPEC 9.3.
+APPLY_SPLITS = True
+
 # Secondary regime (audit R1, 2026-09-06). The gate is computed on SPY; the universe is ~2/3
 # mid/small caps. 2020-2026: SPY above its SMA200 while IWM was below on 12.5% of days (longest
 # streak 54 sessions), and IWM's 5d return in those days averaged -15.8 bp vs +31.6 bp otherwise.
@@ -189,6 +194,20 @@ SECTOR_FETCH_BUDGET_SECONDS = 120
 # Share of "Other" in the top 2*recommended_count names that triggers a DEGRADED warning
 # (the sector cap is exempting unknowns). Filter/selection quality, not scoring (TASK-344).
 SECTOR_UNKNOWN_MAX_SHARE = 0.30
+
+# --- preflight data-freshness budget (audit phase 2.5) ---------------------------
+# The last downloaded bar must be the last regular NYSE session, and it must not
+# postdate the as-of instant. These are the explicit thresholds the preflight uses
+# instead of leaving staleness implicit; they are execution guards, not scoring.
+MAX_BAR_AGE_SESSIONS = 0         # sessions between the last bar and the asof session
+MAX_PRICE_AGE_SESSIONS = 0       # a price may only be used for an order if printed today
+
+# --- dividend / corporate-action coverage (audit phase 4) ------------------------
+# The dividend query window is (coverage_through - DIVIDEND_OVERLAP_DAYS, today].
+# The overlap exists because providers publish ex-dates late: without it, a dividend
+# first reported after the watermark had moved past its ex-date was lost for good
+# (repro R-401). Calendar days, deliberately generous.
+DIVIDEND_OVERLAP_DAYS = 21
 
 # Buckets gruesos (coarse buckets). Mantener pocos y estables.
 # Los tickers no listados caen en "Other".
