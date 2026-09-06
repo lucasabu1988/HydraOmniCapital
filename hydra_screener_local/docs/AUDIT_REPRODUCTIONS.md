@@ -221,3 +221,49 @@ One real finding surfaced by `duplicate_share_classes()`: the live universe hold
 **`BRK-A`, `BRK-B` and `BRK.B`** — the last two are the same security under two
 spellings, i.e. one company counted twice with two price series. Reported, not
 silently deduped: deduping it changes the recommended list and needs a measurement.
+
+## Phase 8 — engine, calendar and sleeves
+
+| id | phase | defect | reproduction | fixed in |
+|---|---|---|---|---|
+| R-801 | 8.8 | **the renewal schedule depended on how many bars the last download returned.** `bars_between` counted rows of whatever index it was handed | `test_engine_state_meta.py::test_r801_*` | `fix: persist engine configuration and dynamic sleeve registry` |
+| R-802 | 8.1/8.2 | the state persisted no effective config, mix, sleeve registry, config hash, registry hash, calendar or last-mark date, so a replay used whatever config the process had imported | `test_engine_state_meta.py::test_r802_*` | same |
+| R-803 | 8.3 | nothing validated that the sleeve weights were finite, non-negative, complete and summed to 1 | `test_engine_state_meta.py::test_r803_*` | same |
+| R-804 | 8.4/8.6 | every valuation, settlement and summary walked the module constant `SLEEVES = ("stocks","etf")`, so a sleeve the state held but the constant did not was never valued — capital hidden by a loop | `test_engine_state_meta.py::test_r804_*` | same |
+| R-805 | 8.9/8.10 | **the differential driver compared orders and fills only** and returned 0 as soon as those matched: two engines could agree on every order and disagree on cash, positions, tranches, fees or the whole state, and it printed `IDENTICAL` | `test_engine_state_meta.py::test_r805_*` | `fix: compare full engine state in the differential driver` |
+
+Recorded at the base commit for R-801, with a 700-session calendar and the anchor at
+its start:
+
+```
+bars_between on the FULL index   : 699    -> week 139 -> renewal_slot None
+bars_between on a 500-bar index  : 500    -> week 100 -> renewal_slot (100, 0)
+
+  index of 700 bars -> bars_between = 699  week = 139
+  index of 600 bars -> bars_between = 600  week = 120
+  index of 500 bars -> bars_between = 500  week = 100
+  index of 400 bars -> bars_between = 400  week =  80
+```
+
+A renewal fired or did not, and a *different tranche* renewed, purely because of the
+download length. `V9["price_period"] = "2y"` masks this today only because the anchor
+(2026-09-04) is days old; it breaks silently once the anchor is older than the fetch
+window.
+
+### Golden fixture regeneration (phase 8)
+
+`test_fixtures/engine_golden_v9.json` was regenerated, and **no number moved** — the
+change is purely the new persisted fields. Verified before regenerating:
+
+```
+  orders         before=680                after=680                SAME
+  fills          before=611                after=611                SAME
+  transfers      before=52                 after=52                 SAME
+  write_offs     before=4                  after=4                  SAME
+  interest_sum   before=1.9247703284       after=1.9247703284       SAME
+  cash_sum       before=157.784936045      after=157.784936045      SAME
+  ledger         before=628                after=628                SAME
+  week_index     before=29                 after=29                 SAME
+  last_renewal   before='2021-07-22'       after='2021-07-22'       SAME
+  order lists byte-identical: True
+```
