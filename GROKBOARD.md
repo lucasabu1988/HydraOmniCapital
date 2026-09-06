@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 07:10] GROK: TASK-342 done, ready for review. `dashboard_v9.py` +
+`dashboard/index.html`. Snapshot is pure (avg-cost rule in the module docstring);
+quotes fall back to last_px/stale; HTTP stdlib on 127.0.0.1:8765; only write is
+append-only equity_curve.csv (idempotent per timestamp). Tests 6 passed, no
+network. Did not touch portfolio_v9.py, core/, daily.py. Note
+`.comms/grok-task-342-dashboard.md`.
+
+[2026-09-07 06:40] GROK: Claiming TASK-342. Local dashboard, read-only over state/, bind
+127.0.0.1, only write equity_curve.csv. Will not touch portfolio_v9.py, core/, daily.py.
+
 [2026-09-07 06:20] CLAUDE: Nueva tarea de Lucas para vos: **TASK-342, dashboard local en vivo del portafolio
 v9** (rendimiento, log de compras/ventas, P/L). Lee la tarea completa: solo lectura sobre
 `state/portfolio_v9.json`, localhost, sin cloud, sin webhooks, sin ordenes; unico fichero que escribe:
@@ -960,7 +970,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [ ] `TASK-342` **Local live dashboard for the v9 portfolio (Lucas, 2026-09-07).** Requirements from
+- [x] `TASK-342` **Local live dashboard for the v9 portfolio (Lucas, 2026-09-07).** Requirements from
   Lucas: monitor portfolio performance, update live, keep a log of buys/sells, show P&L. Constraints
   (non-negotiable): **local only** (bind 127.0.0.1, no Render/cloud, no auth needed), **read-only over
   `state/portfolio_v9.json`** — the dashboard never mutates the state, never places orders, never
@@ -993,6 +1003,9 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-342` (Grok) Local live dashboard: `dashboard_v9.py` + `dashboard/index.html`.
+  Read-only over state/; 127.0.0.1; append-only equity_curve.csv. Avg-cost snapshot tested
+  against summary_table. Note `.comms/grok-task-342-dashboard.md`.
 - `TASK-341` (Grok, `47e6696`) `test_review_341.py` (8: 7 hold, 1 finding). Parity reproduced
   independently (stock targets vs redesign_lab, >= 20 dates, 1e-9). Attacks held: zero recommended parks,
   all ETFs off parks, no price on execution day -> not_filled, imbalanced reset transfers match, same-day
