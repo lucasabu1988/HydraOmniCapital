@@ -22,7 +22,7 @@ def test_file_transport_always_written_and_fakes_called(tmp_path):
     log = tmp_path / "alerts.log"
     seen = []
     res = NT.notify("ALERT", "preflight HARD", "stale bar\nsecond line",
-                    transports=["file", "discord"], senders={"discord": lambda l, t, b: seen.append((l, t, b)) or True},
+                    transports=["file", "discord"], senders={"discord": lambda lvl, t, b: seen.append((lvl, t, b)) or True},
                     log_path=log)
     assert res == {"file": True, "discord": True}
     assert seen == [("ALERT", "preflight HARD", "stale bar\nsecond line")]
@@ -31,7 +31,7 @@ def test_file_transport_always_written_and_fakes_called(tmp_path):
 
 
 def test_failures_are_swallowed(tmp_path):
-    def boom(l, t, b):
+    def boom(lvl, t, b):
         raise RuntimeError("network down")
     res = NT.notify("INFO", "x", "y", transports=["file", "telegram"], senders={"telegram": boom},
                     log_path=tmp_path / "a.log")

@@ -588,8 +588,13 @@ def main(argv=None) -> int:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--refresh", type=int, default=DEFAULT_REFRESH)
+    p.add_argument("--portfolio", default=None, help="Book from portfolios.toml (TASK-365); read-only view.")
     args = p.parse_args(argv)
-    serve(Path(args.state_dir), host=args.host, port=args.port, refresh=args.refresh)
+    state_dir = Path(args.state_dir)
+    if args.portfolio:
+        from core.portfolios import resolve
+        state_dir = resolve(args.portfolio, allow_disabled=True).state_dir
+    serve(state_dir, host=args.host, port=args.port, refresh=args.refresh)
     return 0
 
 

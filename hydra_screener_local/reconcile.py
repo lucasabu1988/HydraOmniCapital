@@ -209,6 +209,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Reconcile broker CSV vs v9 state (read-only)")
     p.add_argument("positions", help="CSV with ticker,units")
     p.add_argument("--state", default=str(DEFAULT_STATE))
+    p.add_argument("--portfolio", default=None, help="Book from portfolios.toml (TASK-365)")
     p.add_argument("--cash-total", type=float, default=None)
     p.add_argument("--cash-stocks", type=float, default=None)
     p.add_argument("--cash-etf", type=float, default=None)
@@ -218,6 +219,9 @@ def main(argv=None) -> int:
             print("[v9] reconcile: pass --cash-total or --cash-stocks/--cash-etf")
             return 0
         st_path = Path(args.state)
+        if args.portfolio:
+            from core.portfolios import resolve
+            st_path = resolve(args.portfolio, allow_disabled=True).state_dir / "portfolio_v9.json"
         if not st_path.exists():
             print(f"[v9] reconcile: state not found: {st_path}")
             return 0

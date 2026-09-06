@@ -149,6 +149,8 @@ def _main(argv=None, runlog=None):
                         help="Scheduled run (TASK-364): no prompts, exit 0 ok / 1 screener-only failure / "
                              "2 preflight or schema refused to plan / 3 exception; sends a summary or an "
                              "ALERT through utils.notify (HYDRA_NOTIFY transports; file always).")
+    parser.add_argument("--portfolio", type=str, default=None,
+                        help="Book from portfolios.toml (TASK-365); default = the live book.")
 
     args = parser.parse_args(argv)
 
@@ -173,7 +175,8 @@ def _main(argv=None, runlog=None):
         print("\n>>> HYDRA v9 instruction CLI...")
         try:
             from portfolio_v9 import run as run_v9
-            v9_out = run_v9(capital=args.v9_capital, force=args.force, runlog=runlog)
+            v9_out = run_v9(capital=args.v9_capital, force=args.force, runlog=runlog,
+                            portfolio=args.portfolio)
             v9_status = "ok"
         except SystemExit as e:
             v9_status, v9_message = "refused", str(e)
@@ -182,7 +185,7 @@ def _main(argv=None, runlog=None):
                 exit_code = 1
             try:
                 from journal import append_error
-                append_error(str(e), note=args.note)
+                append_error(str(e), note=args.note, journal_dir=_journal_dir_for(args.portfolio))
             except Exception as je:
                 print(f"[journal] skip: {je}")
         except Exception as e:
@@ -192,13 +195,13 @@ def _main(argv=None, runlog=None):
                 exit_code = 1
             try:
                 from journal import append_error
-                append_error(str(e), note=args.note)
+                append_error(str(e), note=args.note, journal_dir=_journal_dir_for(args.portfolio))
             except Exception as je:
                 print(f"[journal] skip: {je}")
         if v9_out is not None and v9_out.get("state") is not None:
             try:
                 from journal import append_from_v9
-                jpath = append_from_v9(v9_out, note=args.note)
+                jpath = append_from_v9(v9_out, note=args.note, journal_dir=v9_out.get("journal_dir"))
                 v9_out["journal_path"] = str(jpath)
                 print(f"[journal] {jpath}")
             except Exception as je:
@@ -222,6 +225,17 @@ def _main(argv=None, runlog=None):
 
     print("Daily ritual complete. Go trade (or at least look at the pretty table in TradingView).")
     return 0
+
+
+def _journal_dir_for(portfolio: str | None):
+    """journal/<name>/ for a named book (TASK-365); None keeps journal/ for the live book."""
+    if not portfolio:
+        return None
+    try:
+        from core.portfolios import resolve
+        return resolve(portfolio, allow_disabled=True).journal_dir
+    except Exception:
+        return None
 
 
 def _unattended_exit(v9_status, v9_message, v9_out, screener_exit, runlog) -> int:

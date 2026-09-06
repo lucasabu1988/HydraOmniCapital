@@ -48,6 +48,7 @@ from dashboard_v9 import summarize_interest  # noqa: E402
 from data.dividends import fetch_dividends  # noqa: E402
 from core.state_migrations import SchemaError, migrate  # noqa: E402
 from data.universe import get_universe, universe_report  # noqa: E402
+from core.portfolios import resolve as resolve_portfolio  # noqa: E402
 import preflight as PF  # noqa: E402
 
 STATE_NAME = "portfolio_v9.json"
@@ -89,7 +90,8 @@ def load_state(path: Path) -> dict | None:
         raise SystemExit(f"state {path}: {e} - refusing to run on an unknown schema") from e
 
 
-def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> Path | None:
+def copy_state_off_disk(today: str, files: list[Path], silent: bool = False,
+                        subdir: str = "state_v9") -> Path | None:
     """Copy state + instruction files to HYDRA_BACKUP_DIR/state_v9/<date>/ when the env is set."""
     global _OFFDISK_WARNED
     dest_root = os.environ.get("HYDRA_BACKUP_DIR")
@@ -98,7 +100,7 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> 
             print("[v9] AVISO: HYDRA_BACKUP_DIR no esta definido; el backup de state/ queda en el mismo disco")
             _OFFDISK_WARNED = True
         return None
-    dest = Path(dest_root) / "state_v9" / today.replace("-", "")
+    dest = Path(dest_root) / subdir / today.replace("-", "")
     dest.mkdir(parents=True, exist_ok=True)
     for p in files:
         p = Path(p)
@@ -134,9 +136,10 @@ def save_state(path: Path, state: dict) -> Path | None:
     return backup_path
 
 
-def fetch_v9_market(universe: str = None) -> dict:
-    """Prices for the engine. Stocks/ETFs use V9['price_period']; T-bill stays percent until /100."""
-    period = V9["price_period"]
+def fetch_v9_market(universe: str = None, cfg: dict | None = None) -> dict:
+    """Prices for the engine. Stocks/ETFs use cfg['price_period']; T-bill stays percent until /100."""
+    cfg = cfg or V9
+    period = cfg["price_period"]
     uni = universe or os.environ.get("UNIVERSE") or UNIVERSE
     tickers = get_universe(universe=uni)
     try:
@@ -146,14 +149,15 @@ def fetch_v9_market(universe: str = None) -> dict:
     stock_report, etf_report, irx_report = {}, {}, {}
     prices, volumes = fetch_prices_and_volume(tickers, period=period, report=stock_report)
     spy = fetch_spy(period=period)
-    etf = fetch_etf_closes(list(V9["etf_universe"]), period=period, report=etf_report)
+    etf = fetch_etf_closes(list(cfg["etf_universe"]), period=period, report=etf_report)
     irx = fetch_tbill(period=period, report=irx_report)
     return dict(prices=prices, volumes=volumes, spy=spy, etf=etf, irx=irx,
                 stock_report=stock_report, etf_report=etf_report, irx_report=irx_report,
                 universe_report=ureport)
 
 
-def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -> pd.DataFrame:
+def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame,
+                  cfg: dict | None = None) -> pd.DataFrame:
     prices, _ = apply_practical_filters(
         prices, volumes=volumes,
         min_avg_volume=FILTERS.get("min_avg_volume", 1_000_000),
@@ -169,7 +173,7 @@ def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -
     sector_map = resolve_sectors(list(prices.columns), budget_seconds=SECTOR_FETCH_BUDGET_SECONDS)
     return generate_daily_candidates(
         prices, spy, volumes=volumes, sector_map=sector_map,
-        momentum_window=V9["stock_momentum_window"],
+        momentum_window=(cfg or V9)["stock_momentum_window"],
     )
 
 
@@ -329,15 +333,29 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False, dividend_fn=None, runlog=None) -> dict:
+        force: bool = False, dividend_fn=None, runlog=None,
+        cfg: dict | None = None, portfolio: str | None = None,
+        allow_disabled: bool = False) -> dict:
     """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
     `runlog` is an optional `utils.runlog.RunContext` (TASK-359): data fingerprints and the
     files written land in its manifest. None = today's behaviour."""
+    # TASK-365: a named book brings its own state dir, cfg and capital; no name = today's behaviour.
+    book = None                       # `pf` below is the preflight result; the portfolio is `book`
+    if portfolio is not None:
+        book = resolve_portfolio(portfolio, allow_disabled=allow_disabled)
+        if Path(state_dir).resolve() == DEFAULT_STATE_DIR.resolve():
+            state_dir = book.state_dir
+        if cfg is None:
+            cfg = book.cfg
+        if capital is None:
+            capital = book.capital
+    cfg = cfg or V9
+    backup_subdir = book.backup_subdir if book is not None else "state_v9"
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
     state = load_state(state_path)
 
-    data = (fetch_fn or fetch_v9_market)(universe)
+    data = fetch_fn(universe) if fetch_fn is not None else fetch_v9_market(universe, cfg=cfg)
     prices, volumes, spy, etf, irx = data["prices"], data["volumes"], data["spy"], data["etf"], data["irx"]
     if prices is None or len(prices) == 0 or etf is None or len(etf) == 0:
         raise RuntimeError("v9 fetch returned no stock or ETF prices")
@@ -363,15 +381,15 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         if wd != 4 and not silent:
             print(f"[v9] AVISO: primera corrida en {today} (weekday={wd}, no es viernes). "
                   f"Ancla = ultimo cierre igual. Lucas pidio ancla viernes -> primera "
-                  f"ejecucion lunes; renovaciones siguen siendo cada {V9['step_bars']} barras, "
+                  f"ejecucion lunes; renovaciones siguen siendo cada {cfg['step_bars']} barras, "
                   f"no cada lunes calendario.")
-        state = engine.new_state(cap, anchor or today, V9)
+        state = engine.new_state(cap, anchor or today, cfg)
         if not silent:
             print(f"[v9] new state capital={cap:.2f} anchor={state['anchor_date']}")
 
     ranking = None
     if not state.get("pending"):
-        ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+        ranking = rank_fn(prices, spy, volumes) if rank_fn is not None else build_ranking(prices, spy, volumes, cfg=cfg)
     # Injected fetch (tests) uses the fixture's last bar as the session so the suite
     # does not depend on the wall clock. Live fetch compares to the last weekday.
     pf = PF.evaluate(
@@ -394,7 +412,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             exec_date = next_session_date(prices.index, planned)
             if pd.Timestamp(exec_date) > pd.Timestamp(today):
                 exec_date = today
-            fills = engine.settle(state, exec_date, _row(prices, exec_date), _row(etf, exec_date), V9)
+            fills = engine.settle(state, exec_date, _row(prices, exec_date), _row(etf, exec_date), cfg)
             if not silent:
                 print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
         elif not silent:
@@ -416,8 +434,8 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     orders = []
     if not state.get("pending"):
         if ranking is None:
-            ranking = (rank_fn or build_ranking)(prices, spy, volumes)
-        state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, V9)
+            ranking = rank_fn(prices, spy, volumes) if rank_fn is not None else build_ranking(prices, spy, volumes, cfg=cfg)
+        state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, cfg)
         if not silent:
             print(f"[v9] plan {today}: {len(orders)} order(s)")
     elif not silent:
@@ -427,7 +445,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         print(f"[v9] DEGRADED {sector_warning}")
 
     backup = save_state(state_path, state)
-    summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
+    summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], cfg)
     exec_date = next_session_date(prices.index, today)
     # A same-day rerun must not overwrite today's sheet with "No trades": the pending orders planned
     # today ARE the instructions still to execute (integration review 340).
@@ -445,7 +463,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
                     runlog.artifact(art)
                 except Exception:
                     pass
-    copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent)
+    copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent, subdir=backup_subdir)
     if not silent:
         if backup:
             print(f"[v9] backed up previous state -> {backup}")
@@ -466,13 +484,20 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         last_bars={"stocks": today, "etf": _last_date(etf), "^IRX": _last_date(irx) if irx is not None and len(irx) else None},
         prices=prices, etf=etf, irx=irx,
         manifest_path=str(runlog.directory / "manifest.json") if runlog is not None else None,
+        portfolio=book.name if book is not None else "default",
+        journal_dir=str(book.journal_dir) if book is not None else None,
     )
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="HYDRA v9 instruction CLI (50/50 T20+ETF)")
-    p.add_argument("--capital", type=float, default=100000.0,
-                   help="USD on first run (default 100000). Ignored once state exists.")
+    p.add_argument("--capital", type=float, default=None,
+                   help="USD on first run (default 100000, or the portfolio's capital_reference). "
+                        "Ignored once state exists.")
+    p.add_argument("--portfolio", default=None,
+                   help="Book from portfolios.toml (TASK-365). Default = the live book, identical to no flag.")
+    p.add_argument("--allow-disabled", action="store_true",
+                   help="Run a portfolio marked enabled = false in portfolios.toml.")
     p.add_argument("--anchor", type=str, default=None, help="YYYY-MM-DD; default = last close")
     p.add_argument("--state-dir", type=str, default=str(DEFAULT_STATE_DIR))
     p.add_argument("--universe", type=str, default=None)
@@ -485,7 +510,7 @@ def main(argv=None) -> int:
     try:
         with ctx:
             run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
-                force=args.force, runlog=ctx)
+                force=args.force, runlog=ctx, portfolio=args.portfolio, allow_disabled=args.allow_disabled)
     except SystemExit as e:
         print(f"[v9] {e}")
         rc = 1
