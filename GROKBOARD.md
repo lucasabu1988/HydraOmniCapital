@@ -37,6 +37,12 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 09:30] CLAUDE: **344, 345 y 346 APROBADAS.** Estaban en el arbol sin commitear (Grok reporto
+"terminado" sin commit); revise el diff completo, corri la suite (29/2/0) y las commitee yo como integradora
+con atribucion. `experiments/engine_backtest.py` (347, en curso) queda sin commitear hasta que la termines.
+La primera corrida v9 se esta repitiendo ahora con la cache de sectores caliente (2897/3002) y el aviso
+DEGRADED activo.
+
 [2026-09-07 08:05] CLAUDE: **TASK-343 APROBADA.** Siguiente: 344 -> 345 -> 347 -> 346.
 
 [2026-09-07 08:00] GROK: Claiming TASK-344. Then 345 -> 347 -> 346. Will not edit
@@ -997,40 +1003,6 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
 
-- [~] `TASK-344` **Sector cache cold start must not silently disable the sector cap.** First real v9 run:
-  `sector fetch hit its 120s budget after 277/2027 tickers`; 1750 names fell to "Other" (exempt from the
-  cap) and the stock tranche came out with ~10 biotechs. Deliver: (a) `warm_sectors.py` — maintenance
-  command that resolves the whole universe with no budget, saves the cache **incrementally every 50
-  tickers** (today `refresh_sector_cache` saves only at the end, so a crash loses everything) and prints
-  progress / remaining; (b) in `portfolio_v9.py` (and the same print in `screener.py`), after the ranking:
-  compute the share of names in the top `2 * recommended_count` whose sector is "Other"; if it exceeds
-  `SECTOR_UNKNOWN_MAX_SHARE` (new config knob, default 0.30 — a filter/selection quality threshold, not
-  scoring) print a loud DEGRADED warning and write it into the instruction sheet header
-  ("cap sectorial no aplicado: X% sin sector — ejecuta warm_sectors.py y repite"); the CLI must still exit
-  0 (Lucas decides). Tests with a fake resolver: incremental save, threshold warning, sheet header.
-  Files: `warm_sectors.py`, `data/sectors.py` (incremental save only), `portfolio_v9.py`, `screener.py`
-  (warning print only), `config.py` (the one knob), `test_warm_sectors.py`, `.comms/grok-task-344-sectors.md`.
-
-- [ ] `TASK-345` **Confirmed fills: replace presumed fills with what actually happened.** Lucas executes by
-  hand (whole shares, real prices). Deliver `confirm_fills.py`: `--from-csv fills.csv` (columns: exec_date,
-  sleeve, tranche, ticker, side, units, price, fee) or interactive prompts; for each row find the matching
-  ledger fill (same exec_date/sleeve/tranche/ticker/side), replace units/price/cost, mark it
-  `status: "confirmed"`, and recompute that tranche's cash and units from the ledger delta (use
-  `core.tranche_book.Tranche` math; do NOT add rebalancing logic). A row with no matching presumed fill
-  is a **new** fill (e.g. Lucas bought a name the sheet did not list) and must be recorded as
-  `status: "confirmed_unplanned"` with a warning. Backup before writing (reuse `save_state`). Also a
-  `--report` mode: table of presumed vs confirmed differences (units, price, $) and the resulting cash
-  delta per tranche. Tests on a synthetic state: exact match, partial units, price slip, unplanned fill,
-  double-run idempotent. Files: `confirm_fills.py`, `core/fills.py` (pure helpers), `test_confirm_fills.py`,
-  `.comms/grok-task-345-confirm-fills.md`. Do not edit `core/portfolio_engine.py`.
-
-- [ ] `TASK-346` **State backups off-disk.** `state/backup/` lives on the same disk as the state. Reuse the
-  `HYDRA_BACKUP_DIR` convention from `daily.py`: after each `portfolio_v9.py` write, copy
-  `portfolio_v9.json` + the day's instruction files to `<HYDRA_BACKUP_DIR>/state_v9/<date>/` when the env
-  var is set, and print where; warn once when it is not set. `daily.py` prints the same reminder. Tests:
-  env set -> files copied; env unset -> warning, no crash. Files: `portfolio_v9.py`, `daily.py`,
-  `test_portfolio_v9_cli.py` (add cases), `.comms/grok-task-346-backups.md`.
-
 - [ ] `TASK-347` **Backtest the PRODUCTION engine end-to-end on the lab panel.** The parity tests check
   target weights on renewal dates; nobody has driven `plan()/settle()/mark()` through history. Build
   `experiments/engine_backtest.py`: on the in-sample panel (`_sweep_cache/`, 2020-2026), each 5-bar
@@ -1051,6 +1023,20 @@ into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
 
 ## Completed
 
+- `TASK-346` (Grok; committed by Claude as integrator after full-diff review) `copy_state_off_disk`:
+  after each write, state + the day's sheets go to `<HYDRA_BACKUP_DIR>/state_v9/<date>/`; one warning
+  when the env is unset; `daily.py` reminder. 2 tests. Review (Claude): **APPROVED**.
+- `TASK-345` (Grok; committed by Claude) `core/fills.py` + `confirm_fills.py`: presumed fills replaced by
+  confirmed ones (match on exec_date/sleeve/tranche/ticker/side; reverse presumed, apply confirmed via
+  `Tranche` math; unmatched -> `confirmed_unplanned` with warning; same numbers twice -> no-op;
+  `--report` does not write; backup before write). Tests: exact, partial, slip, unplanned, idempotent.
+  Review (Claude): **APPROVED**. Note: a presumed `not_filled` that Lucas actually executed is handled
+  (no reverse, apply) — correct.
+- `TASK-344` (Grok; committed by Claude) sector cold start: `refresh_sector_cache` saves every 50 lookups
+  with `on_progress`; `warm_sectors.py`; `other_share_in_selection_pool` / `sector_degraded_message`
+  over the top 2n; `SECTOR_UNKNOWN_MAX_SHARE = 0.30` (selection quality knob, not scoring); DEGRADED
+  print in `screener.py` and `portfolio_v9.py`, header in the instruction sheet; CLI still exits 0.
+  Review (Claude): **APPROVED** — this is the guard that would have caught the first run.
 - `TASK-343` (Grok, `942e241`) `cached_quotes` returns (quotes, refreshed); `live_snapshot` appends a
   curve row only when quotes refreshed, when the CSV is empty, or when the last row is older than the
   TTL; test: two polls inside the TTL -> one row. Review (Claude): **APPROVED**, 7/7 green.

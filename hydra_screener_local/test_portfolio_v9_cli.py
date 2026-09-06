@@ -198,3 +198,23 @@ def test_gitignore_covers_state_dir():
     root = Path(__file__).resolve().parents[1]
     text = (root / ".gitignore").read_text(encoding="utf-8")
     assert "hydra_screener_local/state/" in text
+
+
+def test_offdisk_backup_copies_when_env_set(tmp_path, monkeypatch):
+    dest = tmp_path / "off"
+    monkeypatch.setenv("HYDRA_BACKUP_DIR", str(dest))
+    V._OFFDISK_WARNED = False
+    out = V.run(tmp_path / "state", capital=100000.0, fetch_fn=_market, rank_fn=_rank,
+                engine=FakeEngine(), silent=True)
+    copied = dest / "state_v9" / "20260904"
+    assert (copied / "portfolio_v9.json").exists()
+    assert list(copied.glob("instructions_*.md"))
+    assert Path(out["state_path"]).exists()
+
+
+def test_offdisk_backup_warns_when_env_unset(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("HYDRA_BACKUP_DIR", raising=False)
+    V._OFFDISK_WARNED = False
+    V.run(tmp_path, capital=100000.0, fetch_fn=_market, rank_fn=_rank, engine=FakeEngine(), silent=False)
+    err = capsys.readouterr().out
+    assert "HYDRA_BACKUP_DIR" in err

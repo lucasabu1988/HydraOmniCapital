@@ -31,7 +31,7 @@ from core.regime import compute_rich_regime_scores
 from core.meta_layer import LightweightMetaLayer
 from data.universe import get_universe
 from data.fetch import fetch_prices_and_volume, fetch_spy, fetch_index
-from data.sectors import resolve_sectors
+from data.sectors import resolve_sectors, sector_degraded_message
 from core.signals import generate_daily_candidates
 from core.filters import (
     apply_practical_filters,
@@ -144,6 +144,9 @@ def main():
 
     # 5. Generar candidatos (ya incluye Meta-Layer)
     candidates = generate_daily_candidates(prices, spy, volumes=volumes, sector_map=sector_map)
+    degraded = sector_degraded_message(candidates)
+    if degraded:
+        print(f"\n⚠ DEGRADED: {degraded}\n")
     # Persist the rich regime that actually drove scoring, not compute_regime_score (simple SMA).
     if len(candidates) > 0:
         regime_score = float(candidates.iloc[0]["regime"])

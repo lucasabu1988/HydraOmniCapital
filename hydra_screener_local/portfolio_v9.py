@@ -41,11 +41,12 @@ from core.filters import (  # noqa: E402
 )
 from core.signals import generate_daily_candidates  # noqa: E402
 from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
-from data.sectors import resolve_sectors  # noqa: E402
+from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
 from data.universe import get_universe  # noqa: E402
 
 STATE_NAME = "portfolio_v9.json"
 DEFAULT_STATE_DIR = ROOT / "state"
+_OFFDISK_WARNED = False
 
 
 def _json_ready(obj):
@@ -75,6 +76,26 @@ def load_state(path: Path) -> dict | None:
         return None
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> Path | None:
+    """Copy state + instruction files to HYDRA_BACKUP_DIR/state_v9/<date>/ when the env is set."""
+    global _OFFDISK_WARNED
+    dest_root = os.environ.get("HYDRA_BACKUP_DIR")
+    if not dest_root:
+        if not _OFFDISK_WARNED and not silent:
+            print("[v9] AVISO: HYDRA_BACKUP_DIR no esta definido; el backup de state/ queda en el mismo disco")
+            _OFFDISK_WARNED = True
+        return None
+    dest = Path(dest_root) / "state_v9" / today.replace("-", "")
+    dest.mkdir(parents=True, exist_ok=True)
+    for p in files:
+        p = Path(p)
+        if p.exists():
+            shutil.copy2(p, dest / p.name)
+    if not silent:
+        print(f"[v9] off-disk backup -> {dest}")
+    return dest
 
 
 def save_state(path: Path, state: dict) -> Path | None:
@@ -152,7 +173,7 @@ def _row(frame, date: str) -> pd.Series:
 
 
 def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
-                       state: dict, exec_date: str) -> tuple[Path, Path]:
+                       state: dict, exec_date: str, sector_warning: str | None = None) -> tuple[Path, Path]:
     payload = {
         "date": date,
         "algo_version": "v9",
@@ -166,12 +187,17 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         "capital_reference": state.get("capital_reference"),
         "exec_date": exec_date,
         "execute": f"ejecutar al cierre del {exec_date} (MOC t+1). Fills presumidos hasta que corrijas el estado.",
+        "sector_degraded": sector_warning,
     }
     md_path = state_dir / f"instructions_{date.replace('-', '')}.md"
     json_path = state_dir / f"instructions_{date.replace('-', '')}.json"
     lines = [
         f"# HYDRA v9 instructions — {date}",
         "",
+    ]
+    if sector_warning:
+        lines += [f"**DEGRADED** {sector_warning}", ""]
+    lines += [
         payload["execute"],
         "",
         f"Capital reference: {state.get('capital_reference'):,.2f} USD"
@@ -264,6 +290,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
     orders = []
+    ranking = None
     if not state.get("pending"):
         ranking = (rank_fn or build_ranking)(prices, spy, volumes)
         state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, V9)
@@ -271,6 +298,9 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             print(f"[v9] plan {today}: {len(orders)} order(s)")
     elif not silent:
         print("[v9] skip plan — pending not settled")
+    sector_warning = sector_degraded_message(ranking) if ranking is not None else None
+    if sector_warning and not silent:
+        print(f"[v9] DEGRADED {sector_warning}")
 
     backup = save_state(state_path, state)
     summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
@@ -280,7 +310,11 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     sheet_orders = orders
     if not orders and state.get("pending") and state["pending"][0].get("planned") == today:
         sheet_orders = list(state["pending"])
-    md_path, json_path = write_instructions(state_dir, today, sheet_orders, fills, summary, state, exec_date)
+    md_path, json_path = write_instructions(
+        state_dir, today, sheet_orders, fills, summary, state, exec_date,
+        sector_warning=sector_warning,
+    )
+    copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent)
     if not silent:
         if backup:
             print(f"[v9] backed up previous state -> {backup}")

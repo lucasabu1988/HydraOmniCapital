@@ -108,6 +108,7 @@ def backup_history_after_run():
         print(f"[OK] history backed up -> {path}")
         if not os.environ.get("HYDRA_BACKUP_DIR"):
             print("     (same disk as the repo; set HYDRA_BACKUP_DIR to a synced/external folder)")
+            print("     v9 state/ also needs HYDRA_BACKUP_DIR for an off-disk copy (TASK-346)")
 
 
 def maybe_refresh_pnl(do_refresh: bool):

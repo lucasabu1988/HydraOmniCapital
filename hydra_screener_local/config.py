@@ -181,6 +181,9 @@ MAX_PER_SECTOR = 5               # Máximo por sector GICS en la lista recomenda
 # caché es lo que lo saca del camino crítico diario. Lo que no dé tiempo cae a buckets/Other
 # en ese run y se resuelve en el siguiente.
 SECTOR_FETCH_BUDGET_SECONDS = 120
+# Share of "Other" in the top 2*recommended_count names that triggers a DEGRADED warning
+# (the sector cap is exempting unknowns). Filter/selection quality, not scoring (TASK-344).
+SECTOR_UNKNOWN_MAX_SHARE = 0.30
 
 # Buckets gruesos (coarse buckets). Mantener pocos y estables.
 # Los tickers no listados caen en "Other".

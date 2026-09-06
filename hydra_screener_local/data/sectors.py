@@ -25,6 +25,7 @@ DATA_CACHE_DIR = os.path.join(PROJECT_ROOT, "data_cache")
 CACHE_FILE = os.path.join(DATA_CACHE_DIR, "sector_cache.json")
 
 UNKNOWN_SECTOR = "Other"
+SAVE_EVERY = 50          # persist the cache this often so a crash does not lose the run (TASK-344)
 
 _memory = None  # {"updated": iso, "sectors": {ticker: sector}}
 
@@ -69,14 +70,13 @@ def lookup_sector(ticker: str) -> str:
     return SECTOR_BUCKETS.get(ticker, UNKNOWN_SECTOR)
 
 
-def refresh_sector_cache(tickers, budget_seconds=None) -> dict:
+def refresh_sector_cache(tickers, budget_seconds=None, save_every=SAVE_EVERY, on_progress=None) -> dict:
     """Fetch the sectors we do not have yet, within a time budget. Never raises.
 
     yfinance only exposes `sector` through the per-ticker `.info` endpoint, so this costs
-    roughly 0.4s per unknown name: ~3.7 min for the S&P 500 from cold, and the cache is
-    what keeps it off the daily critical path. `budget_seconds` bounds a cold start;
-    whatever is not fetched simply falls back to buckets/"Other" for this run and is
-    picked up next time. Progress is saved as it goes, so an interrupted run is not lost.
+    roughly 0.4s per unknown name. `budget_seconds` bounds a cold start; whatever is not
+    fetched falls back to buckets/"Other" for this run. Progress is saved every
+    `save_every` successful lookups (default 50) so a crash does not lose the run.
     """
     data = _load_cache()
     sectors = dict(data.get("sectors") or {})
@@ -92,6 +92,7 @@ def refresh_sector_cache(tickers, budget_seconds=None) -> dict:
 
     start = time.perf_counter()
     fetched = 0
+    every = max(1, int(save_every or SAVE_EVERY))
     for i, t in enumerate(need):
         if budget_seconds is not None and time.perf_counter() - start > budget_seconds:
             logger.warning(
@@ -107,8 +108,10 @@ def refresh_sector_cache(tickers, budget_seconds=None) -> dict:
                 fetched += 1
         except Exception as e:
             logger.warning("sector fetch failed for %s: %s", t, e)
-        if fetched and fetched % 100 == 0:
+        if fetched and fetched % every == 0:
             _try_save(sectors)
+            if on_progress:
+                on_progress(fetched, len(need), remaining=len(need) - i - 1)
 
     if fetched:
         _try_save(sectors)
@@ -145,3 +148,35 @@ def resolve_sectors(tickers, budget_seconds=None) -> dict:
         logger.warning("sector resolution failed, falling back to buckets: %s", e)
         cached = {}
     return {t: cached.get(t) or SECTOR_BUCKETS.get(t, UNKNOWN_SECTOR) for t in tickers}
+
+
+def other_share_in_selection_pool(ranking, unknown: str = UNKNOWN_SECTOR) -> tuple[float, int, int]:
+    """Share of `unknown` sectors in the top `2 * recommended_count` names (the buffer zone).
+
+    Returns (share, n_other, n_pool). Empty ranking or recommended_count 0 -> (0, 0, 0).
+    """
+    if ranking is None or len(ranking) == 0:
+        return 0.0, 0, 0
+    if "recommended_count" in ranking.columns:
+        n = int(ranking["recommended_count"].iloc[0] or 0)
+    else:
+        n = int(ranking["recommended"].sum()) if "recommended" in ranking.columns else 0
+    pool_n = 2 * max(n, 0)
+    if pool_n <= 0:
+        return 0.0, 0, 0
+    df = ranking.sort_values("rank").head(pool_n) if "rank" in ranking.columns else ranking.head(pool_n)
+    if "sector" not in df.columns or len(df) == 0:
+        return 0.0, 0, 0
+    n_other = int((df["sector"].fillna(unknown).astype(str) == unknown).sum())
+    return n_other / len(df), n_other, int(len(df))
+
+
+def sector_degraded_message(ranking, max_share: float = None) -> str | None:
+    """Loud warning text if the buffer zone is too unknown for the sector cap to mean anything."""
+    from config import SECTOR_UNKNOWN_MAX_SHARE
+    cap = SECTOR_UNKNOWN_MAX_SHARE if max_share is None else max_share
+    share, n_other, n_pool = other_share_in_selection_pool(ranking)
+    if n_pool == 0 or share <= cap:
+        return None
+    return (f"cap sectorial no aplicado: {share:.0%} sin sector "
+            f"({n_other}/{n_pool} en el pool 2n) — ejecuta warm_sectors.py y repite")
