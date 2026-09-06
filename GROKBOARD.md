@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 06:20] CLAUDE: Nueva tarea de Lucas para vos: **TASK-342, dashboard local en vivo del portafolio
+v9** (rendimiento, log de compras/ventas, P/L). Lee la tarea completa: solo lectura sobre
+`state/portfolio_v9.json`, localhost, sin cloud, sin webhooks, sin ordenes; unico fichero que escribe:
+`state/equity_curve.csv` (append-only). Constructor de snapshot puro y testeado + capa de cotizaciones
+yfinance con fallback a `last_px` marcado como stale + servidor HTTP minimo. La primera corrida real de
+v9 esta en marcha ahora (sabado; ancla viernes 04-09); cuando termine tendras un `state/` real de
+ejemplo para probar — hasta entonces usa un estado sintetico.
+
 [2026-09-07 06:00] CLAUDE: **ALGO_VERSION = "v9" activado por instruccion de Lucas.** Produccion es la cartera
 50/50 T20 + ETF: `daily.py` corre el screener y luego `portfolio_v9.py` automaticamente. Primera corrida: viernes
 tras el cierre (ancla), ejecucion lunes al cierre. README, CLAUDE.md y AGENTS.md actualizados. Suite 26/2/0.
@@ -951,6 +959,32 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
+
+- [ ] `TASK-342` **Local live dashboard for the v9 portfolio (Lucas, 2026-09-07).** Requirements from
+  Lucas: monitor portfolio performance, update live, keep a log of buys/sells, show P&L. Constraints
+  (non-negotiable): **local only** (bind 127.0.0.1, no Render/cloud, no auth needed), **read-only over
+  `state/portfolio_v9.json`** — the dashboard never mutates the state, never places orders, never
+  sends webhooks; the only file it may write is an append-only `state/equity_curve.csv` (one row per
+  mark: timestamp, total, stocks, etf, cash, spy_close) so the curve survives restarts. No scoring.
+  Build `dashboard_v9.py`: (a) a pure data builder `build_snapshot(state, quotes, spy) -> dict` with
+  unit tests (no network) — positions per sleeve/tranche/ticker with units, cost basis derived from the
+  ledger fills (average cost; write the rule down), last price, market value, unrealised P&L,
+  realised P&L per closed lot, fees paid, cash per tranche, sleeve shares vs the 50/50 target,
+  exposure, distinct names, pending orders with their execution date, transfers, write-offs; (b) a
+  quotes layer using yfinance intraday last price for the held names + SPY, refreshed every
+  `--refresh` seconds (default 300), falling back to `last_px` from the state and flagging the quote
+  as stale; (c) a tiny local HTTP server (stdlib `http.server` or Flask if already in requirements —
+  no new heavy deps) serving one HTML page that polls `/api/snapshot` and renders: header (total,
+  day P&L, since-inception P&L in USD and %, vs SPY since anchor), equity curve, sleeve panels,
+  positions table, **trade log** (every ledger fill: date, sleeve, tranche, side, ticker, units,
+  price, $, cost, status — filled / not_filled / noted), pending orders, and a banner that says
+  "fills presumidos — simulación de ejecución al cierre; no es un extracto del bróker". Start with
+  `python dashboard_v9.py` (prints the URL). Tests: snapshot arithmetic on a synthetic state (a buy,
+  a partial sell, a not_filled, a transfer; check cost basis, realised/unrealised, totals reconcile
+  with `summary_table`), stale-quote fallback, equity_curve append is idempotent per timestamp.
+  Files: `dashboard_v9.py`, `dashboard/index.html`, `test_dashboard_v9.py`, `.comms/grok-task-342-dashboard.md`,
+  `.gitignore` (equity_curve is under state/, already ignored). Do not touch `portfolio_v9.py`,
+  `core/`, `daily.py`. Claude reviews.
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; queue empty.
