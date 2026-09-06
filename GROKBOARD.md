@@ -37,6 +37,15 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 05:00] CLAUDE: **Lote de infraestructura TASK-359..368** (encargo de Lucas: construir la base para que
+esto sea grande mientras Claude descansa). Diez tareas, todas infraestructura, ninguna toca scoring ni el motor. Nota de
+diseno: `.comms/claude-infra-batch-2026-09-06.md`. **Regla de esta semana: congelado el camino vivo** (`portfolio_v9.py`,
+`daily.py`, `preflight.py`, `core/*`, valores de `config.py`) hasta que yo publique "first settle verified" tras el cierre
+del martes 2026-09-08. Hasta entonces solo archivos nuevos: orden **361 -> 366 -> 368 -> 359 -> 360 -> 362**. Despues:
+**364 -> 365 -> 367 -> 363** (363 ademas espera el OK de Lucas a H-003 en `.comms/hypotheses.md`). Cada tarea: flag con el
+comportamiento de hoy por defecto + test de paridad, sin red en tests, un commit por tarea, nota en `.comms/`. Reviso todo
+a la vuelta.
+
 [2026-09-06 04:00] CLAUDE: **357 y 358 APROBADAS**, y el `shift(1)` de la tabla anual de la 350 tambien. Hoja del
 2026-09-04 dice 2026-09-08, dashboard reiniciado con el codigo nuevo y verificado (Exec = 2026-09-08 en las 30
 filas), preflight ya no confunde Labor Day con datos viejos. Suite 34/2/0. Cola vacia. Siguiente hito real:
@@ -1143,6 +1152,199 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
+### Infrastructure batch (Claude, 2026-09-06 05:00) — TASK-359..368
+
+Goal (Lucas): build the infrastructure for HYDRA to become something big — more capital, more portfolios,
+more sleeves, more data, unattended operation, reproducible runs — **without touching scoring or the
+engine**. Ten tasks, all infrastructure. Design note with the rationale, the order and the freeze rule:
+`.comms/claude-infra-batch-2026-09-06.md`. Rules for the whole batch:
+
+- **Code freeze on the live path** (`portfolio_v9.py`, `daily.py`, `preflight.py`, `core/*`, `config.py`
+  values) from now until Claude posts "first settle verified" after the Tuesday **2026-09-08** close. Until
+  then deliver only new files (modules, CLIs, tests, docs, workflows); the one-line hooks into the live path
+  wait. Order while frozen: **361 → 366 → 368 → 359 → 360 → 362**. After the freeze lifts: **364 → 365 → 367
+  → 363** (363's wiring also needs Lucas's OK on H-003, see `.comms/hypotheses.md`).
+- Every new behaviour ships **behind a flag that defaults to today's behaviour** and comes with a parity
+  test proving the default path is unchanged. No network in tests (fake providers / synthetic frames).
+- `core/portfolio_engine.py`, `core/tranche_book.py`, `sleeves/etf_trend.py` (the `etf_targets` logic) and
+  `core/signals.py` / `core/meta_layer.py` are **not edited** by any of these tasks. Where a task says
+  "additive" it means new functions/classes only; existing signatures and outputs stay.
+- One task per commit, `git add <files>`, `.comms/grok-task-NNN-<slug>.md` note with what was built, how it
+  was tested and what is left for the hook-up. `run_all_tests.py` exit 0 (skips reported apart).
+- Python: local machine runs 3.14, CI 3.12. Stdlib first (`sqlite3`, `tomllib`, `logging`, `hashlib`);
+  a new third-party dependency needs a line in the note saying why.
+
+- [ ] `TASK-361` **Local bar store (SQLite) + provider interface.** Today every run re-downloads two years of
+  closes for the whole universe from yfinance and keeps nothing. Build `data/store.py`: SQLite at
+  `data_cache/bars.sqlite` (gitignored), table `bars(ticker, date, close_adj, close_raw, volume, source,
+  fetched_at)` PK `(ticker, date)`, table `meta(ticker, first, last, updated_at)`; API `upsert(long_frame)`,
+  `closes(tickers, start, end, adjusted=True) -> wide DataFrame`, `volumes(...)`, `coverage(tickers, asof)`,
+  `last_dates()`. `data/providers/base.py`: `class BarProvider(Protocol): fetch(tickers, start, end) ->
+  long frame (ticker, date, close_adj, close_raw, volume)`; `data/providers/yfinance_provider.py` wraps the
+  existing `_download_close_batch` machinery (one download with `auto_adjust=True`, one with `False`, same
+  batching/retries). `data/fetch.py` (additive): `fetch_prices_and_volume_cached(tickers, period, report)`
+  that asks the provider only for `[last stored date - 10 bars, today]` per ticker (full period when
+  absent), upserts, and returns the wide frames from the store. **Adjusted closes move retroactively**
+  (splits, dividends): if the provider's overlap window differs from the stored rows by > 1e-6 relative on
+  any bar, refetch that ticker's full history, replace, and log it in `report["readjusted"]`. Config gets
+  `USE_BAR_STORE = False` (new constant, allowed by rule 6); nothing in production reads the store until
+  Claude flips it. Parity test with a fake provider: cached path == direct path exactly; readjust path
+  covered; a second call downloads only the tail. `store_cli.py --backfill --period 20y --universe all`,
+  `--stats`, `--vacuum`. Files: `data/store.py`, `data/providers/__init__.py`, `data/providers/base.py`,
+  `data/providers/yfinance_provider.py`, `data/fetch.py` (additive), `config.py` (one new constant),
+  `store_cli.py`, `test_bar_store.py`, `.gitignore`, `.comms/grok-task-361-bar-store.md`.
+
+- [ ] `TASK-366` **Sleeve protocol + registry (adapters and design; engine untouched).** The engine hardcodes
+  `SLEEVES = ("stocks", "etf")` and two target functions. Before a third sleeve exists we need the seam.
+  `sleeves/base.py`: `@dataclass MarketSlice(stock_prices, volumes, spy, etf_closes, tbill, ranking)` and
+  `class Sleeve(Protocol): name: str; cost_bp: float; def targets(self, market: MarketSlice, held: set,
+  cfg: dict) -> pd.Series` (weights, sum <= 1). `sleeves/stocks_t20.py`: adapter class delegating to
+  `core.portfolio_engine.stock_targets`; `sleeves/etf_trend.py` gains an adapter class delegating to
+  `etf_targets` (additive; the existing functions are not changed). `sleeves/registry.py`: `build(cfg) ->
+  dict[name, Sleeve]` from `cfg.get("sleeves", ["stocks", "etf"])`, unknown name -> `KeyError` with the
+  known names. Parity tests on synthetic frames: adapter targets == engine targets, `atol=1e-12`, for both
+  sleeves, including the zero-recommended and all-ETFs-off cases. `docs/design/multi-sleeve-engine.md`:
+  how `plan()/settle()/mark()` would iterate a registry of N sleeves with a mix vector, the pair reset
+  generalised to N (proportional to target mix, legs netting to zero — cite the TASK-347 leak), the state
+  schema impact (sleeve keys already by name; `mix` moves into state), the migration, the parity test plan
+  against today's two-sleeve engine, and the open questions for Claude. **Design only — no engine edit,
+  no new scoring** (the MR sleeve was killed at pre-registration; do not propose sleeves, propose the
+  seam). Files: `sleeves/base.py`, `sleeves/registry.py`, `sleeves/stocks_t20.py`, `sleeves/etf_trend.py`
+  (additive class), `docs/design/multi-sleeve-engine.md`, `test_sleeve_registry.py`,
+  `.comms/grok-task-366-sleeve-registry.md`.
+
+- [ ] `TASK-368` **Engineering hygiene: lint, coverage, CI matrix, nightly data smoke, ARCHITECTURE and
+  RUNBOOK.** `ruff.toml` (E, F, I, B; line 120) applied to `core/`, `data/`, `utils/`, `sleeves/` and the
+  v9 CLIs; legacy scripts (`screener.py`, `analyze_history.py`, `log_cycle_positions.py`, the Pine tools)
+  get per-file ignores — **no mass reformat**, fix only real findings and list them in the note.
+  `.pre-commit-config.yaml` (ruff, trailing whitespace, end-of-file). `run_all_tests.py --cov`: pytest-cov
+  over `core data utils sleeves`, prints the table, **report-only** (a floor is Claude's call later).
+  `requirements-dev.txt` (pytest, pytest-timeout, pytest-cov, ruff, pre-commit). CI `test.yml`: matrix
+  3.12/3.13, a `lint` job, coverage XML uploaded as an artifact. New `.github/workflows/data-smoke.yml`,
+  nightly 05:00 UTC + manual: yfinance for 5 stocks + the 10 ETFs + `^IRX`, run `preflight`'s pure checks
+  on the frames, `continue-on-error: true` (it tells us when Yahoo changes shape before Tuesday does; no
+  secrets). `docs/ARCHITECTURE.md`: modules and data flow (mermaid), the state schema, what is read-only
+  vs what writes, where secrets/env live, what is legacy. `docs/RUNBOOK.md`: the weekly ritual step by
+  step (Tuesday close: preflight -> settle -> dividends -> interest -> plan -> sheet -> journal; confirm_fills;
+  reconcile), failure modes and what to do (preflight HARD, stale Yahoo bar, a split, a delisting, a
+  not_filled, disk loss -> restore from `HYDRA_BACKUP_DIR` and verify with TASK-360's `verify_state.py`),
+  moving the machine. Files: `ruff.toml`, `.pre-commit-config.yaml`, `requirements-dev.txt`,
+  `run_all_tests.py`, `.github/workflows/test.yml`, `.github/workflows/data-smoke.yml`,
+  `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`, `.comms/grok-task-368-hygiene.md`.
+
+- [ ] `TASK-359` **Run manifest + structured logging (reproducibility).** Nothing records which code and
+  which data produced a given instruction sheet. `utils/runlog.py`: `start_run(name, argv) -> RunContext`
+  creating `runs/<YYYYMMDD_HHMMSS>_<name>/` with `manifest.json` {git commit + dirty flag, `ALGO_VERSION`,
+  sha256 of `json.dumps(config.V9, sort_keys=True)` and of `FILTERS`, Python/pandas/numpy/yfinance
+  versions, hostname, argv, which env names are set (`HYDRA_BACKUP_DIR`, `UNIVERSE` — names only, never
+  values), start/end/duration, exit status, exception text} and `log.txt` (stdlib `logging`, file handler
+  INFO, console untouched). `ctx.fingerprint(name, frame)` adds per data source: last bar date, shape,
+  sha256 of the last row's values — so two runs can be compared. `ctx.artifact(path)` records the files
+  written (sheet, state backup). `runs/` gitignored, copied with the state to `HYDRA_BACKUP_DIR`,
+  `--prune` keeps the last 90 locally. **While frozen:** module + tests + a `runlog_cli.py --last`
+  (prints the latest manifest) only. **After the freeze:** wrap `portfolio_v9.run` and `daily.main`
+  (fingerprints for stocks/ETF/IRX after `fetch_v9_market`), and let `core/journal.py` carry the
+  `manifest_path` (one field). Files: `utils/runlog.py`, `runlog_cli.py`, `test_runlog.py`, `.gitignore`;
+  after the freeze `portfolio_v9.py`, `daily.py`, `core/journal.py` (one field);
+  `.comms/grok-task-359-runlog.md`.
+
+- [ ] `TASK-360` **State integrity: ledger replay, migrations framework, restore drill.** The state is the
+  book; nothing verifies it. `core/state_check.py` (pure): `replay(state) -> reconstructed tranches` from
+  `capital_reference` + ledger fills (units, price, cost) + write_offs + transfers + interest + dividends
+  (+ splits when TASK-363 lands); `check(state) -> list[Finding(level, code, message)]`: replay vs stored
+  tranche `units`/`cash` within 1e-6, units >= 0, cash >= -1e-6, pending orders reference existing tranches
+  and carry units-or-dollars, ledger dates monotone and <= `last_run_date`, `schema_version ==
+  STATE_SCHEMA`, tickers uppercase, no duplicate `(ex_date, tranche, ticker)` in dividends, `stale` keys
+  a subset of `units` keys. `core/state_migrations.py`: `MIGRATIONS: dict[int, Callable]`, `migrate(state)
+  -> state` idempotent, unknown version -> `SchemaError`; the first migration only fills missing keys
+  (`interest`, `dividends`, `stale`) and leaves `schema_version` at 1 — a bump is Claude's call.
+  `verify_state.py` CLI: `--state`, exit 1 on any ERROR finding; `--restore <backup.json> --yes` copies a
+  backup over the state after printing both check results side by side (never without `--yes`; keeps the
+  overwritten file as `state/backup/<ts>_replaced.json`). Run it on the live state and paste the output in
+  the note (30 pending, 0 ledger — must be clean). **After the freeze:** `portfolio_v9.load_state` applies
+  `migrate` and refuses an unknown schema; preflight gets a HARD check "state replay mismatch" and a WARN
+  for other findings. Files: `core/state_check.py`, `core/state_migrations.py`, `verify_state.py`,
+  `test_state_check.py`; after the freeze `portfolio_v9.py` (`load_state` only), `preflight.py`;
+  `.comms/grok-task-360-state-check.md`. Do not edit `core/portfolio_engine.py`.
+
+- [ ] `TASK-362` **Point-in-time snapshots of universe and sectors — start recording now.** Russell PIT
+  membership does not exist for free (TASK-326), so production's universe is unmeasurable. From today the
+  project builds its own. `snapshot_universe.py`: for every universe `get_universe` supports (sp500,
+  nasdaq100, russell1000/2000/3000, `all`) write `data_cache/pit/universe_<name>_<YYYYMMDD>.json`
+  {source, fetched_at, count, tickers sorted} and `sectors_<YYYYMMDD>.json` (ticker -> GICS bucket from
+  the `data/sectors.py` cache, plus `unknown` list) — **only when the content differs** from the latest
+  snapshot, else a one-line `same_as_<date>` pointer. Seed the first snapshot from the existing
+  `data_cache/*_tickers.csv` files with their mtime as date. `data/pit.py`: `membership(name, date) ->
+  set` (latest snapshot on or before), `changes(name, d1, d2) -> (added, dropped)`, `history(name) ->
+  DataFrame(date, count, added, dropped)`. Snapshots are copied with the state to `HYDRA_BACKUP_DIR`
+  (`copy_state_off_disk` gets the folder — after the freeze). Tests on synthetic snapshots (no network).
+  **After the freeze:** one call in `daily.py` after the fetch. Files: `snapshot_universe.py`,
+  `data/pit.py`, `test_pit.py`; after the freeze `daily.py`, `portfolio_v9.py` (backup list only);
+  `.comms/grok-task-362-pit-snapshots.md`.
+
+- [ ] `TASK-364` **Unattended mode, alert channel, Windows scheduled task.** (after the freeze)
+  `utils/notify.py`: transports `discord` (webhook), `telegram` (bot token + chat id), `file`
+  (`state/alerts.log`, always on); move the two senders out of `send_hydra_summary.py` and import them
+  back from there (behaviour identical). `notify(level, title, body)` reads `HYDRA_NOTIFY` (comma list of
+  transports) and the secrets from env only; never logs a secret. `daily.py --unattended`: no prompts,
+  exit codes **0** ok / **2** preflight HARD (no plan written) / **3** exception; every run sends a
+  one-screen summary (preflight table result, orders planned/settled, book total and per sleeve, interest
+  and dividends since last run, journal path, run id from TASK-359); HARD or exception sends `ALERT`;
+  `[v9] DEGRADED` and the TASK-356 triggers route through `notify` too. **Never places orders.**
+  `schedule/run_daily.cmd` (activates the venv, loads `schedule/hydra.env` — gitignored, template
+  `hydra.env.example` — runs `daily.py --v9 --unattended`, tee to `logs/daily_<date>.log`),
+  `schedule/hydra_daily.xml` (Task Scheduler, Mon-Fri 16:45 America/New_York — document the local-time
+  conversion, the machine is not in ET), `install_task.cmd` / `uninstall_task.cmd` (`schtasks`), README
+  section "Unattended". Tests: notify with a fake transport; exit codes on a synthetic preflight; the
+  `file` transport always written. Files: `utils/notify.py`, `send_hydra_summary.py` (imports only),
+  `daily.py`, `portfolio_v9.py` (exit-code plumbing only), `schedule/*`, `.gitignore`, `README.md`,
+  `test_notify.py`, `test_daily_unattended.py`, `.comms/grok-task-364-unattended.md`.
+
+- [ ] `TASK-365` **Multi-portfolio registry.** (after the freeze) One book today; the shape for many.
+  `portfolios.toml` (tracked, no secrets): `[default]` = the live book (`state_dir = "state"`,
+  `capital_reference = 100000`, `overrides = {}`, `enabled = true`) plus two disabled examples showing the
+  shape (`paper_t20_only` with `mix = {stocks = 1.0, etf = 0.0}`; `paper_half_size` with capital 50000).
+  `core/portfolios.py`: `load_registry()`, `resolve(name) -> Portfolio(name, state_dir, cfg = deep-merge of
+  config.V9 and overrides, capital, enabled)`; refuses a disabled portfolio unless `--allow-disabled`.
+  `--portfolio <name>` on `portfolio_v9.py`, `daily.py`, `dashboard_v9.py` (`?portfolio=` + selector),
+  `journal.py` (journal/<name>/ for non-default), `reconcile.py`, `confirm_fills.py`, `verify_state.py`;
+  every call site passes the resolved `cfg` instead of the module global `V9` (the engine already takes
+  `cfg`). Off-disk backup for non-default lands in `<HYDRA_BACKUP_DIR>/state_v9/<name>/<date>/`; default
+  keeps today's path. **Parity test:** with no flag, the instruction sheet and the state written for the
+  live state's fixtures are byte-identical to today's (snapshot fixture under `test_fixtures/`). Files:
+  `portfolios.toml`, `core/portfolios.py`, the CLIs listed, `test_portfolios.py`,
+  `.comms/grok-task-365-portfolios.md`. Not the engine.
+
+- [ ] `TASK-367` **Attribution and analytics store.** (after the freeze) Where does the return come from?
+  Move the dashboard's average-cost rule into `core/costbasis.py` (one implementation; `dashboard_v9.py`
+  imports it — its tests must still pass unchanged). `analytics/attribution.py` (pure over state + marks):
+  per sleeve/tranche/ticker realised + unrealised P/L and fees; the weekly book change decomposed into
+  **stock selection, ETF sleeve, interest, dividends, fees, reset transfers (must net to zero — assert),
+  confirmed-vs-presumed fill rounding, write-offs**; cumulative since anchor; identity check: components
+  sum to the total change within 1e-9. `analytics_cli.py` writes `analytics/attribution_<date>.csv` and
+  `analytics/ATTRIBUTION.md` (gitignored, copied with the state); dashboard panel "Attribution"
+  (read-only); `core/journal.py` record gets an `attribution` block from the same builder (no recompute
+  elsewhere). Tests on a synthetic state: two sleeves, three fills, one write-off, one dividend, one
+  interest record, one transfer pair. Files: `core/costbasis.py`, `analytics/__init__.py`,
+  `analytics/attribution.py`, `analytics_cli.py`, `dashboard_v9.py`, `dashboard/index.html`,
+  `core/journal.py` (one field), `.gitignore`, `test_attribution.py`, `.comms/grok-task-367-attribution.md`.
+
+- [ ] `TASK-363` **Splits in the live book (H-003, pre-registered by Claude — accounting, not scoring).**
+  (after the freeze; wiring into `portfolio_v9.py` only after Lucas's OK on H-003) Yahoo closes are
+  split-adjusted, the book's `units` are not: a 2:1 split halves that position on paper the next run and
+  `reconcile` shows a phantom quantity diff. Same pattern as TASK-349/358: `data/splits.py` (`Ticker.splits`
+  for held + fills since last run + ETF universe, cached daily with `updated_by_ticker`, cache fallback);
+  `core/splits.py` pure: for every split effective after `last_run_date` on a ticker held in a tranche,
+  `units *= ratio`, `last_px /= ratio`, record in `state["splits"]` {date, sleeve, tranche, ticker, ratio,
+  units_before, units_after}, idempotent on `(date, tranche, ticker)`; a pending `close` order on that
+  ticker scales its units, dollar orders untouched. Applied in `portfolio_v9.py` **before** `settle`/`mark`
+  behind `APPLY_SPLITS = False` (new config constant) until Lucas decides; `reconcile.py` lists splits as an
+  explanation; sheet/dashboard show them like dividends. `core/state_check.replay` (TASK-360) learns the
+  `splits` records. Tests with a fake split table (2:1, 1:10 reverse, split on a ticker not held, same
+  split twice). Files: `data/splits.py`, `core/splits.py`, `core/state_check.py` (replay only),
+  `portfolio_v9.py`, `reconcile.py`, `dashboard_v9.py`, `dashboard/index.html`, `config.py` (one constant),
+  `test_splits.py`, `.comms/grok-task-363-splits.md`. Not the engine.
+
 Batch for the algorithm redesign (Lucas, 2026-09-06: target >= 10% annualised, read as NET of
 costs on the point-in-time 2004-2026 panel, where production does 9.6% gross / 5.4% net).
 TASK-326..329 were delivered and reviewed on 2026-09-06 (see Completed). The verdict is in
@@ -1284,7 +1486,8 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
   their tests, `.comms/grok-task-357-holidays.md`.
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
-  money-market fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; queue empty.
+  money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
+  Nothing blocked; queue = infrastructure batch TASK-359..368 above (2026-09-06).
 
 ---
 
