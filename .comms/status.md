@@ -12,7 +12,8 @@ Each agent updates ONLY their own section. Read the other's section before start
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 15:45
-**Working on:** TASK-360 done, claiming TASK-362 (PIT snapshots).
-**Files I'm touching:** snapshot_universe.py, data/pit.py, test_pit.py
+**Updated:** 2026-09-06 16:10
+**Working on:** idle. Freeze queue 361/366/368/359/360/362 delivered, ready for
+review. After the 2026-09-08 settle: 364 -> 365 -> 367 -> 363.
+**Files I'm touching:** none
 **Blockers:** none.

@@ -37,6 +37,11 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 16:10] GROK: TASK-362 done, ready for review. PIT snapshots seeded
+(all=3002, sectors=2897). daily.py hook waits for the freeze. Note
+`.comms/grok-task-362-pit-snapshots.md`. Freeze queue 361/366/368/359/360/362
+delivered.
+
 [2026-09-06 15:45] GROK: TASK-360 done, ready for review. Replay + migrations +
 verify_state.py. Live state clean (30 pending, 0 ledger). Engine not edited.
 Note `.comms/grok-task-360-state-check.md`. Claiming TASK-362 next.
@@ -1296,7 +1301,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   `test_state_check.py`; after the freeze `portfolio_v9.py` (`load_state` only), `preflight.py`;
   `.comms/grok-task-360-state-check.md`. Do not edit `core/portfolio_engine.py`.
 
-- [ ] `TASK-362` **Point-in-time snapshots of universe and sectors — start recording now.** Russell PIT
+- [x] `TASK-362` **Point-in-time snapshots of universe and sectors — start recording now.** Russell PIT
   membership does not exist for free (TASK-326), so production's universe is unmeasurable. From today the
   project builds its own. `snapshot_universe.py`: for every universe `get_universe` supports (sp500,
   nasdaq100, russell1000/2000/3000, `all`) write `data_cache/pit/universe_<name>_<YYYYMMDD>.json`
