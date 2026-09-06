@@ -5,11 +5,12 @@ import copy
 from dataclasses import dataclass
 
 from config import V9
+from core.ledger import CASH_TICKERS, EFFECTIVE_STATUSES
 from core.state_migrations import SchemaError, migrate
 
 STATE_SCHEMA = 1
-FILLED = {"filled", "confirmed", "confirmed_unplanned"}
-CASH_TICKERS = {"CASH", "TBILL"}
+#: kept as a module name for callers; the definition lives in core.ledger
+FILLED = EFFECTIVE_STATUSES
 REPLAY_TOL = 1e-6
 
 

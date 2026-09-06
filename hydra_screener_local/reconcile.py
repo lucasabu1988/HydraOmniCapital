@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from core.ledger import moves_book
+
 ROOT = Path(__file__).resolve().parent
 DEFAULT_STATE = ROOT / "state" / "portfolio_v9.json"
 QTY_TOL = 1e-6
@@ -83,7 +85,7 @@ def explanations(state: dict) -> dict:
     interest = sum(_f(x.get("dollars")) for x in (state.get("interest") or []))
     dividends = sum(_f(x.get("dollars")) for x in (state.get("dividends") or []))
     fees = sum(_f(f.get("cost")) for f in (state.get("ledger") or [])
-               if f.get("status") in ("filled", "confirmed", "confirmed_unplanned"))
+               if moves_book(f.get("status")))
     pending = list(state.get("pending") or [])
     pending_buys = sum(_f(o.get("dollars")) for o in pending if o.get("side") == "buy")
     pending_sells = sum(_f(o.get("dollars")) for o in pending if o.get("side") == "sell")

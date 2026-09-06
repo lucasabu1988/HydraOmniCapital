@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from config import V9
+from core.ledger import CONFIRMED_STATUSES, PRESUMED_STATUSES, moves_book
 from data.sectors import sector_degraded_message
 
 _HERE = Path(__file__).resolve().parent
@@ -81,7 +82,9 @@ def basket_vol63(prices: pd.DataFrame | None, tickers: Iterable[str]) -> float |
 def _slippage_bp(fills: list) -> dict:
     rows = []
     for f in fills or []:
-        if f.get("status") not in ("filled", "confirmed"):
+        # canonical projection: `("filled", "confirmed")` dropped confirmed_unplanned,
+        # so slippage on a fill Lucas made off-sheet was invisible
+        if not moves_book(f.get("status")):
             continue
         if f.get("side") not in ("buy", "sell"):
             continue
@@ -246,8 +249,8 @@ def build_record(
             return str(pd.Timestamp(frame.index[-1]).date())
         bars = {"stocks": _ld(prices), "etf": _ld(etf), "^IRX": _ld(irx)}
 
-    presumed = [f for f in fills if f.get("status") == "filled"]
-    confirmed = [f for f in fills if str(f.get("status", "")).startswith("confirmed")]
+    presumed = [f for f in fills if str(f.get("status") or "") in PRESUMED_STATUSES]
+    confirmed = [f for f in fills if str(f.get("status") or "") in CONFIRMED_STATUSES]
     interest_today = [x for x in (state.get("interest") or []) if str(x.get("date")) == date]
     interest_dollars = round(sum(_f(x.get("dollars")) for x in interest_today), 6)
     wo = [w for w in (state.get("write_offs") or []) if str(w.get("date")) == date]

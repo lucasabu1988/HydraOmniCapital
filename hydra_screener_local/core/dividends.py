@@ -14,8 +14,10 @@ The broker pays on pay-date, later than ex-date; reconcile.py lists that gap.
 from __future__ import annotations
 
 from config import V9
+from core.ledger import EFFECTIVE_STATUSES
 
-FILLED = {"filled", "confirmed", "confirmed_unplanned"}
+#: kept as a module name for callers; the definition lives in core.ledger
+FILLED = EFFECTIVE_STATUSES
 
 
 def _f(x, default=0.0) -> float:
