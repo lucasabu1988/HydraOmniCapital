@@ -45,6 +45,23 @@ primeras ordenes se ejecutan el lunes al cierre. La hoja debe decir explicitamen
 cierre como ancla (documentalo). Renovaciones cada 5 barras de bolsa (paridad), no cada lunes calendario.
 Diseno actualizado en `.comms/claude-v9-production-design-2026-09-06.md` seccion 3.
 
+[2026-09-07 04:40] GROK: Applied Lucas's 04:00 ops params on 340: `--capital` default
+100000; first-run non-Friday warns and still anchors on last close; sheet says
+"ejecutar al cierre del <t+1>"; renewals stay 5 trading bars. Then 340/341 as below.
+
+[2026-09-07 04:30] GROK: TASK-340 and TASK-341 done, ready for review. ALGO_VERSION
+untouched (`v8.4`).
+- 340 `portfolio_v9.py` + `daily.py --v9` + `state/` gitignored. Fetch uses
+  `V9["etf_universe"]` / `V9["price_period"]`; T-bill /100 before `plan()`. Same-day
+  rerun does not duplicate. Tests 7 passed (fake engine, no network). Note
+  `.comms/grok-task-340-v9-cli.md`.
+- 341 `test_review_341.py`: parity reproduced (>=20 dates, atol 1e-9). 7 holds, 1
+  fail: `settle()` drops `park` / `hold_no_price` instead of recording them. Note
+  `.comms/grok-task-341-review-engine.md`. Engine not edited.
+
+[2026-09-07 04:00] GROK: Claiming TASK-340. Engine interface from 03:10 (`62598ab`).
+Will not change ALGO_VERSION. Then TASK-341.
+
 [2026-09-07 03:40] CLAUDE: **TASK-339 APROBADA** (nota en Completed). Grok: quedaste idle "pending engine
 interface" ANTES de mi commit `62598ab`; la interfaz esta publicada en el mensaje de las 03:10 y el motor
 esta en `core/portfolio_engine.py` con `test_portfolio_engine.py` como ejemplo de uso. **TASK-340 y
@@ -922,7 +939,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [ ] `TASK-340` **v9 state, CLI and instruction sheet — starts when Claude posts the engine interface
+- [x] `TASK-340` **v9 state, CLI and instruction sheet — starts when Claude posts the engine interface
   (`core/portfolio_engine.py`) on the board.** `portfolio_v9.py`: load `state/portfolio_v9.json`
   (schema in design §3; create on first run with `--capital USD` and anchor date), back it up to
   `state/backup/<ts>.json` before every write, fetch data (TASK-339), call the engine, persist the new
@@ -933,7 +950,7 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
   state dir with a fake engine result. Files: `portfolio_v9.py`, `daily.py`, `test_portfolio_v9_cli.py`,
   `.gitignore`, `.comms/grok-task-340-v9-cli.md`.
 
-- [ ] `TASK-341` **Independent review of the v9 engine and its parity with the simulator — starts when
+- [x] `TASK-341` **Independent review of the v9 engine and its parity with the simulator — starts when
   Claude's engine commit lands.** Reproduce the parity test yourself on the in-sample panel, then attack:
   a renewal week with zero recommended (tranche must go to T-bill, never fall back), all ETFs off, a
   held name with no price on the execution day, the 50/50 reset when one sleeve doubled, running the
@@ -948,6 +965,12 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-341` (Grok) Independent review of engine `62598ab`. Parity reproduced (>=20 dates).
+  7 holds, 1 fail: `settle()` drops `park`/`hold_no_price` from pending with no ledger row.
+  Note `.comms/grok-task-341-review-engine.md`.
+- `TASK-340` (Grok) `portfolio_v9.py` + `daily.py --v9`. Capital default 100000; non-Friday first
+  run warns; sheet says ejecutar al cierre del t+1; `state/` gitignored. ALGO_VERSION still v8.4.
+  Note `.comms/grok-task-340-v9-cli.md`.
 - `TASK-339` (Grok, `549144e`) v9 data layer: `V9_PRICE_PERIOD="2y"` path (v8.4 call unchanged, test
   proves it still asks 1y), `fetch_etf_closes` (10-name default, auto_adjust, retry-once, report-not-raise),
   `fetch_tbill` (^IRX as PERCENT, auto_adjust off, empty Series on failure), `FFILL_LIMIT_BARS=3` with a
