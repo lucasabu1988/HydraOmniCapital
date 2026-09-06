@@ -48,7 +48,11 @@ class FakeEngine:
         self.settles += 1
         fills = list(state.get("pending") or [])
         for f in fills:
-            f.update(exec_date=exec_date, status="filled")
+            # units/price like the real settle(): a "filled" event with neither is
+            # not a fill, and core.ledger.check_invariants now says so
+            f.update(exec_date=exec_date, status="filled",
+                     units=f.get("est_units"), price=f.get("est_price"),
+                     dollars=f.get("dollars"), cost=0.0)
         state["ledger"] = state.get("ledger", []) + fills
         state["pending"] = []
         return fills
@@ -114,8 +118,11 @@ def test_second_run_same_date_does_not_duplicate_orders(tmp_path):
     text = Path(out["instructions_md"]).read_text(encoding="utf-8")
     assert "No trades today" not in text
     assert "| sleeve | tranche | side |" in text
-    backups = list((tmp_path / "backup").glob("*.json"))
-    assert len(backups) == 1
+    # backups are grouped per run id now (backup/<run_id>/<file>), and every live
+    # file the run replaces is copied, not just the state (audit phase 3.5/3.6)
+    backups = list((tmp_path / "backup").rglob("*.json"))
+    assert [b.name for b in backups if b.name == "portfolio_v9.json"], backups
+    assert len({b.parent for b in backups}) == 1, "one backup directory for this rerun"
     state = json.loads(Path(tmp_path / "portfolio_v9.json").read_text(encoding="utf-8"))
     assert len(state["pending"]) == 1
 

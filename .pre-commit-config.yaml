@@ -1,16 +1,43 @@
-# TASK-368. Existing json/yaml hooks kept; ruff now uses hydra_screener_local/ruff.toml.
+# TASK-368, extended by TASK-391 (audit phase 10 follow-up).
+#
+# The hook set had never been run: `pre-commit install` had not been done in this clone,
+# so .git/hooks/pre-commit did not exist and `pre-commit run --all-files` was red on two
+# hooks. Both are fixed here. Install it once per clone:
+#
+#     python -m pre_commit install
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # archive/ is frozen legacy and hydra_backtest-era text: `run --all-files` used to
+      # rewrite 145 archived files in one go, which is a mass reformat of history nobody
+      # asked for. The whitespace fixers stay on the live tree only.
       - id: trailing-whitespace
+        exclude: ^archive/
       - id: end-of-file-fixer
+        exclude: ^archive/
       - id: check-json
+        # archive/ is frozen legacy (COMPASS era): one run log there is concatenated
+        # JSON objects, not a JSON document. It is not ours to reformat.
+        exclude: ^archive/
       - id: check-yaml
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.10
+  # TASK-391 — the cheap half of CI, before the push instead of minutes after it:
+  # ruff over the whole screener tree, the secret sweep and the packaging tests, ~4s.
+  # The 147s suite stays in CI on purpose.
+  #
+  # This replaces the ruff-pre-commit hook that used to live here. That one passed
+  # `--config hydra_screener_local/ruff.toml` but pre-commit runs from the repo root,
+  # so the config's per-file-ignores (`core/**`, `experiments/**`, …) matched nothing
+  # and `pre-commit run --all-files` reported 107 errors in files CI lints clean. Same
+  # shape as R-1004: a gate that never looked at what it claimed to certify.
+  # precommit_gates.py chdir's into hydra_screener_local/ first, which is the only way
+  # that config means what it says.
+  - repo: local
     hooks:
-      - id: ruff
-        args: ["--config", "hydra_screener_local/ruff.toml"]
+      - id: hydra-gates
+        name: hydra pre-commit gates (ruff tree, secrets, packaging)
+        entry: python hydra_screener_local/tools/precommit_gates.py
+        language: system
+        pass_filenames: false
         files: ^hydra_screener_local/

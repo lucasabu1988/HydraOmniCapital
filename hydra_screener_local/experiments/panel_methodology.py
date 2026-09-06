@@ -14,7 +14,6 @@ import sys
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -167,7 +166,6 @@ def _analyse_book(name, df, P, first_px, last_px, first_mem, last_mem):
 
     # sensitivity: write-off at 0 instead of last price
     nets = df["net"].astype(float).copy()
-    v = (1.0 + nets).cumprod()
     # v_pre for step i is the book value at the start; df['value'] is v_x.
     # proceeds were added at the end, so at-0 net_i' = net_i - proceeds / v_pre
     # v_pre = value / (1+net) when net != -1

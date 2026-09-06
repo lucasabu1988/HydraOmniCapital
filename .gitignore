@@ -99,3 +99,8 @@ hydra_screener_local/data_cache/bars.sqlite
 # comparison_table.py, log_*, launch_*.bat, test_*) are left visible in git status for now.
 # Add them to git (or ignore) individually when you decide they are permanent tools.
 hydra_screener_local/experiments/_sweep_cache_etf/
+
+# wheel build artefacts (audit phase 10.2 smoke test)
+build/
+dist/
+*.egg-info/

@@ -24,33 +24,214 @@ import numpy as np
 import pandas as pd
 
 from config import V9, MAX_PER_SECTOR
+from core.numbers import is_finite_money, is_finite_price, is_valid_units
 from core.tranche_book import TrancheBook, Tranche
 
 STATE_SCHEMA = 1
-SLEEVES = ("stocks", "etf")
+#: the sleeves a *new* v9 state is created with. Never iterate this over an existing
+#: state — use `sleeve_names(state)`, so a state with a different registry is not
+#: silently truncated to these two (audit phase 8.4/8.6).
+DEFAULT_SLEEVES = ("stocks", "etf")
+SLEEVES = DEFAULT_SLEEVES          # kept for callers that predate phase 8
+
+
+def sleeve_names(state: dict | None = None, cfg: dict | None = None) -> list[str]:
+    """The sleeves this state actually has, in a stable order.
+
+    Phase 8.4: omitting a sleeve from a loop hides the capital sitting in it. Every
+    valuation, settlement and summary walk asks this instead of a module constant.
+    """
+    if state:
+        names = list((state.get("sleeves") or {}).keys())
+        if names:
+            return names
+    if state and (state.get("mix") or {}):
+        return list(state["mix"].keys())
+    cfg = cfg or V9
+    return list(cfg.get("sleeves") or DEFAULT_SLEEVES)
+
+
+def sleeve_cost_bp(sleeve: str, cfg: dict) -> float:
+    """Cost in basis points for a sleeve, from cfg. Unknown sleeve -> the stock cost."""
+    per = cfg.get("sleeve_cost_bp") or {}
+    if sleeve in per:
+        return float(per[sleeve])
+    key = f"{sleeve}_cost_bp"
+    if key in cfg:
+        return float(cfg[key])
+    return float(cfg.get("stock_cost_bp", 0.0))
+
+
+def effective_config(state: dict | None, cfg: dict | None = None) -> dict:
+    """The configuration a run must use.
+
+    Phase 8.2: a replay uses the configuration persisted *with that run*, not
+    whatever the current process happens to have imported. Passing `cfg` explicitly
+    still wins, because that is how the lab drives a sweep.
+    """
+    if cfg is not None:
+        return cfg
+    stored = (state or {}).get("config")
+    if isinstance(stored, dict) and stored:
+        return stored
+    return V9
+
+
+def config_hash(cfg: dict) -> str:
+    import hashlib
+    import json
+    blob = json.dumps(cfg, sort_keys=True, default=str, separators=(",", ":"))
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def sleeve_registry(state: dict | None = None, cfg: dict | None = None) -> dict:
+    """{sleeve: {cost_bp, weight}} — what the state says its sleeves are."""
+    cfg = effective_config(state, cfg)
+    names = sleeve_names(state, cfg)
+    mix = (state or {}).get("mix") or cfg.get("mix") or {}
+    if not mix:
+        mix = {n: 1.0 / len(names) for n in names} if names else {}
+    return {n: {"cost_bp": sleeve_cost_bp(n, cfg), "weight": float(mix.get(n, 0.0))}
+            for n in names}
+
+
+def validate_mix(mix: dict, names: list[str], *, tol: float = None) -> list[str]:
+    """Errors in a sleeve mix. Empty list = usable (audit phase 8.3).
+
+    Weights must be finite, in [0, 1], sum to 1 within `MIX_SUM_TOL`, and name every
+    sleeve exactly once — a sleeve missing from the mix is capital nobody accounts
+    for (phase 8.4).
+    """
+    from core.numbers import is_finite_money, weights_sum_to_one
+    tol = MIX_SUM_TOL if tol is None else tol
+    errors: list[str] = []
+    if not isinstance(mix, dict) or not mix:
+        return [f"mix must be a non-empty mapping, got {mix!r}"]
+    for name, w in mix.items():
+        if not is_finite_money(w):
+            errors.append(f"mix[{name!r}]={w!r} is not finite")
+        elif float(w) < 0.0:
+            errors.append(f"mix[{name!r}]={w!r} is negative")
+        elif float(w) > 1.0:
+            errors.append(f"mix[{name!r}]={w!r} is above 1")
+    if not errors and not weights_sum_to_one(mix, tol=tol):
+        errors.append(f"mix sums to {sum(float(w) for w in mix.values())!r}, not 1 within {tol:g}")
+    missing = sorted(set(names) - set(mix))
+    if missing:
+        errors.append(f"sleeve(s) absent from mix: {missing}")
+    extra = sorted(set(mix) - set(names))
+    if extra:
+        errors.append(f"mix names no such sleeve: {extra}")
+    return errors
+
+
+#: documented tolerance for "the weights sum to one" (phase 8.3)
+MIX_SUM_TOL = 1e-9
+
+
+class DataError(RuntimeError):
+    """Data the engine needs to size an order is missing or impossible.
+
+    Raised rather than worked around: an order priced off a non-finite or
+    non-positive close is an order Lucas would execute by hand (audit phase 2.3).
+    """
+
+
+def _price_for_order(px, ticker: str) -> tuple[float | None, str | None]:
+    """(price, rejection reason). A price is usable only if finite and > 0.
+
+    Before phase 2 only `np.isfinite` was checked, so a close of 0.0 raised
+    ZeroDivisionError inside plan() (repro R-201) and a negative close produced a
+    buy order for real dollars at negative est_units (repro R-202: $575.86 at
+    -46.07 shares, est_price -12.50).
+    """
+    raw = px.get(ticker, np.nan)
+    try:
+        p = float(raw)
+    except (TypeError, ValueError):
+        return None, f"price is not a number: {raw!r}"
+    if not np.isfinite(p):
+        return None, "no print on the planning close"
+    if p <= 0.0:
+        return None, f"close is not a valid price: {p!r}"
+    return p, None
+
+
+def _reject(state: dict, today: str, sleeve: str, k: int, ticker: str, intent: str, reason: str) -> dict:
+    """Record a structured refusal on the state and return it (phase 2.3/1.11)."""
+    rec = {
+        "date": str(today), "sleeve": str(sleeve), "tranche": int(k), "ticker": str(ticker),
+        "intent": str(intent), "reason": str(reason), "code": "price_not_executable",
+    }
+    state.setdefault("data_errors", []).append(rec)
+    return rec
+
+
+def validate_orders(orders: list) -> list[str]:
+    """Errors in a planned order list. Empty list = every order is executable.
+
+    Acceptance criterion 3: no order may carry a NaN, infinite, zero-invalid or
+    negative price, unit count or dollar amount.
+    """
+    errors: list[str] = []
+    for i, o in enumerate(orders):
+        where = f"order[{i}] {o.get('sleeve')}[{o.get('tranche')}] {o.get('side')} {o.get('ticker')}"
+        dollars = o.get("dollars")
+        if not is_finite_money(dollars):
+            errors.append(f"{where}: dollars is not finite ({dollars!r})")
+        elif float(dollars) < 0.0:
+            errors.append(f"{where}: dollars is negative ({dollars!r})")
+        px = o.get("est_price")
+        if px is not None and not is_finite_price(px):
+            errors.append(f"{where}: est_price is not a valid price ({px!r})")
+        units = o.get("est_units")
+        if units is not None and not is_valid_units(units, allow_zero=True):
+            errors.append(f"{where}: est_units is not a valid unit count ({units!r})")
+    return errors
 
 
 # ----------------------------------------------------------------------------- state
 def new_state(capital: float, anchor_date: str, cfg: dict = None) -> dict:
+    """A fresh v9 state, carrying the configuration it was created with.
+
+    Phase 8.1: the state persists its schema version, the effective configuration and
+    its hash, the sleeve mix, the sleeve registry and its hash, the price calendar the
+    runs have seen, and the last mark date. A replay reads those instead of importing
+    whatever config the process has now (phase 8.2).
+    """
     cfg = cfg or V9
     k = cfg["tranches"]
-    half = float(capital) / 2.0
-    return {
+    names = list(cfg.get("sleeves") or DEFAULT_SLEEVES)
+    mix = dict(cfg.get("mix") or {}) or {n: 1.0 / len(names) for n in names}
+    problems = validate_mix(mix, names)
+    if problems:
+        raise ValueError("cannot create a state with an invalid mix: " + "; ".join(problems))
+    registry = {n: {"cost_bp": sleeve_cost_bp(n, cfg), "weight": float(mix[n])} for n in names}
+    state = {
         "schema_version": STATE_SCHEMA,
         "algo_version": "v9",
         "anchor_date": anchor_date,
         "last_run_date": None,
         "last_renewal_date": None,
+        "last_mark_date": None,
         "week_index": -1,
         "capital_reference": float(capital),
-        "sleeves": {s: {"tranches": [{"k": i, "opened": None, "units": {}, "cash": half / k, "last_px": {}, "stale": {}} for i in range(k)]}
-                    for s in SLEEVES},
+        "mix": mix,
+        "config": dict(cfg),
+        "config_sha256": config_hash(cfg),
+        "sleeve_registry": registry,
+        "registry_sha256": config_hash(registry),
+        "calendar": [],         # every price-calendar session the runs have seen (phase 8.8)
+        "sleeves": {n: {"tranches": [{"k": i, "opened": None, "units": {}, "cash": float(capital) * mix[n] / k,
+                                      "last_px": {}, "stale": {}} for i in range(k)]}
+                    for n in names},
         "pending": [],          # orders planned at last_run_date, to settle at the next close
         "ledger": [],           # every order ever settled
         "write_offs": [],
         "transfers": [],
         "interest": [],         # T-bill accrued on idle cash, one record per sleeve per plan() (spec 9.3)
     }
+    return state
 
 
 def _book(state: dict, sleeve: str, cost_bp: float, cfg: dict) -> TrancheBook:
@@ -76,18 +257,66 @@ def _dump(state: dict, sleeve: str, book: TrancheBook) -> None:
 
 # ----------------------------------------------------------------------------- calendar
 def bars_between(index: pd.DatetimeIndex, start: str, end: str) -> int:
-    """Trading bars strictly after `start` up to and including `end`, on the price calendar."""
+    """Trading bars strictly after `start` up to and including `end`, on `index`."""
     idx = pd.DatetimeIndex(index).normalize()
     a, b = pd.Timestamp(start).normalize(), pd.Timestamp(end).normalize()
     return int(((idx > a) & (idx <= b)).sum())
 
 
+def record_calendar(state: dict, index) -> list[str]:
+    """Add `index`'s sessions to the state's persisted calendar. Append-only, sorted.
+
+    Phase 8.8: the renewal schedule must not depend on how many bars the last
+    download returned. Probed on the base commit with a 700-bar calendar and a
+    2-year fetch window: `bars_between` gave 699 on the full index and 500 on the
+    trimmed one, so the renewal week was 139 versus 100 and a renewal fired on one
+    and not the other. The union of every session the runs have seen is the state's
+    own calendar, and it only grows.
+    """
+    if index is None or len(index) == 0:
+        return list(state.get("calendar") or [])
+    seen = set(state.get("calendar") or [])
+    for d in pd.DatetimeIndex(index).normalize():
+        seen.add(str(pd.Timestamp(d).date()))
+    out = sorted(seen)
+    state["calendar"] = out
+    return out
+
+
+def effective_calendar(state: dict | None, index=None) -> pd.DatetimeIndex:
+    """The calendar to count renewals on: the persisted sessions union `index`."""
+    dates = set((state or {}).get("calendar") or [])
+    if index is not None and len(index):
+        for d in pd.DatetimeIndex(index).normalize():
+            dates.add(str(pd.Timestamp(d).date()))
+    if not dates:
+        return pd.DatetimeIndex([])
+    return pd.DatetimeIndex(sorted(dates))
+
+
+def calendar_covers_anchor(state: dict, index=None) -> bool:
+    """Can the renewal count be trusted? False when the calendar starts after the anchor."""
+    cal = effective_calendar(state, index)
+    if not len(cal):
+        return False
+    anchor = pd.Timestamp(state["anchor_date"]).normalize()
+    return bool(cal[0] <= anchor)
+
+
 def renewal_slot(state: dict, index: pd.DatetimeIndex, today: str, cfg: dict = None) -> Optional[Tuple[int, int]]:
-    """(week_index, tranche k) if `today` is a renewal bar, else None. The anchor bar itself is week 0."""
-    cfg = cfg or V9
-    n = bars_between(index, state["anchor_date"], today)
+    """(week_index, tranche k) if `today` is a renewal bar, else None.
+
+    Counted on `effective_calendar` — the persisted sessions union the index handed in
+    — so a shorter download cannot move the schedule (phase 8.8). The anchor bar
+    itself is week 0.
+    """
+    cfg = effective_config(state, cfg)
     if pd.Timestamp(today).normalize() < pd.Timestamp(state["anchor_date"]).normalize():
         return None
+    cal = effective_calendar(state, index)
+    if not len(cal):
+        cal = pd.DatetimeIndex(index).normalize() if index is not None else pd.DatetimeIndex([])
+    n = bars_between(cal, state["anchor_date"], today)
     if n % cfg["step_bars"] != 0:
         return None
     week = n // cfg["step_bars"]
@@ -159,9 +388,12 @@ def etf_targets(etf_closes: pd.DataFrame, tbill_daily: pd.Series, cfg: dict = No
 def mark(state: dict, stock_prices: pd.Series, etf_prices: pd.Series, cfg: dict = None) -> dict:
     """Value the book at the given closes (last_px carry for names that do not print). Ages
     staleness and records write-offs. Mutates state; returns a summary."""
-    cfg = cfg or V9
+    cfg = effective_config(state, cfg)
     out = {"sleeves": {}, "total": 0.0}
-    for sleeve, px, bp in (("stocks", stock_prices, cfg["stock_cost_bp"]), ("etf", etf_prices, cfg["etf_cost_bp"])):
+    prices_for = {"stocks": stock_prices, "etf": etf_prices}
+    for sleeve in sleeve_names(state, cfg):
+        px = prices_for.get(sleeve, stock_prices)
+        bp = sleeve_cost_bp(sleeve, cfg)
         book = _book(state, sleeve, bp, cfg)
         book.age_stale(px)
         for w in book.write_offs:
@@ -174,6 +406,7 @@ def mark(state: dict, stock_prices: pd.Series, etf_prices: pd.Series, cfg: dict 
                                                for i in range(cfg["tranches"])]}
         out["total"] += v
         _dump(state, sleeve, book)
+    state["last_mark_date"] = state.get("last_run_date")
     return out
 
 
@@ -200,7 +433,7 @@ def accrue_interest(state: dict, index: pd.DatetimeIndex, today: str, tbill_rate
     factor = float((1.0 + daily).prod())
     total = 0.0
     state.setdefault("interest", [])
-    for sleeve in SLEEVES:
+    for sleeve in sleeve_names(state):
         earned = 0.0
         for tr in state["sleeves"][sleeve]["tranches"]:
             cash = float(tr["cash"])
@@ -219,13 +452,16 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
     produces the orders (estimates at today's close) for execution at the next close.
 
     Returns (state, orders). Idempotent: a second call on the same date returns no new orders."""
-    cfg = cfg or V9
+    cfg = effective_config(state, cfg)
     if state.get("last_run_date") == today:
         return state, []                                 # same day again: nothing new (idempotent)
     if state["pending"]:
         raise RuntimeError("pending orders from %s not settled; call settle() with the next close first"
                            % state["pending"][0]["planned"])
     px_s, px_e = stock_prices.iloc[-1], etf_prices.iloc[-1]
+    # every session this run saw joins the state's own calendar, so the renewal
+    # schedule stops depending on how many bars the download returned (phase 8.8)
+    record_calendar(state, stock_prices.index)
     accrue_interest(state, stock_prices.index, today, tbill_rate)
     state["last_run_date"] = today
     summary = mark(state, px_s, px_e, cfg)
@@ -241,9 +477,26 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
     own_by_sleeve = {}
     for sleeve, px in (("stocks", px_s), ("etf", px_e)):
         tr = state["sleeves"][sleeve]["tranches"][k]
-        own_by_sleeve[sleeve] = float(tr["cash"]) + sum(
-            u * float(px.get(t, tr.get("last_px", {}).get(t, np.nan)) or 0.0) for t, u in tr["units"].items())
+        value = float(tr["cash"])
+        for t, u in tr["units"].items():
+            mark_px = px.get(t, tr.get("last_px", {}).get(t, np.nan))
+            try:
+                mark_px = float(mark_px)
+            except (TypeError, ValueError):
+                mark_px = np.nan
+            if not np.isfinite(mark_px) or mark_px <= 0.0:
+                # no print and no carried mark: the name contributes nothing to the
+                # renewal split and is reported. The sells loop below emits
+                # hold_no_price for it, so it is visible on the sheet too.
+                _reject(state, today, sleeve, k, t, "mark", "no print and no last_px to carry")
+                continue
+            value += float(u) * mark_px
+        if not is_finite_money(value):
+            raise DataError(f"{sleeve}[{k}] tranche value is not finite; refusing to plan")
+        own_by_sleeve[sleeve] = value
     tranche_target = sum(own_by_sleeve.values()) / 2.0
+    if not is_finite_money(tranche_target):
+        raise DataError("renewal target is not finite; refusing to plan")
 
     # T-bill hurdle for the ETF sleeve: the trailing 252-bar accumulated T-bill return, as measured
     # in the lab (`tbill_rate` as an annualised decimal Series on the price calendar). A scalar is
@@ -262,10 +515,11 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
         transfer = tranche_target - own                     # + receives cash from the other sleeve, - gives
         # sells: everything held that is not in the target, plus trims of kept names
         for t, u in tr["units"].items():
-            p = float(px.get(t, np.nan))
-            if not np.isfinite(p):
+            p, reason = _price_for_order(px, t)
+            if p is None:
+                _reject(state, today, sleeve, k, t, "sell", reason)
                 orders.append(dict(sleeve=sleeve, tranche=k, ticker=t, side="hold_no_price", dollars=0.0, est_units=u, est_price=None,
-                                   note="no print today; carried at last price, cannot be sold"))
+                                   note=f"cannot be sold: {reason}"))
                 continue
             cur = u * p
             tgt = float(targets.get(t, 0.0)) * tranche_target
@@ -276,8 +530,11 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
                 orders.append(dict(sleeve=sleeve, tranche=k, ticker=t, side="sell", dollars=cur - tgt, est_units=(cur - tgt) / p, est_price=p,
                                    close=bool(tgt <= 1e-12)))
         for t, w in targets.items():
-            p = float(px.get(t, np.nan))
-            if not np.isfinite(p):
+            p, reason = _price_for_order(px, t)
+            if p is None:
+                # no order at all: a buy priced off a bad close is a hand-executed
+                # order at a wrong price (phase 2.3). The refusal is structured.
+                _reject(state, today, sleeve, k, t, "buy", reason)
                 continue
             cur = float(tr["units"].get(t, 0.0)) * p
             tgt = float(w) * tranche_target
@@ -292,10 +549,14 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
                                note="no names selected: tranche stays in T-bill (no fallback)"))
     for o in orders:
         o.update(planned=today, week=week, cost_bp=cfg["stock_cost_bp"] if o["sleeve"] == "stocks" else cfg["etf_cost_bp"])
+    problems = validate_orders(orders)
+    if problems:
+        # Fail closed: nothing becomes pending and no sheet is written (audit rule 10).
+        raise DataError("refusing to plan; unexecutable order(s): " + "; ".join(problems))
     state["pending"] = orders
     state["week_index"] = week
     state["last_renewal_date"] = today
-    for sleeve in SLEEVES:
+    for sleeve in sleeve_names(state, cfg):
         state["sleeves"][sleeve]["tranches"][k]["opened"] = today
     return state, orders
 
@@ -347,8 +608,9 @@ def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.
     for o in pend:
         if o["side"] in ("park", "hold_no_price"):
             fills.append(dict(o, exec_date=exec_date, status="noted"))
-    for sleeve in SLEEVES:
-        _dump(state, sleeve, books[sleeve])
+    for sleeve in sleeve_names(state, cfg):
+        if sleeve in books:
+            _dump(state, sleeve, books[sleeve])
     state["ledger"].extend(fills)
     state["pending"] = []
     return fills
@@ -356,14 +618,16 @@ def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.
 
 def summary_table(state: dict, stock_prices: pd.Series, etf_prices: pd.Series, cfg: dict = None) -> dict:
     """Read-only valuation for the instruction sheet (no staleness ageing, no state mutation)."""
-    cfg = cfg or V9
+    cfg = effective_config(state, cfg)
     out = {"sleeves": {}, "total": 0.0}
-    for sleeve, px, bp in (("stocks", stock_prices, cfg["stock_cost_bp"]), ("etf", etf_prices, cfg["etf_cost_bp"])):
-        book = _book(state, sleeve, bp, cfg)
+    prices_for = {"stocks": stock_prices, "etf": etf_prices}
+    for sleeve in sleeve_names(state, cfg):
+        px = prices_for.get(sleeve, stock_prices)
+        book = _book(state, sleeve, sleeve_cost_bp(sleeve, cfg), cfg)
         v = book.value_with_stale(px)
         out["sleeves"][sleeve] = {"value": v, "cash": float(sum(t.cash for t in book.tranches)), "exposure": book.exposure(px),
                                   "distinct": book.distinct(), "names": sorted(set().union(*[book.held(i) for i in range(cfg["tranches"])]))}
         out["total"] += v
-    for sleeve in SLEEVES:
+    for sleeve in sleeve_names(state, cfg):
         out["sleeves"][sleeve]["share"] = out["sleeves"][sleeve]["value"] / out["total"] if out["total"] > 0 else 0.0
     return out

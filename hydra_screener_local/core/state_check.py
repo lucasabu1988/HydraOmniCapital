@@ -5,11 +5,19 @@ import copy
 from dataclasses import dataclass
 
 from config import V9
+from core.ledger import CASH_TICKERS, EFFECTIVE_STATUSES, check_invariants
+from core.numbers import (
+    WEIGHT_SUM_TOL,
+    is_finite_money,
+    is_finite_price,
+    is_valid_units,
+    weights_sum_to_one,
+)
 from core.state_migrations import SchemaError, migrate
 
 STATE_SCHEMA = 1
-FILLED = {"filled", "confirmed", "confirmed_unplanned"}
-CASH_TICKERS = {"CASH", "TBILL"}
+#: kept as a module name for callers; the definition lives in core.ledger
+FILLED = EFFECTIVE_STATUSES
 REPLAY_TOL = 1e-6
 
 
@@ -159,6 +167,13 @@ def check(state: dict) -> list[Finding]:
             f"schema_version={ver!r} != {STATE_SCHEMA}",
         ))
 
+    # Non-finite values first (audit phase 2.4). `_f` coerces NaN to 0.0 for the
+    # replay arithmetic, which means a NaN cash whose replay also lands near zero
+    # used to pass silently; and +/-inf reported only as a replay mismatch, never as
+    # the impossible number it is (repros R-203, R-204).
+    findings.extend(_non_finite_findings(st))
+    findings.extend(_weight_findings(st))
+
     rebuilt = replay(st)
     for sleeve, block in (st.get("sleeves") or {}).items():
         rec_block = rebuilt.get(sleeve) or {"tranches": []}
@@ -257,6 +272,99 @@ def check(state: dict) -> list[Finding]:
         seen.add(key)
 
     return findings
+
+
+def _non_finite_findings(st: dict) -> list[Finding]:
+    """Every number in the state must be finite (audit rule 9)."""
+    out: list[Finding] = []
+    if not is_finite_money(st.get("capital_reference")):
+        out.append(Finding("ERROR", "non_finite", f"capital_reference={st.get('capital_reference')!r}"))
+    for sleeve, block in (st.get("sleeves") or {}).items():
+        for i, tr in enumerate((block or {}).get("tranches") or []):
+            if not is_finite_money(tr.get("cash")):
+                out.append(Finding("ERROR", "non_finite", f"{sleeve}[{i}] cash={tr.get('cash')!r}"))
+            for tk, u in (tr.get("units") or {}).items():
+                if not is_valid_units(u, allow_zero=True):
+                    out.append(Finding("ERROR", "non_finite", f"{sleeve}[{i}] units {tk}={u!r}"))
+            for tk, px in (tr.get("last_px") or {}).items():
+                if not is_finite_price(px):
+                    out.append(Finding("ERROR", "non_finite", f"{sleeve}[{i}] last_px {tk}={px!r}"))
+    for key in ("ledger", "transfers", "dividends", "interest", "write_offs"):
+        for i, rec in enumerate(st.get(key) or []):
+            for field in ("units", "price", "dollars", "cost", "dps", "proceeds", "rate"):
+                if field not in rec or rec[field] is None:
+                    continue
+                if not is_finite_money(rec[field]):
+                    out.append(Finding("ERROR", "non_finite", f"{key}[{i}] {field}={rec[field]!r}"))
+    for o in st.get("pending") or []:
+        for field in ("dollars", "est_units", "est_price"):
+            if o.get(field) is None:
+                continue
+            if not is_finite_money(o[field]):
+                out.append(Finding(
+                    "ERROR", "non_finite",
+                    f"pending {o.get('sleeve')} {o.get('side')} {o.get('ticker')} {field}={o[field]!r}",
+                ))
+        px = o.get("est_price")
+        if px is not None and is_finite_money(px) and not is_finite_price(px):
+            out.append(Finding(
+                "ERROR", "order_price_invalid",
+                f"pending {o.get('sleeve')} {o.get('side')} {o.get('ticker')} est_price={px!r}",
+            ))
+        units = o.get("est_units")
+        if units is not None and is_finite_money(units) and not is_valid_units(units, allow_zero=True):
+            out.append(Finding(
+                "ERROR", "order_units_invalid",
+                f"pending {o.get('sleeve')} {o.get('side')} {o.get('ticker')} est_units={units!r}",
+            ))
+        dollars = o.get("dollars")
+        if dollars is not None and is_finite_money(dollars) and float(dollars) < 0.0:
+            out.append(Finding(
+                "ERROR", "order_dollars_negative",
+                f"pending {o.get('sleeve')} {o.get('side')} {o.get('ticker')} dollars={dollars!r}",
+            ))
+    for v in check_invariants(st):
+        if v.code in ("event_id_duplicated", "status_unknown", "side_unknown"):
+            out.append(Finding("ERROR", v.code, v.message))
+    return out
+
+
+def _weight_findings(st: dict) -> list[Finding]:
+    """The persisted sleeve mix must be finite, non-negative and sum to 1 (phase 8.3).
+
+    Before this, a mix of {"stocks": -0.5, "etf": 1.5} produced only a cascade of
+    replay_cash mismatches and no statement that the weights themselves were
+    impossible (repro R-205).
+    """
+    out: list[Finding] = []
+    mix = st.get("mix")
+    if mix is None:
+        return out
+    if not isinstance(mix, dict) or not mix:
+        out.append(Finding("ERROR", "mix_invalid", f"mix must be a non-empty mapping, got {mix!r}"))
+        return out
+    for name, w in mix.items():
+        if not is_finite_money(w):
+            out.append(Finding("ERROR", "mix_invalid", f"mix[{name!r}]={w!r} is not finite"))
+        elif float(w) < 0.0:
+            out.append(Finding("ERROR", "mix_invalid", f"mix[{name!r}]={w!r} is negative"))
+        elif float(w) > 1.0:
+            out.append(Finding("ERROR", "mix_invalid", f"mix[{name!r}]={w!r} is above 1"))
+    if not out and not weights_sum_to_one(mix):
+        total = sum(float(w) for w in mix.values())
+        out.append(Finding(
+            "ERROR", "mix_not_normalised",
+            f"mix sums to {total!r}, not 1 within {WEIGHT_SUM_TOL:g}",
+        ))
+    sleeves = set((st.get("sleeves") or {}).keys())
+    unknown = sorted(set(mix) - sleeves) if sleeves else []
+    if unknown:
+        out.append(Finding("ERROR", "mix_unknown_sleeve", f"mix names no such sleeve: {unknown}"))
+    missing = sorted(sleeves - set(mix)) if sleeves else []
+    if missing:
+        # phase 8.4: omitting a sleeve from the mix must not hide the capital in it
+        out.append(Finding("ERROR", "mix_missing_sleeve", f"sleeve(s) absent from mix: {missing}"))
+    return out
 
 
 def format_findings(findings: list[Finding]) -> str:

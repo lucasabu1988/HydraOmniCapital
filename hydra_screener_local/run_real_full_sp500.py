@@ -202,7 +202,7 @@ try:
                 entry_prices[t] = float(prices[t].dropna().iloc[-1])
         import log_cycle_positions
         log_cycle_positions.log_cycle(datetime.now(), top5, candidates, notes=f"live FULL run UNIVERSE={u}", entry_prices=entry_prices)
-        print(f"      [OK] Cycle PnL logged (dynamic entry/current/PnL) -> backtest/portfolio_cycles.xlsx")
+        print("      [OK] Cycle PnL logged (dynamic entry/current/PnL) -> backtest/portfolio_cycles.xlsx")
 except Exception as e:
     print(f"      [warn] cycle log skipped: {e}")
 

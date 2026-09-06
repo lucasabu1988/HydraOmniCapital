@@ -111,6 +111,24 @@ def next_nyse_session(date) -> str:
     return str(d.date())
 
 
+def nyse_sessions_between(start, end) -> int:
+    """Regular NYSE sessions strictly after `start` up to and including `end`.
+
+    Holiday-aware, unlike `business_days_behind` (weekday-based, deliberately only a
+    warning). This one gates execution, so it must not count Labor Day as a session
+    the data is missing (audit phase 2.5).
+    """
+    a = pd.Timestamp(start).normalize()
+    b = pd.Timestamp(end).normalize()
+    if b <= a:
+        return 0
+    days = pd.bdate_range(a + pd.Timedelta(days=1), b)
+    if not len(days):
+        return 0
+    holidays = set(nyse_holidays(days[0], days[-1]))
+    return int(sum(1 for d in days if d not in holidays))
+
+
 def last_nyse_session_on_or_before(date) -> str:
     d = pd.Timestamp(date).normalize()
     while not is_nyse_session(d):
