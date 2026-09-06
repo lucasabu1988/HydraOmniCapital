@@ -479,3 +479,113 @@ def test_stale_name_gets_its_own_window(tmp_path):
     assert recent_start >= pd.Timestamp("2026-08-21")            # the 10-bar overlap, not July
     stale_start, _ = windows[("OLDW",)]
     assert stale_start <= pd.Timestamp("2026-07-06")
+
+
+# --------------------------------------------------------------------------- TASK-385 local adjustment
+
+
+def _long385(ticker, idx, raw, adj, dividend=None):
+    df = pd.DataFrame({"ticker": ticker, "date": idx, "close_adj": adj, "close_raw": raw, "volume": 100.0,
+                       "source": "t", "fetched_at": "x"})
+    if dividend is not None:
+        df["dividend"] = dividend
+        df["split"] = 0.0
+    return df
+
+
+def test_provider_extracts_actions_and_store_records_coverage(monkeypatch, tmp_path):
+    from data.store import BarStore
+    idx = pd.bdate_range("2024-01-02", periods=5)
+
+    def fake(batch, start=None, end=None, period=None, auto_adjust=True, actions=False, **kw):
+        assert actions is True
+        cols = {}
+        for tk in batch:
+            cols[("Close", tk)] = [50.0] * 5
+            cols[("Adj Close", tk)] = [49.0] * 5
+            cols[("Volume", tk)] = [1000] * 5
+            cols[("Dividends", tk)] = [0.0, 0.0, 1.0 if tk == "AAA" else 0.0, 0.0, 0.0]
+            cols[("Stock Splits", tk)] = [0.0] * 5
+        df = pd.DataFrame(cols, index=idx)
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        return df
+
+    monkeypatch.setattr("data.fetch.yf.download", fake)
+    monkeypatch.setattr("data.providers.yfinance_provider.time.sleep", lambda *a, **k: None)
+    long = YFinanceProvider(batch_size=10, tail_batch_size=10).fetch(["AAA", "BBB"], "2024-01-02", "2024-01-08")
+    assert "dividend" in long.columns and "split" in long.columns
+    store = BarStore(tmp_path / "b.sqlite")
+    store.upsert(long)
+    divs = store.dividends(["AAA", "BBB"], "2024-01-01", "2024-12-31")
+    assert list(divs) == ["AAA"] and divs["AAA"].iloc[0] == 1.0
+    cov = store.actions_coverage(["AAA", "BBB"])
+    assert cov["BBB"] == (pd.Timestamp("2024-01-02"), pd.Timestamp("2024-01-08"))   # asked, none: still coverage
+    st = store.stats()
+    assert st["actions"] == 1 and st["actions_covered_tickers"] == 2
+
+
+def test_local_adjust_matches_yahoo_and_falls_back_without_coverage(tmp_path):
+    from data.adjust import adjust
+    from data.fetch import fetch_prices_and_volume_cached
+    from data.store import BarStore
+
+    idx = pd.bdate_range("2025-09-01", "2026-09-04")
+    raw = pd.Series([100.0 + (i % 7) for i in range(len(idx))], index=idx)
+    divs = pd.Series({pd.Timestamp("2026-03-02"): 2.0, pd.Timestamp("2026-06-01"): 2.5})
+    yahoo_adj = adjust(raw, dividends=divs)                      # what Yahoo would publish
+    div_col = pd.Series(0.0, index=idx)
+    div_col.loc[divs.index] = divs.values
+
+    store = BarStore(tmp_path / "b.sqlite")
+    store.upsert(_long385("AAA", idx, raw.values, yahoo_adj.values, dividend=div_col.values))   # covered
+    store.upsert(_long385("BBB", idx, raw.values, yahoo_adj.values))                            # no actions -> fallback
+
+    class Prov:
+        def fetch(self, tickers, start, end):
+            i = pd.bdate_range(start, end)
+            i = i[i <= idx[-1]]
+            parts = []
+            for tk in tickers:
+                parts.append(_long385(tk, i, raw.reindex(i).values, yahoo_adj.reindex(i).values,
+                                   dividend=div_col.reindex(i).values if tk == "AAA" else None))
+            return pd.concat(parts, ignore_index=True)
+
+    rep = {}
+    px, _ = fetch_prices_and_volume_cached(["AAA", "BBB"], period="1y", report=rep, provider=Prov(), store=store,
+                                           asof="2026-09-04", adjust="local")
+    assert rep["adjust"] == "local" and rep["adjust_fallback"] == ["BBB"]
+    y, _ = fetch_prices_and_volume_cached(["AAA", "BBB"], period="1y", provider=Prov(), store=store,
+                                          asof="2026-09-04", adjust="yahoo")
+    a, b = px["AAA"].dropna().align(y["AAA"].dropna(), join="inner")
+    assert ((a - b).abs() / b.abs()).max() < 1e-6
+    assert px["BBB"].dropna().equals(y["BBB"].dropna())
+    assert rep["readjusted"] == []                                   # raw overlap: no readjust after dividends
+
+
+def test_verify_fails_on_an_injected_local_error(tmp_path, capsys):
+    import store_cli
+    from data.adjust import adjust
+    from data.store import BarStore
+
+    idx = pd.bdate_range("2025-09-01", "2026-09-04")
+    raw = pd.Series(100.0, index=idx)
+    divs = pd.Series({pd.Timestamp("2026-03-02"): 1.0})
+    adj = adjust(raw, dividends=divs)
+    div_col = pd.Series(0.0, index=idx)
+    div_col.loc[divs.index] = 1.0
+    store = BarStore(tmp_path / "b.sqlite")
+    store.upsert(_long385("AAA", idx, raw.values, adj.values, dividend=div_col.values))
+
+    class Fresh:
+        def __init__(self, shift):
+            self.shift = shift
+
+        def fetch(self, tickers, start, end):
+            i = pd.bdate_range(start, end)
+            i = i[i <= idx[-1]]
+            return _long385("AAA", i, raw.reindex(i).values, (adj.reindex(i) * (1 + self.shift)).values)
+
+    assert store_cli._verify(store, 1, provider=Fresh(0.0), names=["AAA"]) is True
+    assert store_cli._verify(store, 1, provider=Fresh(1e-3), names=["AAA"]) is False
+    out = capsys.readouterr().out
+    assert "FAIL" in out and "verify FAILED" in out

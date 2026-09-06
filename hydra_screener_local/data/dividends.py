@@ -62,7 +62,7 @@ def fetch_dividends(tickers: list[str] | None = None, *, report: dict | None = N
     if report is None:
         report = {}
     wanted = [str(t).strip() for t in (tickers or []) if t and str(t).strip() not in ("CASH", "TBILL")]
-    report.update(requested=len(wanted), downloaded=0, failed_tickers=[], rows=0)
+    report.update(requested=len(wanted), downloaded=0, failed_tickers=[], rows=0, no_dividends=[])
     cache = _load_cache()
     by_ticker: dict[str, list[dict]] = {
         t: list(rows) for t, rows in (cache.get("tickers") or {}).items()
@@ -102,6 +102,30 @@ def fetch_dividends(tickers: list[str] | None = None, *, report: dict | None = N
     except Exception as e:
         logger.warning("dividend cache write failed: %s", e)
     rows = [r for t in wanted for r in by_ticker.get(t, [])]
-    report.update(downloaded=downloaded, failed_tickers=failed,
-                  skipped_fresh=skipped_fresh, rows=len(rows))
+    # TASK-385: an empty list means "fetched, none" only when the ticker carries a stamp; a failed
+    # fetch leaves no stamp and must not be read as "no dividends"
+    report.update(downloaded=downloaded, failed_tickers=failed, skipped_fresh=skipped_fresh, rows=len(rows),
+                  no_dividends=[t for t in wanted if t in by_ticker and not by_ticker[t] and updated_by.get(t)])
     return rows
+
+
+def coverage(tickers: list[str], *, max_age_days: int = 7) -> dict[str, list[str]]:
+    """Cache status per ticker: fresh (stamped within max_age_days), stale (older stamp), missing (never
+    fetched successfully). Read-only; the local adjustment must not trust a `missing` name."""
+    cache = _load_cache()
+    updated_by = dict(cache.get("updated_by_ticker") or {})
+    have = cache.get("tickers") or {}
+    now = datetime.now(timezone.utc)
+    out = {"fresh": [], "stale": [], "missing": []}
+    for t in [str(x) for x in tickers]:
+        stamp = updated_by.get(t)
+        if not stamp or t not in have:
+            out["missing"].append(t)
+            continue
+        try:
+            age = (now - datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))).days
+        except Exception:
+            out["stale"].append(t)
+            continue
+        (out["fresh"] if age <= max_age_days else out["stale"]).append(t)
+    return out

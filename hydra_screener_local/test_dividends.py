@@ -234,3 +234,29 @@ def test_run_credits_before_plan(tmp_path, monkeypatch):
     after = json.loads(Path(out["state_path"]).read_text(encoding="utf-8"))
     assert after["sleeves"]["stocks"]["tranches"][0]["cash"] == pytest.approx(cash_before + 4.0)
     assert after["dividends"][0]["dollars"] == pytest.approx(4.0)
+
+
+def test_fetch_report_separates_no_dividends_from_failed(monkeypatch, tmp_path):
+    """TASK-385: an empty list after a successful fetch is 'no dividends'; a failed fetch is not."""
+    import data.dividends as DD
+    monkeypatch.setattr(DD, "CACHE_FILE", str(tmp_path / "div.json"))
+
+    class Tk:
+        def __init__(self, t):
+            self.t = t
+
+        @property
+        def dividends(self):
+            if self.t == "FAIL":
+                raise RuntimeError("Too Many Requests")
+            if self.t == "NONE":
+                return pd.Series(dtype=float)
+            return pd.Series([0.5], index=pd.DatetimeIndex(["2026-06-01"]))
+
+    monkeypatch.setitem(sys.modules, "yfinance", type("yf", (), {"Ticker": staticmethod(Tk)}))
+    rep = {}
+    rows = DD.fetch_dividends(["PAYS", "NONE", "FAIL"], report=rep)
+    assert [r["ticker"] for r in rows] == ["PAYS"]
+    assert rep["failed_tickers"] == ["FAIL"] and rep["no_dividends"] == ["NONE"]
+    cov = DD.coverage(["PAYS", "NONE", "FAIL"])
+    assert cov["fresh"] == ["PAYS", "NONE"] and cov["missing"] == ["FAIL"]

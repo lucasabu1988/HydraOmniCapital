@@ -35,6 +35,23 @@ CREATE TABLE IF NOT EXISTS meta (
     updated_at TEXT
 )
 """
+_ACTIONS_DDL = """
+CREATE TABLE IF NOT EXISTS actions (
+    ticker TEXT NOT NULL,
+    date TEXT NOT NULL,
+    dividend REAL,
+    split REAL,
+    PRIMARY KEY (ticker, date)
+)
+"""
+_ACTCOV_DDL = """
+CREATE TABLE IF NOT EXISTS actions_cov (
+    ticker TEXT PRIMARY KEY,
+    first TEXT,
+    last TEXT,
+    updated_at TEXT
+)
+"""
 _RUNS_DDL = """
 CREATE TABLE IF NOT EXISTS runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,6 +85,8 @@ class BarStore:
         self._conn.execute(_BARS_DDL)
         self._conn.execute(_META_DDL)
         self._conn.execute(_RUNS_DDL)
+        self._conn.execute(_ACTIONS_DDL)      # TASK-385: dividends / splits from yfinance actions
+        self._conn.execute(_ACTCOV_DDL)       # which date range each ticker's actions were asked for
         self._conn.execute("CREATE INDEX IF NOT EXISTS bars_date ON bars(date)")
         self._conn.commit()
 
@@ -85,10 +104,11 @@ class BarStore:
         return False
 
     def upsert(self, long_frame: pd.DataFrame) -> int:
-        """Insert-or-replace long bars. Returns rows written."""
+        """Insert-or-replace long bars (and actions + coverage when the frame carries them). Returns rows written."""
         rows = _rows_from_long(long_frame)
         if not rows:
             return 0
+        self._upsert_actions(long_frame)
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         with self._conn:
             self._conn.executemany(
@@ -126,7 +146,73 @@ class BarStore:
         with self._conn:
             self._conn.execute("DELETE FROM bars WHERE ticker=?", (t,))
             self._conn.execute("DELETE FROM meta WHERE ticker=?", (t,))
+            if _has_actions(long_frame):        # a full refetch with actions replaces the actions too
+                self._conn.execute("DELETE FROM actions WHERE ticker=?", (t,))
+                self._conn.execute("DELETE FROM actions_cov WHERE ticker=?", (t,))
         return self.upsert(long_frame)
+
+    # ------------------------------------------------------------- actions (TASK-385)
+    def _upsert_actions(self, long_frame: pd.DataFrame) -> int:
+        """Non-zero dividends/splits -> `actions`; the frame's per-ticker date span -> `actions_cov`
+        (asking Yahoo for actions over a range and getting none is coverage too)."""
+        if not _has_actions(long_frame):
+            return 0
+        df = long_frame.copy()
+        cols = {c.lower(): c for c in df.columns}
+        tick = df[cols["ticker"]].astype(str)
+        dates = pd.Series([_as_date_str(v) for v in df[cols["date"]]], index=df.index)
+        div = pd.to_numeric(df[cols["dividend"]], errors="coerce").fillna(0.0) if "dividend" in cols else pd.Series(0.0, index=df.index)
+        spl = pd.to_numeric(df[cols["split"]], errors="coerce").fillna(0.0) if "split" in cols else pd.Series(0.0, index=df.index)
+        act_rows = [(t, d, float(dv) if dv else None, float(sp) if sp else None)
+                    for t, d, dv, sp in zip(tick, dates, div, spl, strict=True) if (dv or sp)]
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        span = pd.DataFrame({"ticker": tick, "date": dates}).groupby("ticker")["date"].agg(["min", "max"])
+        with self._conn:
+            if act_rows:
+                self._conn.executemany(
+                    "INSERT OR REPLACE INTO actions (ticker, date, dividend, split) VALUES (?, ?, ?, ?)", act_rows)
+            for t, row in span.iterrows():
+                cur = self._conn.execute("SELECT first, last FROM actions_cov WHERE ticker=?", (str(t),)).fetchone()
+                first = min(row["min"], cur[0]) if cur and cur[0] else row["min"]
+                last = max(row["max"], cur[1]) if cur and cur[1] else row["max"]
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO actions_cov (ticker, first, last, updated_at) VALUES (?, ?, ?, ?)",
+                    (str(t), first, last, now))
+        return len(act_rows)
+
+    def dividends(self, tickers: list[str], start, end) -> dict[str, pd.Series]:
+        """{ticker: Series ex_date -> dps} for dividends recorded in [start, end]."""
+        return self._actions_col(tickers, start, end, "dividend")
+
+    def splits(self, tickers: list[str], start, end) -> dict[str, pd.Series]:
+        return self._actions_col(tickers, start, end, "split")
+
+    def _actions_col(self, tickers, start, end, column) -> dict[str, pd.Series]:
+        tickers = [str(t) for t in tickers]
+        if not tickers:
+            return {}
+        placeholders = ",".join("?" * len(tickers))
+        rows = self._conn.execute(
+            f"SELECT ticker, date, {column} FROM actions WHERE ticker IN ({placeholders}) "
+            f"AND date>=? AND date<=? AND {column} IS NOT NULL ORDER BY date",
+            [*tickers, _as_date_str(start), _as_date_str(end)],
+        ).fetchall()
+        out: dict[str, dict] = {}
+        for t, d, v in rows:
+            out.setdefault(str(t), {})[pd.Timestamp(d)] = float(v)
+        return {t: pd.Series(v, dtype=float).sort_index() for t, v in out.items()}
+
+    def actions_coverage(self, tickers: list[str] | None = None) -> dict[str, tuple[pd.Timestamp, pd.Timestamp]]:
+        if tickers is not None:
+            tickers = [str(t) for t in tickers]
+            if not tickers:
+                return {}
+            placeholders = ",".join("?" * len(tickers))
+            cur = self._conn.execute(
+                f"SELECT ticker, first, last FROM actions_cov WHERE ticker IN ({placeholders})", tickers)
+        else:
+            cur = self._conn.execute("SELECT ticker, first, last FROM actions_cov")
+        return {str(t): (_as_ts(f), _as_ts(la)) for t, f, la in cur.fetchall() if f and la}
 
     def closes(
         self,
@@ -239,10 +325,14 @@ class BarStore:
         ).fetchone()
         size = self.path.stat().st_size if self.path.exists() else 0
         last_run = self.last_run()
+        n_actions = self._conn.execute("SELECT COUNT(*) FROM actions").fetchone()[0]
+        n_cov = self._conn.execute("SELECT COUNT(*) FROM actions_cov").fetchone()[0]
         return {
             "path": str(self.path),
             "tickers": int(n_tickers or 0),
             "bars": int(n_bars or 0),
+            "actions": int(n_actions or 0),
+            "actions_covered_tickers": int(n_cov or 0),
             "first": first,
             "last": last,
             "size_bytes": int(size),
@@ -277,6 +367,13 @@ class BarStore:
         wide.index = pd.DatetimeIndex(wide.index).tz_localize(None)
         ordered = [t for t in tickers if t in wide.columns]
         return wide.reindex(columns=ordered).sort_index()
+
+
+def _has_actions(long_frame: pd.DataFrame) -> bool:
+    if long_frame is None or getattr(long_frame, "empty", True):
+        return False
+    cols = {str(c).lower() for c in long_frame.columns}
+    return bool({"dividend", "split"} & cols)
 
 
 def _rows_from_long(long_frame: pd.DataFrame) -> list[tuple]:
