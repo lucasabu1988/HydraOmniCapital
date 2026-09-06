@@ -69,7 +69,7 @@ def executable_top5(candidates) -> list:
 
 def main():
     print_header()
-    
+
     # 1. Definir universo (soporta sp500, nasdaq100, dow30, "all", custom)
     # Prioridad: env UNIVERSE (lo setea daily.py --universe) > config.UNIVERSE > legacy flag
     effective_universe = os.environ.get("UNIVERSE") or UNIVERSE or ("sp500" if USE_FULL_SP500 else "custom")
@@ -78,7 +78,7 @@ def main():
         print(f"Universo seleccionado: COMBINADO AMPLIADO (SP500 + Nasdaq100 + Dow30 + R1000 + R2000) → {len(tickers)} tickers únicos\n")
     else:
         print(f"Universo seleccionado: {effective_universe.upper()} ({len(tickers)} tickers)\n")
-    
+
     # 2. Obtener datos (precios + volumen para Strict Filter)
     fetch_report = {}
     prices, volumes = fetch_prices_and_volume(tickers, report=fetch_report)
@@ -115,7 +115,7 @@ def main():
         max_price=FILTERS.get("max_price"),
         min_dollar_volume=FILTERS.get("min_dollar_volume"),
     )
-    
+
     filter_summary = get_filter_summary(original_count, prices)
     print(f"Filtros aplicados → {filter_summary['remaining']} tickers restantes "
           f"({filter_summary['removed']} eliminados, {filter_summary['removal_pct']}%)\n")
@@ -133,7 +133,7 @@ def main():
     if len(prices.columns) < original_count:
         zfs = get_filter_summary(original_count, prices)
         print(f"   + sanity zombie → {zfs['remaining']} restantes ({zfs['removed']} adicionales)\n")
-    
+
     # 4. Resolver sectores ANTES de scorear (TASK-320). El scoring no hace red: se le pasa
     # el mapa ya resuelto, así el backtest y los tests quedan offline y deterministas.
     sector_map = resolve_sectors(list(prices.columns), budget_seconds=SECTOR_FETCH_BUDGET_SECONDS)
@@ -176,7 +176,7 @@ def main():
     nan_share = float(candidates.iloc[0].get("vol_ratio_nan_share", 0.0)) if len(candidates) > 0 else 0.0
     if nan_share > VOL_NAN_WARN_THRESHOLD:
         print(f"⚠ {nan_share:.0%} of tickers have no usable volume data — strict filter coverage degraded")
-    
+
     # Extraer info de meta para el resumen
     meta_info = {}
     pillar_mults = {}
@@ -199,30 +199,30 @@ def main():
             special_modes_list = [m.strip() for m in sm_raw.split(',') if m.strip()]
         elif isinstance(sm_raw, (list, tuple)):
             special_modes_list = list(sm_raw)
-    
+
     # 6. Mostrar resultados
     total_candidates = len(candidates)
     recommended_df = candidates[candidates['recommended'] == True].copy() if 'recommended' in candidates.columns else candidates.head(TOP_CANDIDATES)
     n_recommended = len(recommended_df)
-    
+
     # 5a. Mostrar TODOS los candidatos rankeados
     print(f"\n{'='*70}")
     print(f"   ANALISIS COMPLETO: {total_candidates} CANDIDATOS RANKEADOS")
     print(f"{'='*70}")
     print_candidates_table(candidates, top_n=total_candidates)
-    
+
     # 5b. Mostrar solo RECOMENDADOS
     if n_recommended > 0:
         print(f"\n{'='*70}")
         print(f"   RECOMENDADOS HOY: {n_recommended} CANDIDATOS")
         print(f"{'='*70}")
         print_candidates_table(recommended_df, top_n=n_recommended)
-    
+
     recommended_count = n_recommended if n_recommended > 0 else None
-    
+
     # Mostrar resumen + multipliers de forma visual
     print_summary(regime_score, total_candidates, meta_info, pillar_mults, recommended_count)
-    
+
     # 7. Exportar Excel (con ruta robusta)
     today = datetime.now().strftime("%Y%m%d")
     if EXPORT_EXCEL:
@@ -257,29 +257,6 @@ def main():
     except Exception as e:
         print(f"[yellow]⚠[/yellow] No se pudo guardar histórico: {e}")
 
-    # 9. Log the top-5 cycle for dynamic PnL tracking (entry=last close from fetch, current starts=entry, formulas for PnL)
-    # This turns every screener run (esp. UNIVERSE=all) into an auditable entry for the 5/5 rotation strategy.
-    try:
-        # Top5 ejecutable = top 5 de los RECOMENDADOS (post downtrend gate, SPEC 4.7).
-        # Antes usaba head(5) crudo, que podía incluir nombres vetados por caída reciente.
-        # Zero recommended = zero positions. The old `exec_pool = candidates` fallback logged five
-        # rejected names as executed positions (audit finding A).
-        top5 = executable_top5(candidates)
-        if not top5:
-            print("[CycleLog] 0 recommended today - no Top5 cycle logged (no positions)")
-        else:
-            # entry price = most recent close used by the screener (point-in-time for signal)
-            entry_prices = {}
-            for t in top5:
-                if t in prices.columns and len(prices[t].dropna()) > 0:
-                    entry_prices[t] = float(prices[t].dropna().iloc[-1])
-            import log_cycle_positions
-            log_cycle_positions.log_cycle(datetime.now(), top5, candidates.head(20), notes=f"live run UNIVERSE={effective_universe}", entry_prices=entry_prices)
-            # Note: entry from the live prices df; current starts=entry (PnL=0), later refresh_current_prices() or manual edit current -> formulas recalc PnL for the 5
-            print(f"[CycleLog] Top5 cycle logged to backtest/portfolio_cycles.xlsx for dynamic PnL tracking")
-    except Exception as e:
-        print(f"[yellow]⚠[/yellow] Cycle PnL log skipped: {e}")
-
     # 10. Hybrid integration layer (task 1+2)
     # - Auto-generate Pine watchlist string/file
     # - Send rich summary (Discord webhook if DISCORD_WEBHOOK_URL is set in env)
@@ -299,30 +276,9 @@ def main():
             print("  → pine/hydra_last_summary.json (paste FULL contents into Pine 'i_summary_json' for exact Rec? + values)")
             print("  → pine/hydra_last_summary.txt  (human readable summary)")
             print("  In TradingView: the dashboard table will now use Python's exact recommended_tickers for the 'Rec?' column.")
-
-            # Close the loop: also log the *exact* recommended list that was sent to Pine (the one user pastes)
-            # This allows PnL tracking specifically for the lists that appeared in the TV dashboard.
-            try:
-                # Only flagged names; no head(15) fallback (audit finding A/B).
-                hybrid_recs = candidates[candidates['recommended'] == True]['ticker'].tolist() if 'recommended' in candidates.columns else []
-                if hybrid_recs:
-                    entry_prices = {}
-                    for t in hybrid_recs:
-                        if t in prices.columns and len(prices[t].dropna()) > 0:
-                            entry_prices[t] = float(prices[t].dropna().iloc[-1])
-                    import log_cycle_positions
-                    log_cycle_positions.log_cycle(
-                        datetime.now(), hybrid_recs, candidates,
-                        notes=f"HYBRID exact recommended list sent to Pine/TV (UNIVERSE={effective_universe})",
-                        entry_prices=entry_prices
-                    )
-                    print(f"[CycleLog] Exact hybrid recommended list ({len(hybrid_recs)}) logged for Pine-matched PnL tracking")
-                    print("           Run: python refresh_current_prices.py --lookback 5   (to update live current prices & PnL)")
-            except Exception as e:
-                print(f"[yellow]⚠[/yellow] Hybrid recommended cycle log skipped: {e}")
         except Exception as e:
             print(f"[yellow]⚠[/yellow] Hybrid integration skipped: {e}")
-    
+
     print_footer()
 
     # Observable final summary for the daily run (what was sent to Pine, what was logged)

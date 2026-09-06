@@ -4,7 +4,6 @@ HYDRA Daily One-Command Ritual
 
 Run this for the full recommended daily experience:
     python daily.py
-    python daily.py --refresh-pnl          # also update live PnL in the Excel tracker
     python daily.py --universe sp500       # smaller/faster run
 
 What it does:
@@ -84,11 +83,6 @@ def print_tv_instructions():
     print("   • Ranks, composites, strict, and special modes come from the full SPEC run.")
     print("   • Set alerts on the script (e.g. Strict + High Composite).")
 
-    print("\n" + "=" * 70)
-    print("Optional next step for live PnL tracking:")
-    print("   python refresh_current_prices.py --lookback 5")
-    print("=" * 70 + "\n")
-
 
 def backup_history_after_run():
     """history/ lives on one disk and is the only record of what was recommended. Copy it out.
@@ -111,31 +105,14 @@ def backup_history_after_run():
             print("     v9 state/ also needs HYDRA_BACKUP_DIR for an off-disk copy (TASK-346)")
 
 
-def maybe_refresh_pnl(do_refresh: bool):
-    if not do_refresh:
-        return
-    print(">>> Refreshing current prices for live PnL (portfolio_cycles.xlsx)...\n")
-    try:
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "refresh_current_prices.py"), "--lookback", "10"],
-            cwd=ROOT,
-        )
-        if result.returncode != 0:
-            print("[WARN] PnL refresh had issues (you can run it manually later).")
-    except Exception as e:
-        print(f"[WARN] Could not run refresher: {e}")
-
-
 def _main(argv=None, runlog=None):
     parser = argparse.ArgumentParser(description="HYDRA Daily Ritual — one command to rule them all.")
     parser.add_argument("--universe", default="all",
                         help="Universe to use (all, sp500, nasdaq100, etc.). Default: all")
-    parser.add_argument("--refresh-pnl", "--pnl", action="store_true",
-                        help="Also run the price refresher at the end for live PnL in Excel.")
     parser.add_argument("--no-instructions", action="store_true",
                         help="Skip the big TradingView copy-paste instructions (not recommended).")
     parser.add_argument("--skip-screener", action="store_true",
-                        help="Only print instructions + optional refresh (assumes you already ran the screener).")
+                        help="Only print instructions (assumes you already ran the screener).")
     parser.add_argument("--v9", action="store_true",
                         help="After the screener, run the v9 instruction CLI (50/50 T20+ETF). "
                              "Also runs automatically if ALGO_VERSION is v9.")
@@ -165,9 +142,6 @@ def _main(argv=None, runlog=None):
 
     if not args.no_instructions:
         print_tv_instructions()
-
-    if args.refresh_pnl:
-        maybe_refresh_pnl(True)
 
     from config import ALGO_VERSION
     v9_status, v9_message, v9_out = None, "", None

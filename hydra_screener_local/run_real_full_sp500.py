@@ -192,20 +192,6 @@ save_daily_run(
 
 print(f"      [OK] Historial: {os.path.join(HISTORY_DIR, f'{today}_full.json')}")
 
-# Log top5 cycle for the DYNAMIC PnL Excel (entry ~ last close, PnL formulas, refreshable current)
-try:
-    if len(candidates) >= 5:
-        top5 = candidates.head(5)['ticker'].tolist()
-        entry_prices = {}
-        for t in top5:
-            if t in prices.columns and len(prices[t].dropna()) > 0:
-                entry_prices[t] = float(prices[t].dropna().iloc[-1])
-        import log_cycle_positions
-        log_cycle_positions.log_cycle(datetime.now(), top5, candidates, notes=f"live FULL run UNIVERSE={u}", entry_prices=entry_prices)
-        print("      [OK] Cycle PnL logged (dynamic entry/current/PnL) -> backtest/portfolio_cycles.xlsx")
-except Exception as e:
-    print(f"      [warn] cycle log skipped: {e}")
-
 elapsed = (datetime.now() - start_time).total_seconds()
 u = getattr(config, 'UNIVERSE', 'sp500')
 label = "COMBINED (SP500 + Nasdaq100 + Dow30)" if u.lower() == "all" else u.upper()

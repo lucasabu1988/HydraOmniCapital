@@ -53,8 +53,8 @@ def _discover_packages() -> tuple[str, ...]:
 PACKAGES = _discover_packages()
 #: scripts whose --help must work from an installed wheel
 CONSOLE_SCRIPTS = (
-    "hydra-daily", "hydra-refresh", "hydra-watch", "hydra-dashboard", "hydra-console",
-    "hydra-store", "hydra-journal", "hydra-reconcile", "hydra-confirm", "hydra-runlog",
+    "hydra-daily", "hydra-store", "hydra-journal", "hydra-reconcile", "hydra-confirm",
+    "hydra-runlog",
 )
 
 

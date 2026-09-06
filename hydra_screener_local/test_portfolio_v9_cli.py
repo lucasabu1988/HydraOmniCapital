@@ -170,7 +170,6 @@ def test_daily_auto_runs_v9_when_flag_is_v9(monkeypatch):
     monkeypatch.setattr(daily_mod, "run_screener", lambda universe: 0)
     monkeypatch.setattr(daily_mod, "backup_history_after_run", lambda: None)
     monkeypatch.setattr(daily_mod, "print_tv_instructions", lambda: None)
-    monkeypatch.setattr(daily_mod, "maybe_refresh_pnl", lambda x: None)
     monkeypatch.setattr("portfolio_v9.run", lambda *a, **k: called.append(1))
     rc = daily_mod.main(["--skip-screener", "--no-instructions"])
     assert rc == 0 and called == [1]
@@ -184,7 +183,6 @@ def test_daily_without_v9_flag_does_not_call_cli(monkeypatch):
     monkeypatch.setattr(daily_mod, "run_screener", lambda universe: 0)
     monkeypatch.setattr(daily_mod, "backup_history_after_run", lambda: None)
     monkeypatch.setattr(daily_mod, "print_tv_instructions", lambda: None)
-    monkeypatch.setattr(daily_mod, "maybe_refresh_pnl", lambda x: None)
 
     def boom(*a, **k):
         called.append(1)
@@ -201,7 +199,6 @@ def test_daily_v9_flag_invokes_cli(monkeypatch, tmp_path):
     monkeypatch.setattr(daily_mod, "run_screener", lambda universe: 0)
     monkeypatch.setattr(daily_mod, "backup_history_after_run", lambda: None)
     monkeypatch.setattr(daily_mod, "print_tv_instructions", lambda: None)
-    monkeypatch.setattr(daily_mod, "maybe_refresh_pnl", lambda x: None)
 
     def fake_run(capital=None, **k):
         seen["capital"] = capital

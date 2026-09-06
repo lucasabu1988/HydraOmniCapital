@@ -338,6 +338,15 @@ R-1004  python -m ruff check . --config ruff.toml  ->  Found 5 errors
         (run_all_tests.py reported: ruff (report-only): All checks passed!)
 ```
 
+> **Later (2026-09-06, after phase 10).** Five of the modules named above were deleted as
+> parked pre-v9 tooling: `console_dashboard.py`, `generate_html_dashboard.py`,
+> `live_watcher.py`, `refresh_current_prices.py` and `log_cycle_positions.py`, together with
+> their four console scripts, their `py-modules` entries, the `rich` optional extra whose only
+> importer was the first of them, and `test_cycle_logger_calendar.py`. The reproductions above
+> are the record as it stood at the base commit and are left unedited; R-1001's gates now
+> certify a smaller surface, which is the point of them — they were what caught the
+> declarations left behind when the files went.
+
 ### What phase 10 added as gates, not as claims
 
 `.github/workflows/test.yml` grew from two jobs to seven, and every one of them except

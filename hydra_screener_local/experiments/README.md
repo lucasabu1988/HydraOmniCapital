@@ -21,8 +21,6 @@ After any of the above, the hybrid artifacts are ready:
 
 Core utilities (stay in root for easy access):
 - daily.py (recommended one-command daily ritual)
-- refresh_current_prices.py (live PnL refresher)
-- log_cycle_positions.py (cycle logging + PnL tracker)
 - run_all_tests.py (one-command test runner)
 - clean_artifacts.py (safe cleanup of generated output/, backtest/ temps, data_cache/, __pycache__ etc.)
 

@@ -127,12 +127,15 @@ def test_r1002_every_dependency_carries_a_lower_bound():
         assert ">=" in spec or "==" in spec, f"{spec} has no version bound"
 
 
-def test_r1002_an_optional_dependency_is_declared_optional():
-    """`rich` was a hard requirement that was not installed and is not needed:
-    console_dashboard falls back to plain text."""
+def test_r1002_no_dependency_is_declared_that_nothing_imports():
+    """R-1002 — phase 10.3. `rich` was a hard requirement nobody installed and nothing
+    needed. Its one importer, console_dashboard.py, has since been deleted, so the
+    optional extra went with it: what this now guards is that it does not come back
+    as a hard dependency."""
     hard = _proj_names(PYPROJECT["project"]["dependencies"])
     assert "rich" not in hard
-    assert "rich" in _proj_names(PYPROJECT["project"]["optional-dependencies"]["rich"])
+    extras = PYPROJECT["project"].get("optional-dependencies") or {}
+    assert "rich" not in extras
 
 
 def test_r1003_the_python_floor_matches_the_code():

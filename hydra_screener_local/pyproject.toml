@@ -33,10 +33,8 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# `rich` is genuinely optional: console_dashboard.py falls back to plain text when it
-# is absent (RICH_AVAILABLE). It was listed as a hard requirement in requirements.txt
-# and was not installed on Lucas's machine — a divergence nothing noticed (phase 10.3).
-rich = ["rich>=13.7"]
+# The `rich` extra is gone with console_dashboard.py, its only importer. R-1002 stands
+# on the record: it was a hard requirement nobody installed and nothing needed.
 dev = [
     "pytest>=8.0",
     "pytest-timeout>=2.3",
@@ -47,10 +45,6 @@ dev = [
 
 [project.scripts]
 hydra-daily = "daily:main"
-hydra-refresh = "refresh_current_prices:main"
-hydra-watch = "live_watcher:main"
-hydra-dashboard = "generate_html_dashboard:main"
-hydra-console = "console_dashboard:main"
 hydra-store = "store_cli:main"
 hydra-journal = "journal:main"
 hydra-reconcile = "reconcile:main"
@@ -73,18 +67,13 @@ include = ["analytics*", "core*", "data*", "sleeves*", "utils*"]
 py-modules = [
     "config",
     "confirm_fills",
-    "console_dashboard",
     "daily",
     "dashboard_v9",
-    "generate_html_dashboard",
     "generate_pine_watchlist",
     "journal",
-    "live_watcher",
-    "log_cycle_positions",
     "portfolio_v9",
     "preflight",
     "reconcile",
-    "refresh_current_prices",
     "runlog_cli",
     "screener",
     "send_hydra_summary",

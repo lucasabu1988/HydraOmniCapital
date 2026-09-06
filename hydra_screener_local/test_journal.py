@@ -196,7 +196,6 @@ def test_daily_note_hook(tmp_path, monkeypatch):
     monkeypatch.setattr(daily_mod, "run_screener", lambda universe: 0)
     monkeypatch.setattr(daily_mod, "backup_history_after_run", lambda: None)
     monkeypatch.setattr(daily_mod, "print_tv_instructions", lambda: None)
-    monkeypatch.setattr(daily_mod, "maybe_refresh_pnl", lambda x: None)
 
     real_run = V.run
 

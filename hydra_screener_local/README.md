@@ -39,10 +39,6 @@ Or with the new packaged entrypoints (after `pip install -e .`):
 
 ```bash
 hydra-daily
-hydra-refresh
-hydra-watch
-hydra-dashboard
-hydra-console
 ```
 
 **Next step in TradingView** (takes 30 seconds):
@@ -73,11 +69,6 @@ graph LR
 | Tool                        | Command                        | What it does |
 |----------------------------|--------------------------------|--------------|
 | **Daily Ritual**           | `python daily.py`             | Full run + beautiful TV instructions |
-| **Live PnL Refresher**     | `python refresh_current_prices.py --lookback 5` | Updates current prices so Excel PnL formulas stay live |
-| **Live Watcher**           | `python live_watcher.py --interval 60 --refresh-pnl` | Polls for new runs and auto-triggers webhooks + PnL |
-| **HTML Dashboard**         | `python generate_html_dashboard.py` | Self-contained browser dashboard (no TV needed) |
-| **Console Dashboard**      | `python console_dashboard.py --watch` | Terminal execution dashboard (regime, Rec? list, cycles PnL) |
-| **Cycle PnL Tracker**      | `log_cycle_positions.py`      | Logs every recommended list (including exact hybrid ones) to dynamic Excel |
 | **Analysis & Backtest**    | `python analyze_history.py --export-excel --hybrid-only` | Deep history + win-rate + Excel reports (hybrid-only mode available) |
 | **Artifact Cleaner**       | `python clean_artifacts.py --dry-run` | Safe cleanup of output/, backtest/ temps, data_cache/, __pycache__, etc. |
 
@@ -156,7 +147,6 @@ Contributions and feedback welcome!
 
 ---
 
-**Made for traders who want serious edge without giving up control or privacy.** 
+**Made for traders who want serious edge without giving up control or privacy.**
 
 Run it. Paste it. Trade it. Track it. All locally.
-

@@ -137,17 +137,6 @@ save_daily_run(
 )
 print(f"[OK] History saved: history/{today}.json")
 
-# Dynamic PnL cycle log (for 5/5 rotation tracking)
-try:
-    if len(candidates) >= 5:
-        top5 = candidates.head(5)['ticker'].tolist()
-        entry_prices = {t: float(prices[t].dropna().iloc[-1]) for t in top5 if t in prices.columns and len(prices[t].dropna()) > 0}
-        import log_cycle_positions
-        log_cycle_positions.log_cycle(datetime.now(), top5, candidates, notes="live headless run", entry_prices=entry_prices)
-        print(f"[OK] Top-5 cycle logged to backtest/portfolio_cycles.xlsx (entry/current + PnL formulas)")
-except Exception as e:
-    print(f"[warn] PnL cycle log skipped: {e}")
-
 print("\n" + "=" * 60)
 print("HEADLESS REAL-DATA TEST COMPLETE")
 print("=" * 60)
