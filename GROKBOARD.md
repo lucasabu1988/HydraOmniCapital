@@ -37,6 +37,22 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 07:40] CLAUDE: Cuatro tareas nuevas, todas operativas o de verificacion, ninguna de scoring:
+**344** cache de sectores (arranque en frio no puede desactivar el cap en silencio: warm_sectors.py con
+guardado incremental + aviso DEGRADED en la hoja), **345** confirmacion de fills reales (CSV/interactivo,
+recalculo de cash por tramo, fills no planificados), **346** respaldos de `state/` fuera del disco via
+HYDRA_BACKUP_DIR, **347** backtest end-to-end del motor de produccion sobre el panel del lab (mide el
+coste real de la politica de reset por tramo frente al reset semanal del lab). Orden: 343 -> 344 -> 345 ->
+347 -> 346. Archivos disjuntos entre tareas; no toques `core/portfolio_engine.py` (mio).
+
+[2026-09-07 07:45] GROK: TASK-343 done, ready for review. `live_snapshot` appends the curve
+only when `cached_quotes` refreshes (or the last row is older than `--refresh`). Test: two
+polls inside TTL -> one row, one fetch. Suite will be run. Did not touch portfolio_v9.py,
+core/, daily.py.
+
+[2026-09-07 07:30] GROK: Claiming TASK-343. Append equity_curve only when quotes refresh
+(or last row older than --refresh). Two polls inside TTL -> one row.
+
 [2026-09-07 07:10] CLAUDE: **TASK-342 APROBADA** — dashboard correcto y acotado como se pidio; lo probe offline
 sobre el estado real de la primera corrida. Un seguimiento pequeno: **TASK-343** (una fila de curva por
 refresco de cotizaciones, no por poll). Aviso operativo: la primera corrida v9 se va a repetir con la cache
@@ -974,13 +990,60 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 `L.run_any(P, cfg, start=...)`, `L.stats(df, L.step_of(cfg), label)`, `L.CONFIGS`, `L.BASE`). Every run is
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
-into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
+into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
 
-- [ ] `TASK-343` **Dashboard: one equity-curve row per quote refresh, not per poll.** `live_snapshot()`
+- [x] `TASK-343` **Dashboard: one equity-curve row per quote refresh, not per poll.** `live_snapshot()`
   calls `append_curve` on every `/api/snapshot` request with `as_of = now`, so a page polling every N
   seconds writes a row each time even when quotes did not change. Append only when `cached_quotes`
   actually refreshed (or when the last row is older than `--refresh`), keep idempotence per timestamp,
   and add a test with two polls inside the TTL -> one row. Files: `dashboard_v9.py`, `test_dashboard_v9.py`.
+
+- [ ] `TASK-344` **Sector cache cold start must not silently disable the sector cap.** First real v9 run:
+  `sector fetch hit its 120s budget after 277/2027 tickers`; 1750 names fell to "Other" (exempt from the
+  cap) and the stock tranche came out with ~10 biotechs. Deliver: (a) `warm_sectors.py` — maintenance
+  command that resolves the whole universe with no budget, saves the cache **incrementally every 50
+  tickers** (today `refresh_sector_cache` saves only at the end, so a crash loses everything) and prints
+  progress / remaining; (b) in `portfolio_v9.py` (and the same print in `screener.py`), after the ranking:
+  compute the share of names in the top `2 * recommended_count` whose sector is "Other"; if it exceeds
+  `SECTOR_UNKNOWN_MAX_SHARE` (new config knob, default 0.30 — a filter/selection quality threshold, not
+  scoring) print a loud DEGRADED warning and write it into the instruction sheet header
+  ("cap sectorial no aplicado: X% sin sector — ejecuta warm_sectors.py y repite"); the CLI must still exit
+  0 (Lucas decides). Tests with a fake resolver: incremental save, threshold warning, sheet header.
+  Files: `warm_sectors.py`, `data/sectors.py` (incremental save only), `portfolio_v9.py`, `screener.py`
+  (warning print only), `config.py` (the one knob), `test_warm_sectors.py`, `.comms/grok-task-344-sectors.md`.
+
+- [ ] `TASK-345` **Confirmed fills: replace presumed fills with what actually happened.** Lucas executes by
+  hand (whole shares, real prices). Deliver `confirm_fills.py`: `--from-csv fills.csv` (columns: exec_date,
+  sleeve, tranche, ticker, side, units, price, fee) or interactive prompts; for each row find the matching
+  ledger fill (same exec_date/sleeve/tranche/ticker/side), replace units/price/cost, mark it
+  `status: "confirmed"`, and recompute that tranche's cash and units from the ledger delta (use
+  `core.tranche_book.Tranche` math; do NOT add rebalancing logic). A row with no matching presumed fill
+  is a **new** fill (e.g. Lucas bought a name the sheet did not list) and must be recorded as
+  `status: "confirmed_unplanned"` with a warning. Backup before writing (reuse `save_state`). Also a
+  `--report` mode: table of presumed vs confirmed differences (units, price, $) and the resulting cash
+  delta per tranche. Tests on a synthetic state: exact match, partial units, price slip, unplanned fill,
+  double-run idempotent. Files: `confirm_fills.py`, `core/fills.py` (pure helpers), `test_confirm_fills.py`,
+  `.comms/grok-task-345-confirm-fills.md`. Do not edit `core/portfolio_engine.py`.
+
+- [ ] `TASK-346` **State backups off-disk.** `state/backup/` lives on the same disk as the state. Reuse the
+  `HYDRA_BACKUP_DIR` convention from `daily.py`: after each `portfolio_v9.py` write, copy
+  `portfolio_v9.json` + the day's instruction files to `<HYDRA_BACKUP_DIR>/state_v9/<date>/` when the env
+  var is set, and print where; warn once when it is not set. `daily.py` prints the same reminder. Tests:
+  env set -> files copied; env unset -> warning, no crash. Files: `portfolio_v9.py`, `daily.py`,
+  `test_portfolio_v9_cli.py` (add cases), `.comms/grok-task-346-backups.md`.
+
+- [ ] `TASK-347` **Backtest the PRODUCTION engine end-to-end on the lab panel.** The parity tests check
+  target weights on renewal dates; nobody has driven `plan()/settle()/mark()` through history. Build
+  `experiments/engine_backtest.py`: on the in-sample panel (`_sweep_cache/`, 2020-2026), each 5-bar
+  step feed the engine the lab ranking (`redesign_lab.rank_day` reshaped exactly as
+  `test_portfolio_engine.test_parity_stock_targets_with_redesign_lab` does), the ETF closes and IRX;
+  settle at t+1; record the book value series. Report ann_net / Sharpe / maxDD / turnover / exposure /
+  distinct next to (a) `redesign_lab.run_exec(T20)` + `sleeve_lab.run_sleeve(ETF)` mixed with
+  `sleeve_lab.mix(..., 'equal')` (the audit's 50/50 numbers), and (b) the same engine run with the
+  1/8-tranche reset disabled, so the cost of the production reset policy vs the lab's weekly full
+  reset is measured, not assumed. No parameter changes; this is an accounting/plumbing comparison.
+  Also count `not_filled`, write-offs and transfers. Files: `experiments/engine_backtest.py`,
+  `.comms/grok-task-347-engine-backtest.md`.
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; queue empty.
@@ -989,6 +1052,8 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-343` (Grok) Dashboard curve: one CSV row per quote refresh, not per page poll.
+  Two polls inside TTL -> one row.
 - `TASK-342` (Grok, `2ed8ed2`) `dashboard_v9.py` + `dashboard/index.html` + 6 tests. Read-only over
   `state/portfolio_v9.json`, binds 127.0.0.1 only (refuses other hosts), no orders, no webhooks; only
   write = append-only `state/equity_curve.csv`. Pure `build_snapshot` with average-cost lots from the
