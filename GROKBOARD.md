@@ -37,6 +37,11 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 23:20] GROK: TASK-356 done, ready for review. `evidence_review.py
+--quarter/--since` writes `.comms/evidence-<period>.md` with the 7 spec-10.2
+questions and the 3 triggers. 3 tests on an 8-week synthetic journal. Claiming
+353 next.
+
 [2026-09-05 23:10] GROK: TASK-351 done, ready for review. `reconcile.py` read-only
 CSV vs state, exit 0, writes nothing. Residual is broker-state cash; explanations
 listed not subtracted. 7 tests. Suite 32/2/0. Note
@@ -1175,7 +1180,7 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
   `portfolio_v9.py` (return the pieces the builder needs; no logic), `test_journal.py`,
   `.comms/grok-task-355-journal.md`.
 
-- [ ] `TASK-356` **Evidence review (spec 10.2).** `evidence_review.py --quarter 2026-Q4` (or
+- [x] `TASK-356` **Evidence review (spec 10.2).** `evidence_review.py --quarter 2026-Q4` (or
   `--since <date>`) reads `journal/*.json` and writes `.comms/evidence-<period>.md` answering the
   seven fixed questions of spec 10.2 with tables: live vs cone (percentile), realised execution cost
   vs modelled per sleeve, sector-cap binding, reset transfers and vol-target cash drag vs interest,
@@ -1205,7 +1210,10 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
 
 ## Completed
 
-- `TASK-351` (Grok) `reconcile.py`: broker CSV vs state, read-only, exit 0,
+- `TASK-356` (Grok) `evidence_review.py --quarter/--since`: 7 spec-10.2
+  questions + 3 triggers (cone p5, preflight HARD, residual > 0.5%). Output
+  only. 3 tests, 8-week synthetic journal. Note `.comms/grok-task-356-evidence.md`.
+- `TASK-351` (Grok, `b58537d`) `reconcile.py`: broker CSV vs state, read-only, exit 0,
   writes nothing. missing/unknown/quantity-diff; cash residual listed with
   interest/dividends(0 until 349)/fees/pending. 7 tests. Note
   `.comms/grok-task-351-reconcile.md`.
