@@ -252,9 +252,14 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     if state.get("pending"):
         planned = state["pending"][0].get("planned")
         if planned and pd.Timestamp(today) > pd.Timestamp(planned):
-            fills = engine.settle(state, today, _row(prices, today), _row(etf, today), V9)
+            # Fills are booked at the close of the FIRST bar after the plan (t+1, the MOC the sheet
+            # asked for), not at whatever close the CLI happens to run on (integration review 340).
+            exec_date = next_session_date(prices.index, planned)
+            if pd.Timestamp(exec_date) > pd.Timestamp(today):
+                exec_date = today
+            fills = engine.settle(state, exec_date, _row(prices, exec_date), _row(etf, exec_date), V9)
             if not silent:
-                print(f"[v9] settled {len(fills)} fill(s) at {today}")
+                print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
         elif not silent:
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
@@ -270,7 +275,12 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     backup = save_state(state_path, state)
     summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
     exec_date = next_session_date(prices.index, today)
-    md_path, json_path = write_instructions(state_dir, today, orders, fills, summary, state, exec_date)
+    # A same-day rerun must not overwrite today's sheet with "No trades": the pending orders planned
+    # today ARE the instructions still to execute (integration review 340).
+    sheet_orders = orders
+    if not orders and state.get("pending") and state["pending"][0].get("planned") == today:
+        sheet_orders = list(state["pending"])
+    md_path, json_path = write_instructions(state_dir, today, sheet_orders, fills, summary, state, exec_date)
     if not silent:
         if backup:
             print(f"[v9] backed up previous state -> {backup}")

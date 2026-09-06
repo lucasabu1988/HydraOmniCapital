@@ -37,6 +37,13 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 05:20] CLAUDE: **340 y 341 APROBADAS** (notas en Completed). Cerre el hallazgo de la 341 en el
+motor y aplique dos correcciones de integracion en `portfolio_v9.py` (liquidacion en t+1 real; la hoja no
+se pisa al repetir el dia) — tocadas como integradora, declaradas aqui. Suite completa verde. **Todos los
+criterios de aceptacion del diseno (seccion 4) estan cumplidos**: paridad, casos a mano, idempotencia,
+motor sin red, suite, revision cruzada. Falta la decision de Lucas para poner `ALGO_VERSION = "v9"`; se
+lo propongo en un commit separado. Cola vacia.
+
 [2026-09-07 04:00] CLAUDE: Parametros operativos de Lucas para la 340: `--capital` por defecto **100000**
 (USD); ancla = **lunes**. En nuestra convencion (senal al cierre t, ejecucion MOC en t+1) eso significa: la
 primera corrida se hace el viernes tras el cierre o en fin de semana, la barra ancla es ese viernes y las
@@ -939,24 +946,6 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [x] `TASK-340` **v9 state, CLI and instruction sheet — starts when Claude posts the engine interface
-  (`core/portfolio_engine.py`) on the board.** `portfolio_v9.py`: load `state/portfolio_v9.json`
-  (schema in design §3; create on first run with `--capital USD` and anchor date), back it up to
-  `state/backup/<ts>.json` before every write, fetch data (TASK-339), call the engine, persist the new
-  state, write `state/instructions_<date>.md` and `.json` (per sleeve/tranche: sells, buys, target $, units
-  at last close, cash, portfolio exposure, distinct names; "no trades today" on non-renewal days). Running
-  twice on the same date must not duplicate orders (idempotent). `daily.py --v9` runs it after the
-  screener; without the flag nothing changes. `.gitignore`: `hydra_screener_local/state/`. Tests on a tmp
-  state dir with a fake engine result. Files: `portfolio_v9.py`, `daily.py`, `test_portfolio_v9_cli.py`,
-  `.gitignore`, `.comms/grok-task-340-v9-cli.md`.
-
-- [x] `TASK-341` **Independent review of the v9 engine and its parity with the simulator — starts when
-  Claude's engine commit lands.** Reproduce the parity test yourself on the in-sample panel, then attack:
-  a renewal week with zero recommended (tranche must go to T-bill, never fall back), all ETFs off, a
-  held name with no price on the execution day, the 50/50 reset when one sleeve doubled, running the
-  engine twice on the same date, a capital_reference change mid-life. Failing tests, not fixes. Files:
-  `test_review_341.py`, `.comms/grok-task-341-review-engine.md`.
-
 - [!] **Decided by Lucas 2026-09-06:** production moves to the **50/50 T20 + ETF portfolio** (objective:
   return per unit of risk); no tracking runs on the machine. Still open for Lucas: cash in a money-market
   fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; work in TASK-339..341.
@@ -965,6 +954,20 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-341` (Grok, `47e6696`) `test_review_341.py` (8: 7 hold, 1 finding). Parity reproduced
+  independently (stock targets vs redesign_lab, >= 20 dates, 1e-9). Attacks held: zero recommended parks,
+  all ETFs off parks, no price on execution day -> not_filled, imbalanced reset transfers match, same-day
+  plan idempotent, capital_reference is a label (no rescale). Finding: `park` / `hold_no_price` vanished at
+  settle() with no ledger row. Fixed by Claude (status "noted" in the ledger). Review (Claude): **APPROVED**;
+  8/8 green.
+- `TASK-340` (Grok, `cd348ea`) `portfolio_v9.py` (state with backup, fetch via 339, ranking with
+  `momentum_window=mom12_7` and 2y prices, engine, instruction sheet md+json saying "ejecutar al cierre del
+  <t+1>"), `daily.py --v9` (and auto when ALGO_VERSION == "v9"), `state/` gitignored, 7 tests without
+  network. Review (Claude): **APPROVED with two integration fixes** applied by the integrator (files
+  declared here): (1) fills were booked at whatever close the CLI ran on; now at the first bar after the
+  plan date (the MOC the sheet asked for), capped at today if the CLI is late; (2) a same-day rerun
+  overwrote the day's sheet with "No trades today"; the sheet now lists the pending orders planned that day
+  (test adjusted). Everything else kept as delivered.
 - `TASK-341` (Grok) Independent review of engine `62598ab`. Parity reproduced (>=20 dates).
   7 holds, 1 fail: `settle()` drops `park`/`hold_no_price` from pending with no ledger row.
   Note `.comms/grok-task-341-review-engine.md`.

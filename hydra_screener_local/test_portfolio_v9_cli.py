@@ -105,8 +105,11 @@ def test_second_run_same_date_does_not_duplicate_orders(tmp_path):
     assert eng.settles == 0                                   # still t, not t+1
     assert out["orders"] == []
     assert out["no_trades"] is True
+    # the sheet for this date must still show the pending orders planned today (a rerun must not
+    # overwrite the instructions with "No trades"; integration review 340)
     text = Path(out["instructions_md"]).read_text(encoding="utf-8")
-    assert "No trades today" in text
+    assert "No trades today" not in text
+    assert "| sleeve | tranche | side |" in text
     backups = list((tmp_path / "backup").glob("*.json"))
     assert len(backups) == 1
     state = json.loads(Path(tmp_path / "portfolio_v9.json").read_text(encoding="utf-8"))

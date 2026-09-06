@@ -280,6 +280,11 @@ def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.
                 tr.last_px[o["ticker"]] = p
                 tr.cash -= dollars + cost
             fills.append(dict(o, exec_date=exec_date, status="filled", units=units, price=p, dollars=dollars, cost=cost))
+    # park / hold_no_price are instructions too: they land in the ledger as "noted" so the audit
+    # trail matches the sheet (review 341).
+    for o in pend:
+        if o["side"] in ("park", "hold_no_price"):
+            fills.append(dict(o, exec_date=exec_date, status="noted"))
     for sleeve in SLEEVES:
         _dump(state, sleeve, books[sleeve])
     state["ledger"].extend(fills)
