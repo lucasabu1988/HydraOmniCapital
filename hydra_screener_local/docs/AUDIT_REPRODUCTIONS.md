@@ -119,3 +119,27 @@ R-302  two saves inside the same second overwrite the backup silently
 R-303  files in state dir: instructions_*.json, instructions_*.md, portfolio_v9.json
        (no run journal, no status, no recovery marker)
 ```
+
+## Phase 4 — dividends and corporate actions
+
+| id | phase | defect | reproduction | fixed in |
+|---|---|---|---|---|
+| R-401 | 4.1/4.2/4.3 | **a provider outage lost the dividend permanently.** The window was `(last_run_date, today]` and `plan()` advanced `last_run_date` whether or not the dividend query succeeded, so an ex-date first reported after the watermark had passed it could never be credited | `test_dividend_coverage.py::test_r401_*` | `fix: preserve dividend and corporate-action watermarks` |
+| R-402 | 4.3 | the query window had no overlap, so a late report was out of scope by construction | same | same |
+| R-403 | 4.5 | no coverage record existed: a run could not tell a verified window from an unobserved one, and nothing could say coverage was incomplete | `test_dividend_coverage.py::test_r403_*` | same |
+| R-404 | 4.4 | no way to retract or version a withdrawn corporate action — the credited cash was stuck in the book | `test_dividend_coverage.py::test_r404_*` | same |
+| R-405 | 4.6 | two different amounts for one (ticker, ex_date) were resolved silently by whichever row came first | `test_dividend_coverage.py::test_r405_*` | same |
+| R-406 | 4.6 | a NaN, infinite, zero or negative `dps` was dropped in silence rather than reported | `test_dividend_coverage.py::test_r406_*` | same |
+
+Recorded at the base commit:
+
+```
+R-401  a provider that returns nothing loses the dividend for good
+  day 1 (provider empty): credited=0  cash=100.0
+  day 2 (provider recovers, ex-date 01-08): credited=0  cash=100.0   <- $5.00 gone
+R-402  ex_date BEFORE the watermark (a late report): credited=0      <- lost
+R-403  state keys after crediting: ['dividends']                     (no coverage record)
+R-404  retraction API present: []
+R-405  two CONFLICTING dps for one ex-date -> credited=1 cash=105.0  (silent first-wins)
+R-406  NaN dps -> credited=0 cash=100.0                              (silently dropped)
+```

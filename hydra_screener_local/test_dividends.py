@@ -91,9 +91,26 @@ def test_first_run_without_last_run_credits_nothing():
     assert new == []
 
 
-def test_ex_date_on_or_before_last_run_skipped():
+def test_ex_date_inside_the_overlap_window_is_credited_once():
+    """Audit phase 4.3. This used to assert the *bug*: an ex-date at or before
+    `last_run_date` was skipped, which is how a late provider report was lost for
+    good (repro R-401). The overlap window catches it; the idempotency key stops it
+    from being credited twice.
+    """
     st = _state()
-    new = D.apply_dividends(st, [{"ticker": "AAA", "ex_date": "2026-01-05", "dps": 1.0}], "2026-01-10")
+    table = [{"ticker": "AAA", "ex_date": "2026-01-05", "dps": 1.0}]
+    first = D.apply_dividends(st, table, "2026-01-10")
+    assert len(first) == 1
+    assert st["sleeves"]["stocks"]["tranches"][0]["cash"] == pytest.approx(110.0)
+    again = D.apply_dividends(st, table, "2026-01-11")
+    assert again == []
+    assert st["sleeves"]["stocks"]["tranches"][0]["cash"] == pytest.approx(110.0)
+
+
+def test_ex_date_before_the_overlap_window_is_out_of_scope():
+    st = _state()
+    st["dividend_coverage"] = {"through": "2026-06-01"}
+    new = D.apply_dividends(st, [{"ticker": "AAA", "ex_date": "2026-01-05", "dps": 1.0}], "2026-06-05")
     assert new == []
 
 

@@ -51,7 +51,13 @@ from core.filters import (  # noqa: E402
 from core.signals import generate_daily_candidates  # noqa: E402
 from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
-from core.dividends import apply_dividends, summarize_dividends, tickers_from_state  # noqa: E402
+from core.dividends import (  # noqa: E402
+    apply_dividends,
+    coverage_is_complete,
+    pending_gaps,
+    summarize_dividends,
+    tickers_from_state,
+)
 from dashboard_v9 import summarize_interest  # noqa: E402
 from data.dividends import fetch_dividends  # noqa: E402
 from data.universe import get_universe  # noqa: E402
@@ -436,17 +442,37 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
     # Cash dividends (TASK-349): after settle, before plan. Tests with fetch_fn skip the network.
+    # The coverage watermark only advances on a *verified* fetch (audit phase 4.1):
+    # a provider outage used to lose every ex-date inside that window for good.
+    dividend_report: dict = {}
     if state.get("last_run_date"):
+        names = tickers_from_state(state)
+        fetch_report: dict | None = None
         if dividend_fn is not None:
-            table = dividend_fn(tickers_from_state(state))
+            table = dividend_fn(names)
+            fetch_report = {"requested": len(names), "downloaded": len(names),
+                            "failed_tickers": [], "skipped_fresh": []}
         elif fetch_fn is not None:
-            table = []
+            table, fetch_report = [], None          # injected fetch: no provider, so unverified
         else:
-            table = fetch_dividends(tickers_from_state(state))
-        credited = apply_dividends(state, table, today)
+            fetch_report = {}
+            table = fetch_dividends(names, report=fetch_report)
+        credited = apply_dividends(state, table, today, report=dividend_report,
+                                   fetch_report=fetch_report, source="yfinance")
         if credited and not silent:
             total_dv = sum(float(r.get("dollars") or 0) for r in credited)
             print(f"[v9] dividends {len(credited)} credit(s) {total_dv:.2f} USD")
+        if not silent and not dividend_report.get("verified"):
+            print(f"[v9] AVISO dividendos NO verificados; marca de agua retenida en "
+                  f"{dividend_report.get('coverage_through')} "
+                  f"({dividend_report.get('open_gaps')} hueco(s) abierto(s))")
+        for conflict in dividend_report.get("conflicts") or []:
+            if not silent:
+                print(f"[v9] AVISO dividendo en conflicto {conflict['ticker']} "
+                      f"{conflict['ex_date']}: {conflict['values']}")
+        for bad in dividend_report.get("rejected") or []:
+            if not silent:
+                print(f"[v9] AVISO fila de dividendo rechazada: {bad['reason']}")
 
     orders = []
     if not state.get("pending"):
@@ -511,6 +537,9 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         today=today, orders=orders, fills=fills, state_path=str(state_path),
         instructions_md=str(md_path), no_trades=len(orders) == 0,
         run_id=tx.run_id, run_status=tx.status, commit_record=record,
+        dividend_report=dividend_report,
+        dividend_gaps=pending_gaps(state),
+        dividend_coverage_complete=coverage_is_complete(state, today),
         # pieces for the journal builder (TASK-355); no journal logic here
         state=state, ranking=ranking, summary=summary, preflight=pf,
         sheet_orders=sheet_orders, sector_warning=sector_warning,
