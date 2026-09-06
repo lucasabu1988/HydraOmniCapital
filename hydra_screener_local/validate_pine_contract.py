@@ -106,10 +106,12 @@ def main():
 
     json_path = args.json
     if not json_path:
+        here = Path(__file__).resolve().parent
         candidates = [
             Path("pine/hydra_last_summary.json"),
             Path("history/20260601.json"),
             Path("history/20260531.json"),
+            here / "test_fixtures" / "pine_min" / "hydra_last_summary.json",
         ]
         for c in candidates:
             if c.exists():

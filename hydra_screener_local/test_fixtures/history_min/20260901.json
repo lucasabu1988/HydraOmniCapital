@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "regime_source": "rich",
+  "date": "20260901",
+  "data_last_bar": "2026-09-01",
+  "timestamp": "2026-09-01T21:00:00",
+  "regime": {
+    "score": 0.72,
+    "type": "BULL",
+    "special_modes": [],
+    "gate_blocked": false
+  },
+  "regime_secondary": null,
+  "pillar_multipliers": {
+    "COMPASS": 1.0,
+    "Rattlesnake": 1.0,
+    "Catalyst": 1.0,
+    "EFA": 1.0
+  },
+  "meta_rationale": "fixture run 1",
+  "top_candidates": [
+    {"ticker": "AAA", "rank": 1, "recommended": true, "composite_score": 1.5, "momentum": 0.4, "passes_strict": true, "special_modes": "", "sector": "Other", "reason": ""},
+    {"ticker": "BBB", "rank": 2, "recommended": true, "composite_score": 1.2, "momentum": 0.3, "passes_strict": true, "special_modes": "", "sector": "Other", "reason": ""},
+    {"ticker": "CCC", "rank": 3, "recommended": false, "composite_score": 0.8, "momentum": 0.2, "passes_strict": false, "special_modes": "", "sector": "Other", "reason": "Vetado: gate"},
+    {"ticker": "DDD", "rank": 4, "recommended": false, "composite_score": 0.6, "momentum": 0.1, "passes_strict": false, "special_modes": "", "sector": "Other", "reason": ""},
+    {"ticker": "EEE", "rank": 5, "recommended": false, "composite_score": 0.4, "momentum": 0.05, "passes_strict": false, "special_modes": "", "sector": "Other", "reason": ""}
+  ],
+  "vol_ratio_nan_share": 0.0,
+  "regime_gate_blocked": false
+}

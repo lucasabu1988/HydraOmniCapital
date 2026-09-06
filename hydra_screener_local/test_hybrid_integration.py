@@ -14,6 +14,7 @@ This is intentionally lightweight (no network, uses existing history/*.json as g
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -30,6 +31,7 @@ from send_hydra_summary import build_rich_summary
 # Paths relative to this file so cwd does not matter
 _ROOT = Path(__file__).resolve().parent
 HISTORY_DIR = _ROOT / "history"
+FIXTURE_HISTORY = _ROOT / "test_fixtures" / "history_min"
 CANDIDATE_JSONS = [
     HISTORY_DIR / "20260601.json",
     HISTORY_DIR / "20260531.json",
@@ -37,13 +39,33 @@ CANDIDATE_JSONS = [
 ]
 
 
+def _dir_latest(d: Path):
+    if not d.is_dir():
+        return None
+    files = sorted(d.glob("*.json"), reverse=True)
+    return files[0] if files else None
+
+
 def find_real_history():
+    """Live history/ if present; else HYDRA_HISTORY_DIR; else the committed fixture.
+
+    The env override lives in this test only (not in core/history.py).
+    """
+    env = os.environ.get("HYDRA_HISTORY_DIR")
+    if env:
+        p = _dir_latest(Path(env))
+        if p is not None:
+            return p
     for p in CANDIDATE_JSONS:
         if p.exists():
             return p
-    if HISTORY_DIR.is_dir():
-        for p in sorted(HISTORY_DIR.glob("*.json"), reverse=True):
-            return p
+    live = _dir_latest(HISTORY_DIR)
+    if live is not None:
+        return live
+    fixture = _dir_latest(FIXTURE_HISTORY)
+    if fixture is not None:
+        os.environ["HYDRA_HISTORY_DIR"] = str(FIXTURE_HISTORY)
+        return fixture
     return None
 
 
@@ -75,8 +97,8 @@ def main():
     print("=== HYDRA Hybrid Integration Test ===")
     history_path = find_real_history()
     if history_path is None:
-        print("[SKIP] needs history/ — run the screener first")
-        return 0
+        print("[FAIL] no history JSON and no test_fixtures/history_min")
+        return 1
     print(f"Using history source: {history_path}")
 
     with open(history_path, "r", encoding="utf-8") as f:

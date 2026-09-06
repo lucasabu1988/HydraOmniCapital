@@ -1,0 +1,50 @@
+{
+  "contract_version": "1.2",
+  "date": "20260908",
+  "generated_at": "2026-09-06T01:46:30.552304",
+  "regime": {
+    "score": 0.61,
+    "type": "NEUTRAL",
+    "special_modes": []
+  },
+  "pillars": {
+    "COMPASS": 0.9,
+    "Rattlesnake": 1.1,
+    "Catalyst": 1.0,
+    "EFA": 0.95
+  },
+  "rationale": "fixture run 2",
+  "recommended_count": 3,
+  "recommended_tickers": [
+    "BBB",
+    "CCC",
+    "DDD"
+  ],
+  "watchlist_for_pine": "BBB,CCC,DDD",
+  "top_details": [
+    {
+      "rank": 1,
+      "ticker": "BBB",
+      "composite": 1.4,
+      "momentum": 0.35,
+      "passes_strict": true,
+      "special_modes": ""
+    },
+    {
+      "rank": 2,
+      "ticker": "CCC",
+      "composite": 1.1,
+      "momentum": 0.28,
+      "passes_strict": true,
+      "special_modes": ""
+    },
+    {
+      "rank": 3,
+      "ticker": "DDD",
+      "composite": 0.9,
+      "momentum": 0.22,
+      "passes_strict": false,
+      "special_modes": ""
+    }
+  ]
+}
