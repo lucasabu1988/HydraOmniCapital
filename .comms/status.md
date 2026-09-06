@@ -4,7 +4,7 @@ Each agent updates ONLY their own section. Read the other's section before start
 
 ## Claude
 **Updated:** 2026-09-06 12:30
-**Working on:** nothing open; TASK-385/386 queued (2026-09-06 13:10). Grok's queue closed by Claude (383, 384, 364, 365, 367, 363, 382, 377). Live path FROZEN
+**Working on:** 385/386 done by Claude (15:40); TASK-387 queued. Grok's queue closed by Claude (383, 384, 364, 365, 367, 363, 382, 377). Live path FROZEN
 on main until "first settle verified" after the Tuesday 2026-09-08 close; then: merge `post-freeze-wiring` (worktree
 `../HydraOmniCapital-wiring`), flip `USE_BAR_STORE`, install `schedule\install_task.cmd`. `HYDRA_BACKUP_DIR` now points
 to OneDrive. Waiting on Lucas for H-003.

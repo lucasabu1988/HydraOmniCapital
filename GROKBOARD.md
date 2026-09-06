@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 15:40] CLAUDE: **385 y 386 HECHAS por Claude.** 385 en `main` (`3cb9ef6`): tabla `actions` desde la misma
+descarga de Yahoo (`actions=True`, 102.490 eventos, cobertura 3011 tickers), `adjust='local'` con solape sobre el crudo,
+`--verify 50` en verde a 20 anos (max 8e-7), default sigue `yahoo`. 386 en la rama `n-sleeve-engine` (`85bd377`, sobre
+`post-freeze-wiring`): motor sobre el registro, reset del paquete al `cfg['mix']`, golden intacto sin regenerar, suite
+53/0/0, y **paridad OOS byte a byte con el motor de dos sleeves** (6.96 / 0.73 / -17.8, 2150 legs, 2168 checks limpios).
+Desviacion documentada: el mix no se persiste (schema sigue 1; el golden compara el estado completo y el mix ya vive por
+libro en `portfolios.toml`). Hallazgo: el 7.10 de la 350/369 dependia de la cache viva de sectores que el laboratorio lee
+en `load_panel`; cambio hoy con los ensayos -> **TASK-387** para fijarla a un snapshot PIT. Orden de merge tras el settle:
+`post-freeze-wiring` y luego `n-sleeve-engine`.
+
 [2026-09-06 13:10] CLAUDE: Lucas pidio convertir los dos seguimientos en tareas: **TASK-385** (store con ajuste local,
 primero las guardas que dejo la 377: cache distingue 'sin dividendos' de 'fetch fallido', `--verify N` rojo ante 1e-5,
 comparacion de solape sobre raw; default sigue `yahoo` hasta una semana de verificaciones limpias) y **TASK-386**
@@ -1384,12 +1394,23 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
+- [ ] `TASK-387` **Pin the lab's sector map so backtest headlines are reproducible.** `experiments/redesign_lab.load_panel`
+  assigns sectors through `data.sectors.lookup_sector`, i.e. the live `data_cache/sector_cache.json`; when the cache
+  changed today (rehearsals, TASK-379 format) the same engine went from 7.10 to 6.96 ann_net on the PIT panel because
+  the sector cap picked other names. Give the lab a `sectors=` source: default = the latest PIT sectors snapshot
+  (`data/pit.py`, TASK-362) with its date recorded in the run's JSON (`task350.json` etc. gain `sector_snapshot`), and
+  `--sectors-date YYYYMMDD` to reproduce an older run; the live cache only when explicitly asked. Re-run
+  `engine_backtest.py --oos` twice with the same snapshot and assert identical headlines (test on a synthetic panel:
+  two runs, same snapshot, identical selections; different snapshot -> the run JSON says so). Files:
+  `experiments/redesign_lab.py` (loader only), `experiments/engine_backtest.py`, `data/pit.py` (helper), tests,
+  `.comms/grok-task-387-lab-sector-pin.md`.
+
 ### Follow-up tasks from the closed queue (Claude, 2026-09-06 13:10) — TASK-385, TASK-386
 
 For Grok when credits return, or for Claude. Purpose stated first, as always; the freeze rule and the
 flag-with-parity rule still apply.
 
-- [ ] `TASK-385` **Bar store: derive the adjusted close locally, drop the daily readjust.** TASK-377 proved
+- [x] `TASK-385` **Bar store: derive the adjusted close locally, drop the daily readjust.** TASK-377 proved
   `data/adjust.py` reproduces Yahoo's `Adj Close` to 3e-7 on 59/60 names; the one miss was a dividend table
   that came back empty after a rate-limited fetch — a silently wrong series. So the switch needs its guards first:
   (1) `data/dividends.py` cache distinguishes "fetched, no dividends" (`[]` + `updated_by_ticker` stamp) from
@@ -1404,7 +1425,7 @@ flag-with-parity rule still apply.
   two dividends. Files: `data/dividends.py`, `data/fetch.py` (cached path only), `data/adjust.py`, `store_cli.py`,
   `test_bar_store.py`, `test_dividends.py`, `test_adjust.py`, `.comms/grok-task-385-local-adjust-switch.md`.
 
-- [ ] `TASK-386` **Engine iterates N sleeves from the registry (design 366, sections 3-8).** Today
+- [x] `TASK-386` **Engine iterates N sleeves from the registry (design 366, sections 3-8).** Today
   `core/portfolio_engine.py` hardcodes `SLEEVES = ("stocks", "etf")`, two target functions and a pair reset.
   Implement the design on a branch off `post-freeze-wiring` after the merge (the engine is on the live path):
   `plan()/settle()/mark()` iterate `sleeves.registry.build(cfg)`; the mix vector `cfg["mix"]` sizes the
@@ -1959,12 +1980,25 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
-  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; queue = TASK-385 (store, freeze-safe) and TASK-386 (engine, after the merge) — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) ACCEPTED 2026-09-06, flag on in the branch.
+  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; queue = TASK-387 (lab sector pin, freeze-safe) — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) ACCEPTED 2026-09-06, flag on in the branch.
 
 ---
 
 ## Completed
 
+- `TASK-386` (Claude, branch `n-sleeve-engine` @ `85bd377`, worktree `../HydraOmniCapital-engine`) Engine iterates
+  `sleeves.registry.build(cfg)`; bundle reset to `cfg["mix"]` (legs sum to zero for any N); `mark_frame` per sleeve;
+  registry entries as names or `{name, type, cost_bp}`; state_check/preflight/verify_state take the book's cfg.
+  Golden unchanged, engine tests unchanged, 5 three-sleeve tests, OOS parity identical to the two-sleeve engine on
+  every metric and year. Mix stays in cfg, schema 1 (deviation explained in the note). SPEC 9.1/9.4.
+  Note `.comms/grok-task-386-n-sleeve-engine.md`.
+  Review (Claude): self-delivered; merge after `post-freeze-wiring`.
+- `TASK-385` (Claude, main `3cb9ef6`) Store `actions` table + coverage from the one-pass download (`actions=True`);
+  `adjust="local"` (raw x dividend factors, raw-overlap comparison, Yahoo fallback reported); `--backfill-actions`
+  (102,490 events, 3011 tickers); `--verify N` exits 1 above 1e-5 — 50 names over 20 years: max 8.2e-7, ok;
+  `fetch_dividends` reports `no_dividends` apart from failures, `coverage()`. Default stays `yahoo`. 4 tests.
+  Note `.comms/grok-task-385-local-adjust-switch.md`.
+  Review (Claude): self-delivered; flip to local after a week of clean `--verify 50`.
 - `TASK-377` (Claude, main) `data/adjust.py` (CRSP/Yahoo dividend factors, backwards cumulative; splits only for
   non-split-adjusted raw), 7 hand tests, `experiments/adjust_parity.py`: 59/60 names within 1e-6 of Yahoo's Adj Close
   (median 1.8e-7); the one miss (MKC) had 0 dividend rows after a rate-limited fetch — the guard the switch needs.
