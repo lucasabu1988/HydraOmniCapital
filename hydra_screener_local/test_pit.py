@@ -1,6 +1,7 @@
 """TASK-362 — PIT snapshots. Synthetic files, no network."""
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -23,7 +24,12 @@ def test_write_and_membership_and_pointer(tmp_path):
     data = a.read_text(encoding="utf-8")
     assert "AAPL" in data and "count" in data
     b = write_universe_snapshot("sp500", ["MSFT", "AAPL", "XOM"], "20260112", "test", pit_dir=tmp_path)
-    assert b.read_text(encoding="utf-8").strip() == "same_as_20260105"
+    # unchanged membership still points at the earlier date instead of copying 3000
+    # names, but the pointer is now a manifest carrying the content hash (phase 6.3)
+    pointer = json.loads(b.read_text(encoding="utf-8"))
+    assert pointer["same_as"] == "20260105"
+    assert pointer["content_sha256"]
+    assert pointer["revision"] == 1
     assert membership("sp500", "2026-01-10", pit_dir=tmp_path) == {"AAPL", "MSFT", "XOM"}
     assert membership("sp500", "20260112", pit_dir=tmp_path) == {"AAPL", "MSFT", "XOM"}
     write_universe_snapshot("sp500", ["AAPL", "MSFT", "NVDA"], "20260201", "test", pit_dir=tmp_path)
@@ -47,7 +53,9 @@ def test_sectors_pointer_and_unknown(tmp_path):
         {"JPM": "Financial Services", "AAPL": "Technology"},
         "20260112", unknown=["ZZZ"], pit_dir=tmp_path,
     )
-    assert p2.read_text(encoding="utf-8").strip() == "same_as_20260105"
+    pointer = json.loads(p2.read_text(encoding="utf-8"))
+    assert pointer["same_as"] == "20260105"
+    assert pointer["content_sha256"]
 
 
 def test_seed_from_local_csvs(tmp_path):

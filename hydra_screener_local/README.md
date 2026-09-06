@@ -116,6 +116,22 @@ All core logic is validated against [HYDRA_ALGORITHM_SPEC.md](HYDRA_ALGORITHM_SP
 
 ---
 
+## 🤖 Unattended (TASK-364)
+
+`python daily.py --v9 --unattended` runs the ritual without prompts and exits **0** ok, **1** the
+legacy screener failed but v9 ran, **2** preflight or an unknown state schema refused to plan (no
+sheet written), **3** exception. Every run sends a one-screen summary; 2/3 send an `ALERT`.
+
+Transports: `state/alerts.log` is always written; set `HYDRA_NOTIFY=discord,telegram` to add
+network transports, with `DISCORD_WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` in the
+environment. Secrets are never printed or logged.
+
+Windows Task Scheduler: copy `schedule/hydra.env.example` to `schedule/hydra.env` (gitignored),
+fill it in, then run `schedule\install_task.cmd` once. It registers "HYDRA daily" Mon-Fri at
+**16:45 local time** — this machine runs UTC-5 without DST, so that is 17:45 ET in summer and
+16:45 ET in winter, always after the 16:00 ET close. `schedule\uninstall_task.cmd` removes it.
+Logs land in `logs/daily_<yyyymmdd>.log`. The scheduled run never places orders.
+
 ## 🧹 Maintenance & Hygiene
 
 ```bash

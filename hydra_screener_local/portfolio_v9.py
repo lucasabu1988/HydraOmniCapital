@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import math
 import os
@@ -29,12 +30,21 @@ sys.path.insert(0, str(ROOT))
 
 from config import (  # noqa: E402
     ALGO_VERSION,
+    APPLY_SPLITS,
     FILTERS,
     SECTOR_FETCH_BUDGET_SECONDS,
     UNIVERSE,
     V9,
 )
 from core import portfolio_engine as E  # noqa: E402
+from core.commit import (  # noqa: E402
+    INSTRUCTIONS_WRITTEN,
+    RunTransaction,
+    new_run_id,
+    recover,
+    unique_path,
+)
+from core.ledger import check_invariants, format_violations  # noqa: E402
 from core.filters import (  # noqa: E402
     apply_data_quality_filter,
     apply_practical_filters,
@@ -43,10 +53,22 @@ from core.filters import (  # noqa: E402
 from core.signals import generate_daily_candidates  # noqa: E402
 from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
-from core.dividends import apply_dividends, summarize_dividends, tickers_from_state  # noqa: E402
+from core.dividends import (  # noqa: E402
+    apply_dividends,
+    coverage_is_complete,
+    pending_gaps,
+    summarize_dividends,
+    tickers_from_state,
+)
+from core.portfolios import resolve as resolve_portfolio  # noqa: E402
+from core.splits import apply_splits, summarize_splits  # noqa: E402
+from core.state_migrations import SchemaError, migrate  # noqa: E402
 from dashboard_v9 import summarize_interest  # noqa: E402
 from data.dividends import fetch_dividends  # noqa: E402
+from data.splits import fetch_splits  # noqa: E402
 from data.universe import get_universe  # noqa: E402
+from data.universe import universe_report as resolution_report  # noqa: E402
+from data.universe_registry import universe_report  # noqa: E402
 import preflight as PF  # noqa: E402
 
 STATE_NAME = "portfolio_v9.json"
@@ -77,13 +99,19 @@ def _json_ready(obj):
 
 
 def load_state(path: Path) -> dict | None:
+    """Read + migrate (TASK-360). An unknown schema_version refuses to run."""
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        state = json.load(f)
+    try:
+        return migrate(state)
+    except SchemaError as e:
+        raise SystemExit(f"state {path}: {e} - refusing to run on an unknown schema") from e
 
 
-def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> Path | None:
+def copy_state_off_disk(today: str, files: list[Path], silent: bool = False,
+                        subdir: str = "state_v9") -> Path | None:
     """Copy state + instruction files to HYDRA_BACKUP_DIR/state_v9/<date>/ when the env is set."""
     global _OFFDISK_WARNED
     dest_root = os.environ.get("HYDRA_BACKUP_DIR")
@@ -92,49 +120,91 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> 
             print("[v9] AVISO: HYDRA_BACKUP_DIR no esta definido; el backup de state/ queda en el mismo disco")
             _OFFDISK_WARNED = True
         return None
-    dest = Path(dest_root) / "state_v9" / today.replace("-", "")
+    dest = Path(dest_root) / subdir / today.replace("-", "")
     dest.mkdir(parents=True, exist_ok=True)
     for p in files:
         p = Path(p)
         if p.exists():
             shutil.copy2(p, dest / p.name)
+    # PIT snapshots (TASK-362) and run manifests (TASK-359) travel with the state.
+    for sub, src in (("pit", ROOT / "data_cache" / "pit"), ("runs", ROOT / "runs")):
+        if src.exists():
+            try:
+                shutil.copytree(src, Path(dest_root) / sub, dirs_exist_ok=True)
+            except Exception as e:  # never let a backup mirror stop the run
+                if not silent:
+                    print(f"[v9] AVISO: backup de {sub}/ fallo: {e}")
     if not silent:
         print(f"[v9] off-disk backup -> {dest}")
     return dest
 
 
 def save_state(path: Path, state: dict) -> Path | None:
-    """Backup the previous file (if any), then write. Returns the backup path."""
+    """Backup the previous file (if any), then write. Returns the backup path.
+
+    Backup names carry microseconds and a uuid tail and are never reused: with
+    second resolution, three saves inside one second left a single backup file and
+    the first two versions were gone (repro R-302).
+
+    This is the single-file writer, used by confirm_fills.py and by tools that touch
+    only the state. The daily run goes through `core.commit.RunTransaction`, which
+    also stages the instruction sheet — see `run()`.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     backup_path = None
     if path.exists():
         bdir = path.parent / "backup"
         bdir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = bdir / f"{ts}.json"
+        backup_path = unique_path(bdir / f"{new_run_id()}.json")
         shutil.copy2(path, backup_path)
     tmp = path.with_suffix(".json.tmp")
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(_json_ready(state), f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
     tmp.replace(path)
     return backup_path
 
 
-def fetch_v9_market(universe: str = None) -> dict:
-    """Prices for the engine. Stocks/ETFs use V9['price_period']; T-bill stays percent until /100."""
-    period = V9["price_period"]
-    uni = universe or os.environ.get("UNIVERSE") or UNIVERSE
+def resolve_universe(universe: str | None = None) -> tuple[str, str]:
+    """(requested, effective) universe key.
+
+    Audit phase 9.1/9.2: `--universe` reaches every stage explicitly and the effective
+    value is recorded, instead of each stage re-deriving it from the environment and
+    nobody knowing which one actually ran.
+    """
+    requested = universe if universe is not None else None
+    effective = universe or os.environ.get("UNIVERSE") or UNIVERSE
+    return (str(requested) if requested is not None else "(unset)"), str(effective)
+
+
+def fetch_v9_market(universe: str = None, cfg: dict | None = None) -> dict:
+    """Prices for the engine. Stocks/ETFs use cfg['price_period']; T-bill stays percent until /100."""
+    cfg = cfg or V9
+    period = cfg["price_period"]
+    requested, uni = resolve_universe(universe)
     tickers = get_universe(universe=uni)
+    try:
+        ureport = resolution_report(uni)        # cached resolve; WARN in preflight when on the fallback list
+    except Exception:
+        ureport = None
     stock_report, etf_report, irx_report = {}, {}, {}
     prices, volumes = fetch_prices_and_volume(tickers, period=period, report=stock_report)
     spy = fetch_spy(period=period)
-    etf = fetch_etf_closes(list(V9["etf_universe"]), period=period, report=etf_report)
+    etf = fetch_etf_closes(list(cfg["etf_universe"]), period=period, report=etf_report)
     irx = fetch_tbill(period=period, report=irx_report)
     return dict(prices=prices, volumes=volumes, spy=spy, etf=etf, irx=irx,
-                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report)
+                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report,
+                universe_report=ureport,
+                universe_requested=requested, universe_effective=uni,
+                universe_tickers=list(tickers))
 
 
-def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -> pd.DataFrame:
+def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame,
+                  universe: str | None = None, cfg: dict | None = None) -> pd.DataFrame:
+    """Rank the fetched names. `universe` is accepted so the stage can record which
+    universe it was handed rather than re-deriving one (audit phase 9.2); `cfg` is the
+    book's config when a named portfolio is running (TASK-365)."""
     prices, _ = apply_practical_filters(
         prices, volumes=volumes,
         min_avg_volume=FILTERS.get("min_avg_volume", 1_000_000),
@@ -150,8 +220,30 @@ def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -
     sector_map = resolve_sectors(list(prices.columns), budget_seconds=SECTOR_FETCH_BUDGET_SECONDS)
     return generate_daily_candidates(
         prices, spy, volumes=volumes, sector_map=sector_map,
-        momentum_window=V9["stock_momentum_window"],
+        momentum_window=(cfg or V9)["stock_momentum_window"],
     )
+
+
+def _rank(rank_fn, prices, spy, volumes, universe_effective, cfg=None):
+    """Call the ranking stage, passing the universe when the callee accepts it.
+
+    Injected test doubles take three positional arguments; the real `build_ranking`
+    takes the universe too (phase 9.2), and the book's config when a named portfolio
+    is running (TASK-365). `cfg` is passed by name only, and only to a callee that
+    declares it, so a double's signature still decides the call.
+    """
+    fn = rank_fn or build_ranking
+    kw = {}
+    if cfg is not None:
+        try:
+            if "cfg" in inspect.signature(fn).parameters:
+                kw["cfg"] = cfg
+        except (TypeError, ValueError):
+            pass
+    try:
+        return fn(prices, spy, volumes, universe_effective, **kw)
+    except TypeError:
+        return fn(prices, spy, volumes, **kw)
 
 
 def _last_date(frame) -> str:
@@ -199,8 +291,14 @@ def whole_share_display(order: dict) -> dict | None:
     return {"shares": shares, "at_est": round(at, 4), "leftover": round(dollars - at, 4)}
 
 
-def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
-                       state: dict, exec_date: str, sector_warning: str | None = None) -> tuple[Path, Path]:
+def render_instructions(date: str, orders: list, fills: list, summary: dict,
+                        state: dict, exec_date: str, sector_warning: str | None = None) -> dict:
+    """Build the instruction sheet in memory. Pure: writes nothing.
+
+    Split out of `write_instructions` so the daily run can stage and validate the
+    sheet *before* the state is committed (audit phase 3.2). Rendering it only after
+    the state had been saved is repro R-301.
+    """
     payload = {
         "date": date,
         "algo_version": "v9",
@@ -219,8 +317,8 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         "dividends": _json_ready(summarize_dividends(state)),
         "whole_shares": "display-only; orders and presumed fills stay in dollars/fractional",
     }
-    md_path = state_dir / f"instructions_{date.replace('-', '')}.md"
-    json_path = state_dir / f"instructions_{date.replace('-', '')}.json"
+    md_name = f"instructions_{date.replace('-', '')}.md"
+    json_name = f"instructions_{date.replace('-', '')}.json"
     lines = [
         f"# HYDRA v9 instructions — {date}",
         "",
@@ -257,6 +355,14 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         f"Cumulative: **{dv['cumulative']:,.2f}** USD",
         "Broker pays on pay-date, later than ex-date — reconcile.py lists that gap.",
         "",
+    ]
+    sp = summarize_splits(state)
+    if sp["records"]:
+        lines += ["## Splits (units scaled on the effective date)", ""]
+        lines += [f"- {r['date']} {r['sleeve']}[{r['tranche']}] {r['ticker']} x{r['ratio']:g}: "
+                  f"{r['units_before']:.4f} -> {r['units_after']:.4f} units" for r in sp["since_last_run"]] or ["- none since the previous run"]
+        lines += [f"Cumulative: {sp['count']} record(s)", ""]
+    lines += [
         "## Orders",
         "",
     ]
@@ -302,25 +408,81 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         for f in fills:
             lines.append(f"- {f.get('status')} {f.get('side')} {f.get('ticker')} "
                          f"{f.get('sleeve')} ${f.get('dollars', 0):.2f}")
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {
+        "md_name": md_name,
+        "json_name": json_name,
+        "md_text": "\n".join(lines) + "\n",
+        "json_text": json.dumps(payload, indent=2, ensure_ascii=False),
+        "payload": payload,
+    }
+
+
+def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
+                       state: dict, exec_date: str, sector_warning: str | None = None) -> tuple[Path, Path]:
+    """Render and write the sheet directly. Kept for callers outside the daily run."""
+    sheet = render_instructions(date, orders, fills, summary, state, exec_date,
+                                sector_warning=sector_warning)
+    md_path = Path(state_dir) / sheet["md_name"]
+    json_path = Path(state_dir) / sheet["json_name"]
+    md_path.write_text(sheet["md_text"], encoding="utf-8")
+    json_path.write_text(sheet["json_text"], encoding="utf-8")
     return md_path, json_path
 
 
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False, dividend_fn=None) -> dict:
-    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
+        force: bool = False, dividend_fn=None, run_id: str | None = None,
+        runlog=None, cfg: dict | None = None, portfolio: str | None = None,
+        allow_disabled: bool = False, split_fn=None) -> dict:
+    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
+    `runlog` is an optional `utils.runlog.RunContext` (TASK-359): data fingerprints and the
+    files written land in its manifest. None = today's behaviour."""
+    # TASK-365: a named book brings its own state dir, cfg and capital; no name = today's behaviour.
+    book = None                       # `pf` below is the preflight result; the portfolio is `book`
+    if portfolio is not None:
+        book = resolve_portfolio(portfolio, allow_disabled=allow_disabled)
+        if Path(state_dir).resolve() == DEFAULT_STATE_DIR.resolve():
+            state_dir = book.state_dir
+        if cfg is None:
+            cfg = book.cfg
+        if capital is None:
+            capital = book.capital
+    cfg = cfg or V9
+    backup_subdir = book.backup_subdir if book is not None else "state_v9"
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
-    state = load_state(state_path)
 
-    data = (fetch_fn or fetch_v9_market)(universe)
+    # Finish or discard anything an earlier interrupted run left staged, before the
+    # state is read (audit phase 3.4). Idempotent: a clean tree is a no-op.
+    healed = recover(state_dir)
+    if healed["recovered"] and not silent:
+        print(f"[v9] recovered interrupted run(s): {', '.join(healed['recovered'])}")
+    if healed["failed"]:
+        detail = "; ".join(f"{f['run_id']}: {f['error']}" for f in healed["failed"])
+        raise SystemExit(f"unrecoverable staged run(s), fix by hand before planning: {detail}")
+
+    run_id = run_id or new_run_id()
+    state = load_state(state_path)
+    if state is not None:
+        # a state that already breaks an invariant must not be planned on
+        violations = check_invariants(state)
+        if violations:
+            raise SystemExit(
+                "state on disk breaks a ledger invariant; refusing to plan:\n"
+                + format_violations(violations))
+
+    data = fetch_fn(universe) if fetch_fn is not None else fetch_v9_market(universe, cfg=cfg)
     prices, volumes, spy, etf, irx = data["prices"], data["volumes"], data["spy"], data["etf"], data["irx"]
     if prices is None or len(prices) == 0 or etf is None or len(etf) == 0:
         raise RuntimeError("v9 fetch returned no stock or ETF prices")
     today = _last_date(prices)
+    if runlog is not None:
+        for name, frame in (("stocks", prices), ("etf", etf), ("^IRX", irx)):
+            try:
+                runlog.fingerprint(name, frame)
+            except Exception:
+                pass
     tbill_rate = 0.0
     if irx is not None and len(irx) and irx.dropna().size:
         # full history, percent -> decimal: plan() builds the trailing 252-bar T-bill hurdle from it
@@ -336,15 +498,30 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         if wd != 4 and not silent:
             print(f"[v9] AVISO: primera corrida en {today} (weekday={wd}, no es viernes). "
                   f"Ancla = ultimo cierre igual. Lucas pidio ancla viernes -> primera "
-                  f"ejecucion lunes; renovaciones siguen siendo cada {V9['step_bars']} barras, "
+                  f"ejecucion lunes; renovaciones siguen siendo cada {cfg['step_bars']} barras, "
                   f"no cada lunes calendario.")
-        state = engine.new_state(cap, anchor or today, V9)
+        state = engine.new_state(cap, anchor or today, cfg)
         if not silent:
             print(f"[v9] new state capital={cap:.2f} anchor={state['anchor_date']}")
 
+    # phase 9.2: the effective universe, recorded once and carried, not re-derived
+    universe_requested = data.get("universe_requested")
+    universe_effective = data.get("universe_effective")
+    if universe_effective is None:
+        universe_requested, universe_effective = resolve_universe(universe)
+    universe_tickers = data.get("universe_tickers")
+    uni_report = None
+    if universe_tickers is not None:
+        uni_report = universe_report(universe_effective, universe_tickers, date=None,
+                                     requested=len(universe_tickers))
+    if not silent:
+        print(f"[v9] universe requested={universe_requested} effective={universe_effective}"
+              + (f" ({uni_report['n']} names, {uni_report['kind']}"
+                 + (", PROXY" if uni_report["is_proxy"] else "") + ")" if uni_report else ""))
+
     ranking = None
     if not state.get("pending"):
-        ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+        ranking = _rank(rank_fn, prices, spy, volumes, universe_effective, cfg)
     # Injected fetch (tests) uses the fixture's last bar as the session so the suite
     # does not depend on the wall clock. Live fetch compares to the last weekday.
     pf = PF.evaluate(
@@ -352,6 +529,12 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         asof=today if fetch_fn is not None else pd.Timestamp.now(),
         last_session=today if fetch_fn is not None else None,
         backup_dir=os.environ.get("HYDRA_BACKUP_DIR"),
+        universe_report=data.get("universe_report"),
+        reports={
+            "stocks": data.get("stock_report") or {},
+            "etf": data.get("etf_report") or {},
+            "^IRX": data.get("irx_report") or {},
+        },
     )
     if not silent:
         print(PF.format_table(pf))
@@ -366,30 +549,62 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             exec_date = next_session_date(prices.index, planned)
             if pd.Timestamp(exec_date) > pd.Timestamp(today):
                 exec_date = today
-            fills = engine.settle(state, exec_date, _row(prices, exec_date), _row(etf, exec_date), V9)
+            fills = engine.settle(state, exec_date, _row(prices, exec_date), _row(etf, exec_date), cfg)
             if not silent:
                 print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
         elif not silent:
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
-    # Cash dividends (TASK-349): after settle, before plan. Tests with fetch_fn skip the network.
-    if state.get("last_run_date"):
-        if dividend_fn is not None:
-            table = dividend_fn(tickers_from_state(state))
+    # Stock splits (TASK-363, H-003): after settle, before dividends, behind APPLY_SPLITS.
+    if APPLY_SPLITS and state.get("last_run_date"):
+        if split_fn is not None:
+            stable = split_fn(tickers_from_state(state))
         elif fetch_fn is not None:
-            table = []
+            stable = []
         else:
-            table = fetch_dividends(tickers_from_state(state))
-        credited = apply_dividends(state, table, today)
+            stable = fetch_splits(tickers_from_state(state))
+        applied = apply_splits(state, stable, today)
+        if applied and not silent:
+            print(f"[v9] splits {len(applied)} record(s): " + ", ".join(f"{r['ticker']} x{r['ratio']:g}" for r in applied))
+
+    # Cash dividends (TASK-349): after settle, before plan. Tests with fetch_fn skip the network.
+    # The coverage watermark only advances on a *verified* fetch (audit phase 4.1):
+    # a provider outage used to lose every ex-date inside that window for good.
+    dividend_report: dict = {}
+    if state.get("last_run_date"):
+        names = tickers_from_state(state)
+        fetch_report: dict | None = None
+        if dividend_fn is not None:
+            table = dividend_fn(names)
+            fetch_report = {"requested": len(names), "downloaded": len(names),
+                            "failed_tickers": [], "skipped_fresh": []}
+        elif fetch_fn is not None:
+            table, fetch_report = [], None          # injected fetch: no provider, so unverified
+        else:
+            fetch_report = {}
+            table = fetch_dividends(names, report=fetch_report)
+        credited = apply_dividends(state, table, today, report=dividend_report,
+                                   fetch_report=fetch_report, source="yfinance")
         if credited and not silent:
             total_dv = sum(float(r.get("dollars") or 0) for r in credited)
             print(f"[v9] dividends {len(credited)} credit(s) {total_dv:.2f} USD")
+        if not silent and not dividend_report.get("verified"):
+            print(f"[v9] AVISO dividendos NO verificados; marca de agua retenida en "
+                  f"{dividend_report.get('coverage_through')} "
+                  f"({dividend_report.get('open_gaps')} hueco(s) abierto(s))")
+        for conflict in dividend_report.get("conflicts") or []:
+            if not silent:
+                print(f"[v9] AVISO dividendo en conflicto {conflict['ticker']} "
+                      f"{conflict['ex_date']}: {conflict['values']}")
+        for bad in dividend_report.get("rejected") or []:
+            if not silent:
+                print(f"[v9] AVISO fila de dividendo rechazada: {bad['reason']}")
 
     orders = []
     if not state.get("pending"):
         if ranking is None:
-            ranking = (rank_fn or build_ranking)(prices, spy, volumes)
-        state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, V9)
+            ranking = _rank(rank_fn, prices, spy, volumes, universe_effective, cfg)
+        state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, cfg)
         if not silent:
             print(f"[v9] plan {today}: {len(orders)} order(s)")
     elif not silent:
@@ -398,22 +613,51 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     if sector_warning and not silent:
         print(f"[v9] DEGRADED {sector_warning}")
 
-    backup = save_state(state_path, state)
-    summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
+    summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], cfg)
     exec_date = next_session_date(prices.index, today)
     # A same-day rerun must not overwrite today's sheet with "No trades": the pending orders planned
     # today ARE the instructions still to execute (integration review 340).
     sheet_orders = orders
     if not orders and state.get("pending") and state["pending"][0].get("planned") == today:
         sheet_orders = list(state["pending"])
-    md_path, json_path = write_instructions(
-        state_dir, today, sheet_orders, fills, summary, state, exec_date,
-        sector_warning=sector_warning,
-    )
-    copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent)
+
+    # --- transactional commit (audit phase 3) -----------------------------------
+    # Nothing final is written until the state AND the sheet are both staged,
+    # validated and read back. Before this the state was saved first, so a failure
+    # writing the sheet left the book advanced with no instructions (repro R-301).
+    sheet = render_instructions(today, sheet_orders, fills, summary, state, exec_date,
+                                sector_warning=sector_warning)
+    tx = RunTransaction(state_dir, kind="v9-daily", date=today, run_id=run_id)
+    md_path = state_dir / sheet["md_name"]
+    json_path = state_dir / sheet["json_name"]
+    try:
+        tx.stage_text(sheet["md_name"], sheet["md_text"])
+        tx.stage_json(sheet["json_name"], sheet["payload"])
+        tx.mark(INSTRUCTIONS_WRITTEN, staged=[sheet["md_name"], sheet["json_name"]])
+        tx.stage_state(STATE_NAME, _json_ready(state))
+        record = tx.commit(state=state)
+    except Exception as e:
+        # the previous state is untouched; say so instead of half-succeeding
+        if tx.status not in ("failed", "failed_pending_recovery"):
+            tx.fail(f"{type(e).__name__}: {e}", recovery_required=False)
+        if not silent:
+            print(f"[v9] COMMIT ABORTED: {e}")
+            print(f"[v9] previous state kept at {state_path}; run {tx.run_id} needs no recovery")
+        raise
+    backup = (record.get("backups") or [None])[0]
+
+    if runlog is not None:                        # TASK-359: the manifest records what the run wrote
+        for art in (state_path, md_path, json_path, backup):
+            if art:
+                try:
+                    runlog.artifact(art)
+                except Exception:
+                    pass
+    copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent, subdir=backup_subdir)
     if not silent:
         if backup:
             print(f"[v9] backed up previous state -> {backup}")
+        print(f"[v9] run {tx.run_id} committed")
         print(f"[v9] state -> {state_path}")
         print(f"[v9] instructions -> {md_path}")
         ix = summarize_interest(state)
@@ -425,34 +669,54 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     return dict(
         today=today, orders=orders, fills=fills, state_path=str(state_path),
         instructions_md=str(md_path), no_trades=len(orders) == 0,
+        run_id=tx.run_id, run_status=tx.status, commit_record=record,
+        universe_requested=universe_requested, universe_effective=universe_effective,
+        universe_report=uni_report,
+        dividend_report=dividend_report,
+        dividend_gaps=pending_gaps(state),
+        dividend_coverage_complete=coverage_is_complete(state, today),
         # pieces for the journal builder (TASK-355); no journal logic here
         state=state, ranking=ranking, summary=summary, preflight=pf,
         sheet_orders=sheet_orders, sector_warning=sector_warning,
         last_bars={"stocks": today, "etf": _last_date(etf), "^IRX": _last_date(irx) if irx is not None and len(irx) else None},
         prices=prices, etf=etf, irx=irx,
+        manifest_path=str(runlog.directory / "manifest.json") if runlog is not None else None,
+        portfolio=book.name if book is not None else "default",
+        journal_dir=str(book.journal_dir) if book is not None else None,
     )
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="HYDRA v9 instruction CLI (50/50 T20+ETF)")
-    p.add_argument("--capital", type=float, default=100000.0,
-                   help="USD on first run (default 100000). Ignored once state exists.")
+    p.add_argument("--capital", type=float, default=None,
+                   help="USD on first run (default 100000, or the portfolio's capital_reference). "
+                        "Ignored once state exists.")
+    p.add_argument("--portfolio", default=None,
+                   help="Book from portfolios.toml (TASK-365). Default = the live book, identical to no flag.")
+    p.add_argument("--allow-disabled", action="store_true",
+                   help="Run a portfolio marked enabled = false in portfolios.toml.")
     p.add_argument("--anchor", type=str, default=None, help="YYYY-MM-DD; default = last close")
     p.add_argument("--state-dir", type=str, default=str(DEFAULT_STATE_DIR))
     p.add_argument("--universe", type=str, default=None)
     p.add_argument("--force", action="store_true",
                    help="Plan even if preflight hard-fails (stale bars, missing ETFs, unknown schema).")
     args = p.parse_args(argv)
+    from utils.runlog import start_run
+    ctx = start_run("portfolio_v9", argv=list(argv) if argv is not None else None)
+    rc = 0
     try:
-        run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
-            force=args.force)
+        with ctx:
+            run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
+                force=args.force, runlog=ctx, portfolio=args.portfolio, allow_disabled=args.allow_disabled)
     except SystemExit as e:
         print(f"[v9] {e}")
-        return 1
+        rc = 1
     except Exception as e:
         print(f"[v9] ERROR: {e}")
-        return 1
-    return 0
+        rc = 1
+    if rc:
+        ctx.finish(exit_status=rc)
+    return rc
 
 
 if __name__ == "__main__":

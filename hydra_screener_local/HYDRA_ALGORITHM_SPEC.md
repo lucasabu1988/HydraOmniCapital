@@ -586,6 +586,16 @@ yfinance `Ticker.dividends`, cached in `data_cache/dividends_cache.json`, failur
 cache. The broker pays on pay-date, later than ex-date; `reconcile.py` lists that lag as a known
 residual. Shown on the sheet and the dashboard like interest.
 
+Stock splits scale the book's units (Lucas, 2026-09-06; TASK-363, H-003). Yahoo closes are
+split-adjusted and the book's units are not, so without this a 2:1 split would halve the position on
+paper at the next mark. For each split effective after the previous run, the units held on the split
+date (reconstructed from the ledger, earlier splits applied, so a fill settled after the split is not
+scaled twice) are multiplied by the ratio and `last_px` divided by it; pending estimates are rescaled,
+dollar orders untouched. Recorded in `state["splits"]` (date, since, sleeve, tranche, ticker, ratio,
+units_before, units_after), idempotent on (date, sleeve, tranche, ticker); the ledger replay and
+`holdings_before` apply the records before that day's fills. Source: yfinance `Ticker.splits`, cached in
+`data_cache/splits_cache.json`. Applied after settle and before dividends (`config.APPLY_SPLITS`).
+
 ### 9.4 State (`state/portfolio_v9.json`, gitignored; see design section 3)
 
 schema 1: anchor_date, last_run_date, last_renewal_date, week_index, capital_reference, per sleeve

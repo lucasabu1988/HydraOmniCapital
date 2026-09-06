@@ -37,6 +37,47 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 21:05] CLAUDE: **389 cerrada, y el hallazgo no es el duplicado.** El duplicado existe (`BRK-B` de Russell 1000
+vs `BRK.B` del S&P) pero **nunca conto doble**: Yahoo no resuelve `BRK.B` (0 barras) y `BRK-A` promedia 161 acciones al dia,
+o sea muere en el filtro de liquidez todos los dias. Lo que si duele es la **grafia**: `BF.B` (Brown-Forman) esta escrito con
+punto, no tiene gemelo con guion en la union, y Yahoo tampoco lo sirve -> **Brown-Forman no puede puntuar en el screener,
+nunca ha podido**. Berkshire se salva de casualidad porque Russell 1000 lo escribe con guion. Y los dos estan en el panel
+in-sample como **columnas todo-NaN**: 2 nombres del S&P 500 que jamas fueron elegibles en ninguna medicion in-sample.
+Medido (nada asumido): en el panel OOS, que si esta normalizado (`_yahoo_ticker`), `BF-B` seria recomendado el **4.6%** de las
+fechas y `BRK-B` el **1.6%**. A/B in-sample con las columnas rellenadas: **12.18 -> 12.24 ann_net, 1.32 -> 1.33 Sharpe,
+-9.0 -> -8.9 maxDD**; `BRK-B` entra al T20 en 11 de 279 fechas y `BF-B` en ninguna.
+**Aviso metodologico, y me lo aplico a mi mismo:** la primera corrida del A/B dio headlines identicos y parecia una respuesta
+limpia. No lo era: `backtest_variant_sweep` es importable con dos nombres de modulo, asi que `bvs.CACHE = tmp` se lo puse a
+otro objeto modulo distinto del que usa `redesign_lab`, y el laboratorio cargo el panel original las dos veces — compare un
+panel consigo mismo. Lo cazo el conteo de ranking que habia anadido por si acaso (`BF.B ranked on 0/279` con 1678 barras es
+imposible). El script ahora usa `L.bvs` y aborta si el relleno no llega al panel. Cualquier script del lab que toque
+`bvs.CACHE` tiene la misma trampa esperando.
+**Recomendacion (tuya, Lucas, porque cambia la lista):** normalizar punto->guion en la construccion de la universe (ya existe
+`_yahoo_ticker`) y deduplicar la union. Consecuencia real: `BF-B` pasa a ser elegible por primera vez. Nota completa en
+`.comms/grok-task-389-duplicate-classes.md`. Cola de Grok vacia: 388-391 hechas.
+
+[2026-09-06 20:10] CLAUDE: **Grok no esta disponible (Lucas): tomo yo su cola. 388, 390 y 391 hechas; 389 midiendo.**
+**388 — el CI nunca habia corrido de verdad, y tenia razon de ser: 6 de 8 jobs en rojo** en la primera pasada (PR #40, en
+draft, no se mergea antes del settle). Uno era un bug real y de los buenos: `console_dashboard.py` anuncia un fallback de
+texto plano (`RICH_AVAILABLE`) pero anota sus funciones con `-> Panel`/`-> Table`/`-> Layout`, asi que **sin rich el modulo
+reventaba al importarse** (`NameError: name 'Panel' is not defined`): el fallback se moria antes de poder caer. Aqui no se
+veia porque esta maquina tiene rich; la fase 10.3 lo paso a extra y el venv limpio del wheel smoke lo encontro en 30
+segundos — `hydra-console` estaba roto en cualquier maquina sin rich. Los otros tres eran entorno, no defectos:
+gitleaks-action v2 exige `GITHUB_TOKEN` en un evento `pull_request`; mypy con pandas-stubs (el runner los instala, esta
+maquina no) daba dos errores de tipos que ya narre; y un `assert ... is None` que en Linux es NaN. Runs 2 y 3: **8 de 8 en
+verde**. Cobertura Linux **81.22%** (81.96% aqui), skips 0 sobre 58 archivos.
+**390** — mypy pasa de 10 a 16 modulos (dividends, journal, state_migrations, pit, runlog + precommit_gates), solo
+anotaciones. Hallazgo bonito: `MIGRATIONS: dict[int, callable]` usaba el *builtin* `callable` como tipo, o sea la anotacion
+no decia nada. Piso de cobertura **77 -> 80** anclado en el numero real de Linux, no en el de Windows.
+**391** — hook `hydra-gates` en pre-commit: ruff sobre todo el arbol, barrido de secretos y los tests de empaquetado, **4.3s**.
+El wheel smoke se queda fuera del set por defecto (9.8s: construye la wheel) y la suite entera (147s) se queda en CI.
+**389 en curso**: el duplicado no es lo que parecia. En la union `all` hay **un** grupo (`BRK-B` de Russell 1000 vs `BRK.B`
+del S&P), pero Yahoo no resuelve `BRK.B` — o sea el duplicado nunca llega a puntuar. Lo que si aparecio es peor y lo mido
+antes de proponer nada: **`BF.B` (Brown-Forman) no tiene gemelo con guion en la union y Yahoo tampoco lo resuelve**, y en el
+panel in-sample de 503 nombres hay **2 columnas todo-NaN: `BF.B` y `BRK.B`**. Dos nombres del S&P 500 que nunca han sido
+elegibles en ninguna medicion in-sample. El panel OOS esta limpio (usa `_yahoo_ticker`, tiene `BRK-B` y `BF-B`).
+Nota completa cuando termine la corrida de frecuencia T20.
+
 [2026-09-06 18:40] CLAUDE: **Auditoria estructural cerrada: fases 1-10, 61 reproducciones, rama `structural-hardening-2026-09`.**
 La fase 10 estaba a medio commitear cuando se cerro la ventana; la termine y esta en `51be4cb`. Lo gordo de esta ultima fase
 (R-1001): **la wheel nunca funciono**. `packages.find.include` no listaba `sleeves*` y los cinco scripts de consola apuntan a
@@ -1430,7 +1471,7 @@ Purpose first, as always. None of these touches the live path, so the freeze rul
 construction: nothing here merges to `main` before the 2026-09-08 settle is verified. Context:
 [`hydra_screener_local/docs/AUDIT_REPORT_2026-09.md`](hydra_screener_local/docs/AUDIT_REPORT_2026-09.md).
 
-- [ ] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
+- [x] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
   seven — `build-install-smoke`, `typecheck`, `secret-scan`, `dependency-audit`, `reproducibility`, plus a
   coverage floor and a skip gate on `screener` — and **not one of them has ever executed on GitHub**. They
   are green on Windows / Python 3.14 and nowhere else, which is exactly the shape of the defect phase 10
@@ -1443,7 +1484,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Files: `.github/workflows/test.yml`, `hydra_screener_local/tools/*.py` and `hydra_screener_local/mypy.ini`
   (only if a job is red), `.comms/grok-task-388-ci-first-run.md`.
 
-- [ ] `TASK-389` **Measure the duplicate share class before anyone dedupes it.** Phase 7 found the live `all`
+- [x] `TASK-389` **Measure the duplicate share class before anyone dedupes it.** Phase 7 found the live `all`
   universe holding `BRK-A`, `BRK-B` **and** `BRK.B`: one company under two spellings, two price series, two
   chances of being selected, and a sector cap (`MAX_PER_SECTOR=5`) that counts them as two names. It is
   reported and not fixed because deduping changes the recommended list. Measure it: (1) how many duplicate
@@ -1455,7 +1496,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Lucas's call). Files: `experiments/` (new script), `hydra_screener_local/data/universe_registry.py`
   (read-only), `.comms/grok-task-389-duplicate-classes.md`.
 
-- [ ] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** `mypy.ini` checks the 10
+- [x] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** `mypy.ini` checks the 10
   modules the audit wrote; the gate only keeps meaning if the list grows as modules are touched. Add
   `core/dividends.py`, `core/journal.py`, `core/state_migrations.py`, `data/pit.py`, `utils/runlog.py`:
   annotations only — if a module needs a **logic** change to type it, stop, leave it out and say why in the
@@ -1465,7 +1506,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Files: `hydra_screener_local/mypy.ini`, the five modules listed, `hydra_screener_local/tools/check_coverage.py`,
   `.github/workflows/test.yml`, `.comms/grok-task-390-typing-tier-2.md`.
 
-- [ ] `TASK-391` **The local half of the gates.** `.pre-commit-config.yaml` runs ruff over
+- [x] `TASK-391` **The local half of the gates.** `.pre-commit-config.yaml` runs ruff over
   `hydra_screener_local/` and nothing else, so the four cheap audit checks only fire in CI — minutes after
   the push, on someone else's machine. Add hooks that run in seconds: `ruff check .` over the whole tree
   (R-1004 was exactly the gap between "the list" and "the tree"), `tools/check_secrets.py`,

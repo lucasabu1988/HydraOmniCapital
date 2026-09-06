@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Audit phase 10.4-10.7. Seven jobs; every one of them is required on main (see
+# docs/BRANCH_PROTECTION.md for the exact list to paste into the ruleset).
+# No broker, no cloud execution, no secrets anywhere in here (phase 10.8).
+
 jobs:
   # Active product. Legacy COMPASS tests lived at repo-root tests/ and were archived to
   # archive/root-legacy-2026-09/ on 2026-09-05; they are not run.
@@ -14,7 +18,7 @@ jobs:
   # test_hybrid_integration skips without history/.
   screener:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -39,6 +43,19 @@ jobs:
       - name: Screener test suite + coverage
         run: python run_all_tests.py --cov --strict-console
 
+      # Phase 10.4: a gradual floor. Ratcheted to 80.0 once CI measured the real
+      # number on Linux (81.22% on 2026-09-06, TASK-390); ~1pp of headroom for the
+      # platform difference. It ratchets up; it never silently drops.
+      - name: Coverage floor
+        if: matrix.python-version == '3.12'
+        run: python tools/check_coverage.py --min 80.0
+
+      # Phase 10.5: a skip is not a pass. This fails when a *new* file starts
+      # skipping, and names the ones that are expected and why.
+      - name: Skips are visible and explained
+        if: matrix.python-version == '3.12'
+        run: python tools/check_skips.py
+
       - name: Upload coverage XML
         if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
@@ -61,6 +78,133 @@ jobs:
       - name: Install ruff
         run: python -m pip install ruff
       - name: Ruff
-        run: python -m ruff check core data utils sleeves portfolio_v9.py daily.py dashboard_v9.py preflight.py reconcile.py confirm_fills.py journal.py store_cli.py evidence_review.py warm_sectors.py send_hydra_summary.py console_dashboard.py snapshot_universe.py verify_state.py runlog_cli.py --config ruff.toml
+        run: python -m ruff check core data utils sleeves portfolio_v9.py daily.py dashboard_v9.py preflight.py reconcile.py confirm_fills.py journal.py store_cli.py evidence_review.py warm_sectors.py send_hydra_summary.py console_dashboard.py snapshot_universe.py verify_state.py runlog_cli.py tools --config ruff.toml
       - name: Ruff tests
         run: python -m ruff check --config ruff.toml test_*.py
+      # The brief runs `ruff check .`; these two files sat outside the explicit list
+      # above and were failing it while the suite reported "All checks passed".
+      - name: Ruff whole tree
+        run: python -m ruff check . --config ruff.toml
+
+  # Phase 10.6 — the installed artefact, not the working tree. This is the job that
+  # would have caught R-1001: the wheel shipped neither `sleeves`, nor `config.py`,
+  # nor any entry-point module, so all five console scripts were broken.
+  build-install-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: hydra_screener_local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build
+      - name: Build wheel, install into a clean venv, run every console script
+        run: python tools/wheel_smoke.py
+
+  # Phase 10.6 — type checking where it is reasonable. The modules added or rewritten
+  # by this audit are annotated and checked; the older tree is not, and pretending
+  # otherwise would make the gate meaningless.
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: hydra_screener_local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install mypy + stubs
+        run: |
+          python -m pip install --upgrade pip
+          pip install mypy pandas-stubs types-requests
+          pip install -r requirements.txt
+      - name: Mypy on the audited modules
+        run: python -m mypy --config-file mypy.ini
+
+  # Phase 10.6 — secret scan. Fails the build on a committed credential.
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+          # Required since gitleaks-action v2 for a pull_request event: without it the
+          # step fails before scanning anything ("GITHUB_TOKEN is now required to scan
+          # pull requests"). The automatic token is enough; no secret to create.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Python 3.12
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # A second, dependency-free pass so the gate still means something if the
+      # action is unavailable, and so `.env`-shaped files never land.
+      - name: Repo secret sweep
+        if: always()
+        run: python hydra_screener_local/tools/check_secrets.py
+
+  # Phase 10.6 — dependency audit. Report-only for now: a CVE in a transitive pin is
+  # not a reason to block a screener commit, but it must be visible.
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: hydra_screener_local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+      - name: Audit the declared dependencies
+        continue-on-error: true
+        run: pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
+
+  # Phase 10.6 — the reproducibility contract itself: serialisation and state
+  # migration, run on their own so a failure here is unmistakable.
+  reproducibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: hydra_screener_local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Serialisation, migration, packaging and PIT identity
+        run: >
+          python -m pytest -q
+          test_packaging.py
+          test_pit_identity.py
+          test_commit_transaction.py
+          test_ledger_integrity.py
+          test_ledger_projection.py
+          test_numeric_safety.py
