@@ -1,8 +1,8 @@
-"""yfinance BarProvider (TASK-361).
+"""yfinance BarProvider (TASK-361 / TASK-378).
 
-Wraps the existing `data.fetch` download machinery: one download with
-`auto_adjust=True` (adjusted close) and one with `False` (raw close + volume),
-same batch size and retry-once policy as `_fetch_closes`.
+Default: one `auto_adjust=False` download per batch; `close_adj` from
+`Adj Close`, `close_raw` from `Close`, volume from `Volume`. The old
+two-download path is `YFinanceProvider(two_pass=True)` for parity.
 """
 from __future__ import annotations
 
@@ -20,8 +20,9 @@ SOURCE = "yfinance"
 class YFinanceProvider:
     source = SOURCE
 
-    def __init__(self, batch_size: int = BATCH_SIZE):
+    def __init__(self, batch_size: int = BATCH_SIZE, two_pass: bool = False):
         self.batch_size = int(batch_size) if batch_size else BATCH_SIZE
+        self.two_pass = bool(two_pass)
 
     def fetch(self, tickers: list[str], start, end) -> pd.DataFrame:
         names = [str(t) for t in tickers if t]
@@ -34,7 +35,7 @@ class YFinanceProvider:
             last_err = None
             for attempt in (1, 2):
                 try:
-                    parts.append(_fetch_batch(batch, start, end))
+                    parts.append(_fetch_batch(batch, start, end, two_pass=self.two_pass))
                     break
                 except Exception as e:
                     last_err = e
@@ -50,14 +51,20 @@ class YFinanceProvider:
         return out
 
 
-def _fetch_batch(batch: list[str], start, end) -> pd.DataFrame:
-    data_adj = _yf_download(batch, auto_adjust=True, start=start, end=end)
-    data_raw = _yf_download(batch, auto_adjust=False, start=start, end=end)
-    close_adj = _close_frame_from_yf(data_adj, batch)
-    close_raw = _close_frame_from_yf(data_raw, batch)
-    volume = _volume_frame_from_yf(data_raw, batch)
-    if volume.empty:
-        volume = _volume_frame_from_yf(data_adj, batch)
+def _fetch_batch(batch: list[str], start, end, *, two_pass: bool = False) -> pd.DataFrame:
+    if two_pass:
+        data_adj = _yf_download(batch, auto_adjust=True, start=start, end=end)
+        data_raw = _yf_download(batch, auto_adjust=False, start=start, end=end)
+        close_adj = _close_frame_from_yf(data_adj, batch)
+        close_raw = _close_frame_from_yf(data_raw, batch)
+        volume = _volume_frame_from_yf(data_raw, batch)
+        if volume.empty:
+            volume = _volume_frame_from_yf(data_adj, batch)
+        return _assemble_long(close_adj, close_raw, volume)
+    data = _yf_download(batch, auto_adjust=False, start=start, end=end)
+    close_raw = _close_frame_from_yf(data, batch, field="Close")
+    close_adj = _close_frame_from_yf(data, batch, field="Adj Close")
+    volume = _volume_frame_from_yf(data, batch)
     return _assemble_long(close_adj, close_raw, volume)
 
 

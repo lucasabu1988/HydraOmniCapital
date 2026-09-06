@@ -194,19 +194,23 @@ def _volume_frame_from_yf(data, batch: list[str]) -> pd.DataFrame:
     return vol
 
 
-def _close_frame_from_yf(data, batch: list[str]) -> pd.DataFrame:
-    """Normalize a yfinance download into a Close DataFrame keyed by ticker."""
+def _close_frame_from_yf(data, batch: list[str], field: str = "Close") -> pd.DataFrame:
+    """Normalize a yfinance download into a Close/Adj Close DataFrame keyed by ticker."""
     if data is None or getattr(data, "empty", False):
         raise RuntimeError("empty response")
     if isinstance(data.columns, pd.MultiIndex):
-        close = data["Close"] if "Close" in data.columns.get_level_values(0) else data.iloc[:, 0]
+        level0 = data.columns.get_level_values(0)
+        key = field if field in level0 else ("Close" if "Close" in level0 else None)
+        close = data[key] if key is not None else data.iloc[:, 0]
         if isinstance(close, pd.Series):
             name = batch[0] if len(batch) == 1 else (close.name if close.name in batch else batch[0])
             close = close.to_frame(name)
         elif isinstance(close.columns, pd.MultiIndex):
             close.columns = close.columns.get_level_values(-1)
     else:
-        if "Close" in data.columns:
+        if field in data.columns:
+            close = data[[field]].rename(columns={field: batch[0]})
+        elif "Close" in data.columns:
             close = data[["Close"]].rename(columns={"Close": batch[0]})
         else:
             close = data.iloc[:, [0]].copy()

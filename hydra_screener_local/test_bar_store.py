@@ -319,10 +319,36 @@ def test_yfinance_provider_two_downloads(monkeypatch):
     monkeypatch.setattr("data.fetch.yf.download", fake)
     monkeypatch.setattr("data.fetch.time.sleep", lambda *a, **k: None)
     monkeypatch.setattr("data.providers.yfinance_provider.time.sleep", lambda *a, **k: None)
-    long = YFinanceProvider(batch_size=10).fetch(["AAA", "BBB"], "2024-01-02", "2024-01-08")
+    long = YFinanceProvider(batch_size=10, two_pass=True).fetch(["AAA", "BBB"], "2024-01-02", "2024-01-08")
     assert {c["auto_adjust"] for c in calls} == {True, False}
     assert len(calls) == 2
     assert set(long["ticker"]) == {"AAA", "BBB"}
+    aaa = long[long["ticker"] == "AAA"].sort_values("date")
+    assert aaa["close_adj"].iloc[0] == pytest.approx(100.0)
+    assert aaa["close_raw"].iloc[0] == pytest.approx(50.0)
+    assert aaa["volume"].iloc[0] == pytest.approx(1000.0)
+
+
+def test_yfinance_provider_one_download_per_batch(monkeypatch):
+    calls = []
+    idx = pd.bdate_range("2024-01-02", periods=5)
+
+    def fake(batch, start=None, end=None, period=None, auto_adjust=True, **kw):
+        calls.append({"batch": list(batch), "auto_adjust": auto_adjust})
+        cols = {}
+        for t in batch:
+            cols[("Close", t)] = [50.0 + i for i in range(5)]
+            cols[("Adj Close", t)] = [100.0 + i for i in range(5)]
+            cols[("Volume", t)] = [1000 + i for i in range(5)]
+        df = pd.DataFrame(cols, index=idx)
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        return df
+
+    monkeypatch.setattr("data.fetch.yf.download", fake)
+    monkeypatch.setattr("data.providers.yfinance_provider.time.sleep", lambda *a, **k: None)
+    long = YFinanceProvider(batch_size=2).fetch(["AAA", "BBB", "CCC"], "2024-01-02", "2024-01-08")
+    assert all(c["auto_adjust"] is False for c in calls)
+    assert len(calls) == 2  # two batches of 2, one download each
     aaa = long[long["ticker"] == "AAA"].sort_values("date")
     assert aaa["close_adj"].iloc[0] == pytest.approx(100.0)
     assert aaa["close_raw"].iloc[0] == pytest.approx(50.0)
