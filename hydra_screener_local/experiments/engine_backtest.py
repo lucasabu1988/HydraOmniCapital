@@ -310,6 +310,9 @@ def main(argv=None):
                     help="PIT panel _sweep_cache_oos/ 2004-2026 (TASK-350). Default: in-sample 2020-26.")
     ap.add_argument("--check", action="store_true",
                     help="TASK-369: JSON-roundtrip + state_check.check after every settle and plan.")
+    ap.add_argument("--sectors", choices=("pit", "live"), default="pit",
+                    help="TASK-387: sector map for the lab's cap: latest PIT snapshot (default) or the live cache.")
+    ap.add_argument("--sectors-date", default=None, help="YYYYMMDD: PIT sectors snapshot on/before this date.")
     args = ap.parse_args(argv)
 
     cache = os.path.join(HERE, "_sweep_cache_oos" if args.oos else "_sweep_cache", "close.pkl")
@@ -318,7 +321,7 @@ def main(argv=None):
         return 0
     label = "OOS PIT" if args.oos else "in-sample"
     print(f"loading {label} panel...", flush=True)
-    P = L.load_panel(oos=args.oos)
+    P = L.load_panel(oos=args.oos, sectors=args.sectors, sectors_date=args.sectors_date)
     P.ETF = S.load_etfs(P.close.index)
     print("  close", P.close.shape, "ETF", P.ETF.shape,
           str(P.close.index[0].date()), "->", str(P.close.index[-1].date()), flush=True)
@@ -383,7 +386,9 @@ def main(argv=None):
                    not_filled_names=counts["not_filled_names"],
                    engine_first=str(eng.index[0].date()) if len(eng) else None,
                    engine_last=str(eng.index[-1].date()) if len(eng) else None,
-                   note="production plumbing of the 50/50 T20+ETF mix; not a new variant")
+                   note="production plumbing of the 50/50 T20+ETF mix; not a new variant",
+                   sector_snapshot=getattr(P, "SECTOR_SOURCE", None),
+                   pit_payload=getattr(P, "PIT_META", None))
     if args.check:
         payload["check"] = dict(
             calls=counts.get("check_calls"),

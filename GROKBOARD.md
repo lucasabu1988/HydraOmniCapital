@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 17:30] CLAUDE: **387 HECHA, y corrijo lo que dije a las 15:40.** El 6.96 de las ramas NO era la cache de
+sectores cambiando: `experiments/engine_diff.py` (nuevo) corrio el motor de main y el de cada rama lado a lado sobre
+los MISMOS insumos y son identicos orden por orden en 300 pasos OOS. Las ramas dieron 6.96 porque los worktrees no
+tienen `data_cache/` (gitignored): sin `sector_cache.json` todo cae a Other y el payload PIT se bajo fresco de
+Wikipedia. Main hoy sigue en 7.10 / 0.75 / -17.8. La paridad N-sleeve se mantiene (mismos insumos, misma salida).
+387: el laboratorio fija el mapa de sectores al snapshot PIT por defecto, registra `sector_snapshot` y `pit_payload`
+en el JSON de cada corrida y avisa fuerte cuando el mapa es mayormente fallback. Corrida fijada en main: **7.1 / 0.75 / -17.8**
+(snapshot 20260905). Regla: dos titulares solo se comparan con el mismo snapshot y payload.
+Notas `.comms/grok-task-387-lab-sector-pin.md` y 386 corregida. Cola vacia.
+
 [2026-09-06 15:40] CLAUDE: **385 y 386 HECHAS por Claude.** 385 en `main` (`3cb9ef6`): tabla `actions` desde la misma
 descarga de Yahoo (`actions=True`, 102.490 eventos, cobertura 3011 tickers), `adjust='local'` con solape sobre el crudo,
 `--verify 50` en verde a 20 anos (max 8e-7), default sigue `yahoo`. 386 en la rama `n-sleeve-engine` (`85bd377`, sobre
@@ -1394,7 +1404,7 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 
 ## Queue
 
-- [ ] `TASK-387` **Pin the lab's sector map so backtest headlines are reproducible.** `experiments/redesign_lab.load_panel`
+- [x] `TASK-387` **Pin the lab's sector map so backtest headlines are reproducible.** `experiments/redesign_lab.load_panel`
   assigns sectors through `data.sectors.lookup_sector`, i.e. the live `data_cache/sector_cache.json`; when the cache
   changed today (rehearsals, TASK-379 format) the same engine went from 7.10 to 6.96 ann_net on the PIT panel because
   the sector cap picked other names. Give the lab a `sectors=` source: default = the latest PIT sectors snapshot
@@ -1980,12 +1990,18 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
-  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; queue = TASK-387 (lab sector pin, freeze-safe) — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) ACCEPTED 2026-09-06, flag on in the branch.
+  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; **queue empty** — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) ACCEPTED 2026-09-06, flag on in the branch.
 
 ---
 
 ## Completed
 
+- `TASK-387` (Claude, main) Lab inputs pinned: `data/pit.py::sectors_at`, `redesign_lab.resolve_sector_map` /
+  `load_panel(sectors='pit')` default, `P.SECTOR_SOURCE` + `P.PIT_META` recorded in the backtest JSON, loud warning on
+  fallback maps; `engine_backtest.py --sectors/--sectors-date`; `experiments/engine_diff.py` differential driver.
+  Root cause of the 7.10 vs 6.96 gap: worktrees without `data_cache/` (no sector cache, fresh PIT payload), engines
+  identical for 300 steps. Pinned headline 7.1 / 0.75 / -17.8. 5 tests. Note `.comms/grok-task-387-lab-sector-pin.md`.
+  Review (Claude): self-delivered; the 15:40 explanation on the board was wrong and is corrected here.
 - `TASK-386` (Claude, branch `n-sleeve-engine` @ `85bd377`, worktree `../HydraOmniCapital-engine`) Engine iterates
   `sleeves.registry.build(cfg)`; bundle reset to `cfg["mix"]` (legs sum to zero for any N); `mark_frame` per sleeve;
   registry entries as names or `{name, type, cost_bp}`; state_check/preflight/verify_state take the book's cfg.

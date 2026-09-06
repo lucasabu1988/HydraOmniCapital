@@ -174,6 +174,21 @@ def write_sectors_snapshot(
     return path
 
 
+def sectors_at(date=None, *, pit_dir=None) -> tuple[dict, str | None]:
+    """(ticker -> sector, snapshot date) from the latest sectors snapshot on or before `date`
+    (the latest one when `date` is None); pointers resolved. ({}, None) when there is none (TASK-387)."""
+    dates = list_sector_dates(pit_dir)
+    if not dates:
+        return {}, None
+    pick = _on_or_before(dates, _date_str(date)) if date is not None else dates[-1]
+    if pick is None:
+        return {}, None
+    data = _resolve_sectors(pick, pit_dir)
+    if not data:
+        return {}, None
+    return dict(data.get("sectors") or {}), pick
+
+
 def membership(name: str, date, *, pit_dir=None) -> set:
     """Tickers in `name` on the latest snapshot on or before `date`."""
     d = _date_str(date)

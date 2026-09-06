@@ -47,10 +47,12 @@ then `n-sleeve-engine` (it contains the former).
 Same run, same day, same caches: **byte-identical plumbing**, so the registry engine is the two-sleeve
 engine with the default configuration, on 22 years of real history as well as on the golden.
 
-**Why it is 6.96 and not the 7.10 of TASK-350/369.** `experiments/redesign_lab.load_panel` assigns each
-ticker's sector through `data.sectors.lookup_sector`, i.e. the *live* `data_cache/sector_cache.json`. That
-cache was rewritten during today's rehearsals (TASK-379 format, new names) and the sector cap then picked
-slightly different names in a few weeks — 7.10 -> 6.96 with the very same engine. The lab's headline is
-therefore a function of the sector cache at run time; the two-sleeve reference run above was made after
-the cache change precisely so the comparison is like for like. Filed as TASK-387 (pin the lab's sector map
-to a PIT snapshot so results are reproducible).
+**Why it is 6.96 and not the 7.10 of TASK-350/369 (corrected after the differential).** Not the engine and not
+the sector cache drifting: `experiments/engine_diff.py` drove main's engine and each branch's engine side by
+side on the SAME inputs for 300 OOS steps (2005-2011) and every order and fill was identical. The two branch
+runs were made in git worktrees, and `data_cache/` is gitignored: those trees had **no `sector_cache.json`**
+(every name fell to `SECTOR_BUCKETS`/"Other", so the sector cap barely bound) and fetched a **fresh
+`sp500_pit.json`** from Wikipedia that differs from the cached payload (membership). Main, run the same
+afternoon with its cache, still gives 7.10 / 0.75 / -17.8. So: identical engine, degraded inputs in the
+worktree. That is what TASK-387 fixes (sector map pinned to a PIT snapshot, payload identity recorded,
+loud warning when the map is mostly fallback). The parity table above stands: same inputs, same output.
