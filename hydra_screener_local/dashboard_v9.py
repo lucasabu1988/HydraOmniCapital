@@ -376,14 +376,15 @@ _QUOTE_CACHE = {"t": 0.0, "quotes": {}}
 _QUOTE_TTL = DEFAULT_REFRESH
 
 
-def cached_quotes(tickers: list[str], fallback: dict) -> dict:
+def cached_quotes(tickers: list[str], fallback: dict) -> tuple[dict, bool]:
+    """Return (quotes, refreshed). `refreshed` is True only when yfinance (or fallback) was fetched."""
     now = time.time()
     if _QUOTE_CACHE["quotes"] and (now - _QUOTE_CACHE["t"]) < _QUOTE_TTL:
-        return _QUOTE_CACHE["quotes"]
+        return _QUOTE_CACHE["quotes"], False
     q = fetch_quotes(tickers, fallback)
     _QUOTE_CACHE["t"] = now
     _QUOTE_CACHE["quotes"] = q
-    return q
+    return q, True
 
 
 def live_snapshot(state_dir: Path) -> dict:
@@ -393,21 +394,31 @@ def live_snapshot(state_dir: Path) -> dict:
         return {"ok": False, "error": f"missing {state_path}", "banner": "sin estado v9 — corre portfolio_v9.py primero"}
     fallback = held_fallback_px(state)
     tickers = sorted(set(fallback) | {"SPY"})
-    quotes = cached_quotes(tickers, fallback)
+    quotes, refreshed = cached_quotes(tickers, fallback)
     spy = quotes.get("SPY")
     snap = build_snapshot(state, quotes, spy)
     curve_path = Path(state_dir) / "equity_curve.csv"
     curve = read_curve(curve_path)
-    mark = {
-        "timestamp": snap["as_of"],
-        "total": f"{snap['total']:.6f}",
-        "stocks": f"{(snap['sleeves'].get('stocks') or {}).get('value', 0):.6f}",
-        "etf": f"{(snap['sleeves'].get('etf') or {}).get('value', 0):.6f}",
-        "cash": f"{snap['cash']:.6f}",
-        "spy_close": "" if not (spy and spy.get("price") is not None) else f"{spy['price']:.6f}",
-    }
-    append_curve(curve_path, mark)
-    curve = read_curve(curve_path)
+    should_append = refreshed or not curve
+    if not should_append and curve:
+        last_ts = str(curve[-1].get("timestamp") or "")
+        try:
+            last = datetime.fromisoformat(last_ts.replace("Z", "+00:00"))
+            age = (datetime.now(timezone.utc) - last).total_seconds()
+            should_append = age >= _QUOTE_TTL
+        except (TypeError, ValueError):
+            should_append = True
+    if should_append:
+        mark = {
+            "timestamp": snap["as_of"],
+            "total": f"{snap['total']:.6f}",
+            "stocks": f"{(snap['sleeves'].get('stocks') or {}).get('value', 0):.6f}",
+            "etf": f"{(snap['sleeves'].get('etf') or {}).get('value', 0):.6f}",
+            "cash": f"{snap['cash']:.6f}",
+            "spy_close": "" if not (spy and spy.get("price") is not None) else f"{spy['price']:.6f}",
+        }
+        append_curve(curve_path, mark)
+        curve = read_curve(curve_path)
     return annotate_performance(snap, curve)
 
 

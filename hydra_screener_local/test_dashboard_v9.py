@@ -1,4 +1,5 @@
-"""TASK-342 — dashboard snapshot arithmetic. No network."""
+"""TASK-342/343 — dashboard snapshot arithmetic. No network."""
+import json
 import os
 import sys
 from pathlib import Path
@@ -140,3 +141,22 @@ def test_annotate_day_pnl_and_vs_spy():
     assert snap["day_pnl_usd"] == pytest.approx(5.0)          # vs 06-01 last
     assert snap["vs_spy_pct"] == pytest.approx(440 / 400 - 1)
     assert len(snap["curve"]) == 2
+
+
+def test_two_polls_inside_ttl_write_one_curve_row(tmp_path, monkeypatch):
+    D._QUOTE_CACHE.clear()
+    D._QUOTE_CACHE.update({"t": 0.0, "quotes": {}})
+    D._QUOTE_TTL = 300
+    (tmp_path / "portfolio_v9.json").write_text(json.dumps(_state()), encoding="utf-8")
+    fetches = []
+
+    def fake_fetch(tickers, fallback):
+        fetches.append(list(tickers))
+        return {t: {"price": 11.0, "stale": False} for t in tickers}
+
+    monkeypatch.setattr(D, "fetch_quotes", fake_fetch)
+    D.live_snapshot(tmp_path)
+    D.live_snapshot(tmp_path)
+    curve = tmp_path / "equity_curve.csv"
+    assert len(D.read_curve(curve)) == 1
+    assert len(fetches) == 1
