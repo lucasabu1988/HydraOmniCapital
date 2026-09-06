@@ -568,11 +568,14 @@ history the CLI passes (annualised decimal Series); a scalar means a flat rate a
 Until 2026-09-05 the CLI passed only the last print, so the hurdle was today's rate: the on/off set
 differed from the lab's on 10% of in-sample steps (GLD, IEF most often), return effect within 0.1 pp.
 
-Idle cash earns **nothing** in the engine's books. The lab's ETF sleeve accrues the T-bill; the
-stock sleeve (T20, `cash_yield=False`) does not. Measured in-sample 2021-26: accruing on the ETF
-sleeve's cash +0.9 pp/yr, on both sleeves +1.2 pp/yr (Sharpe 1.20 -> 1.31). Whether the books
-model the money-market yield or Lucas enters the interest actually paid is an open accounting
-decision (2026-09-05); until then the dashboard P/L understates the real account by about that much.
+Idle cash earns the **13-week T-bill** (Lucas, 2026-09-05: the books model the money-market yield).
+`plan()` compounds every tranche's cash by `^IRX/252` for each price-calendar bar since the previous
+run, at the print of that bar, before marking the book; nothing accrues on the first run. Each accrual
+is recorded per sleeve in `state["interest"]` (date, since, bars, mean rate, dollars). Measured
+in-sample 2021-26: +1.2 pp/yr and Sharpe 1.20 -> 1.31 versus books that ignore interest; the lab's
+ETF sleeve always accrued, its stock sleeve (`cash_yield=False`) did not, so the engine now sits
+slightly above the lab mix (12.04 vs 11.86) for that reason alone. The interest actually paid by the
+broker will differ (fund yield, settlement lag); reconcile it against the state when confirming fills.
 
 ### 9.4 State (`state/portfolio_v9.json`, gitignored; see design section 3)
 

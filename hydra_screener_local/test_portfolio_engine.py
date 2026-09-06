@@ -144,6 +144,26 @@ def test_etf_hurdle_uses_the_trailing_tbill_history_not_the_last_print():
     assert [o for o in o_flat if o["sleeve"] == "etf" and o["side"] == "park"]
 
 
+def test_idle_cash_accrues_the_tbill_between_runs_and_is_recorded():
+    """Lucas 2026-09-05: the books model the money-market yield. 800 cash, 2.52% flat, one bar
+    between runs -> +0.08 (800 * 0.0252/252); nothing on the first run; recorded per sleeve."""
+    st = E.new_state(800.0, str(DATES[0].date()), CFG)
+    px = _prices(["A"], [[10], [10], [10]]); epx = _prices(["SPY"], [[1], [1], [1]])
+    st, _ = E.plan(st, str(DATES[0].date()), _ranking(["A"], n=0), px.iloc[:1], epx.iloc[:1], 0.0252, CFG)
+    assert st["interest"] == [] and E.summary_table(st, px.iloc[0], epx.iloc[0], CFG)["total"] == pytest.approx(800.0)
+    E.settle(st, str(DATES[1].date()), px.iloc[1], epx.iloc[1], CFG)          # only park orders: all still cash
+    st, _ = E.plan(st, str(DATES[1].date()), _ranking(["A"], n=0), px.iloc[:2], epx.iloc[:2], 0.0252, CFG)
+    assert E.summary_table(st, px.iloc[1], epx.iloc[1], CFG)["total"] == pytest.approx(800.0 + 800.0 * 0.0252 / 252)
+    assert sum(r["dollars"] for r in st["interest"]) == pytest.approx(800.0 * 0.0252 / 252)
+    assert {r["sleeve"] for r in st["interest"]} == {"stocks", "etf"} and all(r["bars"] == 1 for r in st["interest"])
+    # a Series uses the print of each bar: 0% on the first bar, 5.04% on the next -> one bar at 5.04%
+    tb = pd.Series([0.0, 0.0, 0.0504], index=DATES[:3])
+    E.settle(st, str(DATES[2].date()), px.iloc[2], epx.iloc[2], CFG)
+    before = E.summary_table(st, px.iloc[2], epx.iloc[2], CFG)["total"]
+    st, _ = E.plan(st, str(DATES[2].date()), _ranking(["A"], n=0), px, epx, tb, CFG)
+    assert E.summary_table(st, px.iloc[2], epx.iloc[2], CFG)["total"] == pytest.approx(before * (1 + 0.0504 / 252))
+
+
 def test_costs_and_unfilled_orders_are_recorded():
     cfg = dict(CFG, stock_cost_bp=10.0)
     st = E.new_state(800.0, str(DATES[0].date()), cfg)

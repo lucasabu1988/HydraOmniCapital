@@ -49,6 +49,7 @@ def new_state(capital: float, anchor_date: str, cfg: dict = None) -> dict:
         "ledger": [],           # every order ever settled
         "write_offs": [],
         "transfers": [],
+        "interest": [],         # T-bill accrued on idle cash, one record per sleeve per plan() (spec 9.3)
     }
 
 
@@ -171,6 +172,42 @@ def mark(state: dict, stock_prices: pd.Series, etf_prices: pd.Series, cfg: dict 
     return out
 
 
+def accrue_interest(state: dict, index: pd.DatetimeIndex, today: str, tbill_rate) -> float:
+    """Idle cash earns the 13-week T-bill (Lucas, 2026-09-05: the books model the money-market
+    yield). Every tranche's cash compounds by rate/252 for each price-calendar bar strictly after
+    `last_run_date` up to and including `today`, at the ^IRX print of that bar (`tbill_rate` as an
+    annualised decimal Series; a scalar is a flat rate). Nothing accrues on the first run. The cash
+    spent at t+1 settles earned one bar less than the book assumes (< 0.01 bp; accepted). Records
+    one entry per sleeve in `state["interest"]`; returns the total dollars accrued."""
+    last = state.get("last_run_date")
+    if not last:
+        return 0.0
+    idx = pd.DatetimeIndex(index).normalize()
+    bars = idx[(idx > pd.Timestamp(last).normalize()) & (idx <= pd.Timestamp(today).normalize())]
+    if not len(bars):
+        return 0.0
+    if isinstance(tbill_rate, pd.Series):
+        r = pd.to_numeric(tbill_rate, errors="coerce")
+        r.index = pd.DatetimeIndex(r.index).normalize()
+        daily = r.reindex(idx).ffill().reindex(bars).fillna(0.0).astype(float) / 252.0
+    else:
+        daily = pd.Series(float(tbill_rate) / 252.0, index=bars)
+    factor = float((1.0 + daily).prod())
+    total = 0.0
+    state.setdefault("interest", [])
+    for sleeve in SLEEVES:
+        earned = 0.0
+        for tr in state["sleeves"][sleeve]["tranches"]:
+            cash = float(tr["cash"])
+            if cash > 0:                                       # a (transient) negative balance is not charged
+                tr["cash"] = cash * factor
+                earned += cash * (factor - 1.0)
+        state["interest"].append(dict(date=today, since=last, sleeve=sleeve, bars=int(len(bars)),
+                                      rate=float(daily.mean() * 252.0), dollars=earned))
+        total += earned
+    return total
+
+
 def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFrame,
          etf_prices: pd.DataFrame, tbill_rate: float, cfg: dict = None) -> Tuple[dict, List[dict]]:
     """Run after the close of `today`. Marks the book, decides whether a tranche renews and, if so,
@@ -184,6 +221,7 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
         raise RuntimeError("pending orders from %s not settled; call settle() with the next close first"
                            % state["pending"][0]["planned"])
     px_s, px_e = stock_prices.iloc[-1], etf_prices.iloc[-1]
+    accrue_interest(state, stock_prices.index, today, tbill_rate)
     state["last_run_date"] = today
     summary = mark(state, px_s, px_e, cfg)
     slot = renewal_slot(state, stock_prices.index, today, cfg)

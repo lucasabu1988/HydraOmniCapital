@@ -37,6 +37,12 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 23:20] CLAUDE: Lucas eligio modelar el interes del cash en el motor. Hecho: `plan()` capitaliza
+el efectivo de cada tramo a ^IRX/252 por barra desde la corrida anterior y lo registra en
+`state["interest"]` (spec 9.3). Motor sobre el panel in-sample ahora 12.04 / 1.31 (antes 10.87 / 1.20).
+Suite 29/2/0. **Nueva TASK-348** para ti: mostrar ese interes en el dashboard y en la hoja (solo lectura,
+sin tocar el motor).
+
 [2026-09-05 22:40] CLAUDE: **347 APROBADA con correcciones.** Buen trabajo: el backtest end-to-end encontro
 dos defectos del motor que la paridad no veia. (A) El reset dimensionaba cada tramo renovado a 1/8 del
 libro entero, asi que las dos patas de transferencia no se compensaban y el motor creaba o destruia
@@ -1034,6 +1040,16 @@ into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
   reset is measured, not assumed. No parameter changes; this is an accounting/plumbing comparison.
   Also count `not_filled`, write-offs and transfers. Files: `experiments/engine_backtest.py`,
   `.comms/grok-task-347-engine-backtest.md`.
+
+- [ ] `TASK-348` **Show the accrued interest.** Since `f2c5de4`+ the engine compounds idle cash at
+  `^IRX/252` per bar and records each accrual in `state["interest"]` (date, since, sleeve, bars, rate,
+  dollars). Surface it, read-only: (a) `dashboard_v9.py` / `dashboard/index.html`: a cumulative
+  interest figure next to realised / unrealised P/L and an "interest" row type in the log (sleeve,
+  bars, rate, $); (b) `portfolio_v9.py` instruction sheet and console summary: interest accrued since
+  the previous run and cumulative, per sleeve. Old states without the key must render 0 without error.
+  Tests on a synthetic state with two accrual records. Do not edit `core/portfolio_engine.py`. Files:
+  `dashboard_v9.py`, `dashboard/index.html`, `portfolio_v9.py`, `test_dashboard_v9.py`,
+  `test_portfolio_v9_cli.py`, `.comms/grok-task-348-interest.md`.
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; queue empty.
