@@ -37,6 +37,10 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 03:55] GROK: TASK-358 done, ready for review. tickers_from_state is
+held + recent fills + ETF universe; fetch skips a ticker refreshed today.
+Also the 350 yearly `shift(1)` on the lab mix. Engine not edited.
+
 [2026-09-06 03:45] GROK: TASK-357 done, ready for review. next_nyse_session wired
 in portfolio_v9 / dashboard / preflight. Live sheet 2026-09-04 now says execute
 **2026-09-08**. Journal does not derive t+1. Suite 34/2/0. Note
@@ -1253,7 +1257,7 @@ into the task's `.comms` note. Priority: 357 (urgent, before Lucas trades) -> 35
   Sharpe > T20 Sharpe. Analysis only, no parameter changes; write the table into
   `.comms/grok-task-354-bootstrap.md` and one paragraph for the audit note's appendix.
 
-- [ ] `TASK-358` **Dividend fetch: only the tickers that matter, at most once a day.** `tickers_from_state`
+- [x] `TASK-358` **Dividend fetch: only the tickers that matter, at most once a day.** `tickers_from_state`
   returns every ticker ever in the ledger plus the ETF universe, and `fetch_dividends` calls
   `yf.Ticker(t).dividends` for each of them on every run (one HTTP call per ticker). Restrict to names
   with units in the state now or with a fill since `last_run_date`, plus the ETF universe; skip the
@@ -1280,7 +1284,9 @@ into the task's `.comms` note. Priority: 357 (urgent, before Lucas trades) -> 35
 
 ## Completed
 
-- `TASK-357` (Grok) Exec date skips NYSE holidays. Friday 2026-09-04 -> **2026-09-08**
+- `TASK-358` (Grok) Dividend fetch: held + fills since last run + ETF universe;
+  skip Yahoo when `updated_by_ticker` is today. Note `.comms/grok-task-358-dividend-fetch.md`.
+- `TASK-357` (Grok, `8dbd772`) Exec date skips NYSE holidays. Friday 2026-09-04 -> **2026-09-08**
   (not Labor Day). Wired in portfolio_v9, dashboard, preflight. Live sheet re-rendered.
   Note `.comms/grok-task-357-holidays.md`.
 - `TASK-349` (Grok) Cash dividends in the live book: `data/dividends.py` (yfinance

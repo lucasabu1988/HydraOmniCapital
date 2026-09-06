@@ -38,14 +38,25 @@ def dividend_key(rec: dict) -> tuple:
 
 
 def tickers_from_state(state: dict | None, extra: list[str] | None = None) -> list[str]:
+    """ETF universe + names with units now + names filled since last_run_date.
+
+    Not the whole ledger history (TASK-358): a sold name from months ago does not
+    need a Yahoo call every day.
+    """
     names = set(V9["etf_universe"])
     names.update(extra or [])
+    last = str((state or {}).get("last_run_date") or "")
     for sleeve in ((state or {}).get("sleeves") or {}).values():
         for tr in sleeve.get("tranches") or []:
-            names.update(str(t) for t in (tr.get("units") or {}))
+            names.update(str(t) for t in (tr.get("units") or {}) if t)
     for f in (state or {}).get("ledger") or []:
         t = f.get("ticker")
-        if t and t not in ("CASH", "TBILL"):
+        if not t or t in ("CASH", "TBILL"):
+            continue
+        d = str(f.get("exec_date") or "")
+        if last and d > last:
+            names.add(str(t))
+        elif not last:
             names.add(str(t))
     return sorted(names)
 

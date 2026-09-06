@@ -26,10 +26,11 @@ def _load_cache() -> dict:
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict) and isinstance(data.get("tickers"), dict):
+                data.setdefault("updated_by_ticker", {})
                 return data
         except Exception as e:
             logger.warning("dividend cache unreadable: %s", e)
-    return {"updated": "", "tickers": {}}
+    return {"updated": "", "tickers": {}, "updated_by_ticker": {}}
 
 
 def _save_cache(data: dict) -> None:
@@ -66,31 +67,41 @@ def fetch_dividends(tickers: list[str] | None = None, *, report: dict | None = N
     by_ticker: dict[str, list[dict]] = {
         t: list(rows) for t, rows in (cache.get("tickers") or {}).items()
     }
+    updated_by = dict(cache.get("updated_by_ticker") or {})
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     failed = []
     downloaded = 0
+    skipped_fresh = []
     try:
         import yfinance as yf
     except Exception as e:
         logger.warning("yfinance missing for dividends: %s", e)
         failed = list(wanted)
-        report.update(failed_tickers=failed, downloaded=0,
+        report.update(failed_tickers=failed, downloaded=0, skipped_fresh=[],
                       rows=sum(len(by_ticker.get(t, [])) for t in wanted))
         return [r for t in wanted for r in by_ticker.get(t, [])]
     for t in wanted:
+        stamp = str(updated_by.get(t) or "")[:10]
+        if stamp == today and t in by_ticker:
+            skipped_fresh.append(t)
+            continue
         try:
             s = yf.Ticker(t).dividends
             rows = _series_to_rows(t, s)
             by_ticker[t] = rows
+            updated_by[t] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             downloaded += 1
         except Exception as e:
             logger.warning("dividend fetch failed %s: %s", t, e)
             failed.append(t)
     cache["tickers"] = by_ticker
+    cache["updated_by_ticker"] = updated_by
     cache["updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         _save_cache(cache)
     except Exception as e:
         logger.warning("dividend cache write failed: %s", e)
     rows = [r for t in wanted for r in by_ticker.get(t, [])]
-    report.update(downloaded=downloaded, failed_tickers=failed, rows=len(rows))
+    report.update(downloaded=downloaded, failed_tickers=failed,
+                  skipped_fresh=skipped_fresh, rows=len(rows))
     return rows

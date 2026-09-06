@@ -131,6 +131,42 @@ def test_fetch_dividends_uses_cache_and_patches_yahoo(tmp_path, monkeypatch):
     assert rows2[0]["dps"] == pytest.approx(0.42)
 
 
+def test_tickers_from_state_skips_old_ledger_names():
+    st = _state()
+    st["ledger"].append({"exec_date": "2025-06-01", "sleeve": "stocks", "tranche": 0,
+                         "side": "buy", "ticker": "OLD", "units": 1.0, "status": "filled"})
+    st["ledger"].append({"exec_date": "2026-01-09", "sleeve": "stocks", "tranche": 0,
+                         "side": "sell", "ticker": "ZZZ", "units": 1.0, "status": "filled"})
+    names = D.tickers_from_state(st)
+    assert "AAA" in names and "TLT" in names and "SPY" in names   # held + ETF universe
+    assert "OLD" not in names                                      # sold long before last_run
+    assert "ZZZ" in names                                          # fill after last_run_date
+
+
+def test_fetch_skips_ticker_refreshed_today(tmp_path, monkeypatch):
+    cache = tmp_path / "dividends_cache.json"
+    monkeypatch.setattr(DD, "CACHE_FILE", str(cache))
+    monkeypatch.setattr(DD, "DATA_CACHE_DIR", str(tmp_path))
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, t):
+            calls.append(t)
+
+        @property
+        def dividends(self):
+            return pd.Series([0.1], index=pd.DatetimeIndex(["2026-03-01"]))
+
+    monkeypatch.setattr("yfinance.Ticker", FakeTicker)
+    r = {}
+    DD.fetch_dividends(["TLT"], report=r)
+    assert calls == ["TLT"] and r["downloaded"] == 1
+    r2 = {}
+    DD.fetch_dividends(["TLT"], report=r2)
+    assert calls == ["TLT"]                    # second call same UTC day: no download
+    assert r2["downloaded"] == 0 and r2["skipped_fresh"] == ["TLT"]
+
+
 def test_dashboard_kpi_and_log():
     from test_dashboard_v9 import _state as dash_state
     st = dash_state()
