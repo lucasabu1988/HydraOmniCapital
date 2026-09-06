@@ -127,6 +127,7 @@ def append_from_v9(out: dict, journal_dir: Path | None = None, note: str | None 
         oos_step_returns=oos,
         errors=errors,
         last_bars=out.get("last_bars"),
+        manifest_path=out.get("manifest_path"),
     )
     return save_record(record, journal_dir, note=note, backup_date=today)
 

@@ -189,6 +189,7 @@ def build_record(
     errors: list | None = None,
     observations: list | None = None,
     last_bars: dict | None = None,
+    manifest_path: str | None = None,
 ) -> dict:
     """One journal record. Missing pieces become None / empty, never a crash."""
     state = state or {}
@@ -271,7 +272,10 @@ def build_record(
 
     seen = dict(
         regime_score=_first(ranking, "regime"),
-        regime_label=_first(ranking, "meta_regime_type"),
+        # the ranking contract (SPEC 7) names the column `regime_type`; the pre-rename name is kept
+        # as a fallback (found by the TASK-383 rehearsal: the label was always None)
+        regime_label=_first(ranking, "regime_type") if _first(ranking, "regime_type") is not None
+        else _first(ranking, "meta_regime_type"),
         recommended_count=rec_n,
         recommended_n=int(ranking["recommended"].sum()) if ranking is not None and "recommended" in ranking.columns else None,
         stock_exposure=stock_expo,
@@ -327,6 +331,7 @@ def build_record(
         },
         reconcile_residual=None if reconcile is None else reconcile.get("residual"),
         errors=list(errors or []),
+        manifest_path=manifest_path,      # TASK-359: which run produced this record
     )
     return dict(
         date=date,
