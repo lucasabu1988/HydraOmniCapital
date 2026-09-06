@@ -8,7 +8,9 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.journal import build_record, cone, percentile_of  # noqa: E402
+from core.journal import (  # noqa: E402
+    build_record, cone, cone_from_table, percentile_of,
+)
 import journal as J  # noqa: E402
 import daily as daily_mod  # noqa: E402
 import portfolio_v9 as V  # noqa: E402
@@ -117,6 +119,33 @@ def test_step_return_percentile_against_oos():
     # dist [0, 0.05, 0.10, 0.20] -> 3/4 of mass <= 0.10
     assert rec["expectation"]["step_return_percentile"] == pytest.approx(75.0)
     assert rec["expectation"]["cone"]["n_steps"] == 1
+
+
+def test_json_and_pickle_same_cone(tmp_path, monkeypatch):
+    """TASK-381: cone from a fake pickle series equals cone_from_table on the same series."""
+    import numpy as np
+    import core.journal as CJ
+    from experiments.build_cone import build
+    rng = np.random.default_rng(381)
+    net = rng.normal(0.001, 0.01, size=80)
+    mix = pd.DataFrame({"net": net})
+    pkl = tmp_path / "audit_steps.pkl"
+    pd.to_pickle({"P_5050": mix}, pkl)
+    table = build(net, source="test")
+    for h in (1, 4, 13):
+        a = cone(net, h)
+        b = cone_from_table(table, h)
+        assert a is not None and b is not None
+        assert a["p5"] == b["p5"] and a["p50"] == b["p50"] and a["p95"] == b["p95"]
+        assert a["n_windows"] == b["n_windows"]
+    monkeypatch.setattr(CJ, "CONE_JSON", tmp_path / "missing.json")
+    got = CJ.load_oos_step_returns(pkl)
+    assert len(got) == 80
+    json_path = tmp_path / "oos_cone_5050.json"
+    json_path.write_text(json.dumps(table), encoding="utf-8")
+    monkeypatch.setattr(CJ, "CONE_JSON", json_path)
+    from_json = CJ.load_oos_step_returns()
+    assert from_json == table["step_returns"]
 
 
 def test_note_appended_never_overwritten(tmp_path):

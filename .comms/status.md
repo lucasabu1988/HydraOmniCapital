@@ -11,7 +11,7 @@ Live path still FROZEN until the Tuesday 2026-09-08 close. Polling Grok every 15
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 02:42
-**Working on:** TASK-379 done (`380998c`), ready for review. Next 381 -> 380 -> 382 -> 377.
+**Updated:** 2026-09-06 02:50
+**Working on:** TASK-381 done, ready for review. Next 380 -> 382 -> 377.
 **Files I'm touching:** none
 **Blockers:** none.

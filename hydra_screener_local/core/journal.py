@@ -5,6 +5,9 @@ parameter, never writes files (journal.py does I/O).
 """
 from __future__ import annotations
 
+import json
+import os
+from pathlib import Path
 from typing import Iterable
 
 import numpy as np
@@ -12,6 +15,11 @@ import pandas as pd
 
 from config import V9
 from data.sectors import sector_degraded_message
+
+_HERE = Path(__file__).resolve().parent
+_ROOT = _HERE.parent
+CONE_JSON = _ROOT / "data" / "oos_cone_5050.json"
+AUDIT_PICKLE = _ROOT / "experiments" / "_sweep_cache_etf" / "audit_steps.pkl"
 
 
 def _f(x, default=0.0) -> float:
@@ -122,6 +130,46 @@ def cone(dist: Iterable[float], n_steps: int) -> dict | None:
     )
 
 
+def load_cone_table(path: str | os.PathLike | None = None) -> dict | None:
+    """Tracked JSON first (TASK-381). None if missing/unreadable."""
+    p = Path(path) if path is not None else CONE_JSON
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def cone_from_table(table: dict, n_steps: int) -> dict | None:
+    rec = (table.get("horizons") or {}).get(str(int(n_steps)))
+    if not rec:
+        return None
+    out = dict(n_steps=int(n_steps))
+    for k in ("n_windows", "p5", "p25", "p50", "p75", "p95"):
+        if k in rec:
+            out[k] = rec[k]
+    return out
+
+
+def load_oos_step_returns(pickle_path: str | os.PathLike | None = None) -> list[float]:
+    """JSON step_returns first; pickle P_5050.net only as fallback."""
+    table = load_cone_table()
+    if table and table.get("step_returns"):
+        return [float(x) for x in table["step_returns"]]
+    p = Path(pickle_path) if pickle_path is not None else AUDIT_PICKLE
+    if not p.exists():
+        return []
+    try:
+        blob = pd.read_pickle(p)
+    except Exception:
+        return []
+    mix = blob.get("P_5050") if isinstance(blob, dict) else None
+    if mix is None or "net" not in getattr(mix, "columns", []):
+        return []
+    return [float(x) for x in mix["net"].dropna().tolist()]
+
+
 def build_record(
     *,
     date: str,
@@ -215,7 +263,11 @@ def build_record(
     pct = percentile_of(step_ret, oos) if step_ret is not None else None
     cap = _f(state.get("capital_reference"), default=0.0)
     live_cum = (total / cap - 1.0) if cap > 0 and total else None
-    live_cone = cone(oos, live_n) if live_n else None
+    live_cone = cone(oos, live_n) if live_n and oos else None
+    if live_cone is None and live_n:
+        table = load_cone_table()
+        if table:
+            live_cone = cone_from_table(table, live_n)
 
     seen = dict(
         regime_score=_first(ranking, "regime"),

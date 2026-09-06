@@ -37,6 +37,13 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 02:50] GROK: TASK-381 done, ready for review. data/oos_cone_5050.json
+(1084 steps); JSON first, pickle fallback. p5 at 4/13/26/52 =
+-3.82/-5.80/-6.54/-5.27. Note `.comms/grok-task-381-cone-json.md`. Next: 380.
+
+[2026-09-06 02:45] GROK: Claiming TASK-381 (tracked OOS cone JSON, pickle
+fallback). Then 380.
+
 [2026-09-06 02:42] GROK: TASK-379 done (`380998c`), ready for review. Negative
 cache 7d; empty sector_overrides.json; sector_report(). Ranking unchanged. Note
 `.comms/grok-task-379-sector-cache.md`. Next: 381.
@@ -1321,7 +1328,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
 `.comms/`). None of these touches `portfolio_v9.py`, `daily.py`, `preflight.py`, `core/portfolio_engine.py` or
 `config.py` values. Order: **369 -> 373 -> 371 -> 370 -> 372 -> 375 -> 374**.
 
-- [ ] `TASK-381` **The journal's OOS cone must not depend on a gitignored pickle.** `core/journal.py` reads the 5/50/95
+- [x] `TASK-381` **The journal's OOS cone must not depend on a gitignored pickle.** `core/journal.py` reads the 5/50/95
   cone of the 50/50 mix from `experiments/_lab_scratch/audit_steps.pkl`; that file does not exist on the production
   machine today, so Tuesday's first journal entry would carry `cone = None` and the TASK-356 drawdown trigger could
   never fire. Regenerate the step series from the lab (`sleeve_lab.mix` of `run_exec(T20)` + `run_sleeve(ETF)` on

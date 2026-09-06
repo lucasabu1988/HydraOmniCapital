@@ -12,22 +12,15 @@ import shutil
 from datetime import date
 from pathlib import Path
 
-import pandas as pd
-
 ROOT = Path(__file__).resolve().parent
 DEFAULT_DIR = ROOT / "journal"
 AUDIT_MIX = ROOT / "experiments" / "_sweep_cache_etf" / "audit_steps.pkl"
 
 
 def load_oos_step_returns(path: Path = AUDIT_MIX) -> list[float]:
-    """5-bar net of the audit 50/50 mix. task332_series.json has no mix path."""
-    if not path.exists():
-        return []
-    blob = pd.read_pickle(path)
-    mix = blob.get("P_5050") if isinstance(blob, dict) else None
-    if mix is None or "net" not in getattr(mix, "columns", []):
-        return []
-    return [float(x) for x in mix["net"].dropna().tolist()]
+    """JSON first (TASK-381); pickle only if the tracked cone file is absent."""
+    from core.journal import load_oos_step_returns as _core_load
+    return _core_load(path)
 
 
 def load_records(journal_dir: Path) -> list[dict]:

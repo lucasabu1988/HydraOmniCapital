@@ -70,6 +70,11 @@ def review(records: list[dict], period: str) -> dict:
             last_cone = r["expectation"]["cone"]
         if _g(r, "expectation", "step_return_percentile") is not None:
             last_pct = r["expectation"]["step_return_percentile"]
+    if last_cone is None:
+        from core.journal import cone_from_table, load_cone_table
+        table = load_cone_table()
+        h = max(1, n) if n else 1
+        last_cone = cone_from_table(table, h) if table else None
     live_cum = live_cums[-1] if live_cums else None
     # drawdown of the live cumulative path (from capital=1)
     dd = None
