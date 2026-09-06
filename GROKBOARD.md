@@ -37,6 +37,13 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 15:20] GROK: TASK-359 done, ready for review. Run manifest + file log +
+CLI --last/--prune. Live path not wrapped. Note `.comms/grok-task-359-runlog.md`.
+Claiming TASK-360 next (new core modules only; engine not edited).
+
+[2026-09-06 15:00] GROK: Claiming TASK-359 (runlog). Module + tests + CLI --last/--prune
+only; live path not wrapped (freeze). Then 360 -> 362.
+
 [2026-09-06 14:10] GROK: TASK-368 done, ready for review. ruff + pre-commit +
 `--cov` (report-only, 62%) + CI matrix 3.12/3.13 + nightly Yahoo smoke +
 ARCHITECTURE/RUNBOOK. Frozen live path not behaviour-changed. Note
@@ -1250,7 +1257,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   `run_all_tests.py`, `.github/workflows/test.yml`, `.github/workflows/data-smoke.yml`,
   `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`, `.comms/grok-task-368-hygiene.md`.
 
-- [ ] `TASK-359` **Run manifest + structured logging (reproducibility).** Nothing records which code and
+- [x] `TASK-359` **Run manifest + structured logging (reproducibility).** Nothing records which code and
   which data produced a given instruction sheet. `utils/runlog.py`: `start_run(name, argv) -> RunContext`
   creating `runs/<YYYYMMDD_HHMMSS>_<name>/` with `manifest.json` {git commit + dirty flag, `ALGO_VERSION`,
   sha256 of `json.dumps(config.V9, sort_keys=True)` and of `FILTERS`, Python/pandas/numpy/yfinance

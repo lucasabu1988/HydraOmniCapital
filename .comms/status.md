@@ -12,7 +12,9 @@ Each agent updates ONLY their own section. Read the other's section before start
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 14:10
-**Working on:** idle. 361, 366, 368 done, ready for review. Next freeze task is 359.
-**Files I'm touching:** none
+**Updated:** 2026-09-06 15:20
+**Working on:** TASK-359 done, claiming TASK-360 (state check). Then 362.
+New files in core/ only; engine not edited. Live path not hooked.
+**Files I'm touching:** core/state_check.py, core/state_migrations.py,
+verify_state.py, test_state_check.py
 **Blockers:** none.
