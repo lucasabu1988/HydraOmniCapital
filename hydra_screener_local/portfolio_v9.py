@@ -355,8 +355,15 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         print(f"[v9] interest since last run {ix['since_last_run']:.2f}  cumulative {ix['cumulative']:.2f}")
         if not orders:
             print("[v9] no trades today")
-    return dict(today=today, orders=orders, fills=fills, state_path=str(state_path),
-                instructions_md=str(md_path), no_trades=len(orders) == 0)
+    return dict(
+        today=today, orders=orders, fills=fills, state_path=str(state_path),
+        instructions_md=str(md_path), no_trades=len(orders) == 0,
+        # pieces for the journal builder (TASK-355); no journal logic here
+        state=state, ranking=ranking, summary=summary, preflight=pf,
+        sheet_orders=sheet_orders, sector_warning=sector_warning,
+        last_bars={"stocks": today, "etf": _last_date(etf), "^IRX": _last_date(irx) if irx is not None and len(irx) else None},
+        prices=prices, etf=etf, irx=irx,
+    )
 
 
 def main(argv=None) -> int:

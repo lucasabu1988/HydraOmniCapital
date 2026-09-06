@@ -143,6 +143,8 @@ def main(argv=None):
                         help="USD capital for the first v9 run (passed to portfolio_v9.py --capital).")
     parser.add_argument("--force", action="store_true",
                         help="Pass through to portfolio_v9.py: plan even if preflight hard-fails.")
+    parser.add_argument("--note", type=str, default=None,
+                        help="Free-text observation appended to today's journal entry (never overwritten).")
 
     args = parser.parse_args(argv)
 
@@ -164,17 +166,35 @@ def main(argv=None):
     from config import ALGO_VERSION
     if args.v9 or ALGO_VERSION == "v9":
         print("\n>>> HYDRA v9 instruction CLI...")
+        v9_out = None
         try:
             from portfolio_v9 import run as run_v9
-            run_v9(capital=args.v9_capital, force=args.force)
+            v9_out = run_v9(capital=args.v9_capital, force=args.force)
         except SystemExit as e:
             print(f"[v9] {e}")
             if exit_code == 0:
                 exit_code = 1
+            try:
+                from journal import append_error
+                append_error(str(e), note=args.note)
+            except Exception as je:
+                print(f"[journal] skip: {je}")
         except Exception as e:
             print(f"[v9] failed: {e}")
             if exit_code == 0:
                 exit_code = 1
+            try:
+                from journal import append_error
+                append_error(str(e), note=args.note)
+            except Exception as je:
+                print(f"[journal] skip: {je}")
+        if v9_out is not None and v9_out.get("state") is not None:
+            try:
+                from journal import append_from_v9
+                jpath = append_from_v9(v9_out, note=args.note)
+                print(f"[journal] {jpath}")
+            except Exception as je:
+                print(f"[journal] skip: {je}")
 
     if exit_code != 0:
         print(f"\n[Note] Screener exited with code {exit_code}. Check output above.")

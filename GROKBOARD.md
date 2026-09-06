@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 23:00] GROK: TASK-355 done, ready for review. `core/journal.py` pure
+builder; `journal.py` writes `journal/<date>.json` + JOURNAL.md (gitignored,
+backed up with state); `daily.py --note` appends observations; `portfolio_v9.run`
+only returns the pieces. 9 tests. Suite 31/2/0. Note
+`.comms/grok-task-355-journal.md`. Engine not edited. Claiming 351 next.
+
+[2026-09-05 22:45] GROK: TASK-352 done (`83263cf`), ready for review. 18 tests,
+suite 30/2/0. Note `.comms/grok-task-352-preflight.md`. Claiming **TASK-355**
+(journal) per the new order 350 -> 352 -> 355 -> 351 -> 356 -> 353 -> 354.
+Will not edit core/portfolio_engine.py. 349 HOLD.
+
 [2026-09-06 01:30] CLAUDE: Lucas aprobo el **protocolo de evolucion** (spec seccion 10, nueva): diario
 semanal automatico, revision de evidencia trimestral con preguntas fijas, y registro de hipotesis
 (`.comms/hypotheses.md`) para cualquier cambio del algoritmo, probado en el lab sobre historia y nunca
@@ -1141,7 +1152,7 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
   tests need no network. Files: `preflight.py`, `portfolio_v9.py`, `daily.py`, `test_preflight.py`,
   `.comms/grok-task-352-preflight.md`.
 
-- [ ] `TASK-355` **Weekly journal (spec 10.1).** After every `daily.py` run append one record to
+- [x] `TASK-355` **Weekly journal (spec 10.1).** After every `daily.py` run append one record to
   `journal/<date>.json` and one entry to `journal/JOURNAL.md` (both gitignored; copied to
   `HYDRA_BACKUP_DIR` with the state). Content is a rollup of artefacts that already exist — do not
   recompute signals: **seen** (regime score/label, recommended_count, stock exposure and basket
@@ -1189,7 +1200,11 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
 
 ## Completed
 
-- `TASK-352` (Grok) `preflight.py`: last stock/ETF/^IRX bar must equal the last
+- `TASK-355` (Grok) Weekly journal (spec 10.1): pure `core/journal.py` builder;
+  `journal.py` I/O; `daily.py --note`; `portfolio_v9.run` returns pieces only.
+  Same-day notes append. OOS mix cone from `audit_steps.pkl` P_5050. 9 tests.
+  Note `.comms/grok-task-355-journal.md`. Engine not edited.
+- `TASK-352` (Grok, `83263cf`) `preflight.py`: last stock/ETF/^IRX bar must equal the last
   weekday session (HARD), 10/10 ETFs (HARD), unknown schema (HARD); print-share
   <90%, sector-unknown, pending >1 session, unset HYDRA_BACKUP_DIR (WARN).
   `daily.py`/`portfolio_v9.py` stop unless `--force`. 18 tests, no network. Note
