@@ -103,11 +103,23 @@ def test_coverage_and_last_dates(tmp_path):
 def test_replace_ticker_drops_old_rows(tmp_path):
     store = BarStore(tmp_path / "bars.sqlite")
     store.upsert(_long())
-    slim = _long(["AAA"]).iloc[-5:]
+    slim = _long(["AAA"]).iloc[-15:]
     store.replace_ticker("AAA", slim)
     px = store.closes(["AAA"], IDX[0], IDX[-1])
-    assert len(px) == 5
+    assert len(px) == 15
     assert store.last_dates(["AAA"])["AAA"] == pd.Timestamp(IDX[-1]).normalize()
+    store.close()
+
+
+def test_replace_ticker_refuses_empty_or_short_frame(tmp_path):
+    store = BarStore(tmp_path / "bars.sqlite")
+    store.upsert(_long())
+    before = store.closes(["AAA"], IDX[0], IDX[-1])
+    assert store.replace_ticker("AAA", pd.DataFrame()) == 0
+    assert store.replace_ticker("AAA", _long(["AAA"]).iloc[-3:]) == 0
+    after = store.closes(["AAA"], IDX[0], IDX[-1])
+    assert len(after) == len(before) == 40
+    assert after["AAA"].tolist() == before["AAA"].tolist()
     store.close()
 
 
@@ -208,6 +220,60 @@ def test_readjust_three_tickers_one_batched_fetch(tmp_path):
     full = [c for c in extra if set(c[0]) == {"AAA", "BBB", "CCC"} and c[1] == period_to_start("1y", ASOF)]
     assert len(full) == 1, extra
     assert store.stats()["readjusted_last_run"] == 3
+    store.close()
+
+
+def test_readjust_empty_name_keeps_stored_rows(tmp_path):
+    """TASK-376: one of three mismatching names comes back empty -> its bars survive."""
+    store = BarStore(tmp_path / "bars.sqlite")
+    frame = _long(("AAA", "BBB", "CCC"))
+    provider = FakeProvider(frame)
+    fetch_prices_and_volume_cached(
+        ["AAA", "BBB", "CCC"], period="1y", provider=provider, store=store, asof=ASOF,
+    )
+    before_ccc = store.closes(["CCC"], IDX[0], IDX[-1])["CCC"].tolist()
+    bump = IDX[-5]
+    for t in ("AAA", "BBB", "CCC"):
+        mask = (provider.df["ticker"] == t) & (pd.to_datetime(provider.df["date"]) == bump)
+        provider.df.loc[mask, "close_adj"] = provider.df.loc[mask, "close_adj"] * 1.01
+
+    class DropCCC(FakeProvider):
+        def fetch(self, tickers, start, end):
+            out = super().fetch(tickers, start, end)
+            start_ts = pd.Timestamp(start).normalize()
+            # Full-period readjust only (the tail uses the overlap start).
+            if start_ts == period_to_start("1y", ASOF):
+                out = out[out["ticker"].astype(str) != "CCC"]
+            return out.reset_index(drop=True)
+
+    dropper = DropCCC(provider.df)
+    report = {}
+    fetch_prices_and_volume_cached(
+        ["AAA", "BBB", "CCC"], period="1y", report=report, provider=dropper, store=store, asof=ASOF,
+    )
+    assert set(report["readjusted"]) == {"AAA", "BBB"}
+    assert "CCC" in report["failed_tickers"]
+    assert (report.get("failed_reasons") or {}).get("CCC") == "readjust_empty"
+    after_ccc = store.closes(["CCC"], IDX[0], IDX[-1])["CCC"].tolist()
+    assert after_ccc == before_ccc
+    bumped = store.closes(["AAA"], bump, bump)["AAA"].iloc[0]
+    assert bumped == pytest.approx(float(provider.df.loc[
+        (provider.df["ticker"] == "AAA") & (pd.to_datetime(provider.df["date"]) == bump),
+        "close_adj",
+    ].iloc[0]))
+    store.close()
+
+
+def test_partial_full_fetch_marks_absent_names(tmp_path):
+    store = BarStore(tmp_path / "bars.sqlite")
+    provider = FakeProvider(_long(("AAA", "BBB")))
+    report = {}
+    fetch_prices_and_volume_cached(
+        ["AAA", "BBB", "CCC"], period="1y", report=report, provider=provider, store=store, asof=ASOF,
+    )
+    assert "CCC" in report["failed_tickers"]
+    assert (report.get("failed_reasons") or {}).get("CCC") == "fetch_empty"
+    assert "CCC" not in store.last_dates(["AAA", "BBB", "CCC"])
     store.close()
 
 

@@ -404,7 +404,14 @@ def fetch_prices_and_volume_cached(
         print(f"   [bar store] full fetch {len(missing)} ticker(s) {start.date()} -> {end.date()}")
         try:
             full = provider.fetch(missing, start, end)
-            store.upsert(full)
+            got = set()
+            if full is not None and not getattr(full, "empty", True) and "ticker" in full.columns:
+                store.upsert(full)
+                got = set(full["ticker"].astype(str))
+            for t in missing:
+                if t not in got:
+                    report["failed_tickers"].append(t)
+                    report.setdefault("failed_reasons", {})[t] = "fetch_empty"
         except Exception as e:
             report["failed_batches"] += 1
             report["failed_tickers"].extend(missing)
@@ -442,8 +449,12 @@ def fetch_prices_and_volume_cached(
                 full = provider.fetch(mismatches, start, end)
                 for t in mismatches:
                     piece = full[full["ticker"].astype(str) == t] if (full is not None and not full.empty and "ticker" in full.columns) else pd.DataFrame()
-                    store.replace_ticker(t, piece)
-                    report["readjusted"].append(t)
+                    n = store.replace_ticker(t, piece, min_bars=n_overlap)
+                    if n == 0:
+                        report["failed_tickers"].append(t)
+                        report.setdefault("failed_reasons", {})[t] = "readjust_empty"
+                    else:
+                        report["readjusted"].append(t)
             except Exception as e:
                 report["failed_tickers"].extend(mismatches)
                 print(f"   [bar store] readjust batch failed: {e}")

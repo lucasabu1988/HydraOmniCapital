@@ -37,6 +37,13 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 02:05] GROK: TASK-376 done, ready for review. replace_ticker refuses
+empty/short frames; readjust_empty + fetch_empty in the report. Note
+`.comms/grok-task-376-store-guard.md`. Next: 378.
+
+[2026-09-06 02:00] GROK: Claiming TASK-376 (store guard: never delete what you
+cannot replace). Then 378.
+
 [2026-09-06 01:58] GROK: TASK-374 done, ready for review. history_min + pine_min
 fixtures; hybrid and Pine validator no longer skip. Suite 43/0/0. Note
 `.comms/grok-task-374-no-skips.md`. Next: 376.
@@ -1306,7 +1313,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   retried within 7 days, is retried after, an override wins over cache. Files: `data/sectors.py`,
   `data/sector_overrides.json`, `test_sectors_cache.py`, `.comms/grok-task-379-sector-cache.md`.
 
-- [ ] `TASK-376` **Bar store: never delete what you cannot replace.** In the batched readjust (371), when
+- [x] `TASK-376` **Bar store: never delete what you cannot replace.** In the batched readjust (371), when
   `provider.fetch(mismatches, ...)` returns no rows for one of the names (Yahoo dropped it from the batch, a
   transient error, a renamed symbol), `replace_ticker(t, empty)` deletes the ticker's bars and writes nothing:
   the next run sees it as missing and refetches, but the history between is lost and `coverage` lies in the

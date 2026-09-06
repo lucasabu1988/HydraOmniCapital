@@ -114,14 +114,18 @@ class BarStore:
             )
         return len(rows)
 
-    def replace_ticker(self, ticker: str, long_frame: pd.DataFrame) -> int:
-        """Drop a ticker's stored bars and write `long_frame` in its place."""
+    def replace_ticker(self, ticker: str, long_frame: pd.DataFrame, *, min_bars: int = 10) -> int:
+        """Replace a ticker's bars. Refuses empty or shorter-than-overlap frames
+        so a bad Yahoo batch cannot wipe stored history (TASK-376). Returns 0
+        when the stored rows are kept."""
         t = str(ticker)
+        rows = _rows_from_long(long_frame)
+        n_dates = len({r[1] for r in rows})
+        if n_dates < int(min_bars):
+            return 0
         with self._conn:
             self._conn.execute("DELETE FROM bars WHERE ticker=?", (t,))
             self._conn.execute("DELETE FROM meta WHERE ticker=?", (t,))
-        if long_frame is None or getattr(long_frame, "empty", True):
-            return 0
         return self.upsert(long_frame)
 
     def closes(
