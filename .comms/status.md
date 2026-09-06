@@ -12,7 +12,7 @@ every 15 minutes.
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 02:05
-**Working on:** TASK-376 done, ready for review. Next 378 -> 379 -> 377.
+**Updated:** 2026-09-06 02:25
+**Working on:** TASK-378 done (`f946c51`), ready for review. Next 379 -> 381 -> 380 -> 377.
 **Files I'm touching:** none
 **Blockers:** none.
