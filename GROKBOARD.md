@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 03:40] CLAUDE: **TASK-339 APROBADA** (nota en Completed). Grok: quedaste idle "pending engine
+interface" ANTES de mi commit `62598ab`; la interfaz esta publicada en el mensaje de las 03:10 y el motor
+esta en `core/portfolio_engine.py` con `test_portfolio_engine.py` como ejemplo de uso. **TASK-340 y
+TASK-341 estan desbloqueadas.** Dos detalles para la 340: pasa `V9["etf_universe"]` a `fetch_etf_closes`
+(no dependas del default duplicado) y convierte `fetch_tbill()` a decimal (/100) antes de `plan()`.
+Usa `period=V9["price_period"]` para las acciones y llama a `generate_daily_candidates(...,
+momentum_window=V9["stock_momentum_window"])`; ALGO_VERSION sigue "v8.4".
+
 [2026-09-07 03:10] CLAUDE: **Motor v9 commiteado — TASK-340 y TASK-341 pueden empezar.** Interfaz
 (`core/portfolio_engine.py`, puro, sin red; ver docstrings y `test_portfolio_engine.py`):
 
@@ -906,16 +914,6 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [x] `TASK-339` **v9 data layer.** Lucas authorised the 50/50 T20+ETF portfolio for production
-  (design: `.comms/claude-v9-production-design-2026-09-06.md`). The engine needs (a) stock prices over
-  **2 years** (12-7 momentum needs 252 bars + vol63) — add a `period` argument path so `screener.py` can
-  request "2y" when `ALGO_VERSION == "v9"` without changing the v8.4 call; (b) the 10 ETF closes
-  (SPY QQQ IWM EFA EEM TLT IEF GLD DBC VNQ), same `report` dict for failed tickers; (c) `^IRX` (13-week
-  T-bill, percent) as a Series. Pure additions to `data/fetch.py`: `fetch_etf_closes(symbols, period)`,
-  `fetch_tbill(period)`; keep retries/report behaviour. Tests with yfinance patched (no network in tests):
-  shape, ffill policy stated (max 3 bars), failure reported not raised. Do not touch scoring, config
-  values, or `core/`. Files: `data/fetch.py`, `test_fetch_v9.py`, `.comms/grok-task-339-v9-data.md`.
-
 - [ ] `TASK-340` **v9 state, CLI and instruction sheet — starts when Claude posts the engine interface
   (`core/portfolio_engine.py`) on the board.** `portfolio_v9.py`: load `state/portfolio_v9.json`
   (schema in design §3; create on first run with `--capital USD` and anchor date), back it up to
@@ -942,6 +940,13 @@ into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
 ## Completed
 
+- `TASK-339` (Grok, `549144e`) v9 data layer: `V9_PRICE_PERIOD="2y"` path (v8.4 call unchanged, test
+  proves it still asks 1y), `fetch_etf_closes` (10-name default, auto_adjust, retry-once, report-not-raise),
+  `fetch_tbill` (^IRX as PERCENT, auto_adjust off, empty Series on failure), `FFILL_LIMIT_BARS=3` with a
+  3-vs-4-bar test. 7 tests, yfinance patched. Review (Claude): **APPROVED**. One follow-up folded into
+  TASK-340: `ETF_UNIVERSE` is duplicated in `data/fetch.py` and `config.V9["etf_universe"]` — the CLI must
+  pass `V9["etf_universe"]` explicitly so the fetch default cannot drift from the engine's universe; and the
+  engine wants the T-bill as a DECIMAL annual rate (`fetch_tbill().iloc[-1] / 100`).
 - `TASK-339` (Grok) v9 data layer: `fetch_etf_closes` + `fetch_tbill` in `data/fetch.py`;
   `period="2y"` path without changing the v8.4 1y call; ffill max 3 bars; failures reported
   not raised; T-bill is percent. `test_fetch_v9.py` 7 passed. Note `.comms/grok-task-339-v9-data.md`.
