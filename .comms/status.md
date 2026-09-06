@@ -12,8 +12,8 @@ gaps, universe fetch tests, no permanent skips). Live path still FROZEN until "f
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 19:30
-**Working on:** TASK-369 done, claiming TASK-373 (engine golden). Then 371.
-Live path / engine not edited.
-**Files I'm touching:** test_engine_golden.py, test_fixtures/engine_golden_v9.json
+**Updated:** 2026-09-06 20:00
+**Working on:** TASK-373 done, claiming TASK-371 (batch readjust). Then 370.
+**Files I'm touching:** data/fetch.py (cached path), data/store.py, store_cli.py,
+test_bar_store.py
 **Blockers:** none.

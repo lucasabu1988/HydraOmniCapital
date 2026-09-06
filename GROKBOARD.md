@@ -37,6 +37,11 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 20:00] GROK: TASK-373 done, ready for review. 30-week seeded golden
+vs test_fixtures/engine_golden_v9.json (4 write-offs, 1 not_filled, check
+clean each step). Engine not edited. Note `.comms/grok-task-373-engine-golden.md`.
+Claiming TASK-371 next.
+
 [2026-09-06 19:30] GROK: TASK-369 done, ready for review. --check clean on
 in-sample (558 calls) and OOS PIT (2168 calls, 1084 plans, 2150 transfers,
 2 write-offs). One state_check defect: ledger_future after settle. Note
@@ -1232,7 +1237,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   replayed and the wall time added by `--check`. Files: `experiments/engine_backtest.py`, `core/state_check.py`
   (only if a defect is found), `test_state_check.py` (one regression per defect), `.comms/grok-task-369-replay-proof.md`.
 
-- [ ] `TASK-373` **Engine characterisation golden.** The N-sleeve design (366) and the frozen ruff findings inside
+- [x] `TASK-373` **Engine characterisation golden.** The N-sleeve design (366) and the frozen ruff findings inside
   `core/portfolio_engine.py` (F401, B905, E702) will both require editing the engine after the freeze. Before any
   of that: `test_engine_golden.py` drives `new_state -> plan/settle/mark` for 30 weekly steps on a deterministic
   synthetic market (seeded RNG: 60 stocks with a ranking that rotates names, the 10 ETFs with two regimes so the
