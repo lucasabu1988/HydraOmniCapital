@@ -253,7 +253,7 @@ def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None =
     fees_total = sum(lot["fees"] for lot in lots.values())
 
     total = cash_total + invested
-    for sleeve, sl in sleeves_out.items():
+    for sl in sleeves_out.values():
         sl["share"] = sl["value"] / total if total else 0.0
         sl["share_gap"] = sl["share"] - sl["target_share"]
 

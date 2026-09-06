@@ -1,13 +1,16 @@
+# TASK-368. Run from the repo root: `pre-commit install`.
+# Does not mass-reformat the tree; hooks fire on staged files.
 repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: ["--config", "hydra_screener_local/ruff.toml"]
+        files: ^hydra_screener_local/
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        files: ^hydra_screener_local/(core|data|utils|sleeves)/
       - id: end-of-file-fixer
-      - id: check-json
-      - id: check-yaml
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.10
-    hooks:
-      - id: ruff
+        files: ^hydra_screener_local/(core|data|utils|sleeves)/

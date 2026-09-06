@@ -15,7 +15,7 @@ def print_header():
 
 def print_candidates_table(df, top_n: int = 15):
     """Muestra la tabla principal de candidatos en formato texto plano."""
-    print(f"\n   Candidatos del Dia (Meta-Layer + Pillar Multipliers)")
+    print("\n   Candidatos del Dia (Meta-Layer + Pillar Multipliers)")
     print("-" * 95)
     print(f"{'Rank':>5} {'Ticker':<8} {'Mom':>7} {'Meta':>7} {'Mult':>7} {'Tipo':<8} {'Mode':<16} {'Agg':>5} {'Rec':>4} {'Razon'}")
     print("-" * 95)

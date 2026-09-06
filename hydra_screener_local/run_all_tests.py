@@ -137,6 +137,8 @@ def main():
     parser.add_argument("--fast", action="store_true", help="Skip heavy/long tests (contract tests only)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show full output for each test")
     parser.add_argument("--list", action="store_true", help="Just list discovered tests and exit")
+    parser.add_argument("--cov", action="store_true",
+                        help="report-only coverage over core, data, utils, sleeves (no floor)")
     args = parser.parse_args()
 
     test_files = discover_tests()
@@ -184,7 +186,42 @@ def main():
         print("No failures (skips are not passes).")
     else:
         print("All tests passed!")
+
+    if args.cov:
+        cov_rc = _run_coverage()
+        if cov_rc != 0 and not failed:
+            return cov_rc
     return 0
+
+
+def _run_coverage() -> int:
+    """Report-only coverage over core/ data/ utils/ sleeves/. No fail-under floor."""
+    print("\n" + "=" * 50)
+    print("COVERAGE (report-only; floor is Claude's call)")
+    try:
+        import pytest_cov  # noqa: F401
+    except ImportError:
+        print("pytest-cov not installed. pip install -r requirements-dev.txt")
+        return 1
+    xml_path = ROOT / "coverage.xml"
+    pytest_files = []
+    for t in discover_tests():
+        _cmd, how = _invocation(t)
+        if how == "pytest":
+            pytest_files.append(str(ROOT / t))
+    cmd = [
+        sys.executable, "-m", "pytest",
+        "--cov=core", "--cov=data", "--cov=utils", "--cov=sleeves",
+        "--cov-report=term",
+        f"--cov-report=xml:{xml_path}",
+        "-q", "--tb=no",
+        *pytest_files,
+    ]
+    print("coverage over", len(pytest_files), "pytest files")
+    result = subprocess.run(cmd, cwd=str(ROOT))
+    if xml_path.exists():
+        print(f"coverage XML: {xml_path}")
+    return 0 if result.returncode == 0 else result.returncode
 
 if __name__ == "__main__":
     sys.exit(main())

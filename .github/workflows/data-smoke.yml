@@ -1,0 +1,51 @@
+name: Data smoke
+
+# Nightly Yahoo shape check so a schema change shows up before Tuesday 16:30.
+# continue-on-error: this is a signal, not a gate. No secrets.
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: hydra_screener_local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Fetch 5 stocks + 10 ETFs + ^IRX and run preflight
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          import yfinance as yf
+          from config import V9
+          import preflight as PF
+
+          stocks = ["AAPL", "MSFT", "JPM", "XOM", "JNJ"]
+          etfs = list(V9["etf_universe"])
+          print("downloading", stocks, etfs, "^IRX")
+          raw = yf.download(stocks + etfs + ["^IRX"], period="5d", auto_adjust=True, progress=False, threads=True)
+          close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw
+          close.columns = [str(c) for c in close.columns]
+          prices = close[stocks].dropna(how="all")
+          etf = close[etfs].dropna(how="all")
+          irx = close["^IRX"].dropna() if "^IRX" in close.columns else pd.Series(dtype=float)
+          result = PF.evaluate(prices, etf, irx, asof=pd.Timestamp.now())
+          print(PF.format_table(result))
+          hard = [r for r in result["rows"] if r["status"] == "HARD"]
+          if hard:
+              raise SystemExit("HARD: " + "; ".join(r["detail"] for r in hard))
+          print("smoke ok")
+          PY

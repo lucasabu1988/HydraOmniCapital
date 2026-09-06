@@ -1447,8 +1447,8 @@ def _parse_wiki_change_tables(tables) -> list[dict]:
         df = df.copy()
         df.columns = ["_".join(str(x) for x in c if str(x) != "nan") if isinstance(c, tuple) else str(c)
                       for c in df.columns]
-        def _col(*needles):
-            for c in df.columns:
+        def _col(*needles, _df=df):
+            for c in _df.columns:
                 cl = str(c).lower()
                 if all(n in cl for n in needles):
                     return c

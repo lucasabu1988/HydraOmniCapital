@@ -82,6 +82,8 @@ hydra_screener_local/*.xlsx
 hydra_screener_local/pine/hydra_last_summary.*
 hydra_screener_local/pine/watchlist.txt
 .coverage
+hydra_screener_local/coverage.xml
+htmlcov/
 hydra_screener_local/experiments/_sweep_cache/
 hydra_screener_local/experiments/_sweep_cache_oos/
 hydra_screener_local/experiments/_sweep_cache_russell/

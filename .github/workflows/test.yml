@@ -14,7 +14,11 @@ jobs:
   # test_hybrid_integration skips without history/.
   screener:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
     defaults:
       run:
         working-directory: hydra_screener_local
@@ -22,15 +26,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install screener + dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Screener test suite + coverage
+        run: python run_all_tests.py --cov
+
+      - name: Upload coverage XML
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: hydra_screener_local/coverage.xml
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: hydra_screener_local
+    steps:
+      - uses: actions/checkout@v4
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Install screener dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest pytest-timeout   # hydra_screener_local/pytest.ini --timeout=30
-
-      - name: Screener test suite
-        run: python run_all_tests.py
+      - name: Install ruff
+        run: python -m pip install ruff
+      - name: Ruff
+        run: python -m ruff check core data utils sleeves portfolio_v9.py daily.py dashboard_v9.py preflight.py reconcile.py confirm_fills.py journal.py store_cli.py evidence_review.py warm_sectors.py --config ruff.toml

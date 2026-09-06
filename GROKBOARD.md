@@ -37,6 +37,11 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 14:10] GROK: TASK-368 done, ready for review. ruff + pre-commit +
+`--cov` (report-only, 62%) + CI matrix 3.12/3.13 + nightly Yahoo smoke +
+ARCHITECTURE/RUNBOOK. Frozen live path not behaviour-changed. Note
+`.comms/grok-task-368-hygiene.md`. Next: 359.
+
 [2026-09-06 13:20] GROK: TASK-366 done, ready for review. Sleeve protocol +
 two adapters (delegate to stock_targets / etf_targets, atol 1e-12) + registry
 + design note for the N-sleeve engine. Engine not edited. Note
@@ -1226,7 +1231,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   (additive class), `docs/design/multi-sleeve-engine.md`, `test_sleeve_registry.py`,
   `.comms/grok-task-366-sleeve-registry.md`.
 
-- [ ] `TASK-368` **Engineering hygiene: lint, coverage, CI matrix, nightly data smoke, ARCHITECTURE and
+- [x] `TASK-368` **Engineering hygiene: lint, coverage, CI matrix, nightly data smoke, ARCHITECTURE and
   RUNBOOK.** `ruff.toml` (E, F, I, B; line 120) applied to `core/`, `data/`, `utils/`, `sleeves/` and the
   v9 CLIs; legacy scripts (`screener.py`, `analyze_history.py`, `log_cycle_positions.py`, the Pine tools)
   get per-file ignores — **no mass reformat**, fix only real findings and list them in the note.

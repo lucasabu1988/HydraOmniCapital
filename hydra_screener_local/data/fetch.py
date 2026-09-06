@@ -4,7 +4,6 @@ Maneja bien universos grandes (S&P 500) usando descargas por lotes.
 """
 import yfinance as yf
 import pandas as pd
-from datetime import datetime, timedelta
 import warnings
 import time
 
