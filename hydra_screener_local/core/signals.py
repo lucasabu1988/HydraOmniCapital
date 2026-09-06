@@ -18,7 +18,7 @@ This is the reference Python implementation of the language-agnostic spec.
 import pandas as pd
 import numpy as np
 from config import (
-    MOMENTUM_LOOKBACK, REGIME_SMA, MIN_REGIME_SCORE,
+    MOMENTUM_LOOKBACK, MOMENTUM_WINDOW, REGIME_SMA, MIN_REGIME_SCORE,
     SHORT_TERM_LOOKBACK, PROXIMITY_HIGH_DAYS, MAX_DIST_TO_HIGH_PCT, SHORT_TERM_BOOST,
     GEOPOLITICAL_RISK_LEVEL, GEO_VOL_THRESHOLD_ADJUST, VOL_SURGE_THRESHOLD, MIN_VOL_THRESHOLD,
     ENABLE_DOWNTREND_GATE, GATE_MAX_DIST_TO_HIGH_PCT, GATE_MIN_RET_SHORT_PCT
@@ -28,15 +28,23 @@ from .regime import compute_rich_regime_scores
 from .filters import apply_sector_concentration_control
 
 
-def compute_momentum_score(prices: pd.DataFrame) -> pd.Series:
+def compute_momentum_score(prices: pd.DataFrame, window: str = None) -> pd.Series:
+    """Risk-adjusted momentum (SPEC 4.1).
+
+    window="ret90"   : close[t]/close[t-90] - 1            (v8.4 production)
+    window="mom12_7" : close[t-126]/close[t-252] - 1       (v9 stock sleeve; Novy-Marx 2012)
+    Both divided by the 63-day annualised volatility. Default = config.MOMENTUM_WINDOW.
     """
-    Calcula el score de momentum estilo COMPASS v8.4 simplificado:
-    (retorno 90d / volatilidad 63d)
-    """
+    window = window or MOMENTUM_WINDOW
     returns = prices.pct_change(fill_method=None)
-    mom = prices.pct_change(MOMENTUM_LOOKBACK, fill_method=None)
+    if window == "ret90":
+        mom = prices.pct_change(MOMENTUM_LOOKBACK, fill_method=None)
+    elif window == "mom12_7":
+        mom = prices.shift(126) / prices.shift(252) - 1
+    else:
+        raise ValueError(f"unknown momentum window {window!r}")
     vol = returns.rolling(63).std() * np.sqrt(252)
-    
+
     score = mom / vol.replace(0, np.nan)
     return score.iloc[-1].dropna()
 
@@ -157,7 +165,7 @@ def compute_regime_score(spy: pd.Series) -> float:
 
 
 def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame = None,
-                             sector_map: dict = None) -> pd.DataFrame:
+                             sector_map: dict = None, momentum_window: str = None) -> pd.DataFrame:
     """
     Main entry point for daily candidate generation.
 
@@ -181,7 +189,7 @@ def generate_daily_candidates(prices: pd.DataFrame, spy: pd.Series, volumes: pd.
     When it is None the sector lookup falls back to the local cache and SECTOR_BUCKETS.
     """
     # SPEC 4.1 - Momentum Score (risk-adjusted)
-    momentum = compute_momentum_score(prices)
+    momentum = compute_momentum_score(prices, window=momentum_window)
     
     # SPEC 4.3 - Rich Regime (5 sub-scores + weighted overall)
     rich_regime = compute_rich_regime_scores(spy, prices)

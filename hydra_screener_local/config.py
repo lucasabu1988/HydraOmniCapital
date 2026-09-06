@@ -47,11 +47,39 @@ INITIAL_UNIVERSE = [
 # PARÁMETROS DE SEÑALES (lógica establecida)
 # ============================================
 MOMENTUM_LOOKBACK = 90
+# Momentum window used by compute_momentum_score. "ret90" = v8.4 production (close[t]/close[t-90]-1);
+# "mom12_7" = HYDRA v9 stock sleeve (close[t-126]/close[t-252]-1, Novy-Marx 2012). Both divided by
+# vol63. Changing this is a scoring change (GROKBOARD rule 6); v9 was authorised by Lucas on 2026-09-06.
+MOMENTUM_WINDOW = "ret90"
 # No MOMENTUM_SKIP, deliberately (TASK-319, 2026-09-06). The legacy v8.4 "5d skip" was really
 # "skip minus last-5d return" - a short-term reversal bet that contradicts the strict filter and
 # the short-term boost. Measured in-sample and out-of-sample: no skip variant beats production.
 # Evidence in HYDRA_ALGORITHM_SPEC.md 4.1.
 REGIME_SMA = 200
+
+# ============================================
+# HYDRA v9 — 50/50 T20 + ETF portfolio (authorised by Lucas 2026-09-06; design in
+# .comms/claude-v9-production-design-2026-09-06.md). Production runs v8.4 until ALGO_VERSION flips.
+# Values are the lab's pre-specified ones (verdict + sleeves design); they are not re-optimised here.
+# ============================================
+ALGO_VERSION = "v8.4"            # "v8.4" | "v9"
+V9 = {
+    "step_bars": 5,              # one tranche renewed every 5 trading bars
+    "hold_bars": 20,             # each tranche lives 20 bars
+    "tranches": 4,
+    "stock_momentum_window": "mom12_7",
+    "stock_buffer": 2.0,         # a held name stays while it ranks within buffer * dynamic_count
+    "stock_target_vol": 0.15,    # exposure = min(1, target_vol / vol63 of the equal-weight basket)
+    "stock_cost_bp": 10.0,
+    "etf_universe": ["SPY", "QQQ", "IWM", "EFA", "EEM", "TLT", "IEF", "GLD", "DBC", "VNQ"],
+    "etf_lookback_bars": 252,    # 12-month excess return vs T-bill > 0 -> long
+    "etf_vol_bars": 63,          # inverse-vol weights over the eligible universe
+    "etf_cost_bp": 5.0,
+    "mix": {"stocks": 0.5, "etf": 0.5},
+    "tbill_symbol": "^IRX",
+    "max_stale_bars": 10,        # a held name without prints is carried, then written off at last price
+    "price_period": "2y",        # 252 + 126 bars of history + vol window
+}
 MIN_REGIME_SCORE = 0.35          # Por debajo de esto, reducimos agresividad
 
 # ============================================

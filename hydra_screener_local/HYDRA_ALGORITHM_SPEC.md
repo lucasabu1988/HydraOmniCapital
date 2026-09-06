@@ -118,6 +118,10 @@ return score.iloc[-1]
 **Parameters**:
 - `MOMENTUM_LOOKBACK = 90`
 - Volatility window = 63 (hardcoded in current implementation)
+- `MOMENTUM_WINDOW = "ret90"` (v8.4 production). The v9 stock sleeve (section 9) uses
+  `"mom12_7"`: `mom = close[t-126] / close[t-252] - 1` (Novy-Marx 2012, intermediate horizon),
+  same `vol63` denominator, everything downstream unchanged. Authorised by Lucas on 2026-09-06
+  as part of the v9 portfolio; measured in `.comms/claude-redesign-verdict-2026-09-06.md`.
 
 > **Decisiones cerradas (2026-09-06, delegadas por Lucas a Claude; TASK-319).**
 >
@@ -512,3 +516,57 @@ dropped from the contract the warning cannot fire.
 ---
 
 ¿Qué querés hacer ahora? (podés decir el número o describir)
+
+---
+
+## 9. HYDRA v9 — 50/50 T20 + ETF portfolio (authorised 2026-09-06, not yet the active version)
+
+Lucas authorised on 2026-09-06 moving production to a two-sleeve portfolio whose objective is
+**return per unit of risk** (simulated on the S&P 500 PIT panel with executable accounting:
+6.91% net, Sharpe 0.74, maxDD -19.5%, vs v8.4 5.48 / 0.42 / -37.8; SPY buy-and-hold 10.96 / 0.68
+/ -54.7). `config.ALGO_VERSION` stays `"v8.4"` until parity and cross review are done; flipping it
+is the production switch. Design and acceptance criteria:
+`.comms/claude-v9-production-design-2026-09-06.md`.
+
+### 9.1 Sleeves and tranches
+
+| | Sleeve A — stocks (T20) | Sleeve B — ETF trend |
+|---|---|---|
+| Capital | 50%, four tranches of 12.5% of the book | 50%, four tranches |
+| Universe | production universe after sections 5 and 4.6 (filters, data-quality, sector cap, veto) | `V9.etf_universe` (10 ETFs, fixed) |
+| Signal | section 4.1 with `mom12_7`; sections 4.2-4.7 unchanged (`dynamic_count` = n) | 252-bar total return minus accumulated T-bill > 0 -> long, else T-bill |
+| Tranche list | `select_tranche_names`: vetoed out; a held name stays while ranked within `buffer * n` (buffer 2.0); vacancies filled down the ranking under the sector cap | every "on" ETF |
+| Weights | equal, times exposure `min(1, 0.15 / vol63 of the equal-weight basket)`; remainder T-bill | inverse vol63 normalised over the whole eligible universe; "off" share stays in T-bill |
+| Cadence | one tranche renewed every 5 trading bars (week w renews tranche w mod 4); a tranche lives 20 bars | same |
+| Costs modelled | 10 bp per side | 5 bp per side |
+
+### 9.2 Time convention and orders
+
+Run after the close of bar t with data through t. `plan()` emits orders as dollar amounts with
+estimated units at t's close; execution is the close of t+1 (MOC). `settle()` books them at t+1
+prices: sells, then the inter-sleeve cash transfer, then buys; dollar amounts kept, units at the
+fill, costs charged; an order whose ticker has no price on t+1 is recorded `not_filled`, never
+invented. Zero recommended -> the renewed stock tranche parks in T-bill (`park` order; no fallback,
+section 7.1). All ETFs off -> the renewed ETF tranche parks.
+
+### 9.3 Rebalancing between sleeves
+
+Each renewed tranche is sized to **1/8 of the whole book**; the difference to its own value moves
+as cash between sleeves (`transfer_in/out`, recorded). The sleeves therefore drift back to 50/50 one
+tranche per week. This is the executable version of the lab's weekly 50/50 reset; nothing else is
+rebalanced without an order.
+
+### 9.4 State (`state/portfolio_v9.json`, gitignored; see design section 3)
+
+schema 1: anchor_date, last_run_date, last_renewal_date, week_index, capital_reference, per sleeve
+four tranches {k, opened, units, cash, last_px}, pending orders, ledger of fills, write_offs,
+transfers. A held name that stops printing is carried at its last price for `max_stale_bars` (10)
+and then written off at that price (recorded). No `history/` tracking is run (Lucas 2026-09-06).
+
+### 9.5 Parity and tests
+
+`test_portfolio_engine.py`: hand cases (flat book 100->200->100, zero recommended parks, veto and
+buffer, sector cap, idempotent plan, transfer sign, costs and unfilled orders) and parity with the
+executable simulator (`experiments/redesign_lab.run_exec` targets for T20 and
+`experiments/sleeve_lab.run_sleeve` targets for the ETF sleeve on >= 20 renewal dates, atol 1e-9;
+skipped without the lab caches).
