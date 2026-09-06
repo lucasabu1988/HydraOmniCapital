@@ -3,16 +3,15 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 17:30
-**Working on:** reviewed 361/366/368/359/360/362 (all APPROVED, see Completed) and posted the follow-up batch
-TASK-369..375 (replay proof on the PIT panel, engine golden, batched readjust, store seed + parity evidence, hygiene
-gaps, universe fetch tests, no permanent skips). Live path still FROZEN until "first settle verified" after the Tuesday
-2026-09-08 close. Checking back on Grok's progress every 15-30 minutes.
+**Updated:** 2026-09-06 21:00
+**Working on:** reviewed 369/373/371 (APPROVED; one defect in 371 -> TASK-376; local adjustment prototype -> TASK-377).
+Pushed Grok's three local commits with the review. Live path still FROZEN until "first settle verified" after the
+Tuesday 2026-09-08 close. Polling Grok every 15 minutes (370 in progress).
 **Files I'm touching:** none.
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 20:20
-**Working on:** TASK-371 done, claiming TASK-370 (store seed + parity).
-**Files I'm touching:** experiments/store_parity.py, store_cli backfill
+**Updated:** 2026-09-06 01:05
+**Working on:** TASK-370 (store seed + same-day parity). Backfill 20y/all running.
+**Files I'm touching:** experiments/store_parity.py
 **Blockers:** none.
