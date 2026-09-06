@@ -4,6 +4,9 @@ Creates synthetic price data for ~20 tickers, runs the full candidate generation
 verifies columns, special modes, pillar multipliers, dynamic count, etc.
 """
 import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import os
 # Este test vive en experiments/ — config y core/ están en el directorio padre
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

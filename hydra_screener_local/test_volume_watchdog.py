@@ -61,13 +61,13 @@ def test_volume_nan_share_high_emits_warning_and_field(capsys):
             from screener import VOL_NAN_WARN_THRESHOLD
             nan_share = float(candidates.iloc[0].get("vol_ratio_nan_share", 0))
             if nan_share > VOL_NAN_WARN_THRESHOLD:
-                print(f"⚠ {nan_share:.0%} of tickers have no usable volume data — strict filter coverage degraded")
+                print(f"[WARN] {nan_share:.0%} of tickers have no usable volume data -- strict filter coverage degraded")
 
         finally:
             os.environ.pop("HYDRA_SKIP_HYBRID", None)
 
     captured = capsys.readouterr()
-    assert "⚠" in captured.out
+    assert "[WARN]" in captured.out
     assert "50%" in captured.out or "0.5" in captured.out
     assert "strict filter coverage degraded" in captured.out
 

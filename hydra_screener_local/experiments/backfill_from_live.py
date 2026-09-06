@@ -4,6 +4,10 @@ Backfill del historial del screener local usando datos del sistema live (OmniCap
 Lee cycle_log.json y decisions.jsonl para generar archivos history/YYYYMMDD.json
 y history/tracking/YYYYMMDD.json con retornos reales ya conocidos.
 """
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import json
 import os
 from collections import defaultdict

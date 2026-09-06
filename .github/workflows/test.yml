@@ -37,7 +37,7 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Screener test suite + coverage
-        run: python run_all_tests.py --cov
+        run: python run_all_tests.py --cov --strict-console
 
       - name: Upload coverage XML
         if: matrix.python-version == '3.12'

@@ -10,8 +10,7 @@ state/ or journal/). Live path still FROZEN until the Tuesday 2026-09-08 close. 
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 02:55
-**Working on:** TASK-380 (console encoding). Then 382.
-**Files I'm touching:** entry-point scripts, run_all_tests.py, test.yml,
-test_console_encoding.py
+**Updated:** 2026-09-06 03:05
+**Working on:** TASK-380 done, ready for review. Next 383 -> 382 -> 377.
+**Files I'm touching:** none
 **Blockers:** none.

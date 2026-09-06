@@ -23,6 +23,10 @@ Intended to be called at the end of screener.py or via the .bat launcher.
 Centralized .env loading (via utils/env.py) happens automatically on import.
 """
 
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import argparse
 import json
 import os
@@ -142,7 +146,7 @@ def format_for_discord(summary: Dict) -> str:
 
     lines.append(f"**Recommended ({summary['recommended_count']}):**")
     for d in summary["top_details"]:
-        flag = "🟢 STRICT" if d["passes_strict"] else ""
+        flag = "[STRICT]" if d["passes_strict"] else ""
         lines.append(f"  {d['rank']}. **{d['ticker']}** — {d['composite']:.4f} {flag}")
 
     lines.append("")

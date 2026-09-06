@@ -24,6 +24,9 @@ import argparse
 import json
 import os
 import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from datetime import datetime, timedelta
 
 import numpy as np

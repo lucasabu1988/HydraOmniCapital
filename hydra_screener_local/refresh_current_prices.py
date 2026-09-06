@@ -1,3 +1,7 @@
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 #!/usr/bin/env python
 """
 Refresh Current Prices for Dynamic PnL Tracking

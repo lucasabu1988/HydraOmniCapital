@@ -33,6 +33,9 @@ warnings.filterwarnings('ignore')
 
 # Import the EXACT current screener logic
 import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, '.')
 from core.signals import generate_daily_candidates
 from core.regime import compute_rich_regime_scores  # for info

@@ -1,3 +1,7 @@
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 #!/usr/bin/env python
 """
 Script to log ALL cycle positions from the HYDRA screener rotation into ONE Excel file.

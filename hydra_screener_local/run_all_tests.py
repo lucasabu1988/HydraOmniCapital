@@ -11,6 +11,7 @@ Exit code 0 if all pass, 1 if any fail.
 
 import argparse
 import glob
+import os
 import re
 import subprocess
 import sys
@@ -83,11 +84,14 @@ def _invocation(test_file: str) -> tuple[list[str], str]:
     return [sys.executable, str(path)], "script"
 
 
-def run_test(test_file: str, verbose: bool = False) -> tuple[str, float]:
+def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = None) -> tuple[str, float]:
     cmd, how = _invocation(test_file)
     suffix = "" if how == "script" else f"  [via {how}]"
     print(f"\n=== {test_file} ==={suffix}")
     start = time.perf_counter()
+    env = os.environ.copy()
+    if extra_env:
+        env.update(extra_env)
     # Only the subprocess call is guarded: a failure while printing the report
     # is a runner bug, not a test failure, and must not be swallowed here.
     try:
@@ -98,6 +102,7 @@ def run_test(test_file: str, verbose: bool = False) -> tuple[str, float]:
             encoding="utf-8",
             errors="replace",
             timeout=180,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         duration = time.perf_counter() - start
@@ -139,6 +144,8 @@ def main():
     parser.add_argument("--list", action="store_true", help="Just list discovered tests and exit")
     parser.add_argument("--cov", action="store_true",
                         help="report-only coverage over core, data, utils, sleeves (no floor)")
+    parser.add_argument("--strict-console", action="store_true",
+                        help="run children with PYTHONIOENCODING=cp1252:strict (Windows console)")
     args = parser.parse_args()
 
     test_files = discover_tests()
@@ -155,6 +162,9 @@ def main():
     print("=" * 50)
     if args.fast:
         print("(FAST mode: core contract tests only)")
+    extra_env = {"PYTHONIOENCODING": "cp1252:strict"} if args.strict_console else None
+    if args.strict_console:
+        print("(strict-console: PYTHONIOENCODING=cp1252:strict)")
     print()
 
     passed = 0
@@ -164,7 +174,7 @@ def main():
     start_all = time.perf_counter()
 
     for t in test_files:
-        status, dur = run_test(t, verbose=args.verbose)
+        status, dur = run_test(t, verbose=args.verbose, extra_env=extra_env)
         total_time += dur
         if status == "pass":
             passed += 1

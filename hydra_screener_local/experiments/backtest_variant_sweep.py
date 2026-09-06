@@ -25,6 +25,9 @@ Caveats that apply to every number this prints:
 import argparse
 import os
 import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import warnings
 
 import numpy as np

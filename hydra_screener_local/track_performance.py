@@ -6,6 +6,10 @@ Uso:
     python track_performance.py --force  # Fuerza recalculo de todo
     python track_performance.py --hybrid-only  # Focus on lists sent to Pine/TV
 """
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import argparse
 
 # Load .env early via centralized loader (for consistency across all tools)

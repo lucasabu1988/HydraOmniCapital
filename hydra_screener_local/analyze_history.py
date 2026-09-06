@@ -16,6 +16,10 @@ Uso:
     python analyze_history.py --recompute --no-yf
     python analyze_history.py --hybrid-only --export-excel  # solo listas enviadas a Pine/TV
 """
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import json
 import os
 import argparse

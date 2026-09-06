@@ -305,10 +305,7 @@ def get_sp500_tickers(use_cache: bool = True) -> list[str]:
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
-        try:
-            print(f"✓ {len(clean)} tickers ({source})")
-        except UnicodeEncodeError:
-            print(f"[OK] {len(clean)} tickers ({source})")
+        print(f"[OK] {len(clean)} tickers ({source})")
 
         return clean
 
@@ -327,10 +324,7 @@ def get_sp500_tickers(use_cache: bool = True) -> list[str]:
             logger.warning("Failed to load universe cache: %s", e)
 
     # Último recurso: Fallback (nunca falla)
-    try:
-        print("✗ Error en TODAS las fuentes online")
-    except UnicodeEncodeError:
-        print("[ERR] Error en TODAS las fuentes online")
+    print("[ERR] Error en TODAS las fuentes online")
 
     print("Usando lista de respaldo grande y limpia (~362 tickers únicos).")
     fb = get_fallback_sp500_tickers()
@@ -798,10 +792,7 @@ def get_nasdaq100_tickers(use_cache: bool = True) -> list[str]:
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
-        try:
-            print(f"✓ {len(clean)} tickers ({source})")
-        except UnicodeEncodeError:
-            print(f"[OK] {len(clean)} tickers ({source})")
+        print(f"[OK] {len(clean)} tickers ({source})")
         return clean
 
     # TASK-201 review fix: json cache fallback for nasdaq100
@@ -897,10 +888,7 @@ def get_dow30_tickers(use_cache: bool = True) -> list[str]:
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
-        try:
-            print(f"✓ {len(clean)} tickers ({source})")
-        except UnicodeEncodeError:
-            print(f"[OK] {len(clean)} tickers ({source})")
+        print(f"[OK] {len(clean)} tickers ({source})")
         return clean
 
     # TASK-201 round 3: json cache fallback for dow30
@@ -1100,10 +1088,7 @@ def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
-        try:
-            print(f"✓ {len(clean)} tickers ({source})")
-        except UnicodeEncodeError:
-            print(f"[OK] {len(clean)} tickers ({source})")
+        print(f"[OK] {len(clean)} tickers ({source})")
         return clean
 
     # TASK-201 round 3: json cache fallback for russell1000
@@ -1292,10 +1277,7 @@ def get_russell2000_tickers(use_cache: bool = True) -> list[str]:
         with open(json_cache, "w", encoding="utf-8") as f:
             json.dump({"date": datetime.now().isoformat(), "tickers": clean, "source": source}, f, indent=2)
 
-        try:
-            print(f"✓ {len(clean)} tickers ({source})")
-        except UnicodeEncodeError:
-            print(f"[OK] {len(clean)} tickers ({source})")
+        print(f"[OK] {len(clean)} tickers ({source})")
         return clean
 
     # TASK-201 review fix: json cache fallback for russell2000

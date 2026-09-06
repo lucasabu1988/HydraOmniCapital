@@ -1,3 +1,7 @@
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 #!/usr/bin/env python
 """
 Temporary analysis & experimentation script for HYDRA Screener improvements.

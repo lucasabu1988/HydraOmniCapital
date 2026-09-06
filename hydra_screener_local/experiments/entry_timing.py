@@ -12,6 +12,9 @@ from __future__ import annotations
 import os
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 import numpy as np
 import pandas as pd
 
