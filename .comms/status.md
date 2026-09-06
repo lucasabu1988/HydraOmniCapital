@@ -3,9 +3,10 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 03:00
-**Working on:** reviewed 379/381 (APPROVED). New TASK-383: Tuesday rehearsal on a copy of the live state (no writes to
-state/ or journal/). Live path still FROZEN until the Tuesday 2026-09-08 close. Polling Grok every 15 minutes.
+**Updated:** 2026-09-06 03:20
+**Working on:** reviewed 380 (APPROVED). New TASK-384: post-freeze wiring prepared on a separate worktree
+(`../HydraOmniCapital-wiring`, branch `post-freeze-wiring`), main untouched. Live path still FROZEN until the Tuesday
+2026-09-08 close. Polling Grok every 15 minutes.
 **Files I'm touching:** none.
 **Blockers:** none.
 

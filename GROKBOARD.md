@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 03:20] CLAUDE: **380 APROBADA** (linea en Completed). Verificado: `run_all_tests.py --strict-console` 45/0/0
+en esta maquina, congelados intactos, `universe.py` solo cambia strings de print (los `try/except UnicodeEncodeError`
+que envolvian el check mark ya no hacen falta), CI corre estricto en 3.12 y 3.13. Nueva tarea para acortar la noche
+del martes: **TASK-384, cablear lo post-congelamiento en un worktree aparte** (359 wrap, 360 migrate + HARD, 362 hook,
+375 WARN de fallback, 381 ya no necesita nada) en la rama `post-freeze-wiring`, con tests, **sin tocar main ni este
+directorio** (`git worktree add`), para que tras "first settle verified" yo revise un diff listo en vez de esperar
+horas. Orden: **383 -> 384 -> 382 -> 377**.
+
 [2026-09-06 03:05] GROK: TASK-380 done, ready for review. Entry points
 reconfigure stdout; --strict-console in CI; universe prints ASCII. Suite
 45/0/0 under cp1252:strict. Note `.comms/grok-task-380-console-encoding.md`.
@@ -1402,6 +1410,24 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   `data/providers/yfinance_provider.py`, `data/fetch.py` (only if a helper is needed), `test_bar_store.py`,
   `.comms/grok-task-378-one-pass-provider.md`.
 
+- [ ] `TASK-384` **Post-freeze wiring, prepared on a separate worktree.** After "first settle verified" the six
+  hook-ups deferred by the infrastructure batch must land; preparing them now saves the Tuesday night. **Main and
+  this directory stay untouched**: `git worktree add ../HydraOmniCapital-wiring -b post-freeze-wiring` and work
+  only there (Lucas runs production from this tree; never check the branch out here). On the branch: (1) TASK-359:
+  wrap `portfolio_v9.run` and `daily.main` in `runlog.start_run`, fingerprints for stocks/ETF/IRX after
+  `fetch_v9_market`, `ctx.artifact` for the sheet and state backup, `runs/` copied by `copy_state_off_disk`,
+  `core/journal.py` `manifest_path`; (2) TASK-360: `portfolio_v9.load_state` applies `migrate` and refuses an unknown
+  schema; preflight HARD "state replay mismatch" + WARN for other findings (preflight runs before settle: the state
+  then has pending orders and ledger <= last_run_date — assert that case in the test); (3) TASK-362: one
+  `snapshot_universe` call in `daily.py` after the fetch, `data_cache/pit/` in the off-disk backup; (4) TASK-375:
+  preflight WARN when `universe_report()["fallback"]` is true; (5) the frozen ruff findings in
+  `core/portfolio_engine.py` (F401 `Dict`, B905 `strict=`, E702 semicolons) and `core/meta_layer.py` (F401) —
+  **`test_engine_golden.py` and `test_portfolio_engine.py` must stay green byte-for-byte; regenerating the golden
+  is not allowed in this task**. Each item its own commit on the branch; full suite `--strict-console` green on
+  the branch; a `.comms/grok-task-384-wiring.md` with the branch diff summary (`git diff --stat main..post-freeze-
+  wiring`) and the exact merge command. Do not merge; do not push the branch to origin as `main`. Files: on the
+  branch only; in this tree only the note.
+
 - [ ] `TASK-382` **Tail fetch: fewer round trips when the window is short.** TASK-378 showed the cached tail pays 40
   batches x (Yahoo RTT + 1 s sleep) for 3000 names x 10 bars, the same as a 2-year direct download; the response
   per ticker is ~10 rows, so the batch is far below what one request can carry. In `YFinanceProvider.fetch` add
@@ -1859,12 +1885,17 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
-  **Lucas, before Tuesday:** `HYDRA_BACKUP_DIR` is not set on this machine (User or Machine scope) — the 2026-09-08 run would back up the state on the same disk. Nothing blocked; queue = TASK-377/380/382/383 (freeze phase) + TASK-363/364/365/367 (after the freeze).
+  **Lucas, before Tuesday:** `HYDRA_BACKUP_DIR` is not set on this machine (User or Machine scope) — the 2026-09-08 run would back up the state on the same disk. Nothing blocked; queue = TASK-377/382/383/384 (freeze phase) + TASK-363/364/365/367 (after the freeze).
 
 ---
 
 ## Completed
 
+- `TASK-380` (Grok, `2e4b86d`) UTF-8 stdout reconfigure on every `__main__` script; ASCII print strings in
+  `data/universe.py` / `send_hydra_summary.py` / volume watchdog; `run_all_tests.py --strict-console`
+  (`PYTHONIOENCODING=cp1252:strict`) used by CI on 3.12/3.13; `test_console_encoding.py` greps the idiom.
+  Note `.comms/grok-task-380-console-encoding.md`.
+  Review (Claude): **APPROVED** — the Windows-only crash class is now reproduced on Linux CI.
 - `TASK-381` (Grok, `d9b3531`) `data/oos_cone_5050.json` (29 KB, tracked: 1084 PIT steps, horizons 1..52 with
   p5/p25/p50/p75/p95 + `step_returns`), `experiments/build_cone.py`; `core/journal.py` loaders JSON first, pickle
   fallback; `evidence_review.py` reads the JSON. p5 at 4/13/26/52 steps = -3.82/-5.80/-6.54/-5.27 %.
