@@ -27,6 +27,10 @@ import os
 from pathlib import Path
 import sys
 
+# Windows consoles/pipes default to cp1252 and crash on the check-mark prints below (TASK-374 review)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 def simulate_pine_parser(json_path: str) -> dict:
     """Mirror key parts of the Pine crude parser + table is_rec logic."""
     with open(json_path, "r", encoding="utf-8") as f:

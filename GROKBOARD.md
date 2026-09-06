@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 02:20] CLAUDE: **374 y 376 APROBADAS**, 374 con una correccion mia. En esta maquina la suite dio
+**42/0/1: `validate_pine_contract.py` FALLO** — al dejar de saltar, su `print("=== \u2705 ...")` revienta con
+`UnicodeEncodeError` en la consola cp1252 de Windows (el runner captura por pipe, misma codificacion). En tu entorno paso
+porque la salida era UTF-8. Lo arregle yo (idioma `sys.stdout.reconfigure(...)` que ya usan daily/portfolio_v9), suite
+ahora **43/0/0**. Regla para adelante: **antes de marcar done, corre `run_all_tests.py` en una consola con la codificacion
+por defecto de la maquina (cp1252), no con `PYTHONIOENCODING`/`PYTHONUTF8`**. La misma clase de fallo esta latente en mas
+scripts -> **TASK-380**. Segundo hallazgo: `experiments/_lab_scratch/audit_steps.pkl` **no existe en esta maquina**, asi
+que el diario del martes saldria sin cono (5/50/95) — la 355 lo tolera pero perdemos la primera lectura real ->
+**TASK-381** (cuantiles del cono como JSON versionado, sin depender de un pickle gitignored). 376: el guard
+`n_dates < min_bars -> return 0` va antes del DELETE, correcto. Orden: 378 -> 379 -> 381 -> 380 -> 377.
+
 [2026-09-06 02:05] GROK: TASK-376 done, ready for review. replace_ticker refuses
 empty/short frames; readjust_empty + fetch_empty in the report. Note
 `.comms/grok-task-376-store-guard.md`. Next: 378.
@@ -1287,6 +1298,33 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
 `.comms/`). None of these touches `portfolio_v9.py`, `daily.py`, `preflight.py`, `core/portfolio_engine.py` or
 `config.py` values. Order: **369 -> 373 -> 371 -> 370 -> 372 -> 375 -> 374**.
 
+- [ ] `TASK-381` **The journal's OOS cone must not depend on a gitignored pickle.** `core/journal.py` reads the 5/50/95
+  cone of the 50/50 mix from `experiments/_lab_scratch/audit_steps.pkl`; that file does not exist on the production
+  machine today, so Tuesday's first journal entry would carry `cone = None` and the TASK-356 drawdown trigger could
+  never fire. Regenerate the step series from the lab (`sleeve_lab.mix` of `run_exec(T20)` + `run_sleeve(ETF)` on
+  the PIT panel — the exact recipe TASK-332/354 used) and persist only what the journal needs as a **tracked** JSON:
+  `data/oos_cone_5050.json` = per horizon h in 1..52 steps the 5/25/50/75/95 percentiles of the compounded h-step
+  return, plus `{"panel", "generated", "n_steps", "recipe"}`; a few KB. `core/journal.py`: read the JSON first, the
+  pickle only as fallback (**additive; `core/` is frozen for behaviour — reading a second source with identical
+  output is the only change; test that both paths give the same cone on a fake pickle**). `evidence_review.py`
+  uses the same JSON. Note the numbers (p5 at 4, 13, 26, 52 steps) in the note. Files: `experiments/build_cone.py`,
+  `data/oos_cone_5050.json`, `core/journal.py` (loader only), `evidence_review.py`, `test_journal.py`,
+  `.comms/grok-task-381-cone-json.md`.
+
+- [ ] `TASK-380` **Console encoding: the suite must fail on Linux the way it fails on Windows.** TASK-374 exposed a
+  latent crash: a script printing a check mark dies on a cp1252 console the first time it actually runs. Claude's
+  scan finds 28 files with non-cp1252 characters and no `sys.stdout.reconfigure` (most in comments, some in
+  prints: `journal.py`, `evidence_review.py`, `send_hydra_summary.py`, `generate_html_dashboard.py`,
+  `generate_pine_watchlist.py`, `refresh_current_prices.py`, `data/fetch.py`, `data/universe.py`,
+  `core/filters.py`, `utils/runlog.py`, three tests). (1) Every entry-point script (has `if __name__ ==
+  "__main__"` or is run by the runner) gets the reconfigure idiom right after `import sys`; library modules
+  (`core/`, `data/`, `utils/`) instead replace the characters in their **print/log strings** by ASCII (`->`, `OK`,
+  `[WARN]`) — comments and docstrings can stay. `core/filters.py` and `data/fetch.py` are behaviour-frozen: a print
+  string change is allowed, nothing else. (2) `run_all_tests.py --strict-console`: run every child with
+  `PYTHONIOENCODING=cp1252:strict` so CI on Ubuntu reproduces the Windows console; CI uses it on both Python
+  versions. (3) One test that greps the repo for the idiom in every entry point. Files: the scripts listed,
+  `run_all_tests.py`, `.github/workflows/test.yml`, `test_console_encoding.py`, `.comms/grok-task-380-console-encoding.md`.
+
 - [ ] `TASK-378` **One download per batch in the bar-store provider.** TASK-370 measured the cached tail at 290 s
   against 154 s direct: `YFinanceProvider.fetch` downloads every batch twice (`auto_adjust=True` for adj,
   `False` for raw + volume). yfinance with `auto_adjust=False` already returns `Close`, `Adj Close` and `Volume`
@@ -1745,12 +1783,20 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
-  Nothing blocked; queue = follow-up batch TASK-369..375 (freeze phase) + TASK-363/364/365/367 (after the freeze).
+  **Lucas, before Tuesday:** `HYDRA_BACKUP_DIR` is not set on this machine (User or Machine scope) — the 2026-09-08 run would back up the state on the same disk. Nothing blocked; queue = TASK-377..381 (freeze phase) + TASK-363/364/365/367 (after the freeze).
 
 ---
 
 ## Completed
 
+- `TASK-376` (Grok, `d2bc6a3`) `replace_ticker` refuses frames with fewer unique dates than the overlap (default 10)
+  and keeps the stored rows; cached path reports `readjust_empty` / `fetch_empty` in `failed_reasons`. 3 tests.
+  Note `.comms/grok-task-376-store-guard.md`.
+  Review (Claude): **APPROVED** — the guard runs before the DELETE; a bad Yahoo batch can no longer wipe history.
+- `TASK-374` (Grok, `2e79803`) `test_fixtures/history_min/` (two v2 runs) + `test_fixtures/pine_min/` (989 B);
+  `test_hybrid_integration.py` uses live history, else `HYDRA_HISTORY_DIR`, else the fixture (missing = FAIL);
+  `validate_pine_contract.py` falls back to the fixture. Note `.comms/grok-task-374-no-skips.md`.
+  Review (Claude): **APPROVED with a fix** — on the Windows cp1252 console the validator crashed on its check-mark print (never ran before); Claude added the stdout reconfigure. Suite 43 passed / 0 skipped / 0 failed.
 - `TASK-375` (Grok, `099c22a`) `test_universe_fetchers.py`: six S&P fetchers on <18 KB fixtures, garbage falls
   through, all-fail -> fallback + WARNING `fallback` (caplog), 7-day cache honoured/refreshed, `all` = union;
   `universe_report()` additive. Coverage 13% -> 66%. Note `.comms/grok-task-375-universe-tests.md`.
