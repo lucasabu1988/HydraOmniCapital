@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,17 @@ _MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(_MODULE_DIR)
 DATA_CACHE_DIR = os.path.join(PROJECT_ROOT, "data_cache")
 CACHE_FILE = os.path.join(DATA_CACHE_DIR, "sector_cache.json")
+OVERRIDES_FILE = os.path.join(_MODULE_DIR, "sector_overrides.json")
 
 UNKNOWN_SECTOR = "Other"
 SAVE_EVERY = 50          # persist the cache this often so a crash does not lose the run (TASK-344)
+NEG_TTL_DAYS = 7         # TASK-379: do not retry a failed lookup for this long
 
-_memory = None  # {"updated": iso, "sectors": {ticker: sector}}
+_memory = None  # {"updated": iso, "sectors": {ticker: sector | {sector, failed_at}}}
+_overrides = None
+_LAST_REPORT = {
+    "cached": 0, "fetched": 0, "negative": 0, "override": 0, "unknown": 0,
+}
 
 
 def _empty():
@@ -61,10 +67,54 @@ def _save_cache(data):
     _memory = data
 
 
+def _load_overrides() -> dict:
+    global _overrides
+    if _overrides is not None:
+        return _overrides
+    out = {}
+    if os.path.exists(OVERRIDES_FILE):
+        try:
+            with open(OVERRIDES_FILE, encoding="utf-8") as f:
+                raw = json.load(f)
+            if isinstance(raw, dict):
+                out = {str(k): str(v) for k, v in raw.items()
+                       if k and not str(k).startswith("_") and v}
+        except Exception as e:
+            logger.warning("sector overrides unreadable: %s", e)
+    _overrides = out
+    return _overrides
+
+
+def _positive(val) -> str | None:
+    if isinstance(val, str) and val:
+        return val
+    if isinstance(val, dict):
+        sec = val.get("sector")
+        if sec:
+            return str(sec)
+    return None
+
+
+def _is_fresh_negative(val) -> bool:
+    if not isinstance(val, dict) or val.get("sector"):
+        return False
+    ts = val.get("failed_at")
+    if not ts:
+        return False
+    try:
+        t = datetime.fromisoformat(str(ts).replace("Z", ""))
+    except Exception:
+        return False
+    return datetime.now() - t < timedelta(days=NEG_TTL_DAYS)
+
+
 def lookup_sector(ticker: str) -> str:
-    """Cache -> buckets -> "Other". Reads only; never touches the network."""
+    """Override -> cache (positive) -> buckets -> "Other". Reads only; no network."""
     from config import SECTOR_BUCKETS
-    sec = _load_cache().get("sectors", {}).get(ticker)
+    ov = _load_overrides().get(ticker)
+    if ov:
+        return ov
+    sec = _positive(_load_cache().get("sectors", {}).get(ticker))
     if sec:
         return sec
     return SECTOR_BUCKETS.get(ticker, UNKNOWN_SECTOR)
@@ -80,7 +130,13 @@ def refresh_sector_cache(tickers, budget_seconds=None, save_every=SAVE_EVERY, on
     """
     data = _load_cache()
     sectors = dict(data.get("sectors") or {})
-    need = [t for t in tickers if t and t not in sectors]
+    overrides = _load_overrides()
+    need = [
+        t for t in tickers
+        if t and t not in overrides
+        and not _positive(sectors.get(t))
+        and not _is_fresh_negative(sectors.get(t))
+    ]
     if not need:
         return sectors
 
@@ -108,13 +164,15 @@ def refresh_sector_cache(tickers, budget_seconds=None, save_every=SAVE_EVERY, on
                 fetched += 1
         except Exception as e:
             logger.warning("sector fetch failed for %s: %s", t, e)
+            sectors[t] = {"sector": None, "failed_at": datetime.now().isoformat()}
         if fetched and fetched % every == 0:
             _try_save(sectors)
             if on_progress:
                 on_progress(fetched, len(need), remaining=len(need) - i - 1)
 
-    if fetched:
+    if fetched or any(isinstance(sectors.get(t), dict) for t in need):
         _try_save(sectors)
+    _LAST_REPORT["fetched"] = fetched
     if fetched < len(need):
         logger.warning(
             "sector cache: resolved %d of %d unknown tickers; remainder fall back to "
@@ -142,12 +200,40 @@ def resolve_sectors(tickers, budget_seconds=None) -> dict:
     """
     from config import SECTOR_BUCKETS
     tickers = [t for t in tickers if t]
+    overrides = _load_overrides()
     try:
         cached = refresh_sector_cache(tickers, budget_seconds=budget_seconds)
     except Exception as e:  # belt and braces: a sector map is never worth failing a run
         logger.warning("sector resolution failed, falling back to buckets: %s", e)
         cached = {}
-    return {t: cached.get(t) or SECTOR_BUCKETS.get(t, UNKNOWN_SECTOR) for t in tickers}
+    out = {}
+    n_cached = n_neg = n_ov = n_unk = 0
+    for t in tickers:
+        if t in overrides:
+            out[t] = overrides[t]
+            n_ov += 1
+            continue
+        pos = _positive(cached.get(t))
+        if pos:
+            out[t] = pos
+            n_cached += 1
+            continue
+        if _is_fresh_negative(cached.get(t)):
+            n_neg += 1
+        bucket = SECTOR_BUCKETS.get(t, UNKNOWN_SECTOR)
+        out[t] = bucket
+        if bucket == UNKNOWN_SECTOR:
+            n_unk += 1
+    _LAST_REPORT.update(
+        cached=n_cached, fetched=_LAST_REPORT.get("fetched", 0),
+        negative=n_neg, override=n_ov, unknown=n_unk,
+    )
+    return out
+
+
+def sector_report() -> dict:
+    """Additive snapshot of the last resolve_sectors call (TASK-379)."""
+    return dict(_LAST_REPORT)
 
 
 def other_share_in_selection_pool(ranking, unknown: str = UNKNOWN_SECTOR) -> tuple[float, int, int]:

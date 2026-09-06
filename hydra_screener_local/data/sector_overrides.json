@@ -1,0 +1,3 @@
+{
+  "_comment": "Map TICKER -> GICS sector bucket. Consulted before cache and network. Leave empty until Claude fills names after the freeze. Example: {\"AAPL\": \"Technology\"}."
+}

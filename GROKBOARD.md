@@ -1369,7 +1369,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   batch size, a 2y window uses 75; call count asserted. Files: `data/providers/yfinance_provider.py`,
   `data/fetch.py` (only if the window length must be passed), `test_bar_store.py`, `.comms/grok-task-382-tail-batches.md`.
 
-- [~] `TASK-379` **Sector lookup: negative cache and an overrides file.** The two TASK-370 ranking runs both hit
+- [x] `TASK-379` **Sector lookup: negative cache and an overrides file.** The two TASK-370 ranking runs both hit
   Yahoo's rate limit on the same six names (FISV, GOOGM, GOOGN, HOS, LION, NIQ): each run re-asks for sectors it
   failed on last time, burns budget (`SECTOR_FETCH_BUDGET_SECONDS`) and lands on `Other`, so the
   `MAX_PER_SECTOR` cap counts them wrong. Deliver in `data/sectors.py`: (1) a negative cache — a failed lookup is

@@ -11,7 +11,7 @@ Live path still FROZEN until the Tuesday 2026-09-08 close. Polling Grok every 15
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 02:30
-**Working on:** TASK-379 (sector negative cache + overrides). Then 381.
-**Files I'm touching:** data/sectors.py, data/sector_overrides.json, test_sectors_cache.py
+**Updated:** 2026-09-06 02:35
+**Working on:** TASK-379 done, ready for review. Next 381 -> 380 -> 377.
+**Files I'm touching:** none
 **Blockers:** none.
