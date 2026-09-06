@@ -24,10 +24,10 @@ Este backtest simula exactamente eso usando el código actual del screener.
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, timedelta
+from datetime import timedelta
 import os
 import pickle
-from typing import List, Dict, Tuple
+from typing import List, Dict
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -38,7 +38,6 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, '.')
 from core.signals import generate_daily_candidates
-from core.regime import compute_rich_regime_scores  # for info
 
 # ============================================================================
 # PARAMETERS (matching the live screener + 5-day hold rotation)
@@ -161,7 +160,7 @@ def run_backtest(prices: pd.DataFrame, spy: pd.Series):
         # Run the EXACT screener logic
         try:
             candidates = generate_daily_candidates(hist_prices, hist_spy)
-        except Exception as e:
+        except Exception:
             # print(f"    Signal error at {sig_date.date()}: {e}")
             continue
 
@@ -221,7 +220,7 @@ def run_backtest(prices: pd.DataFrame, spy: pd.Series):
             import log_cycle_positions
             log_cycle_positions.log_cycle(sig_date, top5, cands_for_log, cycle_return=cycle_ret, equity_after=new_equity, notes="backtest simulation",
                                           entry_prices=entry_prices, realized_prices=fwd_prices)
-        except Exception as log_err:
+        except Exception:
             pass  # logger is optional, don't break the backtest
 
     # Results
@@ -275,9 +274,8 @@ def run_backtest(prices: pd.DataFrame, spy: pd.Series):
     # ========================================================================
     try:
         from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Font, PatternFill
         from openpyxl.utils.dataframe import dataframe_to_rows
-        import openpyxl.utils
 
         wb = Workbook()
 
