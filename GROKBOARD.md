@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 08:30] CLAUDE: Grok se quedo sin creditos (Lucas). Cierro yo la cola pendiente. **383 y 384 HECHAS.**
+383: `experiments/rehearsal.py` corrio el camino real sobre una COPIA del estado en dos modos — `today` (pendientes
+esperando t+1: plan omitido, todo OK) y `simulate-t1` (barra sintetica 2026-09-08 al ultimo cierre: **30 fills
+liquidados, plan 0 ordenes porque no es dia de renovacion, interes 12.75 USD, replay limpio**). Estado vivo intacto,
+`journal/` no creado. Dos hallazgos: la etiqueta de regimen del diario salia siempre None (leia `meta_regime_type`,
+el contrato dice `regime_type`) — corregido en la rama; y la exposicion ~57% del tramo en ambas mangas es diseno
+(tramo 0 de 4, vol-target 15% y los dos ETF apagados TLT/IEF pesan mucho en inversa-vol), no defecto. Nota
+`.comms/grok-task-383-rehearsal.md`, informes `.comms/journal-rehearsal-*.md`. 384: rama `post-freeze-wiring` en el
+worktree `../HydraOmniCapital-wiring`, 5 commits, suite 46/0/0 estricta, main intacto; comando de merge en
+`.comms/grok-task-384-wiring.md`. Sigo con 382 -> 377 en main y 364 -> 365 -> 367 -> 363 en la rama.
+
 [2026-09-06 03:55] CLAUDE: Grok, sin senales tuyas desde las 03:05 (tres ciclos): 383 no esta reclamada ni hay
 worktree para 384. Si estas bloqueado (red, permisos, duda sobre el ensayo sin escribir en `state/`), marca la tarea
 `[!]` y dime que pasa (regla 5); si solo estas trabajando, actualiza `.comms/status.md` con la tarea en curso. Recuerda
@@ -1373,7 +1384,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   `data/oos_cone_5050.json`, `core/journal.py` (loader only), `evidence_review.py`, `test_journal.py`,
   `.comms/grok-task-381-cone-json.md`.
 
-- [ ] `TASK-383` **Tuesday rehearsal on a copy of the live state.** The production path (preflight -> settle ->
+- [x] `TASK-383` **Tuesday rehearsal on a copy of the live state.** The production path (preflight -> settle ->
   dividends -> interest -> plan -> sheet -> journal) has never run against the real state (30 pending orders planned
   2026-09-04) with the code that will run on 2026-09-08. Rehearse it now without touching production: copy
   `state/` to `experiments/_lab_scratch/rehearsal_state/`, run `python portfolio_v9.py --state-dir <copy>` (it
@@ -1415,7 +1426,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   `data/providers/yfinance_provider.py`, `data/fetch.py` (only if a helper is needed), `test_bar_store.py`,
   `.comms/grok-task-378-one-pass-provider.md`.
 
-- [ ] `TASK-384` **Post-freeze wiring, prepared on a separate worktree.** After "first settle verified" the six
+- [x] `TASK-384` **Post-freeze wiring, prepared on a separate worktree.** After "first settle verified" the six
   hook-ups deferred by the infrastructure batch must land; preparing them now saves the Tuesday night. **Main and
   this directory stay untouched**: `git worktree add ../HydraOmniCapital-wiring -b post-freeze-wiring` and work
   only there (Lucas runs production from this tree; never check the branch out here). On the branch: (1) TASK-359:
@@ -1890,12 +1901,25 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
-  **Lucas, before Tuesday:** `HYDRA_BACKUP_DIR` is not set on this machine (User or Machine scope) — the 2026-09-08 run would back up the state on the same disk. Nothing blocked; queue = TASK-377/382/383/384 (freeze phase) + TASK-363/364/365/367 (after the freeze).
+  **Lucas, before Tuesday:** `HYDRA_BACKUP_DIR` is not set on this machine (User or Machine scope) — the 2026-09-08 run would back up the state on the same disk. Nothing blocked; queue = TASK-377/382 (freeze phase, Claude) + TASK-363/364/365/367 (after the freeze).
 
 ---
 
 ## Completed
 
+- `TASK-384` (Claude, branch `post-freeze-wiring` @ `eebaeeb`, worktree `../HydraOmniCapital-wiring`) Post-freeze
+  wiring: runlog around `portfolio_v9`/`daily`, `load_state` migrates and refuses unknown schema, preflight
+  `state replay` HARD + `universe source` WARN, PIT snapshot after real runs, pit/ + runs/ mirrored off-disk,
+  engine lint (golden unchanged), journal `manifest_path` + regime label fix. 13 new tests; branch suite 46/0/0
+  strict. Main untouched. Note `.comms/grok-task-384-wiring.md` (merge command inside).
+  Review (Claude): self-delivered after Grok ran out of credits; merge only after "first settle verified".
+- `TASK-383` (Claude, `experiments/rehearsal.py`) Tuesday rehearsal on a copy of the live state, modes `today`
+  and `simulate-t1`. Live state byte-identical, `journal/` untouched, replay clean after 30 settled fills, plan 0
+  orders on the non-renewal day, interest 12.75 USD, dividends path exercised. Reports
+  `.comms/journal-rehearsal-20260904-today.md`, `.comms/journal-rehearsal-20260908-simulate-t1.md`.
+  Found: journal regime label always None (fixed on the branch); low tranche exposure is by design.
+  Note `.comms/grok-task-383-rehearsal.md`.
+  Review (Claude): self-delivered after Grok ran out of credits.
 - `TASK-380` (Grok, `2e4b86d`) UTF-8 stdout reconfigure on every `__main__` script; ASCII print strings in
   `data/universe.py` / `send_hydra_summary.py` / volume watchdog; `run_all_tests.py --strict-console`
   (`PYTHONIOENCODING=cp1252:strict`) used by CI on 3.12/3.13; `test_console_encoding.py` greps the idiom.
