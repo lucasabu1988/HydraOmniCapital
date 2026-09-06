@@ -10,7 +10,6 @@ See SPEC:
 
 This is the reference implementation of the MetaAdjustment logic.
 """
-import numpy as np
 from dataclasses import dataclass
 from typing import List
 

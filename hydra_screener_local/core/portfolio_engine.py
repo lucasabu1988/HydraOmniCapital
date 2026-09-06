@@ -18,13 +18,13 @@ transfer. Nothing else is rebalanced for free.
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
-from config import V9, MAX_PER_SECTOR
-from core.tranche_book import TrancheBook, Tranche
+from config import MAX_PER_SECTOR, V9
+from core.tranche_book import Tranche, TrancheBook
 
 STATE_SCHEMA = 1
 SLEEVES = ("stocks", "etf")
@@ -111,12 +111,14 @@ def select_tranche_names(ranking: pd.DataFrame, n: int, held: set, buffer: float
     if "reason" in df.columns:
         df = df[~df["reason"].fillna("").astype(str).str.startswith("Vetado")]
     order = df["ticker"].tolist()
-    sectors = dict(zip(df["ticker"], df["sector"])) if "sector" in df.columns else {}
+    sectors = dict(zip(df["ticker"], df["sector"], strict=True)) if "sector" in df.columns else {}
     keep_zone = set(order[:int(round(buffer * n))]) if buffer > 1.0 else set()
     picked, counts = [], {}
     for name in order:
         if name in held and name in keep_zone:
-            picked.append(name); s = sectors.get(name, "Other"); counts[s] = counts.get(s, 0) + 1
+            picked.append(name)
+            s = sectors.get(name, "Other")
+            counts[s] = counts.get(s, 0) + 1
     for name in order:
         if len(picked) >= n:
             break
@@ -125,7 +127,8 @@ def select_tranche_names(ranking: pd.DataFrame, n: int, held: set, buffer: float
         s = sectors.get(name, "Other")
         if s != "Other" and counts.get(s, 0) >= max_per_sector:
             continue
-        picked.append(name); counts[s] = counts.get(s, 0) + 1
+        picked.append(name)
+        counts[s] = counts.get(s, 0) + 1
     return picked[:n]
 
 
@@ -331,7 +334,9 @@ def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.
                 dollars = units * p
                 tr.units[o["ticker"]] = tr.units.get(o["ticker"], 0.0) - units
                 if tr.units[o["ticker"]] <= 1e-12:
-                    tr.units.pop(o["ticker"], None); tr.last_px.pop(o["ticker"], None); tr.stale.pop(o["ticker"], None)
+                    tr.units.pop(o["ticker"], None)
+                    tr.last_px.pop(o["ticker"], None)
+                    tr.stale.pop(o["ticker"], None)
                 cost = dollars * bp
                 tr.cash += dollars - cost
             else:
