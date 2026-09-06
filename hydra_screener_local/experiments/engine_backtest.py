@@ -189,7 +189,8 @@ def _interest_by_year(interest: list, book: pd.Series) -> list:
 
 def _yearly(engine: pd.Series, lab_net: pd.Series | None) -> list:
     r = engine.pct_change().dropna()
-    lab = lab_net.dropna() if lab_net is not None else None
+    # Lab mix row dated t is the return of t+1..t+6; shift so calendar years match the engine mark.
+    lab = lab_net.shift(1).dropna() if lab_net is not None else None
     rows = []
     years = sorted(set(r.index.year) | (set(lab.index.year) if lab is not None and len(lab) else set()))
     py = 252.0 / STEP

@@ -144,3 +144,6 @@ interest 0.2348 on a start book of 1.0 (~1 % of the book per year after 2022, ~0
 Follow-up for Grok (small, in `engine_backtest.py`): align the lab series (`shift(1)`) before the
 yearly table and the correlation, and drop the "drift" sentence from the note. No re-run needed
 beyond the one recorded here (`_lab_scratch/task350.json` now holds the fixed-engine output).
+
+Applied 2026-09-06: `_yearly()` now does `lab_net.shift(1)` so calendar years match the engine mark.
+The "drift toward the winning sleeve" reading above is already withdrawn in this review.
