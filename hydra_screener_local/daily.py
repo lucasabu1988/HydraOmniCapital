@@ -126,7 +126,7 @@ def maybe_refresh_pnl(do_refresh: bool):
         print(f"[WARN] Could not run refresher: {e}")
 
 
-def main(argv=None):
+def _main(argv=None, runlog=None):
     parser = argparse.ArgumentParser(description="HYDRA Daily Ritual — one command to rule them all.")
     parser.add_argument("--universe", default="all",
                         help="Universe to use (all, sp500, nasdaq100, etc.). Default: all")
@@ -169,7 +169,7 @@ def main(argv=None):
         v9_out = None
         try:
             from portfolio_v9 import run as run_v9
-            v9_out = run_v9(capital=args.v9_capital, force=args.force)
+            v9_out = run_v9(capital=args.v9_capital, force=args.force, runlog=runlog)
         except SystemExit as e:
             print(f"[v9] {e}")
             if exit_code == 0:
@@ -196,12 +196,42 @@ def main(argv=None):
             except Exception as je:
                 print(f"[journal] skip: {je}")
 
+        # PIT snapshots (TASK-362): only after a real run (prices present), never in dry tests.
+        if v9_out is not None and v9_out.get("prices") is not None:
+            try:
+                from snapshot_universe import snapshot_after_run
+                for path in snapshot_after_run(args.universe):
+                    print(f"[pit] {path}")
+            except Exception as pe:
+                print(f"[pit] skip: {pe}")
+
     if exit_code != 0:
         print(f"\n[Note] Screener exited with code {exit_code}. Check output above.")
         return exit_code
 
     print("Daily ritual complete. Go trade (or at least look at the pretty table in TradingView).")
     return 0
+
+
+def main(argv=None):
+    """Run manifest around the ritual (TASK-359): runs/<stamp>_daily/manifest.json + log.txt."""
+    try:
+        from utils.runlog import start_run
+        ctx = start_run("daily", argv=list(argv) if argv is not None else None)
+    except Exception as e:  # the manifest must never stop the ritual
+        print(f"[runlog] disabled: {e}")
+        return _main(argv)
+    rc = 1
+    try:
+        with ctx:
+            rc = _main(argv, runlog=ctx)
+            ctx.finish(exit_status=int(rc or 0))
+    finally:
+        try:
+            ctx.close_log()
+        except Exception:
+            pass
+    return rc
 
 
 if __name__ == "__main__":

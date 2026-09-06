@@ -46,7 +46,8 @@ from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
 from core.dividends import apply_dividends, summarize_dividends, tickers_from_state  # noqa: E402
 from dashboard_v9 import summarize_interest  # noqa: E402
 from data.dividends import fetch_dividends  # noqa: E402
-from data.universe import get_universe  # noqa: E402
+from core.state_migrations import SchemaError, migrate  # noqa: E402
+from data.universe import get_universe, universe_report  # noqa: E402
 import preflight as PF  # noqa: E402
 
 STATE_NAME = "portfolio_v9.json"
@@ -77,10 +78,15 @@ def _json_ready(obj):
 
 
 def load_state(path: Path) -> dict | None:
+    """Read + migrate (TASK-360). An unknown schema_version refuses to run."""
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        state = json.load(f)
+    try:
+        return migrate(state)
+    except SchemaError as e:
+        raise SystemExit(f"state {path}: {e} - refusing to run on an unknown schema") from e
 
 
 def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> Path | None:
@@ -98,6 +104,14 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> 
         p = Path(p)
         if p.exists():
             shutil.copy2(p, dest / p.name)
+    # PIT snapshots (TASK-362) and run manifests (TASK-359) travel with the state.
+    for sub, src in (("pit", ROOT / "data_cache" / "pit"), ("runs", ROOT / "runs")):
+        if src.exists():
+            try:
+                shutil.copytree(src, Path(dest_root) / sub, dirs_exist_ok=True)
+            except Exception as e:  # never let a backup mirror stop the run
+                if not silent:
+                    print(f"[v9] AVISO: backup de {sub}/ fallo: {e}")
     if not silent:
         print(f"[v9] off-disk backup -> {dest}")
     return dest
@@ -125,13 +139,18 @@ def fetch_v9_market(universe: str = None) -> dict:
     period = V9["price_period"]
     uni = universe or os.environ.get("UNIVERSE") or UNIVERSE
     tickers = get_universe(universe=uni)
+    try:
+        ureport = universe_report(uni)          # cached resolve; WARN in preflight when on the fallback list
+    except Exception:
+        ureport = None
     stock_report, etf_report, irx_report = {}, {}, {}
     prices, volumes = fetch_prices_and_volume(tickers, period=period, report=stock_report)
     spy = fetch_spy(period=period)
     etf = fetch_etf_closes(list(V9["etf_universe"]), period=period, report=etf_report)
     irx = fetch_tbill(period=period, report=irx_report)
     return dict(prices=prices, volumes=volumes, spy=spy, etf=etf, irx=irx,
-                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report)
+                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report,
+                universe_report=ureport)
 
 
 def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -> pd.DataFrame:
@@ -310,8 +329,10 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False, dividend_fn=None) -> dict:
-    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
+        force: bool = False, dividend_fn=None, runlog=None) -> dict:
+    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
+    `runlog` is an optional `utils.runlog.RunContext` (TASK-359): data fingerprints and the
+    files written land in its manifest. None = today's behaviour."""
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
     state = load_state(state_path)
@@ -321,6 +342,12 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     if prices is None or len(prices) == 0 or etf is None or len(etf) == 0:
         raise RuntimeError("v9 fetch returned no stock or ETF prices")
     today = _last_date(prices)
+    if runlog is not None:
+        for name, frame in (("stocks", prices), ("etf", etf), ("^IRX", irx)):
+            try:
+                runlog.fingerprint(name, frame)
+            except Exception:
+                pass
     tbill_rate = 0.0
     if irx is not None and len(irx) and irx.dropna().size:
         # full history, percent -> decimal: plan() builds the trailing 252-bar T-bill hurdle from it
@@ -352,6 +379,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         asof=today if fetch_fn is not None else pd.Timestamp.now(),
         last_session=today if fetch_fn is not None else None,
         backup_dir=os.environ.get("HYDRA_BACKUP_DIR"),
+        universe_report=data.get("universe_report"),
     )
     if not silent:
         print(PF.format_table(pf))
@@ -410,6 +438,13 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         state_dir, today, sheet_orders, fills, summary, state, exec_date,
         sector_warning=sector_warning,
     )
+    if runlog is not None:
+        for art in (state_path, md_path, json_path, backup):
+            if art:
+                try:
+                    runlog.artifact(art)
+                except Exception:
+                    pass
     copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent)
     if not silent:
         if backup:
@@ -430,6 +465,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         sheet_orders=sheet_orders, sector_warning=sector_warning,
         last_bars={"stocks": today, "etf": _last_date(etf), "^IRX": _last_date(irx) if irx is not None and len(irx) else None},
         prices=prices, etf=etf, irx=irx,
+        manifest_path=str(runlog.directory / "manifest.json") if runlog is not None else None,
     )
 
 
@@ -443,16 +479,22 @@ def main(argv=None) -> int:
     p.add_argument("--force", action="store_true",
                    help="Plan even if preflight hard-fails (stale bars, missing ETFs, unknown schema).")
     args = p.parse_args(argv)
+    from utils.runlog import start_run
+    ctx = start_run("portfolio_v9", argv=list(argv) if argv is not None else None)
+    rc = 0
     try:
-        run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
-            force=args.force)
+        with ctx:
+            run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
+                force=args.force, runlog=ctx)
     except SystemExit as e:
         print(f"[v9] {e}")
-        return 1
+        rc = 1
     except Exception as e:
         print(f"[v9] ERROR: {e}")
-        return 1
-    return 0
+        rc = 1
+    if rc:
+        ctx.finish(exit_status=rc)
+    return rc
 
 
 if __name__ == "__main__":
