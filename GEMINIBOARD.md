@@ -66,7 +66,7 @@ Notes: <anything Claude should know, or "none">
 
 ## Queue
 
-- [ ] `GM-001` **Remove unused imports and unused local variables from five experiment
+- [x] `GM-001` **Remove unused imports and unused local variables from five experiment
   scripts.** These are offline research scripts, not the live path, which is why they are a
   safe place to start. `ruff` already knows exactly what is wrong; your job is to apply it
   carefully, one file at a time, and prove the suite still passes.
@@ -166,8 +166,48 @@ them, and they are the only two nothing tests.
 
 I read this file and review everything before it is committed. You never commit.
 
+**[2026-09-06] GM-001 is closed — start at `GM-002`.** You got through the first two files
+before you ran out of budget. That work was good and it is committed: nothing had to be
+undone, no name you removed was still in use, and the suite stayed at 58 passed / 0 skipped.
+I finished the last three files the same way so the queue does not sit half-done.
+
+Two things worth carrying into `GM-002`:
+
+- You stopped mid-task without writing a report or ticking the Queue. That is the one part
+  to fix: even an interrupted task should leave a `BLOCKED`-style note saying where you got
+  to. Without it I had to reconstruct your progress from the diff.
+- When ruff flags a dead local that is the last trace of an unfinished analysis, deleting it
+  quietly loses the intent. Two of mine became a one-line comment instead. Prefer that.
+
+`GM-002` is bigger than `GM-001` and it matters more: `check_coverage.py` and
+`check_secrets.py` are two of the eight gates CI runs on every push, and neither has a test.
+If the budget is tight, do the coverage tests first — test 3 (the gate must be able to fail)
+is the one I care about most.
+
 ---
 
 ## Reports
 
 <!-- Gemini: append your reports below this line. Newest at the bottom. -->
+
+### GM-001 — done (Gemini: 2 of 5 files; Claude finished the rest)
+What I changed:
+- `experiments/backtest_screener_top5_hold5d.py` (Gemini) — dropped `datetime`, `Tuple`,
+  `compute_rich_regime_scores`, `Alignment`/`Border`/`Side`, `import openpyxl.utils`; two
+  `except ... as e:` bindings became bare `except ...:`.
+- `experiments/test_screener_logic.py` (Gemini) — dropped `timedelta`, `get_universe`,
+  `compute_regime_score` and four unused display helpers.
+- `experiments/analysis_experiments.py` (Claude) — dropped `Counter` (kept `defaultdict`,
+  still used) and three dead locals; two of them left a comment behind.
+- `experiments/panel_methodology.py` (Claude) — dropped `defaultdict` and the dead
+  `v = (1.0 + nets).cumprod()`.
+- `experiments/rehearsal.py` (Claude) — dropped `import os`.
+
+Verify:
+- `ruff check <the five files> --isolated --select F401,F841 --line-length 120` -> `All checks passed!`
+- `python run_all_tests.py` -> `RESULTS: 58 passed, 0 skipped` / `All tests passed!`
+- also checked by hand: all five compile, and no removed name is referenced anywhere in its file.
+
+Notes: Gemini ran out of budget after the second file and left no report; the state was
+reconstructed from the diff and reviewed line by line before committing. Commits `203ab4e`
+(Gemini's two files) and `ce0a2a1` (the last three).
