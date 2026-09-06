@@ -580,9 +580,18 @@ broker will differ (fund yield, settlement lag); reconcile it against the state 
 ### 9.4 State (`state/portfolio_v9.json`, gitignored; see design section 3)
 
 schema 1: anchor_date, last_run_date, last_renewal_date, week_index, capital_reference, per sleeve
-four tranches {k, opened, units, cash, last_px}, pending orders, ledger of fills, write_offs,
-transfers. A held name that stops printing is carried at its last price for `max_stale_bars` (10)
+four tranches {k, opened, units, cash, last_px, stale}, pending orders, ledger of fills, write_offs,
+transfers, interest. A held name that stops printing is carried at its last price for
+`max_stale_bars` (10) **weekly marks** (plan() runs; the lab's `run_book` counts steps the same way)
 and then written off at that price (recorded). No `history/` tracking is run (Lucas 2026-09-06).
+
+> Until 2026-09-06 the `stale` counter was not persisted, so it restarted at every run and a
+> delisted name was carried at its last price forever (TASK-350 on the PIT panel: 492
+> `hold_no_price` events on AET/ESRX/TWX and no write-off in 22 years). Persisted since; the
+> OOS run now writes ESRX off at its last price (two tranches) and TWX/AET leave through the
+> normal sells. Same review: a name that leaves a tranche is sold **to zero units** (`close`
+> flag on the order) rather than as a dollar amount, which at a higher t+1 price left a
+> residual position behind.
 
 ### 9.5 Parity and tests
 
@@ -591,6 +600,17 @@ buffer, sector cap, idempotent plan, transfer sign, costs and unfilled orders) a
 executable simulator (`experiments/redesign_lab.run_exec` targets for T20 and
 `experiments/sleeve_lab.run_sleeve` targets for the ETF sleeve on >= 20 renewal dates, atol 1e-9;
 skipped without the lab caches).
+
+End-to-end (`experiments/engine_backtest.py`, plan/settle/mark driven through history with the state
+round-tripped through JSON as production does): in-sample 2021-26 the engine reproduces the lab mix
+within 0.1 pp once accounting is equal (TASK-347); on the PIT panel 2005-2026 with delistings
+(TASK-350, 1084 weekly plans) the engine gives **7.10 % net / Sharpe 0.75 / maxDD -17.8** against the
+audit mix 6.91 / 0.74 / -19.5, step-return correlation 0.76 once the lab series is aligned to the
+same weeks (the lab row dated t covers t+1..t+6; the engine's return at t covers t-5..t). The engine
+sits above the mix because its stock sleeve also earns the T-bill (the lab's T20 did not) and its
+sleeves drift within 47-51 % between pair resets instead of a full weekly reset. Plumbing exercised:
+1 `not_filled` (TWX), 5 `hold_no_price` (ESRX), 2 write-offs (ESRX at last price, 0.076 on a 2.4
+book), 2150 transfer legs netting to zero, interest 0.23 on a start book of 1.0.
 
 ## 10. Evolution protocol (Lucas 2026-09-06: "constant evolution", agreed structure)
 

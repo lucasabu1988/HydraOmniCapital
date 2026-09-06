@@ -55,7 +55,7 @@ Ritmo semanal:
 5. **Dashboard local:** `python dashboard_v9.py` (o doble clic en `dashboard_v9.cmd`, que arranca el servidor si hace falta y abre el navegador) → `http://127.0.0.1:8765/` (rendimiento, P/L realizado y no realizado, log de operaciones, curva de equity, comparación con SPY). Solo lectura del estado; cotizaciones cada 5 min.
 6. **Respaldo fuera del disco:** define `HYDRA_BACKUP_DIR`; cada corrida copia `state/` y las hojas a `<dir>/state_v9/<fecha>/`.
 
-Primera corrida: `python portfolio_v9.py --capital 100000` (o `daily.py --v9-capital`). El primer estado se creó el **2026-09-04** (ancla viernes; primeras órdenes lunes 2026-09-07 al cierre).
+Primera corrida: `python portfolio_v9.py --capital 100000` (o `daily.py --v9-capital`). El primer estado se creó el **2026-09-04** (ancla viernes). Primeras órdenes al cierre de la **primera sesión siguiente: martes 2026-09-08**, porque el lunes 2026-09-07 es Labor Day (bolsa cerrada). La hoja generada ese día dice 09-07: el cálculo del día siguiente ignoraba festivos, corregido con `utils/trading_calendar.next_nyse_session`.
 
 Datos: **yfinance** (precios ajustados a 2 años, ETFs, `^IRX`). No hay deploy, ni Render, ni IBKR, ni webhooks.
 

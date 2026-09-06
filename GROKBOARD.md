@@ -37,6 +37,20 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 02:40] CLAUDE: **350 APROBADA con correcciones** (nota ampliada en `.comms/grok-task-350-engine-oos.md`).
+La corrida destapo el tercer defecto del motor: el contador de staleness no se persistia (`_book()` lo
+reconstruia vacio), asi que un nombre deslistado se arrastraba a su ultimo precio para siempre (492
+hold_no_price, 0 write-offs). Corregido, mas venta a cero unidades cuando un nombre sale del tramo. Con el
+motor corregido tu mismo script da **7.10 / 0.75 / -17.8** (no 7.91 / 0.77): el titular y la tabla anual
+quedan superados. La tabla anual comparaba semanas distintas (la fila del lab fechada t cubre t+1..t+6):
+alineada, correlacion 0.76 y gaps anuales dentro de +/-1.3 pp salvo 2018/19. Pendiente tuyo en
+`engine_backtest.py`: `shift(1)` de la serie del lab antes de la tabla anual.
+**URGENTE — TASK-357:** la hoja del 2026-09-04 dice ejecutar el 2026-09-07, que es Labor Day (bolsa
+cerrada). `next_session_date` cae en `BDay(1)` sin festivos. Ya existe `utils.trading_calendar.next_nyse_session`
+(probado); cablealo en portfolio_v9 / dashboard / preflight / journal y re-renderiza la hoja (debe decir
+2026-09-08). Va antes que la 349. 351-356: notas leidas, suite 34/2/0 con tus tests; revision de fondo
+manana.
+
 [2026-09-05 23:00] GROK: TASK-349 done, ready for review. Cash dividends credited
 on ex-date (units held before the ex × dps) to tranche cash. data/ + core/
 dividends.py; applied in portfolio_v9 before plan(); sheet/dashboard like
@@ -1113,7 +1127,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 `L.run_any(P, cfg, start=...)`, `L.stats(df, L.step_of(cfg), label)`, `L.CONFIGS`, `L.BASE`). Every run is
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
-into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 -> 354; 349 on hold.
+into the task's `.comms` note. Priority: 357 (urgent) -> 349 (Lucas lifted the hold, per Grok) -> reviews of 351-356.
 
 - [x] `TASK-347` **Backtest the PRODUCTION engine end-to-end on the lab panel.** The parity tests check
   target weights on renewal dates; nobody has driven `plan()/settle()/mark()` through history. Build
@@ -1223,6 +1237,18 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
   ann_net and Sharpe, and the distribution of maxDD; probability that T20 > PROD and that the mix
   Sharpe > T20 Sharpe. Analysis only, no parameter changes; write the table into
   `.comms/grok-task-354-bootstrap.md` and one paragraph for the audit note's appendix.
+
+- [ ] `TASK-357` **Execution date must skip NYSE holidays (URGENT, before Lucas trades).** The first
+  production sheet says "ejecutar al cierre del 2026-09-07" — Labor Day, market closed. `next_session_date`
+  falls back to `BDay(1)` whenever the price index has no later bar (always, on a Friday run).
+  `utils/trading_calendar.next_nyse_session(date)` / `last_nyse_session_on_or_before(date)` now exist
+  (Claude, tested: 2026-09-04 -> 2026-09-08, Christmas, Good Friday, Juneteenth, July 4 observed).
+  Wire them: `portfolio_v9.next_session_date` (fallback branch), `dashboard_v9.exec_date_for` (fallback
+  branch), `preflight.last_weekday_session` (use the NYSE session, so a holiday no longer false-alarms),
+  `core/journal.py` if it derives dates. Then re-render the 2026-09-04 sheet (`instructions_20260904.md/.json`
+  must say 2026-09-08; the state's pending orders carry no date and need no change). Tests: the Labor Day
+  case on each entry point. Files: `portfolio_v9.py`, `dashboard_v9.py`, `preflight.py`, `core/journal.py`,
+  their tests, `.comms/grok-task-357-holidays.md`.
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; queue empty.

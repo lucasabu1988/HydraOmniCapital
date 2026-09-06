@@ -64,3 +64,55 @@ def business_days_behind(last_bar, today=None) -> int:
     if last >= today:
         return 0
     return int(np.busday_count(last.date(), today.date()))
+
+
+# --------------------------------------------------------------------------- forward-looking NYSE calendar
+# The four helpers above need a price index, which does not yet contain tomorrow. The instruction
+# sheet ("execute at the close of t+1") and the dashboard need the NEXT session before it prints,
+# and a plain next-weekday guess put Labor Day 2026-09-07 on the first production sheet (found
+# 2026-09-06). Regular NYSE closures below; ad-hoc closures (days of mourning, disasters) are not
+# knowable in advance - the price index remains the authority once the bar exists.
+from pandas.tseries.holiday import (AbstractHolidayCalendar, GoodFriday, Holiday, USLaborDay,  # noqa: E402
+                                    USMartinLutherKingJr, USMemorialDay, USPresidentsDay,
+                                    USThanksgivingDay, nearest_workday, sunday_to_monday)
+
+
+class NYSEHolidayCalendar(AbstractHolidayCalendar):
+    rules = [
+        Holiday("New Year's Day", month=1, day=1, observance=sunday_to_monday),
+        USMartinLutherKingJr,
+        USPresidentsDay,
+        GoodFriday,
+        USMemorialDay,
+        Holiday("Juneteenth", month=6, day=19, start_date="2022-01-01", observance=nearest_workday),
+        Holiday("Independence Day", month=7, day=4, observance=nearest_workday),
+        USLaborDay,
+        USThanksgivingDay,
+        Holiday("Christmas Day", month=12, day=25, observance=nearest_workday),
+    ]
+
+
+def nyse_holidays(start, end) -> pd.DatetimeIndex:
+    return NYSEHolidayCalendar().holidays(pd.Timestamp(start), pd.Timestamp(end))
+
+
+def is_nyse_session(date) -> bool:
+    d = pd.Timestamp(date).normalize()
+    if d.weekday() >= 5:
+        return False
+    return d not in nyse_holidays(d, d)
+
+
+def next_nyse_session(date) -> str:
+    """First regular NYSE session strictly after `date` (weekends and the holidays above skipped)."""
+    d = pd.Timestamp(date).normalize() + pd.Timedelta(days=1)
+    while not is_nyse_session(d):
+        d += pd.Timedelta(days=1)
+    return str(d.date())
+
+
+def last_nyse_session_on_or_before(date) -> str:
+    d = pd.Timestamp(date).normalize()
+    while not is_nyse_session(d):
+        d -= pd.Timedelta(days=1)
+    return str(d.date())

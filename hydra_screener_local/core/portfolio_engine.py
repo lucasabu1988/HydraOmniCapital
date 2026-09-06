@@ -43,7 +43,7 @@ def new_state(capital: float, anchor_date: str, cfg: dict = None) -> dict:
         "last_renewal_date": None,
         "week_index": -1,
         "capital_reference": float(capital),
-        "sleeves": {s: {"tranches": [{"k": i, "opened": None, "units": {}, "cash": half / k, "last_px": {}} for i in range(k)]}
+        "sleeves": {s: {"tranches": [{"k": i, "opened": None, "units": {}, "cash": half / k, "last_px": {}, "stale": {}} for i in range(k)]}
                     for s in SLEEVES},
         "pending": [],          # orders planned at last_run_date, to settle at the next close
         "ledger": [],           # every order ever settled
@@ -57,6 +57,7 @@ def _book(state: dict, sleeve: str, cost_bp: float, cfg: dict) -> TrancheBook:
     book = TrancheBook(cfg["tranches"], cost_bp, max_stale_bars=cfg["max_stale_bars"])
     for i, tr in enumerate(state["sleeves"][sleeve]["tranches"]):
         book.tranches[i] = Tranche(cash=float(tr["cash"]), units={k: float(v) for k, v in tr["units"].items()},
+                                   stale={k: int(v) for k, v in (tr.get("stale") or {}).items()},
                                    last_px={k: float(v) for k, v in tr.get("last_px", {}).items()})
     return book
 
@@ -67,6 +68,10 @@ def _dump(state: dict, sleeve: str, book: TrancheBook) -> None:
         st["cash"] = float(tr.cash)
         st["units"] = {k: float(v) for k, v in tr.units.items() if v > 1e-12}
         st["last_px"] = {k: float(v) for k, v in tr.last_px.items() if k in st["units"]}
+        # marks without a print, per held name: without this the counter restarted from zero at every
+        # run and a delisted name was carried at its last price forever (TASK-350 review: 492
+        # hold_no_price events on AET/ESRX/TWX and no write-off in 22 years)
+        st["stale"] = {k: int(v) for k, v in tr.stale.items() if k in st["units"]}
 
 
 # ----------------------------------------------------------------------------- calendar
@@ -265,7 +270,11 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
             cur = u * p
             tgt = float(targets.get(t, 0.0)) * tranche_target
             if tgt < cur - 1e-9:
-                orders.append(dict(sleeve=sleeve, tranche=k, ticker=t, side="sell", dollars=cur - tgt, est_units=(cur - tgt) / p, est_price=p))
+                # close=True: the name leaves the tranche, so settle() sells every unit rather than a
+                # dollar amount (a dollar sell at t+1 prices left dust positions of 1e-10 units that
+                # later surfaced as hold_no_price and write-offs; TASK-350 review)
+                orders.append(dict(sleeve=sleeve, tranche=k, ticker=t, side="sell", dollars=cur - tgt, est_units=(cur - tgt) / p, est_price=p,
+                                   close=bool(tgt <= 1e-12)))
         for t, w in targets.items():
             p = float(px.get(t, np.nan))
             if not np.isfinite(p):
@@ -318,7 +327,7 @@ def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.
                 fills.append(dict(o, exec_date=exec_date, status="not_filled", reason="no price on execution day"))
                 continue
             if phase == "sell":
-                units = min(o["dollars"] / p, tr.units.get(o["ticker"], 0.0))
+                units = tr.units.get(o["ticker"], 0.0) if o.get("close") else min(o["dollars"] / p, tr.units.get(o["ticker"], 0.0))
                 dollars = units * p
                 tr.units[o["ticker"]] = tr.units.get(o["ticker"], 0.0) - units
                 if tr.units[o["ticker"]] <= 1e-12:

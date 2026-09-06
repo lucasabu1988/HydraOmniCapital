@@ -40,3 +40,18 @@ def test_business_days_behind():
     assert business_days_behind("2026-09-03", today="2026-09-04") == 1
     assert business_days_behind("2026-09-04", today="2026-09-07") == 1   # over a weekend: Monday
     assert business_days_behind("2026-09-01", today="2026-09-08") == 5
+
+
+# --------------------------------------------------------------------------- forward NYSE calendar
+def test_next_nyse_session_skips_weekends_and_holidays():
+    from utils.trading_calendar import next_nyse_session, is_nyse_session, last_nyse_session_on_or_before
+    assert next_nyse_session("2026-09-04") == "2026-09-08"        # Labor Day Monday 2026-09-07 (first production sheet)
+    assert next_nyse_session("2026-09-02") == "2026-09-03"        # plain weekday
+    assert next_nyse_session("2026-12-24") == "2026-12-28"        # Christmas Friday
+    assert next_nyse_session("2026-04-02") == "2026-04-06"        # Good Friday 2026-04-03
+    assert next_nyse_session("2026-06-18") == "2026-06-22"        # Juneteenth Friday 2026-06-19
+    assert next_nyse_session("2026-07-02") == "2026-07-06"        # July 4 on Saturday -> observed Friday 07-03
+    assert next_nyse_session("2026-11-25") == "2026-11-27"        # Thanksgiving Thursday 11-26
+    assert next_nyse_session("2027-12-31") == "2028-01-03"        # New Year 2028 on Saturday: not observed, Monday is the session
+    assert is_nyse_session("2026-09-07") is False and is_nyse_session("2026-09-08") is True
+    assert last_nyse_session_on_or_before("2026-09-07") == "2026-09-04"

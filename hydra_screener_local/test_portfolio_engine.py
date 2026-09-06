@@ -164,6 +164,52 @@ def test_idle_cash_accrues_the_tbill_between_runs_and_is_recorded():
     assert E.summary_table(st, px.iloc[2], epx.iloc[2], CFG)["total"] == pytest.approx(before * (1 + 0.0504 / 252))
 
 
+def test_stale_counter_survives_the_state_and_a_delisted_name_is_written_off():
+    """TASK-350 review: `_book()` rebuilt tranches without `stale`, so a name that stopped printing
+    was carried at its last price forever. Buy A, then A never prints again: after `max_stale_bars`
+    marks it must be written off at its last price (recorded), with the state round-tripped through
+    JSON between marks as production does."""
+    import json as _json
+    cfg = dict(CFG, max_stale_bars=3, step_bars=1, hold_bars=2)
+    dates = pd.bdate_range("2026-01-05", periods=8)
+    a = [10.0] + [np.nan] * 7                                         # prints once, then delists
+    px = pd.DataFrame({"A": a, "B": [5.0] * 8}, index=dates); epx = pd.DataFrame({"SPY": [1.0] * 8}, index=dates)
+    st = E.new_state(800.0, str(dates[0].date()), cfg)
+    st, _ = E.plan(st, str(dates[0].date()), _ranking(["A"]), px.iloc[:1], epx.iloc[:1], 0.0, cfg)
+    E.settle(st, str(dates[0].date()), px.iloc[0], epx.iloc[0], cfg)   # fill A at 10 (same-day print)
+    assert st["sleeves"]["stocks"]["tranches"][0]["units"]["A"] == pytest.approx(20.0)
+    for i in range(1, 5):                                              # four weekly marks without a print
+        st = _json.loads(_json.dumps(st))                              # production round-trip
+        st, _ = E.plan(st, str(dates[i].date()), _ranking(["B"], n=0), px.iloc[:i + 1], epx.iloc[:i + 1], 0.0, cfg)
+        E.settle(st, str(dates[i].date()), px.iloc[i], epx.iloc[i], cfg)
+        if i < 3:
+            assert st["sleeves"]["stocks"]["tranches"][0]["stale"]["A"] == i
+    assert "A" not in st["sleeves"]["stocks"]["tranches"][0]["units"]
+    assert st["write_offs"] and st["write_offs"][0]["ticker"] == "A"
+    assert st["write_offs"][0]["proceeds"] == pytest.approx(200.0)      # 20 units at the last price 10
+    assert E.summary_table(st, px.iloc[4], epx.iloc[4], cfg)["total"] == pytest.approx(800.0)
+
+
+def test_a_name_that_leaves_the_tranche_is_sold_to_zero_units_not_dust():
+    """TASK-350 review: a dollar-sized sell settled at a higher t+1 price left 1e-10 units behind,
+    which later showed up as hold_no_price and write-offs. A close-out sells every unit."""
+    st = E.new_state(800.0, str(DATES[0].date()), CFG)
+    px = _prices(["A", "B"], [[10, 10], [10, 10], [11, 10]]); epx = _prices(["SPY"], [[1], [1], [1]])
+    st, _ = E.plan(st, str(DATES[0].date()), _ranking(["A"]), px.iloc[:1], epx.iloc[:1], 0.0, CFG)
+    E.settle(st, str(DATES[1].date()), px.iloc[1], epx.iloc[1], CFG)        # tranche 0 holds A
+    st, _ = E.plan(st, str(DATES[1].date()), _ranking(["B"]), px.iloc[:2], epx.iloc[:2], 0.0, CFG)   # week 1 -> tranche 1
+    E.settle(st, str(DATES[2].date()), px.iloc[2], epx.iloc[2], CFG)
+    # tranche 0 renews at DATES[2] with B only: A must leave completely although A is now 11, not 10
+    st, orders = E.plan(st, str(DATES[2].date()), _ranking(["B"]), px, epx, 0.0, dict(CFG, step_bars=1))
+    sell = next(o for o in orders if o["side"] == "sell" and o["ticker"] == "A")
+    assert sell["close"] is True
+    px3 = pd.Series({"A": 12.0, "B": 10.0}); epx3 = pd.Series({"SPY": 1.0})
+    fills = E.settle(st, "2026-01-08", px3, epx3, CFG)
+    f = next(x for x in fills if x["ticker"] == "A")
+    assert f["units"] == pytest.approx(20.0) and f["dollars"] == pytest.approx(240.0)   # all 20 units at 12
+    assert "A" not in st["sleeves"]["stocks"]["tranches"][0]["units"]
+
+
 def test_costs_and_unfilled_orders_are_recorded():
     cfg = dict(CFG, stock_cost_bp=10.0)
     st = E.new_state(800.0, str(DATES[0].date()), cfg)

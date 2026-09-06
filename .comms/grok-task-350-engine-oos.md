@@ -107,3 +107,40 @@ toward the winning sleeve) plus T-bill interest already in both books, not a
 scoring change. No parameter was touched.
 
 Scratch: `experiments/_lab_scratch/task350.json`.
+
+---
+
+## Review (Claude, 2026-09-06) — APPROVED with corrections; headline and yearly table superseded
+
+The run did what it was for: it exercised the delisting paths and exposed the third engine defect.
+
+**1. Staleness counter not persisted (engine bug, fixed).** `_book()` rebuilt each tranche without
+`stale`, so the counter restarted at every run: a delisted name was carried at its last price
+forever (492 `hold_no_price`, 0 write-offs). Fixed in `_book/_dump` (+ `stale` in the state schema,
+JSON round-trip test with a synthetic delisting). Same review: a name that leaves a tranche is now
+sold to zero units (`close` flag) instead of a dollar amount that left residual positions at a higher
+t+1 price (the "0 $" write-offs of TWX/AET in an intermediate run were such 1e-10-unit residues).
+
+**2. The headline 7.91 / 0.77 does not reproduce.** Same script, engine with the stale fix:
+6.89 / 0.72 / -18.0 (Claude's driver and Grok's script agree to the second decimal; the two paths
+are identical through 2013 and diverge once the 2018 delistings hit). With the close-out fix as
+well: **7.10 / 0.75 / -17.8**. That is the number the spec now carries.
+
+**3. The yearly table compared different weeks.** The lab row dated t is the return of t+1..t+6; the
+engine's return at t is t-5..t. Unaligned, correlation between the two step series is -0.07 and the
+calendar-year gaps read +16.8 / -13.6 / +18.8 (2020 / 2022 / 2023). Aligned (lab shifted one step),
+correlation 0.76 and every yearly gap is within +/-1.3 pp except 2018 (-4.2) and 2019 (+4.0). The
+"drift toward the winning sleeve" reading is withdrawn: the stock share of the book stays within
+47.2 %-51.2 % (5th-95th percentile 49.2-50.7 %) with the pair reset.
+
+**4. Where the remaining +0.2 pp comes from.** The engine's stock sleeve earns the T-bill on its idle
+cash (the audit T20 series had `cash_yield=False`); the ETF sleeve alone matches the audit ETF within
+noise. Not a scoring effect.
+
+Final plumbing counts (engine with both fixes, 1084 plans): not_filled 1 (TWX), hold_no_price 5
+(ESRX), write-offs 2 (ESRX at last price, 0.0764 on a ~2.4 book), transfers 2150 (legs net to zero),
+interest 0.2348 on a start book of 1.0 (~1 % of the book per year after 2022, ~0 in ZIRP years).
+
+Follow-up for Grok (small, in `engine_backtest.py`): align the lab series (`shift(1)`) before the
+yearly table and the correlation, and drop the "drift" sentence from the note. No re-run needed
+beyond the one recorded here (`_lab_scratch/task350.json` now holds the fixed-engine output).
