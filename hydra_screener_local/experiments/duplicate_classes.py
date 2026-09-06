@@ -124,6 +124,32 @@ def probe_yahoo(symbols: list[str]) -> dict:
     return out
 
 
+def _frequency_over(P, names, cfg) -> tuple[int, dict, dict, int]:
+    """(selection dates, recommended counts, ranked counts, dates carrying two of them)."""
+    from engine_backtest import START, STEP, _ranking
+
+    counts = {t: 0 for t in names}
+    eligible = {t: 0 for t in names}
+    together = 0
+    steps = 0
+    for t in range(START, len(P.close.index) - 6, STEP):
+        rk = _ranking(P, t, cfg)
+        if rk is None:
+            continue
+        steps += 1
+        ranked = set(rk["ticker"])
+        picked = set(rk.loc[rk["recommended"], "ticker"])
+        for n in names:
+            if n in ranked:
+                eligible[n] += 1
+        hit = [n for n in names if n in picked]
+        for n in hit:
+            counts[n] += 1
+        if len(hit) > 1:
+            together += 1
+    return steps, counts, eligible, together
+
+
 def t20_frequency(names: list[str], sectors: str = "pit", sectors_date=None) -> dict:
     """How often each name is inside the recommended count on the OOS panel.
 
@@ -136,7 +162,6 @@ def t20_frequency(names: list[str], sectors: str = "pit", sectors_date=None) -> 
     print("4. T20 membership on the OOS PIT panel")
     print("=" * 78)
     import redesign_lab as L
-    from engine_backtest import START, STEP, _ranking
 
     P = L.load_panel(oos=True, sectors=sectors, sectors_date=sectors_date)
     idx = P.close.index
@@ -144,25 +169,7 @@ def t20_frequency(names: list[str], sectors: str = "pit", sectors_date=None) -> 
     cfg.update(L.CONFIGS["T20"])
     print(f"  panel {P.close.shape}  {idx[0].date()} -> {idx[-1].date()}  sectors={P.SECTOR_SOURCE}")
 
-    counts = {t: 0 for t in names}
-    eligible = {t: 0 for t in names}
-    together = 0
-    steps = 0
-    for t in range(START, len(idx) - 6, STEP):
-        rk = _ranking(P, t, cfg)
-        if rk is None:
-            continue
-        steps += 1
-        picked = set(rk.loc[rk["recommended"], "ticker"])
-        ranked = set(rk["ticker"])
-        hit = [n for n in names if n in picked]
-        for n in names:
-            if n in ranked:
-                eligible[n] += 1
-        for n in hit:
-            counts[n] += 1
-        if len(hit) > 1:
-            together += 1
+    steps, counts, eligible, together = _frequency_over(P, names, cfg)
 
     print(f"  {steps} selection dates")
     for n in names:
@@ -172,10 +179,92 @@ def t20_frequency(names: list[str], sectors: str = "pit", sectors_date=None) -> 
     return {"steps": steps, "recommended": counts, "eligible": eligible, "together": together}
 
 
+def insample_ab(pairs: dict[str, str], sectors: str = "pit", sectors_date=None) -> dict:
+    """A/B the in-sample headline with the dead spellings replaced by the live ones.
+
+    The in-sample panel holds `BF.B` and `BRK.B` as all-NaN columns: two S&P 500 names
+    that have never been eligible in any in-sample number. This copies the cache, fills
+    those columns from the spellings Yahoo actually resolves, and drives the production
+    engine over both panels. The pinned cache is never modified.
+    """
+    import shutil
+    import tempfile
+
+    import backtest_variant_sweep as bvs
+    import redesign_lab as L
+    import sleeve_lab as S
+    from engine_backtest import _stats, drive_engine
+
+    print()
+    print("=" * 78)
+    print("5. in-sample A/B: the dead spellings, filled")
+    print("=" * 78)
+
+    original = bvs.CACHE
+    close = pd.read_pickle(os.path.join(original, "close.pkl"))
+    volume = pd.read_pickle(os.path.join(original, "volume.pkl"))
+    dead = {dot: live for dot, live in pairs.items() if dot in close.columns}
+    if not dead:
+        print("  nothing to fill; the panel has no dead spelling")
+        return {}
+    print(f"  filling {dead} over {close.index[0].date()} -> {close.index[-1].date()}")
+
+    import yfinance as yf
+    fixed_close, fixed_volume = close.copy(), volume.copy()
+    filled = {}
+    for dot, live in dead.items():
+        df = yf.download(live, start=str(close.index[0].date()),
+                         end=str((close.index[-1] + pd.Timedelta(days=1)).date()),
+                         progress=False, auto_adjust=False, threads=False)
+        if df is None or df.empty:
+            print(f"    {live}: provider returned nothing; skipped")
+            continue
+        px = pd.to_numeric((df["Adj Close"] if "Adj Close" in df else df["Close"]).squeeze())
+        vol = pd.to_numeric(df["Volume"].squeeze())
+        fixed_close[dot] = px.reindex(close.index)
+        fixed_volume[dot] = vol.reindex(volume.index)
+        filled[dot] = int(fixed_close[dot].notna().sum())
+        print(f"    {dot} <- {live}: {filled[dot]} bars")
+
+    work = tempfile.mkdtemp(prefix="hydra-dupclass-")
+    for name in ("spy.pkl", "irx.pkl"):
+        src = os.path.join(original, name)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(work, name))
+    fixed_close.to_pickle(os.path.join(work, "close.pkl"))
+    fixed_volume.to_pickle(os.path.join(work, "volume.pkl"))
+
+    rows = []
+    for label, cache_dir in (("as-is (2 dead columns)", original), ("filled", work)):
+        bvs.CACHE = cache_dir
+        P = L.load_panel(oos=False, sectors=sectors, sectors_date=sectors_date)
+        P.ETF = S.load_etfs(P.close.index)
+        eng, _counts = drive_engine(P, progress_every=0)
+        stats = _stats(eng, label)
+        rows.append({k: stats.get(k) for k in ("config", "ann_net", "sharpe_net", "maxdd_net", "cycles")})
+        print(f"  {label}: ann_net={stats.get('ann_net')} sharpe={stats.get('sharpe_net')} "
+              f"maxdd={stats.get('maxdd_net')}")
+        # an identical headline can mean "these names are never picked" or "the fill did
+        # nothing". Count them on both panels: verify, do not trust.
+        cfg_rank = dict(L.BASE)
+        cfg_rank.update(L.CONFIGS["T20"])
+        steps, picked, ranked, _t = _frequency_over(P, list(dead), cfg_rank)
+        for n in dead:
+            print(f"      {n:6s} ranked on {ranked[n]:4d}/{steps} dates, recommended on {picked[n]:4d}")
+    bvs.CACHE = original
+    shutil.rmtree(work, ignore_errors=True)
+    print()
+    print(pd.DataFrame(rows).to_string(index=False))
+    return {"filled": filled, "rows": rows}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--oos", action="store_true", help="run the T20 frequency pass (minutes)")
     ap.add_argument("--probe", action="store_true", help="ask Yahoo which spellings resolve")
+    ap.add_argument("--insample-ab", action="store_true",
+                    help="drive the engine over the in-sample panel as-is and with the dead "
+                         "spellings filled (network + minutes; never touches the pinned cache)")
     ap.add_argument("--sectors", choices=("pit", "live"), default="pit")
     ap.add_argument("--sectors-date", default=None)
     args = ap.parse_args(argv)
@@ -189,6 +278,9 @@ def main(argv=None) -> int:
         probe_yahoo(watched)
     if args.oos:
         t20_frequency([w for w in watched if "." not in w], args.sectors, args.sectors_date)
+    if args.insample_ab:
+        insample_ab({w: w.replace(".", "-") for w in watched if "." in w},
+                    args.sectors, args.sectors_date)
     return 0
 
 
