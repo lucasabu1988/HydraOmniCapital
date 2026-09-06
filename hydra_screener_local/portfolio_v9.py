@@ -1,0 +1,305 @@
+"""HYDRA v9 daily CLI: state, engine, instruction sheet.
+
+Manual operation. No broker. After the close of bar t this writes orders to execute
+MOC at t+1. Fills are presumed on the next run. ALGO_VERSION stays v8.4; this CLI is
+opt-in (`python portfolio_v9.py` or `daily.py --v9`).
+
+Usage:
+    python portfolio_v9.py --capital 100000          # first run
+    python portfolio_v9.py                           # subsequent runs
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+
+from config import (  # noqa: E402
+    ALGO_VERSION,
+    FILTERS,
+    SECTOR_FETCH_BUDGET_SECONDS,
+    UNIVERSE,
+    V9,
+)
+from core import portfolio_engine as E  # noqa: E402
+from core.filters import (  # noqa: E402
+    apply_data_quality_filter,
+    apply_practical_filters,
+    remove_zombie_tickers,
+)
+from core.signals import generate_daily_candidates  # noqa: E402
+from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
+from data.sectors import resolve_sectors  # noqa: E402
+from data.universe import get_universe  # noqa: E402
+
+STATE_NAME = "portfolio_v9.json"
+DEFAULT_STATE_DIR = ROOT / "state"
+
+
+def _json_ready(obj):
+    if isinstance(obj, dict):
+        return {str(k): _json_ready(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_ready(v) for v in obj]
+    if isinstance(obj, (pd.Timestamp, datetime)):
+        return str(obj)[:10] if hasattr(obj, "date") else str(obj)
+    try:
+        if pd.isna(obj):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(obj, "item"):
+        try:
+            return obj.item()
+        except (ValueError, AttributeError):
+            pass
+    if isinstance(obj, (float, int, str, bool)) or obj is None:
+        return obj
+    return str(obj)
+
+
+def load_state(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_state(path: Path, state: dict) -> Path | None:
+    """Backup the previous file (if any), then write. Returns the backup path."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup_path = None
+    if path.exists():
+        bdir = path.parent / "backup"
+        bdir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = bdir / f"{ts}.json"
+        shutil.copy2(path, backup_path)
+    tmp = path.with_suffix(".json.tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        json.dump(_json_ready(state), f, indent=2, ensure_ascii=False)
+    tmp.replace(path)
+    return backup_path
+
+
+def fetch_v9_market(universe: str = None) -> dict:
+    """Prices for the engine. Stocks/ETFs use V9['price_period']; T-bill stays percent until /100."""
+    period = V9["price_period"]
+    uni = universe or os.environ.get("UNIVERSE") or UNIVERSE
+    tickers = get_universe(universe=uni)
+    stock_report, etf_report, irx_report = {}, {}, {}
+    prices, volumes = fetch_prices_and_volume(tickers, period=period, report=stock_report)
+    spy = fetch_spy(period=period)
+    etf = fetch_etf_closes(list(V9["etf_universe"]), period=period, report=etf_report)
+    irx = fetch_tbill(period=period, report=irx_report)
+    return dict(prices=prices, volumes=volumes, spy=spy, etf=etf, irx=irx,
+                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report)
+
+
+def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -> pd.DataFrame:
+    prices, _ = apply_practical_filters(
+        prices, volumes=volumes,
+        min_avg_volume=FILTERS.get("min_avg_volume", 1_000_000),
+        min_price=FILTERS.get("min_price", 5.0),
+        max_price=FILTERS.get("max_price"),
+        min_dollar_volume=FILTERS.get("min_dollar_volume"),
+    )
+    prices = apply_data_quality_filter(prices, max_abs_daily_return=1.0, lookback=252)
+    prices = remove_zombie_tickers(prices)
+    if volumes is not None and not volumes.empty:
+        volumes = volumes[volumes.columns.intersection(prices.columns)]
+    spy = spy.reindex(prices.index).ffill()
+    sector_map = resolve_sectors(list(prices.columns), budget_seconds=SECTOR_FETCH_BUDGET_SECONDS)
+    return generate_daily_candidates(
+        prices, spy, volumes=volumes, sector_map=sector_map,
+        momentum_window=V9["stock_momentum_window"],
+    )
+
+
+def _last_date(frame) -> str:
+    ts = pd.Timestamp(frame.index[-1])
+    return str(ts.date())
+
+
+def next_session_date(index, today: str) -> str:
+    """First bar on the price calendar strictly after `today`, else the next business day."""
+    idx = pd.DatetimeIndex(index).normalize()
+    later = idx[idx > pd.Timestamp(today).normalize()]
+    if len(later):
+        return str(pd.Timestamp(later[0]).date())
+    return str((pd.Timestamp(today) + pd.offsets.BDay(1)).date())
+
+
+def _row(frame, date: str) -> pd.Series:
+    idx = pd.DatetimeIndex(frame.index).normalize()
+    target = pd.Timestamp(date).normalize()
+    hits = frame.index[idx == target]
+    if len(hits):
+        return frame.loc[hits[-1]]
+    return frame.iloc[-1]
+
+
+def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
+                       state: dict, exec_date: str) -> tuple[Path, Path]:
+    payload = {
+        "date": date,
+        "algo_version": "v9",
+        "production_flag": ALGO_VERSION,
+        "no_trades": len(orders) == 0,
+        "orders": _json_ready(orders),
+        "fills_settled_today": _json_ready(fills),
+        "valuation": _json_ready(summary),
+        "pending": _json_ready(state.get("pending") or []),
+        "week_index": state.get("week_index"),
+        "capital_reference": state.get("capital_reference"),
+        "exec_date": exec_date,
+        "execute": f"ejecutar al cierre del {exec_date} (MOC t+1). Fills presumidos hasta que corrijas el estado.",
+    }
+    md_path = state_dir / f"instructions_{date.replace('-', '')}.md"
+    json_path = state_dir / f"instructions_{date.replace('-', '')}.json"
+    lines = [
+        f"# HYDRA v9 instructions — {date}",
+        "",
+        payload["execute"],
+        "",
+        f"Capital reference: {state.get('capital_reference'):,.2f} USD"
+        if state.get("capital_reference") else "",
+        f"Week index: {state.get('week_index')}  |  last renewal: {state.get('last_renewal_date')}",
+        "",
+        "## Orders",
+        "",
+    ]
+    if not orders:
+        lines.append("**No trades today** (non-renewal day, or this date was already planned).")
+    else:
+        lines.append("| sleeve | tranche | side | ticker | $ | est. units | est. price |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for o in orders:
+            units = o.get("est_units")
+            price = o.get("est_price")
+            lines.append(
+                f"| {o.get('sleeve')} | {o.get('tranche')} | {o.get('side')} | {o.get('ticker')} | "
+                f"{o.get('dollars', 0):.2f} | "
+                f"{'' if units is None else f'{units:.4f}'} | "
+                f"{'' if price is None else f'{price:.4f}'} |"
+            )
+    lines += ["", "## Valuation (last close)", ""]
+    if summary:
+        tot = summary.get("total") or 0.0
+        lines.append(f"Book: **{tot:,.2f}**")
+        for name, sl in (summary.get("sleeves") or {}).items():
+            lines.append(
+                f"- {name}: {sl.get('value', 0):,.2f} ({100 * sl.get('share', 0):.1f}%)  "
+                f"cash {sl.get('cash', 0):,.2f}  expo {sl.get('exposure', 0):.2f}  "
+                f"n={sl.get('distinct', 0)}  {', '.join(sl.get('names') or [])}"
+            )
+    if fills:
+        lines += ["", "## Fills settled this run", ""]
+        for f in fills:
+            lines.append(f"- {f.get('status')} {f.get('side')} {f.get('ticker')} "
+                         f"{f.get('sleeve')} ${f.get('dollars', 0):.2f}")
+    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return md_path, json_path
+
+
+def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
+        anchor: str | None = None, universe: str | None = None, *,
+        fetch_fn=None, rank_fn=None, engine=E, silent: bool = False) -> dict:
+    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
+    state_dir = Path(state_dir)
+    state_path = state_dir / STATE_NAME
+    state = load_state(state_path)
+
+    data = (fetch_fn or fetch_v9_market)(universe)
+    prices, volumes, spy, etf, irx = data["prices"], data["volumes"], data["spy"], data["etf"], data["irx"]
+    if prices is None or len(prices) == 0 or etf is None or len(etf) == 0:
+        raise RuntimeError("v9 fetch returned no stock or ETF prices")
+    today = _last_date(prices)
+    tbill_rate = 0.0
+    if irx is not None and len(irx):
+        last = irx.dropna()
+        if len(last):
+            tbill_rate = float(last.iloc[-1]) / 100.0          # percent -> decimal
+
+    if state is None:
+        cap = 100000.0 if capital is None else float(capital)
+        if cap <= 0:
+            raise SystemExit("First run needs a positive --capital USD.")
+        wd = pd.Timestamp(today).weekday()          # 0=Mon ... 4=Fri
+        if wd != 4 and not silent:
+            print(f"[v9] AVISO: primera corrida en {today} (weekday={wd}, no es viernes). "
+                  f"Ancla = ultimo cierre igual. Lucas pidio ancla viernes -> primera "
+                  f"ejecucion lunes; renovaciones siguen siendo cada {V9['step_bars']} barras, "
+                  f"no cada lunes calendario.")
+        state = engine.new_state(cap, anchor or today, V9)
+        if not silent:
+            print(f"[v9] new state capital={cap:.2f} anchor={state['anchor_date']}")
+
+    fills = []
+    if state.get("pending"):
+        planned = state["pending"][0].get("planned")
+        if planned and pd.Timestamp(today) > pd.Timestamp(planned):
+            fills = engine.settle(state, today, _row(prices, today), _row(etf, today), V9)
+            if not silent:
+                print(f"[v9] settled {len(fills)} fill(s) at {today}")
+        elif not silent:
+            print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
+
+    orders = []
+    if not state.get("pending"):
+        ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+        state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, V9)
+        if not silent:
+            print(f"[v9] plan {today}: {len(orders)} order(s)")
+    elif not silent:
+        print("[v9] skip plan — pending not settled")
+
+    backup = save_state(state_path, state)
+    summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
+    exec_date = next_session_date(prices.index, today)
+    md_path, json_path = write_instructions(state_dir, today, orders, fills, summary, state, exec_date)
+    if not silent:
+        if backup:
+            print(f"[v9] backed up previous state -> {backup}")
+        print(f"[v9] state -> {state_path}")
+        print(f"[v9] instructions -> {md_path}")
+        if not orders:
+            print("[v9] no trades today")
+    return dict(today=today, orders=orders, fills=fills, state_path=str(state_path),
+                instructions_md=str(md_path), no_trades=len(orders) == 0)
+
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(description="HYDRA v9 instruction CLI (50/50 T20+ETF)")
+    p.add_argument("--capital", type=float, default=100000.0,
+                   help="USD on first run (default 100000). Ignored once state exists.")
+    p.add_argument("--anchor", type=str, default=None, help="YYYY-MM-DD; default = last close")
+    p.add_argument("--state-dir", type=str, default=str(DEFAULT_STATE_DIR))
+    p.add_argument("--universe", type=str, default=None)
+    args = p.parse_args(argv)
+    try:
+        run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe)
+    except SystemExit as e:
+        print(f"[v9] {e}")
+        return 1
+    except Exception as e:
+        print(f"[v9] ERROR: {e}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

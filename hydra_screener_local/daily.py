@@ -125,7 +125,7 @@ def maybe_refresh_pnl(do_refresh: bool):
         print(f"[WARN] Could not run refresher: {e}")
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description="HYDRA Daily Ritual — one command to rule them all.")
     parser.add_argument("--universe", default="all",
                         help="Universe to use (all, sp500, nasdaq100, etc.). Default: all")
@@ -135,8 +135,13 @@ def main():
                         help="Skip the big TradingView copy-paste instructions (not recommended).")
     parser.add_argument("--skip-screener", action="store_true",
                         help="Only print instructions + optional refresh (assumes you already ran the screener).")
+    parser.add_argument("--v9", action="store_true",
+                        help="After the screener, run the v9 instruction CLI (50/50 T20+ETF). "
+                             "Also runs automatically if ALGO_VERSION is v9.")
+    parser.add_argument("--v9-capital", type=float, default=None,
+                        help="USD capital for the first v9 run (passed to portfolio_v9.py --capital).")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     print("HYDRA DAILY RITUAL")
     print("==================\n")
@@ -152,6 +157,21 @@ def main():
 
     if args.refresh_pnl:
         maybe_refresh_pnl(True)
+
+    from config import ALGO_VERSION
+    if args.v9 or ALGO_VERSION == "v9":
+        print("\n>>> HYDRA v9 instruction CLI...")
+        try:
+            from portfolio_v9 import run as run_v9
+            run_v9(capital=args.v9_capital)
+        except SystemExit as e:
+            print(f"[v9] {e}")
+            if exit_code == 0:
+                exit_code = 1
+        except Exception as e:
+            print(f"[v9] failed: {e}")
+            if exit_code == 0:
+                exit_code = 1
 
     if exit_code != 0:
         print(f"\n[Note] Screener exited with code {exit_code}. Check output above.")
