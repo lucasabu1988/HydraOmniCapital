@@ -153,7 +153,12 @@ def test_sector_unknown_warns():
 def test_pending_older_than_one_session_warns():
     prices, etf, irx, ranking, state = _frames()
     # two bars after the plan date -> more than one session behind
-    state["pending"] = [{"planned": "2026-09-01", "ticker": "T0"}]
+    # a real state (TASK-384: preflight now replays the ledger; a skeleton without sleeves is HARD)
+    import core.portfolio_engine as E
+    state = E.new_state(100000.0, "2026-09-01", V9)
+    state["last_run_date"] = "2026-09-01"
+    state["pending"] = [{"planned": "2026-09-01", "ticker": "T0", "sleeve": "stocks", "tranche": 0,
+                         "side": "buy", "dollars": 100.0}]
     r = PF.evaluate(prices, etf, irx, state=state, ranking=ranking,
                     last_session="2026-09-04", backup_dir="x")
     assert not r["hard"]
