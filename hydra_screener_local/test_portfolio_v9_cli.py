@@ -11,14 +11,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import daily as daily_mod  # noqa: E402
 import portfolio_v9 as V  # noqa: E402
+from config import V9  # noqa: E402
 
 
 IDX = pd.DatetimeIndex(["2026-09-04"])
+ETF_UNIVERSE = list(V9["etf_universe"])
 
 
 def _market(_universe=None):
     prices = pd.DataFrame({"AAA": [10.0]}, index=IDX)
-    etf = pd.DataFrame({"SPY": [100.0]}, index=IDX)
+    etf = pd.DataFrame({t: [100.0] for t in ETF_UNIVERSE}, index=IDX)
     spy = pd.Series([400.0], index=IDX, name="SPY")
     irx = pd.Series([5.25], index=IDX)          # percent; CLI must pass 0.0525 to plan()
     return dict(prices=prices, volumes=prices * 1000, spy=spy, etf=etf, irx=irx,
@@ -127,7 +129,7 @@ def test_next_bar_settles_then_can_plan_again(tmp_path):
             prices=pd.DataFrame({"AAA": [10.0, 10.0]}, index=idx),
             volumes=pd.DataFrame({"AAA": [10_000.0, 10_000.0]}, index=idx),
             spy=pd.Series([400.0, 401.0], index=idx),
-            etf=pd.DataFrame({"SPY": [100.0, 101.0]}, index=idx),
+            etf=pd.DataFrame({t: [100.0, 101.0] for t in ETF_UNIVERSE}, index=idx),
             irx=pd.Series([5.25, 5.20], index=idx),
             stock_report={}, etf_report={}, irx_report={},
         )

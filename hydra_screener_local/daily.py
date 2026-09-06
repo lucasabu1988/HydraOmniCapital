@@ -141,6 +141,8 @@ def main(argv=None):
                              "Also runs automatically if ALGO_VERSION is v9.")
     parser.add_argument("--v9-capital", type=float, default=None,
                         help="USD capital for the first v9 run (passed to portfolio_v9.py --capital).")
+    parser.add_argument("--force", action="store_true",
+                        help="Pass through to portfolio_v9.py: plan even if preflight hard-fails.")
 
     args = parser.parse_args(argv)
 
@@ -164,7 +166,7 @@ def main(argv=None):
         print("\n>>> HYDRA v9 instruction CLI...")
         try:
             from portfolio_v9 import run as run_v9
-            run_v9(capital=args.v9_capital)
+            run_v9(capital=args.v9_capital, force=args.force)
         except SystemExit as e:
             print(f"[v9] {e}")
             if exit_code == 0:

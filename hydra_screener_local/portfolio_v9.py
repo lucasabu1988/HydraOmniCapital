@@ -44,6 +44,7 @@ from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fet
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
 from dashboard_v9 import summarize_interest  # noqa: E402
 from data.universe import get_universe  # noqa: E402
+import preflight as PF  # noqa: E402
 
 STATE_NAME = "portfolio_v9.json"
 DEFAULT_STATE_DIR = ROOT / "state"
@@ -256,7 +257,8 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
 
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
-        fetch_fn=None, rank_fn=None, engine=E, silent: bool = False) -> dict:
+        fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
+        force: bool = False) -> dict:
     """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
@@ -288,6 +290,21 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         if not silent:
             print(f"[v9] new state capital={cap:.2f} anchor={state['anchor_date']}")
 
+    ranking = None
+    if not state.get("pending"):
+        ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+    # Injected fetch (tests) uses the fixture's last bar as the session so the suite
+    # does not depend on the wall clock. Live fetch compares to the last weekday.
+    pf = PF.evaluate(
+        prices, etf, irx, state=state, ranking=ranking,
+        asof=today if fetch_fn is not None else pd.Timestamp.now(),
+        last_session=today if fetch_fn is not None else None,
+        backup_dir=os.environ.get("HYDRA_BACKUP_DIR"),
+    )
+    if not silent:
+        print(PF.format_table(pf))
+    PF.raise_if_hard(pf, force=force)
+
     fills = []
     if state.get("pending"):
         planned = state["pending"][0].get("planned")
@@ -304,9 +321,9 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
     orders = []
-    ranking = None
     if not state.get("pending"):
-        ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+        if ranking is None:
+            ranking = (rank_fn or build_ranking)(prices, spy, volumes)
         state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, V9)
         if not silent:
             print(f"[v9] plan {today}: {len(orders)} order(s)")
@@ -349,9 +366,12 @@ def main(argv=None) -> int:
     p.add_argument("--anchor", type=str, default=None, help="YYYY-MM-DD; default = last close")
     p.add_argument("--state-dir", type=str, default=str(DEFAULT_STATE_DIR))
     p.add_argument("--universe", type=str, default=None)
+    p.add_argument("--force", action="store_true",
+                   help="Plan even if preflight hard-fails (stale bars, missing ETFs, unknown schema).")
     args = p.parse_args(argv)
     try:
-        run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe)
+        run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
+            force=args.force)
     except SystemExit as e:
         print(f"[v9] {e}")
         return 1

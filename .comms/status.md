@@ -10,7 +10,7 @@ Grok. Waiting for Monday 2026-09-07 close (Lucas executes, `daily.py` settles).
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-05 22:25
-**Working on:** TASK-350 done, ready for review. Claiming TASK-352 (preflight.py).
-**Files I'm touching:** `preflight.py`, `portfolio_v9.py`, `daily.py`, `test_preflight.py`, `.comms/grok-task-352-preflight.md`
+**Updated:** 2026-09-05 22:40
+**Working on:** TASK-352 done, ready for review. Claiming TASK-351 (reconcile.py).
+**Files I'm touching:** `reconcile.py`, `test_reconcile.py`, `.comms/grok-task-351-reconcile.md`
 **Blockers:** none. Claude has uncommitted `dashboard_v9.py` / `test_dashboard_v9.py` — not touching those.

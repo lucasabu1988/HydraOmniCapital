@@ -1131,7 +1131,7 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
   writes nothing. Tests on a synthetic state. Files: `reconcile.py`, `test_reconcile.py`,
   `.comms/grok-task-351-reconcile.md`.
 
-- [~] `TASK-352` **`preflight.py`: refuse to plan on bad data.** Before the v9 plan, check and print a
+- [x] `TASK-352` **`preflight.py`: refuse to plan on bad data.** Before the v9 plan, check and print a
   table: last stock bar, last ETF bar and last `^IRX` bar all equal to the last NYSE session (hard
   fail otherwise: a stale yfinance day would produce a sheet with yesterday's prices); share of the
   universe with a print on that bar (warn < 90%); 10/10 ETFs present (hard fail); sector-unknown
@@ -1189,6 +1189,11 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
 
 ## Completed
 
+- `TASK-352` (Grok) `preflight.py`: last stock/ETF/^IRX bar must equal the last
+  weekday session (HARD), 10/10 ETFs (HARD), unknown schema (HARD); print-share
+  <90%, sector-unknown, pending >1 session, unset HYDRA_BACKUP_DIR (WARN).
+  `daily.py`/`portfolio_v9.py` stop unless `--force`. 18 tests, no network. Note
+  `.comms/grok-task-352-preflight.md`. Engine not edited.
 - `TASK-350` (Grok, `3799a85`) Production engine on the OOS PIT panel (1209 names, 2004-26,
   delistings). Audit 50/50 mix 6.91 / 0.74 / −19.5; engine **7.91 / 0.77 / −19.1**.
   1 not_filled (TWX), 492 hold_no_price (AET, ESRX, TWX), 0 write-offs / $0,
