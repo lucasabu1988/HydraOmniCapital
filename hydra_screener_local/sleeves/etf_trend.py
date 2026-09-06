@@ -66,6 +66,7 @@ class EtfTrend:
     """Adapter (TASK-366). Delegates to `core.portfolio_engine.etf_targets`; functions above unchanged."""
 
     name = "etf"
+    mark_frame = "etf"           # marks against the ETF close row (TASK-386)
 
     def __init__(self, cost_bp: float | None = None):
         self.cost_bp = float(V9["etf_cost_bp"] if cost_bp is None else cost_bp)

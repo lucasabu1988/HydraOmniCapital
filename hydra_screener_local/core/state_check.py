@@ -30,12 +30,15 @@ def _f(x, default=0.0) -> float:
         return default
 
 
-def _empty_books(state: dict) -> dict:
-    """capital_reference split by mix, then by tranche — the new_state layout."""
+def _empty_books(state: dict, cfg: dict | None = None) -> dict:
+    """capital_reference split by mix, then by tranche — the new_state layout. The mix is policy
+    (`cfg["mix"]`, TASK-386); a state without a matching cfg falls back to V9 or equal weights."""
     capital = _f(state.get("capital_reference"))
     sleeves = state.get("sleeves") or {}
-    mix = dict(state.get("mix") or V9.get("mix") or {})
-    names = list(sleeves.keys()) or list(mix.keys()) or ["stocks", "etf"]
+    names = list(sleeves.keys()) or ["stocks", "etf"]
+    mix = dict((cfg or {}).get("mix") or state.get("mix") or {})
+    if not mix or any(n not in mix for n in names):
+        mix = dict(V9.get("mix") or {}) if all(n in (V9.get("mix") or {}) for n in names) else {}
     if not mix:
         mix = {n: 1.0 / len(names) for n in names}
     out = {}
@@ -57,10 +60,10 @@ def _tr(books: dict, sleeve: str, k: int) -> dict | None:
     return trans[k]
 
 
-def replay(state: dict) -> dict:
+def replay(state: dict, cfg: dict | None = None) -> dict:
     """Reconstruct tranche units/cash from capital + ledger + write_offs + transfers
     + interest + dividends. Splits land with TASK-363."""
-    books = _empty_books(state)
+    books = _empty_books(state, cfg)
 
     events: list[tuple] = []
     for i, f in enumerate(state.get("ledger") or []):
@@ -151,7 +154,7 @@ def _apply_interest(books: dict, rec: dict) -> None:
         t["cash"] += dollars * (w / total)
 
 
-def check(state: dict) -> list[Finding]:
+def check(state: dict, cfg: dict | None = None) -> list[Finding]:
     findings: list[Finding] = []
     st = copy.deepcopy(state)
     try:
@@ -167,7 +170,7 @@ def check(state: dict) -> list[Finding]:
             f"schema_version={ver!r} != {STATE_SCHEMA}",
         ))
 
-    rebuilt = replay(st)
+    rebuilt = replay(st, cfg)
     for sleeve, block in (st.get("sleeves") or {}).items():
         rec_block = rebuilt.get(sleeve) or {"tranches": []}
         for i, tr in enumerate(block.get("tranches") or []):

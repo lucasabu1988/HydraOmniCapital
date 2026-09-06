@@ -10,6 +10,7 @@ from sleeves.base import MarketSlice
 
 class StocksT20:
     name = "stocks"
+    mark_frame = "stocks"        # marks against the stock close row (TASK-386)
 
     def __init__(self, cost_bp: float | None = None):
         self.cost_bp = float(V9["stock_cost_bp"] if cost_bp is None else cost_bp)

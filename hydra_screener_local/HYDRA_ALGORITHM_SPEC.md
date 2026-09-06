@@ -540,6 +540,12 @@ is the production switch. Design and acceptance criteria:
 | Cadence | one tranche renewed every 5 trading bars (week w renews tranche w mod 4); a tranche lives 20 bars | same |
 | Costs modelled | 10 bp per side | 5 bp per side |
 
+Since TASK-386 the engine iterates the sleeves declared in `cfg["sleeves"]` (registry `sleeves/registry.py`;
+default `["stocks", "etf"]`) and resets the bundle of renewed tranches to `cfg["mix"]` (default 50/50):
+the bundle's value V is split as `mix[s] * V`, so the transfer legs sum to zero for any number of sleeves.
+The mix is policy and lives in the configuration (per book via `portfolios.toml`), not in the state. With
+the default configuration the engine is exactly the two-sleeve engine above (golden fixture unchanged).
+
 ### 9.2 Time convention and orders
 
 Run after the close of bar t with data through t. `plan()` emits orders as dollar amounts with
@@ -600,7 +606,8 @@ units_before, units_after), idempotent on (date, sleeve, tranche, ticker); the l
 
 schema 1: anchor_date, last_run_date, last_renewal_date, week_index, capital_reference, per sleeve
 four tranches {k, opened, units, cash, last_px, stale}, pending orders, ledger of fills, write_offs,
-transfers, interest. A held name that stops printing is carried at its last price for
+transfers, interest, dividends, splits. `sleeves` is keyed by sleeve name (N keys since TASK-386; the mix is not
+stored). A held name that stops printing is carried at its last price for
 `max_stale_bars` (10) **weekly marks** (plan() runs; the lab's `run_book` counts steps the same way)
 and then written off at that price (recorded). No `history/` tracking is run (Lucas 2026-09-06).
 

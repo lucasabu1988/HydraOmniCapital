@@ -30,13 +30,13 @@ def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _report(label: str, state: dict) -> tuple[str, bool]:
+def _report(label: str, state: dict, cfg: dict | None = None) -> tuple[str, bool]:
     try:
         migrate(state)
     except SchemaError as e:
         text = f"{label}: SCHEMA {e}"
         return text, True
-    findings = check(state)
+    findings = check(state, cfg=cfg)
     text = f"{label}:\n{format_findings(findings)}"
     hard = any(f.level == "ERROR" for f in findings)
     return text, hard
@@ -51,15 +51,18 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     state_path = Path(args.state)
+    cfg = None
     if args.portfolio:
         from core.portfolios import resolve
-        state_path = resolve(args.portfolio, allow_disabled=True).state_dir / "portfolio_v9.json"
+        book = resolve(args.portfolio, allow_disabled=True)
+        state_path = book.state_dir / "portfolio_v9.json"
+        cfg = book.cfg
     if not state_path.exists():
         print(f"state not found: {state_path}")
         return 1
 
     current = _load(state_path)
-    text, hard = _report(f"state {state_path}", current)
+    text, hard = _report(f"state {state_path}", current, cfg)
     print(text)
 
     if args.restore:
@@ -68,7 +71,7 @@ def main(argv=None) -> int:
             print(f"backup not found: {backup_path}")
             return 1
         backup = _load(backup_path)
-        btext, bhard = _report(f"backup {backup_path}", backup)
+        btext, bhard = _report(f"backup {backup_path}", backup, cfg)
         print()
         print(btext)
         if not args.yes:

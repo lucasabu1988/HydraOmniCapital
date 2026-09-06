@@ -27,14 +27,44 @@ from config import MAX_PER_SECTOR, V9
 from core.tranche_book import Tranche, TrancheBook
 
 STATE_SCHEMA = 1
-SLEEVES = ("stocks", "etf")
+SLEEVES = ("stocks", "etf")      # the default registry; kept for callers that import it
+
+
+# ----------------------------------------------------------------------------- sleeves (TASK-386)
+def _sleeves(cfg: dict) -> dict:
+    """name -> Sleeve from `cfg["sleeves"]` (default stocks + etf). Lazy import: the adapters import
+    `stock_targets` / `etf_targets` from this module."""
+    from sleeves.registry import build
+    return build(cfg)
+
+
+def _mix(cfg: dict, names: list) -> dict:
+    """Target mix over the registry's names. `cfg["mix"]` (policy, per book via TASK-365) or equal
+    weights; must cover every name and sum to 1. The state does not store it (schema 1 unchanged)."""
+    mix = dict(cfg.get("mix") or {})
+    if not mix:
+        mix = {n: 1.0 / len(names) for n in names}
+    missing = [n for n in names if n not in mix]
+    if missing:
+        raise ValueError(f"cfg['mix'] has no weight for sleeve(s) {missing}")
+    total = float(sum(float(mix[n]) for n in names))
+    if abs(total - 1.0) > 1e-9:
+        raise ValueError(f"cfg['mix'] over {names} sums to {total}, not 1")
+    return {n: float(mix[n]) for n in names}
+
+
+def _price_rows(sleeves: dict, stock_row, etf_row) -> dict:
+    """Which close row marks each sleeve (`Sleeve.mark_frame`: 'stocks' or 'etf')."""
+    return {name: (stock_row if getattr(sl, "mark_frame", name) == "stocks" else etf_row)
+            for name, sl in sleeves.items()}
 
 
 # ----------------------------------------------------------------------------- state
 def new_state(capital: float, anchor_date: str, cfg: dict = None) -> dict:
     cfg = cfg or V9
     k = cfg["tranches"]
-    half = float(capital) / 2.0
+    sleeves = _sleeves(cfg)
+    mix = _mix(cfg, list(sleeves))
     return {
         "schema_version": STATE_SCHEMA,
         "algo_version": "v9",
@@ -43,8 +73,10 @@ def new_state(capital: float, anchor_date: str, cfg: dict = None) -> dict:
         "last_renewal_date": None,
         "week_index": -1,
         "capital_reference": float(capital),
-        "sleeves": {s: {"tranches": [{"k": i, "opened": None, "units": {}, "cash": half / k, "last_px": {}, "stale": {}} for i in range(k)]}
-                    for s in SLEEVES},
+        # each sleeve starts with capital x mix / K per tranche (two sleeves at 50/50: capital / 8)
+        "sleeves": {s: {"tranches": [{"k": i, "opened": None, "units": {}, "cash": float(capital) * mix[s] / k,
+                                      "last_px": {}, "stale": {}} for i in range(k)]}
+                    for s in sleeves},
         "pending": [],          # orders planned at last_run_date, to settle at the next close
         "ledger": [],           # every order ever settled
         "write_offs": [],
@@ -163,9 +195,12 @@ def mark(state: dict, stock_prices: pd.Series, etf_prices: pd.Series, cfg: dict 
     """Value the book at the given closes (last_px carry for names that do not print). Ages
     staleness and records write-offs. Mutates state; returns a summary."""
     cfg = cfg or V9
+    sleeves = _sleeves(cfg)
+    rows = _price_rows(sleeves, stock_prices, etf_prices)
     out = {"sleeves": {}, "total": 0.0}
-    for sleeve, px, bp in (("stocks", stock_prices, cfg["stock_cost_bp"]), ("etf", etf_prices, cfg["etf_cost_bp"])):
-        book = _book(state, sleeve, bp, cfg)
+    for sleeve, sl in sleeves.items():
+        px = rows[sleeve]
+        book = _book(state, sleeve, sl.cost_bp, cfg)
         book.age_stale(px)
         for w in book.write_offs:
             state["write_offs"].append(dict(w, sleeve=sleeve, date=state.get("last_run_date")))
@@ -203,7 +238,7 @@ def accrue_interest(state: dict, index: pd.DatetimeIndex, today: str, tbill_rate
     factor = float((1.0 + daily).prod())
     total = 0.0
     state.setdefault("interest", [])
-    for sleeve in SLEEVES:
+    for sleeve in list(state["sleeves"].keys()):
         earned = 0.0
         for tr in state["sleeves"][sleeve]["tranches"]:
             cash = float(tr["cash"])
@@ -221,14 +256,20 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
     """Run after the close of `today`. Marks the book, decides whether a tranche renews and, if so,
     produces the orders (estimates at today's close) for execution at the next close.
 
-    Returns (state, orders). Idempotent: a second call on the same date returns no new orders."""
+    Returns (state, orders). Idempotent: a second call on the same date returns no new orders.
+    TASK-386: the sleeves come from the registry (`cfg["sleeves"]`, default stocks + etf) and the
+    bundle of renewed tranches is reset to `cfg["mix"]`; two sleeves at 50/50 is today's engine."""
     cfg = cfg or V9
     if state.get("last_run_date") == today:
         return state, []                                 # same day again: nothing new (idempotent)
     if state["pending"]:
         raise RuntimeError("pending orders from %s not settled; call settle() with the next close first"
                            % state["pending"][0]["planned"])
+    sleeves = _sleeves(cfg)
+    names = list(sleeves)
+    mix = _mix(cfg, names)
     px_s, px_e = stock_prices.iloc[-1], etf_prices.iloc[-1]
+    rows = _price_rows(sleeves, px_s, px_e)
     accrue_interest(state, stock_prices.index, today, tbill_rate)
     state["last_run_date"] = today
     summary = mark(state, px_s, px_e, cfg)
@@ -236,17 +277,19 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
     if slot is None:
         return state, []
     week, k = slot
-    # 50/50 reset (spec 9.3): the renewed PAIR of tranches (stocks k, etf k) is split equally by value,
-    # so the two transfer legs are equal and opposite and the book is conserved. Sizing each leg to
-    # 1/8 of the whole book instead (the pre-2026-09-07 rule) created or destroyed cash on paper
-    # whenever the pair's value differed from 1/4 of the book (found by the end-to-end engine
-    # backtest, TASK-347 review: -0.9 pp/yr in-sample).
+    # Bundle reset (spec 9.3, generalised): the renewed tranches of every sleeve form one bundle whose
+    # value V is split by the target mix, so the transfer legs sum to zero for any N and the book is
+    # conserved. Sizing a leg to 1/(N*K) of the whole book instead (the pre-2026-09-07 rule) created
+    # or destroyed cash on paper whenever the bundle differed from 1/K of the book (TASK-347 review,
+    # -0.9 pp/yr in-sample). Two sleeves at 50/50 reproduce the pair reset exactly.
     own_by_sleeve = {}
-    for sleeve, px in (("stocks", px_s), ("etf", px_e)):
+    for sleeve in names:
+        px = rows[sleeve]
         tr = state["sleeves"][sleeve]["tranches"][k]
         own_by_sleeve[sleeve] = float(tr["cash"]) + sum(
             u * float(px.get(t, tr.get("last_px", {}).get(t, np.nan)) or 0.0) for t, u in tr["units"].items())
-    tranche_target = sum(own_by_sleeve.values()) / 2.0
+    bundle_value = sum(own_by_sleeve.values())
+    tranche_target_by = {sleeve: mix[sleeve] * bundle_value for sleeve in names}
 
     # T-bill hurdle for the ETF sleeve: the trailing 252-bar accumulated T-bill return, as measured
     # in the lab (`tbill_rate` as an annualised decimal Series on the price calendar). A scalar is
@@ -255,14 +298,19 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
         tb_daily = pd.to_numeric(tbill_rate, errors="coerce").reindex(etf_prices.index).ffill().fillna(0.0) / 252.0
     else:
         tb_daily = pd.Series(float(tbill_rate) / 252.0, index=etf_prices.index)
+    from sleeves.base import MarketSlice
+    market = MarketSlice(stock_prices=stock_prices, volumes=None, spy=None, etf_closes=etf_prices,
+                         tbill=tb_daily, ranking=ranking)
     orders: List[dict] = []
-    for sleeve, targets, px, bp in (
-        ("stocks", stock_targets(ranking, set(state["sleeves"]["stocks"]["tranches"][k]["units"]), stock_prices, cfg), px_s, cfg["stock_cost_bp"]),
-        ("etf", etf_targets(etf_prices, tb_daily, cfg), px_e, cfg["etf_cost_bp"]),
-    ):
+    cost_by_sleeve = {}
+    for sleeve, sl in sleeves.items():
         tr = state["sleeves"][sleeve]["tranches"][k]
+        px = rows[sleeve]
+        cost_by_sleeve[sleeve] = float(sl.cost_bp)
+        targets = sl.targets(market, set(tr["units"]), cfg)
+        tranche_target = tranche_target_by[sleeve]
         own = own_by_sleeve[sleeve]
-        transfer = tranche_target - own                     # + receives cash from the other sleeve, - gives
+        transfer = tranche_target - own                     # + receives cash from the bundle, - gives
         # sells: everything held that is not in the target, plus trims of kept names
         for t, u in tr["units"].items():
             p = float(px.get(t, np.nan))
@@ -289,30 +337,33 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
         if abs(transfer) > 1e-9:
             orders.append(dict(sleeve=sleeve, tranche=k, ticker="CASH", side="transfer_in" if transfer > 0 else "transfer_out",
                                dollars=abs(transfer), est_units=None, est_price=None,
-                               note="50/50 reset: renewed pair of tranches split equally by value"))
+                               note="50/50 reset: renewed pair of tranches split equally by value" if len(names) == 2 and abs(mix[sleeve] - 0.5) < 1e-12
+                               else "bundle reset: renewed tranches split by the target mix"))
         if not len(targets):
             orders.append(dict(sleeve=sleeve, tranche=k, ticker="TBILL", side="park", dollars=tranche_target, est_units=None, est_price=None,
                                note="no names selected: tranche stays in T-bill (no fallback)"))
     for o in orders:
-        o.update(planned=today, week=week, cost_bp=cfg["stock_cost_bp"] if o["sleeve"] == "stocks" else cfg["etf_cost_bp"])
+        o.update(planned=today, week=week, cost_bp=cost_by_sleeve[o["sleeve"]])
     state["pending"] = orders
     state["week_index"] = week
     state["last_renewal_date"] = today
-    for sleeve in SLEEVES:
+    for sleeve in names:
         state["sleeves"][sleeve]["tranches"][k]["opened"] = today
     return state, orders
 
 
 def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.Series, cfg: dict = None) -> dict:
     """Book the pending orders at the execution-day closes: sells first, then the inter-sleeve cash
-    transfer, then buys (dollar amounts kept, units at the fill price, costs charged). Returns the
-    list of fills (also appended to the ledger). Idempotent: nothing pending -> nothing done."""
+    transfers (ins before outs, so a paying sleeve can receive first), then buys (dollar amounts kept,
+    units at the fill price, costs charged). Returns the list of fills (also appended to the ledger).
+    Idempotent: nothing pending -> nothing done."""
     cfg = cfg or V9
     if not state["pending"]:
         return []
     fills = []
-    books = {"stocks": _book(state, "stocks", cfg["stock_cost_bp"], cfg), "etf": _book(state, "etf", cfg["etf_cost_bp"], cfg)}
-    px = {"stocks": stock_prices, "etf": etf_prices}
+    sleeves = _sleeves(cfg)
+    books = {name: _book(state, name, sl.cost_bp, cfg) for name, sl in sleeves.items()}
+    px = _price_rows(sleeves, stock_prices, etf_prices)
     pend = state["pending"]
     for phase in ("sell", "transfer_in", "transfer_out", "buy"):
         for o in pend:
@@ -352,7 +403,7 @@ def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.
     for o in pend:
         if o["side"] in ("park", "hold_no_price"):
             fills.append(dict(o, exec_date=exec_date, status="noted"))
-    for sleeve in SLEEVES:
+    for sleeve in sleeves:
         _dump(state, sleeve, books[sleeve])
     state["ledger"].extend(fills)
     state["pending"] = []
@@ -363,8 +414,11 @@ def summary_table(state: dict, stock_prices: pd.Series, etf_prices: pd.Series, c
     """Read-only valuation for the instruction sheet (no staleness ageing, no state mutation)."""
     cfg = cfg or V9
     out = {"sleeves": {}, "total": 0.0}
-    for sleeve, px, bp in (("stocks", stock_prices, cfg["stock_cost_bp"]), ("etf", etf_prices, cfg["etf_cost_bp"])):
-        book = _book(state, sleeve, bp, cfg)
+    sleeves = _sleeves(cfg)
+    rows = _price_rows(sleeves, stock_prices, etf_prices)
+    for sleeve, sl in sleeves.items():
+        px = rows[sleeve]
+        book = _book(state, sleeve, sl.cost_bp, cfg)
         v = book.value_with_stale(px)
         out["sleeves"][sleeve] = {"value": v, "cash": float(sum(t.cash for t in book.tranches)), "exposure": book.exposure(px),
                                   "distinct": book.distinct(), "names": sorted(set().union(*[book.held(i) for i in range(cfg["tranches"])]))}

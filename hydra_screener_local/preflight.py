@@ -46,6 +46,7 @@ def evaluate(
     backup_dir: str | None = None,
     etf_universe: list[str] | None = None,
     universe_report: dict | None = None,
+    cfg: dict | None = None,
 ) -> dict:
     """Run every check. `asof` is the wall-clock (or test clock) used to name the
     last NYSE session when `last_session` is omitted."""
@@ -172,7 +173,7 @@ def evaluate(
         rows.append(_row("state replay", "SKIP", "no state yet"))
     else:
         try:
-            findings = state_check(state)
+            findings = state_check(state, cfg=cfg)      # the book's mix is policy in cfg (TASK-386)
         except Exception as e:  # a crash in the checker is itself a hard stop
             findings = None
             rows.append(_row("state replay", "HARD", f"check failed: {e}"))

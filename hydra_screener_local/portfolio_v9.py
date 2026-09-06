@@ -409,6 +409,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         last_session=today if fetch_fn is not None else None,
         backup_dir=os.environ.get("HYDRA_BACKUP_DIR"),
         universe_report=data.get("universe_report"),
+        cfg=cfg,
     )
     if not silent:
         print(PF.format_table(pf))
