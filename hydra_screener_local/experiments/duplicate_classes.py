@@ -190,10 +190,17 @@ def insample_ab(pairs: dict[str, str], sectors: str = "pit", sectors_date=None) 
     import shutil
     import tempfile
 
-    import backtest_variant_sweep as bvs
     import redesign_lab as L
     import sleeve_lab as S
     from engine_backtest import _stats, drive_engine
+
+    # `backtest_variant_sweep` is importable under two module names (with and without
+    # the `experiments.` prefix), so `import backtest_variant_sweep as bvs` here can be
+    # a DIFFERENT module object from the one redesign_lab holds. Setting CACHE on the
+    # wrong one silently reads the original cache and the A/B compares a panel with
+    # itself — which is exactly what the first run of this did, and what the ranking
+    # counts below caught. Take the module the lab actually uses.
+    bvs = L.bvs
 
     print()
     print("=" * 78)
@@ -238,6 +245,11 @@ def insample_ab(pairs: dict[str, str], sectors: str = "pit", sectors_date=None) 
     for label, cache_dir in (("as-is (2 dead columns)", original), ("filled", work)):
         bvs.CACHE = cache_dir
         P = L.load_panel(oos=False, sectors=sectors, sectors_date=sectors_date)
+        seen = {n: int(P.close[n].notna().sum()) for n in dead if n in P.close.columns}
+        expected = 0 if cache_dir == original else max(filled.values(), default=0)
+        print(f"    panel actually loaded: {seen}")
+        if expected and not any(v for v in seen.values()):
+            raise SystemExit("the filled cache did not reach the panel — the A/B would be a no-op")
         P.ETF = S.load_etfs(P.close.index)
         eng, _counts = drive_engine(P, progress_every=0)
         stats = _stats(eng, label)

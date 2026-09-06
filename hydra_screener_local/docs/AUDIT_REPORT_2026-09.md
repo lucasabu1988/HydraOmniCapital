@@ -101,7 +101,25 @@ sector snapshot and the same PIT payload** (TASK-387). `main` today, snapshot
 
 ## Open follow-ups
 
-Queued as TASK-388…TASK-391 on GROKBOARD: the CI's first green run on a real pull
-request (these seven jobs have never executed on GitHub), the duplicate-share-class
-measurement, the next tier of typed modules with a raised coverage floor, and the
-local pre-commit half of the gates.
+TASK-388…TASK-391 are **done** (Grok was unavailable, so Claude took them). What they
+added to the picture above:
+
+- **TASK-388** — the seven CI jobs ran for the first time and six were red. One was a
+  real defect the audit had created the conditions to find: `console_dashboard` raised
+  `NameError` on import without rich, so the plain-text fallback it advertises never
+  worked and `hydra-console` was dead on any machine without rich. Now 8/8 green;
+  Linux coverage 81.22%.
+- **TASK-389** — the duplicate share class is harmless (Yahoo does not resolve `BRK.B`,
+  and `BRK-A` fails the liquidity filter daily), but the *spelling* is not: `BF.B` has
+  no dash twin, so **Brown-Forman cannot be scored at all**, and both names sit in the
+  in-sample panel as all-NaN columns. Filling them moves the in-sample headline
+  12.18 → 12.24 ann_net. Normalising is a membership change and waits for Lucas.
+  Evidence: `.comms/grok-task-389-duplicate-classes.md`.
+- **TASK-390** — mypy over 16 modules instead of 10; coverage floor ratcheted 77 → 80
+  against the measured Linux number.
+- **TASK-391** — the pre-commit hooks had never been installed in this clone, and the
+  ruff hook had been reporting 107 phantom errors because pre-commit runs from the repo
+  root. Replaced by `hydra-gates` (~4s: ruff over the tree, secret sweep, packaging).
+
+Still open, and both need Lucas: the branch-protection ruleset (admin on the repo), and
+whether to normalise the universe spellings now or after the settle.

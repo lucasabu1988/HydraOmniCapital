@@ -37,6 +37,25 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 21:05] CLAUDE: **389 cerrada, y el hallazgo no es el duplicado.** El duplicado existe (`BRK-B` de Russell 1000
+vs `BRK.B` del S&P) pero **nunca conto doble**: Yahoo no resuelve `BRK.B` (0 barras) y `BRK-A` promedia 161 acciones al dia,
+o sea muere en el filtro de liquidez todos los dias. Lo que si duele es la **grafia**: `BF.B` (Brown-Forman) esta escrito con
+punto, no tiene gemelo con guion en la union, y Yahoo tampoco lo sirve -> **Brown-Forman no puede puntuar en el screener,
+nunca ha podido**. Berkshire se salva de casualidad porque Russell 1000 lo escribe con guion. Y los dos estan en el panel
+in-sample como **columnas todo-NaN**: 2 nombres del S&P 500 que jamas fueron elegibles en ninguna medicion in-sample.
+Medido (nada asumido): en el panel OOS, que si esta normalizado (`_yahoo_ticker`), `BF-B` seria recomendado el **4.6%** de las
+fechas y `BRK-B` el **1.6%**. A/B in-sample con las columnas rellenadas: **12.18 -> 12.24 ann_net, 1.32 -> 1.33 Sharpe,
+-9.0 -> -8.9 maxDD**; `BRK-B` entra al T20 en 11 de 279 fechas y `BF-B` en ninguna.
+**Aviso metodologico, y me lo aplico a mi mismo:** la primera corrida del A/B dio headlines identicos y parecia una respuesta
+limpia. No lo era: `backtest_variant_sweep` es importable con dos nombres de modulo, asi que `bvs.CACHE = tmp` se lo puse a
+otro objeto modulo distinto del que usa `redesign_lab`, y el laboratorio cargo el panel original las dos veces — compare un
+panel consigo mismo. Lo cazo el conteo de ranking que habia anadido por si acaso (`BF.B ranked on 0/279` con 1678 barras es
+imposible). El script ahora usa `L.bvs` y aborta si el relleno no llega al panel. Cualquier script del lab que toque
+`bvs.CACHE` tiene la misma trampa esperando.
+**Recomendacion (tuya, Lucas, porque cambia la lista):** normalizar punto->guion en la construccion de la universe (ya existe
+`_yahoo_ticker`) y deduplicar la union. Consecuencia real: `BF-B` pasa a ser elegible por primera vez. Nota completa en
+`.comms/grok-task-389-duplicate-classes.md`. Cola de Grok vacia: 388-391 hechas.
+
 [2026-09-06 20:10] CLAUDE: **Grok no esta disponible (Lucas): tomo yo su cola. 388, 390 y 391 hechas; 389 midiendo.**
 **388 — el CI nunca habia corrido de verdad, y tenia razon de ser: 6 de 8 jobs en rojo** en la primera pasada (PR #40, en
 draft, no se mergea antes del settle). Uno era un bug real y de los buenos: `console_dashboard.py` anuncia un fallback de
@@ -1465,7 +1484,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Files: `.github/workflows/test.yml`, `hydra_screener_local/tools/*.py` and `hydra_screener_local/mypy.ini`
   (only if a job is red), `.comms/grok-task-388-ci-first-run.md`.
 
-- [ ] `TASK-389` **Measure the duplicate share class before anyone dedupes it.** Phase 7 found the live `all`
+- [x] `TASK-389` **Measure the duplicate share class before anyone dedupes it.** Phase 7 found the live `all`
   universe holding `BRK-A`, `BRK-B` **and** `BRK.B`: one company under two spellings, two price series, two
   chances of being selected, and a sector cap (`MAX_PER_SECTOR=5`) that counts them as two names. It is
   reported and not fixed because deduping changes the recommended list. Measure it: (1) how many duplicate
