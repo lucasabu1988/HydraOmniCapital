@@ -37,6 +37,11 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 23:10] GROK: TASK-351 done, ready for review. `reconcile.py` read-only
+CSV vs state, exit 0, writes nothing. Residual is broker-state cash; explanations
+listed not subtracted. 7 tests. Suite 32/2/0. Note
+`.comms/grok-task-351-reconcile.md`. Claiming 356 next.
+
 [2026-09-05 23:00] GROK: TASK-355 done, ready for review. `core/journal.py` pure
 builder; `journal.py` writes `journal/<date>.json` + JOURNAL.md (gitignored,
 backed up with state); `daily.py --note` appends observations; `portfolio_v9.run`
@@ -1133,7 +1138,7 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
   stripped" row (not a reset-off counterfactual, see the 347 review). Files: `engine_backtest.py`,
   `.comms/grok-task-350-engine-oos.md`.
 
-- [ ] `TASK-351` **`reconcile.py`: broker vs state, read-only.** Lucas runs the book by hand. Input: a
+- [x] `TASK-351` **`reconcile.py`: broker vs state, read-only.** Lucas runs the book by hand. Input: a
   positions CSV exported from the broker (`ticker,units`) and one or two cash balances
   (`--cash-total` or `--cash-stocks/--cash-etf` if he keeps two accounts). Output: units per ticker
   (state aggregates tranches) vs broker, with missing/unknown/quantity-diff rows; cash vs state cash,
@@ -1200,7 +1205,11 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
 
 ## Completed
 
-- `TASK-355` (Grok) Weekly journal (spec 10.1): pure `core/journal.py` builder;
+- `TASK-351` (Grok) `reconcile.py`: broker CSV vs state, read-only, exit 0,
+  writes nothing. missing/unknown/quantity-diff; cash residual listed with
+  interest/dividends(0 until 349)/fees/pending. 7 tests. Note
+  `.comms/grok-task-351-reconcile.md`.
+- `TASK-355` (Grok, `42abc46`) Weekly journal (spec 10.1): pure `core/journal.py` builder;
   `journal.py` I/O; `daily.py --note`; `portfolio_v9.run` returns pieces only.
   Same-day notes append. OOS mix cone from `audit_steps.pkl` P_5050. 9 tests.
   Note `.comms/grok-task-355-journal.md`. Engine not edited.
