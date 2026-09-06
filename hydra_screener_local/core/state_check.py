@@ -223,12 +223,22 @@ def check(state: dict) -> list[Finding]:
 
     last = st.get("last_run_date")
     prev = ""
+    pending = st.get("pending") or []
     for f in st.get("ledger") or []:
         d = str(f.get("exec_date") or f.get("date") or "")
         if prev and d < prev:
             findings.append(Finding("ERROR", "ledger_order", f"ledger dates not monotone: {prev} then {d}"))
+        # last_run_date is the last plan() date. settle() books fills at the
+        # next close (t+1), so exec_date can be after last_run_date until the
+        # next plan() stamps it. That gap is legal only for fills of the
+        # just-settled plan (pending empty, planned == last_run_date).
         if last and d and d > str(last):
-            findings.append(Finding("ERROR", "ledger_future", f"ledger {d} > last_run_date {last}"))
+            planned = str(f.get("planned") or "")
+            if pending or planned != str(last):
+                findings.append(Finding(
+                    "ERROR", "ledger_future",
+                    f"ledger {d} > last_run_date {last}",
+                ))
         prev = d or prev
         tk = str(f.get("ticker") or "")
         if tk and tk not in CASH_TICKERS and tk != tk.upper():

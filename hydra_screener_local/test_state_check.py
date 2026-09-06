@@ -10,7 +10,10 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import pandas as pd  # noqa: E402
 import verify_state as VS  # noqa: E402
+from config import V9  # noqa: E402
+import core.portfolio_engine as E  # noqa: E402
 from core.state_check import check, replay  # noqa: E402
 from core.state_migrations import SchemaError, migrate  # noqa: E402
 
@@ -126,6 +129,41 @@ def test_migrate_fills_keys_and_refuses_unknown():
     assert out["schema_version"] == 1
     with pytest.raises(SchemaError, match="unknown schema_version 7"):
         migrate({"schema_version": 7})
+
+
+def test_post_settle_ledger_may_be_after_last_run_date():
+    """TASK-369: settle books t+1 while last_run_date is still the plan date t.
+
+    JSON round-trip + check must be clean (no ERROR) on that in-between state.
+    """
+    cfg = dict(V9, tranches=2, step_bars=1, hold_bars=2, stock_cost_bp=0.0, etf_cost_bp=0.0)
+    dates = pd.bdate_range("2026-01-05", periods=4)
+    st = E.new_state(800.0, str(dates[0].date()), cfg)
+    stock = pd.DataFrame({"A": [10.0, 10.0, 10.0, 10.0]}, index=dates)
+    etf = pd.DataFrame({"SPY": [1.0, 1.0, 1.0, 1.0]}, index=dates)
+    rk = pd.DataFrame({
+        "ticker": ["A"], "rank": [1], "sector": ["Other"],
+        "reason": [""], "recommended_count": 1, "recommended": [True],
+    })
+    st, _ = E.plan(st, str(dates[0].date()), rk, stock.iloc[:1], etf.iloc[:1], 0.0, cfg)
+    assert st["pending"]
+    E.settle(st, str(dates[1].date()), stock.iloc[1], etf.iloc[1], cfg)
+    assert st["pending"] == []
+    assert st["last_run_date"] == str(dates[0].date())
+    assert st["ledger"]
+    assert str(st["ledger"][0].get("exec_date")) == str(dates[1].date())
+    rt = json.loads(json.dumps(st))
+    errors = [f for f in check(rt) if f.level == "ERROR"]
+    assert errors == [], errors
+    # still a real error if a future fill is sitting next to un-settled pending
+    st["pending"] = [{"sleeve": "stocks", "tranche": 0, "ticker": "A", "side": "buy", "dollars": 1}]
+    codes = {f.code for f in check(st) if f.level == "ERROR"}
+    assert "ledger_future" in codes
+    st["pending"] = []
+    # or if the fill was not planned on last_run_date (corruption, not a t+1 settle)
+    st["ledger"][0]["planned"] = "2020-01-01"
+    codes = {f.code for f in check(st) if f.level == "ERROR"}
+    assert "ledger_future" in codes
 
 
 def test_cli_clean_and_restore_requires_yes(tmp_path, capsys):

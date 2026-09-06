@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+import time
 
 import numpy as np
 import pandas as pd
@@ -27,6 +28,7 @@ import redesign_lab as L  # noqa: E402
 import sleeve_lab as S  # noqa: E402
 from config import V9  # noqa: E402
 import core.portfolio_engine as E  # noqa: E402
+from core.state_check import check  # noqa: E402
 
 START = 280
 STEP = 5
@@ -90,10 +92,10 @@ def _ranking(P, t, c):
 
 def _settle_pending(st, P, etf, cfg, prev_t, counts):
     if not st.get("pending") or prev_t is None:
-        return
+        return None
     e = prev_t + 1
     if e >= len(P.close.index):
-        return
+        return None
     fills = E.settle(st, str(P.close.index[e].date()), P.close.iloc[e], etf.iloc[e], cfg)
     counts["not_filled"] += sum(1 for f in fills if f.get("status") == "not_filled")
     counts["hold_no_price"] += sum(1 for f in fills if f.get("side") == "hold_no_price")
@@ -102,16 +104,66 @@ def _settle_pending(st, P, etf, cfg, prev_t, counts):
             counts["_hnp_tickers"].add(str(f.get("ticker")))
         if f.get("status") == "not_filled":
             counts["_nf_tickers"].add(str(f.get("ticker")))
+    return str(P.close.index[e].date())
 
 
-def drive_engine(P, *, progress_every=50) -> tuple[pd.Series, dict]:
+def _roundtrip(state: dict) -> dict:
+    return json.loads(json.dumps(state, default=_json_default))
+
+
+def _json_default(obj):
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, (np.bool_,)):
+        return bool(obj)
+    if isinstance(obj, set):
+        return sorted(obj)
+    raise TypeError(f"not jsonable: {type(obj)!r}")
+
+
+def _run_check(st, when: str, today: str, counts: dict) -> None:
+    t0 = time.perf_counter()
+    try:
+        rt = _roundtrip(st)
+        findings = check(rt)
+    except Exception as e:
+        print(f"TASK-369 check crashed at {today} after {when}: {type(e).__name__}: {e}", flush=True)
+        raise
+    counts["check_seconds"] = counts.get("check_seconds", 0.0) + (time.perf_counter() - t0)
+    counts["check_calls"] = counts.get("check_calls", 0) + 1
+    counts["check_warns"] = counts.get("check_warns", 0) + sum(
+        1 for f in findings if f.level == "WARN"
+    )
+    errors = [f for f in findings if f.level == "ERROR"]
+    if not errors:
+        return
+    dump = os.path.join(HERE, "_lab_scratch", f"replay_fail_{today}.json")
+    os.makedirs(os.path.dirname(dump), exist_ok=True)
+    payload = {
+        "when": when,
+        "today": today,
+        "findings": [dict(level=f.level, code=f.code, message=f.message) for f in findings],
+        "state": rt,
+    }
+    with open(dump, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2, default=str, allow_nan=True)
+    first = errors[0]
+    print(f"TASK-369 replay ERROR at {today} after {when}: {first.code} {first.message}", flush=True)
+    print(f"dumped {dump}", flush=True)
+    raise SystemExit(1)
+
+
+def drive_engine(P, *, progress_every=50, check_state: bool = False) -> tuple[pd.Series, dict]:
     cfg = dict(V9)
     idx = P.close.index
     st = E.new_state(1.0, str(idx[START].date()), cfg)
     recs = []
     expos, distincts, turnovers = [], [], []
     counts = dict(not_filled=0, hold_no_price=0, write_offs=0, write_off_dollars=0.0,
-                  transfers=0, plans=0, _hnp_tickers=set(), _nf_tickers=set())
+                  transfers=0, plans=0, _hnp_tickers=set(), _nf_tickers=set(),
+                  check_seconds=0.0, check_calls=0, check_warns=0)
     prev_t = None
     etf = P.ETF
     irx = P.IRX
@@ -120,12 +172,16 @@ def drive_engine(P, *, progress_every=50) -> tuple[pd.Series, dict]:
     n_steps = len(range(START, len(idx) - 6, STEP))
     for i, t in enumerate(range(START, len(idx) - 6, STEP)):
         today = str(idx[t].date())
-        _settle_pending(st, P, etf, cfg, prev_t, counts)
+        exec_date = _settle_pending(st, P, etf, cfg, prev_t, counts)
+        if check_state and exec_date:
+            _run_check(st, "settle", exec_date, counts)
         rk = _ranking(P, t, c)
         if rk is None:
             prev_t = t
             continue
         st, orders = E.plan(st, today, rk, P.close.iloc[: t + 1], etf.iloc[: t + 1], irx, cfg)
+        if check_state:
+            _run_check(st, "plan", today, counts)
         counts["plans"] += 1
         counts["transfers"] += sum(1 for o in (st.get("pending") or [])
                                    if str(o.get("side", "")).startswith("transfer"))
@@ -142,7 +198,9 @@ def drive_engine(P, *, progress_every=50) -> tuple[pd.Series, dict]:
             print(f"  engine {i + 1}/{n_steps} {today} book={tot:.4f} "
                   f"nf={counts['not_filled']} hnp={counts['hold_no_price']} "
                   f"wo={len(st.get('write_offs') or [])}", flush=True)
-    _settle_pending(st, P, etf, cfg, prev_t, counts)
+    last_exec = _settle_pending(st, P, etf, cfg, prev_t, counts)
+    if check_state and last_exec:
+        _run_check(st, "settle", last_exec, counts)
     wo = list(st.get("write_offs") or [])
     counts["write_offs"] = len(wo)
     counts["write_off_dollars"] = round(float(sum(float(w.get("proceeds") or 0) for w in wo)), 6)
@@ -159,6 +217,23 @@ def drive_engine(P, *, progress_every=50) -> tuple[pd.Series, dict]:
     interest = list(st.get("interest") or [])
     counts["interest_dollars"] = round(float(sum(float(x.get("dollars") or 0) for x in interest)), 6)
     counts["interest_n"] = len(interest)
+    ledger = list(st.get("ledger") or [])
+    by_side = {}
+    by_status = {}
+    for f in ledger:
+        side = str(f.get("side") or "?")
+        status = str(f.get("status") or "?")
+        by_side[side] = by_side.get(side, 0) + 1
+        by_status[status] = by_status.get(status, 0) + 1
+    counts["replayed"] = dict(
+        ledger=len(ledger),
+        ledger_by_side=by_side,
+        ledger_by_status=by_status,
+        transfers=len(st.get("transfers") or []),
+        interest=len(st.get("interest") or []),
+        dividends=len(st.get("dividends") or []),
+        write_offs=len(st.get("write_offs") or []),
+    )
     ser = pd.Series({d: v for d, v in recs}, dtype=float).sort_index()
     counts["interest_by_year"] = _interest_by_year(interest, ser)
     return ser, counts
@@ -230,6 +305,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Production engine end-to-end vs lab 50/50 mix")
     ap.add_argument("--oos", action="store_true",
                     help="PIT panel _sweep_cache_oos/ 2004-2026 (TASK-350). Default: in-sample 2020-26.")
+    ap.add_argument("--check", action="store_true",
+                    help="TASK-369: JSON-roundtrip + state_check.check after every settle and plan.")
     args = ap.parse_args(argv)
 
     cache = os.path.join(HERE, "_sweep_cache_oos" if args.oos else "_sweep_cache", "close.pkl")
@@ -252,7 +329,9 @@ def main(argv=None):
         lab_s["maxdd_audit"] = AUDIT_MIX["maxdd_net"]
 
     print("engine (pair reset, trailing hurdle, interest)...", flush=True)
-    eng, counts = drive_engine(P)
+    if args.check:
+        print("  TASK-369 --check on after every settle/plan (JSON round-trip)", flush=True)
+    eng, counts = drive_engine(P, check_state=bool(args.check))
     print("  engine series", len(eng), str(eng.index[0].date()), "->", str(eng.index[-1].date()),
           flush=True)
 
@@ -267,7 +346,7 @@ def main(argv=None):
         {**_stats(eng, "engine production (pair reset)"), **{
             k: v for k, v in counts.items()
             if k not in ("write_off_names", "hold_no_price_names", "not_filled_names",
-                         "interest_by_year")
+                         "interest_by_year", "replayed")
         }},
     ]
     print(pd.DataFrame(rows).to_string(index=False), flush=True)
@@ -286,6 +365,11 @@ def main(argv=None):
           "detail", counts["write_off_names"], flush=True)
     print("  transfers", counts["transfers"], "interest $", counts["interest_dollars"],
           "on start book 1.0", flush=True)
+    if args.check:
+        print("  replayed records", counts.get("replayed"), flush=True)
+        print("  check calls", counts.get("check_calls"),
+              "warns", counts.get("check_warns"),
+              "wall extra", round(float(counts.get("check_seconds") or 0), 2), "s", flush=True)
 
     scratch_name = "task350.json" if args.oos else "task347.json"
     scratch = os.path.join(HERE, "_lab_scratch", scratch_name)
@@ -297,6 +381,14 @@ def main(argv=None):
                    engine_first=str(eng.index[0].date()) if len(eng) else None,
                    engine_last=str(eng.index[-1].date()) if len(eng) else None,
                    note="production plumbing of the 50/50 T20+ETF mix; not a new variant")
+    if args.check:
+        payload["check"] = dict(
+            calls=counts.get("check_calls"),
+            warns=counts.get("check_warns"),
+            seconds=round(float(counts.get("check_seconds") or 0), 3),
+            replayed=counts.get("replayed"),
+            errors=0,
+        )
     os.makedirs(os.path.dirname(scratch), exist_ok=True)
     with open(scratch, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, default=str)

@@ -12,8 +12,8 @@ gaps, universe fetch tests, no permanent skips). Live path still FROZEN until "f
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 16:10
-**Working on:** idle. Freeze queue 361/366/368/359/360/362 delivered, ready for
-review. After the 2026-09-08 settle: 364 -> 365 -> 367 -> 363.
-**Files I'm touching:** none
+**Updated:** 2026-09-06 19:30
+**Working on:** TASK-369 done, claiming TASK-373 (engine golden). Then 371.
+Live path / engine not edited.
+**Files I'm touching:** test_engine_golden.py, test_fixtures/engine_golden_v9.json
 **Blockers:** none.
