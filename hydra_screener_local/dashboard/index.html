@@ -39,6 +39,7 @@
     <svg id="curve" viewBox="0 0 800 140" preserveAspectRatio="none"></svg>
   </div>
   <div class="row" id="sleeves"></div>
+  <div class="row" id="attrib"></div>
   <div class="panel">
     <div class="k">Posiciones</div>
     <table id="pos"><thead></thead><tbody></tbody></table>
@@ -103,6 +104,14 @@
           <div class="k">${pct(x.share)} del libro (objetivo 50%) · cash ${usd(x.cash)} · expo ${fmt(x.exposure*100,1)}% · n=${x.distinct}</div>
         </div>`;
       }).join("");
+      const at = (s.attribution && s.attribution.book) || null;
+      $("attrib").innerHTML = at ? [
+        ["Selección (acciones)", at.selection], ["Manga ETF", at.etf], ["Interés", at.interest],
+        ["Dividendos", at.dividends], ["Comisiones", at.fees], ["Transfers (neto)", at.transfers],
+        ["Residual", at.residual],
+      ].map(([k, v]) => `<div class="card"><div class="k">Atribución · ${k}</div><div class="v ${cls(v)}">${usd(v)}</div></div>`).join("")
+        + `<div class="card"><div class="k">Atribución · cambio total desde ${s.anchor_date||"ancla"}</div><div class="v ${cls(at.change)}">${usd(at.change)}</div><div class="k">identidad ${(at.identity_gap||0).toExponential(1)} · transfers neto cero: ${at.transfers_net_zero}</div></div>`
+        : "";
       drawCurve(s.curve || []);
       rows($("pos"), ["Manga","Tramo","Ticker","Unid.","Costo prom.","Último","Valor","P/L no real.","Stale"],
         s.positions||[], [

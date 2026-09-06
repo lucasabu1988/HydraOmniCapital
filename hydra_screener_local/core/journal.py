@@ -342,8 +342,21 @@ def build_record(
         book=book,
         expectation=expectation,
         process=process,
+        attribution=_attribution_block(state),
         observations=list(observations or []),
     )
+
+
+def _attribution_block(state: dict) -> dict | None:
+    """TASK-367: cumulative components (no per-position list). None for an empty state."""
+    if not state or not state.get("sleeves"):
+        return None
+    try:
+        from analytics.attribution import attribution
+        block = attribution(state)
+    except Exception:
+        return None
+    return {k: v for k, v in block.items() if k != "positions"}
 
 
 def render_markdown(records: list[dict]) -> str:

@@ -32,6 +32,8 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+from analytics.attribution import attribution as _attribution  # noqa: E402
+from core.costbasis import lots_from_ledger  # noqa: E402
 from core.dividends import summarize_dividends  # noqa: E402
 
 DEFAULT_STATE_DIR = ROOT / "state"
@@ -56,50 +58,10 @@ def _f(x, default=0.0) -> float:
         return default
 
 
+# Average-cost lots live in core/costbasis.py since TASK-367 (one implementation, shared with the
+# attribution analytics). The dashboard keeps counting "filled" fills only, as before.
 def _lots_from_ledger(state: dict) -> dict:
-    """(sleeve, tranche, ticker) -> {qty, cost_total, realised, fees} after walking fills + write-offs."""
-    lots = {}
-
-    def slot(sleeve, tranche, ticker):
-        key = (sleeve, int(tranche), str(ticker))
-        if key not in lots:
-            lots[key] = {"qty": 0.0, "cost_total": 0.0, "realised": 0.0, "fees": 0.0}
-        return lots[key]
-
-    for fill in state.get("ledger") or []:
-        if fill.get("status") != "filled":
-            continue
-        side = fill.get("side")
-        if side not in ("buy", "sell"):
-            continue
-        ticker = fill.get("ticker")
-        if not ticker or ticker in ("CASH", "TBILL"):
-            continue
-        lot = slot(fill.get("sleeve"), fill.get("tranche", 0), ticker)
-        u = _f(fill.get("units"))
-        px = _f(fill.get("price"))
-        lot["fees"] += _f(fill.get("cost"))
-        if u <= 0 or px <= 0:
-            continue
-        if side == "buy":
-            lot["qty"] += u
-            lot["cost_total"] += u * px
-        else:
-            sold = min(u, lot["qty"])
-            avg = lot["cost_total"] / lot["qty"] if lot["qty"] else 0.0
-            lot["realised"] += (px - avg) * sold
-            lot["qty"] -= sold
-            lot["cost_total"] = avg * lot["qty"]
-
-    for wo in state.get("write_offs") or []:
-        ticker = wo.get("ticker")
-        if not ticker:
-            continue
-        lot = slot(wo.get("sleeve"), wo.get("tranche", 0), ticker)
-        lot["realised"] += _f(wo.get("proceeds")) - lot["cost_total"]
-        lot["qty"] = 0.0
-        lot["cost_total"] = 0.0
-    return lots
+    return lots_from_ledger(state, statuses=("filled",))
 
 
 def summarize_interest(state: dict | None) -> dict:
@@ -175,6 +137,15 @@ def ny_day(ts) -> str:
         return str(t.tz_convert("America/New_York").date())
     except (TypeError, ValueError):
         return str(ts)[:10]
+
+
+def _slim_attribution(state: dict) -> dict | None:
+    """TASK-367 block without the per-position list (the browser gets the components only)."""
+    try:
+        block = _attribution(state)
+    except Exception:
+        return None
+    return {k: v for k, v in block.items() if k != "positions"}
 
 
 def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None = None) -> dict:
@@ -347,6 +318,7 @@ def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None =
         "sleeves": sleeves_out,
         "positions": positions,
         "pending": pending,
+        "attribution": _slim_attribution(state),
         "transfers": list(state.get("transfers") or []),
         "write_offs": list(state.get("write_offs") or []),
         "trade_log": trade_log,
