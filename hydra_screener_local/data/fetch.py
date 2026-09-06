@@ -156,6 +156,45 @@ TBILL_SYMBOL = "^IRX"
 FFILL_LIMIT_BARS = 3
 
 
+def _yf_download(batch: list[str], *, auto_adjust: bool, period: str | None = None,
+                 start=None, end=None):
+    """Shared yfinance download used by `_download_close_batch` and the bar-store provider.
+
+    `end` is inclusive: yfinance treats daily `end` as exclusive, so we add one day.
+    """
+    kw = dict(progress=False, auto_adjust=auto_adjust, threads=True)
+    if start is not None:
+        kw["start"] = pd.Timestamp(start).strftime("%Y-%m-%d")
+        if end is not None:
+            kw["end"] = (pd.Timestamp(end) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    else:
+        kw["period"] = period or "1y"
+    return yf.download(batch, **kw)
+
+
+def _volume_frame_from_yf(data, batch: list[str]) -> pd.DataFrame:
+    """Normalize a yfinance download into a Volume DataFrame keyed by ticker."""
+    if data is None or getattr(data, "empty", False):
+        return pd.DataFrame()
+    if isinstance(data.columns, pd.MultiIndex):
+        if "Volume" not in data.columns.get_level_values(0):
+            return pd.DataFrame()
+        vol = data["Volume"]
+        if isinstance(vol, pd.Series):
+            name = batch[0] if len(batch) == 1 else (vol.name if vol.name in batch else batch[0])
+            vol = vol.to_frame(name)
+        elif isinstance(vol.columns, pd.MultiIndex):
+            vol.columns = vol.columns.get_level_values(-1)
+    else:
+        if "Volume" not in data.columns:
+            return pd.DataFrame()
+        vol = data[["Volume"]].rename(columns={"Volume": batch[0]})
+        if isinstance(vol, pd.Series):
+            vol = vol.to_frame(batch[0])
+    vol.columns = [str(c) for c in vol.columns]
+    return vol
+
+
 def _close_frame_from_yf(data, batch: list[str]) -> pd.DataFrame:
     """Normalize a yfinance download into a Close DataFrame keyed by ticker."""
     if data is None or getattr(data, "empty", False):
@@ -179,10 +218,9 @@ def _close_frame_from_yf(data, batch: list[str]) -> pd.DataFrame:
     return close
 
 
-def _download_close_batch(batch: list[str], period: str, *, auto_adjust: bool = True) -> pd.DataFrame:
-    data = yf.download(
-        batch, period=period, progress=False, auto_adjust=auto_adjust, threads=True,
-    )
+def _download_close_batch(batch: list[str], period: str | None = None, *, auto_adjust: bool = True,
+                          start=None, end=None) -> pd.DataFrame:
+    data = _yf_download(batch, auto_adjust=auto_adjust, period=period, start=start, end=end)
     return _close_frame_from_yf(data, batch)
 
 
@@ -273,4 +311,193 @@ def fetch_tbill(period: str = V9_PRICE_PERIOD, report: dict | None = None) -> pd
         s = px[TBILL_SYMBOL]
     s = s.rename(TBILL_SYMBOL)
     return s
+
+
+# ----------------------------------------------------------------------------- TASK-361 cached fetch (additive)
+# Production still calls fetch_prices_and_volume. This path is unused until
+# config.USE_BAR_STORE is flipped. store_cli --backfill uses it to populate the db.
+BAR_STORE_OVERLAP_BARS = 10
+_READJUST_REL_TOL = 1e-6
+_PERIOD_OFFSETS = {
+    "1d": dict(days=1),
+    "5d": dict(days=7),
+    "1mo": dict(months=1),
+    "3mo": dict(months=3),
+    "6mo": dict(months=6),
+    "1y": dict(years=1),
+    "2y": dict(years=2),
+    "5y": dict(years=5),
+    "10y": dict(years=10),
+    "20y": dict(years=20),
+}
+
+
+def period_to_start(period: str, end) -> pd.Timestamp:
+    """Map a yfinance period string to an inclusive start date."""
+    end_ts = pd.Timestamp(end)
+    if end_ts.tzinfo is not None:
+        end_ts = end_ts.tz_convert("UTC").tz_localize(None)
+    end_ts = end_ts.normalize()
+    p = str(period).lower().strip()
+    if p == "ytd":
+        return pd.Timestamp(year=end_ts.year, month=1, day=1)
+    if p == "max":
+        return pd.Timestamp("1970-01-01")
+    if p not in _PERIOD_OFFSETS:
+        raise ValueError(f"unknown period {period!r}")
+    return (end_ts - pd.DateOffset(**_PERIOD_OFFSETS[p])).normalize()
+
+
+def fetch_prices_and_volume_cached(
+    tickers: list[str],
+    period: str = "1y",
+    report: dict | None = None,
+    *,
+    provider=None,
+    store=None,
+    asof=None,
+    overlap_bars: int = BAR_STORE_OVERLAP_BARS,
+):
+    """Like fetch_prices_and_volume but persist and reuse bars in the SQLite store.
+
+    Asks `provider` only for [last stored date - overlap_bars, asof] per ticker
+    (the full `period` when the ticker is absent). If the overlap's adjusted
+    closes differ from the store by > 1e-6 relative, refetches that ticker's
+    full period, replaces the rows, and records it in report["readjusted"].
+    Returns wide (prices, volumes) from the store. No live caller until the flag.
+    """
+    from data.store import BarStore
+
+    if report is None:
+        report = {}
+    report.setdefault("readjusted", [])
+    report.setdefault("failed_tickers", [])
+    report.setdefault("failed_batches", 0)
+
+    original_count = len(tickers)
+    clean = [t for t in tickers if t not in DELISTED_OR_BAD_TICKERS]
+    if original_count - len(clean):
+        print(f"   [DATA QUALITY] Filtrados {original_count - len(clean)} tickers problemáticos/delisted")
+    tickers = [str(t) for t in clean]
+    if not tickers:
+        report.update(requested=0, downloaded=0, missing_share=0.0, readjusted=[])
+        return pd.DataFrame(), pd.DataFrame()
+
+    if store is None:
+        store = BarStore()
+    if provider is None:
+        from data.providers.yfinance_provider import YFinanceProvider
+        provider = YFinanceProvider()
+
+    end = pd.Timestamp(asof) if asof is not None else pd.Timestamp.now().normalize()
+    if end.tzinfo is not None:
+        end = end.tz_convert("UTC").tz_localize(None)
+    end = end.normalize()
+    start = period_to_start(period, end)
+    n_overlap = int(overlap_bars)
+
+    lasts = store.last_dates(tickers)
+    missing = [t for t in tickers if t not in lasts]
+    present = [t for t in tickers if t in lasts]
+
+    if missing:
+        print(f"   [bar store] full fetch {len(missing)} ticker(s) {start.date()} -> {end.date()}")
+        try:
+            full = provider.fetch(missing, start, end)
+            store.upsert(full)
+        except Exception as e:
+            report["failed_batches"] += 1
+            report["failed_tickers"].extend(missing)
+            print(f"   [bar store] full fetch failed: {e}")
+
+    if present:
+        ostarts = {t: store.overlap_start(t, n=n_overlap) or start for t in present}
+        tail_start = min(ostarts.values())
+        if tail_start < start:
+            tail_start = start
+        print(f"   [bar store] tail fetch {len(present)} ticker(s) {tail_start.date()} -> {end.date()}")
+        try:
+            tail = provider.fetch(present, tail_start, end)
+        except Exception as e:
+            report["failed_batches"] += 1
+            report["failed_tickers"].extend(present)
+            print(f"   [bar store] tail fetch failed: {e}")
+            tail = pd.DataFrame()
+        if tail is not None and not getattr(tail, "empty", True):
+            for t in present:
+                incoming = _adj_series(tail, t)
+                stored = store.closes([t], ostarts[t], lasts[t], adjusted=True)
+                stored_s = stored[t] if (not stored.empty and t in stored.columns) else pd.Series(dtype=float)
+                if _relative_mismatch(stored_s, incoming):
+                    print(f"   [bar store] readjust {t}: overlap differs, refetching {start.date()} -> {end.date()}")
+                    try:
+                        full = provider.fetch([t], start, end)
+                        store.replace_ticker(t, full)
+                        report["readjusted"].append(t)
+                    except Exception as e:
+                        report["failed_tickers"].append(t)
+                        print(f"   [bar store] readjust refetch failed for {t}: {e}")
+                else:
+                    store.upsert(tail[tail["ticker"].astype(str) == t] if "ticker" in tail.columns else tail)
+
+    prices = store.closes(tickers, start, end, adjusted=True)
+    volumes = store.volumes(tickers, start, end)
+    common = prices.columns.intersection(volumes.columns) if not volumes.empty else prices.columns
+    prices = prices[common] if len(common) else prices
+    volumes = volumes[common] if not volumes.empty and len(common) else (
+        pd.DataFrame(columns=list(prices.columns), index=prices.index) if not prices.empty else pd.DataFrame()
+    )
+    requested = len(tickers)
+    downloaded = len(prices.columns)
+    missing_share = 1.0 - downloaded / requested if requested else 0.0
+    failed = list(dict.fromkeys(report.get("failed_tickers") or []))
+    missing_cols = [t for t in tickers if t not in prices.columns]
+    failed = list(dict.fromkeys(failed + missing_cols))
+    report.update(
+        requested=requested,
+        downloaded=downloaded,
+        failed_tickers=failed,
+        missing_share=round(missing_share, 4),
+        readjusted=list(report.get("readjusted") or []),
+    )
+    return prices, volumes
+
+
+def _adj_series(long_df: pd.DataFrame, ticker: str) -> pd.Series:
+    if long_df is None or getattr(long_df, "empty", True) or "ticker" not in long_df.columns:
+        return pd.Series(dtype=float)
+    sub = long_df[long_df["ticker"].astype(str) == str(ticker)]
+    if sub.empty or "close_adj" not in sub.columns:
+        return pd.Series(dtype=float)
+    idx = pd.DatetimeIndex(pd.to_datetime(sub["date"]))
+    if idx.tz is not None:
+        idx = idx.tz_convert("UTC").tz_localize(None)
+    idx = idx.normalize()
+    return pd.Series(pd.to_numeric(sub["close_adj"], errors="coerce").values, index=idx, dtype=float)
+
+
+def _naive_index(idx) -> pd.DatetimeIndex:
+    out = pd.DatetimeIndex(pd.to_datetime(idx))
+    if out.tz is not None:
+        out = out.tz_convert("UTC").tz_localize(None)
+    return out.normalize()
+
+
+def _relative_mismatch(stored: pd.Series, incoming: pd.Series, tol: float = _READJUST_REL_TOL) -> bool:
+    if stored is None or incoming is None or stored.empty or incoming.empty:
+        return False
+    a = stored.copy()
+    b = incoming.copy()
+    a.index = _naive_index(a.index)
+    b.index = _naive_index(b.index)
+    a = pd.to_numeric(a, errors="coerce")
+    b = pd.to_numeric(b, errors="coerce")
+    a, b = a.align(b, join="inner")
+    valid = a.notna() & b.notna()
+    if not valid.any():
+        return False
+    a, b = a[valid], b[valid]
+    rel = (b - a).abs() / a.abs().clip(lower=1e-12)
+    return bool((rel > tol).any())
+
 

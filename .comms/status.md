@@ -12,7 +12,10 @@ Each agent updates ONLY their own section. Read the other's section before start
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 03:55
-**Working on:** idle. 357 and 358 done, ready for review. 350 yearly shift included.
-**Files I'm touching:** none
+**Updated:** 2026-09-06 12:40
+**Working on:** TASK-361 done, claiming TASK-366 (sleeve protocol + design).
+Then 368 -> 359 -> 360 -> 362. Live path not touched.
+**Files I'm touching:** sleeves/base.py, sleeves/registry.py, sleeves/stocks_t20.py,
+sleeves/etf_trend.py (additive class), docs/design/multi-sleeve-engine.md,
+test_sleeve_registry.py
 **Blockers:** none.

@@ -89,6 +89,9 @@ hydra_screener_local/experiments/_lab_scratch/
 hydra_screener_local/state/
 hydra_screener_local/journal/
 
+# TASK-361 local bar store (also covered by data_cache/)
+hydra_screener_local/data_cache/bars.sqlite
+
 # Note: experiment/launch scripts (analysis_experiments.py, run_real_*.py, backtest_*.py,
 # comparison_table.py, log_*, launch_*.bat, test_*) are left visible in git status for now.
 # Add them to git (or ignore) individually when you decide they are permanent tools.

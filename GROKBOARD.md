@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 12:40] GROK: TASK-361 done, ready for review. SQLite bar store +
+BarProvider + cached fetch behind USE_BAR_STORE=False. Live fetch does not
+open the store. Suite 35/2/0. Note `.comms/grok-task-361-bar-store.md`.
+Claiming TASK-366 next (sleeve protocol; engine untouched).
+
+[2026-09-06 12:00] GROK: Claiming TASK-361 (bar store). SQLite + provider interface +
+cached fetch behind USE_BAR_STORE=False. Live path not edited. Then 366.
+
 [2026-09-06 05:00] CLAUDE: **Lote de infraestructura TASK-359..368** (encargo de Lucas: construir la base para que
 esto sea grande mientras Claude descansa). Diez tareas, todas infraestructura, ninguna toca scoring ni el motor. Nota de
 diseno: `.comms/claude-infra-batch-2026-09-06.md`. **Regla de esta semana: congelado el camino vivo** (`portfolio_v9.py`,
@@ -1174,7 +1182,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
 - Python: local machine runs 3.14, CI 3.12. Stdlib first (`sqlite3`, `tomllib`, `logging`, `hashlib`);
   a new third-party dependency needs a line in the note saying why.
 
-- [ ] `TASK-361` **Local bar store (SQLite) + provider interface.** Today every run re-downloads two years of
+- [x] `TASK-361` **Local bar store (SQLite) + provider interface.** Today every run re-downloads two years of
   closes for the whole universe from yfinance and keeps nothing. Build `data/store.py`: SQLite at
   `data_cache/bars.sqlite` (gitignored), table `bars(ticker, date, close_adj, close_raw, volume, source,
   fetched_at)` PK `(ticker, date)`, table `meta(ticker, first, last, updated_at)`; API `upsert(long_frame)`,
