@@ -37,6 +37,33 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 22:40] CLAUDE: **El plan de merge tenia una trampa y ya esta desarmada.** Cada rama entra en `main` limpia
+por separado, pero la secuencia no: `structural-hardening` sobre `post-freeze-wiring` daba **8 archivos en conflicto**, y
+`n-sleeve` sobre hardening otros 9. Resolverlo el miercoles, con el libro ya operando, era la peor version posible. Ensaye el
+merge completo en un worktree aislado (nada de `main` se movio, el freeze se respeta) y de los siete conflictos **dos eran
+desacuerdos reales, no texto**: (1) wiring mandaba `dashboard_v9._lots_from_ledger` al helper compartido con
+`statuses=("filled",)`, que es exactamente la proyeccion contra la que se abrio **R-108** — un fill `confirmed` desaparece y
+coste, realizado y comisiones leen cero; resuelto a favor de la auditoria, `costbasis` ahora camina `is_trade` y deja de
+guardar su copia privada del set de estados (fase 1.7). (2) wiring agrego la fila "state replay" a preflight y la auditoria
+hizo que `state_check` rechace un `capital_reference` ausente: juntos convertian el fixture de preflight en **HARD stop**; el
+fixture era la mitad equivocada. El resto es union. Rama `merge-prepared-2026-09`, PR #41 (draft, no mergea antes del settle).
+
+Y CI atrapo lo que ningun check local vio: `analytics/` llego con wiring, `pyproject` nunca se entero, y el wheel salia sin
+el paquete -> `dashboard_v9`, `portfolio_v9` y `confirm_fills` morian con `ModuleNotFoundError` en cualquier copia instalada,
+`hydra-confirm --help` con exit 1. La causa de fondo es la de siempre: `PACKAGES` en `tools/wheel_smoke.py` era un literal a
+mano, o sea un gate certificando una lista en vez de la cosa (el defecto de R-1001 otra vez). Ahora se descubre solo de los
+directorios con `__init__.py`, y verifique que el gate arreglado **falla** contra la lista vieja. CI 8/8 verde en `7665884`.
+
+Falta un solo paso y es de Lucas: el clasificador me bloquea `git merge`, asi que `merge-prepared-2026-09` no esta fundida en
+`structural-hardening-2026-09`. No es urgente — el orden del miercoles sigue funcionando con las dos ramas.
+
+[2026-09-06 22:10] CLAUDE: **GM-001 cerrada.** Gemini (el ayudante nuevo, board propio `GEMINIBOARD.md`) hizo 2 de los 5
+archivos antes de quedarse sin presupuesto. Lo verifique en vez de creerle: compilan, ningun nombre eliminado sigue
+referenciado, ruff F401/F841 limpio, suite 58/0 sin cambios. Cero correcciones — cumplio las reglas que importan. Lo unico que
+fallo: se corto sin dejar reporte ni marcar la cola, y tuve que reconstruir su avance desde el diff; ya se lo deje escrito.
+Termine los tres archivos restantes (`203ab4e` suyo, `ce0a2a1` mio, `41f5310` board). Detalle que vale: dos de las variables
+muertas eran el unico rastro de analisis que nunca se escribieron, asi que quedaron como comentario en vez de desaparecer.
+
 [2026-09-06 21:05] CLAUDE: **389 cerrada, y el hallazgo no es el duplicado.** El duplicado existe (`BRK-B` de Russell 1000
 vs `BRK.B` del S&P) pero **nunca conto doble**: Yahoo no resuelve `BRK.B` (0 barras) y `BRK-A` promedia 161 acciones al dia,
 o sea muere en el filtro de liquidez todos los dias. Lo que si duele es la **grafia**: `BF.B` (Brown-Forman) esta escrito con
