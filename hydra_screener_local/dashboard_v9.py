@@ -112,6 +112,7 @@ def summarize_interest(state: dict | None) -> dict:
         by_sleeve[sl] = by_sleeve.get(sl, 0.0) + d
     last_date = rows[-1].get("date") if rows else None
     since = [r for r in rows if last_date is not None and r.get("date") == last_date]
+    since_from = since[0].get("since") if since else None          # the previous run the accrual covers
     since_total = sum(_f(r.get("dollars")) for r in since)
     since_by: dict[str, float] = {}
     for r in since:
@@ -122,6 +123,7 @@ def summarize_interest(state: dict | None) -> dict:
         "cumulative": cumulative,
         "by_sleeve": by_sleeve,
         "since_last_run": since_total,
+        "since_from": since_from,
         "since_last_by_sleeve": since_by,
         "last_date": last_date,
     }

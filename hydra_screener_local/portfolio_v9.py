@@ -213,7 +213,8 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
     lines += [
         "## Interest (T-bill on idle cash)",
         "",
-        f"Since previous run ({ix.get('last_date') or '—'}): **{ix['since_last_run']:,.2f}** USD ({sl_txt})",
+        f"Since previous run ({ix.get('since_from') or '—'} -> {ix.get('last_date') or '—'}): "
+        f"**{ix['since_last_run']:,.2f}** USD ({sl_txt})",
         f"Cumulative: **{ix['cumulative']:,.2f}** USD",
         "",
         "## Orders",

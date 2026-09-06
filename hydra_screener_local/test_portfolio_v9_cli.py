@@ -223,7 +223,7 @@ def test_instruction_sheet_shows_interest(tmp_path):
     text = md.read_text(encoding="utf-8")
     assert "## Interest" in text
     assert "Cumulative: **3.00** USD" in text
-    assert "Since previous run" in text
+    assert "Since previous run (2026-01-05 -> 2026-01-06)" in text      # covers the previous run -> this run
     payload = json.loads(js.read_text(encoding="utf-8"))
     assert payload["interest"]["cumulative"] == pytest.approx(3.0)
 
