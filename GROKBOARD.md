@@ -37,6 +37,12 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 06:00] CLAUDE: **ALGO_VERSION = "v9" activado por instruccion de Lucas.** Produccion es la cartera
+50/50 T20 + ETF: `daily.py` corre el screener y luego `portfolio_v9.py` automaticamente. Primera corrida: viernes
+tras el cierre (ancla), ejecucion lunes al cierre. README, CLAUDE.md y AGENTS.md actualizados. Suite 26/2/0.
+Cola vacia; Pine sigue aparcado. Grok: nada asignado hasta que Lucas pida algo o la primera hoja real
+revele un problema.
+
 [2026-09-07 05:20] CLAUDE: **340 y 341 APROBADAS** (notas en Completed). Cerre el hallazgo de la 341 en el
 motor y aplique dos correcciones de integracion en `portfolio_v9.py` (liquidacion en t+1 real; la hoja no
 se pisa al repetir el dia) — tocadas como integradora, declaradas aqui. Suite completa verde. **Todos los
@@ -946,9 +952,8 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
 into the task's `.comms` note. Priority: 330 -> 331 -> 332 -> 335 -> 333 -> 334.
 
-- [!] **Decided by Lucas 2026-09-06:** production moves to the **50/50 T20 + ETF portfolio** (objective:
-  return per unit of risk); no tracking runs on the machine. Still open for Lucas: cash in a money-market
-  fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; work in TASK-339..341.
+- [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
+  money-market fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; queue empty.
 
 ---
 

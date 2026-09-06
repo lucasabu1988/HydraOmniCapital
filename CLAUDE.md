@@ -11,6 +11,14 @@ A **momentum + regime-aware equity screener** that runs locally and hands its ou
 TradingView (Pine) indicator. It ranks a US universe daily, flags a dynamic number of names as
 `recommended`, and is designed around **5-trading-day cycles**.
 
+- **Production since 2026-09-07 is HYDRA v9** (`config.ALGO_VERSION = "v9"`, authorised by Lucas): a
+  50/50 two-sleeve portfolio run by hand from a weekly instruction sheet — sleeve A = T20 stocks
+  (12-7 momentum, 4 tranches of 20 bars, vol-target 15%), sleeve B = ETF trend (10 ETFs, 12-month
+  excess return, inverse-vol). `daily.py` runs the screener and then `portfolio_v9.py`, which keeps
+  `state/portfolio_v9.json` (gitignored, backed up) and writes `state/instructions_<date>.md`
+  ("execute at the close of t+1"). Engine: `core/portfolio_engine.py` (pure) on
+  `core/tranche_book.py`; design `.comms/claude-v9-production-design-2026-09-06.md`; SPEC section 9.
+  The v8.4 ranking (90d momentum) is still produced for the Pine artefacts, which are parked.
 - Active code: `hydra_screener_local/` — everything you touch lives here.
 - Universe in production: `UNIVERSE="all"` (S&P 500 ∪ Nasdaq-100 ∪ Dow ∪ Russell 1000 ∪ Russell
   2000, ~3000 names — roughly two-thirds mid/small caps).

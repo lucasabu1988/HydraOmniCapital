@@ -62,7 +62,7 @@ REGIME_SMA = 200
 # .comms/claude-v9-production-design-2026-09-06.md). Production runs v8.4 until ALGO_VERSION flips.
 # Values are the lab's pre-specified ones (verdict + sleeves design); they are not re-optimised here.
 # ============================================
-ALGO_VERSION = "v8.4"            # "v8.4" | "v9"
+ALGO_VERSION = "v9"              # "v8.4" | "v9" — v9 activated by Lucas on 2026-09-07 (50/50 T20 + ETF portfolio)
 V9 = {
     "step_bars": 5,              # one tranche renewed every 5 trading bars
     "hold_bars": 20,             # each tranche lives 20 bars

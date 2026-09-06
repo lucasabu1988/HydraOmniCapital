@@ -15,11 +15,19 @@
 
 Un **screener de acciones US** que corre en tu máquina, rankea el universo cada día y marca un número dinámico de nombres como `recommended`. Está pensado para **ciclos de 5 días de bolsa**.
 
+**Producción desde 2026-09-07: HYDRA v9** (`ALGO_VERSION = "v9"`, autorizado por Lucas) — una cartera **50/50** de dos mangas
+operada a mano con una hoja de instrucciones semanal: **T20** (acciones del universo, momentum 12-7, 4 tramos de 20 barras,
+vol-target 15 %) y **ETF trend** (10 ETFs, momentum 12 meses sobre T-bill, inverse-vol). `python daily.py` corre el screener
+y después `portfolio_v9.py`, que persiste `state/portfolio_v9.json` y escribe `state/instructions_<fecha>.md` ("ejecutar al
+cierre del t+1"). Objetivo: retorno por unidad de riesgo (simulado 6.9 % neto, Sharpe 0.74, maxDD −19.5 % en S&P 500 PIT
+2004-2026; sin track record). Diseño: [`.comms/claude-v9-production-design-2026-09-06.md`](.comms/claude-v9-production-design-2026-09-06.md);
+SPEC §9. El ranking v8.4 (momentum 90d) sigue generándose para los artefactos de Pine, que están **aparcados**.
+
 Python calcula y selecciona. TradingView solo muestra: pegas `pine/hydra_last_summary.json` y `pine/watchlist.txt` en el indicador `pine/HYDRA_Screener.pine`. El flag `Rec?` que manda es el de Python.
 
 **Código activo:** [`hydra_screener_local/`](hydra_screener_local/). COMPASS, Rattlesnake, Flask, paper trading y el resto de la raíz vieja están en [`archive/root-legacy-2026-09/`](archive/root-legacy-2026-09/). No se usa, no se revive.
 
-| | Producción |
+| | Ranking v8.4 (screener, artefactos Pine) |
 |---|---|
 | Universo | `"all"` — S&P 500 ∪ Nasdaq-100 ∪ Dow ∪ Russell 1000 ∪ Russell 2000 (~3000 nombres) |
 | Score | momentum 90d / vol 63d, sin skip de 5d |

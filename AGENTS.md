@@ -5,9 +5,11 @@ Checked against the code on 2026-09-06.
 
 ## Focus
 
-The active project is the local screener in **`hydra_screener_local/`**: momentum + regime
-equity screener, hybrid Python + TradingView, 5-trading-day cycles, universe `"all"` (~3000 US
-names incl. Russell 2000). COMPASS / Render / IBKR / root `tests/` live in
+The active project is **`hydra_screener_local/`**. **Production since 2026-09-07 is HYDRA v9**
+(`config.ALGO_VERSION = "v9"`): a 50/50 T20-stocks + ETF-trend portfolio run from a weekly
+instruction sheet (`portfolio_v9.py`, state in `state/`, engine `core/portfolio_engine.py`, SPEC
+section 9). The momentum + regime screener (5-trading-day cycles, universe `"all"`, ~3000 US names
+incl. Russell 2000) feeds sleeve A and still writes the v8.4 Pine artefacts (parked). COMPASS / Render / IBKR / root `tests/` live in
 `archive/root-legacy-2026-09/` — do not revive, extend, or take parameters from them.
 Older agent docs: `archive/docs-legacy-2026-09/`.
 
