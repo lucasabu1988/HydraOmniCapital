@@ -92,6 +92,7 @@
         ["No realizado", usd(s.unrealised), cls(s.unrealised)],
         ["Realizado", usd(s.realised), cls(s.realised)],
         ["Interés", usd(s.interest), cls(s.interest)],
+        ["Dividendos", usd(s.dividends), cls(s.dividends)],
         ["Fees", usd(s.fees), ""],
       ].map(([k,v,c]) => `<div class="card"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join("");
       const sl = s.sleeves || {};
@@ -115,7 +116,7 @@
           r => r.date||"", r => r.sleeve||"", r => r.tranche??"", r => r.side||"",
           r => r.ticker||"",
           r => r.side === "interest" ? (r.bars==null?"":String(r.bars)) : (r.units==null?"":fmt(r.units,4)),
-          r => r.side === "interest" ? (r.rate==null?"":pct(r.rate)) : (r.price==null?"":usd(r.price)),
+          r => r.side === "interest" ? (r.rate==null?"":pct(r.rate)) : (r.side === "dividend" ? usd(r.price) : (r.price==null?"":usd(r.price))),
           r => r.dollars==null?"":usd(r.dollars),
           r => r.cost==null?"":usd(r.cost), r => r.status||"",
         ]);

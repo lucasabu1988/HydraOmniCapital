@@ -32,6 +32,8 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+from core.dividends import summarize_dividends  # noqa: E402
+
 DEFAULT_STATE_DIR = ROOT / "state"
 DEFAULT_PORT = 8765
 DEFAULT_REFRESH = 300
@@ -294,6 +296,22 @@ def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None =
             "rate": r.get("rate"),
             "since": r.get("since"),
         })
+    dv = summarize_dividends(state)
+    for r in dv["records"]:
+        trade_log.append({
+            "date": r.get("ex_date") or r.get("date"),
+            "sleeve": r.get("sleeve"),
+            "tranche": r.get("tranche"),
+            "side": "dividend",
+            "ticker": r.get("ticker"),
+            "units": r.get("units"),
+            "price": r.get("dps"),
+            "dollars": r.get("dollars"),
+            "cost": None,
+            "status": "noted",
+            "ex_date": r.get("ex_date"),
+            "dps": r.get("dps"),
+        })
 
     since_usd = total - capital if capital else 0.0
     since_pct = since_usd / capital if capital else 0.0
@@ -319,7 +337,10 @@ def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None =
         "interest": ix["cumulative"],
         "interest_by_sleeve": ix["by_sleeve"],
         "interest_since_last_run": ix["since_last_run"],
-        "pnl_total": unreal_open + realised_total - fees_total + ix["cumulative"],
+        "dividends": dv["cumulative"],
+        "dividends_by_sleeve": dv["by_sleeve"],
+        "dividends_since_last_run": dv["since_last_run"],
+        "pnl_total": unreal_open + realised_total - fees_total + ix["cumulative"] + dv["cumulative"],
         "since_inception_usd": since_usd,
         "since_inception_pct": since_pct,
         "spy": {"price": spy_q, "stale": spy_stale},

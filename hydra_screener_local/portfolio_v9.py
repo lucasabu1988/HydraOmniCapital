@@ -43,7 +43,9 @@ from core.filters import (  # noqa: E402
 from core.signals import generate_daily_candidates  # noqa: E402
 from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
+from core.dividends import apply_dividends, summarize_dividends, tickers_from_state  # noqa: E402
 from dashboard_v9 import summarize_interest  # noqa: E402
+from data.dividends import fetch_dividends  # noqa: E402
 from data.universe import get_universe  # noqa: E402
 import preflight as PF  # noqa: E402
 
@@ -209,6 +211,7 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         "execute": f"ejecutar al cierre del {exec_date} (MOC t+1). Fills presumidos hasta que corrijas el estado.",
         "sector_degraded": sector_warning,
         "interest": _json_ready(summarize_interest(state)),
+        "dividends": _json_ready(summarize_dividends(state)),
         "whole_shares": "display-only; orders and presumed fills stay in dollars/fractional",
     }
     md_path = state_dir / f"instructions_{date.replace('-', '')}.md"
@@ -236,6 +239,18 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         f"Since previous run ({ix.get('since_from') or '—'} -> {ix.get('last_date') or '—'}): "
         f"**{ix['since_last_run']:,.2f}** USD ({sl_txt})",
         f"Cumulative: **{ix['cumulative']:,.2f}** USD",
+        "",
+    ]
+    dv = summarize_dividends(state)
+    dsl = dv.get("since_last_by_sleeve") or {}
+    dsl_txt = ", ".join(f"{k} {v:,.2f}" for k, v in dsl.items()) or "—"
+    lines += [
+        "## Dividends (cash, ex-date)",
+        "",
+        f"Since previous run ({dv.get('since_from') or '—'} -> {dv.get('last_date') or '—'}): "
+        f"**{dv['since_last_run']:,.2f}** USD ({dsl_txt})",
+        f"Cumulative: **{dv['cumulative']:,.2f}** USD",
+        "Broker pays on pay-date, later than ex-date — reconcile.py lists that gap.",
         "",
         "## Orders",
         "",
@@ -290,7 +305,7 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False) -> dict:
+        force: bool = False, dividend_fn=None) -> dict:
     """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
@@ -352,6 +367,19 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         elif not silent:
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
+    # Cash dividends (TASK-349): after settle, before plan. Tests with fetch_fn skip the network.
+    if state.get("last_run_date"):
+        if dividend_fn is not None:
+            table = dividend_fn(tickers_from_state(state))
+        elif fetch_fn is not None:
+            table = []
+        else:
+            table = fetch_dividends(tickers_from_state(state))
+        credited = apply_dividends(state, table, today)
+        if credited and not silent:
+            total_dv = sum(float(r.get("dollars") or 0) for r in credited)
+            print(f"[v9] dividends {len(credited)} credit(s) {total_dv:.2f} USD")
+
     orders = []
     if not state.get("pending"):
         if ranking is None:
@@ -385,6 +413,8 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         print(f"[v9] instructions -> {md_path}")
         ix = summarize_interest(state)
         print(f"[v9] interest since last run {ix['since_last_run']:.2f}  cumulative {ix['cumulative']:.2f}")
+        dv = summarize_dividends(state)
+        print(f"[v9] dividends since last run {dv['since_last_run']:.2f}  cumulative {dv['cumulative']:.2f}")
         if not orders:
             print("[v9] no trades today")
     return dict(

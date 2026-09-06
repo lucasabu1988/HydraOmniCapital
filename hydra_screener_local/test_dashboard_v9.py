@@ -163,6 +163,21 @@ def test_two_polls_inside_ttl_write_one_curve_row(tmp_path, monkeypatch):
     assert len(fetches) == 1
 
 
+def test_dividends_two_credits_and_missing_key():
+    assert D.build_snapshot(_state(), {"AAA": 11.0}, spy=400.0)["dividends"] == 0.0
+    st = _state()
+    st["dividends"] = [
+        {"date": "2026-01-10", "ex_date": "2026-01-08", "sleeve": "stocks", "tranche": 0,
+         "ticker": "AAA", "units": 10.0, "dps": 0.5, "dollars": 5.0},
+        {"date": "2026-01-10", "ex_date": "2026-01-08", "sleeve": "etf", "tranche": 0,
+         "ticker": "TLT", "units": 4.0, "dps": 0.25, "dollars": 1.0},
+    ]
+    snap = D.build_snapshot(st, {"AAA": 11.0}, spy=400.0)
+    assert snap["dividends"] == pytest.approx(6.0)
+    rows = [r for r in snap["trade_log"] if r["side"] == "dividend"]
+    assert len(rows) == 2 and {r["ticker"] for r in rows} == {"AAA", "TLT"}
+
+
 def test_interest_two_accruals_and_missing_key():
     assert D.summarize_interest({})["cumulative"] == 0.0
     assert D.summarize_interest({"foo": 1})["cumulative"] == 0.0

@@ -94,8 +94,8 @@ def explanations(state: dict) -> dict:
         pending_buys=round(pending_buys, 4),
         pending_sells=round(pending_sells, 4),
         n_pending=len(pending),
-        note=("349 HOLD: dividends are 0 until Lucas OKs the live dividend book. "
-              "Broker pays on pay-date; the book (when 349 lands) credits ex-date."),
+        note=("Broker pays on pay-date; the book credits ex-date (TASK-349). "
+              "That lag is a known residual, not an error."),
     )
 
 

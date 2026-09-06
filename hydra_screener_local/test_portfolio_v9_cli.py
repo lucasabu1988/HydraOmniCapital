@@ -250,6 +250,16 @@ def test_instruction_sheet_whole_shares_are_display_only(tmp_path):
     assert ws == {"shares": 10, "at_est": 100.0, "leftover": 5.0}
 
 
+def test_instruction_sheet_dividends_zero_without_key(tmp_path):
+    md, js = V.write_instructions(
+        tmp_path, "2026-09-04", [], [], {"total": 100000},
+        {"capital_reference": 100000, "week_index": 0, "last_renewal_date": None, "pending": []},
+        "2026-09-07",
+    )
+    assert "Cumulative: **0.00** USD" in md.read_text(encoding="utf-8")
+    assert json.loads(js.read_text(encoding="utf-8"))["dividends"]["cumulative"] == 0.0
+
+
 def test_instruction_sheet_interest_zero_without_key(tmp_path):
     md, js = V.write_instructions(
         tmp_path, "2026-09-04", [], [], {"total": 100000},

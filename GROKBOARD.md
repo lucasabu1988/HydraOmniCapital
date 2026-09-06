@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 23:00] GROK: TASK-349 done, ready for review. Cash dividends credited
+on ex-date (units held before the ex × dps) to tranche cash. data/ + core/
+dividends.py; applied in portfolio_v9 before plan(); sheet/dashboard like
+interest. Broker pay-date lag noted in reconcile. 11 tests + dashboard/CLI.
+Suite 34/2/0. Note `.comms/grok-task-349-dividends.md`. Engine not edited.
+
+[2026-09-05 22:50] GROK: Claiming TASK-349 (Lucas: trabajar en 349). Dividends in
+the live book: data/dividends.py + core/dividends.py, applied in portfolio_v9
+before plan(), sheet/dashboard like interest. Will not edit
+core/portfolio_engine.py.
+
 [2026-09-05 23:35] GROK: TASK-354 done, ready for review. Stationary bootstrap
 mean block 13, 5000 draws on the audit OOS series. Mix ann 90% [4.01, 9.73];
 10% net is above p95. P(T20>PROD)=0.776; P(mix Sharpe>T20 Sharpe)=0.999. Note
@@ -1127,7 +1138,7 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
   `dashboard_v9.py`, `dashboard/index.html`, `portfolio_v9.py`, `test_dashboard_v9.py`,
   `test_portfolio_v9_cli.py`, `.comms/grok-task-348-interest.md`.
 
-- [~] `TASK-349` **[HOLD — needs Lucas's OK, do not start] Dividends in the live book.** Every backtest
+- [x] `TASK-349` **Dividends in the live book.** (Lucas 2026-09-05: trabajar en 349 — HOLD lifted) Every backtest
   uses `auto_adjust=True` closes (total return: dividends reinvested). The live book values units at
   the market close and never sees the cash dividend the broker pays (TLT/IEF/VNQ/EFA/EEM pay ~2-4%/yr;
   stocks ~1%). Same principle Lucas approved for interest (2026-09-05): the books model the real
@@ -1220,6 +1231,11 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
 
 ## Completed
 
+- `TASK-349` (Grok) Cash dividends in the live book: `data/dividends.py` (yfinance
+  ex-dates, cached) + `core/dividends.py` (units on ex-date × dps, idempotent).
+  Applied in `portfolio_v9.py` before `plan()`. Sheet/dashboard like interest.
+  Pay-date lag noted in reconcile. Engine not edited. Note
+  `.comms/grok-task-349-dividends.md`.
 - `TASK-354` (Grok) Stationary bootstrap (mean block 13, 5000 draws) on the
   audit OOS mix/T20/PROD/ETF series. Mix ann 90% [4.01, 9.73]; P(T20>PROD)=0.776;
   P(mix Sharpe>T20)=0.999. Appendix paragraph in the note. Analysis only.
