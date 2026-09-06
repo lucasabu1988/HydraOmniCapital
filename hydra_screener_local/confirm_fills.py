@@ -55,11 +55,16 @@ def main(argv=None) -> int:
     p.add_argument("--interactive", action="store_true")
     p.add_argument("--report", action="store_true", help="print diffs, do not write")
     p.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR))
+    p.add_argument("--portfolio", default=None, help="Book from portfolios.toml (TASK-365)")
     p.add_argument("--cancel", action="append", default=None, metavar="EVENT_ID",
                    help="reverse and retire a booked event by event_id (repeatable)")
     args = p.parse_args(argv)
 
-    path = Path(args.state_dir) / STATE_NAME
+    state_dir = Path(args.state_dir)
+    if args.portfolio:
+        from core.portfolios import resolve
+        state_dir = resolve(args.portfolio).state_dir
+    path = state_dir / STATE_NAME
     state = load_state(path)
     if not state:
         print(f"[confirm] no state at {path}")

@@ -85,6 +85,8 @@ def replay(state: dict) -> dict:
         events.append((str(rec.get("date") or ""), 2, 0, i, ("int", rec)))
     for i, w in enumerate(state.get("write_offs") or []):
         events.append((str(w.get("date") or ""), 3, 0, i, ("wo", w)))
+    for i, sp in enumerate(state.get("splits") or []):      # TASK-363: before that day's fills
+        events.append((str(sp.get("date") or ""), -1, 0, i, ("split", sp)))
     events.sort(key=lambda e: (e[0], e[1], e[2], e[3]))
 
     for _d, _a, _b, _i, (kind, rec) in events:
@@ -100,6 +102,12 @@ def replay(state: dict) -> dict:
                 tr["cash"] += _f(rec.get("dollars"))
         elif kind == "int":
             _apply_interest(books, rec)
+        elif kind == "split":
+            tr = _tr(books, str(rec.get("sleeve") or ""), int(rec.get("tranche") or 0))
+            if tr is not None:
+                tk = str(rec.get("ticker") or "")
+                if tk in tr["units"]:
+                    tr["units"][tk] = tr["units"][tk] * _f(rec.get("ratio"), 1.0)
         elif kind == "wo":
             tr = _tr(books, str(rec.get("sleeve") or ""), int(rec.get("tranche") or 0))
             if tr is None:

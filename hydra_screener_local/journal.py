@@ -233,6 +233,7 @@ def append_from_v9(out: dict, journal_dir: Path | None = None, note: str | None 
         oos_step_returns=oos,
         errors=errors,
         last_bars=out.get("last_bars"),
+        manifest_path=out.get("manifest_path"),
     )
     # phase 9.2: what each stage actually received, recorded rather than assumed
     inputs = {

@@ -225,10 +225,12 @@ def test_run_credits_before_plan(tmp_path, monkeypatch):
           engine=FakeEngine(), silent=True)
     state = json.loads((tmp_path / "portfolio_v9.json").read_text(encoding="utf-8"))
     state["last_run_date"] = "2026-09-04"
+    # consistent book (TASK-384: preflight replays the ledger): 12500 - 10 x 10.0 = 12400 cash
     state["sleeves"]["stocks"]["tranches"][0]["units"] = {"AAA": 10.0}
-    state["sleeves"]["stocks"]["tranches"][0]["cash"] = 1000.0
+    state["sleeves"]["stocks"]["tranches"][0]["cash"] = 12400.0
     state["ledger"] = [{"exec_date": "2026-09-01", "sleeve": "stocks", "tranche": 0,
-                        "side": "buy", "ticker": "AAA", "units": 10.0, "price": 10.0, "status": "filled"}]
+                        "side": "buy", "ticker": "AAA", "units": 10.0, "price": 10.0,
+                        "dollars": 100.0, "cost": 0.0, "status": "filled"}]
     (tmp_path / "portfolio_v9.json").write_text(json.dumps(state), encoding="utf-8")
 
     def later(_u=None):

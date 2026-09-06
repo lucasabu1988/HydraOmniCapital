@@ -15,6 +15,7 @@ from config import (
     V9,
 )
 from core.portfolio_engine import STATE_SCHEMA
+from core.state_check import check as state_check
 from data.quality import OBSERVED, classify, invalid_prices, summarize
 from data.sectors import sector_degraded_message
 from utils.trading_calendar import (
@@ -72,6 +73,7 @@ def evaluate(
     last_session: str | None = None,
     backup_dir: str | None = None,
     etf_universe: list[str] | None = None,
+    universe_report: dict | None = None,
     reports: dict | None = None,
 ) -> dict:
     """Run every check. `asof` is the wall-clock (or test clock) used to name the
@@ -309,6 +311,48 @@ def evaluate(
             ))
         else:
             rows.append(_row("schema_version", "OK", f"schema_version={ver}"))
+
+    # Ledger replay vs stored tranches (TASK-360). preflight runs BEFORE settle, so on an
+    # execution day the state still carries the pending orders and a ledger <= last_run_date;
+    # the replay must be clean in that configuration too (proven on 1084 PIT plans, TASK-369).
+    if state is None:
+        rows.append(_row("state replay", "SKIP", "no state yet"))
+    else:
+        try:
+            findings = state_check(state)
+        except Exception as e:  # a crash in the checker is itself a hard stop
+            findings = None
+            rows.append(_row("state replay", "HARD", f"check failed: {e}"))
+        if findings is not None:
+            errs = [f for f in findings if f.level == "ERROR"]
+            warns = [f for f in findings if f.level != "ERROR"]
+            if errs:
+                head = "; ".join(f"{f.code}: {f.message}" for f in errs[:3])
+                more = f" (+{len(errs) - 3} more)" if len(errs) > 3 else ""
+                rows.append(_row("state replay", "HARD", head + more))
+            elif warns:
+                head = "; ".join(f"{f.code}: {f.message}" for f in warns[:3])
+                rows.append(_row("state replay", "WARN", head))
+            else:
+                rows.append(_row("state replay", "OK", "ledger replay matches every tranche"))
+
+    # Universe source (TASK-375): a Tuesday run on the hardcoded fallback list is a WARN.
+    if universe_report is None:
+        rows.append(_row("universe source", "SKIP", "no report"))
+    else:
+        uname = universe_report.get("universe")
+        count = universe_report.get("count")
+        if universe_report.get("fallback"):
+            rows.append(_row(
+                "universe source", "WARN",
+                f"{uname} resolved from the hardcoded fallback list ({count} names)",
+            ))
+        else:
+            rows.append(_row(
+                "universe source", "OK",
+                f"{uname} via {universe_report.get('source_used') or 'network'} "
+                f"({count} names, from_cache={universe_report.get('from_cache')})",
+            ))
 
     hard = any(r["status"] == "HARD" for r in rows)
     warn = any(r["status"] == "WARN" for r in rows)

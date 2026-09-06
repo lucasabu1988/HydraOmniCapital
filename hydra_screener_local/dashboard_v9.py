@@ -32,8 +32,9 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+from analytics.attribution import attribution as _attribution  # noqa: E402
+from core.costbasis import lots_from_ledger  # noqa: E402
 from core.dividends import summarize_dividends  # noqa: E402
-from core.ledger import is_trade  # noqa: E402
 
 DEFAULT_STATE_DIR = ROOT / "state"
 DEFAULT_PORT = 8765
@@ -57,49 +58,14 @@ def _f(x, default=0.0) -> float:
         return default
 
 
+# Average-cost lots live in core/costbasis.py since TASK-367 (one implementation, shared with the
+# attribution analytics), over the one canonical projection (core.ledger.is_trade).
 def _lots_from_ledger(state: dict) -> dict:
-    """(sleeve, tranche, ticker) -> {qty, cost_total, realised, fees} after walking fills + write-offs."""
-    lots = {}
+    """(sleeve, tranche, ticker) -> {qty, cost_total, realised, fees} after walking fills + write-offs.
 
-    def slot(sleeve, tranche, ticker):
-        key = (sleeve, int(tranche), str(ticker))
-        if key not in lots:
-            lots[key] = {"qty": 0.0, "cost_total": 0.0, "realised": 0.0, "fees": 0.0}
-        return lots[key]
-
-    # `is_trade` is the canonical projection (core.ledger). This used to read
-    # `status != "filled"`, so every confirmed or corrected fill dropped out of the
-    # lots walk and cost basis, realised P&L and fees all reverted to zero (R-108).
-    for fill in state.get("ledger") or []:
-        if not is_trade(fill):
-            continue
-        side = fill.get("side")
-        ticker = fill.get("ticker")
-        lot = slot(fill.get("sleeve"), fill.get("tranche", 0), ticker)
-        u = _f(fill.get("units"))
-        px = _f(fill.get("price"))
-        lot["fees"] += _f(fill.get("cost"))
-        if u <= 0 or px <= 0:
-            continue
-        if side == "buy":
-            lot["qty"] += u
-            lot["cost_total"] += u * px
-        else:
-            sold = min(u, lot["qty"])
-            avg = lot["cost_total"] / lot["qty"] if lot["qty"] else 0.0
-            lot["realised"] += (px - avg) * sold
-            lot["qty"] -= sold
-            lot["cost_total"] = avg * lot["qty"]
-
-    for wo in state.get("write_offs") or []:
-        ticker = wo.get("ticker")
-        if not ticker:
-            continue
-        lot = slot(wo.get("sleeve"), wo.get("tranche", 0), ticker)
-        lot["realised"] += _f(wo.get("proceeds")) - lot["cost_total"]
-        lot["qty"] = 0.0
-        lot["cost_total"] = 0.0
-    return lots
+    One implementation, in `core.costbasis` (TASK-367), over the canonical projection
+    (R-108: every effective status counts, not "filled" alone)."""
+    return lots_from_ledger(state)
 
 
 def summarize_interest(state: dict | None) -> dict:
@@ -175,6 +141,15 @@ def ny_day(ts) -> str:
         return str(t.tz_convert("America/New_York").date())
     except (TypeError, ValueError):
         return str(ts)[:10]
+
+
+def _slim_attribution(state: dict) -> dict | None:
+    """TASK-367 block without the per-position list (the browser gets the components only)."""
+    try:
+        block = _attribution(state)
+    except Exception:
+        return None
+    return {k: v for k, v in block.items() if k != "positions"}
 
 
 def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None = None) -> dict:
@@ -313,6 +288,13 @@ def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None =
             "dps": r.get("dps"),
         })
 
+    for r in state.get("splits") or []:            # TASK-363
+        trade_log.append({
+            "date": r.get("date"), "sleeve": r.get("sleeve"), "tranche": r.get("tranche"),
+            "side": "split", "ticker": r.get("ticker"), "units": r.get("units_after"),
+            "price": r.get("ratio"), "dollars": None, "cost": None, "status": "noted",
+        })
+
     since_usd = total - capital if capital else 0.0
     since_pct = since_usd / capital if capital else 0.0
     unreal_open = sum(p["unrealised"] for p in positions)
@@ -347,6 +329,7 @@ def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None =
         "sleeves": sleeves_out,
         "positions": positions,
         "pending": pending,
+        "attribution": _slim_attribution(state),
         "transfers": list(state.get("transfers") or []),
         "write_offs": list(state.get("write_offs") or []),
         "trade_log": trade_log,
@@ -588,8 +571,13 @@ def main(argv=None) -> int:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--refresh", type=int, default=DEFAULT_REFRESH)
+    p.add_argument("--portfolio", default=None, help="Book from portfolios.toml (TASK-365); read-only view.")
     args = p.parse_args(argv)
-    serve(Path(args.state_dir), host=args.host, port=args.port, refresh=args.refresh)
+    state_dir = Path(args.state_dir)
+    if args.portfolio:
+        from core.portfolios import resolve
+        state_dir = resolve(args.portfolio, allow_disabled=True).state_dir
+    serve(state_dir, host=args.host, port=args.port, refresh=args.refresh)
     return 0
 
 

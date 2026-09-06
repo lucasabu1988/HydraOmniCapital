@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!-- TASK-364: HYDRA daily ritual, Mon-Fri 16:45 LOCAL time. This machine is UTC-5 without DST, so
+     16:45 local = 17:45 America/New_York in summer and 16:45 in winter: always after the 16:00 ET close.
+     __SCHEDULE_DIR__ is replaced by install_task.cmd with the absolute path of this folder. -->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>HYDRA v9 daily ritual (unattended). Never places orders.</Description>
+    <URI>\HYDRA daily</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>2026-09-08T16:45:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByWeek>
+        <DaysOfWeek>
+          <Monday /><Tuesday /><Wednesday /><Thursday /><Friday />
+        </DaysOfWeek>
+        <WeeksInterval>1</WeeksInterval>
+      </ScheduleByWeek>
+    </CalendarTrigger>
+  </Triggers>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+    <WakeToRun>true</WakeToRun>
+    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>cmd.exe</Command>
+      <Arguments>/c "__SCHEDULE_DIR__run_daily.cmd"</Arguments>
+      <WorkingDirectory>__SCHEDULE_DIR__</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

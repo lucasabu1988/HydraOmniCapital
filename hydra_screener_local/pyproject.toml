@@ -88,6 +88,7 @@ py-modules = [
     "runlog_cli",
     "screener",
     "send_hydra_summary",
+    "snapshot_universe",
     "store_cli",
     "verify_state",
     "warm_sectors",

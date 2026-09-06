@@ -199,6 +199,13 @@ def holdings_before(state: dict, as_of: str) -> dict[tuple, float]:
         if not d or d >= as_of:
             continue
         events.append((d, 1, w))
+    # TASK-363: a split effective before `as_of` scales the units held at its open. Splits sort
+    # before that day's fills (kind -1): fills settled on or after the split date are post-split.
+    for sp in state.get("splits") or []:
+        d = str(sp.get("date") or "")
+        if not d or d >= as_of:
+            continue
+        events.append((d, -1, sp))
     events.sort(key=lambda x: (x[0], x[1]))
     for _, kind, ev in events:
         sleeve = str(ev.get("sleeve") or "")
@@ -207,6 +214,10 @@ def holdings_before(state: dict, as_of: str) -> dict[tuple, float]:
         if not sleeve or not ticker:
             continue
         key = (sleeve, k, ticker)
+        if kind == -1:
+            if key in held and held[key] > 1e-12:
+                held[key] = held[key] * _f(ev.get("ratio"), 1.0)
+            continue
         if kind == 1:
             held[key] = 0.0
             continue

@@ -1,0 +1,35 @@
+# TASK-365 — portfolio registry. One book today; the shape for many. No secrets here.
+#
+# Every CLI takes --portfolio <name> (default: "default", byte-identical to running without the flag).
+# `overrides` are deep-merged into config.V9 for that book only (engine cfg); scoring is not touched
+# (rule 6). `state_dir` and `journal_dir` are relative to hydra_screener_local/. A disabled book is
+# refused unless --allow-disabled is passed: the examples below document the shape, they do not run.
+
+[default]
+label = "HYDRA v9 live book (50/50 T20 + ETF)"
+enabled = true
+state_dir = "state"
+journal_dir = "journal"
+capital_reference = 100000.0
+
+[default.overrides]
+# empty on purpose: the live book runs config.V9 as is
+
+[paper_t20_only]
+label = "paper: stock sleeve only, same capital"
+enabled = false
+state_dir = "state_paper_t20_only"
+journal_dir = "journal/paper_t20_only"
+capital_reference = 100000.0
+
+[paper_t20_only.overrides]
+mix = { stocks = 1.0, etf = 0.0 }
+
+[paper_half_size]
+label = "paper: half capital, same rules"
+enabled = false
+state_dir = "state_paper_half_size"
+journal_dir = "journal/paper_half_size"
+capital_reference = 50000.0
+
+[paper_half_size.overrides]

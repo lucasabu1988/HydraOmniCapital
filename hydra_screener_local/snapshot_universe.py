@@ -119,6 +119,43 @@ def snapshot_live(universe: str, date: str | None, pit_dir=None) -> Path:
     )
 
 
+def snapshot_sectors_from_cache(date: str | None = None, pit_dir=None) -> Path | None:
+    """Sectors snapshot from data_cache/sector_cache.json (no network)."""
+    cache_file = ROOT / "data_cache" / "sector_cache.json"
+    if not cache_file.exists():
+        return None
+    try:
+        cache = json.loads(cache_file.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    raw = dict((cache or {}).get("sectors") or {})
+    sectors = {t: (v if isinstance(v, str) else (v or {}).get("sector")) for t, v in raw.items()}
+    sectors = {t: s for t, s in sectors.items() if s}
+    unknown = sorted(t for t, s in sectors.items() if s == UNKNOWN_SECTOR)
+    d = date or datetime.now().strftime("%Y%m%d")
+    return write_sectors_snapshot(
+        sectors, d, unknown=unknown, pit_dir=pit_dir,
+        fetched_at=str((cache or {}).get("updated") or ""),
+    )
+
+
+def snapshot_after_run(universe: str, date: str | None = None, pit_dir=None) -> list[Path]:
+    """daily.py hook (TASK-362): one universe snapshot (get_universe is cache-fresh right
+    after a run) and one sectors snapshot from the cache. Pointers when nothing changed."""
+    written = []
+    try:
+        written.append(snapshot_live(universe, date, pit_dir=pit_dir))
+    except Exception as e:
+        print(f"[pit] universe snapshot skipped: {e}")
+    try:
+        p = snapshot_sectors_from_cache(date, pit_dir=pit_dir)
+        if p is not None:
+            written.append(p)
+    except Exception as e:
+        print(f"[pit] sectors snapshot skipped: {e}")
+    return written
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="HYDRA PIT universe/sector snapshots")
     p.add_argument("--seed", action="store_true", help="seed from local CSVs (no network)")

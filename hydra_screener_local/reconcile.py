@@ -89,9 +89,12 @@ def explanations(state: dict) -> dict:
     pending = list(state.get("pending") or [])
     pending_buys = sum(_f(o.get("dollars")) for o in pending if o.get("side") == "buy")
     pending_sells = sum(_f(o.get("dollars")) for o in pending if o.get("side") == "sell")
+    splits = list(state.get("splits") or [])
     return dict(
         interest_recorded=round(interest, 4),
         dividends_recorded=round(dividends, 4),
+        splits_recorded=len(splits),
+        splits_detail=[f"{s.get('date')} {s.get('ticker')} x{s.get('ratio')}" for s in splits[-5:]],
         fees_recorded=round(fees, 4),
         pending_buys=round(pending_buys, 4),
         pending_sells=round(pending_sells, 4),
@@ -196,6 +199,8 @@ def format_report(rep: dict) -> str:
         f"  interest recorded   {rep['explanations']['interest_recorded']:,.4f}",
         f"  dividends recorded  {rep['explanations']['dividends_recorded']:,.4f}",
         f"  fees recorded       {rep['explanations']['fees_recorded']:,.4f}",
+        f"  splits recorded     {rep['explanations'].get('splits_recorded', 0)}"
+        + (f"  ({', '.join(rep['explanations'].get('splits_detail') or [])})" if rep['explanations'].get('splits_recorded') else ""),
         f"  pending buys        {rep['explanations']['pending_buys']:,.4f}",
         f"  pending sells       {rep['explanations']['pending_sells']:,.4f}",
         f"  {rep['explanations']['note']}",
@@ -211,6 +216,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Reconcile broker CSV vs v9 state (read-only)")
     p.add_argument("positions", help="CSV with ticker,units")
     p.add_argument("--state", default=str(DEFAULT_STATE))
+    p.add_argument("--portfolio", default=None, help="Book from portfolios.toml (TASK-365)")
     p.add_argument("--cash-total", type=float, default=None)
     p.add_argument("--cash-stocks", type=float, default=None)
     p.add_argument("--cash-etf", type=float, default=None)
@@ -224,6 +230,9 @@ def main(argv=None) -> int:
               "(the broker cash balance is required to reconcile)")
         return 2
     st_path = Path(args.state)
+    if args.portfolio:                                    # TASK-365: a named book brings its own state dir
+        from core.portfolios import resolve
+        st_path = resolve(args.portfolio, allow_disabled=True).state_dir / "portfolio_v9.json"
     if not st_path.exists():
         print(f"[v9] reconcile: state not found: {st_path} "
               f"(run portfolio_v9.py first, or pass --state)")
