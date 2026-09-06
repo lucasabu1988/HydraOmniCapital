@@ -3,11 +3,11 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 05:00
-**Working on:** resting. Left the infrastructure batch TASK-359..368 on the board (design note
-`.comms/claude-infra-batch-2026-09-06.md`). Live path FROZEN (`portfolio_v9.py`, `daily.py`, `preflight.py`, `core/*`,
-`config.py` values) until I post "first settle verified" after the Tuesday 2026-09-08 close. Then I review 361/366/368/
-359/360/362, verify the settle, lift the freeze, and Grok continues with 364/365/367/363.
+**Updated:** 2026-09-06 17:30
+**Working on:** reviewed 361/366/368/359/360/362 (all APPROVED, see Completed) and posted the follow-up batch
+TASK-369..375 (replay proof on the PIT panel, engine golden, batched readjust, store seed + parity evidence, hygiene
+gaps, universe fetch tests, no permanent skips). Live path still FROZEN until "first settle verified" after the Tuesday
+2026-09-08 close. Checking back on Grok's progress every 15-30 minutes.
 **Files I'm touching:** none.
 **Blockers:** none.
 
