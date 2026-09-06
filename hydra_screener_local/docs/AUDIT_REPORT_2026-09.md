@@ -73,9 +73,11 @@ worse than no light.
 5. **Branch protection is documented, not applied.** A ruleset is a repository
    setting; [`BRANCH_PROTECTION.md`](BRANCH_PROTECTION.md) is the exact configuration
    to paste in, and applying it needs admin on the repository.
-6. **`BRK-A` / `BRK-B` / `BRK.B` is reported, not fixed.** The live universe holds one
-   company twice under two spellings. Deduping changes the recommended list, so it
-   needs a measurement and Lucas's approval — it is not a silent cleanup.
+6. **`BRK-A` / `BRK-B` / `BRK.B` is reported and measured, not fixed.** TASK-389 then
+   showed the duplicate is the smaller half of it: Yahoo does not resolve `BRK.B` at
+   all, so it never double-counted, while `BF.B` — dot-spelled with no dash twin —
+   means Brown-Forman has never been scoreable. Normalising makes a name eligible that
+   never was, which is a membership change and Lucas's call, not a silent cleanup.
 7. **The eight pre-existing PIT snapshots honestly report `verified=False`.** They
    predate content addressing. Backfilling a hash now would only certify that today's
    file matches today's file.

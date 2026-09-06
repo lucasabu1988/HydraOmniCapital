@@ -222,6 +222,16 @@ One real finding surfaced by `duplicate_share_classes()`: the live universe hold
 spellings, i.e. one company counted twice with two price series. Reported, not
 silently deduped: deduping it changes the recommended list and needs a measurement.
 
+That measurement is TASK-389 (`experiments/duplicate_classes.py`,
+`.comms/grok-task-389-duplicate-classes.md`), and it turned the finding around. The
+duplicate never double-counted — Yahoo returns 0 bars for `BRK.B`, and `BRK-A` averages
+161 shares a day and fails the liquidity filter every day. The spelling is what costs:
+`BF.B` is dot-spelled with **no** dash twin, so Brown-Forman cannot be scored at all,
+and both names sit in the in-sample panel as all-NaN columns (2 of 503). Filling them
+moves the in-sample headline 12.18 → 12.24 ann_net (`BRK-B` enters the T20 on 11 of 279
+dates; `BF-B` on none). The OOS panel already normalises through `_yahoo_ticker` and is
+unaffected.
+
 ## Phase 8 — engine, calendar and sleeves
 
 | id | phase | defect | reproduction | fixed in |
