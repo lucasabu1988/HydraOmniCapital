@@ -132,6 +132,9 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -140,6 +143,10 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITLEAKS_CONFIG: .gitleaks.toml
+          # Required since gitleaks-action v2 for a pull_request event: without it the
+          # step fails before scanning anything ("GITHUB_TOKEN is now required to scan
+          # pull requests"). The automatic token is enough; no secret to create.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Python 3.12
         if: always()
         uses: actions/setup-python@v5

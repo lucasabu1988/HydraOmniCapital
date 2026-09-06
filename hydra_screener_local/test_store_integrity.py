@@ -282,7 +282,10 @@ def test_quality_of_an_unknown_ticker_is_reported_not_dropped(tmp_path):
     st = _store(tmp_path, _long("AAA", IDX))
     q = st.quality(["AAA", "NOPE"]).set_index("ticker")
     assert q.loc["NOPE", "n_bars"] == 0
-    assert q.loc["NOPE", "first"] is None
+    # None in a column that also holds timestamps comes back as NaT/NaN depending on
+    # the pandas version (it is None on Windows/pandas 2.2, NaN on the CI runner). The
+    # claim is that the row exists and its date is missing, not which flavour of missing.
+    assert pd.isna(q.loc["NOPE", "first"])
     st.close()
 
 

@@ -67,11 +67,13 @@ def frame_hash(frame) -> str | None:
     """
     if frame is None or getattr(frame, "empty", True):
         return None
+    import numpy as np
     import pandas as pd
     from pandas.util import hash_pandas_object
 
     try:
-        rows = hash_pandas_object(frame, index=True).values
+        # .values is ndarray | ExtensionArray; only the former has tobytes()
+        rows = np.asarray(hash_pandas_object(frame, index=True))
         payload = {
             "shape": list(frame.shape),
             "columns": [str(c) for c in frame.columns],

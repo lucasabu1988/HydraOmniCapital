@@ -151,7 +151,10 @@ def invalid_prices(prices: pd.DataFrame | None, asof=None) -> dict[str, float]:
         row = prices.loc[hits[-1]] if len(hits) else prices.iloc[-1]
     out: dict[str, float] = {}
     for col in prices.columns:
-        v = pd.to_numeric(row.get(col), errors="coerce")
+        raw = row.get(col)
+        # to_numeric has no overload for None; the behaviour is unchanged (a missing
+        # value was coerced to NaN and skipped by the isna check below)
+        v = float("nan") if raw is None else pd.to_numeric(raw, errors="coerce")
         if pd.isna(v):
             continue                       # absent is a different finding
         if not is_finite_price(float(v)):
