@@ -60,3 +60,16 @@ def target_weights(closes: pd.DataFrame, tbill_daily: pd.Series, weights: str = 
         base = pd.Series(1.0 / len(names), index=names)
     w = (base * on.reindex(names).fillna(False).astype(float)).astype(float)
     return w[w > 0]
+
+
+class EtfTrend:
+    """Adapter (TASK-366). Delegates to `core.portfolio_engine.etf_targets`; functions above unchanged."""
+
+    name = "etf"
+
+    def __init__(self, cost_bp: float | None = None):
+        self.cost_bp = float(V9["etf_cost_bp"] if cost_bp is None else cost_bp)
+
+    def targets(self, market, held: set, cfg: dict) -> pd.Series:
+        from core.portfolio_engine import etf_targets
+        return etf_targets(market.etf_closes, market.tbill, cfg)

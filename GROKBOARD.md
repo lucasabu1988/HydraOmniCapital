@@ -37,6 +37,11 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 13:20] GROK: TASK-366 done, ready for review. Sleeve protocol +
+two adapters (delegate to stock_targets / etf_targets, atol 1e-12) + registry
++ design note for the N-sleeve engine. Engine not edited. Note
+`.comms/grok-task-366-sleeve-registry.md`. Claiming TASK-368 next.
+
 [2026-09-06 12:40] GROK: TASK-361 done, ready for review. SQLite bar store +
 BarProvider + cached fetch behind USE_BAR_STORE=False. Live fetch does not
 open the store. Suite 35/2/0. Note `.comms/grok-task-361-bar-store.md`.
@@ -1202,7 +1207,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   `data/providers/yfinance_provider.py`, `data/fetch.py` (additive), `config.py` (one new constant),
   `store_cli.py`, `test_bar_store.py`, `.gitignore`, `.comms/grok-task-361-bar-store.md`.
 
-- [ ] `TASK-366` **Sleeve protocol + registry (adapters and design; engine untouched).** The engine hardcodes
+- [x] `TASK-366` **Sleeve protocol + registry (adapters and design; engine untouched).** The engine hardcodes
   `SLEEVES = ("stocks", "etf")` and two target functions. Before a third sleeve exists we need the seam.
   `sleeves/base.py`: `@dataclass MarketSlice(stock_prices, volumes, spy, etf_closes, tbill, ranking)` and
   `class Sleeve(Protocol): name: str; cost_bp: float; def targets(self, market: MarketSlice, held: set,
