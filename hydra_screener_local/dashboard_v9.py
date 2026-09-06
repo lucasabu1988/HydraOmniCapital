@@ -284,6 +284,13 @@ def build_snapshot(state: dict, quotes: dict, spy=None, state_dir: Path | None =
             "dps": r.get("dps"),
         })
 
+    for r in state.get("splits") or []:            # TASK-363
+        trade_log.append({
+            "date": r.get("date"), "sleeve": r.get("sleeve"), "tranche": r.get("tranche"),
+            "side": "split", "ticker": r.get("ticker"), "units": r.get("units_after"),
+            "price": r.get("ratio"), "dollars": None, "cost": None, "status": "noted",
+        })
+
     since_usd = total - capital if capital else 0.0
     since_pct = since_usd / capital if capital else 0.0
     unreal_open = sum(p["unrealised"] for p in positions)

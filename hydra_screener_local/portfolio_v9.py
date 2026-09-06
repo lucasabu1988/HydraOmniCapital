@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT))
 
 from config import (  # noqa: E402
     ALGO_VERSION,
+    APPLY_SPLITS,
     FILTERS,
     SECTOR_FETCH_BUDGET_SECONDS,
     UNIVERSE,
@@ -44,6 +45,8 @@ from core.signals import generate_daily_candidates  # noqa: E402
 from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
 from core.dividends import apply_dividends, summarize_dividends, tickers_from_state  # noqa: E402
+from core.splits import apply_splits, summarize_splits  # noqa: E402
+from data.splits import fetch_splits  # noqa: E402
 from dashboard_v9 import summarize_interest  # noqa: E402
 from data.dividends import fetch_dividends  # noqa: E402
 from core.state_migrations import SchemaError, migrate  # noqa: E402
@@ -280,6 +283,14 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         f"Cumulative: **{dv['cumulative']:,.2f}** USD",
         "Broker pays on pay-date, later than ex-date — reconcile.py lists that gap.",
         "",
+    ]
+    sp = summarize_splits(state)
+    if sp["records"]:
+        lines += ["## Splits (units scaled on the effective date)", ""]
+        lines += [f"- {r['date']} {r['sleeve']}[{r['tranche']}] {r['ticker']} x{r['ratio']:g}: "
+                  f"{r['units_before']:.4f} -> {r['units_after']:.4f} units" for r in sp["since_last_run"]] or ["- none since the previous run"]
+        lines += [f"Cumulative: {sp['count']} record(s)", ""]
+    lines += [
         "## Orders",
         "",
     ]
@@ -335,7 +346,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
         force: bool = False, dividend_fn=None, runlog=None,
         cfg: dict | None = None, portfolio: str | None = None,
-        allow_disabled: bool = False) -> dict:
+        allow_disabled: bool = False, split_fn=None) -> dict:
     """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
     `runlog` is an optional `utils.runlog.RunContext` (TASK-359): data fingerprints and the
     files written land in its manifest. None = today's behaviour."""
@@ -417,6 +428,18 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
                 print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
         elif not silent:
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
+
+    # Stock splits (TASK-363, H-003): after settle, before dividends, behind APPLY_SPLITS.
+    if APPLY_SPLITS and state.get("last_run_date"):
+        if split_fn is not None:
+            stable = split_fn(tickers_from_state(state))
+        elif fetch_fn is not None:
+            stable = []
+        else:
+            stable = fetch_splits(tickers_from_state(state))
+        applied = apply_splits(state, stable, today)
+        if applied and not silent:
+            print(f"[v9] splits {len(applied)} record(s): " + ", ".join(f"{r['ticker']} x{r['ratio']:g}" for r in applied))
 
     # Cash dividends (TASK-349): after settle, before plan. Tests with fetch_fn skip the network.
     if state.get("last_run_date"):

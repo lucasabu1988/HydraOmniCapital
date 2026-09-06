@@ -104,6 +104,11 @@ STALE_DATA_WARN_BUSINESS_DAYS = 1       # warn when the last bar is older than t
 # New observability constant (rule 6); no live caller reads the store while this is False.
 USE_BAR_STORE = False
 
+# TASK-363 (H-003, PROPOSED): apply stock splits to the book's units on the effective date.
+# Accounting parity with split-adjusted closes, same principle as dividends (H-001). Off until
+# Lucas decides; modules and tests are in place (core/splits.py, data/splits.py).
+APPLY_SPLITS = False
+
 # Secondary regime (audit R1, 2026-09-06). The gate is computed on SPY; the universe is ~2/3
 # mid/small caps. 2020-2026: SPY above its SMA200 while IWM was below on 12.5% of days (longest
 # streak 54 sessions), and IWM's 5d return in those days averaged -15.8 bp vs +31.6 bp otherwise.

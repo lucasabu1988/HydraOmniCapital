@@ -87,9 +87,12 @@ def explanations(state: dict) -> dict:
     pending = list(state.get("pending") or [])
     pending_buys = sum(_f(o.get("dollars")) for o in pending if o.get("side") == "buy")
     pending_sells = sum(_f(o.get("dollars")) for o in pending if o.get("side") == "sell")
+    splits = list(state.get("splits") or [])
     return dict(
         interest_recorded=round(interest, 4),
         dividends_recorded=round(dividends, 4),
+        splits_recorded=len(splits),
+        splits_detail=[f"{s.get('date')} {s.get('ticker')} x{s.get('ratio')}" for s in splits[-5:]],
         fees_recorded=round(fees, 4),
         pending_buys=round(pending_buys, 4),
         pending_sells=round(pending_sells, 4),
@@ -194,6 +197,8 @@ def format_report(rep: dict) -> str:
         f"  interest recorded   {rep['explanations']['interest_recorded']:,.4f}",
         f"  dividends recorded  {rep['explanations']['dividends_recorded']:,.4f}",
         f"  fees recorded       {rep['explanations']['fees_recorded']:,.4f}",
+        f"  splits recorded     {rep['explanations'].get('splits_recorded', 0)}"
+        + (f"  ({', '.join(rep['explanations'].get('splits_detail') or [])})" if rep['explanations'].get('splits_recorded') else ""),
         f"  pending buys        {rep['explanations']['pending_buys']:,.4f}",
         f"  pending sells       {rep['explanations']['pending_sells']:,.4f}",
         f"  {rep['explanations']['note']}",
