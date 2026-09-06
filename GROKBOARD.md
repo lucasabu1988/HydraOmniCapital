@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 00:40] CLAUDE: Seis tareas nuevas a peticion de Lucas, ninguna de scoring. **349 (dividendos en el
+libro) esta en HOLD hasta que Lucas de el OK** — mismo principio que el interes: los backtests usan precios
+ajustados (total return) y el libro vivo no ve el dividendo que paga el broker. Activas: **350** motor
+end-to-end sobre el panel OOS con delistings (la 347 no ejercito not_filled/write-offs), **352** preflight
+que se niega a planificar con datos viejos, **351** reconcile.py broker vs estado (solo lectura), **353**
+acciones enteras en la hoja, **354** bootstrap de intervalos sobre los numeros de la auditoria. Orden:
+350 -> 352 -> 351 -> 353 -> 354. No toques `core/portfolio_engine.py`.
+
 [2026-09-06 00:10] CLAUDE: **348 APROBADA.** Dashboard, hoja y consola muestran el interes; `pnl_total` ahora
 reconcilia con `total - capital` (el interes ya estaba en el cash). Un retoque mio: la linea "Since previous
 run" mostraba la fecha del devengo, no la de la corrida anterior; ahora imprime `since -> date`. Nota:
@@ -1039,7 +1047,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 `L.run_any(P, cfg, start=...)`, `L.stats(df, L.step_of(cfg), label)`, `L.CONFIGS`, `L.BASE`). Every run is
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
-into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
+into the task's `.comms` note. Priority: 350 -> 352 -> 351 -> 353 -> 354; 349 on hold.
 
 - [x] `TASK-347` **Backtest the PRODUCTION engine end-to-end on the lab panel.** The parity tests check
   target weights on renewal dates; nobody has driven `plan()/settle()/mark()` through history. Build
@@ -1063,6 +1071,64 @@ into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
   Tests on a synthetic state with two accrual records. Do not edit `core/portfolio_engine.py`. Files:
   `dashboard_v9.py`, `dashboard/index.html`, `portfolio_v9.py`, `test_dashboard_v9.py`,
   `test_portfolio_v9_cli.py`, `.comms/grok-task-348-interest.md`.
+
+- [~] `TASK-349` **[HOLD — needs Lucas's OK, do not start] Dividends in the live book.** Every backtest
+  uses `auto_adjust=True` closes (total return: dividends reinvested). The live book values units at
+  the market close and never sees the cash dividend the broker pays (TLT/IEF/VNQ/EFA/EEM pay ~2-4%/yr;
+  stocks ~1%). Same principle Lucas approved for interest (2026-09-05): the books model the real
+  account. Deliver: `data/dividends.py` (yfinance `Ticker.dividends` for held tickers + the ETF
+  universe, cached, ex-dates), `core/dividends.py` (pure: for every ex-date after the previous run,
+  credit `units held on the ex-date x dividend` to the cash of the tranche holding them, recorded in
+  `state["dividends"]` {ex_date, sleeve, tranche, ticker, units, dps, dollars}; idempotent on
+  (ex_date, tranche, ticker)), applied in `portfolio_v9.py` before `plan()` (state cash only, like
+  `confirm_fills`; do NOT edit `core/portfolio_engine.py`). Show it in the sheet/dashboard like
+  interest. Tests with a fake dividend table. Note the broker pays on pay-date, later than ex-date:
+  `reconcile.py` (351) explains that gap. Files: the two new modules, `portfolio_v9.py`,
+  `dashboard_v9.py`, `dashboard/index.html`, tests, `.comms/grok-task-349-dividends.md`.
+
+- [ ] `TASK-350` **Engine end-to-end on the OOS PIT panel (delistings).** 347 ran on the in-sample cache
+  (current constituents, no delistings): 0 `not_filled` / 0 write-offs says nothing. Re-run
+  `experiments/engine_backtest.py` (add `--oos`) on `_sweep_cache_oos/` (1209 tickers 2004-2026,
+  real membership; `redesign_lab.load_panel(oos=True)`), same reshaping, engine as it is today
+  (interest accrual on both sleeves, pair reset, trailing hurdle). Report ann_net / Sharpe / maxDD /
+  turnover / exposure next to the audit's 50/50 mix (6.91 / 0.74 / -19.5) and per calendar year;
+  count `not_filled`, `hold_no_price`, write-offs and their dollars, transfers, and the interest
+  accrued as % of the book per year. This is the same strategy with production plumbing, not a
+  new variant — say so in the note (TEST-read-once rule); no parameter changes. Drop the "transfers
+  stripped" row (not a reset-off counterfactual, see the 347 review). Files: `engine_backtest.py`,
+  `.comms/grok-task-350-engine-oos.md`.
+
+- [ ] `TASK-351` **`reconcile.py`: broker vs state, read-only.** Lucas runs the book by hand. Input: a
+  positions CSV exported from the broker (`ticker,units`) and one or two cash balances
+  (`--cash-total` or `--cash-stocks/--cash-etf` if he keeps two accounts). Output: units per ticker
+  (state aggregates tranches) vs broker, with missing/unknown/quantity-diff rows; cash vs state cash,
+  with the known explanations listed (interest recorded, dividends recorded when 349 lands, fees,
+  pending orders) and the unexplained residual; total value at the state's last prices. Exit 0 always;
+  writes nothing. Tests on a synthetic state. Files: `reconcile.py`, `test_reconcile.py`,
+  `.comms/grok-task-351-reconcile.md`.
+
+- [ ] `TASK-352` **`preflight.py`: refuse to plan on bad data.** Before the v9 plan, check and print a
+  table: last stock bar, last ETF bar and last `^IRX` bar all equal to the last NYSE session (hard
+  fail otherwise: a stale yfinance day would produce a sheet with yesterday's prices); share of the
+  universe with a print on that bar (warn < 90%); 10/10 ETFs present (hard fail); sector-unknown
+  share over the threshold (warn, existing message); pending orders older than one session (warn);
+  `HYDRA_BACKUP_DIR` set (warn); state schema_version known (hard fail). `daily.py`/`portfolio_v9.py`
+  run it first and stop on a hard fail unless `--force`. Pure function over the fetched frames so
+  tests need no network. Files: `preflight.py`, `portfolio_v9.py`, `daily.py`, `test_preflight.py`,
+  `.comms/grok-task-352-preflight.md`.
+
+- [ ] `TASK-353` **Whole shares on the instruction sheet.** Lucas buys whole shares; the sheet shows
+  fractional `est_units`. Add display-only columns: `shares = floor(dollars / est_price)`, `$ at est
+  price`, and per tranche the cash left over by the rounding. Orders and presumed fills stay in
+  dollars/fractional (the engine does not change); `confirm_fills` is where whole units enter the
+  book. Files: `portfolio_v9.py`, `test_portfolio_v9_cli.py`, `.comms/grok-task-353-shares.md`.
+
+- [ ] `TASK-354` **Uncertainty around the audit numbers.** Stationary block bootstrap (mean block 13
+  steps) on the OOS step-return series of PROD, T20, ETF and the 50/50 mix (`experiments/_lab_scratch/
+  task332_series.json` if it has them, else re-run `run_exec`/`run_sleeve`/`mix`): 90% intervals for
+  ann_net and Sharpe, and the distribution of maxDD; probability that T20 > PROD and that the mix
+  Sharpe > T20 Sharpe. Analysis only, no parameter changes; write the table into
+  `.comms/grok-task-354-bootstrap.md` and one paragraph for the audit note's appendix.
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe. Nothing blocked; queue empty.
