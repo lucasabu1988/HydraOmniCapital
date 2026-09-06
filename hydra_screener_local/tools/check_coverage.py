@@ -1,10 +1,12 @@
 """Fail when line coverage drops below a floor (audit phase 10.4).
 
-    python tools/check_coverage.py --min 77.0
+    python tools/check_coverage.py --min 80.0
 
-A gradual floor, anchored on the measured baseline (77.9% over core/ data/ utils/
-sleeves/ on 2026-09-06) rather than an aspiration. Raise it when coverage rises; it
-must never be lowered to make a red build green — that is what the floor is for.
+A gradual floor, anchored on a measured number rather than an aspiration: 77.9% when
+phase 10 wrote this, ratcheted to 80.0 once CI measured 81.22% on Linux (81.96% on
+Windows — the platform difference is real, hence the headroom). Raise it when coverage
+rises; it must never be lowered to make a red build green — that is what the floor is
+for.
 
 Reads `coverage.xml`, which `run_all_tests.py --cov` writes.
 """
@@ -20,8 +22,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_XML = ROOT / "coverage.xml"
-#: measured on 2026-09-06 over core/ data/ utils/ sleeves/
-BASELINE_PCT = 77.9
+#: measured on 2026-09-06 over core/ data/ utils/ sleeves/ (Linux CI: 81.22)
+BASELINE_PCT = 81.22
 
 
 def read_line_rate(path: Path) -> float:

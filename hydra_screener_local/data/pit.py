@@ -318,7 +318,7 @@ def _commit_pointer(pit: Path, kind: str, name: str, date: str, same_as: str,
         "revision": revision, "sha256": sha256_of(content), "content_sha256": digest,
         "same_as": same_as, "fetched_at": datetime.now().isoformat(),
     }
-    versioned = pit / _versioned_name(kind, name, date, revision, manifest["sha256"])
+    versioned = pit / _versioned_name(kind, name, date, revision, sha256_of(content))
     _write_once(versioned, manifest)
     record = dict(manifest, path=str(versioned))
     _append_revision(pit, kind, name, date, record)

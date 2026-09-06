@@ -14,3 +14,16 @@ repos:
       - id: ruff
         args: ["--config", "hydra_screener_local/ruff.toml"]
         files: ^hydra_screener_local/
+
+  # TASK-391 — the cheap half of CI, before the push instead of minutes after it.
+  # ruff over the whole screener tree (R-1004 was the gap between the module list and
+  # the tree), the secret sweep, the wheel's import closure and the packaging tests.
+  # The full suite (143s) stays in CI on purpose.
+  - repo: local
+    hooks:
+      - id: hydra-gates
+        name: hydra pre-commit gates (ruff tree, secrets, wheel structure, packaging)
+        entry: python hydra_screener_local/tools/precommit_gates.py
+        language: system
+        pass_filenames: false
+        files: ^hydra_screener_local/

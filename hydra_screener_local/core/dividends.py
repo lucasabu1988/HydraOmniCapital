@@ -17,7 +17,9 @@ from datetime import datetime, timedelta, timezone
 
 from config import DIVIDEND_OVERLAP_DAYS, V9
 from core.ledger import EFFECTIVE_STATUSES
-from core.numbers import is_finite_money
+from typing import cast
+
+from core.numbers import as_finite, is_finite_money
 
 #: kept as a module name for callers; the definition lives in core.ledger
 FILLED = EFFECTIVE_STATUSES
@@ -111,11 +113,12 @@ def normalize_dividends(table, *, source: str = "unknown", fetched_at: str | Non
         if not is_finite_money(dps):
             rejected.append({"row": dict(row), "reason": f"dps is not finite: {dps!r}"})
             continue
-        if float(dps) <= 0.0:
+        dps_num = as_finite(dps)          # the guard above rules out None and junk
+        if dps_num <= 0.0:
             rejected.append({"row": dict(row), "reason": f"dps must be > 0, got {dps!r}"})
             continue
         key = (ticker, ex)
-        rec = {"ticker": ticker, "ex_date": ex, "dps": float(dps),
+        rec = {"ticker": ticker, "ex_date": ex, "dps": float(dps_num),
                "stage": NORMALIZED, "source": str(source), "fetched_at": stamp}
         prior = seen.get(key)
         if prior is None:
@@ -148,13 +151,19 @@ def dividend_key(rec: dict) -> tuple:
     )
 
 
+def etf_universe() -> list[str]:
+    """`V9["etf_universe"]` as a list of strings. V9 is a heterogeneous config dict,
+    so every read out of it is untyped; this is the one place that says what it is."""
+    return [str(t) for t in cast("list[str]", V9["etf_universe"])]
+
+
 def tickers_from_state(state: dict | None, extra: list[str] | None = None) -> list[str]:
     """ETF universe + names with units now + names filled since last_run_date.
 
     Not the whole ledger history (TASK-358): a sold name from months ago does not
     need a Yahoo call every day.
     """
-    names = set(V9["etf_universe"])
+    names = set(etf_universe())
     names.update(extra or [])
     last = str((state or {}).get("last_run_date") or "")
     for sleeve in ((state or {}).get("sleeves") or {}).values():

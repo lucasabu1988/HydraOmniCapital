@@ -75,6 +75,13 @@ def _pkg_version(name: str) -> str | None:
         return None
 
 
+def _utc_offset_seconds() -> float:
+    """Local UTC offset in seconds. `utcoffset()` is Optional on a naive datetime;
+    `astimezone()` never returns one, so the fallback is unreachable in practice."""
+    offset = datetime.now().astimezone().utcoffset()
+    return offset.total_seconds() if offset is not None else 0.0
+
+
 def _installed_versions() -> dict:
     """Every dependency's version, plus the resolved distribution list where available.
 
@@ -284,7 +291,7 @@ def start_run(
         },
         "timezone": {
             "local": str(datetime.now().astimezone().tzinfo),
-            "utc_offset_seconds": int(datetime.now().astimezone().utcoffset().total_seconds()),
+            "utc_offset_seconds": int(_utc_offset_seconds()),
         },
         "hostname": platform.node(),
         "argv": list(argv if argv is not None else sys.argv),

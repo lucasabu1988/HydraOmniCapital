@@ -338,7 +338,7 @@ a repository setting, so it is documented, not applied):
 | gate | what it would have caught |
 |---|---|
 | `build-install-smoke` (`tools/wheel_smoke.py`) | R-1001 — builds the wheel, installs it into a fresh venv, imports every declared module from *outside* the source tree and runs every console script's `--help` |
-| coverage floor (`tools/check_coverage.py --min 77.0`) | a silent drop in test coverage. Measured today: **81.93%** line over `core/ data/ utils/ sleeves/` (baseline 77.9%). It ratchets up; it is never lowered to make a build green |
+| coverage floor (`tools/check_coverage.py --min 80.0`) | a silent drop in test coverage. Measured: **81.96%** here, **81.22%** on the Linux runner. The floor was ratcheted from 77.0 to 80.0 once CI produced a real number (TASK-390); it ratchets up, and is never lowered to make a build green |
 | skip gate (`tools/check_skips.py`) | a skip reported as a pass. Baseline is **0 skips over 58 files** since TASK-374; a new skipping file fails unless it is listed with a reason |
 | `ruff check .` | R-1004 |
 | `typecheck` (`mypy.ini`) | the modules this audit added or rewrote are annotated and checked (10 files). The older tree is not, and a gate that passes because everything is ignored is not a gate |

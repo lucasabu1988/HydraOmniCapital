@@ -53,17 +53,19 @@ record, and no gate here should be read as doing so:
 
 ## Local pre-commit
 
-`.pre-commit-config.yaml` already runs ruff. To get the fast half of CI before
-pushing:
+`.pre-commit-config.yaml` runs ruff and, since TASK-391, the `hydra-gates` hook
+(`tools/precommit_gates.py`: ruff over the tree, the secret sweep and the packaging
+tests, ~4s together). To run the rest of the fast half of CI by hand before pushing:
 
 ```bash
 cd hydra_screener_local
 python run_all_tests.py --cov --strict-console
-python tools/check_coverage.py --min 77.0
+python tools/check_coverage.py --min 80.0
 python -m ruff check . --config ruff.toml
 python -m mypy --config-file mypy.ini
 python tools/check_secrets.py
-python tools/wheel_smoke.py --structure-only     # seconds; no venv, no downloads
+python tools/precommit_gates.py                  # ~4s: ruff tree, secrets, packaging
+python tools/wheel_smoke.py --structure-only     # ~10s; no venv, no downloads
 ```
 
 The full `python tools/wheel_smoke.py` builds a venv and downloads pandas, numpy and
