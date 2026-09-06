@@ -35,7 +35,22 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parent.parent
-PACKAGES = ("core", "data", "utils", "sleeves")
+
+
+def _discover_packages() -> tuple[str, ...]:
+    """Every importable package in the tree, found rather than listed.
+
+    This was a hand-kept literal, which is the same defect R-1001 was about: the
+    check certified a list instead of the thing. `analytics/` was added by another
+    branch and no gate noticed it never reached the wheel.
+    """
+    return tuple(sorted(
+        d.name for d in ROOT.iterdir()
+        if d.is_dir() and (d / "__init__.py").exists() and not d.name.startswith((".", "_"))
+    ))
+
+
+PACKAGES = _discover_packages()
 #: scripts whose --help must work from an installed wheel
 CONSOLE_SCRIPTS = (
     "hydra-daily", "hydra-refresh", "hydra-watch", "hydra-dashboard", "hydra-console",

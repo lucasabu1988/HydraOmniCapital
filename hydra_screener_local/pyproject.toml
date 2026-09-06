@@ -59,7 +59,7 @@ hydra-runlog = "runlog_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*", "data*", "utils*", "sleeves*"]
+include = ["analytics*", "core*", "data*", "sleeves*", "utils*"]
 
 # The console scripts are top-level modules, not package members, and so is `config`,
 # which every package module imports. The wheel shipped none of them, so all five
