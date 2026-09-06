@@ -37,6 +37,26 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 18:40] CLAUDE: **Auditoria estructural cerrada: fases 1-10, 61 reproducciones, rama `structural-hardening-2026-09`.**
+La fase 10 estaba a medio commitear cuando se cerro la ventana; la termine y esta en `51be4cb`. Lo gordo de esta ultima fase
+(R-1001): **la wheel nunca funciono**. `packages.find.include` no listaba `sleeves*` y los cinco scripts de consola apuntan a
+modulos de nivel raiz, que `find` no empaqueta: la wheel no llevaba `sleeves`, ni `config.py`, ni un solo modulo de entrada
+(`hydra-daily --help` -> `No module named 'daily'`). Nadie lo vio porque nadie instalo nunca la wheel: el arbol siempre se
+corre desde el fuente. Ya hay `tools/wheel_smoke.py` que construye, instala en un venv limpio, importa los 63 modulos desde
+fuera del arbol y corre los 10 scripts: verde. R-1002/R-1003: `requirements.txt` y `pyproject.toml` declaraban productos
+distintos (`rich` era obligatorio y ni esta instalado ni hace falta) y el piso de Python decia 3.9 cuando el codigo usa
+`zip(strict=True)`. R-1004: el runner imprimia "ruff: All checks passed!" sobre una lista explicita de modulos mientras
+`ruff check .` daba 5 errores fuera de esa lista — una luz verde que no mira lo que certifica.
+CI pasa de 2 a 7 jobs (wheel, mypy, secretos, pip-audit report-only, reproducibilidad) + piso de cobertura (**81.93%** medido,
+piso 77) + gate de skips (0 skips en 58 archivos). La proteccion de rama esta **documentada, no aplicada**
+(`docs/BRANCH_PROTECTION.md`): un ruleset es un ajuste del repo y necesita admin — eso es tuyo, Lucas.
+Informe final: `hydra_screener_local/docs/AUDIT_REPORT_2026-09.md`. Ahi esta lo que la auditoria **no** afirma: cero cambios de
+scoring, cero afirmacion de rendimiento, el BRK-B/BRK.B reportado y no arreglado, y el orden de merge tras el settle del martes:
+`post-freeze-wiring` -> `structural-hardening-2026-09` -> `n-sleeve-engine`.
+Cola nueva para Grok: **TASK-388** (el CI nunca ha corrido de verdad en GitHub: PR en draft y ver que jobs se ponen rojos),
+**389** (medir el duplicado de clase antes de que alguien lo dedupe), **390** (segundo tramo de modulos tipados + subir el piso),
+**391** (la mitad local de los gates en pre-commit).
+
 [2026-09-06 17:30] CLAUDE: **387 HECHA, y corrijo lo que dije a las 15:40.** El 6.96 de las ramas NO era la cache de
 sectores cambiando: `experiments/engine_diff.py` (nuevo) corrio el motor de main y el de cada rama lado a lado sobre
 los MISMOS insumos y son identicos orden por orden en 300 pasos OOS. Las ramas dieron 6.96 porque los worktrees no
@@ -1403,6 +1423,57 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 [2026-06-11 12:25] GROK: TASK-201 round 3 fixes done. Added logged-warning to the 10 listed silent except blocks (145,173,200,228,848,875,915,941,977,1053). Added universe_cache_dow30.json and universe_cache_russell1000.json (they use network). russell3000 is derived (just union of r1k+r2k which are cached), so no new cache added. Tests 6/6 green. Committed e6105b9 (only declared files). Ready for review.
 
 ## Queue
+
+### Follow-up tasks from the September audit (Claude, 2026-09-06 18:40) — TASK-388..TASK-391
+
+Purpose first, as always. None of these touches the live path, so the freeze rule is satisfied by
+construction: nothing here merges to `main` before the 2026-09-08 settle is verified. Context:
+[`hydra_screener_local/docs/AUDIT_REPORT_2026-09.md`](hydra_screener_local/docs/AUDIT_REPORT_2026-09.md).
+
+- [ ] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
+  seven — `build-install-smoke`, `typecheck`, `secret-scan`, `dependency-audit`, `reproducibility`, plus a
+  coverage floor and a skip gate on `screener` — and **not one of them has ever executed on GitHub**. They
+  are green on Windows / Python 3.14 and nowhere else, which is exactly the shape of the defect phase 10
+  was about (a gate nobody ran). Open a **draft** pull request `structural-hardening-2026-09` -> `main`
+  (draft on purpose: nothing merges before the settle), let the run finish, and fix only what is genuinely
+  a platform difference: path separators in `tools/*.py`, console encoding, the 3.13 matrix leg, whether
+  `gitleaks/gitleaks-action@v2` is available to this repo, and how much wall-clock `build-install-smoke`
+  really costs. If Linux coverage differs from the 81.93% measured here, **record the number** in the note;
+  do not move `--min` to make the leg green. Report job-by-job status. Leave the PR in draft.
+  Files: `.github/workflows/test.yml`, `hydra_screener_local/tools/*.py` and `hydra_screener_local/mypy.ini`
+  (only if a job is red), `.comms/grok-task-388-ci-first-run.md`.
+
+- [ ] `TASK-389` **Measure the duplicate share class before anyone dedupes it.** Phase 7 found the live `all`
+  universe holding `BRK-A`, `BRK-B` **and** `BRK.B`: one company under two spellings, two price series, two
+  chances of being selected, and a sector cap (`MAX_PER_SECTOR=5`) that counts them as two names. It is
+  reported and not fixed because deduping changes the recommended list. Measure it: (1) how many duplicate
+  groups `data/universe_registry.duplicate_share_classes()` finds in the live universe today and in the PIT
+  snapshots; (2) how often a group contributes two names to the same T20 over the OOS panel; (3) what
+  keeping only the more liquid spelling does to ann_net / Sharpe / maxDD. Same sector snapshot and same PIT
+  payload as main's headline (20260905: 7.1 / 0.75 / -17.8) — TASK-387's rule, or the comparison means
+  nothing. Deliver the numbers and a recommendation; **do not change selection behaviour** (rule 6, it is
+  Lucas's call). Files: `experiments/` (new script), `hydra_screener_local/data/universe_registry.py`
+  (read-only), `.comms/grok-task-389-duplicate-classes.md`.
+
+- [ ] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** `mypy.ini` checks the 10
+  modules the audit wrote; the gate only keeps meaning if the list grows as modules are touched. Add
+  `core/dividends.py`, `core/journal.py`, `core/state_migrations.py`, `data/pit.py`, `utils/runlog.py`:
+  annotations only — if a module needs a **logic** change to type it, stop, leave it out and say why in the
+  note (an audit fix disguised as a typing fix is how a regression gets in). Then raise the coverage floor
+  in the workflow to (the Linux number from TASK-388) minus 1pp, and update the docstring baseline in
+  `tools/check_coverage.py` in the same commit. Depends on TASK-388 for that number.
+  Files: `hydra_screener_local/mypy.ini`, the five modules listed, `hydra_screener_local/tools/check_coverage.py`,
+  `.github/workflows/test.yml`, `.comms/grok-task-390-typing-tier-2.md`.
+
+- [ ] `TASK-391` **The local half of the gates.** `.pre-commit-config.yaml` runs ruff over
+  `hydra_screener_local/` and nothing else, so the four cheap audit checks only fire in CI — minutes after
+  the push, on someone else's machine. Add hooks that run in seconds: `ruff check .` over the whole tree
+  (R-1004 was exactly the gap between "the list" and "the tree"), `tools/check_secrets.py`,
+  `tools/wheel_smoke.py --structure-only` (no venv, no downloads) and `pytest test_packaging.py`. Keep the
+  full suite **out** — 143s is not a commit hook. Verify with `pre-commit run --all-files`, record each
+  hook's wall-clock in the note, and drop any hook that costs more than ~5s.
+  Files: `.pre-commit-config.yaml`, `.comms/grok-task-391-pre-commit.md`.
+
 
 - [x] `TASK-387` **Pin the lab's sector map so backtest headlines are reproducible.** `experiments/redesign_lab.load_panel`
   assigns sectors through `data.sectors.lookup_sector`, i.e. the live `data_cache/sector_cache.json`; when the cache

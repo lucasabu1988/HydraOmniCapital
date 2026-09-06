@@ -303,7 +303,7 @@ Not implemented here, and not claimed. `utils/trading_calendar.py` gained
 timezone is recorded in the run manifest (phase 6), and the last observed close is
 now a first-class concept (`data/quality.py`). Wiring those into the Windows scheduled
 task lives on `post-freeze-wiring` (TASK-364), which this branch does not merge — see
-the final report.
+[the final report](AUDIT_REPORT_2026-09.md).
 
 ## Phase 10 — packaging, CI and supply chain
 

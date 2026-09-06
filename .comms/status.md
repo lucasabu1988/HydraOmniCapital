@@ -3,11 +3,14 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 12:30
-**Working on:** nothing open; 385/386/387 done by Claude (17:30). Grok's queue closed by Claude (383, 384, 364, 365, 367, 363, 382, 377). Live path FROZEN
-on main until "first settle verified" after the Tuesday 2026-09-08 close; then: merge `post-freeze-wiring` (worktree
-`../HydraOmniCapital-wiring`), flip `USE_BAR_STORE`, install `schedule\install_task.cmd`. `HYDRA_BACKUP_DIR` now points
-to OneDrive. Waiting on Lucas for H-003.
+**Updated:** 2026-09-06 18:40
+**Working on:** nothing open. Structural audit phases 1-10 closed on `structural-hardening-2026-09`
+(12 commits, 61 reproductions, pushed); phase 10 finished today in `51be4cb` (the wheel shipped no entry
+points at all — R-1001). Final report: `hydra_screener_local/docs/AUDIT_REPORT_2026-09.md`.
+Live path still FROZEN on main until the first settle after the 2026-09-08 close is verified; merge order
+then: `post-freeze-wiring` -> `structural-hardening-2026-09` -> `n-sleeve-engine`.
+Queue for Grok: TASK-388 (CI's first real run, draft PR), 389 (BRK-B/BRK.B measurement), 390 (typed tier 2
++ coverage ratchet), 391 (pre-commit). Waiting on Lucas: the branch-protection ruleset (needs admin).
 **Files I'm touching:** none.
 **Blockers:** none.
 
