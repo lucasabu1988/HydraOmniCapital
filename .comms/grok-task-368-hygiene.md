@@ -9,9 +9,9 @@ Live path not edited except two non-behaviour ruff fixes outside `core/` /
   (no mass wrap), E402 (sys.path convention), I001 (no mass isort). Frozen live
   path and legacy/Pine/experiments are per-file ignored so CI is green during
   the freeze.
-- `.pre-commit-config.yaml` (repo root) — ruff + trailing-whitespace +
-  end-of-file, scoped to `hydra_screener_local/`. Hooks fire on staged files;
-  the tree was not rewritten.
+- `.pre-commit-config.yaml` (repo root) — kept the existing `check-json` /
+  `check-yaml` / trailing-whitespace / end-of-file hooks; ruff now points at
+  `hydra_screener_local/ruff.toml` and only runs under that tree. No mass rewrite.
 - `requirements-dev.txt` — pytest, pytest-timeout, pytest-cov, ruff, pre-commit.
   Production install is still `requirements.txt`.
 - `run_all_tests.py --cov` — after a green suite, re-runs the pytest-style files
