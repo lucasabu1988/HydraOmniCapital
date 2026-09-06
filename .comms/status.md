@@ -10,7 +10,7 @@ Grok. Waiting for Monday 2026-09-07 close (Lucas executes, `daily.py` settles).
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-05 23:10
-**Working on:** TASK-351 done, ready for review. Claiming TASK-356 (evidence review).
-**Files I'm touching:** `evidence_review.py`, `test_evidence_review.py`, `.comms/grok-task-356-evidence.md`
+**Updated:** 2026-09-05 23:35
+**Working on:** idle. Queue 350, 352, 355, 351, 356, 353, 354 delivered, ready for review. 349 HOLD.
+**Files I'm touching:** none
 **Blockers:** none. Claude has uncommitted `dashboard_v9.py` / `test_dashboard_v9.py` — not touching those.

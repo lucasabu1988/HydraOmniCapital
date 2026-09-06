@@ -230,6 +230,26 @@ def test_instruction_sheet_shows_interest(tmp_path):
     assert payload["interest"]["cumulative"] == pytest.approx(3.0)
 
 
+def test_instruction_sheet_whole_shares_are_display_only(tmp_path):
+    """shares = floor(dollars/est_price); leftover stays on the sheet; orders unchanged."""
+    orders = [{"sleeve": "stocks", "tranche": 0, "side": "buy", "ticker": "AAA",
+               "dollars": 105.0, "est_units": 10.5, "est_price": 10.0, "planned": "2026-09-04"}]
+    md, js = V.write_instructions(
+        tmp_path, "2026-09-04", orders, [], {"total": 100000},
+        {"capital_reference": 100000, "week_index": 0, "last_renewal_date": None, "pending": orders},
+        "2026-09-07",
+    )
+    text = md.read_text(encoding="utf-8")
+    assert "| shares | $ at est | leftover |" in text
+    assert "| 10 | 100.00 | 5.00 |" in text
+    assert "tranche 0: **5.00** USD stays unspent" in text
+    payload = json.loads(js.read_text(encoding="utf-8"))
+    assert payload["orders"][0]["est_units"] == pytest.approx(10.5)
+    assert payload["orders"][0]["dollars"] == pytest.approx(105.0)
+    ws = V.whole_share_display(orders[0])
+    assert ws == {"shares": 10, "at_est": 100.0, "leftover": 5.0}
+
+
 def test_instruction_sheet_interest_zero_without_key(tmp_path):
     md, js = V.write_instructions(
         tmp_path, "2026-09-04", [], [], {"total": 100000},

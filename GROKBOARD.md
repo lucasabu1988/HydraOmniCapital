@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 23:35] GROK: TASK-354 done, ready for review. Stationary bootstrap
+mean block 13, 5000 draws on the audit OOS series. Mix ann 90% [4.01, 9.73];
+10% net is above p95. P(T20>PROD)=0.776; P(mix Sharpe>T20 Sharpe)=0.999. Note
+`.comms/grok-task-354-bootstrap.md`. Queue 350-356 except 349 HOLD is delivered.
+Engine not edited.
+
+[2026-09-05 23:30] GROK: TASK-353 done, ready for review. Instruction sheet
+shows floor(dollars/est_price), $ at est, leftover per tranche. Engine orders
+unchanged. Then 354.
+
 [2026-09-05 23:20] GROK: TASK-356 done, ready for review. `evidence_review.py
 --quarter/--since` writes `.comms/evidence-<period>.md` with the 7 spec-10.2
 questions and the 3 triggers. 3 tests on an 8-week synthetic journal. Claiming
@@ -1190,13 +1200,13 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
   recommendations beyond "evidence for a hypothesis (spec 10.3)". Tests on a synthetic journal of
   8 weeks. Files: `evidence_review.py`, `test_evidence_review.py`, `.comms/grok-task-356-evidence.md`.
 
-- [ ] `TASK-353` **Whole shares on the instruction sheet.** Lucas buys whole shares; the sheet shows
+- [x] `TASK-353` **Whole shares on the instruction sheet.** Lucas buys whole shares; the sheet shows
   fractional `est_units`. Add display-only columns: `shares = floor(dollars / est_price)`, `$ at est
   price`, and per tranche the cash left over by the rounding. Orders and presumed fills stay in
   dollars/fractional (the engine does not change); `confirm_fills` is where whole units enter the
   book. Files: `portfolio_v9.py`, `test_portfolio_v9_cli.py`, `.comms/grok-task-353-shares.md`.
 
-- [ ] `TASK-354` **Uncertainty around the audit numbers.** Stationary block bootstrap (mean block 13
+- [x] `TASK-354` **Uncertainty around the audit numbers.** Stationary block bootstrap (mean block 13
   steps) on the OOS step-return series of PROD, T20, ETF and the 50/50 mix (`experiments/_lab_scratch/
   task332_series.json` if it has them, else re-run `run_exec`/`run_sleeve`/`mix`): 90% intervals for
   ann_net and Sharpe, and the distribution of maxDD; probability that T20 > PROD and that the mix
@@ -1210,7 +1220,14 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 
 
 ## Completed
 
-- `TASK-356` (Grok) `evidence_review.py --quarter/--since`: 7 spec-10.2
+- `TASK-354` (Grok) Stationary bootstrap (mean block 13, 5000 draws) on the
+  audit OOS mix/T20/PROD/ETF series. Mix ann 90% [4.01, 9.73]; P(T20>PROD)=0.776;
+  P(mix Sharpe>T20)=0.999. Appendix paragraph in the note. Analysis only.
+  Note `.comms/grok-task-354-bootstrap.md`.
+- `TASK-353` (Grok) Whole shares on the instruction sheet (display-only):
+  `shares = floor($/est_price)`, `$ at est`, leftover per tranche. Orders stay
+  fractional. Note `.comms/grok-task-353-shares.md`.
+- `TASK-356` (Grok, `88ca0d5`) `evidence_review.py --quarter/--since`: 7 spec-10.2
   questions + 3 triggers (cone p5, preflight HARD, residual > 0.5%). Output
   only. 3 tests, 8-week synthetic journal. Note `.comms/grok-task-356-evidence.md`.
 - `TASK-351` (Grok, `b58537d`) `reconcile.py`: broker CSV vs state, read-only, exit 0,

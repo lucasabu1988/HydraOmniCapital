@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import shutil
 import sys
@@ -174,6 +175,23 @@ def _row(frame, date: str) -> pd.Series:
     return frame.iloc[-1]
 
 
+def whole_share_display(order: dict) -> dict | None:
+    """Display-only: floor(dollars / est_price). Engine orders stay fractional."""
+    if order.get("side") not in ("buy", "sell"):
+        return None
+    dollars = float(order.get("dollars") or 0.0)
+    price = order.get("est_price")
+    try:
+        price = float(price) if price is not None else None
+    except (TypeError, ValueError):
+        price = None
+    if price is None or price <= 0 or dollars <= 0:
+        return None
+    shares = int(math.floor(dollars / price))
+    at = shares * price
+    return {"shares": shares, "at_est": round(at, 4), "leftover": round(dollars - at, 4)}
+
+
 def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
                        state: dict, exec_date: str, sector_warning: str | None = None) -> tuple[Path, Path]:
     payload = {
@@ -191,6 +209,7 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         "execute": f"ejecutar al cierre del {exec_date} (MOC t+1). Fills presumidos hasta que corrijas el estado.",
         "sector_degraded": sector_warning,
         "interest": _json_ready(summarize_interest(state)),
+        "whole_shares": "display-only; orders and presumed fills stay in dollars/fractional",
     }
     md_path = state_dir / f"instructions_{date.replace('-', '')}.md"
     json_path = state_dir / f"instructions_{date.replace('-', '')}.json"
@@ -224,17 +243,30 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
     if not orders:
         lines.append("**No trades today** (non-renewal day, or this date was already planned).")
     else:
-        lines.append("| sleeve | tranche | side | ticker | $ | est. units | est. price |")
-        lines.append("|---|---|---|---|---|---|---|")
+        lines.append("| sleeve | tranche | side | ticker | $ | est. units | est. price | shares | $ at est | leftover |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|")
+        leftover_by = {}
         for o in orders:
             units = o.get("est_units")
             price = o.get("est_price")
+            ws = whole_share_display(o)
+            sh = "" if ws is None else str(ws["shares"])
+            at = "" if ws is None else f"{ws['at_est']:.2f}"
+            left = "" if ws is None else f"{ws['leftover']:.2f}"
+            if ws is not None and o.get("side") == "buy":
+                key = (o.get("sleeve"), o.get("tranche"))
+                leftover_by[key] = leftover_by.get(key, 0.0) + ws["leftover"]
             lines.append(
                 f"| {o.get('sleeve')} | {o.get('tranche')} | {o.get('side')} | {o.get('ticker')} | "
                 f"{o.get('dollars', 0):.2f} | "
                 f"{'' if units is None else f'{units:.4f}'} | "
-                f"{'' if price is None else f'{price:.4f}'} |"
+                f"{'' if price is None else f'{price:.4f}'} | "
+                f"{sh} | {at} | {left} |"
             )
+        if leftover_by:
+            lines += ["", "Cash left over by rounding (buys, display-only; engine still books dollars):", ""]
+            for (sleeve, k), amt in leftover_by.items():
+                lines.append(f"- {sleeve} tranche {k}: **{amt:.2f}** USD stays unspent if you buy whole shares")
     lines += ["", "## Valuation (last close)", ""]
     if summary:
         tot = summary.get("total") or 0.0
