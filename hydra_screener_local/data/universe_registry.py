@@ -63,7 +63,7 @@ NON_COMMON_SUFFIXES = {
 
 #: tickers that are funds the v9 stock sleeve must never hold. The ETF sleeve names
 #: its own universe explicitly in config.V9["etf_universe"].
-DISALLOWED_FUND_PREFIXES = ()
+DISALLOWED_FUND_PREFIXES: tuple[str, ...] = ()
 
 
 UNIVERSES: dict[str, dict] = {

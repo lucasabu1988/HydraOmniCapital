@@ -15,7 +15,6 @@ Usage:
 """
 import argparse
 import json
-import os
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):

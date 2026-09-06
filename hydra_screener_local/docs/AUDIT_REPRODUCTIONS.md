@@ -304,3 +304,50 @@ timezone is recorded in the run manifest (phase 6), and the last observed close 
 now a first-class concept (`data/quality.py`). Wiring those into the Windows scheduled
 task lives on `post-freeze-wiring` (TASK-364), which this branch does not merge — see
 the final report.
+
+## Phase 10 — packaging, CI and supply chain
+
+| id | phase | defect | reproduction | fixed in |
+|---|---|---|---|---|
+| R-1001 | 10.1/10.2 | **the wheel was broken.** `packages.find.include` listed `core*, data*, utils*` and no `sleeves*`, and the five console scripts point at top-level modules, which `find` never ships: the wheel contained neither `sleeves`, nor `config.py`, nor a single entry-point module. Every script was dead on an installed copy and `import core.signals` failed on `from config import ...` | `test_packaging.py::test_r1001_*` (4 tests) + `tools/wheel_smoke.py` | `fix: ship a wheel that actually runs` |
+| R-1002 | 10.3 | **`requirements.txt` and `pyproject.toml` declared different products.** pyproject had `requests` and neither `scipy`, `python-dateutil` nor `rich`; requirements had `rich` — which is not installed on Lucas's machine and is not needed — and no `requests`. Nothing compared them | `test_packaging.py::test_r1002_*` (4 tests) | same |
+| R-1003 | 10.3 | `requires-python = ">=3.9"` was wrong: the tree uses `zip(..., strict=True)` and PEP 604 unions at runtime, so a 3.9 install fails on import | `test_packaging.py::test_r1003_*`, `test_the_ruff_target_matches_the_python_floor` | same |
+| R-1004 | 10.5 | **the lint gate said "All checks passed" while the tree was red.** The suite and CI ran ruff over an explicit module list; the brief runs `ruff check .`, and five errors in four files outside that list (unused `os`/`Path`/`numpy` imports, an f-string with no placeholders, an unannotated empty tuple) had been passing for as long as the list existed | `python -m ruff check . --config ruff.toml`, now its own CI step | same |
+
+Recorded at the base commit:
+
+```
+R-1001  wheel contents: core/, data/, utils/ only
+        missing: sleeves/, config.py, daily.py, refresh_current_prices.py,
+                 live_watcher.py, generate_html_dashboard.py, console_dashboard.py
+        hydra-daily --help  ->  ModuleNotFoundError: No module named 'daily'
+R-1002  only in requirements.txt: rich, python-dateutil, scipy
+        only in pyproject:        requests
+R-1003  requires-python = ">=3.9"; strict=True used in core/, data/, utils/ and the root
+R-1004  python -m ruff check . --config ruff.toml  ->  Found 5 errors
+        (run_all_tests.py reported: ruff (report-only): All checks passed!)
+```
+
+### What phase 10 added as gates, not as claims
+
+`.github/workflows/test.yml` grew from two jobs to seven, and every one of them except
+`dependency-audit` is meant to be required on `main`
+([`docs/BRANCH_PROTECTION.md`](BRANCH_PROTECTION.md) has the exact ruleset; a ruleset is
+a repository setting, so it is documented, not applied):
+
+| gate | what it would have caught |
+|---|---|
+| `build-install-smoke` (`tools/wheel_smoke.py`) | R-1001 — builds the wheel, installs it into a fresh venv, imports every declared module from *outside* the source tree and runs every console script's `--help` |
+| coverage floor (`tools/check_coverage.py --min 77.0`) | a silent drop in test coverage. Measured today: **81.93%** line over `core/ data/ utils/ sleeves/` (baseline 77.9%). It ratchets up; it is never lowered to make a build green |
+| skip gate (`tools/check_skips.py`) | a skip reported as a pass. Baseline is **0 skips over 58 files** since TASK-374; a new skipping file fails unless it is listed with a reason |
+| `ruff check .` | R-1004 |
+| `typecheck` (`mypy.ini`) | the modules this audit added or rewrote are annotated and checked (10 files). The older tree is not, and a gate that passes because everything is ignored is not a gate |
+| `secret-scan` | gitleaks with `.gitleaks.toml`, plus `tools/check_secrets.py` — a dependency-free sweep so the gate still means something if the action is unavailable, and so an `.env` never lands |
+| `reproducibility` | serialisation, state migration, PIT identity and ledger integrity on their own job, so a failure there is unmistakable |
+| `dependency-audit` | `pip-audit`, **report-only on purpose**: a CVE in a transitive pin is not a reason to block a screener commit, but it must be visible |
+
+Phase 10.6 also covers what the wheel is *not*: `test_packaging.py::test_no_broker_or_cloud_execution_is_declared`
+asserts no broker SDK and no cloud-execution dependency is declared anywhere in the
+install (rule 3 of the brief), and the state written every run is proved JSON-clean and
+migratable from the pre-phase-1 shape that is on Lucas's disk today — without a rewrite
+and without moving a number.
