@@ -519,7 +519,7 @@ dropped from the contract the warning cannot fire.
 
 ---
 
-## 9. HYDRA v9 — 50/50 T20 + ETF portfolio (authorised 2026-09-06, not yet the active version)
+## 9. HYDRA v9 — 50/50 T20 + ETF portfolio (authorised 2026-09-06, active since 2026-09-05)
 
 Lucas authorised on 2026-09-06 moving production to a two-sleeve portfolio whose objective is
 **return per unit of risk** (simulated on the S&P 500 PIT panel with executable accounting:
@@ -591,3 +591,67 @@ buffer, sector cap, idempotent plan, transfer sign, costs and unfilled orders) a
 executable simulator (`experiments/redesign_lab.run_exec` targets for T20 and
 `experiments/sleeve_lab.run_sleeve` targets for the ETF sleeve on >= 20 renewal dates, atol 1e-9;
 skipped without the lab caches).
+
+## 10. Evolution protocol (Lucas 2026-09-06: "constant evolution", agreed structure)
+
+The system learns on three clocks. Mixing them is how a momentum strategy gets tuned to noise: one
+week is one observation (weekly SD ~1.7% against an expected edge ~0.13%/week; at Sharpe 0.74 it
+takes ~7 years of live data to tell "broken" from "unlucky"). What CAN be learned every week is
+execution, data quality and whether the live process matches the simulation — where the real
+defects have been found so far (spec 9.3).
+
+### 10.1 Weekly journal (automatic, every `daily.py` run) — TASK-355
+
+`journal/YYYY-MM-DD.json` (one record per run, JSONL-compatible) and a human `journal/JOURNAL.md`
+entry appended per run. Both gitignored (they contain the live book); backed up with the state.
+Fields, all taken from artefacts that already exist (state, sheet, ranking, fills, reconcile):
+
+- **seen**: regime score and label, `recommended_count`, stock exposure `min(1, 0.15/vol)`, basket
+  vol63, ETF on/off set and weights, sector-cap binding (names displaced), DEGRADED flags, universe
+  coverage, last bar dates (stocks / ETF / ^IRX).
+- **did**: orders planned; fills presumed vs confirmed (count, units, price); slippage in bp versus
+  the modelled 10/5 bp; `not_filled`, `hold_no_price`, write-offs, transfers, interest accrued.
+- **book**: total, per sleeve value/share/cash, week index, tranche renewed.
+- **expectation vs realisation**: the 5-bar book return and its percentile inside the OOS backtest's
+  distribution of 5-bar returns (`experiments/_lab_scratch/task332_series.json` or the mix series);
+  cumulative live curve vs the backtest cone (5th/50th/95th percentile paths from the anchor).
+- **process**: reconciliation residual (351) when available, preflight result (352), errors.
+- **observations**: free text Lucas writes (`daily.py --note "..."` or by editing the md entry).
+
+The journal records; it never changes a parameter.
+
+### 10.2 Evidence review (quarterly, or event-driven) — TASK-356
+
+`evidence_review.py` answers the same pre-set questions every time, from the journal, and writes
+`.comms/evidence-YYYY-QN.md`:
+
+1. Is the live curve inside the backtest cone? Where (percentile)?
+2. Realised execution cost (slippage + fees) vs the 10/5 bp modelled; per sleeve.
+3. How often did the sector cap bind; which sectors; how many names displaced.
+4. Realised cost of the 50/50 reset (transfers) and of the vol-target cash drag; interest earned.
+5. `not_filled` / `hold_no_price` / write-off counts and dollars.
+6. Book vs broker: reconciliation residual trend.
+7. Data: coverage, DEGRADED runs, stale bars, provider failures.
+
+Triggers besides the calendar: live drawdown beyond the backtest's 95th-percentile drawdown for
+the elapsed horizon; a preflight hard fail; a reconciliation residual > 0.5% of the book. The
+review produces evidence and, at most, a **hypothesis** (10.3). It changes nothing.
+
+### 10.3 Hypothesis register and change protocol (`.comms/hypotheses.md`)
+
+Every proposed change to scoring, selection, exposure, sleeves, costs or accounting — whoever
+proposes it — is written BEFORE it is tested:
+
+- `H-###`: statement, motivation (journal evidence, review finding, external paper), expected
+  effect and the single metric that decides, the test (DEV panel first; TEST is read once per
+  hypothesis and said so), what would falsify it.
+- Test in the lab harness on history, never on the live weeks. Report gross, net, Sharpe, maxDD,
+  turnover, and the paired difference against the current version with its standard error.
+- Decision by Lucas (rule 6). Accepted -> new minor version (v9.1, v9.2, ...), `ALGO_VERSION`
+  bumped, SPEC updated, the journal marks the switch date so later evidence can be attributed.
+  Rejected -> stays in the register with the numbers (no re-testing the same idea with new names).
+- Cadence: at most one accepted change per quarter unless an event trigger (10.2) fires. Nothing
+  is tuned to the latest week.
+
+What already adapts inside the algorithm, by rule and measured in backtest, is not a "change":
+vol-target exposure, regime/Meta-Layer dynamic count, ETF trend on/off, sector cap, buffer.

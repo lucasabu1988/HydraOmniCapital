@@ -37,6 +37,18 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 01:30] CLAUDE: Lucas aprobo el **protocolo de evolucion** (spec seccion 10, nueva): diario
+semanal automatico, revision de evidencia trimestral con preguntas fijas, y registro de hipotesis
+(`.comms/hypotheses.md`) para cualquier cambio del algoritmo, probado en el lab sobre historia y nunca
+sobre las semanas vivas. Dos tareas nuevas: **355** diario (`core/journal.py` + hook en `daily.py`) y
+**356** `evidence_review.py`. Prioridad ahora: 350 -> 352 -> 355 -> 351 -> 356 -> 353 -> 354; 349 sigue
+en hold. `journal/` queda gitignored (contiene el libro vivo).
+
+[2026-09-05 22:30] GROK: Claiming TASK-352. preflight.py over fetched frames
+(no network): hard-fail stale bars / missing ETFs / unknown schema; warn on
+coverage, sector-unknown, old pending, unset HYDRA_BACKUP_DIR. daily.py /
+portfolio_v9.py stop unless --force. Will not edit core/portfolio_engine.py.
+
 [2026-09-05 22:25] GROK: TASK-350 done, ready for review. OOS PIT 2004-26, 1084
 plans. Audit mix 6.91 / 0.74 / -19.5; engine **7.91 / 0.77 / -19.1**. 1
 not_filled (TWX), 492 hold_no_price (AET/ESRX/TWX), 0 write-offs. Interest
@@ -1059,7 +1071,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 `L.run_any(P, cfg, start=...)`, `L.stats(df, L.step_of(cfg), label)`, `L.CONFIGS`, `L.BASE`). Every run is
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
-into the task's `.comms` note. Priority: 350 -> 352 -> 351 -> 353 -> 354; 349 on hold.
+into the task's `.comms` note. Priority: 350 -> 352 -> 355 -> 351 -> 356 -> 353 -> 354; 349 on hold.
 
 - [x] `TASK-347` **Backtest the PRODUCTION engine end-to-end on the lab panel.** The parity tests check
   target weights on renewal dates; nobody has driven `plan()/settle()/mark()` through history. Build
@@ -1119,7 +1131,7 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 351 -> 353 -> 354; 349 on
   writes nothing. Tests on a synthetic state. Files: `reconcile.py`, `test_reconcile.py`,
   `.comms/grok-task-351-reconcile.md`.
 
-- [ ] `TASK-352` **`preflight.py`: refuse to plan on bad data.** Before the v9 plan, check and print a
+- [~] `TASK-352` **`preflight.py`: refuse to plan on bad data.** Before the v9 plan, check and print a
   table: last stock bar, last ETF bar and last `^IRX` bar all equal to the last NYSE session (hard
   fail otherwise: a stale yfinance day would produce a sheet with yesterday's prices); share of the
   universe with a print on that bar (warn < 90%); 10/10 ETFs present (hard fail); sector-unknown
@@ -1128,6 +1140,34 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 351 -> 353 -> 354; 349 on
   run it first and stop on a hard fail unless `--force`. Pure function over the fetched frames so
   tests need no network. Files: `preflight.py`, `portfolio_v9.py`, `daily.py`, `test_preflight.py`,
   `.comms/grok-task-352-preflight.md`.
+
+- [ ] `TASK-355` **Weekly journal (spec 10.1).** After every `daily.py` run append one record to
+  `journal/<date>.json` and one entry to `journal/JOURNAL.md` (both gitignored; copied to
+  `HYDRA_BACKUP_DIR` with the state). Content is a rollup of artefacts that already exist — do not
+  recompute signals: **seen** (regime score/label, recommended_count, stock exposure and basket
+  vol63, ETF on/off set + weights, sector-cap displacements, DEGRADED flags, coverage, last bar per
+  source), **did** (orders; presumed vs confirmed fills; slippage bp vs 10/5 modelled; not_filled /
+  hold_no_price / write-offs / transfers / interest), **book** (total, per sleeve value/share/cash,
+  week, tranche renewed), **expectation vs realisation** (5-bar book return and its percentile in the
+  OOS backtest's 5-bar return distribution — use `experiments/_lab_scratch/task332_series.json` if it
+  carries the mix series, else `sleeve_lab.mix` output cached once — plus the live curve vs the
+  5/50/95 cone from the anchor), **process** (preflight result when 352 exists, reconcile residual
+  when 351 exists, errors), **observations** (free text via `daily.py --note "..."`, appended, never
+  overwritten). Pure builder `core/journal.py` (state + sheet + ranking -> record) tested on a
+  synthetic state; `journal.py` CLI to re-render `JOURNAL.md` from the json files. The journal never
+  changes a parameter. Files: `core/journal.py`, `journal.py`, `daily.py` (hook + `--note`),
+  `portfolio_v9.py` (return the pieces the builder needs; no logic), `test_journal.py`,
+  `.comms/grok-task-355-journal.md`.
+
+- [ ] `TASK-356` **Evidence review (spec 10.2).** `evidence_review.py --quarter 2026-Q4` (or
+  `--since <date>`) reads `journal/*.json` and writes `.comms/evidence-<period>.md` answering the
+  seven fixed questions of spec 10.2 with tables: live vs cone (percentile), realised execution cost
+  vs modelled per sleeve, sector-cap binding, reset transfers and vol-target cash drag vs interest,
+  not_filled/write-off counts and dollars, reconciliation residual trend, data quality. Also the
+  three event triggers (drawdown beyond the backtest's 95th percentile for the elapsed horizon;
+  preflight hard fail; residual > 0.5%): print them and add a line to the report. Output only; no
+  recommendations beyond "evidence for a hypothesis (spec 10.3)". Tests on a synthetic journal of
+  8 weeks. Files: `evidence_review.py`, `test_evidence_review.py`, `.comms/grok-task-356-evidence.md`.
 
 - [ ] `TASK-353` **Whole shares on the instruction sheet.** Lucas buys whole shares; the sheet shows
   fractional `est_units`. Add display-only columns: `shares = floor(dollars / est_price)`, `$ at est
@@ -1149,7 +1189,7 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 351 -> 353 -> 354; 349 on
 
 ## Completed
 
-- `TASK-350` (Grok) Production engine on the OOS PIT panel (1209 names, 2004-26,
+- `TASK-350` (Grok, `3799a85`) Production engine on the OOS PIT panel (1209 names, 2004-26,
   delistings). Audit 50/50 mix 6.91 / 0.74 / −19.5; engine **7.91 / 0.77 / −19.1**.
   1 not_filled (TWX), 492 hold_no_price (AET, ESRX, TWX), 0 write-offs / $0,
   1370 transfers, interest 0.267 on start book 1.0. Same strategy, plumbing only

@@ -30,6 +30,8 @@
 
 **Objetivo declarado:** retorno por unidad de riesgo, no retorno absoluto. Evidencia (simulación con contabilidad ejecutable, S&P 500 point-in-time 2004-2026, costes incluidos): cartera 50/50 **6.9 % neto, Sharpe 0.74, maxDD −19.5 %** frente al screener v8.4 solo (5.5 % / 0.42 / −37.8 %) y SPY comprar-y-mantener (11.0 % / 0.68 / −54.7 %). El 10 % neto **no se demuestra**; el universo Russell de producción **no está medido** (solo S&P 500). No hay track record: el único registro vivo es el ledger de `state/`.
 
+Evolución: el sistema aprende en tres relojes (diario semanal automático, revisión de evidencia trimestral, registro de hipótesis para cualquier cambio del algoritmo, probado sobre historia y nunca sobre las semanas vivas): spec §10 y [`.comms/hypotheses.md`](.comms/hypotheses.md).
+
 Documentos: [diseño de producción](.comms/claude-v9-production-design-2026-09-06.md) · [auditoría y métricas](.comms/claude-audit-2026-09-06.md) · [veredicto del rediseño](.comms/claude-redesign-verdict-2026-09-06.md) · [mangas](.comms/claude-sleeves-design-2026-09-06.md) · spec: [`HYDRA_ALGORITHM_SPEC.md`](hydra_screener_local/HYDRA_ALGORITHM_SPEC.md) (§9 = v9). Parámetros: [`config.py`](hydra_screener_local/config.py) (`ALGO_VERSION`, bloque `V9`). El scoring está **cerrado** salvo aprobación explícita de Lucas.
 
 ---
