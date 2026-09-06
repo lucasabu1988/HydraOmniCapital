@@ -50,7 +50,7 @@ Ritmo semanal:
 2. **Lunes al cierre:** ejecuta los importes en $ de la hoja (MOC). El efectivo no invertido de cada manga va a T-bill/fondo monetario.
 3. **Lunes tras el cierre (o martes):** `python daily.py` liquida los fills presumidos al cierre del lunes y valora. Los días sin renovación imprimen "No trades today".
 4. **Fills reales:** `python confirm_fills.py --from-csv fills.csv` (`exec_date,sleeve,tranche,ticker,side,units,price,fee`); `--report` solo muestra diferencias. Compras no planificadas quedan como `confirmed_unplanned`.
-5. **Dashboard local:** `python dashboard_v9.py` → `http://127.0.0.1:8765/` (rendimiento, P/L realizado y no realizado, log de operaciones, curva de equity, comparación con SPY). Solo lectura del estado; cotizaciones cada 5 min.
+5. **Dashboard local:** `python dashboard_v9.py` (o doble clic en `dashboard_v9.cmd`, que arranca el servidor si hace falta y abre el navegador) → `http://127.0.0.1:8765/` (rendimiento, P/L realizado y no realizado, log de operaciones, curva de equity, comparación con SPY). Solo lectura del estado; cotizaciones cada 5 min.
 6. **Respaldo fuera del disco:** define `HYDRA_BACKUP_DIR`; cada corrida copia `state/` y las hojas a `<dir>/state_v9/<fecha>/`.
 
 Primera corrida: `python portfolio_v9.py --capital 100000` (o `daily.py --v9-capital`). El primer estado se creó el **2026-09-04** (ancla viernes; primeras órdenes lunes 2026-09-07 al cierre).
