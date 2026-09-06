@@ -514,7 +514,17 @@ def fetch_prices_and_volume_cached(
                 full = provider.fetch(mismatches, start, end)
                 for t in mismatches:
                     piece = full[full["ticker"].astype(str) == t] if (full is not None and not full.empty and "ticker" in full.columns) else pd.DataFrame()
-                    n = store.replace_ticker(t, piece, min_bars=n_overlap)
+                    n = store.replace_ticker(t, piece, min_bars=n_overlap,
+                                             reason="yahoo readjustment")
+                    if n == 0 and piece is not None and not getattr(piece, "empty", True):
+                        # The refetch does not cover the stored span, so a full replace
+                        # would delete history (audit phase 5.3, repro R-501). Correct
+                        # only the refetched window and say so: bars before `start` are
+                        # now on the previous adjustment basis.
+                        n = store.replace_range(t, piece, start, end,
+                                                reason="yahoo readjustment (window only)")
+                        if n:
+                            report.setdefault("readjust_window_only", []).append(t)
                     if n == 0:
                         report["failed_tickers"].append(t)
                         report.setdefault("failed_reasons", {})[t] = "readjust_empty"

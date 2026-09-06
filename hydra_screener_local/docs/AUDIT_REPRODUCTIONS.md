@@ -143,3 +143,34 @@ R-404  retraction API present: []
 R-405  two CONFLICTING dps for one ex-date -> credited=1 cash=105.0  (silent first-wins)
 R-406  NaN dps -> credited=0 cash=100.0                              (silently dropped)
 ```
+
+## Phase 5 — data store and data quality
+
+| id | phase | defect | reproduction | fixed in |
+|---|---|---|---|---|
+| R-501 | 5.3/5.4 | **`replace_ticker` destroyed history silently.** `min_bars=10` was no guard: a 12-bar frame passed it and cut **2800 stored bars down to 12** | `test_store_integrity.py::test_r501_*` | `fix: repair store verification and non-destructive backfill` |
+| R-502 | 5.2 | `stored_vs_fresh` was computed, printed and thrown away — only `local_vs_fresh` gated the exit code, and that needs actions coverage the store often lacks | `test_store_integrity.py::test_r502_*` | same |
+| R-503 | 5.1 | `verify` on an **empty store** returned True (exit 0) | `test_store_integrity.py::test_r503_*` | same |
+| R-504 | 5.1 | a provider that returned nothing was a per-ticker `continue`, and the command still printed `verify ok` | `test_store_integrity.py::test_r504_*` | same |
+| R-505 | 5.1 | no date overlap between stored and fresh was also just a `continue` | `test_store_integrity.py::test_r505_*` | same |
+| R-506 | 5.6 | no gap, duplicate, non-positive-close, provider or capture-time metric existed anywhere | `test_store_integrity.py::test_r506_*` | same |
+| R-507 | 5.7 | **`reconcile.py` always returned 0**, including from a bare `except Exception`, so a broken CSV read as a clean reconciliation | `test_store_integrity.py::test_r507_*` | same |
+
+Recorded at the base commit:
+
+```
+R-501  stored: 2800 bars 2015-01-01 -> 2025-09-24
+       after replace_ticker with a 12-bar frame: 12 bars 2026-01-01 -> 2026-01-16
+R-502  local_vs_fresh gates the exit code : True
+       stored_vs_fresh gates the exit code: False
+R-503  empty store -> verify returns True  (exit code 0)
+R-504  AAA: provider empty  /  verify ok  -> True
+R-505  AAA: no overlap      /  verify ok  -> True
+R-506  coverage columns: ticker, first, last, n_bars, has_asof   (no gaps/duplicates)
+R-507  reconcile.main() ends in `return 0` on every path, after `except Exception`
+```
+
+Two existing tests asserted the defect and were rewritten:
+`test_bar_store.py::test_replace_ticker_drops_old_rows` (required that a 15-bar frame
+shrink a 40-bar history) and `test_reconcile.py::test_cli_exit_0_on_missing_state`
+(required exit 0 when the state file was missing).
