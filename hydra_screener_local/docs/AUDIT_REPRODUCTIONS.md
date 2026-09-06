@@ -174,3 +174,31 @@ Two existing tests asserted the defect and were rewritten:
 `test_bar_store.py::test_replace_ticker_drops_old_rows` (required that a 15-bar frame
 shrink a 40-bar history) and `test_reconcile.py::test_cli_exit_0_on_missing_state`
 (required exit 0 when the state file was missing).
+
+## Phase 6 — PIT, sectors and reproducibility
+
+| id | phase | defect | reproduction | fixed in |
+|---|---|---|---|---|
+| R-601 | 6.1/6.2/6.10 | **the same date was overwritten with different content.** Writing `["CCC","DDD"]` for 2026-01-05 replaced `["AAA","BBB"]` in place; two completely different memberships shared one identity and the first left no trace | `test_pit_identity.py::test_r601_*` | `fix: make PIT inputs immutable and content-addressed` |
+| R-602 | 6.4 | no hash of any kind was recorded — payload keys were `count, fetched_at, source, tickers` | `test_pit_identity.py::test_r602_*` | same |
+| R-603 | 6.4/6.5 | readers got a bare `set` and could not say which snapshot they had loaded | `test_pit_identity.py::test_r603_*` | same |
+| R-604 | 6.6 | a missing PIT snapshot returned `set()` / `({}, None)` and the run continued as if it had point-in-time data | `test_pit_identity.py::test_r604_*` | same |
+| R-605 | 6.7 | a corrupt sector value was serialised as a sector — `str(None)` is `"None"`, which reads back as a GICS sector | `test_pit_identity.py::test_r605_*` | same |
+| R-606 | 6.8/6.9 | nothing tied `audit_steps.pkl` to the panel, sector map, config or code it came from, so a stale baseline could outlive all four and still print a percentile | `test_pit_identity.py::test_r606_*` | same |
+
+Recorded at the base commit:
+
+```
+R-601  path 1 == path 2 : True
+       content 1 tickers: ['AAA','BBB']  ->  content 2 tickers: ['CCC','DDD']
+R-602  payload keys: ['count', 'fetched_at', 'source', 'tickers']
+R-603  membership returns a bare set: set ['CCC','DDD']
+R-604  membership on an empty dir : set()
+       sectors_at on an empty dir : ({}, None)
+R-606  no *.key.json sidecar anywhere; nothing binds the baseline to its inputs
+```
+
+The eight snapshots already in `data_cache/pit/` were re-read after the rewrite:
+sp500 = 503 names, all = 3002, sectors = 2897, no fallback. Their identity honestly
+reports `recorded_sha256=None, verified=False` — they predate content addressing, and
+saying so is the point.

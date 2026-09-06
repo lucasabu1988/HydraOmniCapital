@@ -62,12 +62,38 @@ def _git_info(cwd: Path | None = None) -> tuple[str | None, bool]:
         return None, False
 
 
+#: recorded in every manifest so a run can be rebuilt with the same stack
+DEPENDENCIES = ("pandas", "numpy", "yfinance", "scipy", "openpyxl", "requests",
+                "dateutil", "pytest", "ruff")
+
+
 def _pkg_version(name: str) -> str | None:
     try:
         mod = __import__(name)
         return getattr(mod, "__version__", None)
     except Exception:
         return None
+
+
+def _installed_versions() -> dict:
+    """Every dependency's version, plus the resolved distribution list where available.
+
+    Audit pre-work item 5: "a result that only carries a date is not reproducible".
+    A version map is the minimum, and `importlib.metadata` gives the authoritative one
+    when the package is installed rather than merely importable.
+    """
+    out = {name: _pkg_version(name) for name in DEPENDENCIES}
+    try:
+        from importlib.metadata import distributions
+        dists = {d.metadata["Name"].lower(): d.version
+                 for d in distributions() if d.metadata.get("Name")}
+    except Exception:
+        dists = {}
+    for name in DEPENDENCIES:
+        key = "python-dateutil" if name == "dateutil" else name
+        if dists.get(key):
+            out[name] = dists[key]
+    return out
 
 
 def _fingerprint_frame(frame) -> dict:
@@ -104,6 +130,68 @@ class RunContext:
         self._write_manifest()
         self.logger.info("fingerprint %s last_bar=%s shape=%s", name, rec["last_bar"], rec["shape"])
         return rec
+
+    def inputs(self, *, universes=None, date=None, pit_dir=None,
+               panel=None, sector_map=None, universe_tickers=None,
+               providers=None) -> dict:
+        """Record the identity of every data input this run used (audit phase 6.5).
+
+        universe hash, panel hash, sector-map hash, each PIT snapshot's hash, source,
+        capture date, whether a fallback was used, row counts and schema. Written into
+        the manifest under `inputs`, so a recommendation can be rebuilt from it.
+        """
+        from core.baseline import frame_hash, sha256_json
+        from data.pit import inputs_manifest
+
+        rec: dict = {"pit": inputs_manifest(universes=universes, date=date, pit_dir=pit_dir)}
+        if universe_tickers is not None:
+            names = sorted({str(t) for t in universe_tickers if str(t).strip()})
+            rec["universe"] = {"n": len(names), "sha256": sha256_json(names)}
+        if panel is not None:
+            rec["panel"] = {
+                "sha256": frame_hash(panel),
+                "shape": list(getattr(panel, "shape", ())),
+                "first": None, "last": None,
+            }
+            try:
+                rec["panel"]["first"] = str(pd.Timestamp(panel.index[0]).date())
+                rec["panel"]["last"] = str(pd.Timestamp(panel.index[-1]).date())
+            except Exception:
+                pass
+        if sector_map is not None:
+            from data.pit import clean_sector_map
+            clean, dropped = clean_sector_map(sector_map)
+            rec["sector_map"] = {
+                "n": len(clean),
+                "dropped": len(dropped),
+                "sha256": sha256_json(dict(sorted(clean.items()))),
+            }
+        if providers is not None:
+            rec["providers"] = {
+                str(k): {"source": (v or {}).get("source"),
+                         "fetched_at": (v or {}).get("fetched_at"),
+                         "requested": (v or {}).get("requested"),
+                         "downloaded": (v or {}).get("downloaded"),
+                         "failed": len((v or {}).get("failed_tickers") or [])}
+                for k, v in dict(providers).items()
+            }
+        self.manifest["inputs"] = rec
+        self._write_manifest()
+        self.logger.info("inputs recorded: %s", sorted(rec))
+        return rec
+
+    def baseline(self, artefact, **components) -> dict:
+        """Record whether an audited baseline is still valid for this run (phase 6.9)."""
+        from core.baseline import check_baseline
+
+        out = check_baseline(artefact, **components)
+        self.manifest.setdefault("baselines", {})[str(Path(artefact).name)] = {
+            "valid": out["valid"], "reason": out["reason"], "changed": out["changed"],
+        }
+        self._write_manifest()
+        if not out["valid"]:
+            self.logger.warning("baseline %s invalid: %s", artefact, out["reason"])
+        return out
 
     def artifact(self, path) -> str:
         p = str(Path(path))
@@ -190,9 +278,13 @@ def start_run(
         },
         "versions": {
             "python": sys.version.split()[0],
-            "pandas": _pkg_version("pandas"),
-            "numpy": _pkg_version("numpy"),
-            "yfinance": _pkg_version("yfinance"),
+            "python_full": sys.version,
+            "platform": platform.platform(),
+            **_installed_versions(),
+        },
+        "timezone": {
+            "local": str(datetime.now().astimezone().tzinfo),
+            "utc_offset_seconds": int(datetime.now().astimezone().utcoffset().total_seconds()),
         },
         "hostname": platform.node(),
         "argv": list(argv if argv is not None else sys.argv),
@@ -204,6 +296,8 @@ def start_run(
         "exception": None,
         "fingerprints": {},
         "artifacts": [],
+        "inputs": {},
+        "baselines": {},
     }
     logger = logging.getLogger(f"hydra.runlog.{directory.name}")
     logger.setLevel(logging.INFO)
