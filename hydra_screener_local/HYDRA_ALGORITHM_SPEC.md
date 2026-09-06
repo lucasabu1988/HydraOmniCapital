@@ -551,10 +551,28 @@ section 7.1). All ETFs off -> the renewed ETF tranche parks.
 
 ### 9.3 Rebalancing between sleeves
 
-Each renewed tranche is sized to **1/8 of the whole book**; the difference to its own value moves
-as cash between sleeves (`transfer_in/out`, recorded). The sleeves therefore drift back to 50/50 one
-tranche per week. This is the executable version of the lab's weekly 50/50 reset; nothing else is
+The renewed **pair** of tranches (stocks k, ETF k) is split **equally by its own value**: each side is
+sized to half of the pair, and the difference to its current value moves as cash between sleeves
+(`transfer_in/out`, two equal and opposite legs, recorded). The sleeves therefore drift back to 50/50
+one pair per week. This is the executable version of the lab's weekly 50/50 reset; nothing else is
 rebalanced without an order.
+
+> Until 2026-09-05 each side was sized to 1/8 of the *whole* book. The two legs then differed whenever
+> the pair was not worth 1/4 of the book, and the engine created or destroyed cash on paper at every
+> renewal (found by the end-to-end engine backtest, TASK-347: -0.64 pp/yr and -0.08 Sharpe in-sample
+> 2021-26; ratio engine/lab fell to 0.95 by 2025). Fixed in `plan()` with a conservation test. The
+> first production sheet (2026-09-04, all tranches equal) is identical under both rules.
+
+The ETF hurdle in `plan()` is the trailing 252-bar accumulated T-bill return built from the `^IRX`
+history the CLI passes (annualised decimal Series); a scalar means a flat rate and is for hand cases.
+Until 2026-09-05 the CLI passed only the last print, so the hurdle was today's rate: the on/off set
+differed from the lab's on 10% of in-sample steps (GLD, IEF most often), return effect within 0.1 pp.
+
+Idle cash earns **nothing** in the engine's books. The lab's ETF sleeve accrues the T-bill; the
+stock sleeve (T20, `cash_yield=False`) does not. Measured in-sample 2021-26: accruing on the ETF
+sleeve's cash +0.9 pp/yr, on both sleeves +1.2 pp/yr (Sharpe 1.20 -> 1.31). Whether the books
+model the money-market yield or Lucas enters the interest actually paid is an open accounting
+decision (2026-09-05); until then the dashboard P/L understates the real account by about that much.
 
 ### 9.4 State (`state/portfolio_v9.json`, gitignored; see design section 3)
 

@@ -11,7 +11,7 @@ orders are executed at the close of t+1 (MOC). `settle()` books them at t+1 pric
 are kept, units are recomputed at the fill price). `mark()` values the book at any later close.
 
 Rebalancing policy (executable version of the lab's 50/50 mix): on a renewal bar both sleeves
-renew one tranche; each renewed tranche is sized to 1/8 of the whole book (12.5%), so the sleeve
+renew one tranche; the renewed pair of tranches (one per sleeve) is split 50/50 by value, so the sleeve
 totals drift back to 50/50 one tranche per week. The cash moved between sleeves is recorded as a
 transfer. Nothing else is rebalanced for free.
 """
@@ -190,17 +190,32 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
     if slot is None:
         return state, []
     week, k = slot
-    total = summary["total"]
-    tranche_target = total / (2 * cfg["tranches"])          # 12.5% of the book per renewed tranche
+    # 50/50 reset (spec 9.3): the renewed PAIR of tranches (stocks k, etf k) is split equally by value,
+    # so the two transfer legs are equal and opposite and the book is conserved. Sizing each leg to
+    # 1/8 of the whole book instead (the pre-2026-09-07 rule) created or destroyed cash on paper
+    # whenever the pair's value differed from 1/4 of the book (found by the end-to-end engine
+    # backtest, TASK-347 review: -0.9 pp/yr in-sample).
+    own_by_sleeve = {}
+    for sleeve, px in (("stocks", px_s), ("etf", px_e)):
+        tr = state["sleeves"][sleeve]["tranches"][k]
+        own_by_sleeve[sleeve] = float(tr["cash"]) + sum(
+            u * float(px.get(t, tr.get("last_px", {}).get(t, np.nan)) or 0.0) for t, u in tr["units"].items())
+    tranche_target = sum(own_by_sleeve.values()) / 2.0
 
-    tb_daily = pd.Series(float(tbill_rate) / 252.0, index=etf_prices.index)
+    # T-bill hurdle for the ETF sleeve: the trailing 252-bar accumulated T-bill return, as measured
+    # in the lab (`tbill_rate` as an annualised decimal Series on the price calendar). A scalar is
+    # accepted for hand cases and means a flat rate.
+    if isinstance(tbill_rate, pd.Series):
+        tb_daily = pd.to_numeric(tbill_rate, errors="coerce").reindex(etf_prices.index).ffill().fillna(0.0) / 252.0
+    else:
+        tb_daily = pd.Series(float(tbill_rate) / 252.0, index=etf_prices.index)
     orders: List[dict] = []
     for sleeve, targets, px, bp in (
         ("stocks", stock_targets(ranking, set(state["sleeves"]["stocks"]["tranches"][k]["units"]), stock_prices, cfg), px_s, cfg["stock_cost_bp"]),
         ("etf", etf_targets(etf_prices, tb_daily, cfg), px_e, cfg["etf_cost_bp"]),
     ):
         tr = state["sleeves"][sleeve]["tranches"][k]
-        own = float(tr["cash"]) + sum(u * float(px.get(t, tr.get("last_px", {}).get(t, np.nan)) or 0.0) for t, u in tr["units"].items())
+        own = own_by_sleeve[sleeve]
         transfer = tranche_target - own                     # + receives cash from the other sleeve, - gives
         # sells: everything held that is not in the target, plus trims of kept names
         for t, u in tr["units"].items():
@@ -224,7 +239,7 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
         if abs(transfer) > 1e-9:
             orders.append(dict(sleeve=sleeve, tranche=k, ticker="CASH", side="transfer_in" if transfer > 0 else "transfer_out",
                                dollars=abs(transfer), est_units=None, est_price=None,
-                               note="50/50 reset: renewed tranche sized to 1/8 of the book"))
+                               note="50/50 reset: renewed pair of tranches split equally by value"))
         if not len(targets):
             orders.append(dict(sleeve=sleeve, tranche=k, ticker="TBILL", side="park", dollars=tranche_target, est_units=None, est_price=None,
                                note="no names selected: tranche stays in T-bill (no fallback)"))

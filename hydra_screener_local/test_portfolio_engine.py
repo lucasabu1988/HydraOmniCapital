@@ -105,6 +105,45 @@ def test_reset_transfer_moves_cash_from_the_richer_sleeve():
     assert s["sleeves"]["stocks"]["value"] == pytest.approx(400.0) and s["sleeves"]["etf"]["value"] == pytest.approx(400.0)
 
 
+def test_reset_legs_offset_and_the_book_is_conserved_when_tranches_have_drifted():
+    """TASK-347 review: sizing each renewed tranche to 1/8 of the whole book made the two transfer
+    legs unequal whenever the renewed pair was not worth 1/4 of the book -> cash appeared or vanished
+    on paper (-0.9 pp/yr in-sample). The pair is now split equally by its own value."""
+    st = E.new_state(800.0, str(DATES[0].date()), CFG)
+    st["sleeves"]["stocks"]["tranches"][0]["cash"] = 350.0; st["sleeves"]["stocks"]["tranches"][1]["cash"] = 50.0
+    st["sleeves"]["etf"]["tranches"][0]["cash"] = 250.0; st["sleeves"]["etf"]["tranches"][1]["cash"] = 150.0
+    px = _prices(["A"], [[10], [10]]); epx = _prices(["SPY"], [[1], [1]])
+    st, orders = E.plan(st, str(DATES[0].date()), _ranking(["A"], n=0), px.iloc[:1], epx.iloc[:1], 0.0, CFG)
+    legs = {o["sleeve"]: (o["side"], o["dollars"]) for o in orders if o["side"].startswith("transfer")}
+    assert legs["stocks"] == ("transfer_out", pytest.approx(50.0))       # pair worth 600 -> 300 each
+    assert legs["etf"] == ("transfer_in", pytest.approx(50.0))
+    E.settle(st, str(DATES[1].date()), px.iloc[1], epx.iloc[1], CFG)
+    s = E.summary_table(st, px.iloc[1], epx.iloc[1], CFG)
+    assert s["total"] == pytest.approx(800.0)                             # nothing created or destroyed
+    assert st["sleeves"]["stocks"]["tranches"][0]["cash"] == pytest.approx(300.0)
+    assert st["sleeves"]["etf"]["tranches"][0]["cash"] == pytest.approx(300.0)
+    assert sum(t["dollars"] for t in st["transfers"]) == pytest.approx(0.0)
+
+
+def test_etf_hurdle_uses_the_trailing_tbill_history_not_the_last_print():
+    """The lab's ETF signal is mom12 minus the accumulated 252-bar T-bill return. Rates at 0% for
+    ten months then 8%: trailing hurdle ~1.7% (SPY at +4.5% is ON); a flat 8% would switch it OFF."""
+    n = 260
+    dates = pd.bdate_range("2025-01-02", periods=n)
+    spy = pd.DataFrame({"SPY": np.linspace(100.0, 104.5, n)}, index=dates)
+    stock_px = pd.DataFrame({"A": np.full(n, 10.0)}, index=dates)
+    tb = pd.Series(np.where(np.arange(n) < 207, 0.0, 0.08), index=dates)
+    cfg = dict(CFG, step_bars=5, hold_bars=10)
+    today = str(dates[-1].date())
+    st_series = E.new_state(800.0, today, cfg)
+    st_series, o_series = E.plan(st_series, today, _ranking(["A"], n=0), stock_px, spy, tb, cfg)
+    assert [o for o in o_series if o["sleeve"] == "etf" and o["side"] == "buy"], "trailing hurdle 1.7% < 4.5%: SPY on"
+    st_flat = E.new_state(800.0, today, cfg)
+    st_flat, o_flat = E.plan(st_flat, today, _ranking(["A"], n=0), stock_px, spy, 0.08, cfg)
+    assert not [o for o in o_flat if o["sleeve"] == "etf" and o["side"] == "buy"], "flat 8% > 4.5%: SPY off"
+    assert [o for o in o_flat if o["sleeve"] == "etf" and o["side"] == "park"]
+
+
 def test_costs_and_unfilled_orders_are_recorded():
     cfg = dict(CFG, stock_cost_bp=10.0)
     st = E.new_state(800.0, str(DATES[0].date()), cfg)

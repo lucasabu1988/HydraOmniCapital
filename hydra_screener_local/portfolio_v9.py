@@ -255,10 +255,11 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         raise RuntimeError("v9 fetch returned no stock or ETF prices")
     today = _last_date(prices)
     tbill_rate = 0.0
-    if irx is not None and len(irx):
-        last = irx.dropna()
-        if len(last):
-            tbill_rate = float(last.iloc[-1]) / 100.0          # percent -> decimal
+    if irx is not None and len(irx) and irx.dropna().size:
+        # full history, percent -> decimal: plan() builds the trailing 252-bar T-bill hurdle from it
+        # (a single last print made the ETF signal compare 12m returns with today's rate, not with
+        # the accumulated T-bill return the lab measured; TASK-347 review)
+        tbill_rate = pd.to_numeric(irx, errors="coerce").astype(float) / 100.0
 
     if state is None:
         cap = 100000.0 if capital is None else float(capital)

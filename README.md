@@ -22,8 +22,8 @@
 | Señal | momentum **12-7** (`close[t−126]/close[t−252] − 1`) / vol 63d; régimen rico sobre SPY y Meta-Layer deciden cuántos nombres (6–28) | retorno 12 meses − T-bill > 0 → largo, si no T-bill |
 | Pesos | iguales × exposición `min(1, 15 % / vol de la cesta)`; el resto en T-bill | inverse-vol sobre todo el universo; los apagados dejan su parte en T-bill |
 | Ritmo | cada **5 barras de bolsa** se renueva **un** tramo (vive 20 barras); un nombre en cartera se conserva si sigue en el top 2n | igual |
-| Reset 50/50 | el tramo renovado se dimensiona a 1/8 del libro; la diferencia se transfiere entre mangas (registrado) | |
-| Cash | T-bill / fondo monetario | |
+| Reset 50/50 | el par de tramos renovado (acciones k, ETF k) se reparte a mitades por su valor; la diferencia se transfiere entre mangas en dos patas iguales y opuestas (registrado) | |
+| Cash | T-bill / fondo monetario en el bróker; el libro **no** devenga interés (decisión pendiente, ver spec §9.3) | |
 | Costes modelados | 10 bp por lado | 5 bp por lado |
 
 **Convención temporal:** la corrida se hace tras el cierre del día *t* (viernes); la hoja instruye ejecutar **al cierre de *t+1*** (lunes, MOC). La siguiente corrida asume esos fills como *presumidos* hasta que los confirmes con los reales.

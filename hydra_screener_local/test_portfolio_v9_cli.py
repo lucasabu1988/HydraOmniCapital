@@ -93,7 +93,8 @@ def test_first_run_writes_state_backup_and_instructions(tmp_path):
     assert body["date"] == "2026-09-04"
     assert "ejecutar al cierre del 2026-09-07" in body["execute"]
     assert "ejecutar al cierre del 2026-09-07" in md.read_text(encoding="utf-8")
-    assert eng.tbill_seen == [pytest.approx(0.0525)]          # percent / 100
+    assert len(eng.tbill_seen) == 1 and isinstance(eng.tbill_seen[0], pd.Series)   # full history
+    assert float(eng.tbill_seen[0].iloc[-1]) == pytest.approx(0.0525)              # percent / 100
     assert not (tmp_path / "backup").exists() or not list((tmp_path / "backup").glob("*.json"))
 
 
