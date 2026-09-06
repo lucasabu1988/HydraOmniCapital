@@ -37,6 +37,28 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 20:10] CLAUDE: **Grok no esta disponible (Lucas): tomo yo su cola. 388, 390 y 391 hechas; 389 midiendo.**
+**388 — el CI nunca habia corrido de verdad, y tenia razon de ser: 6 de 8 jobs en rojo** en la primera pasada (PR #40, en
+draft, no se mergea antes del settle). Uno era un bug real y de los buenos: `console_dashboard.py` anuncia un fallback de
+texto plano (`RICH_AVAILABLE`) pero anota sus funciones con `-> Panel`/`-> Table`/`-> Layout`, asi que **sin rich el modulo
+reventaba al importarse** (`NameError: name 'Panel' is not defined`): el fallback se moria antes de poder caer. Aqui no se
+veia porque esta maquina tiene rich; la fase 10.3 lo paso a extra y el venv limpio del wheel smoke lo encontro en 30
+segundos — `hydra-console` estaba roto en cualquier maquina sin rich. Los otros tres eran entorno, no defectos:
+gitleaks-action v2 exige `GITHUB_TOKEN` en un evento `pull_request`; mypy con pandas-stubs (el runner los instala, esta
+maquina no) daba dos errores de tipos que ya narre; y un `assert ... is None` que en Linux es NaN. Runs 2 y 3: **8 de 8 en
+verde**. Cobertura Linux **81.22%** (81.96% aqui), skips 0 sobre 58 archivos.
+**390** — mypy pasa de 10 a 16 modulos (dividends, journal, state_migrations, pit, runlog + precommit_gates), solo
+anotaciones. Hallazgo bonito: `MIGRATIONS: dict[int, callable]` usaba el *builtin* `callable` como tipo, o sea la anotacion
+no decia nada. Piso de cobertura **77 -> 80** anclado en el numero real de Linux, no en el de Windows.
+**391** — hook `hydra-gates` en pre-commit: ruff sobre todo el arbol, barrido de secretos y los tests de empaquetado, **4.3s**.
+El wheel smoke se queda fuera del set por defecto (9.8s: construye la wheel) y la suite entera (147s) se queda en CI.
+**389 en curso**: el duplicado no es lo que parecia. En la union `all` hay **un** grupo (`BRK-B` de Russell 1000 vs `BRK.B`
+del S&P), pero Yahoo no resuelve `BRK.B` — o sea el duplicado nunca llega a puntuar. Lo que si aparecio es peor y lo mido
+antes de proponer nada: **`BF.B` (Brown-Forman) no tiene gemelo con guion en la union y Yahoo tampoco lo resuelve**, y en el
+panel in-sample de 503 nombres hay **2 columnas todo-NaN: `BF.B` y `BRK.B`**. Dos nombres del S&P 500 que nunca han sido
+elegibles en ninguna medicion in-sample. El panel OOS esta limpio (usa `_yahoo_ticker`, tiene `BRK-B` y `BF-B`).
+Nota completa cuando termine la corrida de frecuencia T20.
+
 [2026-09-06 18:40] CLAUDE: **Auditoria estructural cerrada: fases 1-10, 61 reproducciones, rama `structural-hardening-2026-09`.**
 La fase 10 estaba a medio commitear cuando se cerro la ventana; la termine y esta en `51be4cb`. Lo gordo de esta ultima fase
 (R-1001): **la wheel nunca funciono**. `packages.find.include` no listaba `sleeves*` y los cinco scripts de consola apuntan a
@@ -1430,7 +1452,7 @@ Purpose first, as always. None of these touches the live path, so the freeze rul
 construction: nothing here merges to `main` before the 2026-09-08 settle is verified. Context:
 [`hydra_screener_local/docs/AUDIT_REPORT_2026-09.md`](hydra_screener_local/docs/AUDIT_REPORT_2026-09.md).
 
-- [ ] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
+- [x] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
   seven — `build-install-smoke`, `typecheck`, `secret-scan`, `dependency-audit`, `reproducibility`, plus a
   coverage floor and a skip gate on `screener` — and **not one of them has ever executed on GitHub**. They
   are green on Windows / Python 3.14 and nowhere else, which is exactly the shape of the defect phase 10
@@ -1455,7 +1477,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Lucas's call). Files: `experiments/` (new script), `hydra_screener_local/data/universe_registry.py`
   (read-only), `.comms/grok-task-389-duplicate-classes.md`.
 
-- [ ] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** `mypy.ini` checks the 10
+- [x] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** `mypy.ini` checks the 10
   modules the audit wrote; the gate only keeps meaning if the list grows as modules are touched. Add
   `core/dividends.py`, `core/journal.py`, `core/state_migrations.py`, `data/pit.py`, `utils/runlog.py`:
   annotations only — if a module needs a **logic** change to type it, stop, leave it out and say why in the
@@ -1465,7 +1487,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Files: `hydra_screener_local/mypy.ini`, the five modules listed, `hydra_screener_local/tools/check_coverage.py`,
   `.github/workflows/test.yml`, `.comms/grok-task-390-typing-tier-2.md`.
 
-- [ ] `TASK-391` **The local half of the gates.** `.pre-commit-config.yaml` runs ruff over
+- [x] `TASK-391` **The local half of the gates.** `.pre-commit-config.yaml` runs ruff over
   `hydra_screener_local/` and nothing else, so the four cheap audit checks only fire in CI — minutes after
   the push, on someone else's machine. Add hooks that run in seconds: `ruff check .` over the whole tree
   (R-1004 was exactly the gap between "the list" and "the tree"), `tools/check_secrets.py`,
