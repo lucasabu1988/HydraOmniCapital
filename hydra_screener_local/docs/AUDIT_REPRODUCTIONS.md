@@ -97,3 +97,25 @@ let one NaN silently void a renewal.
 
 The pre-regeneration fixture is recoverable with
 `git show <parent>:hydra_screener_local/test_fixtures/engine_golden_v9.json`.
+
+## Phase 3 — transactional commit
+
+| id | phase | defect | reproduction | fixed in |
+|---|---|---|---|---|
+| R-301 | 3.1/3.3 | **a failure writing the instruction sheet still advanced the state.** `save_state()` ran before `write_instructions()`, so a sheet failure left fills settled, dividends credited and `last_run_date` stamped, with nothing for Lucas to execute | `test_commit_transaction.py::test_r301_*` | `fix: make portfolio state and instructions transactional` |
+| R-302 | 3.5/3.6 | **backups were silently overwritten.** `%Y%m%d_%H%M%S` names collide within a second: three saves left one backup file and the first two state versions were gone | `test_commit_transaction.py::test_r302_*` | same |
+| R-303 | 3.4/9.7 | no run id, no operational status and no recovery marker existed, so an interruption was indistinguishable from a clean run | `test_commit_transaction.py::test_r303_*`, `test_recovery_*` | same |
+
+Recorded at the base commit:
+
+```
+R-301  a failure writing the instruction sheet still advances the state
+  run 1 ok: last_run_date=2026-02-25 pending=13
+  run 2 raised: OSError: disk full while writing the instruction sheet
+  state CHANGED despite no sheet: True
+R-302  two saves inside the same second overwrite the backup silently
+  three saves -> 1 backup file(s): ['20260906_113403.json']
+    20260906_113403.json: {"v": 2}          <- v1 is gone
+R-303  files in state dir: instructions_*.json, instructions_*.md, portfolio_v9.json
+       (no run journal, no status, no recovery marker)
+```

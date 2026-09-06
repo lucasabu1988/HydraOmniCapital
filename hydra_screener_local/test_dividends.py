@@ -31,9 +31,9 @@ def _state():
         },
         "ledger": [
             {"exec_date": "2026-01-02", "sleeve": "stocks", "tranche": 0, "side": "buy",
-             "ticker": "AAA", "units": 10.0, "status": "filled"},
+             "ticker": "AAA", "units": 10.0, "price": 10.0, "status": "filled"},
             {"exec_date": "2026-01-02", "sleeve": "etf", "tranche": 0, "side": "buy",
-             "ticker": "TLT", "units": 4.0, "status": "filled"},
+             "ticker": "TLT", "units": 4.0, "price": 90.0, "status": "filled"},
         ],
         "write_offs": [],
     }
@@ -57,7 +57,7 @@ def test_units_on_ex_date_not_current_units():
     """Bought 10 on 01-02, sold 4 on 01-09; ex-date 01-08 still pays on 10."""
     st = _state()
     st["ledger"].append({"exec_date": "2026-01-09", "sleeve": "stocks", "tranche": 0,
-                         "side": "sell", "ticker": "AAA", "units": 4.0, "status": "filled"})
+                         "side": "sell", "ticker": "AAA", "units": 4.0, "price": 11.0, "status": "filled"})
     st["sleeves"]["stocks"]["tranches"][0]["units"]["AAA"] = 6.0
     D.apply_dividends(st, [{"ticker": "AAA", "ex_date": "2026-01-08", "dps": 1.0}], "2026-01-10")
     rec = st["dividends"][0]
@@ -68,7 +68,7 @@ def test_units_on_ex_date_not_current_units():
 def test_buy_on_ex_date_does_not_get_the_dividend():
     st = _state()
     st["ledger"] = [{"exec_date": "2026-01-08", "sleeve": "stocks", "tranche": 0,
-                     "side": "buy", "ticker": "AAA", "units": 10.0, "status": "filled"}]
+                     "side": "buy", "ticker": "AAA", "units": 10.0, "price": 10.0, "status": "filled"}]
     new = D.apply_dividends(st, [{"ticker": "AAA", "ex_date": "2026-01-08", "dps": 1.0}], "2026-01-10")
     assert new == []
     assert st["sleeves"]["stocks"]["tranches"][0]["cash"] == pytest.approx(100.0)
@@ -134,9 +134,9 @@ def test_fetch_dividends_uses_cache_and_patches_yahoo(tmp_path, monkeypatch):
 def test_tickers_from_state_skips_old_ledger_names():
     st = _state()
     st["ledger"].append({"exec_date": "2025-06-01", "sleeve": "stocks", "tranche": 0,
-                         "side": "buy", "ticker": "OLD", "units": 1.0, "status": "filled"})
+                         "side": "buy", "ticker": "OLD", "units": 1.0, "price": 5.0, "status": "filled"})
     st["ledger"].append({"exec_date": "2026-01-09", "sleeve": "stocks", "tranche": 0,
-                         "side": "sell", "ticker": "ZZZ", "units": 1.0, "status": "filled"})
+                         "side": "sell", "ticker": "ZZZ", "units": 1.0, "price": 7.0, "status": "filled"})
     names = D.tickers_from_state(st)
     assert "AAA" in names and "TLT" in names and "SPY" in names   # held + ETF universe
     assert "OLD" not in names                                      # sold long before last_run
@@ -211,7 +211,7 @@ def test_run_credits_before_plan(tmp_path, monkeypatch):
     state["sleeves"]["stocks"]["tranches"][0]["units"] = {"AAA": 10.0}
     state["sleeves"]["stocks"]["tranches"][0]["cash"] = 1000.0
     state["ledger"] = [{"exec_date": "2026-09-01", "sleeve": "stocks", "tranche": 0,
-                        "side": "buy", "ticker": "AAA", "units": 10.0, "status": "filled"}]
+                        "side": "buy", "ticker": "AAA", "units": 10.0, "price": 10.0, "status": "filled"}]
     (tmp_path / "portfolio_v9.json").write_text(json.dumps(state), encoding="utf-8")
 
     def later(_u=None):

@@ -35,6 +35,14 @@ from config import (  # noqa: E402
     V9,
 )
 from core import portfolio_engine as E  # noqa: E402
+from core.commit import (  # noqa: E402
+    INSTRUCTIONS_WRITTEN,
+    RunTransaction,
+    new_run_id,
+    recover,
+    unique_path,
+)
+from core.ledger import check_invariants, format_violations  # noqa: E402
 from core.filters import (  # noqa: E402
     apply_data_quality_filter,
     apply_practical_filters,
@@ -104,18 +112,28 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> 
 
 
 def save_state(path: Path, state: dict) -> Path | None:
-    """Backup the previous file (if any), then write. Returns the backup path."""
+    """Backup the previous file (if any), then write. Returns the backup path.
+
+    Backup names carry microseconds and a uuid tail and are never reused: with
+    second resolution, three saves inside one second left a single backup file and
+    the first two versions were gone (repro R-302).
+
+    This is the single-file writer, used by confirm_fills.py and by tools that touch
+    only the state. The daily run goes through `core.commit.RunTransaction`, which
+    also stages the instruction sheet — see `run()`.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     backup_path = None
     if path.exists():
         bdir = path.parent / "backup"
         bdir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = bdir / f"{ts}.json"
+        backup_path = unique_path(bdir / f"{new_run_id()}.json")
         shutil.copy2(path, backup_path)
     tmp = path.with_suffix(".json.tmp")
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(_json_ready(state), f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
     tmp.replace(path)
     return backup_path
 
@@ -199,8 +217,14 @@ def whole_share_display(order: dict) -> dict | None:
     return {"shares": shares, "at_est": round(at, 4), "leftover": round(dollars - at, 4)}
 
 
-def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
-                       state: dict, exec_date: str, sector_warning: str | None = None) -> tuple[Path, Path]:
+def render_instructions(date: str, orders: list, fills: list, summary: dict,
+                        state: dict, exec_date: str, sector_warning: str | None = None) -> dict:
+    """Build the instruction sheet in memory. Pure: writes nothing.
+
+    Split out of `write_instructions` so the daily run can stage and validate the
+    sheet *before* the state is committed (audit phase 3.2). Rendering it only after
+    the state had been saved is repro R-301.
+    """
     payload = {
         "date": date,
         "algo_version": "v9",
@@ -219,8 +243,8 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         "dividends": _json_ready(summarize_dividends(state)),
         "whole_shares": "display-only; orders and presumed fills stay in dollars/fractional",
     }
-    md_path = state_dir / f"instructions_{date.replace('-', '')}.md"
-    json_path = state_dir / f"instructions_{date.replace('-', '')}.json"
+    md_name = f"instructions_{date.replace('-', '')}.md"
+    json_name = f"instructions_{date.replace('-', '')}.json"
     lines = [
         f"# HYDRA v9 instructions — {date}",
         "",
@@ -302,19 +326,53 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         for f in fills:
             lines.append(f"- {f.get('status')} {f.get('side')} {f.get('ticker')} "
                          f"{f.get('sleeve')} ${f.get('dollars', 0):.2f}")
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {
+        "md_name": md_name,
+        "json_name": json_name,
+        "md_text": "\n".join(lines) + "\n",
+        "json_text": json.dumps(payload, indent=2, ensure_ascii=False),
+        "payload": payload,
+    }
+
+
+def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
+                       state: dict, exec_date: str, sector_warning: str | None = None) -> tuple[Path, Path]:
+    """Render and write the sheet directly. Kept for callers outside the daily run."""
+    sheet = render_instructions(date, orders, fills, summary, state, exec_date,
+                                sector_warning=sector_warning)
+    md_path = Path(state_dir) / sheet["md_name"]
+    json_path = Path(state_dir) / sheet["json_name"]
+    md_path.write_text(sheet["md_text"], encoding="utf-8")
+    json_path.write_text(sheet["json_text"], encoding="utf-8")
     return md_path, json_path
 
 
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False, dividend_fn=None) -> dict:
+        force: bool = False, dividend_fn=None, run_id: str | None = None) -> dict:
     """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
+
+    # Finish or discard anything an earlier interrupted run left staged, before the
+    # state is read (audit phase 3.4). Idempotent: a clean tree is a no-op.
+    healed = recover(state_dir)
+    if healed["recovered"] and not silent:
+        print(f"[v9] recovered interrupted run(s): {', '.join(healed['recovered'])}")
+    if healed["failed"]:
+        detail = "; ".join(f"{f['run_id']}: {f['error']}" for f in healed["failed"])
+        raise SystemExit(f"unrecoverable staged run(s), fix by hand before planning: {detail}")
+
+    run_id = run_id or new_run_id()
     state = load_state(state_path)
+    if state is not None:
+        # a state that already breaks an invariant must not be planned on
+        violations = check_invariants(state)
+        if violations:
+            raise SystemExit(
+                "state on disk breaks a ledger invariant; refusing to plan:\n"
+                + format_violations(violations))
 
     data = (fetch_fn or fetch_v9_market)(universe)
     prices, volumes, spy, etf, irx = data["prices"], data["volumes"], data["spy"], data["etf"], data["irx"]
@@ -403,7 +461,6 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     if sector_warning and not silent:
         print(f"[v9] DEGRADED {sector_warning}")
 
-    backup = save_state(state_path, state)
     summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
     exec_date = next_session_date(prices.index, today)
     # A same-day rerun must not overwrite today's sheet with "No trades": the pending orders planned
@@ -411,14 +468,37 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     sheet_orders = orders
     if not orders and state.get("pending") and state["pending"][0].get("planned") == today:
         sheet_orders = list(state["pending"])
-    md_path, json_path = write_instructions(
-        state_dir, today, sheet_orders, fills, summary, state, exec_date,
-        sector_warning=sector_warning,
-    )
+
+    # --- transactional commit (audit phase 3) -----------------------------------
+    # Nothing final is written until the state AND the sheet are both staged,
+    # validated and read back. Before this the state was saved first, so a failure
+    # writing the sheet left the book advanced with no instructions (repro R-301).
+    sheet = render_instructions(today, sheet_orders, fills, summary, state, exec_date,
+                                sector_warning=sector_warning)
+    tx = RunTransaction(state_dir, kind="v9-daily", date=today, run_id=run_id)
+    md_path = state_dir / sheet["md_name"]
+    json_path = state_dir / sheet["json_name"]
+    try:
+        tx.stage_text(sheet["md_name"], sheet["md_text"])
+        tx.stage_json(sheet["json_name"], sheet["payload"])
+        tx.mark(INSTRUCTIONS_WRITTEN, staged=[sheet["md_name"], sheet["json_name"]])
+        tx.stage_state(STATE_NAME, _json_ready(state))
+        record = tx.commit(state=state)
+    except Exception as e:
+        # the previous state is untouched; say so instead of half-succeeding
+        if tx.status not in ("failed", "failed_pending_recovery"):
+            tx.fail(f"{type(e).__name__}: {e}", recovery_required=False)
+        if not silent:
+            print(f"[v9] COMMIT ABORTED: {e}")
+            print(f"[v9] previous state kept at {state_path}; run {tx.run_id} needs no recovery")
+        raise
+    backup = (record.get("backups") or [None])[0]
+
     copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent)
     if not silent:
         if backup:
             print(f"[v9] backed up previous state -> {backup}")
+        print(f"[v9] run {tx.run_id} committed")
         print(f"[v9] state -> {state_path}")
         print(f"[v9] instructions -> {md_path}")
         ix = summarize_interest(state)
@@ -430,6 +510,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     return dict(
         today=today, orders=orders, fills=fills, state_path=str(state_path),
         instructions_md=str(md_path), no_trades=len(orders) == 0,
+        run_id=tx.run_id, run_status=tx.status, commit_record=record,
         # pieces for the journal builder (TASK-355); no journal logic here
         state=state, ranking=ranking, summary=summary, preflight=pf,
         sheet_orders=sheet_orders, sector_warning=sector_warning,
