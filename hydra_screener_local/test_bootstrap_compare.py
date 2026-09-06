@@ -8,7 +8,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
 
-from bootstrap_compare import block_bootstrap, summarise_diff, expected_max_sharpe, ann_net
+from bootstrap_compare import summarise_diff, expected_max_sharpe, ann_net
 
 
 def test_identical_series_interval_contains_zero():

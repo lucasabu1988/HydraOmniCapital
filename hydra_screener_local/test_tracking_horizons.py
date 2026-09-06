@@ -1,7 +1,6 @@
 """core/tracking.py v2 — horizons are bars, entry is the first bar after the signal, nothing is dropped silently."""
 import numpy as np
 import pandas as pd
-import pytest
 
 import core.tracking as T
 from core.tracking import compute_forward_returns_for_run, TRACKING_SCHEMA_VERSION

@@ -104,7 +104,7 @@ def format_regime_panel(data: dict) -> Panel:
     }.get(rtype, "white")
 
     text = Text()
-    text.append(f"Regime: ", style="bold")
+    text.append("Regime: ", style="bold")
     text.append(f"{rtype}", style=f"bold {color}")
     text.append(f"  (score: {score:.3f})\n")
     text.append(f"Special: {special}\n")
@@ -241,7 +241,7 @@ def build_dashboard(data: dict, cycles_df: pd.DataFrame) -> Layout:
     actions.append("  • hydra-refresh        (update live PnL in Excel)\n")
     actions.append("  • hydra-watch --interval 60 --refresh-pnl\n")
     actions.append("  • python console_dashboard.py --watch\n")
-    actions.append(f"\nArtifacts: pine/watchlist.txt + pine/hydra_last_summary.json\n")
+    actions.append("\nArtifacts: pine/watchlist.txt + pine/hydra_last_summary.json\n")
     actions.append(f"PnL tracker: {EXCEL_PATH} (open in Excel for live formulas)")
 
     footer = Layout()

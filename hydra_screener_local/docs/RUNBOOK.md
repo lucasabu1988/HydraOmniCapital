@@ -4,9 +4,9 @@ Operator: Lucas. Machine: Windows, not in America/New_York. Production is HYDRA 
 capital reference 100000 USD, first-run anchor Friday 2026-09-04, first execution
 **Tuesday 2026-09-08** close (Monday 2026-09-07 is Labor Day).
 
-Convert "16:00 America/New_York" to local time before scheduling anything. Peru is
-UTC−5 year-round; US Eastern is UTC−4 during DST (March–November), so 16:00 ET is
-15:00 Peru in September.
+Convert "16:00 America/New_York" to local time before scheduling anything. The
+machine's zone is SA Pacific Standard Time (UTC-5, no DST). US Eastern is UTC-4
+during DST (March–November), so 16:00 ET is 15:00 local in September.
 
 ## Weekly ritual (a renewal bar)
 

@@ -14,7 +14,6 @@ This is intentionally lightweight (no network, uses existing history/*.json as g
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 

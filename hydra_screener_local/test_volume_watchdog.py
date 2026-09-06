@@ -3,12 +3,9 @@ TASK-202: Volume data watchdog tests.
 """
 import pandas as pd
 import numpy as np
-import pytest
 from unittest.mock import patch
 
 from core.signals import generate_daily_candidates
-from screener import main as screener_main  # for full flow if needed
-import config
 
 
 def _make_synthetic_data(n_tickers=10, nan_share=0.0):

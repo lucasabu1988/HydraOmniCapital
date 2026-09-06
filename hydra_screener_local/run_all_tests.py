@@ -187,11 +187,36 @@ def main():
     else:
         print("All tests passed!")
 
+    _print_ruff_summary()
+
     if args.cov:
         cov_rc = _run_coverage()
         if cov_rc != 0 and not failed:
             return cov_rc
     return 0
+
+
+def _print_ruff_summary() -> None:
+    """Report-only ruff line; never fails the suite (TASK-372)."""
+    tests = sorted(p.name for p in ROOT.glob("test_*.py"))
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "ruff", "check", "--config", str(ROOT / "ruff.toml"),
+             "core", "data", "utils", "sleeves",
+             "portfolio_v9.py", "daily.py", "dashboard_v9.py", "preflight.py",
+             "reconcile.py", "confirm_fills.py", "journal.py", "store_cli.py",
+             "evidence_review.py", "warm_sectors.py", "send_hydra_summary.py",
+             "console_dashboard.py", "snapshot_universe.py", "verify_state.py",
+             "runlog_cli.py", *tests],
+            cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+    except OSError:
+        print("ruff: not installed (pip install -r requirements-dev.txt)")
+        return
+    out = (result.stdout or "") + (result.stderr or "")
+    summary = [ln for ln in out.splitlines() if "Found" in ln or "All checks passed" in ln]
+    line = summary[-1] if summary else ("ruff exit " + str(result.returncode))
+    print("ruff (report-only):", line)
 
 
 def _run_coverage() -> int:

@@ -37,6 +37,10 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 22:00] GROK: TASK-372 done, ready for review. CI lint includes tests
++ CLIs; no custom PIT snapshot; ruff report-only on the runner; RUNBOOK UTC-5.
+Note `.comms/grok-task-372-hygiene-2.md`. Next: 375.
+
 [2026-09-06 21:40] GROK: TASK-370 done, ready for review. Store 3000 / 10.3M bars /
 1222 MB / 17 min. 2y parity: max_rel adj 7.1e-7 (0 names > 1e-6), volume exact,
 top-40 names+score identical. Note `.comms/grok-task-370-store-seed.md`.
@@ -1316,7 +1320,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   `build_ranking` on both price sets and diff the top-40 (names and score, `atol=1e-9`). Anything non-zero is
   explained or filed. Files: `experiments/store_parity.py`, `.comms/grok-task-370-store-seed.md`.
 
-- [ ] `TASK-372` **Close the hygiene gaps.** (a) Extend the CI lint surface to `test_*.py`, `send_hydra_summary.py`,
+- [x] `TASK-372` **Close the hygiene gaps.** (a) Extend the CI lint surface to `test_*.py`, `send_hydra_summary.py`,
   `console_dashboard.py`, `snapshot_universe.py`, `verify_state.py`, `runlog_cli.py`: apply **safe** autofixes only
   (`ruff check --fix` without `--unsafe-fixes`), fix the rest by hand where it is a real finding, per-file-ignore
   the rest with a one-line reason each; the frozen files stay ignored. (b) `snapshot_universe.py`: never snapshot

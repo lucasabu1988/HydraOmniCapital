@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -22,7 +21,8 @@ def _state(capital=800.0):
     half = capital / 2.0
     k = 2
     each = half / k
-    tr = lambda i: {"k": i, "opened": None, "units": {}, "cash": each, "last_px": {}, "stale": {}}
+    def tr(i):
+        return {"k": i, "opened": None, "units": {}, "cash": each, "last_px": {}, "stale": {}}
     return {
         "schema_version": 1,
         "capital_reference": capital,

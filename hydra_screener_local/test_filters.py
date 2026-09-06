@@ -24,7 +24,7 @@ def _prices(columns, last_values, n_days=30, noise=0.01):
     dates = pd.date_range(end=datetime(2026, 6, 1), periods=n_days, freq="B")
     data = {}
     rng = np.random.default_rng(0)
-    for col, last in zip(columns, last_values):
+    for col, last in zip(columns, last_values, strict=True):
         if last is None or (isinstance(last, float) and np.isnan(last)):
             series = 20.0 + rng.normal(0, noise, n_days).cumsum()
             series[-1] = np.nan
@@ -108,8 +108,6 @@ def test_zombie_zero_price_and_short_series_removed():
     dates = pd.date_range(end=datetime(2026, 6, 1), periods=8, freq="B")
     live = pd.Series(np.linspace(12, 13, 8), index=dates)
     pennies = pd.Series([0.001] * 8, index=dates)
-    short = pd.Series([10.0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, 10.0], index=dates)
-    # after dropna short has 2 points... need <2 after dropna
     one_tick = pd.Series([np.nan] * 7 + [15.0], index=dates)
     prices = pd.DataFrame({"LIVE": live, "PENNY": pennies, "ONE": one_tick})
     out = remove_zombie_tickers(prices, max_flat_days=5, min_price=0.01)

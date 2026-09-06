@@ -153,7 +153,7 @@ def _close(a, b, atol=ATOL) -> bool:
     if isinstance(a, list) and isinstance(b, list):
         if len(a) != len(b):
             return False
-        return all(_close(x, y, atol) for x, y in zip(a, b))
+        return all(_close(x, y, atol) for x, y in zip(a, b, strict=True))
     return a == b
 
 
@@ -172,7 +172,7 @@ def _diff(a, b, path="$") -> list[str]:
         if len(a) != len(b):
             out.append(f"{path} len {len(a)} != {len(b)}")
             return out
-        for i, (x, y) in enumerate(zip(a, b)):
+        for i, (x, y) in enumerate(zip(a, b, strict=True)):
             out.extend(_diff(x, y, f"{path}[{i}]"))
         return out
     if not _close(a, b):

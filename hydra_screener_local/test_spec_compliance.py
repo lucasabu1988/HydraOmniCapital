@@ -24,7 +24,7 @@ import ast
 import re
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Patch config para tests controlados (evitar efectos laterales)
 import config
@@ -51,7 +51,6 @@ from core.signals import (
 )
 from core.regime import compute_rich_regime_scores, RegimeScores
 from core.meta_layer import LightweightMetaLayer
-from core.filters import apply_sector_concentration_control
 
 # --- Helpers de datos sintéticos ---
 
@@ -147,7 +146,7 @@ def test_4_2_short_term_and_strict():
     top = candidates.iloc[0]
     assert top['passes_strict'] == True
     # El composite debe reflejar el bonus (ver SPEC 4.5)
-    print(f"[OK] passes_strict=True y composite incluye +18% bonus (SPEC 4.5)")
+    print("[OK] passes_strict=True y composite incluye +18% bonus (SPEC 4.5)")
     return True
 
 def test_4_3_rich_regime():
@@ -291,7 +290,7 @@ def test_4_7_dynamic_recommended():
     
     n_rec = cands['recommended'].sum()
     assert n_rec <= rc
-    print(f"[OK] Dynamic count en [6,28] y recommended <= count (SPEC 4.7)")
+    print("[OK] Dynamic count en [6,28] y recommended <= count (SPEC 4.7)")
     return True
 
 def test_4_7_downtrend_gate():

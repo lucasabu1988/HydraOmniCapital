@@ -2,15 +2,13 @@
 import json
 import os
 import sys
-from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.journal import build_record, cone, percentile_of, render_markdown  # noqa: E402
+from core.journal import build_record, cone, percentile_of  # noqa: E402
 import journal as J  # noqa: E402
 import daily as daily_mod  # noqa: E402
 import portfolio_v9 as V  # noqa: E402
@@ -166,7 +164,6 @@ def test_v9_run_returns_journal_pieces(tmp_path, monkeypatch):
 
 def test_daily_note_hook(tmp_path, monkeypatch):
     monkeypatch.setenv("HYDRA_BACKUP_DIR", str(tmp_path / "off"))
-    seen = {}
     monkeypatch.setattr(daily_mod, "run_screener", lambda universe: 0)
     monkeypatch.setattr(daily_mod, "backup_history_after_run", lambda: None)
     monkeypatch.setattr(daily_mod, "print_tv_instructions", lambda: None)

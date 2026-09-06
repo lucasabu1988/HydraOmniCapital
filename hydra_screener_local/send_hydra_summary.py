@@ -28,7 +28,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 
 try:
     import requests  # optional, only used if webhook configured
@@ -43,7 +43,6 @@ load_hydra_env()
 
 from generate_pine_watchlist import (
     find_latest_history,
-    load_recommended_tickers,
     generate_watchlist_string,
 )
 
@@ -81,7 +80,8 @@ def build_rich_summary(history_data: Dict, top_n: int = DEFAULT_TOP) -> Dict:
     for c in sorted((c for c in top_candidates if c.get("recommended")), key=lambda c: c.get("rank", 10**6)):
         if c["ticker"] in seen:
             continue                      # malformed history: one entry per ticker (review 336)
-        seen.add(c["ticker"]); recommended.append(c)
+        seen.add(c["ticker"])
+        recommended.append(c)
     tickers = [c["ticker"] for c in recommended]
     # `top_n` is a DISPLAY cap for `top_details` only; the list itself is never truncated here.
     details = recommended if not top_n else recommended[:top_n]
@@ -242,7 +242,7 @@ def save_artifacts(summary: Dict, message: str):
     with open(SUMMARY_TXT_PATH, "w", encoding="utf-8") as f:
         f.write(message)
 
-    print(f"[OK] Artifacts saved:")
+    print("[OK] Artifacts saved:")
     print(f"  - {SUMMARY_JSON_PATH}")
     print(f"  - {SUMMARY_TXT_PATH}")
 

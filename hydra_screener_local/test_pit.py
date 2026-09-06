@@ -3,10 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
 
-import pandas as pd
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -79,6 +76,19 @@ def test_seed_from_local_csvs(tmp_path):
     assert membership("sp500", "20991231", pit_dir=pit) == {"AAPL", "MSFT"}
     assert membership("all", "20991231", pit_dir=pit) == {"AAPL", "MSFT", "NVDA"}
     assert any(n.startswith("sectors_") for n in names)
+
+
+def test_seed_does_not_write_custom_fallback(tmp_path):
+    out = tmp_path / "output"
+    out.mkdir()
+    (out / "sp500_tickers.csv").write_text("ticker\nAAPL\n", encoding="utf-8")
+    old = SU.ROOT
+    SU.ROOT = tmp_path
+    try:
+        written = SU.seed(pit_dir=tmp_path / "pit")
+    finally:
+        SU.ROOT = old
+    assert not any("universe_custom_" in p.name for p in written)
 
 
 def test_cli_seed(tmp_path, capsys):

@@ -8,7 +8,6 @@ import sys
 import logging
 from unittest.mock import patch
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from data import universe as universe_mod

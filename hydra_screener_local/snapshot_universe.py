@@ -90,15 +90,6 @@ def seed(pit_dir=None) -> list[Path]:
             ))
             print(f"seed universe all: {len(all_t)} names date={d}")
 
-    try:
-        from config import INITIAL_UNIVERSE
-        written.append(write_universe_snapshot(
-            "custom", list(INITIAL_UNIVERSE), datetime.now().strftime("%Y%m%d"),
-            "config.INITIAL_UNIVERSE", pit_dir=pit_dir,
-        ))
-    except Exception as e:
-        print(f"seed custom skipped: {e}")
-
     cache_file = ROOT / "data_cache" / "sector_cache.json"
     if cache_file.exists():
         try:

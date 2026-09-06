@@ -30,3 +30,7 @@ ignore = [
 "experiments/**" = ["E", "F", "I", "B"]
 "test_*.py" = ["I"]
 "experiments/test_*.py" = ["I"]
+# Compact engine/spec tests: semicolons and `== True` are the house style, not bugs.
+"test_portfolio_engine.py" = ["E702"]
+"test_output_integrity.py" = ["E702"]
+"test_spec_compliance.py" = ["E712", "B904"]
