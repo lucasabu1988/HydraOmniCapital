@@ -577,6 +577,15 @@ ETF sleeve always accrued, its stock sleeve (`cash_yield=False`) did not, so the
 slightly above the lab mix (12.04 vs 11.86) for that reason alone. The interest actually paid by the
 broker will differ (fund yield, settlement lag); reconcile it against the state when confirming fills.
 
+Cash dividends are credited to the book (Lucas, 2026-09-06; TASK-349, H-001). Every backtest uses
+total-return closes (`auto_adjust=True`), so the live book must see the cash the broker pays: for
+each ex-date after the previous run, the tranche that held the units before the ex-date (fills with
+`exec_date < ex_date`, reconstructed from the ledger) is credited `units x dividend per share`,
+recorded in `state["dividends"]` and idempotent on (ex_date, sleeve, tranche, ticker). Source:
+yfinance `Ticker.dividends`, cached in `data_cache/dividends_cache.json`, failures fall back to the
+cache. The broker pays on pay-date, later than ex-date; `reconcile.py` lists that lag as a known
+residual. Shown on the sheet and the dashboard like interest.
+
 ### 9.4 State (`state/portfolio_v9.json`, gitignored; see design section 3)
 
 schema 1: anchor_date, last_run_date, last_renewal_date, week_index, capital_reference, per sleeve

@@ -23,7 +23,7 @@
 | Pesos | iguales × exposición `min(1, 15 % / vol de la cesta)`; el resto en T-bill | inverse-vol sobre todo el universo; los apagados dejan su parte en T-bill |
 | Ritmo | cada **5 barras de bolsa** se renueva **un** tramo (vive 20 barras); un nombre en cartera se conserva si sigue en el top 2n | igual |
 | Reset 50/50 | el par de tramos renovado (acciones k, ETF k) se reparte a mitades por su valor; la diferencia se transfiere entre mangas en dos patas iguales y opuestas (registrado) | |
-| Cash | T-bill / fondo monetario en el bróker; el libro devenga ^IRX/252 por barra sobre el efectivo ocioso y lo registra (`interest`) | |
+| Cash | T-bill / fondo monetario en el bróker; el libro devenga ^IRX/252 por barra sobre el efectivo ocioso (`interest`) y acredita los dividendos en fecha ex (`dividends`) | |
 | Costes modelados | 10 bp por lado | 5 bp por lado |
 
 **Convención temporal:** la corrida se hace tras el cierre del día *t* (viernes); la hoja instruye ejecutar **al cierre de *t+1*** (lunes, MOC). La siguiente corrida asume esos fills como *presumidos* hasta que los confirmes con los reales.

@@ -37,6 +37,12 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 03:20] CLAUDE: **349, 351, 352, 353, 354, 355 y 356 APROBADAS** (lineas de review en cada entrada
+de Completed; Lucas confirmo que levanto el hold de la 349). Registro H-001 = ACEPTADA; spec 9.3 documenta
+los dividendos; el bootstrap de la 354 ya es el apendice A de la nota de auditoria. Un seguimiento pequeno,
+**TASK-358**: `fetch_dividends` baja todos los tickers que alguna vez estuvieron en el ledger en cada corrida
+(una llamada HTTP por ticker) — acotar y cachear por dia. Prioridad: **357 (urgente, Labor Day)** -> 358.
+
 [2026-09-06 02:40] CLAUDE: **350 APROBADA con correcciones** (nota ampliada en `.comms/grok-task-350-engine-oos.md`).
 La corrida destapo el tercer defecto del motor: el contador de staleness no se persistia (`_book()` lo
 reconstruia vacio), asi que un nombre deslistado se arrastraba a su ultimo precio para siempre (492
@@ -1127,7 +1133,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 `L.run_any(P, cfg, start=...)`, `L.stats(df, L.step_of(cfg), label)`, `L.CONFIGS`, `L.BASE`). Every run is
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
-into the task's `.comms` note. Priority: 357 (urgent) -> 349 (Lucas lifted the hold, per Grok) -> reviews of 351-356.
+into the task's `.comms` note. Priority: 357 (urgent, before Lucas trades) -> 358.
 
 - [x] `TASK-347` **Backtest the PRODUCTION engine end-to-end on the lab panel.** The parity tests check
   target weights on renewal dates; nobody has driven `plan()/settle()/mark()` through history. Build
@@ -1238,6 +1244,14 @@ into the task's `.comms` note. Priority: 357 (urgent) -> 349 (Lucas lifted the h
   Sharpe > T20 Sharpe. Analysis only, no parameter changes; write the table into
   `.comms/grok-task-354-bootstrap.md` and one paragraph for the audit note's appendix.
 
+- [ ] `TASK-358` **Dividend fetch: only the tickers that matter, at most once a day.** `tickers_from_state`
+  returns every ticker ever in the ledger plus the ETF universe, and `fetch_dividends` calls
+  `yf.Ticker(t).dividends` for each of them on every run (one HTTP call per ticker). Restrict to names
+  with units in the state now or with a fill since `last_run_date`, plus the ETF universe; skip the
+  download for a ticker whose cache entry was refreshed today (`updated_by_ticker`); keep the cache
+  fallback. Tests: ticker set on a synthetic state; no download when fresh. Files: `core/dividends.py`
+  (`tickers_from_state` only), `data/dividends.py`, `test_dividends.py`, `.comms/grok-task-358-dividend-fetch.md`.
+
 - [ ] `TASK-357` **Execution date must skip NYSE holidays (URGENT, before Lucas trades).** The first
   production sheet says "ejecutar al cierre del 2026-09-07" — Labor Day, market closed. `next_session_date`
   falls back to `BDay(1)` whenever the price index has no later bar (always, on a Friday run).
@@ -1262,29 +1276,36 @@ into the task's `.comms` note. Priority: 357 (urgent) -> 349 (Lucas lifted the h
   Applied in `portfolio_v9.py` before `plan()`. Sheet/dashboard like interest.
   Pay-date lag noted in reconcile. Engine not edited. Note
   `.comms/grok-task-349-dividends.md`.
+  Review (Claude): **APPROVED** (Lucas confirmed he lifted the hold). Pure credit by ledger-reconstructed holdings before the ex-date, idempotent, cache fallback, sheet + dashboard. Follow-up TASK-358: `fetch_dividends` downloads every ticker ever held on every run.
 - `TASK-354` (Grok) Stationary bootstrap (mean block 13, 5000 draws) on the
   audit OOS mix/T20/PROD/ETF series. Mix ann 90% [4.01, 9.73]; P(T20>PROD)=0.776;
   P(mix Sharpe>T20)=0.999. Appendix paragraph in the note. Analysis only.
   Note `.comms/grok-task-354-bootstrap.md`.
+  Review (Claude): **APPROVED**; paragraph added to the audit note as Appendix A.
 - `TASK-353` (Grok) Whole shares on the instruction sheet (display-only):
   `shares = floor($/est_price)`, `$ at est`, leftover per tranche. Orders stay
   fractional. Note `.comms/grok-task-353-shares.md`.
+  Review (Claude): **APPROVED** (display only; engine untouched).
 - `TASK-356` (Grok, `88ca0d5`) `evidence_review.py --quarter/--since`: 7 spec-10.2
   questions + 3 triggers (cone p5, preflight HARD, residual > 0.5%). Output
   only. 3 tests, 8-week synthetic journal. Note `.comms/grok-task-356-evidence.md`.
+  Review (Claude): **APPROVED**; will be exercised for the first time at 2026-Q4.
 - `TASK-351` (Grok, `b58537d`) `reconcile.py`: broker CSV vs state, read-only, exit 0,
   writes nothing. missing/unknown/quantity-diff; cash residual listed with
   interest/dividends(0 until 349)/fees/pending. 7 tests. Note
   `.comms/grok-task-351-reconcile.md`.
+  Review (Claude): **APPROVED**; explanations listed, not subtracted, is the right call.
 - `TASK-355` (Grok, `42abc46`) Weekly journal (spec 10.1): pure `core/journal.py` builder;
   `journal.py` I/O; `daily.py --note`; `portfolio_v9.run` returns pieces only.
   Same-day notes append. OOS mix cone from `audit_steps.pkl` P_5050. 9 tests.
   Note `.comms/grok-task-355-journal.md`. Engine not edited.
+  Review (Claude): **APPROVED**; cone needs `audit_steps.pkl` (gitignored) and degrades to None without it, as intended.
 - `TASK-352` (Grok, `83263cf`) `preflight.py`: last stock/ETF/^IRX bar must equal the last
   weekday session (HARD), 10/10 ETFs (HARD), unknown schema (HARD); print-share
   <90%, sector-unknown, pending >1 session, unset HYDRA_BACKUP_DIR (WARN).
   `daily.py`/`portfolio_v9.py` stop unless `--force`. 18 tests, no network. Note
   `.comms/grok-task-352-preflight.md`. Engine not edited.
+  Review (Claude): **APPROVED**; `last_weekday_session` ignores NYSE holidays -> covered by TASK-357 (use `last_nyse_session_on_or_before`).
 - `TASK-350` (Grok, `3799a85`) Production engine on the OOS PIT panel (1209 names, 2004-26,
   delistings). Audit 50/50 mix 6.91 / 0.74 / −19.5; engine **7.91 / 0.77 / −19.1**.
   1 not_filled (TWX), 492 hold_no_price (AET, ESRX, TWX), 0 write-offs / $0,

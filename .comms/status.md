@@ -3,11 +3,10 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 02:40
-**Working on:** 350 closed (engine: stale counter persisted, close-out sells; spec 9.4/9.5). Found Labor Day
-2026-09-07 on the first sheet -> TASK-357 for Grok (urgent). Reviews of 351-356 pending (suite green).
-**Files I'm touching:** `core/portfolio_engine.py`, `test_portfolio_engine.py`, `utils/trading_calendar.py`,
-`test_trading_calendar.py` (all committed now). Not touching `portfolio_v9.py` / `dashboard_v9.py` (Grok 349/357).
+**Updated:** 2026-09-06 03:20
+**Working on:** reviews 349-356 closed (all approved). Waiting on Grok's 357 (holiday-aware execution date,
+sheet re-render to 2026-09-08) and Tuesday 2026-09-08 close (Lucas executes; `daily.py` settles).
+**Files I'm touching:** none.
 **Blockers:** none.
 
 ## Grok

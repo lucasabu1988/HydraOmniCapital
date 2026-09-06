@@ -155,3 +155,21 @@ movió el resultado −0.16 pp de neto y +0.2 pp de DD frente al cálculo con lo
 4. **Objetivo:** si el 10 % neto sin apalancamiento sigue siendo el requisito, esta familia de estrategias
    no lo cumple sobre datos honestos; la alternativa pasiva (SPY) rinde más con el doble de drawdown. La
    decisión de qué se quiere optimizar — retorno o retorno por unidad de riesgo — es tuya.
+
+## Apéndice A. Incertidumbre de las métricas (TASK-354, Grok, 2026-09-06)
+
+Bootstrap estacionario por bloques (bloque medio 13 semanas, 5 000 réplicas, semilla 0) sobre los retornos
+por paso ejecutables OOS (PROD y T20 con T-bill, ETF, mezcla 50/50; 1 084 semanas solapadas 2005-02-11 a
+2026-08-24). Intervalos al 90 % del retorno anual neto: PROD [−0.0, 11.1], T20 [3.2, 11.9], ETF [4.1, 8.0],
+mezcla [4.0, 9.7]. El objetivo del 10 % neto queda por encima del percentil 95 de la mezcla.
+P(T20 > PROD en retorno) = 0.78; P(Sharpe mezcla > Sharpe T20) = 0.999. MaxDD 5/50/95 de la mezcla:
+−29.1 / −19.5 / −12.2. Misma serie publicada; no es una variante nueva. Detalle en
+`.comms/grok-task-354-bootstrap.md`.
+
+## Apéndice B. Motor de producción end-to-end (TASK-347/350, 2026-09-05/06)
+
+El motor `core/portfolio_engine.py` conducido por la historia (plan/settle/mark, estado serializado a JSON en
+cada corrida) sobre el panel PIT 2005-2026 con delistings da **7.10 % neto / Sharpe 0.75 / maxDD −17.8** frente a
+la mezcla de esta auditoría 6.91 / 0.74 / −19.5 (correlación por paso 0.76, mangas entre 47 % y 51 % del libro).
+Los tres defectos del motor que estas corridas destaparon (patas del reset sin compensar, umbral T-bill con el
+último print, contador de staleness sin persistir) están corregidos y documentados en la spec §9.3-9.5.
