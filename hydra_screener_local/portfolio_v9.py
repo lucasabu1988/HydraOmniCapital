@@ -42,6 +42,7 @@ from core.filters import (  # noqa: E402
 from core.signals import generate_daily_candidates  # noqa: E402
 from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
+from dashboard_v9 import summarize_interest  # noqa: E402
 from data.universe import get_universe  # noqa: E402
 
 STATE_NAME = "portfolio_v9.json"
@@ -188,6 +189,7 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         "exec_date": exec_date,
         "execute": f"ejecutar al cierre del {exec_date} (MOC t+1). Fills presumidos hasta que corrijas el estado.",
         "sector_degraded": sector_warning,
+        "interest": _json_ready(summarize_interest(state)),
     }
     md_path = state_dir / f"instructions_{date.replace('-', '')}.md"
     json_path = state_dir / f"instructions_{date.replace('-', '')}.json"
@@ -203,6 +205,16 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         f"Capital reference: {state.get('capital_reference'):,.2f} USD"
         if state.get("capital_reference") else "",
         f"Week index: {state.get('week_index')}  |  last renewal: {state.get('last_renewal_date')}",
+        "",
+    ]
+    ix = summarize_interest(state)
+    sl = ix.get("since_last_by_sleeve") or {}
+    sl_txt = ", ".join(f"{k} {v:,.2f}" for k, v in sl.items()) or "—"
+    lines += [
+        "## Interest (T-bill on idle cash)",
+        "",
+        f"Since previous run ({ix.get('last_date') or '—'}): **{ix['since_last_run']:,.2f}** USD ({sl_txt})",
+        f"Cumulative: **{ix['cumulative']:,.2f}** USD",
         "",
         "## Orders",
         "",
@@ -321,6 +333,8 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             print(f"[v9] backed up previous state -> {backup}")
         print(f"[v9] state -> {state_path}")
         print(f"[v9] instructions -> {md_path}")
+        ix = summarize_interest(state)
+        print(f"[v9] interest since last run {ix['since_last_run']:.2f}  cumulative {ix['cumulative']:.2f}")
         if not orders:
             print("[v9] no trades today")
     return dict(today=today, orders=orders, fills=fills, state_path=str(state_path),

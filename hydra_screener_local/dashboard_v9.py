@@ -100,6 +100,33 @@ def _lots_from_ledger(state: dict) -> dict:
     return lots
 
 
+def summarize_interest(state: dict | None) -> dict:
+    """Read-only rollup of `state["interest"]`. Missing key -> zeros (old states)."""
+    rows = list((state or {}).get("interest") or [])
+    cumulative = 0.0
+    by_sleeve: dict[str, float] = {}
+    for r in rows:
+        d = _f(r.get("dollars"))
+        cumulative += d
+        sl = str(r.get("sleeve") or "?")
+        by_sleeve[sl] = by_sleeve.get(sl, 0.0) + d
+    last_date = rows[-1].get("date") if rows else None
+    since = [r for r in rows if last_date is not None and r.get("date") == last_date]
+    since_total = sum(_f(r.get("dollars")) for r in since)
+    since_by: dict[str, float] = {}
+    for r in since:
+        sl = str(r.get("sleeve") or "?")
+        since_by[sl] = since_by.get(sl, 0.0) + _f(r.get("dollars"))
+    return {
+        "records": rows,
+        "cumulative": cumulative,
+        "by_sleeve": by_sleeve,
+        "since_last_run": since_total,
+        "since_last_by_sleeve": since_by,
+        "last_date": last_date,
+    }
+
+
 def _quote_price(quotes: dict, ticker: str, fallback: float | None) -> tuple[float | None, bool]:
     """Return (price, stale). quotes[t] may be a float or {price, stale}."""
     q = (quotes or {}).get(ticker)
@@ -215,6 +242,23 @@ def build_snapshot(state: dict, quotes: dict, spy=None) -> dict:
             "dollars": fill.get("dollars"), "cost": fill.get("cost"),
             "status": fill.get("status") or "filled",
         })
+    ix = summarize_interest(state)
+    for r in ix["records"]:
+        trade_log.append({
+            "date": r.get("date"),
+            "sleeve": r.get("sleeve"),
+            "tranche": None,
+            "side": "interest",
+            "ticker": "TBILL",
+            "units": r.get("bars"),
+            "price": r.get("rate"),
+            "dollars": r.get("dollars"),
+            "cost": None,
+            "status": "noted",
+            "bars": r.get("bars"),
+            "rate": r.get("rate"),
+            "since": r.get("since"),
+        })
 
     since_usd = total - capital if capital else 0.0
     since_pct = since_usd / capital if capital else 0.0
@@ -237,7 +281,10 @@ def build_snapshot(state: dict, quotes: dict, spy=None) -> dict:
         "unrealised": unreal_open,
         "realised": realised_total,
         "fees": fees_total,
-        "pnl_total": unreal_open + realised_total - fees_total,
+        "interest": ix["cumulative"],
+        "interest_by_sleeve": ix["by_sleeve"],
+        "interest_since_last_run": ix["since_last_run"],
+        "pnl_total": unreal_open + realised_total - fees_total + ix["cumulative"],
         "since_inception_usd": since_usd,
         "since_inception_pct": since_pct,
         "spy": {"price": spy_q, "stale": spy_stale},

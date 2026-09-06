@@ -80,6 +80,7 @@ def test_average_cost_partial_sell_and_not_filled():
     assert snap["total"] == pytest.approx(816.0)
     assert snap["sleeves"]["stocks"]["share"] == pytest.approx((100 + 200 + 66) / 816)
     assert snap["banner"].startswith("fills presumidos")
+    assert snap["interest"] == 0.0                      # old state, no key
 
 
 def test_reconciles_with_summary_table():
@@ -160,3 +161,21 @@ def test_two_polls_inside_ttl_write_one_curve_row(tmp_path, monkeypatch):
     curve = tmp_path / "equity_curve.csv"
     assert len(D.read_curve(curve)) == 1
     assert len(fetches) == 1
+
+
+def test_interest_two_accruals_and_missing_key():
+    assert D.summarize_interest({})["cumulative"] == 0.0
+    assert D.summarize_interest({"foo": 1})["cumulative"] == 0.0
+    st = _state()
+    st["interest"] = [
+        {"date": "2026-01-06", "since": "2026-01-05", "sleeve": "stocks", "bars": 1, "rate": 0.05, "dollars": 1.25},
+        {"date": "2026-01-06", "since": "2026-01-05", "sleeve": "etf", "bars": 1, "rate": 0.05, "dollars": 2.50},
+    ]
+    snap = D.build_snapshot(st, {"AAA": 11.0}, spy=400.0)
+    assert snap["interest"] == pytest.approx(3.75)
+    assert snap["interest_by_sleeve"]["stocks"] == pytest.approx(1.25)
+    assert snap["interest_since_last_run"] == pytest.approx(3.75)
+    rows = [r for r in snap["trade_log"] if r["side"] == "interest"]
+    assert len(rows) == 2
+    assert {r["sleeve"] for r in rows} == {"stocks", "etf"}
+    assert all(r["status"] == "noted" for r in rows)

@@ -213,6 +213,31 @@ def test_offdisk_backup_copies_when_env_set(tmp_path, monkeypatch):
     assert Path(out["state_path"]).exists()
 
 
+def test_instruction_sheet_shows_interest(tmp_path):
+    st = {"capital_reference": 100000, "week_index": 0, "last_renewal_date": None, "pending": [],
+          "interest": [
+              {"date": "2026-01-06", "since": "2026-01-05", "sleeve": "stocks", "bars": 1, "rate": 0.05, "dollars": 1.0},
+              {"date": "2026-01-06", "since": "2026-01-05", "sleeve": "etf", "bars": 1, "rate": 0.05, "dollars": 2.0},
+          ]}
+    md, js = V.write_instructions(tmp_path, "2026-01-06", [], [], {"total": 100000}, st, "2026-01-07")
+    text = md.read_text(encoding="utf-8")
+    assert "## Interest" in text
+    assert "Cumulative: **3.00** USD" in text
+    assert "Since previous run" in text
+    payload = json.loads(js.read_text(encoding="utf-8"))
+    assert payload["interest"]["cumulative"] == pytest.approx(3.0)
+
+
+def test_instruction_sheet_interest_zero_without_key(tmp_path):
+    md, js = V.write_instructions(
+        tmp_path, "2026-09-04", [], [], {"total": 100000},
+        {"capital_reference": 100000, "week_index": 0, "last_renewal_date": None, "pending": []},
+        "2026-09-07",
+    )
+    assert "Cumulative: **0.00** USD" in md.read_text(encoding="utf-8")
+    assert json.loads(js.read_text(encoding="utf-8"))["interest"]["cumulative"] == 0.0
+
+
 def test_offdisk_backup_warns_when_env_unset(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("HYDRA_BACKUP_DIR", raising=False)
     V._OFFDISK_WARNED = False
