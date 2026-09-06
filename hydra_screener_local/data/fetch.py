@@ -351,6 +351,9 @@ def period_to_start(period: str, end) -> pd.Timestamp:
     return (end_ts - pd.DateOffset(**_PERIOD_OFFSETS[p])).normalize()
 
 
+BAR_STORE_STALE_BDAYS = 20     # a stored name whose last bar is older than this is fetched apart (TASK-382)
+
+
 def fetch_prices_and_volume_cached(
     tickers: list[str],
     period: str = "1y",
@@ -423,17 +426,31 @@ def fetch_prices_and_volume_cached(
 
     if present:
         ostarts = {t: store.overlap_start(t, n=n_overlap) or start for t in present}
-        tail_start = min(ostarts.values())
-        if tail_start < start:
-            tail_start = start
-        print(f"   [bar store] tail fetch {len(present)} ticker(s) {tail_start.date()} -> {end.date()}")
-        try:
-            tail = provider.fetch(present, tail_start, end)
-        except Exception as e:
-            report["failed_batches"] += 1
-            report["failed_tickers"].extend(present)
-            print(f"   [bar store] tail fetch failed: {e}")
-            tail = pd.DataFrame()
+        # TASK-382: a handful of names whose last stored bar is old (delisted warrants, halted
+        # names) must not drag the whole tail window back — one stale ticker turned an 11-bar tail
+        # into a 35-bar window and the big tail batch never applied. Recent names share one short
+        # window; stale names get their own (long) request, which is small.
+        max_last = max(lasts[t] for t in present)
+        stale_cut = max_last - pd.tseries.offsets.BDay(int(BAR_STORE_STALE_BDAYS))
+        recent = [t for t in present if lasts[t] >= stale_cut]
+        stale = [t for t in present if lasts[t] < stale_cut]
+        tail_parts: list[pd.DataFrame] = []
+        for group, label in ((recent, "tail"), (stale, "stale tail")):
+            if not group:
+                continue
+            g_start = min(ostarts[t] for t in group)
+            if g_start < start:
+                g_start = start
+            print(f"   [bar store] {label} fetch {len(group)} ticker(s) {g_start.date()} -> {end.date()}")
+            try:
+                part = provider.fetch(group, g_start, end)
+                if part is not None and not getattr(part, "empty", True):
+                    tail_parts.append(part)
+            except Exception as e:
+                report["failed_batches"] += 1
+                report["failed_tickers"].extend(group)
+                print(f"   [bar store] {label} fetch failed: {e}")
+        tail = pd.concat(tail_parts, ignore_index=True) if tail_parts else pd.DataFrame()
         mismatches: list[str] = []
         matched: list[pd.DataFrame] = []
         if tail is not None and not getattr(tail, "empty", True):
