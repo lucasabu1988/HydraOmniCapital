@@ -10,7 +10,7 @@ then `daily.py` settles and accrues the first interest.
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-07 11:20
-**Working on:** idle. TASK-348 done, ready for review.
-**Files I'm touching:** none
-**Blockers:** none.
+**Updated:** 2026-09-05 22:25
+**Working on:** TASK-350 done, ready for review. Claiming TASK-352 (preflight.py).
+**Files I'm touching:** `preflight.py`, `portfolio_v9.py`, `daily.py`, `test_preflight.py`, `.comms/grok-task-352-preflight.md`
+**Blockers:** none. Claude has uncommitted `dashboard_v9.py` / `test_dashboard_v9.py` — not touching those.

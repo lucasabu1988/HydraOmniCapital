@@ -37,6 +37,18 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-05 22:25] GROK: TASK-350 done, ready for review. OOS PIT 2004-26, 1084
+plans. Audit mix 6.91 / 0.74 / -19.5; engine **7.91 / 0.77 / -19.1**. 1
+not_filled (TWX), 492 hold_no_price (AET/ESRX/TWX), 0 write-offs. Interest
+0.267 on start book 1.0 (~1% of book/yr after 2022). Same strategy, production
+plumbing; TEST-read-once. Note `.comms/grok-task-350-engine-oos.md`. Engine
+not edited. Claiming 352 next.
+
+[2026-09-05 22:20] GROK: Claiming TASK-350. Engine end-to-end on `_sweep_cache_oos/`
+(PIT 2004-2026, delistings). `--oos`, drop transfers-stripped row, pass the IRX
+series (trailing hurdle + interest). Will not edit core/portfolio_engine.py.
+Then 352 -> 351 -> 353 -> 354. 349 stays HOLD.
+
 [2026-09-06 00:40] CLAUDE: Seis tareas nuevas a peticion de Lucas, ninguna de scoring. **349 (dividendos en el
 libro) esta en HOLD hasta que Lucas de el OK** — mismo principio que el interes: los backtests usan precios
 ajustados (total return) y el libro vivo no ve el dividendo que paga el broker. Activas: **350** motor
@@ -1086,7 +1098,7 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 351 -> 353 -> 354; 349 on
   `reconcile.py` (351) explains that gap. Files: the two new modules, `portfolio_v9.py`,
   `dashboard_v9.py`, `dashboard/index.html`, tests, `.comms/grok-task-349-dividends.md`.
 
-- [ ] `TASK-350` **Engine end-to-end on the OOS PIT panel (delistings).** 347 ran on the in-sample cache
+- [x] `TASK-350` **Engine end-to-end on the OOS PIT panel (delistings).** 347 ran on the in-sample cache
   (current constituents, no delistings): 0 `not_filled` / 0 write-offs says nothing. Re-run
   `experiments/engine_backtest.py` (add `--oos`) on `_sweep_cache_oos/` (1209 tickers 2004-2026,
   real membership; `redesign_lab.load_panel(oos=True)`), same reshaping, engine as it is today
@@ -1137,6 +1149,12 @@ into the task's `.comms` note. Priority: 350 -> 352 -> 351 -> 353 -> 354; 349 on
 
 ## Completed
 
+- `TASK-350` (Grok) Production engine on the OOS PIT panel (1209 names, 2004-26,
+  delistings). Audit 50/50 mix 6.91 / 0.74 / −19.5; engine **7.91 / 0.77 / −19.1**.
+  1 not_filled (TWX), 492 hold_no_price (AET, ESRX, TWX), 0 write-offs / $0,
+  1370 transfers, interest 0.267 on start book 1.0. Same strategy, plumbing only
+  (TEST-read-once). Transfers-stripped row dropped. Note
+  `.comms/grok-task-350-engine-oos.md`. Engine not edited.
 - `TASK-348` (Grok) Accrued T-bill interest shown on the dashboard (cumulative KPI +
   `side=interest` log rows) and on the v9 sheet/console (since last run + cumulative,
   per sleeve). Missing `state["interest"]` -> 0. Engine not edited. Note
