@@ -1,8 +1,12 @@
-"""yfinance BarProvider (TASK-361 / TASK-378).
+"""yfinance BarProvider (TASK-361 / TASK-378 / TASK-382).
 
 Default: one `auto_adjust=False` download per batch; `close_adj` from
 `Adj Close`, `close_raw` from `Close`, volume from `Volume`. The old
 two-download path is `YFinanceProvider(two_pass=True)` for parity.
+
+Short windows (a store *tail* of <= TAIL_MAX_BARS bars) carry ~10 rows per ticker,
+so they use a bigger batch and a shorter pause between batches (TASK-382); the
+full-period path keeps 75 names / 1 s.
 """
 from __future__ import annotations
 
@@ -14,23 +18,54 @@ import pandas as pd
 from data.fetch import _close_frame_from_yf, _volume_frame_from_yf, _yf_download
 
 BATCH_SIZE = 75
+TAIL_BATCH_SIZE = 300      # TASK-382 measured default; see .comms/grok-task-382-tail-batches.md
+TAIL_SLEEP = 0.25
+TAIL_MAX_BARS = 15         # a window this short (business days) is a tail
+SLEEP_BETWEEN_BATCHES = 1.0
 SOURCE = "yfinance"
+
+
+def window_bars(start, end) -> int | None:
+    """Business days in [start, end]; None when either bound is missing."""
+    if start is None or end is None:
+        return None
+    try:
+        return int(len(pd.bdate_range(pd.Timestamp(start).normalize(), pd.Timestamp(end).normalize())))
+    except Exception:
+        return None
 
 
 class YFinanceProvider:
     source = SOURCE
 
-    def __init__(self, batch_size: int = BATCH_SIZE, two_pass: bool = False):
+    def __init__(self, batch_size: int = BATCH_SIZE, two_pass: bool = False, *,
+                 tail_batch_size: int = TAIL_BATCH_SIZE, tail_sleep: float = TAIL_SLEEP,
+                 tail_max_bars: int = TAIL_MAX_BARS):
         self.batch_size = int(batch_size) if batch_size else BATCH_SIZE
         self.two_pass = bool(two_pass)
+        self.tail_batch_size = int(tail_batch_size) if tail_batch_size else self.batch_size
+        self.tail_sleep = float(tail_sleep)
+        self.tail_max_bars = int(tail_max_bars)
+        self.last_batches = 0            # how many downloads the last fetch() issued (for the bench)
+        self.total_batches = 0           # cumulative over the provider's life (for the bench)
+
+    def batch_plan(self, start, end) -> tuple[int, float]:
+        """(batch size, sleep between batches) for this window."""
+        bars = window_bars(start, end)
+        if bars is not None and bars <= self.tail_max_bars:
+            return self.tail_batch_size, self.tail_sleep
+        return self.batch_size, SLEEP_BETWEEN_BATCHES
 
     def fetch(self, tickers: list[str], start, end) -> pd.DataFrame:
         names = [str(t) for t in tickers if t]
         if not names:
             return pd.DataFrame(columns=["ticker", "date", "close_adj", "close_raw", "volume"])
         parts: list[pd.DataFrame] = []
-        n = self.batch_size
+        n, pause = self.batch_plan(start, end)
+        self.last_batches = 0
         for i in range(0, len(names), n):
+            self.last_batches += 1
+            self.total_batches += 1
             batch = names[i : i + n]
             last_err = None
             for attempt in (1, 2):
@@ -43,8 +78,8 @@ class YFinanceProvider:
                         time.sleep(3.0)
             else:
                 print(f"   [bar store] lote perdido tras 2 intentos ({batch[:3]}...): {last_err}")
-            if i + n < len(names):
-                time.sleep(1.0)
+            if i + n < len(names):              # never after the last batch
+                time.sleep(pause)
         if not parts:
             return pd.DataFrame(columns=["ticker", "date", "close_adj", "close_raw", "volume"])
         out = pd.concat(parts, ignore_index=True)

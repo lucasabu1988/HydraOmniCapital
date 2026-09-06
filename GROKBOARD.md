@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 12:30] CLAUDE: **Cola de Grok cerrada por Claude** (Grok sin creditos). Hechas: 383, 384, 364, 365, 367,
+363, 382, 377 — todas con nota en `.comms/`. En `main` (congelamiento intacto): 383 ensayo del martes en dos modos,
+382 lotes de 300 para colas cortas + correccion de los 8 warrants rezagados que anulaban la cola (117 s vs 162 s
+directo, 0 rate limits, 3 corridas), 377 ajuste local exacto a 1e-7 con un hallazgo (un dividendo no bajado = serie
+silenciosamente mal; guardas listadas, sin flip). En la rama `post-freeze-wiring` (empujada, suite 51/0/0 estricta,
+main sin tocar): 384 cableado, 364 desatendido + alertas + Task Scheduler, 365 registro de portafolios, 367
+atribucion, 363 splits bajo `APPLY_SPLITS = False`. `HYDRA_BACKUP_DIR` ya apunta a OneDrive
+(`C:\Users\caslu\OneDrive\HydraBackups`, variable de usuario) y el estado del 2026-09-04 ya esta copiado ahi.
+**Pendiente:** Lucas decide H-003; tras "first settle verified" (martes 2026-09-08): merge de la rama, flip de
+`USE_BAR_STORE`, instalar la tarea programada. Cola vacia.
+
 [2026-09-06 08:30] CLAUDE: Grok se quedo sin creditos (Lucas). Cierro yo la cola pendiente. **383 y 384 HECHAS.**
 383: `experiments/rehearsal.py` corrio el camino real sobre una COPIA del estado en dos modos — `today` (pendientes
 esperando t+1: plan omitido, todo OK) y `simulate-t1` (barra sintetica 2026-09-08 al ultimo cierre: **30 fills
@@ -1444,7 +1455,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   wiring`) and the exact merge command. Do not merge; do not push the branch to origin as `main`. Files: on the
   branch only; in this tree only the note.
 
-- [ ] `TASK-382` **Tail fetch: fewer round trips when the window is short.** TASK-378 showed the cached tail pays 40
+- [x] `TASK-382` **Tail fetch: fewer round trips when the window is short.** TASK-378 showed the cached tail pays 40
   batches x (Yahoo RTT + 1 s sleep) for 3000 names x 10 bars, the same as a 2-year direct download; the response
   per ticker is ~10 rows, so the batch is far below what one request can carry. In `YFinanceProvider.fetch` add
   `tail_batch_size` (default 300) and `tail_sleep` (default 0.25 s) used **only when `end - start <= 15 bars`**;
@@ -1480,7 +1491,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   names comes back empty -> its rows survive, the other two are replaced, the report names it. Files:
   `data/store.py`, `data/fetch.py` (cached path only), `test_bar_store.py`, `.comms/grok-task-376-store-guard.md`.
 
-- [ ] `TASK-377` **Local total-return adjustment (prototype + evidence, no flip).** Yahoo's `auto_adjust=True`
+- [x] `TASK-377` **Local total-return adjustment (prototype + evidence, no flip).** Yahoo's `auto_adjust=True`
   rewrites a ticker's entire adjusted history at every dividend, which is why the store must readjust dozens of
   names on an ordinary day. The book already fetches dividends (`data/dividends.py`) and will fetch splits
   (TASK-363). Prototype `data/adjust.py`: `adjust(raw_close: Series, dividends: Series[ex_date -> dps],
@@ -1696,7 +1707,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   `data/pit.py`, `test_pit.py`; after the freeze `daily.py`, `portfolio_v9.py` (backup list only);
   `.comms/grok-task-362-pit-snapshots.md`.
 
-- [ ] `TASK-364` **Unattended mode, alert channel, Windows scheduled task.** (after the freeze)
+- [x] `TASK-364` **Unattended mode, alert channel, Windows scheduled task.** (after the freeze)
   `utils/notify.py`: transports `discord` (webhook), `telegram` (bot token + chat id), `file`
   (`state/alerts.log`, always on); move the two senders out of `send_hydra_summary.py` and import them
   back from there (behaviour identical). `notify(level, title, body)` reads `HYDRA_NOTIFY` (comma list of
@@ -1714,7 +1725,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   `daily.py`, `portfolio_v9.py` (exit-code plumbing only), `schedule/*`, `.gitignore`, `README.md`,
   `test_notify.py`, `test_daily_unattended.py`, `.comms/grok-task-364-unattended.md`.
 
-- [ ] `TASK-365` **Multi-portfolio registry.** (after the freeze) One book today; the shape for many.
+- [x] `TASK-365` **Multi-portfolio registry.** (after the freeze) One book today; the shape for many.
   `portfolios.toml` (tracked, no secrets): `[default]` = the live book (`state_dir = "state"`,
   `capital_reference = 100000`, `overrides = {}`, `enabled = true`) plus two disabled examples showing the
   shape (`paper_t20_only` with `mix = {stocks = 1.0, etf = 0.0}`; `paper_half_size` with capital 50000).
@@ -1729,7 +1740,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   `portfolios.toml`, `core/portfolios.py`, the CLIs listed, `test_portfolios.py`,
   `.comms/grok-task-365-portfolios.md`. Not the engine.
 
-- [ ] `TASK-367` **Attribution and analytics store.** (after the freeze) Where does the return come from?
+- [x] `TASK-367` **Attribution and analytics store.** (after the freeze) Where does the return come from?
   Move the dashboard's average-cost rule into `core/costbasis.py` (one implementation; `dashboard_v9.py`
   imports it — its tests must still pass unchanged). `analytics/attribution.py` (pure over state + marks):
   per sleeve/tranche/ticker realised + unrealised P/L and fees; the weekly book change decomposed into
@@ -1743,7 +1754,7 @@ engine**. Ten tasks, all infrastructure. Design note with the rationale, the ord
   `analytics/attribution.py`, `analytics_cli.py`, `dashboard_v9.py`, `dashboard/index.html`,
   `core/journal.py` (one field), `.gitignore`, `test_attribution.py`, `.comms/grok-task-367-attribution.md`.
 
-- [ ] `TASK-363` **Splits in the live book (H-003, pre-registered by Claude — accounting, not scoring).**
+- [x] `TASK-363` **Splits in the live book (H-003, pre-registered by Claude — accounting, not scoring).**
   (after the freeze; wiring into `portfolio_v9.py` only after Lucas's OK on H-003) Yahoo closes are
   split-adjusted, the book's `units` are not: a 2:1 split halves that position on paper the next run and
   `reconcile` shows a phantom quantity diff. Same pattern as TASK-349/358: `data/splits.py` (`Ticker.splits`
@@ -1901,12 +1912,42 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
-  **Lucas, before Tuesday:** `HYDRA_BACKUP_DIR` is not set on this machine (User or Machine scope) — the 2026-09-08 run would back up the state on the same disk. Nothing blocked; queue = TASK-377/382 (freeze phase, Claude) + TASK-363/364/365/367 (after the freeze).
+  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; **queue empty** — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) awaits Lucas.
 
 ---
 
 ## Completed
 
+- `TASK-377` (Claude, main) `data/adjust.py` (CRSP/Yahoo dividend factors, backwards cumulative; splits only for
+  non-split-adjusted raw), 7 hand tests, `experiments/adjust_parity.py`: 59/60 names within 1e-6 of Yahoo's Adj Close
+  (median 1.8e-7); the one miss (MKC) had 0 dividend rows after a rate-limited fetch — the guard the switch needs.
+  No flag, no production change. Note `.comms/grok-task-377-local-adjust.md`.
+  Review (Claude): self-delivered; recommendation = switch only with a "fetched none vs failed" cache distinction and a weekly sample check.
+- `TASK-382` (Claude, main) Tail batch 300 / pause 0.25 s for windows <= 15 bars; stale names (last bar > 20 bdays
+  old) fetched apart so eight July warrants no longer stretch the tail window; bench 3 runs x 4 sizes:
+  75 -> 148 s med, 150 -> 134, **300 -> 118**, 500 -> 136; 0 failures / 0 rate limits. Direct 162 s. 4 tests.
+  Note `.comms/grok-task-382-tail-batches.md`.
+  Review (Claude): self-delivered; flip criterion for `USE_BAR_STORE` met (data diffs 7e-7, cached < direct).
+- `TASK-363` (Claude, branch `post-freeze-wiring` @ `1dc416f`) Splits in the live book behind `APPLY_SPLITS = False`:
+  `data/splits.py` (cached `Ticker.splits`), `core/splits.py` (units held on the split date from the ledger x ratio,
+  `last_px` / ratio, pending estimates rescaled, idempotent), split-aware `holdings_before` and replay, sheet /
+  dashboard / reconcile rows. 8 tests. Note `.comms/grok-task-363-splits.md`. H-003 awaits Lucas.
+  Review (Claude): self-delivered after Grok ran out of credits; the flag flips only with Lucas's decision.
+- `TASK-367` (Claude, branch @ `89a9d6e`) Attribution: `core/costbasis.py` (shared average-cost lots),
+  `analytics/attribution.py` (selection / ETF / interest / dividends / fees / transfers / residual, identity
+  asserted, transfers net to zero), `analytics_cli.py` (csv + ATTRIBUTION.md with weekly column), dashboard cards,
+  journal block. 8 tests. Note `.comms/grok-task-367-attribution.md`.
+  Review (Claude): self-delivered; residual = the unexplained cash, zero on a replay-clean book.
+- `TASK-365` (Claude, branch @ `a9d8299`) `portfolios.toml` + `core/portfolios.py`; `--portfolio` on every CLI;
+  `run`/`fetch_v9_market`/`build_ranking` take `cfg`; default byte-identical to no flag (parity test); named books
+  get their own state/journal dirs and `state_v9/<name>/` backups; two disabled examples. 8 tests.
+  Note `.comms/grok-task-365-portfolios.md`.
+  Review (Claude): self-delivered; no second book enabled (that is a capital decision, not code).
+- `TASK-364` (Claude, branch @ `5f0350d`) `daily.py --unattended` (exit 0/1/2/3), `utils/notify.py` (file always,
+  Discord/Telegram from env, secrets never logged), evidence triggers through notify, `schedule/` (run_daily.cmd,
+  hydra.env.example, Task Scheduler XML Mon-Fri 16:45 local = after the ET close year-round, install/uninstall),
+  README section. 13 tests. Note `.comms/grok-task-364-unattended.md`.
+  Review (Claude): self-delivered; install the task only after the merge.
 - `TASK-384` (Claude, branch `post-freeze-wiring` @ `eebaeeb`, worktree `../HydraOmniCapital-wiring`) Post-freeze
   wiring: runlog around `portfolio_v9`/`daily`, `load_state` migrates and refuses unknown schema, preflight
   `state replay` HARD + `universe source` WARN, PIT snapshot after real runs, pit/ + runs/ mirrored off-disk,

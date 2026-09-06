@@ -346,7 +346,8 @@ def test_yfinance_provider_one_download_per_batch(monkeypatch):
 
     monkeypatch.setattr("data.fetch.yf.download", fake)
     monkeypatch.setattr("data.providers.yfinance_provider.time.sleep", lambda *a, **k: None)
-    long = YFinanceProvider(batch_size=2).fetch(["AAA", "BBB", "CCC"], "2024-01-02", "2024-01-08")
+    # tail_batch_size pinned: this test is about one download per batch, not tail sizing (TASK-382)
+    long = YFinanceProvider(batch_size=2, tail_batch_size=2).fetch(["AAA", "BBB", "CCC"], "2024-01-02", "2024-01-08")
     assert all(c["auto_adjust"] is False for c in calls)
     assert len(calls) == 2  # two batches of 2, one download each
     aaa = long[long["ticker"] == "AAA"].sort_values("date")
@@ -393,3 +394,88 @@ def test_cli_backfill_uses_cached_fetch(monkeypatch, tmp_path):
     assert seen["period"] == "20y"
     assert seen["tickers"] == ["AAA", "BBB"]
     assert seen["store"] is not None
+
+
+# --------------------------------------------------------------------------- TASK-382 tail batches
+
+
+def _fake_download_factory(calls, n_bars):
+    idx = pd.bdate_range("2024-01-02", periods=n_bars)
+
+    def fake(batch, start=None, end=None, period=None, auto_adjust=True, **kw):
+        calls.append(list(batch))
+        cols = {}
+        for tk in batch:
+            cols[("Close", tk)] = [50.0 + i for i in range(n_bars)]
+            cols[("Adj Close", tk)] = [100.0 + i for i in range(n_bars)]
+            cols[("Volume", tk)] = [1000 + i for i in range(n_bars)]
+        df = pd.DataFrame(cols, index=idx)
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        return df
+
+    return fake
+
+
+def test_tail_window_uses_the_big_batch(monkeypatch):
+    calls = []
+    monkeypatch.setattr("data.fetch.yf.download", _fake_download_factory(calls, 10))
+    monkeypatch.setattr("data.providers.yfinance_provider.time.sleep", lambda *a, **k: None)
+    prov = YFinanceProvider(batch_size=2, tail_batch_size=300)
+    names = [f"T{i}" for i in range(7)]
+    prov.fetch(names, "2024-01-02", "2024-01-15")           # 10 business days -> tail
+    assert len(calls) == 1 and calls[0] == names
+    assert prov.last_batches == 1
+    assert prov.batch_plan("2024-01-02", "2024-01-15") == (300, 0.25)
+
+
+def test_long_window_keeps_the_normal_batch(monkeypatch):
+    calls = []
+    monkeypatch.setattr("data.fetch.yf.download", _fake_download_factory(calls, 10))
+    monkeypatch.setattr("data.providers.yfinance_provider.time.sleep", lambda *a, **k: None)
+    prov = YFinanceProvider(batch_size=2, tail_batch_size=300)
+    names = [f"T{i}" for i in range(5)]
+    prov.fetch(names, "2022-01-03", "2024-01-15")           # two years -> full path
+    assert len(calls) == 3                                   # ceil(5 / 2)
+    assert prov.batch_plan("2022-01-03", "2024-01-15") == (2, 1.0)
+
+
+def test_no_sleep_after_the_last_batch(monkeypatch):
+    slept = []
+    monkeypatch.setattr("data.fetch.yf.download", _fake_download_factory([], 10))
+    monkeypatch.setattr("data.providers.yfinance_provider.time.sleep", lambda s: slept.append(s))
+    prov = YFinanceProvider(batch_size=2, tail_batch_size=2, tail_sleep=0.5)
+    prov.fetch(["A", "B", "C", "D"], "2024-01-02", "2024-01-15")   # two batches -> one pause
+    assert slept == [0.5]
+
+
+def test_stale_name_gets_its_own_window(tmp_path):
+    """One name last stored in July must not turn the 3000-name tail into a 35-bar window (TASK-382)."""
+    from data.fetch import fetch_prices_and_volume_cached
+    from data.store import BarStore
+
+    store = BarStore(tmp_path / "b.sqlite")
+    recent_idx = pd.bdate_range("2026-08-03", "2026-09-04")
+    stale_idx = pd.bdate_range("2026-06-01", "2026-07-17")
+
+    def long(ticker, idx):
+        return pd.DataFrame({"ticker": ticker, "date": idx, "close_adj": 10.0, "close_raw": 10.0,
+                             "volume": 100.0, "source": "t", "fetched_at": "x"})
+
+    store.upsert(pd.concat([long("AAA", recent_idx), long("BBB", recent_idx), long("OLDW", stale_idx)]))
+
+    calls = []
+
+    class Prov:
+        def fetch(self, tickers, start, end):
+            calls.append((sorted(tickers), pd.Timestamp(start), pd.Timestamp(end)))
+            idx = pd.bdate_range(start, end)
+            return pd.concat([long(t, idx) for t in tickers], ignore_index=True)
+
+    fetch_prices_and_volume_cached(["AAA", "BBB", "OLDW"], period="1y", provider=Prov(), store=store,
+                                   asof="2026-09-08")
+    windows = {tuple(c[0]): (c[1], c[2]) for c in calls}
+    assert ("AAA", "BBB") in windows and ("OLDW",) in windows
+    recent_start, _ = windows[("AAA", "BBB")]
+    assert recent_start >= pd.Timestamp("2026-08-21")            # the 10-bar overlap, not July
+    stale_start, _ = windows[("OLDW",)]
+    assert stale_start <= pd.Timestamp("2026-07-06")

@@ -3,12 +3,12 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 08:30
-**Working on:** finishing Grok's queue myself (Grok out of credits). Done: 383 (rehearsal, two modes, live state
-untouched) and 384 (post-freeze wiring on branch `post-freeze-wiring`, worktree `../HydraOmniCapital-wiring`, main
-untouched). Next: 382, 377 on main (freeze-safe); 364, 365, 367, 363 on the branch. Live path FROZEN on main until
-"first settle verified" after the Tuesday 2026-09-08 close.
-**Files I'm touching:** experiments/, data/providers/, data/adjust.py (main); the wiring worktree.
+**Updated:** 2026-09-06 12:30
+**Working on:** nothing open. Grok's queue closed by Claude (383, 384, 364, 365, 367, 363, 382, 377). Live path FROZEN
+on main until "first settle verified" after the Tuesday 2026-09-08 close; then: merge `post-freeze-wiring` (worktree
+`../HydraOmniCapital-wiring`), flip `USE_BAR_STORE`, install `schedule\install_task.cmd`. `HYDRA_BACKUP_DIR` now points
+to OneDrive. Waiting on Lucas for H-003.
+**Files I'm touching:** none.
 **Blockers:** none.
 
 ## Grok
