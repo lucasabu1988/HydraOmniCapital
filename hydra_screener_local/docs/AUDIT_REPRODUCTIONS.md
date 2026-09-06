@@ -58,3 +58,42 @@ cross-referenced.
 | R-108 | 1.8 | **`confirmed` fills vanished from the dashboard** — `_lots_from_ledger` skipped `status != "filled"`, so cost basis, realised P&L and fees all reverted to zero after a confirmation | `test_ledger_projection.py::test_r108_*` | `fix: unify confirmed ledger projection and dashboard` |
 | R-109 | 1.7 | the journal counted `("filled", "confirmed")` and dropped `confirmed_unplanned`, so slippage on an off-sheet fill was invisible | `test_ledger_projection.py::test_r109_*` | same |
 | R-110 | 1.6 | no invariant check existed: a poisoned state could be written | `test_ledger_integrity.py::test_check_invariants_catches_a_poisoned_state` | `fix: make fills idempotent and corrections balanced` |
+| R-201 | 2.3 | a close of exactly `0.0` raised `ZeroDivisionError` inside `plan()`, taking the whole daily run down | `test_numeric_safety.py::test_r201_*` | `fix: reject non-finite execution prices and invalid units` |
+| R-202 | 2.3 | **a negative close produced a real buy order** — `$575.86 at est_units=-46.07, est_price=-12.50` — onto the sheet Lucas executes by hand | `test_numeric_safety.py::test_r202_*` | same |
+| R-203 | 2.4 | `state_check` reported an infinite cash balance only as a replay mismatch, never as an impossible number | `test_numeric_safety.py::test_r203_*` | same |
+| R-204 | 2.4 | `_f` coerced NaN to 0.0 for the replay arithmetic, so a NaN cash whose replay also landed at zero passed the check clean | `test_numeric_safety.py::test_r204_*` | same |
+| R-205 | 2.4/8.3 | a mix of `{"stocks": -0.5, "etf": 1.5}` produced only a cascade of `replay_cash` findings and never said the weights were impossible | `test_numeric_safety.py::test_r205_*` | same |
+| R-206 | 2.5/2.8 | a **negative ETF close passed preflight clean** (`pd.notna(-3.0)` is True), so the sleeve would have been sized off it | `test_numeric_safety.py::test_r206_*` | same |
+| R-207 | 2.5 | a frame whose last bar was a month **after** the as-of instant passed preflight clean | `test_numeric_safety.py::test_r207_*` | same |
+| R-208 | 2.5 | preflight recorded neither the provider nor the capture timestamp, so a recommendation carried a date and no provenance | `test_numeric_safety.py::test_r208_*` | same |
+| R-209 | 2.6/2.7 | `data.fetch` forward-fills up to 3 bars and nothing downstream could tell a carried price from a printed one | `test_numeric_safety.py::test_r209_*` | same |
+| R-210 | 2.3/rule 11 | **one unpriced held name silently cancelled the whole renewal.** `float(px.get(t, last_px) or 0.0)`: NaN is truthy, so the tranche value became NaN and every later comparison against NaN was False — no buys, no sells, no transfer. On the golden market five consecutive weekly renewals fell from 25 orders to 1 | `test_numeric_safety.py::test_r210_*` | same |
+
+## Golden fixture regeneration (R-210)
+
+`test_fixtures/engine_golden_v9.json` was regenerated in the R-210 commit. It is a
+*characterisation* golden, so the diff is the evidence of the behaviour change:
+
+```
+weeks where the order count changed: 9
+  week 12 2021-03-25: before  1 orders -> after 25
+  week 13 2021-04-01: before  1 orders -> after 25
+  week 14 2021-04-08: before  1 orders -> after 25
+  week 15 2021-04-15: before  1 orders -> after 25
+  week 16 2021-04-22: before  1 orders -> after 25
+  week 17 2021-04-29: before 27 orders -> after 24
+  week 18 2021-05-06: before 27 orders -> after 24
+  week 19 2021-05-13: before 27 orders -> after 24
+  week 20 2021-05-20: before 27 orders -> after 24
+total orders 572 -> 680;  final cash 157.0635 -> 157.7849
+```
+
+Weeks 12-16 are the bug: the ghost name `S00` goes unpriced, the tranche value turns
+NaN and the renewal collapses to the single `hold_no_price` note. Weeks 17-20 differ
+because the book is no longer three renewals behind. **No scoring input changed** —
+`stock_targets`, `etf_targets`, the ranking and every parameter in `config.py` are
+untouched; only the refusal to size an order from an invalid price and the refusal to
+let one NaN silently void a renewal.
+
+The pre-regeneration fixture is recoverable with
+`git show <parent>:hydra_screener_local/test_fixtures/engine_golden_v9.json`.

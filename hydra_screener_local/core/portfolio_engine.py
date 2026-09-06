@@ -24,10 +24,72 @@ import numpy as np
 import pandas as pd
 
 from config import V9, MAX_PER_SECTOR
+from core.numbers import is_finite_money, is_finite_price, is_valid_units
 from core.tranche_book import TrancheBook, Tranche
 
 STATE_SCHEMA = 1
 SLEEVES = ("stocks", "etf")
+
+
+class DataError(RuntimeError):
+    """Data the engine needs to size an order is missing or impossible.
+
+    Raised rather than worked around: an order priced off a non-finite or
+    non-positive close is an order Lucas would execute by hand (audit phase 2.3).
+    """
+
+
+def _price_for_order(px, ticker: str) -> tuple[float | None, str | None]:
+    """(price, rejection reason). A price is usable only if finite and > 0.
+
+    Before phase 2 only `np.isfinite` was checked, so a close of 0.0 raised
+    ZeroDivisionError inside plan() (repro R-201) and a negative close produced a
+    buy order for real dollars at negative est_units (repro R-202: $575.86 at
+    -46.07 shares, est_price -12.50).
+    """
+    raw = px.get(ticker, np.nan)
+    try:
+        p = float(raw)
+    except (TypeError, ValueError):
+        return None, f"price is not a number: {raw!r}"
+    if not np.isfinite(p):
+        return None, "no print on the planning close"
+    if p <= 0.0:
+        return None, f"close is not a valid price: {p!r}"
+    return p, None
+
+
+def _reject(state: dict, today: str, sleeve: str, k: int, ticker: str, intent: str, reason: str) -> dict:
+    """Record a structured refusal on the state and return it (phase 2.3/1.11)."""
+    rec = {
+        "date": str(today), "sleeve": str(sleeve), "tranche": int(k), "ticker": str(ticker),
+        "intent": str(intent), "reason": str(reason), "code": "price_not_executable",
+    }
+    state.setdefault("data_errors", []).append(rec)
+    return rec
+
+
+def validate_orders(orders: list) -> list[str]:
+    """Errors in a planned order list. Empty list = every order is executable.
+
+    Acceptance criterion 3: no order may carry a NaN, infinite, zero-invalid or
+    negative price, unit count or dollar amount.
+    """
+    errors: list[str] = []
+    for i, o in enumerate(orders):
+        where = f"order[{i}] {o.get('sleeve')}[{o.get('tranche')}] {o.get('side')} {o.get('ticker')}"
+        dollars = o.get("dollars")
+        if not is_finite_money(dollars):
+            errors.append(f"{where}: dollars is not finite ({dollars!r})")
+        elif float(dollars) < 0.0:
+            errors.append(f"{where}: dollars is negative ({dollars!r})")
+        px = o.get("est_price")
+        if px is not None and not is_finite_price(px):
+            errors.append(f"{where}: est_price is not a valid price ({px!r})")
+        units = o.get("est_units")
+        if units is not None and not is_valid_units(units, allow_zero=True):
+            errors.append(f"{where}: est_units is not a valid unit count ({units!r})")
+    return errors
 
 
 # ----------------------------------------------------------------------------- state
@@ -241,9 +303,26 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
     own_by_sleeve = {}
     for sleeve, px in (("stocks", px_s), ("etf", px_e)):
         tr = state["sleeves"][sleeve]["tranches"][k]
-        own_by_sleeve[sleeve] = float(tr["cash"]) + sum(
-            u * float(px.get(t, tr.get("last_px", {}).get(t, np.nan)) or 0.0) for t, u in tr["units"].items())
+        value = float(tr["cash"])
+        for t, u in tr["units"].items():
+            mark_px = px.get(t, tr.get("last_px", {}).get(t, np.nan))
+            try:
+                mark_px = float(mark_px)
+            except (TypeError, ValueError):
+                mark_px = np.nan
+            if not np.isfinite(mark_px) or mark_px <= 0.0:
+                # no print and no carried mark: the name contributes nothing to the
+                # renewal split and is reported. The sells loop below emits
+                # hold_no_price for it, so it is visible on the sheet too.
+                _reject(state, today, sleeve, k, t, "mark", "no print and no last_px to carry")
+                continue
+            value += float(u) * mark_px
+        if not is_finite_money(value):
+            raise DataError(f"{sleeve}[{k}] tranche value is not finite; refusing to plan")
+        own_by_sleeve[sleeve] = value
     tranche_target = sum(own_by_sleeve.values()) / 2.0
+    if not is_finite_money(tranche_target):
+        raise DataError("renewal target is not finite; refusing to plan")
 
     # T-bill hurdle for the ETF sleeve: the trailing 252-bar accumulated T-bill return, as measured
     # in the lab (`tbill_rate` as an annualised decimal Series on the price calendar). A scalar is
@@ -262,10 +341,11 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
         transfer = tranche_target - own                     # + receives cash from the other sleeve, - gives
         # sells: everything held that is not in the target, plus trims of kept names
         for t, u in tr["units"].items():
-            p = float(px.get(t, np.nan))
-            if not np.isfinite(p):
+            p, reason = _price_for_order(px, t)
+            if p is None:
+                _reject(state, today, sleeve, k, t, "sell", reason)
                 orders.append(dict(sleeve=sleeve, tranche=k, ticker=t, side="hold_no_price", dollars=0.0, est_units=u, est_price=None,
-                                   note="no print today; carried at last price, cannot be sold"))
+                                   note=f"cannot be sold: {reason}"))
                 continue
             cur = u * p
             tgt = float(targets.get(t, 0.0)) * tranche_target
@@ -276,8 +356,11 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
                 orders.append(dict(sleeve=sleeve, tranche=k, ticker=t, side="sell", dollars=cur - tgt, est_units=(cur - tgt) / p, est_price=p,
                                    close=bool(tgt <= 1e-12)))
         for t, w in targets.items():
-            p = float(px.get(t, np.nan))
-            if not np.isfinite(p):
+            p, reason = _price_for_order(px, t)
+            if p is None:
+                # no order at all: a buy priced off a bad close is a hand-executed
+                # order at a wrong price (phase 2.3). The refusal is structured.
+                _reject(state, today, sleeve, k, t, "buy", reason)
                 continue
             cur = float(tr["units"].get(t, 0.0)) * p
             tgt = float(w) * tranche_target
@@ -292,6 +375,10 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
                                note="no names selected: tranche stays in T-bill (no fallback)"))
     for o in orders:
         o.update(planned=today, week=week, cost_bp=cfg["stock_cost_bp"] if o["sleeve"] == "stocks" else cfg["etf_cost_bp"])
+    problems = validate_orders(orders)
+    if problems:
+        # Fail closed: nothing becomes pending and no sheet is written (audit rule 10).
+        raise DataError("refusing to plan; unexecutable order(s): " + "; ".join(problems))
     state["pending"] = orders
     state["week_index"] = week
     state["last_renewal_date"] = today

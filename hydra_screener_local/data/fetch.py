@@ -6,6 +6,7 @@ import yfinance as yf
 import pandas as pd
 import warnings
 import time
+from datetime import datetime, timezone
 
 from config import DELISTED_OR_BAD_TICKERS
 
@@ -288,7 +289,16 @@ def _fetch_closes(tickers: list[str], period: str, *, auto_adjust: bool, report:
         return pd.DataFrame()
 
     prices = pd.concat(frames, axis=1).dropna(axis=1, how="all")
+    # Provenance before the fill (audit phase 2.6): downstream a carried price is
+    # indistinguishable from a printed one, and an order may only be priced from a
+    # real print. `last_observed` is the evidence data.quality.classify() needs.
+    from data.quality import last_observed_dates
+    observed = last_observed_dates(prices)
     prices = prices.ffill(limit=FFILL_LIMIT_BARS)
+    report["last_observed"] = observed
+    report["ffill_limit_bars"] = int(FFILL_LIMIT_BARS)
+    report["source"] = "yfinance"
+    report["fetched_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     missing = [t for t in tickers if t not in prices.columns]
     failed_tickers = list(dict.fromkeys(failed_tickers + missing))
     downloaded = len(prices.columns)

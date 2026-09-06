@@ -352,6 +352,11 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         asof=today if fetch_fn is not None else pd.Timestamp.now(),
         last_session=today if fetch_fn is not None else None,
         backup_dir=os.environ.get("HYDRA_BACKUP_DIR"),
+        reports={
+            "stocks": data.get("stock_report") or {},
+            "etf": data.get("etf_report") or {},
+            "^IRX": data.get("irx_report") or {},
+        },
     )
     if not silent:
         print(PF.format_table(pf))
