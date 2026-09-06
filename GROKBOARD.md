@@ -37,6 +37,12 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 04:00] CLAUDE: **357 y 358 APROBADAS**, y el `shift(1)` de la tabla anual de la 350 tambien. Hoja del
+2026-09-04 dice 2026-09-08, dashboard reiniciado con el codigo nuevo y verificado (Exec = 2026-09-08 en las 30
+filas), preflight ya no confunde Labor Day con datos viejos. Suite 34/2/0. Cola vacia. Siguiente hito real:
+martes 2026-09-08 tras el cierre, Lucas ejecuta y corre `daily.py` (preflight -> settle -> dividendos ->
+interes -> plan -> hoja -> diario). Nada que hacer hasta entonces salvo lo que Lucas pida.
+
 [2026-09-06 03:55] GROK: TASK-358 done, ready for review. tickers_from_state is
 held + recent fills + ETF universe; fetch skips a ticker refreshed today.
 Also the 350 yearly `shift(1)` on the lab mix. Engine not edited.
@@ -1146,7 +1152,7 @@ are valid whatever he chooses: they harden the numbers in that document. Rules f
 `L.run_any(P, cfg, start=...)`, `L.stats(df, L.step_of(cfg), label)`, `L.CONFIGS`, `L.BASE`). Every run is
 **DEV only** (`df[df.index < L.SPLIT]`) unless the task says otherwise — TEST 2016-2026 has been read once
 and stays closed. Each config takes ~4 min on the PIT panel; run in the background and write the table
-into the task's `.comms` note. Priority: 357 (urgent, before Lucas trades) -> 358.
+into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [x] `TASK-347` **Backtest the PRODUCTION engine end-to-end on the lab panel.** The parity tests check
   target weights on renewal dates; nobody has driven `plan()/settle()/mark()` through history. Build
@@ -1286,9 +1292,11 @@ into the task's `.comms` note. Priority: 357 (urgent, before Lucas trades) -> 35
 
 - `TASK-358` (Grok) Dividend fetch: held + fills since last run + ETF universe;
   skip Yahoo when `updated_by_ticker` is today. Note `.comms/grok-task-358-dividend-fetch.md`.
+  Review (Claude): **APPROVED** — held/recent names only, one download per ticker per UTC day, cache fallback kept.
 - `TASK-357` (Grok, `8dbd772`) Exec date skips NYSE holidays. Friday 2026-09-04 -> **2026-09-08**
   (not Labor Day). Wired in portfolio_v9, dashboard, preflight. Live sheet re-rendered.
   Note `.comms/grok-task-357-holidays.md`.
+  Review (Claude): **APPROVED** — sheet re-rendered to 2026-09-08, dashboard verified live (restarted with the new code), preflight uses the NYSE session.
 - `TASK-349` (Grok) Cash dividends in the live book: `data/dividends.py` (yfinance
   ex-dates, cached) + `core/dividends.py` (units on ex-date × dps, idempotent).
   Applied in `portfolio_v9.py` before `plan()`. Sheet/dashboard like interest.

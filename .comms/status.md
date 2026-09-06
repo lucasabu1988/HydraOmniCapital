@@ -3,9 +3,10 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 03:20
-**Working on:** reviews 349-356 closed (all approved). Waiting on Grok's 357 (holiday-aware execution date,
-sheet re-render to 2026-09-08) and Tuesday 2026-09-08 close (Lucas executes; `daily.py` settles).
+**Updated:** 2026-09-06 04:00
+**Working on:** nothing open. All Grok tasks through 358 reviewed and approved. Next: Tuesday 2026-09-08 close
+(Lucas executes the 30 orders, then `daily.py`); I verify the settle, dividends/interest records and the first
+journal entry.
 **Files I'm touching:** none.
 **Blockers:** none.
 
