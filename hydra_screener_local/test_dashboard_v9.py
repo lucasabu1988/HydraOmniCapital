@@ -178,6 +178,13 @@ def test_dividends_two_credits_and_missing_key():
     assert len(rows) == 2 and {r["ticker"] for r in rows} == {"AAA", "TLT"}
 
 
+def test_exec_date_for_skips_labor_day(tmp_path):
+    assert D.exec_date_for("2026-09-04") == "2026-09-08"
+    sheet = tmp_path / "instructions_20260904.json"
+    sheet.write_text('{"exec_date": "2026-09-08"}', encoding="utf-8")
+    assert D.exec_date_for("2026-09-04", tmp_path) == "2026-09-08"
+
+
 def test_interest_two_accruals_and_missing_key():
     assert D.summarize_interest({})["cumulative"] == 0.0
     assert D.summarize_interest({"foo": 1})["cumulative"] == 0.0

@@ -107,6 +107,16 @@ def test_weekend_asof_uses_friday():
     assert r["session"] == "2026-09-04"
 
 
+def test_labor_day_asof_uses_friday_not_monday():
+    """2026-09-07 is Labor Day: last NYSE session is Friday 09-04, not the weekday itself."""
+    prices, etf, irx, ranking, state = _frames()
+    assert PF.last_weekday_session("2026-09-07") == "2026-09-04"
+    r = PF.evaluate(prices, etf, irx, state=state, ranking=ranking,
+                    asof="2026-09-07", backup_dir="x")
+    assert not r["hard"]
+    assert r["session"] == "2026-09-04"
+
+
 def test_nine_of_ten_etfs_is_hard():
     prices, etf, irx, ranking, state = _frames(drop_etf=["GLD"])
     r = PF.evaluate(prices, etf, irx, state=state, ranking=ranking,

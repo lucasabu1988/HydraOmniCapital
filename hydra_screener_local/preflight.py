@@ -11,7 +11,7 @@ import pandas as pd
 from config import SECTOR_UNKNOWN_MAX_SHARE, V9
 from core.portfolio_engine import STATE_SCHEMA
 from data.sectors import sector_degraded_message
-from utils.trading_calendar import first_bar_after
+from utils.trading_calendar import first_bar_after, last_nyse_session_on_or_before
 
 KNOWN_SCHEMA_VERSIONS = {STATE_SCHEMA}
 PRINT_SHARE_WARN = 0.90
@@ -25,11 +25,8 @@ def last_bar_date(frame) -> str | None:
 
 
 def last_weekday_session(asof) -> str:
-    """Last Mon-Fri on or before `asof`. NYSE holidays false-alarm; `--force` exists."""
-    d = pd.Timestamp(asof).normalize()
-    while int(d.weekday()) >= 5:
-        d -= pd.Timedelta(days=1)
-    return str(d.date())
+    """Last regular NYSE session on or before `asof` (weekends and holidays skipped)."""
+    return last_nyse_session_on_or_before(asof)
 
 
 def _row(check: str, status: str, detail: str) -> dict:
@@ -49,7 +46,7 @@ def evaluate(
     etf_universe: list[str] | None = None,
 ) -> dict:
     """Run every check. `asof` is the wall-clock (or test clock) used to name the
-    last weekday session when `last_session` is omitted."""
+    last NYSE session when `last_session` is omitted."""
     rows: list[dict] = []
     names = list(etf_universe or ETF_UNIVERSE)
 

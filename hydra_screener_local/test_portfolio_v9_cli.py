@@ -93,8 +93,9 @@ def test_first_run_writes_state_backup_and_instructions(tmp_path):
     assert "AAA" in md.read_text(encoding="utf-8")
     body = json.loads(js.read_text(encoding="utf-8"))
     assert body["date"] == "2026-09-04"
-    assert "ejecutar al cierre del 2026-09-07" in body["execute"]
-    assert "ejecutar al cierre del 2026-09-07" in md.read_text(encoding="utf-8")
+    assert "ejecutar al cierre del 2026-09-08" in body["execute"]
+    assert "ejecutar al cierre del 2026-09-08" in md.read_text(encoding="utf-8")
+    assert body["exec_date"] == "2026-09-08"
     assert len(eng.tbill_seen) == 1 and isinstance(eng.tbill_seen[0], pd.Series)   # full history
     assert float(eng.tbill_seen[0].iloc[-1]) == pytest.approx(0.0525)              # percent / 100
     assert not (tmp_path / "backup").exists() or not list((tmp_path / "backup").glob("*.json"))
@@ -138,6 +139,14 @@ def test_next_bar_settles_then_can_plan_again(tmp_path):
     assert eng.settles == 1
     assert eng.plans == 2
     assert out["fills"] and out["orders"]
+
+
+def test_next_session_date_skips_labor_day():
+    """Friday 2026-09-04 with no later bar in the index -> Tuesday 2026-09-08, not Monday."""
+    idx = pd.DatetimeIndex(["2026-09-04"])
+    assert V.next_session_date(idx, "2026-09-04") == "2026-09-08"
+    idx2 = pd.DatetimeIndex(["2026-09-04", "2026-09-08"])
+    assert V.next_session_date(idx2, "2026-09-04") == "2026-09-08"
 
 
 def test_first_run_defaults_capital_to_100k(tmp_path):

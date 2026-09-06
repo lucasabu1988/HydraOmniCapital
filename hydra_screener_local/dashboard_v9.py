@@ -160,8 +160,8 @@ def exec_date_for(planned, state_dir: Path | None = None):
                     return str(ex)
             except (OSError, ValueError):
                 pass
-    import pandas as pd
-    return str((pd.Timestamp(planned) + pd.offsets.BDay(1)).date())
+    from utils.trading_calendar import next_nyse_session
+    return next_nyse_session(planned)
 
 
 def ny_day(ts) -> str:

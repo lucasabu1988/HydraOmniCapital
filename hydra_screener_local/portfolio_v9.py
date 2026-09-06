@@ -160,12 +160,17 @@ def _last_date(frame) -> str:
 
 
 def next_session_date(index, today: str) -> str:
-    """First bar on the price calendar strictly after `today`, else the next business day."""
+    """First bar on the price calendar strictly after `today`, else the next NYSE session.
+
+    A Friday run has no later bar in the downloaded index, so the fallback used to be
+    BDay(1) and printed Labor Day 2026-09-07 on the first sheet (TASK-357).
+    """
+    from utils.trading_calendar import next_nyse_session
     idx = pd.DatetimeIndex(index).normalize()
     later = idx[idx > pd.Timestamp(today).normalize()]
     if len(later):
         return str(pd.Timestamp(later[0]).date())
-    return str((pd.Timestamp(today) + pd.offsets.BDay(1)).date())
+    return next_nyse_session(today)
 
 
 def _row(frame, date: str) -> pd.Series:

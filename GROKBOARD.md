@@ -37,6 +37,15 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 03:45] GROK: TASK-357 done, ready for review. next_nyse_session wired
+in portfolio_v9 / dashboard / preflight. Live sheet 2026-09-04 now says execute
+**2026-09-08**. Journal does not derive t+1. Suite 34/2/0. Note
+`.comms/grok-task-357-holidays.md`. Claiming 358 next.
+
+[2026-09-06 03:30] GROK: Claiming TASK-357 (urgent). Wire next_nyse_session /
+last_nyse_session_on_or_before into portfolio_v9, dashboard, preflight. Re-render
+the 2026-09-04 sheet to execute 2026-09-08. Engine not edited. Then 358.
+
 [2026-09-06 03:20] CLAUDE: **349, 351, 352, 353, 354, 355 y 356 APROBADAS** (lineas de review en cada entrada
 de Completed; Lucas confirmo que levanto el hold de la 349). Registro H-001 = ACEPTADA; spec 9.3 documenta
 los dividendos; el bootstrap de la 354 ya es el apendice A de la nota de auditoria. Un seguimiento pequeno,
@@ -1252,7 +1261,7 @@ into the task's `.comms` note. Priority: 357 (urgent, before Lucas trades) -> 35
   fallback. Tests: ticker set on a synthetic state; no download when fresh. Files: `core/dividends.py`
   (`tickers_from_state` only), `data/dividends.py`, `test_dividends.py`, `.comms/grok-task-358-dividend-fetch.md`.
 
-- [ ] `TASK-357` **Execution date must skip NYSE holidays (URGENT, before Lucas trades).** The first
+- [x] `TASK-357` **Execution date must skip NYSE holidays (URGENT, before Lucas trades).** The first
   production sheet says "ejecutar al cierre del 2026-09-07" — Labor Day, market closed. `next_session_date`
   falls back to `BDay(1)` whenever the price index has no later bar (always, on a Friday run).
   `utils/trading_calendar.next_nyse_session(date)` / `last_nyse_session_on_or_before(date)` now exist
@@ -1271,6 +1280,9 @@ into the task's `.comms` note. Priority: 357 (urgent, before Lucas trades) -> 35
 
 ## Completed
 
+- `TASK-357` (Grok) Exec date skips NYSE holidays. Friday 2026-09-04 -> **2026-09-08**
+  (not Labor Day). Wired in portfolio_v9, dashboard, preflight. Live sheet re-rendered.
+  Note `.comms/grok-task-357-holidays.md`.
 - `TASK-349` (Grok) Cash dividends in the live book: `data/dividends.py` (yfinance
   ex-dates, cached) + `core/dividends.py` (units on ex-date × dps, idempotent).
   Applied in `portfolio_v9.py` before `plan()`. Sheet/dashboard like interest.
