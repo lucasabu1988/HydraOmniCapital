@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hydra-screener-local"
 version = "0.2.0"
-description = "HYDRA momentum + regime equity screener (local, hybrid Python + TradingView)"
+description = "HYDRA v9 local portfolio screener (T20 momentum + ETF trend)"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
@@ -26,11 +26,7 @@ classifiers = [
 
 [project.scripts]
 hydra-daily = "daily:main"
-hydra-refresh = "refresh_current_prices:main"
-hydra-watch = "live_watcher:main"
-hydra-dashboard = "generate_html_dashboard:main"
-hydra-console = "console_dashboard:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*", "data*", "utils*"]
+include = ["core*", "data*", "utils*", "sleeves*"]
