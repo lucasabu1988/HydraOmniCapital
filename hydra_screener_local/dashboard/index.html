@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HYDRA v9 — dashboard local</title>
+  <style>
+    :root { --bg:#0e1116; --card:#171b22; --line:#2a3140; --txt:#e8edf5; --dim:#8b95a8; --up:#3dd68c; --dn:#ff6b6b; --acc:#7aa2ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:14px/1.45 system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--txt); }
+    header { padding:16px 20px 8px; }
+    h1 { font-size:18px; margin:0 0 4px; letter-spacing:.04em; }
+    .banner { background:#3a2a12; color:#ffd79a; padding:8px 20px; font-size:13px; }
+    .err { background:#3a1515; color:#ffb4b4; padding:10px 20px; }
+    .row { display:flex; flex-wrap:wrap; gap:12px; padding:12px 20px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; flex:1; min-width:160px; }
+    .k { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+    .v { font-size:22px; font-variant-numeric:tabular-nums; margin-top:4px; }
+    .up { color:var(--up); } .dn { color:var(--dn); }
+    table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+    th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+    th { color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase; }
+    .panel { margin:0 20px 16px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; overflow:auto; }
+    svg { width:100%; height:140px; display:block; }
+    .stale { color:#c9a227; font-size:11px; }
+    footer { color:var(--dim); padding:8px 20px 24px; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="banner" id="banner">fills presumidos — simulación de ejecución al cierre; no es un extracto del bróker</div>
+  <header>
+    <h1>HYDRA v9 · 50/50 T20 + ETF</h1>
+    <div class="k" id="meta">localhost · solo lectura</div>
+  </header>
+  <div id="err" class="err" hidden></div>
+  <div class="row" id="kpis"></div>
+  <div class="panel">
+    <div class="k">Curva de equity</div>
+    <svg id="curve" viewBox="0 0 800 140" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="row" id="sleeves"></div>
+  <div class="panel">
+    <div class="k">Posiciones</div>
+    <table id="pos"><thead></thead><tbody></tbody></table>
+  </div>
+  <div class="panel">
+    <div class="k">Log de operaciones</div>
+    <table id="log"><thead></thead><tbody></tbody></table>
+  </div>
+  <div class="panel">
+    <div class="k">Órdenes pendientes (ejecutar t+1)</div>
+    <table id="pend"><thead></thead><tbody></tbody></table>
+  </div>
+  <footer id="foot"></footer>
+  <script>
+    const $ = id => document.getElementById(id);
+    const fmt = (n, d=2) => n == null || Number.isNaN(n) ? "—" : Number(n).toLocaleString("en-US", {minimumFractionDigits:d, maximumFractionDigits:d});
+    const usd = n => n == null ? "—" : (n < 0 ? "−" : "") + "$" + fmt(Math.abs(n));
+    const pct = n => n == null ? "—" : ((n >= 0 ? "+" : "") + fmt(n * 100, 2) + "%");
+    const cls = n => n == null ? "" : n >= 0 ? "up" : "dn";
+    function rows(table, headers, data, cols) {
+      table.querySelector("thead").innerHTML = "<tr>" + headers.map(h => "<th>"+h+"</th>").join("") + "</tr>";
+      table.querySelector("tbody").innerHTML = data.length
+        ? data.map(r => "<tr>" + cols.map(c => "<td>"+c(r)+"</td>").join("") + "</tr>").join("")
+        : "<tr><td colspan='"+headers.length+"'>ninguno</td></tr>";
+    }
+    function drawCurve(pts) {
+      const svg = $("curve");
+      if (!pts.length) { svg.innerHTML = ""; return; }
+      const ys = pts.map(p => p.total);
+      const min = Math.min(...ys), max = Math.max(...ys);
+      const span = max - min || 1;
+      const w = 800, h = 140, pad = 8;
+      const xy = pts.map((p,i) => {
+        const x = pad + (w-2*pad) * (pts.length === 1 ? 0.5 : i/(pts.length-1));
+        const y = h - pad - (h-2*pad) * ((p.total - min) / span);
+        return x.toFixed(1)+","+y.toFixed(1);
+      });
+      svg.innerHTML = '<polyline fill="none" stroke="#7aa2ff" stroke-width="2" points="'+xy.join(" ")+'" />';
+    }
+    function render(s) {
+      $("banner").textContent = s.banner || "";
+      if (!s.ok) { $("err").hidden = false; $("err").textContent = s.error || "sin datos"; return; }
+      $("err").hidden = true;
+      $("meta").textContent = "ancla " + (s.anchor_date||"—") + " · última corrida " + (s.last_run_date||"—") +
+        " · week " + s.week_index + " · " + (s.as_of||"");
+      $("kpis").innerHTML = [
+        ["Valor", usd(s.total), ""],
+        ["P/L día", usd(s.day_pnl_usd), cls(s.day_pnl_usd)],
+        ["Desde inicio", usd(s.since_inception_usd) + "  " + pct(s.since_inception_pct), cls(s.since_inception_usd)],
+        ["vs SPY", pct(s.vs_spy_pct), cls(s.vs_spy_pct)],
+        ["No realizado", usd(s.unrealised), cls(s.unrealised)],
+        ["Realizado", usd(s.realised), cls(s.realised)],
+        ["Fees", usd(s.fees), ""],
+      ].map(([k,v,c]) => `<div class="card"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join("");
+      const sl = s.sleeves || {};
+      $("sleeves").innerHTML = Object.keys(sl).map(name => {
+        const x = sl[name];
+        return `<div class="card"><div class="k">Manga ${name}</div>
+          <div class="v">${usd(x.value)}</div>
+          <div class="k">${pct(x.share)} del libro (objetivo 50%) · cash ${usd(x.cash)} · expo ${fmt(x.exposure*100,1)}% · n=${x.distinct}</div>
+        </div>`;
+      }).join("");
+      drawCurve(s.curve || []);
+      rows($("pos"), ["Manga","Tramo","Ticker","Unid.","Costo prom.","Último","Valor","P/L no real.","Stale"],
+        s.positions||[], [
+          r => r.sleeve, r => r.tranche, r => r.ticker, r => fmt(r.units,4),
+          r => usd(r.avg_cost), r => usd(r.last), r => usd(r.market_value),
+          r => `<span class="${cls(r.unrealised)}">${usd(r.unrealised)}</span>`,
+          r => r.stale ? '<span class="stale">stale</span>' : "live",
+        ]);
+      rows($("log"), ["Fecha","Manga","Tramo","Side","Ticker","Unid.","Precio","$","Fee","Status"],
+        (s.trade_log||[]).slice().reverse(), [
+          r => r.date||"", r => r.sleeve||"", r => r.tranche??"", r => r.side||"",
+          r => r.ticker||"", r => r.units==null?"":fmt(r.units,4),
+          r => r.price==null?"":usd(r.price), r => r.dollars==null?"":usd(r.dollars),
+          r => r.cost==null?"":usd(r.cost), r => r.status||"",
+        ]);
+      rows($("pend"), ["Plan","Exec","Manga","Tramo","Side","Ticker","$","Nota"],
+        s.pending||[], [
+          r => r.planned||"", r => r.exec_date||"", r => r.sleeve||"", r => r.tranche??"",
+          r => r.side||"", r => r.ticker||"", r => usd(r.dollars), r => r.note||"",
+        ]);
+      $("foot").textContent = "127.0.0.1 · no escribe el estado · curva en state/equity_curve.csv";
+    }
+    async function tick() {
+      try {
+        const r = await fetch("/api/snapshot");
+        render(await r.json());
+      } catch (e) { $("err").hidden = false; $("err").textContent = String(e); }
+    }
+    tick();
+    setInterval(tick, /*REFRESH_MS*/ 5000);
+  </script>
+</body>
+</html>
