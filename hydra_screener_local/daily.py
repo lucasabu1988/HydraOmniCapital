@@ -145,6 +145,10 @@ def _main(argv=None, runlog=None):
                         help="Pass through to portfolio_v9.py: plan even if preflight hard-fails.")
     parser.add_argument("--note", type=str, default=None,
                         help="Free-text observation appended to today's journal entry (never overwritten).")
+    parser.add_argument("--unattended", action="store_true",
+                        help="Scheduled run (TASK-364): no prompts, exit 0 ok / 1 screener-only failure / "
+                             "2 preflight or schema refused to plan / 3 exception; sends a summary or an "
+                             "ALERT through utils.notify (HYDRA_NOTIFY transports; file always).")
 
     args = parser.parse_args(argv)
 
@@ -164,13 +168,15 @@ def _main(argv=None, runlog=None):
         maybe_refresh_pnl(True)
 
     from config import ALGO_VERSION
+    v9_status, v9_message, v9_out = None, "", None
     if args.v9 or ALGO_VERSION == "v9":
         print("\n>>> HYDRA v9 instruction CLI...")
-        v9_out = None
         try:
             from portfolio_v9 import run as run_v9
             v9_out = run_v9(capital=args.v9_capital, force=args.force, runlog=runlog)
+            v9_status = "ok"
         except SystemExit as e:
+            v9_status, v9_message = "refused", str(e)
             print(f"[v9] {e}")
             if exit_code == 0:
                 exit_code = 1
@@ -180,6 +186,7 @@ def _main(argv=None, runlog=None):
             except Exception as je:
                 print(f"[journal] skip: {je}")
         except Exception as e:
+            v9_status, v9_message = "error", f"{type(e).__name__}: {e}"
             print(f"[v9] failed: {e}")
             if exit_code == 0:
                 exit_code = 1
@@ -192,6 +199,7 @@ def _main(argv=None, runlog=None):
             try:
                 from journal import append_from_v9
                 jpath = append_from_v9(v9_out, note=args.note)
+                v9_out["journal_path"] = str(jpath)
                 print(f"[journal] {jpath}")
             except Exception as je:
                 print(f"[journal] skip: {je}")
@@ -205,12 +213,50 @@ def _main(argv=None, runlog=None):
             except Exception as pe:
                 print(f"[pit] skip: {pe}")
 
+    if args.unattended:
+        return _unattended_exit(v9_status, v9_message, v9_out, exit_code, runlog)
+
     if exit_code != 0:
         print(f"\n[Note] Screener exited with code {exit_code}. Check output above.")
         return exit_code
 
     print("Daily ritual complete. Go trade (or at least look at the pretty table in TradingView).")
     return 0
+
+
+def _unattended_exit(v9_status, v9_message, v9_out, screener_exit, runlog) -> int:
+    """TASK-364: exit code + notification for a scheduled run. Never places orders; never raises."""
+    import utils.notify as NT
+    run_id = None
+    if runlog is not None:
+        try:
+            run_id = Path(runlog.directory).name
+        except Exception:
+            run_id = None
+    today = None
+    if isinstance(v9_out, dict):
+        today = v9_out.get("today")
+    title = f"HYDRA v9 {today or ''}".strip()
+    if v9_status == "refused":
+        rc = 2
+        NT.notify("ALERT", f"{title}: refused to plan", f"{v9_message}\nrun: {run_id}\nNo sheet written; check preflight/state.")
+    elif v9_status == "error":
+        rc = 3
+        NT.notify("ALERT", f"{title}: exception", f"{v9_message}\nrun: {run_id}")
+    elif v9_status == "ok":
+        rc = 1 if screener_exit else 0
+        rows = ((v9_out or {}).get("preflight") or {}).get("rows") if isinstance(v9_out, dict) else None
+        body = NT.run_summary(v9_out or {}, preflight_rows=rows, run_id=run_id)
+        if screener_exit:
+            body += f"\nscreener (Pine artefacts) exited {screener_exit}"
+        if isinstance(v9_out, dict) and v9_out.get("sector_warning"):
+            NT.notify("WARN", f"{title}: DEGRADED", str(v9_out["sector_warning"]))
+        NT.notify("INFO", title, body)
+    else:
+        rc = 1 if screener_exit else 0
+        NT.notify("INFO", "HYDRA daily (v9 not run)", f"screener exit {screener_exit}; run: {run_id}")
+    print(f"[unattended] exit {rc}")
+    return rc
 
 
 def main(argv=None):

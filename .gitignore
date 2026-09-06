@@ -99,3 +99,7 @@ hydra_screener_local/data_cache/bars.sqlite
 # comparison_table.py, log_*, launch_*.bat, test_*) are left visible in git status for now.
 # Add them to git (or ignore) individually when you decide they are permanent tools.
 hydra_screener_local/experiments/_sweep_cache_etf/
+
+# TASK-364 unattended mode: local env with secrets, and the alert log
+hydra_screener_local/schedule/hydra.env
+hydra_screener_local/state/alerts.log

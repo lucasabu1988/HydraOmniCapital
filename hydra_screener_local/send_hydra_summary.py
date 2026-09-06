@@ -167,23 +167,10 @@ def send_to_discord(webhook_url: str, message: str, summary: Dict) -> bool:
         print("[WARN] 'requests' not installed — cannot send webhook. pip install requests")
         return False
 
-    payload = {
-        "content": message[:1900],  # Discord limit safety
-        "username": "HYDRA Screener",
-        "avatar_url": "https://i.imgur.com/4M34hi2.png",  # optional cute avatar
-    }
-
-    try:
-        resp = requests.post(webhook_url, json=payload, timeout=10)
-        if resp.status_code in (200, 204):
-            print("[OK] Sent to Discord webhook")
-            return True
-        else:
-            print(f"[WARN] Discord webhook returned {resp.status_code}: {resp.text[:200]}")
-            return False
-    except Exception as e:
-        print(f"[WARN] Failed to send Discord webhook: {e}")
-        return False
+    from utils.notify import send_discord  # TASK-364: one transport implementation
+    ok = send_discord("INFO", "HYDRA summary", message, webhook_url=webhook_url, plain=True)
+    print("[OK] Sent to Discord webhook" if ok else "[WARN] Discord webhook failed")
+    return ok
 
 
 def send_to_telegram(bot_token: str, chat_id: str, message: str, summary: Dict) -> bool:
@@ -194,25 +181,10 @@ def send_to_telegram(bot_token: str, chat_id: str, message: str, summary: Dict) 
         print("[WARN] 'requests' not installed — cannot send to Telegram. pip install requests")
         return False
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": message[:4000],  # Telegram limit
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True,
-    }
-
-    try:
-        resp = requests.post(url, json=payload, timeout=10)
-        if resp.status_code == 200:
-            print("[OK] Sent to Telegram")
-            return True
-        else:
-            print(f"[WARN] Telegram API returned {resp.status_code}: {resp.text[:200]}")
-            return False
-    except Exception as e:
-        print(f"[WARN] Failed to send Telegram: {e}")
-        return False
+    from utils.notify import send_telegram  # TASK-364: one transport implementation
+    ok = send_telegram("INFO", "HYDRA summary", message, bot_token=bot_token, chat_id=chat_id, plain=True)
+    print("[OK] Sent to Telegram" if ok else "[WARN] Telegram send failed")
+    return ok
 
 
 def send_to_generic_webhook(url: str, summary: Dict) -> bool:
