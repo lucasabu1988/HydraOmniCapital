@@ -1,6 +1,6 @@
-# QWENBOARD — Claude ↔ Qwen
+# GEMINIBOARD — Claude ↔ Gemini
 
-This file is your instructions. Claude (the architect) writes the tasks. You (Qwen) do them
+This file is your instructions. Claude (the architect) writes the tasks. You (Gemini) do them
 and write a report at the bottom of this file. Read the whole file before you touch anything.
 
 **Your working directory is always:**
@@ -18,13 +18,17 @@ is not.
 ## Rules — read every time
 
 1. **Never run `git`.** No `git add`, no `git commit`, no `git checkout`, no `git stash`.
-   Claude commits. If you run git you can destroy work that is not yours.
+   Claude commits. The working tree is shared, so a git command from you can destroy work
+   that is not yours.
 2. **Only edit the files listed in the task** under `Files:`. Not one file more.
 3. **Never touch these, for any reason:** `core/`, `config.py`, `HYDRA_ALGORITHM_SPEC.md`,
    `state/`, `data_cache/`, `history/`, `.github/`, `daily.py`, `portfolio_v9.py`.
+   The scoring logic is frozen: formulas, multipliers and gate thresholds change only with
+   Lucas's explicit approval, never as a side effect of another task.
 4. **Do one task at a time**, in order, starting from the first `[ ]` in the Queue.
 5. **Do not reformat, rename, or "improve" anything you were not asked to change.**
-   A diff with unrelated changes in it gets thrown away.
+   A diff with unrelated changes in it gets thrown away — including the parts of it that were
+   correct.
 6. **Do not create new files** unless the task says to create them, with the exact name.
 7. **Always run the `Verify:` commands** at the end of the task. Paste their last lines into
    your report. If you did not run them, the task is not done.
@@ -52,7 +56,7 @@ report, never edit the Queue text of a task, and never delete anything from this
 Use exactly this shape:
 
 ```
-### QW-001 — done (or: BLOCKED)
+### GM-001 — done (or: BLOCKED)
 What I changed: <one line per file>
 Verify: <the last line of each command you ran>
 Notes: <anything Claude should know, or "none">
@@ -62,7 +66,7 @@ Notes: <anything Claude should know, or "none">
 
 ## Queue
 
-- [ ] `QW-001` **Remove unused imports and unused local variables from five experiment
+- [ ] `GM-001` **Remove unused imports and unused local variables from five experiment
   scripts.** These are offline research scripts, not the live path, which is why they are a
   safe place to start. `ruff` already knows exactly what is wrong; your job is to apply it
   carefully, one file at a time, and prove the suite still passes.
@@ -91,7 +95,7 @@ Notes: <anything Claude should know, or "none">
     → must print `All checks passed!`
   - `python run_all_tests.py` → must print `All tests passed!`
 
-- [ ] `QW-002` **Write tests for the two CI gate scripts that have none.**
+- [ ] `GM-002` **Write tests for the two CI gate scripts that have none.**
   `tools/check_coverage.py` and `tools/check_secrets.py` decide whether a build is allowed
   through, and nothing tests them — a gate nobody tests is the exact problem the last audit
   was about. Create **one** new file, `test_gate_tools.py`, in `hydra_screener_local/`.
@@ -144,7 +148,10 @@ Notes: <anything Claude should know, or "none">
 ## Messages from Claude
 
 **[2026-09-06] Welcome.** You are helping with the HYDRA screener while Grok is unavailable.
-Start with `QW-001`. It is deliberately small: it is how we find out what works between us.
+This board replaces an earlier one written for a different helper; the two tasks below are
+unchanged and were never started, so the queue is clean. Begin with `GM-001` — it is
+deliberately small, because it is how we find out what works between us.
+
 Two things I care about more than speed:
 
 - **Tell me the truth about what you ran.** If a command failed, paste the error. Never write
@@ -152,10 +159,15 @@ Two things I care about more than speed:
 - **Stop when you are unsure.** Nobody here is annoyed by a question. Everybody is hurt by a
   confident wrong change to a system that moves money.
 
+Context you do not have to rediscover: the suite baseline is 58 passed / 0 skipped, `ruff` is
+configured with per-file rules relative to `hydra_screener_local/` (so always run it from that
+directory), and CI runs eight gates on every push — the two scripts in `GM-002` are two of
+them, and they are the only two nothing tests.
+
 I read this file and review everything before it is committed. You never commit.
 
 ---
 
 ## Reports
 
-<!-- Qwen: append your reports below this line. Newest at the bottom. -->
+<!-- Gemini: append your reports below this line. Newest at the bottom. -->
