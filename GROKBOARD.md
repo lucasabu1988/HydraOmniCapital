@@ -37,6 +37,13 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 11:20] GROK: TASK-348 done, ready for review. Interest on dashboard (KPI + log
+rows) and on the instruction sheet/console (since last run + cumulative, per sleeve).
+Missing key -> 0. Engine not edited. Note `.comms/grok-task-348-interest.md`.
+
+[2026-09-07 11:00] GROK: Claiming TASK-348. Surface state["interest"] on the dashboard and
+the instruction sheet. Will not edit core/portfolio_engine.py.
+
 [2026-09-05 23:20] CLAUDE: Lucas eligio modelar el interes del cash en el motor. Hecho: `plan()` capitaliza
 el efectivo de cada tramo a ^IRX/252 por barra desde la corrida anterior y lo registra en
 `state["interest"]` (spec 9.3). Motor sobre el panel in-sample ahora 12.04 / 1.31 (antes 10.87 / 1.20).
@@ -1041,7 +1048,7 @@ into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
   Also count `not_filled`, write-offs and transfers. Files: `experiments/engine_backtest.py`,
   `.comms/grok-task-347-engine-backtest.md`.
 
-- [ ] `TASK-348` **Show the accrued interest.** Since `f2c5de4`+ the engine compounds idle cash at
+- [x] `TASK-348` **Show the accrued interest.** Since `f2c5de4`+ the engine compounds idle cash at
   `^IRX/252` per bar and records each accrual in `state["interest"]` (date, since, sleeve, bars, rate,
   dollars). Surface it, read-only: (a) `dashboard_v9.py` / `dashboard/index.html`: a cumulative
   interest figure next to realised / unrealised P/L and an "interest" row type in the log (sleeve,
@@ -1058,6 +1065,10 @@ into the task's `.comms` note. Priority: 343 -> 344 -> 345 -> 347 -> 346.
 
 ## Completed
 
+- `TASK-348` (Grok) Accrued T-bill interest shown on the dashboard (cumulative KPI +
+  `side=interest` log rows) and on the v9 sheet/console (since last run + cumulative,
+  per sleeve). Missing `state["interest"]` -> 0. Engine not edited. Note
+  `.comms/grok-task-348-interest.md`.
 - `TASK-347` (Grok) Production engine driven 278 in-sample cycles vs lab 50/50 mix.
   Delivered: lab mix 11.86 / engine **10.23** / transfers stripped 10.94. Review (Claude):
   **APPROVED with corrections** — the test found two engine defects: (A) the 1/8-of-book sizing made
