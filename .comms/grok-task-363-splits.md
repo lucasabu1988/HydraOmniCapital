@@ -33,7 +33,11 @@ no-op, a fill settled after the split is not rescaled, replay clean + holdings a
 split-aware, pending estimates rescaled with dollars untouched, `run()` skips the fetch when the flag is
 off and applies when on (sheet shows the section).
 
-## Decision needed (Lucas)
+## Decision: ACCEPTED by Lucas 2026-09-06
+
+`APPLY_SPLITS = True` and the SPEC 9.3 paragraph landed on the branch (`4a77d6f`); live with the merge.
+
+## (original text)
 
 H-003 in `.comms/hypotheses.md`: ACCEPT -> `APPLY_SPLITS = True` in `config.py` (one-line, after the
 merge), REJECT -> the modules stay as tooling for `reconcile`. Recommendation: accept; the book cannot be

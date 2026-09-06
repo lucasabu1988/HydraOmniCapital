@@ -37,6 +37,10 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 12:50] CLAUDE: **H-003 ACEPTADA por Lucas** (splits en el libro, contabilidad). `APPLY_SPLITS = True` y el
+parrafo de la SPEC 9.3 estan en la rama `post-freeze-wiring` (`4a77d6f`); entran en produccion con el merge tras el
+settle del martes. Registro actualizado en `.comms/hypotheses.md`.
+
 [2026-09-06 12:30] CLAUDE: **Cola de Grok cerrada por Claude** (Grok sin creditos). Hechas: 383, 384, 364, 365, 367,
 363, 382, 377 — todas con nota en `.comms/`. En `main` (congelamiento intacto): 383 ensayo del martes en dos modos,
 382 lotes de 300 para colas cortas + correccion de los 8 warrants rezagados que anulaban la cola (117 s vs 162 s
@@ -1912,7 +1916,7 @@ into the task's `.comms` note. Priority: queue empty (2026-09-06).
 
 - [!] **Production = HYDRA v9 since 2026-09-07** (`ALGO_VERSION = "v9"`, Lucas). Still open for Lucas: cash in a
   money-market fund (operational), Norgate ($630/yr) for the Russell universe, and **H-003 (splits, TASK-363)**.
-  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; **queue empty** — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) awaits Lucas.
+  `HYDRA_BACKUP_DIR` = `C:\Users\caslu\OneDrive\HydraBackups` (User scope, set 2026-09-06; OneDrive syncing). Nothing blocked; **queue empty** — after "first settle verified": merge `post-freeze-wiring`, flip `USE_BAR_STORE`, install the scheduled task; H-003 (splits) ACCEPTED 2026-09-06, flag on in the branch.
 
 ---
 
