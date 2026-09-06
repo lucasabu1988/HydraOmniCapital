@@ -77,10 +77,8 @@ Respaldo: copia con timestamp antes de cada escritura (`state/backup/`). Sin `hi
 **Parámetros operativos fijados por Lucas (2026-09-07):** `capital_reference = 100 000 USD`; **ancla = lunes**.
 Mapeo a la convención temporal del motor (señal al cierre de t, ejecución al cierre de t+1, MOC): la primera
 corrida se hace el **viernes tras el cierre** (o el fin de semana); ese viernes es la barra ancla y las primeras
-órdenes se ejecutan el **lunes al cierre**. Lucas dijo "apertura de mercado": la ejecución al cierre es la
-que está simulada y medida (TASK-328: la apertura de D+1 no es mejor y depende de la era); si Lucas prefiere
-ejecutar en la apertura del lunes es una desviación de la evidencia y se anota, no se simula como si fuera
-igual. Las renovaciones siguientes caen cada **5 barras de bolsa** (paridad con el simulador), así que una
+órdenes se ejecutan el **lunes al cierre**. **Lucas confirmó (2026-09-07): "CONFORME"** — ejecución al **cierre** del lunes (MOC), no en la apertura;
+es la convención simulada y medida (TASK-328: la apertura de D+1 no es mejor y depende de la era). Las renovaciones siguientes caen cada **5 barras de bolsa** (paridad con el simulador), así que una
 semana con festivo desplaza el día de la semana; se acepta y se documenta en la hoja de instrucciones.
 
 ## 4. Criterios de aceptación (antes de poner `ALGO_VERSION = "v9"`)
