@@ -333,7 +333,9 @@ def get_sp500_tickers(use_cache: bool = True) -> list[str]:
         print("[ERR] Error en TODAS las fuentes online")
 
     print("Usando lista de respaldo grande y limpia (~362 tickers únicos).")
-    return get_fallback_sp500_tickers()
+    fb = get_fallback_sp500_tickers()
+    logger.warning("fallback: using hardcoded S&P 500 list (%d tickers)", len(fb))
+    return fb
 
 
 def get_fallback_sp500_tickers() -> list[str]:
@@ -1424,6 +1426,71 @@ def get_universe(full_sp500: bool = False, universe: str = None) -> list[str]:
             seen.add(t)
             unique.append(t)
     return unique
+
+
+def universe_report(universe: str | None = None) -> dict:
+    """How `get_universe` resolved. Additive; ticker selection is unchanged.
+
+    Returned keys are what preflight will read later: a Tuesday run on the
+    hardcoded fallback list must become a WARN.
+    """
+    if universe is None:
+        try:
+            from config import UNIVERSE as cfg_u
+            universe = cfg_u
+        except Exception:
+            universe = "sp500"
+    u = str(universe).lower().strip() if universe else "sp500"
+    tickers = get_universe(universe=u)
+    key = {
+        "s&p500": "sp500", "s&p 500": "sp500", "spx": "sp500",
+        "nasdaq-100": "nasdaq100", "ndx": "nasdaq100", "nasdaq": "nasdaq100",
+        "djia": "dow30", "dow jones": "dow30", "dow": "dow30",
+    }.get(u, u)
+    from_cache = False
+    source_used = None
+    fallback = False
+    if key in ("sp500", "nasdaq100", "dow30", "russell1000", "russell2000"):
+        csv_path = _get_cache_path(key)
+        if os.path.exists(csv_path):
+            age = datetime.now() - datetime.fromtimestamp(os.path.getmtime(csv_path))
+            from_cache = age < timedelta(days=CACHE_DAYS)
+        json_cache = _json_cache_path(key)
+        if os.path.exists(json_cache):
+            try:
+                with open(json_cache, encoding="utf-8") as f:
+                    source_used = json.load(f).get("source")
+            except Exception:
+                source_used = None
+        if key == "sp500":
+            fb = get_fallback_sp500_tickers()
+            fallback = set(tickers) == set(fb)
+        elif key == "nasdaq100":
+            fallback = set(tickers) == set(get_fallback_nasdaq100_tickers())
+        elif key == "dow30":
+            fallback = set(tickers) == {
+                "AAPL", "AMGN", "AMZN", "AXP", "BA", "CAT", "CRM", "CSCO", "CVX", "DIS",
+                "DOW", "GS", "HD", "HON", "IBM", "INTC", "JNJ", "JPM", "KO", "MCD",
+                "MMM", "MRK", "MSFT", "NKE", "PG", "TRV", "UNH", "V", "VZ", "WMT",
+            }
+        if fallback:
+            source_used = "fallback"
+            logger.warning("fallback: universe %s used the hardcoded list (%d tickers)", u, len(tickers))
+        elif from_cache and not source_used:
+            source_used = "cache"
+    elif key == "all":
+        source_used = "union"
+    elif key == "russell3000":
+        source_used = "union"
+    elif key == "custom":
+        source_used = "INITIAL_UNIVERSE"
+    return {
+        "universe": u,
+        "source_used": source_used,
+        "count": len(tickers),
+        "from_cache": from_cache,
+        "fallback": fallback,
+    }
 
 
 # ---------------------------------------------------------------------------

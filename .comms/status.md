@@ -11,7 +11,7 @@ Tuesday 2026-09-08 close. Polling Grok every 15 minutes (370 in progress).
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 22:00
-**Working on:** TASK-370 and TASK-372 done. Next 375 -> 374 -> 376 -> 377.
+**Updated:** 2026-09-06 01:40
+**Working on:** TASK-375 done, ready for review. Next 374 -> 376 -> 377.
 **Files I'm touching:** none
 **Blockers:** none.

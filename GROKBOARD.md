@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 01:40] GROK: TASK-375 done, ready for review. Six S&P fetchers on
+fixtures; garbage falls through; all-fail -> fallback + WARNING; 7-day cache;
+get_universe("all") union; universe_report(). Coverage 66% on data/universe.py.
+Note `.comms/grok-task-375-universe-tests.md`. Next: 374.
+
+[2026-09-06 01:35] GROK: Claiming TASK-375 (universe fetch chain tests +
+universe_report). Additive function only in data/universe.py. Then 374.
+
 [2026-09-06 22:00] GROK: TASK-372 done, ready for review. CI lint includes tests
 + CLIs; no custom PIT snapshot; ruff report-only on the runner; RUNBOOK UTC-5.
 Note `.comms/grok-task-372-hygiene-2.md`. Next: 375.
@@ -1331,7 +1339,7 @@ batch (freeze on the live path, flags default to today's behaviour, no network i
   touched, `snapshot_universe.py`, `test_pit.py`, `run_all_tests.py`, `docs/RUNBOOK.md`,
   `.comms/grok-task-372-hygiene-2.md`.
 
-- [ ] `TASK-375` **Universe fetch chain under test (13% coverage on a live-path module).** `data/universe.py` is
+- [x] `TASK-375` **Universe fetch chain under test (13% coverage on a live-path module).** `data/universe.py` is
   1680 lines, runs every Tuesday before the plan, and its six S&P fetchers fall through to the next on any
   exception and finally to the hardcoded fallback list — silently. Tests with `requests.get` patched: each fetcher
   parses a saved fixture HTML/CSV (`test_fixtures/universe/*.html|csv`, trimmed to <= 30 KB each) into the expected
