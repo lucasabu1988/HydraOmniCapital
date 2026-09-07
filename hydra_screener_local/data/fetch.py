@@ -156,12 +156,15 @@ FFILL_LIMIT_BARS = 3
 
 
 def _yf_download(batch: list[str], *, auto_adjust: bool, period: str | None = None,
-                 start=None, end=None):
+                 start=None, end=None, actions: bool = False):
     """Shared yfinance download used by `_download_close_batch` and the bar-store provider.
 
     `end` is inclusive: yfinance treats daily `end` as exclusive, so we add one day.
+    `actions=True` adds the Dividends / Stock Splits fields (TASK-385).
     """
     kw = dict(progress=False, auto_adjust=auto_adjust, threads=True)
+    if actions:
+        kw["actions"] = True
     if start is not None:
         kw["start"] = pd.Timestamp(start).strftime("%Y-%m-%d")
         if end is not None:
@@ -192,6 +195,26 @@ def _volume_frame_from_yf(data, batch: list[str]) -> pd.DataFrame:
             vol = vol.to_frame(batch[0])
     vol.columns = [str(c) for c in vol.columns]
     return vol
+
+
+def _field_frame_from_yf(data, batch: list[str], field: str) -> pd.DataFrame:
+    """A yfinance field (e.g. Dividends, Stock Splits) as a wide frame keyed by ticker; EMPTY when the
+    field is absent (unlike `_close_frame_from_yf`, which falls back to Close)."""
+    if data is None or getattr(data, "empty", False):
+        return pd.DataFrame()
+    if isinstance(data.columns, pd.MultiIndex):
+        if field not in data.columns.get_level_values(0):
+            return pd.DataFrame()
+        fr = data[field]
+        if isinstance(fr, pd.Series):
+            name = batch[0] if len(batch) == 1 else (fr.name if fr.name in batch else batch[0])
+            fr = fr.to_frame(name)
+        elif isinstance(fr.columns, pd.MultiIndex):
+            fr.columns = fr.columns.get_level_values(-1)
+        return fr
+    if field not in data.columns:
+        return pd.DataFrame()
+    return data[[field]].rename(columns={field: batch[0]})
 
 
 def _close_frame_from_yf(data, batch: list[str], field: str = "Close") -> pd.DataFrame:
@@ -363,8 +386,15 @@ def fetch_prices_and_volume_cached(
     store=None,
     asof=None,
     overlap_bars: int = BAR_STORE_OVERLAP_BARS,
+    adjust: str = "yahoo",
 ):
     """Like fetch_prices_and_volume but persist and reuse bars in the SQLite store.
+
+    `adjust="yahoo"` (default, today's path) returns Yahoo's Adj Close and compares the overlap on it.
+    `adjust="local"` (TASK-385) returns close_raw x dividend factors from the store's actions table and
+    compares the overlap on the RAW close (which only moves on a split), so the daily readjust of every
+    name that paid a dividend disappears. Names whose actions coverage does not span the window fall
+    back to Yahoo's Adj Close and are listed in report["adjust_fallback"].
 
     Asks `provider` only for [last stored date - overlap_bars, asof] per ticker
     (the full `period` when the ticker is absent). If the overlap's adjusted
@@ -379,6 +409,10 @@ def fetch_prices_and_volume_cached(
     report.setdefault("readjusted", [])
     report.setdefault("failed_tickers", [])
     report.setdefault("failed_batches", 0)
+    if adjust not in ("yahoo", "local"):
+        raise ValueError(f"adjust must be 'yahoo' or 'local', got {adjust!r}")
+    report["adjust"] = adjust
+    cmp_col = "close_raw" if adjust == "local" else "close_adj"
 
     original_count = len(tickers)
     clean = [t for t in tickers if t not in DELISTED_OR_BAD_TICKERS]
@@ -455,8 +489,8 @@ def fetch_prices_and_volume_cached(
         matched: list[pd.DataFrame] = []
         if tail is not None and not getattr(tail, "empty", True):
             for t in present:
-                incoming = _adj_series(tail, t)
-                stored = store.closes([t], ostarts[t], lasts[t], adjusted=True)
+                incoming = _col_series(tail, t, cmp_col)
+                stored = store.closes([t], ostarts[t], lasts[t], adjusted=(adjust == "yahoo"))
                 stored_s = stored[t] if (not stored.empty and t in stored.columns) else pd.Series(dtype=float)
                 if _relative_mismatch(stored_s, incoming):
                     mismatches.append(t)
@@ -491,7 +525,10 @@ def fetch_prices_and_volume_cached(
     except Exception:
         pass
 
-    prices = store.closes(tickers, start, end, adjusted=True)
+    if adjust == "local":
+        prices = _local_adjusted(store, tickers, start, end, report)
+    else:
+        prices = store.closes(tickers, start, end, adjusted=True)
     volumes = store.volumes(tickers, start, end)
     common = prices.columns.intersection(volumes.columns) if not volumes.empty else prices.columns
     prices = prices[common] if len(common) else prices
@@ -514,17 +551,50 @@ def fetch_prices_and_volume_cached(
     return prices, volumes
 
 
-def _adj_series(long_df: pd.DataFrame, ticker: str) -> pd.Series:
+def _col_series(long_df: pd.DataFrame, ticker: str, column: str) -> pd.Series:
     if long_df is None or getattr(long_df, "empty", True) or "ticker" not in long_df.columns:
         return pd.Series(dtype=float)
     sub = long_df[long_df["ticker"].astype(str) == str(ticker)]
-    if sub.empty or "close_adj" not in sub.columns:
+    if sub.empty or column not in sub.columns:
         return pd.Series(dtype=float)
     idx = pd.DatetimeIndex(pd.to_datetime(sub["date"]))
     if idx.tz is not None:
         idx = idx.tz_convert("UTC").tz_localize(None)
     idx = idx.normalize()
-    return pd.Series(pd.to_numeric(sub["close_adj"], errors="coerce").values, index=idx, dtype=float)
+    return pd.Series(pd.to_numeric(sub[column], errors="coerce").values, index=idx, dtype=float)
+
+
+def _adj_series(long_df: pd.DataFrame, ticker: str) -> pd.Series:
+    return _col_series(long_df, ticker, "close_adj")
+
+
+def _local_adjusted(store, tickers: list[str], start, end, report: dict) -> pd.DataFrame:
+    """TASK-385: close_raw x dividend factors (data.adjust) for names with actions coverage over
+    [start, last bar]; Yahoo Adj Close for the rest (report["adjust_fallback"])."""
+    from data.adjust import adjust as adjust_local
+
+    raw = store.closes(tickers, start, end, adjusted=False)
+    yahoo = store.closes(tickers, start, end, adjusted=True)
+    if raw.empty:
+        report["adjust_fallback"] = list(yahoo.columns)
+        return yahoo
+    cov = store.actions_coverage(list(raw.columns))
+    divs = store.dividends(list(raw.columns), start, end)
+    out = {}
+    fallback = []
+    start_ts = pd.Timestamp(start).normalize()
+    for t in raw.columns:
+        series = raw[t].dropna()
+        last_bar = series.index[-1] if len(series) else None
+        c = cov.get(t)
+        covered = c is not None and last_bar is not None and c[0] <= start_ts and c[1] >= last_bar
+        if not covered:
+            fallback.append(t)
+            out[t] = yahoo[t] if t in yahoo.columns else raw[t]
+            continue
+        out[t] = adjust_local(series, dividends=divs.get(t)).reindex(raw.index)
+    report["adjust_fallback"] = fallback
+    return pd.DataFrame(out, index=raw.index)[list(raw.columns)]
 
 
 def _naive_index(idx) -> pd.DatetimeIndex:
