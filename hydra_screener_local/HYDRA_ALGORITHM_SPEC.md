@@ -1,10 +1,10 @@
 # HYDRA Scoring Algorithm - Language Agnostic Specification
 
-**Version**: 1.2 (Expanded & Formal)  
-**Date**: June 2026  
+**Version**: 1.2 (Expanded & Formal)
+**Date**: June 2026
 **Source of Truth**: Current production implementation in `hydra_screener_local/core/`
 
-**Scope**: This document defines the **scoring and ranking logic** in a language-independent way.  
+**Scope**: This document defines the **scoring and ranking logic** in a language-independent way.
 Final selection/portfolio construction rules are intentionally left as "implementation-specific".
 
 ---
@@ -442,11 +442,11 @@ From `config.py`:
 
 The final ranked DataFrame must include (standardized names after column renaming):
 
-rank, ticker, momentum, meta_score, composite_score,  
-ret_5d_10d, dist_20d_high, short_boost,  
-vol_ratio, passes_strict, dynamic_vol_threshold, vol_ratio_nan_share,  
-sector, sector_rank, sector_penalty_applied,  
-regime, regime_type, special_modes, aggression, recovery_boost,  
+rank, ticker, momentum, meta_score, composite_score,
+ret_5d_10d, dist_20d_high, short_boost,
+vol_ratio, passes_strict, dynamic_vol_threshold, vol_ratio_nan_share,
+sector, sector_rank, sector_penalty_applied,
+regime, regime_type, special_modes, aggression, recovery_boost,
 compass_mult, pillar_multipliers, recommended, reason, recommended_count
 
 `vol_ratio_nan_share` is a run-level scalar (same value on every row): share of scored
@@ -501,16 +501,16 @@ dropped from the contract the warning cannot fire.
 
 ### Próximas 4 opciones (elegí una o combiná):
 
-1. **Mejorar el Pine Script ahora mismo**  
+1. **Mejorar el Pine Script ahora mismo**
    (Hacer la tabla más completa, agregar más visualizaciones, mejorar detección de Special Modes y Pillars, manejo de múltiples símbolos en watchlist, etc.)
 
-2. **Alinear el Python actual al spec**  
+2. **Alinear el Python actual al spec**
    (Revisar `core/signals.py`, `meta_layer.py`, etc. para que sean 100% fieles a esta especificación formal, limpiar cualquier diferencia histórica.)
 
-3. **Definir la capa de integración híbrida**  
+3. **Definir la capa de integración híbrida**
    (Cómo el Python le "sugiere" los candidatos diarios al usuario para que los agregue al watchlist de TradingView: webhook + alert, formato de mensaje, archivo, etc.)
 
-4. **Otra cosa**  
+4. **Otra cosa**
    (Por ejemplo: crear tests automáticos contra el spec, generar documentación visual de los componentes, empezar a implementar una versión "lite" del algoritmo en otro lenguaje, etc.)
 
 ---
@@ -588,13 +588,23 @@ residual. Shown on the sheet and the dashboard like interest.
 
 Stock splits scale the book's units (Lucas, 2026-09-06; TASK-363, H-003). Yahoo closes are
 split-adjusted and the book's units are not, so without this a 2:1 split would halve the position on
-paper at the next mark. For each split effective after the previous run, the units held on the split
+paper at the next mark. For each split effective inside the window described below, the units held on the split
 date (reconstructed from the ledger, earlier splits applied, so a fill settled after the split is not
 scaled twice) are multiplied by the ratio and `last_px` divided by it; pending estimates are rescaled,
 dollar orders untouched. Recorded in `state["splits"]` (date, since, sleeve, tranche, ticker, ratio,
 units_before, units_after), idempotent on (date, sleeve, tranche, ticker); the ledger replay and
 `holdings_before` apply the records before that day's fills. Source: yfinance `Ticker.splits`, cached in
-`data_cache/splits_cache.json`. Applied after settle and before dividends (`config.APPLY_SPLITS`).
+`data_cache/splits_cache.json`. Applied in **two passes around the settle, by economic date**, and in both
+cases before dividends (`config.APPLY_SPLITS`): an event effective on or before the execution date
+scales the position **before** that day's fills are booked, one effective after it is applied once the
+fills are in. The window is exclusive on the left and inclusive on the right, so an event effective
+exactly on the execution date belongs to the first pass. Its lower bound is a per-ticker watermark,
+`state["split_marks"]` — the last effective date already processed for that ticker — so a split the
+provider published late is still applied and one already processed is never applied twice. A split
+that reaches the book after the fill it should have preceded is refused, not applied silently
+(ASTRA-02: with the single post-settle pass, a full exit landing on a split date sold the pre-split
+units and then had them added back, leaving a phantom position and short proceeds that the ledger
+replay reported as clean).
 
 ### 9.4 State (`state/portfolio_v9.json`, gitignored; see design section 3)
 
