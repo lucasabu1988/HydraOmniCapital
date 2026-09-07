@@ -37,6 +37,60 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 01:05] CLAUDE: **Decisiones de Lucas sobre las cuatro pendientes. Registradas para ejecutar, no para interpretar.**
+
+**1. ASTRA-03 -> la fila de preflight es `WARN`, no `HARD`.** Regla aprobada por Lucas, que va escrita en el codigo y no
+solo aqui:
+> **HARD** solo para una inconsistencia que impida confiar en estado, efectivo, posiciones, ledger, identidad de cartera
+> o capacidad de ejecutar/conciliar. **WARN** para diferencias de precio observado, informacion aun no disponible a esa
+> hora, o evidencia que requiere revision posterior pero no invalida el estado.
+Motivo: la variante HARD bloqueaba `daily.py` antes del cierre — efecto desproporcionado para esa clase de evidencia.
+Esto **no relaja** la disciplina: separa el bloqueo de seguridad/contabilidad del aviso de calidad de observacion.
+- `TASK-398` **Bajar la fila a WARN con identificador estable.** En `fix/astra-03-observed-fill-prices`: la fila
+  "session closed" pasa a WARN, con un id estable que persista **en el preflight y en el journal**, para que no se
+  convierta en ruido ni se pierda al ciclo siguiente. `daily.py` deja de necesitar `allow_intraday` para correr.
+  Aceptacion: `daily.py` completa un ciclo antes del cierre con la fila en WARN; el id aparece en el registro del journal;
+  y sigue siendo imposible liquidar a una barra parcial sin que quede escrito quien lo permitio. Lo demas de la rama
+  (precios observados, sin sustitucion ni ffill) **no cambia**: ahi el rechazo sigue siendo el comportamiento correcto.
+- Sigue abierto de la misma rama, sin decidir: una orden cuya fecha queda fuera del indice se marca `not_filled` **y se
+  consume**, asi que un hueco de datos de un dia aparca el efectivo de una manga sin reemitir. Es una decision de politica
+  de reintento, no de severidad.
+
+**2. N-SLEEVE -> prevalece la semantica de `plan()` de `structural-hardening`** (`mark_px` + `_reject`). La rama N-sleeve
+la **absorbe antes** de integrarse. No se acepta una resolucion que elija N-sleeve y pierda el arreglo de `NaN`: en cuanto
+las mangas tengan posiciones, un `NaN` truthy contamina el valor de cartera y cancela renovaciones.
+Condiciones de integracion (Lucas), que son el criterio de aceptacion del paso de merge:
+1. Resolver el conflicto a favor de la semantica endurecida de `plan()`.
+2. Regresion que **inyecte `NaN`** en una posicion mantenida de una manga registrada.
+3. Probar que la manga afectada se rechaza de forma **localizada y explicable**.
+4. Probar que **las demas mangas siguen planificando** cuando sus datos son validos.
+5. Paridad N-sleeve contra el motor previo con la configuracion por defecto: **byte-compatible donde el diseño lo promete**.
+`test/astra-09-nsleeve-invariants` ya trae 13 xfail(strict) que cubren parte de 2-5; se convierten en pasa/falla al
+resolver. Orden posterior al settle sin cambios: `post-freeze-wiring` -> endurecimiento estructural -> N-sleeve reconciliado.
+
+**3. H-004 / H-005 / H-006 -> se quedan en PROPOSED.** Ni aceptadas ni rechazadas antes de su medicion predefinida. Nada
+de scoring, seleccion, parametros ni SPEC se toca, y el resultado vivo posterior **no se reinterpreta** como evidencia.
+Criterio de medicion por hipotesis (Lucas):
+- **H-004** (cero recomendaciones -> 22 compras): medir **frecuencia, causa y efecto** del caso "cero recomendaciones".
+  Prohibido convertir el resultado en una regla de compra o inferir que 22 compras "resuelven" el fenomeno.
+- **H-005** (antiguedad que acuña efectivo): medir el efecto contable por antiguedad **contra una referencia sin esa
+  acuñacion**, separando P/L economico, efectivo contabilizado y exposicion.
+- **H-006** (cap que no aplica a lo conservado): medir **exposicion maxima real por sector** antes y despues de conservar
+  posiciones, distinguiendo **cap de seleccion** de **cap de cartera**. Si el requisito de cartera es un limite real, no
+  basta con que el selector lo cumpla al abrir.
+Estos criterios se incorporan a la tabla de `.comms/hypotheses.md` cuando entre `docs/astra-prereg-01-08-10` (paso 4 del
+orden de merge); hasta entonces viven aqui.
+
+**4. SPEC linea 597 -> pendiente de decision binaria de Lucas, con el bloque ya en su mano.** Coordenada exacta: la frase
+**no existe en `main`** (los splits no estan ahi); vive solo en `origin/post-freeze-wiring` @ `4a77d6f`,
+`hydra_screener_local/HYDRA_ALGORITHM_SPEC.md:597`, seccion 9.3. Hallazgo nuevo al leer el bloque completo: **el parrafo
+se contradice consigo mismo**, y la contradiccion es el defecto de ASTRA-02 escrito en prosa —
+lineas 595-596: "el ledger replay y `holdings_before` aplican los registros **antes de los fills de ese dia**" (la economia
+correcta, la que implementa ASTRA-02) frente a la linea 597: "**Applied after settle** and before dividends
+(`config.APPLY_SPLITS`)" (el orden de llamada que producia la posicion fantasma). Solo se vuelve viva con el merge posterior
+al settle. Opciones tal como Lucas las planteo: mantener / corregir redaccion / reclasificar como regla operativa /
+elevarla como cambio de algoritmo-SPEC.
+
 [2026-09-07 00:20] CLAUDE: **A12 NO esta cerrada y sale del orden de merge. Revision externa (via Lucas) sobre
 `feat/astra-12-restore-drill` @ 7c199aa contra main @ f017966: 7 defectos P1, cuatro NUEVOS de la rama.**
 El integrador la tenia como paso 6; queda **anulado**. La rama no entra hasta rediseñarse.
