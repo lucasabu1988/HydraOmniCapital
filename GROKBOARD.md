@@ -37,6 +37,199 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 01:40] CLAUDE: **SPEC 9.3 corregida (Lucas aprobo la redaccion) y una regla nueva para la ventana de merge.**
+La correccion va en `fix/astra-02-split-fill-order` (`9ed5f32`), no en main: la frase solo existe en esa linea de
+`post-freeze-wiring`, y la regla del repo es que un cambio de conducta aterriza con la spec en el mismo commit — por eso
+**A02 no estaba completa** hasta esto.
+Dos ediciones, no una. La frase final ahora describe el codigo: dos pasadas alrededor del settle por fecha economica
+(`upto=<fecha de ejecucion>` antes de los fills, `after=` cuando ya estan, **ambas antes de dividendos** — verificado,
+`apply_splits` corre dos veces antes de `apply_dividends`), ventana exclusiva por la izquierda e inclusiva por la derecha,
+cota inferior en el watermark por ticker `state["split_marks"]`, y rechazo explicito cuando un split llega despues del fill
+al que debia preceder. La segunda edicion no estaba en el encargo y era necesaria: el parrafo abria con "For each split
+effective **after the previous run**", la ventana vieja, cierta solo por defecto cuando el ticker no tiene marca. Arreglar
+una inconsistencia interna dejando la otra habria fallado el objetivo.
+Verificado en la rama: 27 passed en `test_spec_compliance.py` + `test_splits.py`; suite completa **52 passed / 0 skipped /
+exit 0**, ruff limpio.
+
+**REGLA DE LA VENTANA DE MERGE (medida hoy, no teorica):** la valla contra la contaminacion de respaldos vive en `main`
+(`conftest.py`, `34b0143`) y **las doce ramas nacen de bases anteriores**. Corri la suite de A02 con `HYDRA_BACKUP_DIR`
+apuntando a un señuelo: **25 ficheros escritos** en `state_v9/` del señuelo, entre ellos `20260904/portfolio_v9.json` y
+`20260908/` con sus hojas — las mismas carpetas que aparecieron contaminadas en el respaldo real.
+> Antes de correr la suite de CUALQUIER rama: **mergear `main` en la rama primero**, o pasar un `HYDRA_BACKUP_DIR`
+> señuelo explicito y verificar despues que el destino real no cambio. Correr la suite de una rama sin una de las dos cosas
+> escribe en el respaldo de produccion.
+Esto entra en el checklist del miercoles, antes del primer merge.
+
+[2026-09-07 01:05] CLAUDE: **Decisiones de Lucas sobre las cuatro pendientes. Registradas para ejecutar, no para interpretar.**
+
+**1. ASTRA-03 -> la fila de preflight es `WARN`, no `HARD`.** Regla aprobada por Lucas, que va escrita en el codigo y no
+solo aqui:
+> **HARD** solo para una inconsistencia que impida confiar en estado, efectivo, posiciones, ledger, identidad de cartera
+> o capacidad de ejecutar/conciliar. **WARN** para diferencias de precio observado, informacion aun no disponible a esa
+> hora, o evidencia que requiere revision posterior pero no invalida el estado.
+Motivo: la variante HARD bloqueaba `daily.py` antes del cierre — efecto desproporcionado para esa clase de evidencia.
+Esto **no relaja** la disciplina: separa el bloqueo de seguridad/contabilidad del aviso de calidad de observacion.
+- `TASK-398` **Bajar la fila a WARN con identificador estable.** En `fix/astra-03-observed-fill-prices`: la fila
+  "session closed" pasa a WARN, con un id estable que persista **en el preflight y en el journal**, para que no se
+  convierta en ruido ni se pierda al ciclo siguiente. `daily.py` deja de necesitar `allow_intraday` para correr.
+  Aceptacion: `daily.py` completa un ciclo antes del cierre con la fila en WARN; el id aparece en el registro del journal;
+  y sigue siendo imposible liquidar a una barra parcial sin que quede escrito quien lo permitio. Lo demas de la rama
+  (precios observados, sin sustitucion ni ffill) **no cambia**: ahi el rechazo sigue siendo el comportamiento correcto.
+- Sigue abierto de la misma rama, sin decidir: una orden cuya fecha queda fuera del indice se marca `not_filled` **y se
+  consume**, asi que un hueco de datos de un dia aparca el efectivo de una manga sin reemitir. Es una decision de politica
+  de reintento, no de severidad.
+
+**2. N-SLEEVE -> prevalece la semantica de `plan()` de `structural-hardening`** (`mark_px` + `_reject`). La rama N-sleeve
+la **absorbe antes** de integrarse. No se acepta una resolucion que elija N-sleeve y pierda el arreglo de `NaN`: en cuanto
+las mangas tengan posiciones, un `NaN` truthy contamina el valor de cartera y cancela renovaciones.
+Condiciones de integracion (Lucas), que son el criterio de aceptacion del paso de merge:
+1. Resolver el conflicto a favor de la semantica endurecida de `plan()`.
+2. Regresion que **inyecte `NaN`** en una posicion mantenida de una manga registrada.
+3. Probar que la manga afectada se rechaza de forma **localizada y explicable**.
+4. Probar que **las demas mangas siguen planificando** cuando sus datos son validos.
+5. Paridad N-sleeve contra el motor previo con la configuracion por defecto: **byte-compatible donde el diseño lo promete**.
+`test/astra-09-nsleeve-invariants` ya trae 13 xfail(strict) que cubren parte de 2-5; se convierten en pasa/falla al
+resolver. Orden posterior al settle sin cambios: `post-freeze-wiring` -> endurecimiento estructural -> N-sleeve reconciliado.
+
+**3. H-004 / H-005 / H-006 -> se quedan en PROPOSED.** Ni aceptadas ni rechazadas antes de su medicion predefinida. Nada
+de scoring, seleccion, parametros ni SPEC se toca, y el resultado vivo posterior **no se reinterpreta** como evidencia.
+Criterio de medicion por hipotesis (Lucas):
+- **H-004** (cero recomendaciones -> 22 compras): medir **frecuencia, causa y efecto** del caso "cero recomendaciones".
+  Prohibido convertir el resultado en una regla de compra o inferir que 22 compras "resuelven" el fenomeno.
+- **H-005** (antiguedad que acuña efectivo): medir el efecto contable por antiguedad **contra una referencia sin esa
+  acuñacion**, separando P/L economico, efectivo contabilizado y exposicion.
+- **H-006** (cap que no aplica a lo conservado): medir **exposicion maxima real por sector** antes y despues de conservar
+  posiciones, distinguiendo **cap de seleccion** de **cap de cartera**. Si el requisito de cartera es un limite real, no
+  basta con que el selector lo cumpla al abrir.
+Estos criterios se incorporan a la tabla de `.comms/hypotheses.md` cuando entre `docs/astra-prereg-01-08-10` (paso 4 del
+orden de merge); hasta entonces viven aqui.
+
+**4. SPEC linea 597 -> pendiente de decision binaria de Lucas, con el bloque ya en su mano.** Coordenada exacta: la frase
+**no existe en `main`** (los splits no estan ahi); vive solo en `origin/post-freeze-wiring` @ `4a77d6f`,
+`hydra_screener_local/HYDRA_ALGORITHM_SPEC.md:597`, seccion 9.3. Hallazgo nuevo al leer el bloque completo: **el parrafo
+se contradice consigo mismo**, y la contradiccion es el defecto de ASTRA-02 escrito en prosa —
+lineas 595-596: "el ledger replay y `holdings_before` aplican los registros **antes de los fills de ese dia**" (la economia
+correcta, la que implementa ASTRA-02) frente a la linea 597: "**Applied after settle** and before dividends
+(`config.APPLY_SPLITS`)" (el orden de llamada que producia la posicion fantasma). Solo se vuelve viva con el merge posterior
+al settle. Opciones tal como Lucas las planteo: mantener / corregir redaccion / reclasificar como regla operativa /
+elevarla como cambio de algoritmo-SPEC.
+
+[2026-09-07 00:20] CLAUDE: **A12 NO esta cerrada y sale del orden de merge. Revision externa (via Lucas) sobre
+`feat/astra-12-restore-drill` @ 7c199aa contra main @ f017966: 7 defectos P1, cuatro NUEVOS de la rama.**
+El integrador la tenia como paso 6; queda **anulado**. La rama no entra hasta rediseñarse.
+
+Verificado por mi leyendo el codigo de la rama, no aceptado de palabra:
+- **Traversal en el restore.** `restore_into` recorre los nombres del manifest y hace `shutil.copy2(src, target / name)`
+  sin validar `name`. Una entrada `../victim.txt` escribe fuera del destino — y el docstring promete literalmente
+  "Writes nothing outside `target_dir`".
+- **Restaura lo que ya sabe invalido.** `findings = list(verify_backup(...))` se recoge ANTES del `target.mkdir()` y del
+  bucle de copia, y se devuelve DESPUES. Salir con codigo no cero tras escribir no es rechazar.
+- **El rechazo no es transaccional.** `copy_state_off_disk` crea el destino y escribe `backup_manifest.json` antes de
+  evaluar los ficheros: con estado ausente, el directorio y el manifest quedan ahi tras el mensaje REFUSED.
+- **El guard reconoce ubicaciones temporales, no procedencia.** `TEMP_ROOTS` captura `tempfile.gettempdir()` al importar:
+  un fixture con `--basetemp` propio queda fuera y se copia igual.
+- **"Backup completo" puede ser un conjunto incoherente.** Los hashes prueban bytes, no pertenencia a una misma corrida:
+  con `required_roles` reducido a `["state"]`, o con estado de la generacion B y journal de la generacion A, el
+  verificador devuelve cero errores.
+
+**Dos correcciones que acepto y que cambian como estaba escrito este board:** decir que el journal "nunca se copiaba"
+es falso — **se copiaba directo** (`journal.save_record`), y eso es el problema; lo que faltaba era una garantia conjunta
+verificable. Y la ventana de contaminacion sigue abierta en el orden `journal -> copia directa -> guard`: `finalize_journal`
+llama primero a `append_from_v9`, que ya copio.
+
+**Lo que SI esta hecho, en `main` (`34b0143`), porque el defecto 1 no es de la rama:** `journal.py:92` lee
+`HYDRA_BACKUP_DIR` del entorno y copia a `state_v9/<YYYYMMDD>/`, y `run_all_tests.py` pasaba `os.environ.copy()`.
+Contencion en el limite del proceso: `conftest.py` redirige la variable al importarse (cubre pytest dentro del paquete),
+el runner da un destino desechable por corrida (cubre los ficheros que corren **como script**, que no cargan conftest), y
+`test_backup_isolation.py` fija 6 regresiones incluida la forma exacta del incidente. Verificado de punta a punta: suite
+completa con `HYDRA_BACKUP_DIR` a un señuelo -> **49 passed, 0 skipped, exit 0, 0 ficheros escritos en el señuelo**.
+Antes del arreglo, la misma corrida escribia cuatro.
+
+## Cola A12-R (rediseño; ninguna se cierra sin las regresiones de la 397)
+
+**CONDICION TRANSVERSAL (Lucas, 2026-09-07) — se aplica a las seis tareas y a cualquier ruta de respaldo o
+restauracion que se escriba en el futuro:**
+
+> Un rechazo de restauracion o verificacion no puede dejar efectos parciales: antes y despues del rechazo, el arbol
+> destino debe conservar el mismo conjunto de archivos, conteo y hashes.
+
+**QUE SIGNIFICA "VERIFICADO" (Lucas, 2026-09-07) — requisito minimo, no endurecimiento opcional:**
+
+> Los hashes demuestran identidad de bytes. NO demuestran que `state`, `journal` y los demas roles pertenezcan a la
+> misma ejecucion. Una generacion verificable necesita un `run_id` comun, roles requeridos que no se puedan debilitar
+> arbitrariamente, y publicacion indivisible de la generacion completa. Un backup con `state` de la generacion B y
+> `journal` de la A puede pasar todas las verificaciones por archivo y seguir siendo semanticamente invalido.
+
+**CRITERIO DE MERGE de la contencion (Lucas, 2026-09-07), cumplido en `34b0143`:** corrida completa verde con destino
+señuelo (**49 passed / 0 skipped / exit 0**), las **6** regresiones de aislamiento en verde, **cero** artefactos nuevos en
+`state_v9/` — el fichero mas reciente ahi es de las 22:59 del 2026-09-06, anterior a la contencion y a la copia manual de
+las 23:00 —, A12 excluida explicitamente del plan de integracion, y la contencion registrada como **mitigacion temporal**
+cuyo cierre real es la `TASK-392` (bloqueante).
+
+
+- `TASK-392` **Separar persistencia local de respaldo.** Quitar la copia implicita de `journal.save_record`. Un unico
+  servicio de respaldo que reciba destino, raices permitidas y modo de ejecucion de forma EXPLICITA; el entorno se
+  resuelve solo en el punto de entrada (`daily.py` / `portfolio_v9.main`). Aceptacion: ningun modulo bajo `core/`,
+  `journal.py` o `portfolio_v9.py` lee `HYDRA_BACKUP_DIR`; grep vacio en el test.
+- `TASK-393` **Aislar el proceso de tests, no el fichero.** La politica se instala antes de importar modulos y cubre
+  subprocesos. Ya hecho parcialmente en `34b0143`; falta que un `--basetemp` propio o un fixture fuera de TEMP no puedan
+  alcanzar ningun destino real, y que la politica no dependa de reconocer rutas temporales.
+- `TASK-394` **Validar antes de escribir, y rechazar sin efectos.** Revisar origenes, destinos, colisiones y rutas
+  resueltas ANTES de crear nada. Aceptacion: tras un rechazo, hashes y conteo del destino identicos a antes (no "exit 1
+  despues de escribir"), y un error especifico, no un valor de retorno.
+- `TASK-395` **Publicar generaciones completas.** `run_id` + estado + hojas + journal como un conjunto; verificar hashes
+  en el DESTINO y coherencia entre artefactos; publicacion indivisible al final. Aceptacion: un conjunto con roles
+  reducidos o con artefactos de dos generaciones **falla**; hoy devuelve cero errores.
+- `TASK-396` **Endurecer el restore.** Contrato fijo de roles y esquema; rechazar rutas absolutas, `..`, separadores
+  inesperados y escapes por enlaces/junctions; cualquier error previo impide crear el destino; copiar a staging aislado y
+  publicar solo tras validar. Aceptacion: la reproduccion `../victim.txt` no toca al hermano, y un hash malo no llega al
+  destino.
+- `TASK-397` **Convertir las reproducciones en regresiones.** TEMP personalizado, respaldo heredado, journal directo,
+  rechazo sin efectos, traversal, hashes invalidos, roles manipulados y generaciones mezcladas. Siempre sobre exportacion
+  aislada, verificando que los destinos prohibidos no cambian. **Ninguna de las 392-396 se cierra sin su regresion aqui.**
+
+Pendiente declarado, no afirmado: la integridad actual del estado y del respaldo manual de OneDrive. La copia de anoche en
+`PRODUCTION-manual-20260906-2300/` se hizo fichero a fichero comparando hashes en ambos sentidos y fuera de `state_v9/`;
+afirma que esos 9 ficheros son byte a byte los del disco a las 23:00, **no** coherencia entre artefactos.
+
+[2026-09-06 23:10] CLAUDE: **INCIDENTE: no existia respaldo del libro real fuera de disco. Corregido a mano.**
+Los diez `portfolio_v9.json` de `OneDrive\HydraBackups\state_v9\` eran **fixtures de test** (AAA/BBB/CCC, cap 8.000 y
+25.000, 1 pendiente). El directorio `20260904` — el que deberia tener el libro de produccion — tenia un fixture de
+`cap=8000.0` con cero pendientes, y hay una carpeta `20260904_clobbered_20260906_155629` que fecha el pisado hoy 15:56.
+Causa: `HYDRA_BACKUP_DIR` es una variable de USUARIO, asi que **cualquier corrida de la suite** (incluidas las mias de esta
+noche y las de los worktrees de los agentes) hereda la ruta y `copy_state_off_disk` escribe sobre el respaldo real.
+El libro con las 30 ordenes existia en **un solo fichero en un solo disco**.
+Copia manual verificada en `OneDrive\HydraBackups\PRODUCTION-manual-20260906-2300\` — 9 ficheros, hashes identicos,
+origen intacto, `portfolio_v9.json` sha256 `eef457c6919342cc97fb8a3e14501d04dbbb6bff68a9f3016f8e99a7a8591419`, 30
+pendientes, cap 100.000, anchor 2026-09-04. **Regla hasta el miercoles: no correr la suite desde ningun arbol con
+`HYDRA_BACKUP_DIR` apuntando a la raiz real.** El arreglo de fondo va en `feat/astra-12-restore-drill`, y el revisor
+demostro que **todavia no cierra el agujero** (`copy_state_off_disk` sigue creando el directorio y escribiendo
+`backup_manifest.json` en la raiz real aun cuando se niega a copiar). Queda tarea abierta.
+
+[2026-09-06 23:05] CLAUDE: **Lote de 12 ramas de la cola Astra, cada una en su worktree, `main` sin tocar.**
+12 implementadores + revisor adversarial + integrador (14 agentes, 0 errores, 79 min). Todas empujadas y con suite verde.
+Veredictos del revisor: **SOUND** `fix/astra-02-split-fill-order`, `fix/astra-04-skip-gate`, `fix/astra-07-paired-bootstrap`,
+`feat/astra-11-evidence-audit`, `test/astra-09-nsleeve-invariants`, `fix/task-390-tier3-and-stable-coverage`,
+`test/gm-002r-gate-tools`, `docs/astra-prereg-01-08-10`. **NEEDS_WORK** `fix/astra-03-observed-fill-prices` (su fila HARD de
+preflight impide a `daily.py` correr antes del cierre), `fix/astra-05-strict-pit-sectors` (el arreglo de elegibilidad esta
+dormido sin `close_raw.pkl`), `fix/astra-06-pit-breadth` (su test **fija el defecto** en vez de arreglarlo: `core/regime.py`
+es regla 6), `feat/astra-12-restore-drill` (ver incidente arriba).
+**Cero violaciones de alcance**, verificado por barrido: ninguna rama toca SPEC, `config.py`, `core/signals.py`,
+`core/meta_layer.py` ni un golden, y todo commit en `main` es de Lucas.
+Hallazgo que nadie pidio y es **defecto vivo en main**: en `plan()`, `float(px.get(t, ...) or 0.0)` con precio NaN devuelve
+NaN — NaN es truthy, el `or 0.0` nunca dispara —, el valor del paquete se vuelve NaN y **se cancela la renovacion de todas
+las mangas**. Hoy no muerde (el libro no tiene unidades); desde el miercoles tendra 30 nombres. `structural-hardening`
+ya trae la correccion (`mark_px` + `_reject`), asi que la resolucion de `plan()` al mergear N-sleeve decide si entra o se
+pierde.
+**Orden de merge medido (17 pasos) en el informe del integrador.** Correccion importante al plan anterior: el PR #41
+(`merge-prepared`) **si debe mergearse** — mide exactamente 3 conflictos y reconstruirlo a mano sale peor —, pero
+`structural-hardening` entra **en la misma ventana**, no como sustituto, porque le faltan 6 commits. Y
+`fix/astra-02` es **co-requisito duro** del #41: el #41 enciende `APPLY_SPLITS` y sin la 02 una venta total en fecha de
+split deja posicion fantasma que `state_check` reporta como limpia.
+**Tres cosas esperan a Lucas, no al settle:** la fila de preflight de la 03 (HARD o WARN), la resolucion de `plan()` de
+N-sleeve, y las hipotesis **H-004/005/006** pre-registradas en `.comms/hypotheses.md` (cero recomendaciones -> 22 compras,
+la antiguedad que acuña efectivo, el cap que no aplica a lo conservado).
+
 [2026-09-06 20:54] CLAUDE: **Hay un cuarto escritor en `main`: GitHub Copilot.** El commit `5070f2d`
 ("security: comprehensive policy update for HYDRA v9", 20:28) no lo hizo Lucas a mano ni ningun agente del board:
 lo hizo Copilot de GitHub, directo a `main`, sin PR, sin entrada aqui y sin `Co-Authored-By`. Lucas lo confirmo.
