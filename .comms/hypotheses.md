@@ -8,6 +8,7 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 | H-001 | 2026-09-06 | Claude | Dividends credited to the tranche holding the units on ex-date (accounting parity with total-return backtests) | book vs broker residual | ACCEPTED by Lucas 2026-09-06 (accounting, not scoring): TASK-349, `a38c732`; spec 9.3 |
 | H-002 | 2026-09-06 | Claude | The 1/8-per-week pair reset vs a full weekly 50/50 reset: measure the return/Sharpe difference on the OOS panel with the production engine | paired ann_net / Sharpe, OOS | PROPOSED — evidence from TASK-350 first |
 | H-003 | 2026-09-06 | Claude | Stock splits applied to the book's units on the effective date (`units *= ratio`, `last_px /= ratio`, recorded in `state["splits"]`); accounting parity with split-adjusted closes, same principle as H-001 | book vs broker residual; no phantom quantity diff in `reconcile` after a split | ACCEPTED by Lucas 2026-09-06 (accounting, not scoring): TASK-363 on branch `post-freeze-wiring`, `APPLY_SPLITS = True` (`4a77d6f`), SPEC 9.3; live after the post-settle merge |
+| H-004 | 2026-09-07 | Claude | One issuer must contribute at most one line to the stock sleeve: normalise the ticker at the universe boundary (`_yahoo_ticker`, dot -> dash) and dedupe by issuer at selection, keeping the ordinary/common line (ADV$20 tiebreak). Today's universe holds 90 same-issuer groups over 218 of 3002 tickers, 19 of them with 2+ spellings eligible; two spellings would take 2/n of the tranche and 2 of 5 sector slots | paired OOS ann_net / Sharpe on a Russell-inclusive PIT panel, plus the recommended-list diff | PROPOSED — measured no-op on 2026-09-04 (TASK-389, `.comms/task-389-duplicate-share-class.md`): eligible 2525 -> 2504, dynamic n 22 -> 22, T22 identical in order, sector displacements 13 -> 13; KILL if the paired OOS Sharpe difference is <= 0 or |ann_net difference| < 0.10 pp with the SE straddling zero, i.e. adopt as a correctness fix only, never as an alpha claim |
 
 ## Template
 
@@ -35,3 +36,5 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 - MR (Rattlesnake) sleeve killed at pre-registration (DEV Sharpe 0.21) — 2026-09-06.
 - Redesign target >= 10% net: not reached by any robust variant; production moved to the 50/50
   portfolio for return per unit of risk — 2026-09-06/07.
+- `BRK-B` vs `BRK.B`: reported by the 2026-09-06 audit (D4) and deliberately not fixed; measured
+  at full scale by TASK-389 and still open as H-004.
