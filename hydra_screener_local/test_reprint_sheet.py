@@ -50,20 +50,56 @@ def test_out_refuses_to_overwrite_the_state(tmp_path):
 
 def test_out_writes_the_markdown_elsewhere(tmp_path):
     p = _write_state(tmp_path)
-    out = tmp_path / "sheet.md"
+    out = tmp_path.parent / "away" / "sheet.md"
     assert R.main(["--state", str(p), "--out", str(out)]) == 0
-    assert "whole shares" in out.read_text(encoding="utf-8")
+    assert "not an order sheet" in out.read_text(encoding="utf-8")
 
 
-def test_order_smaller_than_one_share_is_called_out(tmp_path):
+def test_order_smaller_than_one_share_is_called_out_with_its_threshold(tmp_path):
     # 323.88 USD against a 1740 USD share: whole shares means no position at all
     state = dict(STATE, pending=[dict(STATE["pending"][0], ticker="SNDK", est_price=1740.0)])
     p = _write_state(tmp_path, state)
     pending, st = R.load_pending(p)
     text = R.render(pending, st)
-    assert "Cannot be bought in whole shares" in text
+    assert "One share costs more than the order" in text
     assert "**SNDK**: order 323.88 USD, one share 1740.00 USD" in text
+    # the estimate is the planning close, so the answer is a threshold, not a verdict
+    assert "one share fits at or below 323.88 USD (-81.4% from the estimate)" in text
     assert "confirm_fills.py" in text
+
+
+def test_a_near_miss_reads_as_a_small_move_not_a_verdict(tmp_path):
+    # QQQ on the live sheet: 689.63 order against a 718.96 share is 4.1% away, not impossible
+    state = dict(STATE, pending=[dict(STATE["pending"][1], ticker="QQQ", dollars=689.63, est_price=718.96)])
+    p = _write_state(tmp_path, state)
+    pending, st = R.load_pending(p)
+    assert "one share fits at or below 689.63 USD (-4.1% from the estimate)" in R.render(pending, st)
+
+
+def test_out_refuses_anything_inside_the_state_directory(tmp_path):
+    p = _write_state(tmp_path)
+    for name in ("instructions_20260904_shares.md", "view.md", "sub/view.md"):
+        target = tmp_path / name
+        assert R.main(["--state", str(p), "--out", str(target)]) == 1
+        assert not target.exists()
+
+
+def test_out_refuses_an_order_sheet_name_even_outside_state(tmp_path):
+    p = _write_state(tmp_path)
+    elsewhere = tmp_path.parent / "elsewhere"
+    elsewhere.mkdir(exist_ok=True)
+    for name in ("instructions_20260908.md", "portfolio_v9.json"):
+        target = elsewhere / name
+        assert R.main(["--state", str(p), "--out", str(target)]) == 1
+        assert not target.exists()
+
+
+def test_the_view_says_it_is_not_the_order_sheet(tmp_path):
+    p = _write_state(tmp_path)
+    pending, st = R.load_pending(p)
+    text = R.render(pending, st)
+    assert "This is not an order sheet" in text
+    assert "state/instructions_20260904.md" in text
 
 
 def test_order_without_a_usable_price_is_listed_not_crashed(tmp_path):
