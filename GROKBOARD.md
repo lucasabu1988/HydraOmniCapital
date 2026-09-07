@@ -37,6 +37,24 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 17:30] CLAUDE: **Analisis de estado tras los ultimos avances (pedido por Lucas), con dos correcciones y un runbook.**
+- **La fecha que ordena todo**: `renewal_slot` renueva cuando `bars_between(anchor, today) % 5 == 0`; con anchor 09-04 las
+  barras son 09-08/09/10/11/**14**. El proximo `plan()` con posiciones es el **lunes 14**, y dos defectos vivos de `main` son
+  inertes con el libro vacio y muerden con posiciones (NaN truthy en `plan()`, arreglo en `structural-hardening`; `age_stale`
+  absorbiendo rellenos, H-005). **Los merges 1 y 2 tienen que estar en `main` entre el miercoles 9 y el viernes 11.**
+- **El settle del miercoles corre codigo ensayado**: los dos commits post-ensayo (`dbf6e78`, `3cb9ef6`) tocaron solo el camino
+  del bar store, apagado en `main`. Verificado hunk por hunk.
+- **Corregido**: `post-freeze-wiring` (`6958661`) y `n-sleeve-engine` (`eec221e`) llevan ahora `main` mergeado — la valla del
+  respaldo y los ignores anclados de ruff — con suites **55/0 y 56/0, EXIT=0 medido**, `.gitignore` por union. Antes estaban 34
+  commits por detras y su suite habria escrito en OneDrive.
+- **Corregido**: el plan de merge vivia en un JSON temporal; ahora es `.comms/merge-window-2026-09-09.md` (`1b4bb1b`): orden
+  de 15 pasos con precondicion y conflicto medido, la regla de la valla, que ramas la tienen (8) y cuales no (11), y lo que
+  sigue fuera de la ventana y por que.
+- **Ya resueltos en sus ramas, verificado, no se tocan dos veces**: la linea `RESULTS` del runner (`fix/astra-04` imprime
+  `failed=`/`errors=` por caso) y el `check-merge-conflict` que no podia fallar (`chore/task-391`).
+- **Mejoras pendientes, por valor**: vallar las 11 ramas restantes (las 7 de la pila chocan en `test.yml` y piden criterio:
+  conservar los 7 jobs Y la lista de lint); la segunda ronda de ataque sobre `a12r`; `close_raw.pkl` para despertar la 05.
+
 [2026-09-07 12:40] CLAUDE: **Los tres puntos que Lucas aprobo, hechos.** (1) Colision H-004 resuelta: el parche de
 regimen es **H-007**, con nota en el registro; 004-006 siguen siendo las de ASTRA-01/08/10 del dia anterior. (2) **H-007
 aplicada** en `fix/astra-06-followup` (`5266fdf`), regla 6 cumplida: SPEC en el mismo commit y efecto **medido con la
