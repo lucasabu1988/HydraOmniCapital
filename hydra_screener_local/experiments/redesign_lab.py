@@ -49,17 +49,54 @@ from core.regime import compute_rich_regime_scores
 from data.sectors import lookup_sector
 
 CYCLES_PER_YEAR = 252
+
+
+def resolve_sector_map(columns, sectors="pit", sectors_date=None, *, pit_dir=None, lookup=None):
+    """TASK-387: the sector map the lab's sector cap uses, and where it came from.
+
+    sectors="pit"  -> latest PIT sectors snapshot on/before `sectors_date` (data/pit.py, TASK-362); names
+                      missing from the snapshot fall back to config.SECTOR_BUCKETS, then "Other" — never the
+                      live cache, so two runs with the same snapshot pick the same names.
+    sectors="live" -> data.sectors.lookup_sector (the mutable data_cache/sector_cache.json; the old behaviour).
+    sectors=dict   -> used as is (tests).
+    Returns (map, info) with info = {source, snapshot_date, n_mapped, n_fallback}."""
+    from config import SECTOR_BUCKETS
+    cols = [str(c) for c in columns]
+    if isinstance(sectors, dict):
+        m = {t: str(sectors.get(t, SECTOR_BUCKETS.get(t, "Other"))) for t in cols}
+        return m, dict(source="dict", snapshot_date=None, n_mapped=sum(t in sectors for t in cols),
+                       n_fallback=sum(t not in sectors for t in cols))
+    if sectors == "live":
+        look = lookup or lookup_sector
+        return {t: look(t) for t in cols}, dict(source="live", snapshot_date=None, n_mapped=len(cols), n_fallback=0)
+    if sectors != "pit":
+        raise ValueError(f"sectors must be 'pit', 'live' or a dict, got {sectors!r}")
+    from data.pit import sectors_at
+    snap, when = sectors_at(sectors_date, pit_dir=pit_dir)
+    if not snap:
+        print("[lab] WARNING: no PIT sectors snapshot found; falling back to the LIVE sector cache "
+              "(run snapshot_universe.py --seed to pin it)")
+        look = lookup or lookup_sector
+        return {t: look(t) for t in cols}, dict(source="live-fallback", snapshot_date=None, n_mapped=len(cols), n_fallback=0)
+    m = {t: str(snap.get(t) or SECTOR_BUCKETS.get(t, "Other")) for t in cols}
+    return m, dict(source="pit", snapshot_date=when, n_mapped=sum(t in snap for t in cols),
+                   n_fallback=sum(t not in snap for t in cols))
 SPLIT = pd.Timestamp('2016-01-01')
 
 
 # ----------------------------------------------------------------------------- panels
-def load_panel(oos=True):
+def load_panel(oos=True, sectors="pit", sectors_date=None):
     if oos:
         from data.universe import fetch_sp500_pit_payload
         payload = fetch_sp500_pit_payload()
         P = bvs.Panels(cache_dir=bvs.OOS_CACHE, pit_payload=payload)
+        # TASK-387: which membership payload this run used (a worktree without data_cache/ fetches a fresh
+        # one from Wikipedia, which is not the cached one -> different eligibility, different headline)
+        P.PIT_META = {k: (payload or {}).get(k) for k in ("updated", "cache_version", "source_wiki", "source_github")}
+        print(f"[lab] PIT payload: updated={P.PIT_META.get('updated')} cache_version={P.PIT_META.get('cache_version')}", flush=True)
     else:
         P = bvs.Panels()
+        P.PIT_META = None
     c = P.close
     P.MOM_12_1 = c.shift(21) / c.shift(252) - 1
     P.MOM_6_1 = c.shift(21) / c.shift(126) - 1
@@ -76,7 +113,15 @@ def load_panel(oos=True):
     # legacy COMPASS EXP56 (2026-03-05 design doc): risk-adjusted momentum at 21/63/126/252 bars with a
     # 5-bar skip, percentile-ranked within the eligible universe, averaged. Taken as specified, not tuned.
     P.ENS_PARTS = {lb: (c.shift(5) / c.shift(5 + lb) - 1) for lb in ENS_LOOKBACKS}
-    P.SECTOR = {t: lookup_sector(t) for t in c.columns}
+    # TASK-387: sectors pinned to a PIT snapshot by default; the live cache moved the OOS headline
+    # 7.10 -> 6.96 between two runs of the same engine on 2026-09-06
+    P.SECTOR, P.SECTOR_SOURCE = resolve_sector_map(c.columns, sectors, sectors_date)
+    print(f"[lab] sectors: {P.SECTOR_SOURCE['source']} snapshot={P.SECTOR_SOURCE['snapshot_date']} "
+          f"mapped={P.SECTOR_SOURCE['n_mapped']} fallback={P.SECTOR_SOURCE['n_fallback']}", flush=True)
+    n_all = max(1, P.SECTOR_SOURCE['n_mapped'] + P.SECTOR_SOURCE['n_fallback'])
+    if P.SECTOR_SOURCE['source'] != 'pit' or P.SECTOR_SOURCE['n_fallback'] / n_all > 0.6:
+        print("[lab] WARNING: sector map is not the pinned PIT snapshot or is mostly fallback -> the sector "
+              "cap will not bind the same way; headline not comparable with pinned runs", flush=True)
 
     # the harness recomputes the regime on the whole panel per date: O(T*N) each. Same values
     # from the last 300 rows (SMA200 is the longest window it uses); ~40x faster.
