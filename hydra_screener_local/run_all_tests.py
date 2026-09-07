@@ -7,6 +7,15 @@ Usage:
     python run_all_tests.py --verbose       # show more output per test
 
 Exit code 0 if all pass, 1 if any fail.
+
+Accounting is at two levels (ASTRA-04). A *file* passes, skips or fails; inside a file
+run through pytest, individual *cases* also pass, skip or fail. The runner used to
+report only the first level: it looked for a whole-file `[SKIP]` line and never read
+pytest's own `N passed, M skipped` summary, so a log could read "64 passed, 0 skipped"
+while three pytest cases were skipping inside files reported as [PASS]. Every pytest
+child now loads `tools/pytest_case_report.py`, which prints one `[CASE-SKIP] <id> ::
+<reason>` line per skipped case plus a `[CASE-COUNTS]` tally; the runner relays both and
+totals them in a `CASES:` line. `tools/check_skips.py` gates on those lines.
 """
 
 import argparse
@@ -64,6 +73,14 @@ def discover_tests() -> list[str]:
     ordered.extend(sorted(found))
     return ordered
 
+#: A real entry-point guard, not the mere mention of `__main__`. The substring test this
+#: replaces classified any file that so much as quoted the word as a script: it sent
+#: test_console_encoding.py (which greps other files for `if __name__ == "__main__"`)
+#: down the script path, where its single assertion never ran and the file was reported
+#: [PASS] in 0.09s. Found while porting ASTRA-04.
+MAIN_GUARD_RE = re.compile(r"^\s*if\s+__name__\s*==\s*[\"']__main__[\"']", re.MULTILINE)
+
+
 def _invocation(test_file: str) -> tuple[list[str], str]:
     """How to run this file, and why.
 
@@ -77,19 +94,81 @@ def _invocation(test_file: str) -> tuple[list[str], str]:
         src = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return [sys.executable, str(path)], "script"
-    has_main = "__main__" in src
+    has_main = MAIN_GUARD_RE.search(src) is not None
     has_tests = re.search(r"^def test_", src, re.MULTILINE) is not None
     if has_tests and not has_main:
-        return [sys.executable, "-m", "pytest", str(path), "-q"], "pytest"
+        # -p tools.pytest_case_report: per-case skip accounting (ASTRA-04). Needs ROOT on
+        # PYTHONPATH, which run_test sets for the child.
+        return [sys.executable, "-m", "pytest", str(path), "-q",
+                "-p", "tools.pytest_case_report"], "pytest"
     return [sys.executable, str(path)], "script"
 
 
-def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = None) -> tuple[str, float]:
+CASE_SKIP_RE = re.compile(r"^\[CASE-SKIP\]\s+(\S+)\s*::\s*(.*)$")
+CASE_COUNTS_RE = re.compile(r"^\[CASE-COUNTS\]\s+(.*)$")
+#: pytest's own tail summary ("11 passed, 2 skipped in 1.16s"), read as an independent
+#: witness of the case counts. Anchored on the whole `<counts> in <seconds>` shape so a
+#: test that merely prints the word "skipped" cannot be mistaken for it.
+PYTEST_TAIL_RE = re.compile(r"^((?:\d+ [a-z]+(?:, )?)+) in \d+(?:\.\d+)?s")
+
+
+def _pytest_tail_skips(output: str) -> int | None:
+    """How many cases pytest's own tail summary says it skipped, or None if absent."""
+    found = None
+    for line in output.splitlines():
+        m = PYTEST_TAIL_RE.match(line.strip())
+        if not m:
+            continue
+        for count, word in re.findall(r"(\d+) ([a-z]+)", m.group(1)):
+            if word == "skipped":
+                found = max(found or 0, int(count))
+    return found
+
+
+def _parse_case_report(test_file: str, output: str) -> dict | None:
+    """Case-level counts and skips from a pytest child, or None if it reported none.
+
+    Node ids are rewritten to `<test_file>::<case>` so the id an allowlist is keyed by
+    does not depend on pytest's rootdir resolution in the child.
+    """
+    counts: dict[str, int] | None = None
+    skips: list[tuple[str, str]] = []
+    for line in output.splitlines():
+        line = line.strip()
+        if (m := CASE_SKIP_RE.match(line)):
+            nodeid, reason = m.group(1), m.group(2).strip()
+            case = nodeid.split("::", 1)[1] if "::" in nodeid else nodeid
+            skips.append((f"{test_file}::{case}", reason or "no reason given"))
+        elif (m := CASE_COUNTS_RE.match(line)):
+            counts = {}
+            for field in m.group(1).split():
+                key, _, value = field.partition("=")
+                try:
+                    counts[key] = int(value)
+                except ValueError:
+                    continue
+    if counts is None:
+        return None
+    return {"counts": counts, "skips": skips}
+
+
+def _display_output(output: str) -> str:
+    """The child's output without the machine-readable case lines (printed separately)."""
+    return "\n".join(ln for ln in output.splitlines()
+                     if not (CASE_SKIP_RE.match(ln.strip()) or CASE_COUNTS_RE.match(ln.strip())))
+
+
+def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = None) -> tuple[str, float, dict | None]:
     cmd, how = _invocation(test_file)
     suffix = "" if how == "script" else f"  [via {how}]"
     print(f"\n=== {test_file} ==={suffix}")
     start = time.perf_counter()
     env = os.environ.copy()
+    if how == "pytest":
+        # The child imports tools.pytest_case_report before collection, i.e. before pytest
+        # puts the rootdir on sys.path, so pass it explicitly.
+        existing = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = str(ROOT) + (os.pathsep + existing if existing else "")
     if extra_env:
         env.update(extra_env)
     # Only the subprocess call is guarded: a failure while printing the report
@@ -107,20 +186,48 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
     except subprocess.TimeoutExpired:
         duration = time.perf_counter() - start
         print(f"[TIMEOUT] {test_file} after {duration:.1f}s")
-        return "fail", duration
+        return "fail", duration, None
     except OSError as e:
         duration = time.perf_counter() - start
         print(f"[ERROR] running {test_file}: {e} ({duration:.2f}s)")
-        return "fail", duration
+        return "fail", duration, None
 
     duration = time.perf_counter() - start
     output = (result.stdout + result.stderr).strip()
+    cases = _parse_case_report(test_file, output) if how == "pytest" else None
     if verbose:
-        print(output)
+        print(_display_output(output))
     else:
-        lines = output.splitlines()
+        lines = _display_output(output).splitlines()
         for line in lines[-6:]:
             print(line)
+
+    case_problem = None
+    if how == "pytest":
+        if cases is None:
+            # The plugin did not report. Without it the runner is blind to case-level
+            # skips again, which is the whole defect -- fail loudly instead. A child that
+            # already failed reports through the normal path, with its own exit code.
+            if result.returncode == 0:
+                case_problem = "no [CASE-COUNTS] from tools.pytest_case_report"
+        else:
+            c = cases["counts"]
+            print(f"[CASES] {test_file} passed={c.get('passed', 0)} "
+                  f"skipped={c.get('skipped', 0)} failed={c.get('failed', 0)} "
+                  f"errors={c.get('errors', 0)} xfailed={c.get('xfailed', 0)}")
+            for nodeid, reason in cases["skips"]:
+                print(f"[CASE-SKIP] {nodeid} :: {reason}")
+            # Cross-check against pytest's own tail summary: if pytest counted more
+            # skips than the plugin listed, the accounting is incomplete.
+            tail = _pytest_tail_skips(output)
+            if tail is not None and tail > c.get("skipped", 0):
+                case_problem = (f"pytest reported {tail} skipped, plugin listed "
+                                f"{c.get('skipped', 0)}")
+
+    if case_problem:
+        print(f"[FAIL] {test_file} (case accounting: {case_problem})")
+        return "fail", duration, cases
+
     # Whole-file skip: a [SKIP] line and no overall-pass banner (a file may skip one
     # sub-check and still pass). Hybrid integration is the case this exists for.
     skipped = (
@@ -130,12 +237,12 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
     )
     if skipped:
         print(f"[SKIP] {test_file} ({duration:.2f}s)")
-        return "skip", duration
+        return "skip", duration, cases
     if result.returncode == 0:
         print(f"[PASS] {test_file} ({duration:.2f}s)")
-        return "pass", duration
+        return "pass", duration, cases
     print(f"[FAIL] {test_file} (exit {result.returncode}, {duration:.2f}s)")
-    return "fail", duration
+    return "fail", duration, cases
 
 def main():
     parser = argparse.ArgumentParser(description="HYDRA Screener - All Tests Runner")
@@ -171,11 +278,19 @@ def main():
     skipped = 0
     failed = []
     total_time = 0.0
+    case_totals = {"passed": 0, "skipped": 0, "failed": 0, "errors": 0, "xfailed": 0}
+    case_skips: list[tuple[str, str]] = []
+    pytest_files = 0
     start_all = time.perf_counter()
 
     for t in test_files:
-        status, dur = run_test(t, verbose=args.verbose, extra_env=extra_env)
+        status, dur, cases = run_test(t, verbose=args.verbose, extra_env=extra_env)
         total_time += dur
+        if cases is not None:
+            pytest_files += 1
+            for key in case_totals:
+                case_totals[key] += cases["counts"].get(key, 0)
+            case_skips.extend(cases["skips"])
         if status == "pass":
             passed += 1
         elif status == "skip":
@@ -187,12 +302,22 @@ def main():
     print("\n" + "=" * 50)
     print(f"RESULTS: {passed} passed, {skipped} skipped in {elapsed:.2f}s "
           f"(tests time: {total_time:.2f}s)")
+    # Second level of accounting (ASTRA-04): files can all pass while cases inside them
+    # skip. Script-style files assert in a __main__ block and have no case counts.
+    script_files = len(test_files) - pytest_files
+    print(f"CASES: {case_totals['passed']} passed, {case_totals['skipped']} skipped, "
+          f"{case_totals['failed']} failed, {case_totals['errors']} errors, "
+          f"{case_totals['xfailed']} xfailed over {pytest_files} pytest file(s) "
+          f"({script_files} script file(s) report file level only)")
+    print(f"CASE-SKIPS: {len(case_skips)}")
+    for nodeid, reason in case_skips:
+        print(f"  {nodeid} :: {reason}")
     if failed:
         print("Failed tests:")
         for f in failed:
             print(f"  - {f}")
         return 1
-    if skipped:
+    if skipped or case_skips:
         print("No failures (skips are not passes).")
     else:
         print("All tests passed!")

@@ -89,7 +89,7 @@ def test_4_1_momentum_score():
     print("\n=== SPEC 4.1 Momentum Score ===")
     prices = make_synthetic_prices(n_tickers=5, n_days=300)
     scores = compute_momentum_score(prices)
-    
+
     assert len(scores) == 5
     assert scores.notna().all()
     # Debe ser retorno_90 / vol_63_annualized
@@ -104,26 +104,29 @@ def test_4_1_momentum_score():
 def test_4_2_short_term_and_strict():
     """SPEC 4.2: Short-term features + Strict Filter + 18% bonus"""
     print("\n=== SPEC 4.2 Short-Term + Strict Filter ===")
-    prices = make_synthetic_prices(n_tickers=3, n_days=50)
+    # 200 días, no 50: con 50 el momentum de 90d es NaN para todos los tickers,
+    # generate_daily_candidates devolvía 0 candidatos y el test se saltaba los checks
+    # de fila devolviendo True (vacuo — audit ASTRA-04, defecto 2).
+    prices = make_synthetic_prices(n_tickers=3, n_days=200)
     volumes = make_synthetic_volumes(prices)
-    
+
     feats = compute_short_term_features(prices, volumes=volumes)
     assert not feats.empty
     assert 'ret_short' in feats.columns
     assert 'dist_to_high' in feats.columns
     assert 'vol_ratio' in feats.columns
-    
+
     # Forzar fuertemente un caso que pase strict (valores extremos)
     prices2 = prices.copy()
     prices2.iloc[-1, 0] = prices2.iloc[-11, 0] * 1.30   # ret_short ~30% >15
     max20 = prices2.iloc[-20:, 0].max()
     prices2.iloc[-1, 0] = max20 * 0.99   # dist_to_high ~ -1% >= -2
-    
+
     # Vol surge muy alto
     volumes2 = volumes.copy()
     avg20 = volumes2.iloc[-20:, 0].mean()
     volumes2.iloc[-5:, 0] = avg20 * 3.0
-    
+
     feats2 = compute_short_term_features(prices2, volumes=volumes2)
     ret = feats2.iloc[0]['ret_short']
     dist = feats2.iloc[0]['dist_to_high']
@@ -131,32 +134,42 @@ def test_4_2_short_term_and_strict():
     dyn_th = 1.50 + (0.0 * 0.6)
     dyn_th = max(1.0, dyn_th)
     passes = (ret > 15) and (dist >= -2) and (vr > dyn_th)
-    
+
     print(f"  ret_short={ret:.2f}, dist={dist:.2f}, vol_ratio={vr:.2f}, dyn_th={dyn_th:.2f}, passes_strict={passes}")
     assert passes, "Debería pasar strict con los datos fuertemente forzados"
     print("[OK] Strict filter logic matches SPEC 4.2 (ret>15, dist>=-2, vol>th)")
-    
+
     # Bonus del 18% se aplica en generate_daily_candidates
-    candidates = generate_daily_candidates(prices2, make_synthetic_spy(50), volumes=volumes2)
-    
+    candidates = generate_daily_candidates(prices2, make_synthetic_spy(200), volumes=volumes2)
+
+    # Cero candidatos es un fallo, no un motivo para saltarse los asserts: con una
+    # implementación vacía este test debe ponerse rojo (ASTRA-04).
     if len(candidates) == 0:
-        print("[WARN] 0 candidates generados con datos sintéticos forzados (posible interacción de filtros). Saltando checks de fila.")
-        return True
-    
+        print("[FAIL] 0 candidates: el strict filter y el bonus no se han ejercitado")
+        return False
+
     top = candidates.iloc[0]
-    assert top['passes_strict'] == True
-    # El composite debe reflejar el bonus (ver SPEC 4.5)
-    print("[OK] passes_strict=True y composite incluye +18% bonus (SPEC 4.5)")
+    assert top['passes_strict'] == True, \
+        f"el ticker forzado debe pasar strict; passes_strict={top['passes_strict']}"
+    # El composite debe reflejar el bonus (ver SPEC 4.5): valor real, no truthiness.
+    expected = top['meta_score'] * (1 + top['short_boost'] * config.SHORT_TERM_BOOST) * 1.18
+    np.testing.assert_allclose(top['composite_score'], expected, rtol=2e-3)
+    print(f"[OK] passes_strict=True y composite={top['composite_score']:.4f} = "
+          f"meta {top['meta_score']:.4f} x (1 + boost {top['short_boost']:.3f} x "
+          f"{config.SHORT_TERM_BOOST}) x 1.18 (SPEC 4.5)")
     return True
 
 def test_4_3_rich_regime():
     """SPEC 4.3: Rich Regime con pesos exactos y sub-scores"""
     print("\n=== SPEC 4.3 Rich Regime ===")
     spy = make_synthetic_spy(300)
-    prices = make_synthetic_prices(n_tickers=30, n_days=300)  # para breadth
-    
+    # 40 tickers, no 30: el breadth de core/regime.py sólo se calcula con
+    # len(prices.columns) > 30, así que con 30 el test medía la constante 0.5 por
+    # defecto y nunca la fórmula (audit ASTRA-04, nota sobre el test de régimen).
+    prices = make_synthetic_prices(n_tickers=40, n_days=300)  # para breadth
+
     reg = compute_rich_regime_scores(spy, prices)
-    
+
     assert isinstance(reg, RegimeScores)
     assert 0.0 <= reg.overall <= 1.0
     assert 0.0 <= reg.trend <= 1.0
@@ -164,7 +177,7 @@ def test_4_3_rich_regime():
     assert 0.0 <= reg.momentum <= 1.0
     assert 0.0 <= reg.drawdown_velocity <= 1.0
     assert 0.0 <= reg.breadth_proxy <= 1.0
-    
+
     # Verificar que overall es weighted sum (pesos del SPEC)
     expected_overall = (
         reg.trend * 0.30 +
@@ -173,16 +186,45 @@ def test_4_3_rich_regime():
         reg.drawdown_velocity * 0.15 +
         reg.breadth_proxy * 0.10
     )
-    np.testing.assert_allclose(reg.overall, expected_overall, rtol=1e-5)
+    # Los sub-scores se publican redondeados a 3 decimales y `overall` se calcula con los
+    # valores sin redondear, así que reconstruirlo no puede ser más fino que ese redondeo:
+    # 0.5e-3 (sub-scores, pesos que suman 1) + 0.5e-3 (redondeo de overall) = 1e-3.
+    # Antes pasaba con rtol=1e-5 sólo porque breadth era la constante 0.5 (exacta).
+    np.testing.assert_allclose(reg.overall, expected_overall, rtol=0, atol=1.05e-3)
     print("[OK] Regime overall usa pesos exactos del SPEC 4.3 (30/25/20/15/10)")
     print(f"  overall={reg.overall:.3f} trend={reg.trend:.3f} vol={reg.volatility:.3f}")
+
+    # El breadth medido, no el 0.5 por defecto: 0.3*positivos + 0.3*sobre SMA50 + 0.4*sobre SMA200
+    ret_1d = prices.pct_change(fill_method=None).iloc[-1]
+    expected_breadth = (0.3 * float((ret_1d > 0).mean())
+                        + 0.3 * float((prices.iloc[-1] > prices.rolling(50).mean().iloc[-1]).mean())
+                        + 0.4 * float((prices.iloc[-1] > prices.rolling(200).mean().iloc[-1]).mean()))
+    np.testing.assert_allclose(reg.breadth_proxy, round(expected_breadth, 3), rtol=1e-6)
+    assert reg.breadth_proxy != 0.5, \
+        "breadth 0.5 con 40 columnas = la rama de breadth no se ejecutó"
+    print(f"  breadth={reg.breadth_proxy:.3f} (blend medido, 40 columnas)")
+
+    # Frontera del propio código: con 30 columnas o menos el breadth NO se calcula.
+    # Documentado con un assert para que el umbral no se mueva en silencio.
+    narrow = make_synthetic_prices(n_tickers=30, n_days=300)
+    reg_narrow = compute_rich_regime_scores(spy, narrow)
+    assert reg_narrow.breadth_proxy == 0.5, \
+        f"con 30 columnas el breadth debe ser el 0.5 por defecto, fue {reg_narrow.breadth_proxy}"
+    narrow_ret_1d = narrow.pct_change(fill_method=None).iloc[-1]
+    narrow_blend = (0.3 * float((narrow_ret_1d > 0).mean())
+                    + 0.3 * float((narrow.iloc[-1] > narrow.rolling(50).mean().iloc[-1]).mean())
+                    + 0.4 * float((narrow.iloc[-1] > narrow.rolling(200).mean().iloc[-1]).mean()))
+    assert round(narrow_blend, 3) != 0.5, \
+        "el sintético de 30 columnas no distingue el default del blend; cambia la semilla"
+    print(f"[OK] Breadth: >30 columnas usa el blend; con 30 queda en 0.5 "
+          f"(el blend habría sido {narrow_blend:.3f}) (SPEC 4.3)")
     return True
 
 def test_4_4_meta_layer_and_pillars():
     """SPEC 4.4: Meta-Layer base biases (tabla), Special Modes triggers, Pillar Multipliers + clamp"""
     print("\n=== SPEC 4.4 Meta-Layer + Pillars ===")
     meta = LightweightMetaLayer()
-    
+
     # Test base biases por regime (deben coincidir con tabla del SPEC 4.4.1)
     # STRONG
     adj = meta.compute_adjustment(regime_score=0.70)
@@ -190,28 +232,28 @@ def test_4_4_meta_layer_and_pillars():
     # Allow small tolerance; in practice may have floating adjustments
     assert adj.pillar_multipliers["COMPASS"] >= 1.14, f"COMPASS for STRONG was {adj.pillar_multipliers['COMPASS']}"
     assert adj.pillar_multipliers["Rattlesnake"] <= 0.86
-    
+
     # WEAK
     adj = meta.compute_adjustment(regime_score=0.20)
     assert adj.regime_type == "WEAK"
     assert adj.pillar_multipliers["COMPASS"] <= 0.76
     assert adj.pillar_multipliers["Rattlesnake"] >= 1.17
-    
+
     print("[OK] Base pillar multipliers por regime_type coinciden con tabla SPEC 4.4.1 (approx tolerance for floating)")
-    
+
     # Special modes triggers (SPEC 4.4.2)
     # CRISIS_ACUTE
     adj = meta.compute_adjustment(regime_score=0.70, recent_drawdown=0.15)
     assert "CRISIS_ACUTE" in adj.special_modes
     assert adj.pillar_multipliers["COMPASS"] < 1.0   # debe bajar
-    
+
     # STRONG_BROAD_MOMENTUM
     adj = meta.compute_adjustment(regime_score=0.75, volatility_level=0.4, recent_drawdown=0.01)
     assert "STRONG_BROAD_MOMENTUM" in adj.special_modes
     assert adj.pillar_multipliers["COMPASS"] > 1.15  # boost
-    
+
     print("[OK] Special Modes triggers y efectos coinciden con SPEC 4.4.2")
-    
+
     # Clamp final (SPEC 4.4.3)
     adj = meta.compute_adjustment(regime_score=0.90, recent_drawdown=0.01)
     for v in adj.pillar_multipliers.values():
@@ -225,27 +267,52 @@ def test_4_5_composite_and_strict_bonus():
     prices = make_synthetic_prices(n_tickers=5, n_days=100)
     spy = make_synthetic_spy(100)
     volumes = make_synthetic_volumes(prices)
-    
-    # Forzar fuertemente
+
+    # Forzar fuertemente el primer ticker (el que debe pasar strict)
+    forced = prices.columns[0]
     prices.iloc[-1, 0] = prices.iloc[-11, 0] * 1.30
     max20 = prices.iloc[-20:, 0].max()
     prices.iloc[-1, 0] = max20 * 0.99
     volumes.iloc[-5:, 0] = volumes.iloc[-20:, 0].mean() * 3.0
-    
+
     cands = generate_daily_candidates(prices, spy, volumes=volumes)
-    
+
+    # Sin candidatos no hay nada verificado: fallo. Con la implementación sustituida por
+    # un DataFrame vacío este test tiene que dar False, no True (audit ASTRA-04, defecto 2).
     if len(cands) == 0:
-        print("[WARN] 0 candidates en test 4.5. Saltando asserts de fila.")
-        return True
-    
-    top = cands.iloc[0]
-    
-    if top['passes_strict'] != True:
-        print("[WARN] passes_strict no activado con sintéticos (puede variar). Continuando.")
-    else:
-        assert top['short_term_boost'] > 0
-        assert top['composite_score'] > top['meta_score'] * 1.05
-        print("[OK] Composite incluye short boost + 18% strict bonus (SPEC 4.5)")
+        print("[FAIL] 0 candidates en test 4.5: el composite no se ha verificado")
+        return False
+    if 'ticker' not in cands.columns or forced not in set(cands['ticker']):
+        print(f"[FAIL] el ticker forzado {forced} no está en la salida: "
+              f"{list(cands.columns)[:6]}")
+        return False
+
+    # El ticker forzado, no cands.iloc[0]: el ranking va por composite y el forzado
+    # puede tener momentum bajo (aquí sale 4º de 5). Buscar la fila que se ha forzado
+    # es lo que hace que los asserts se ejecuten de verdad.
+    row = cands[cands['ticker'] == forced].iloc[0]
+
+    assert row['passes_strict'] == True, \
+        f"el ticker forzado {forced} debe pasar strict; vol_ratio={row['vol_ratio']}, " \
+        f"ret_10d={row['ret_5d_10d']}, dist_high={row['dist_20d_high']}"
+    assert row['short_boost'] > 0, f"short_boost={row['short_boost']}"
+
+    # Valores reales: composite = meta * (1 + short_boost * SHORT_TERM_BOOST) * 1.18
+    without_bonus = row['meta_score'] * (1 + row['short_boost'] * config.SHORT_TERM_BOOST)
+    np.testing.assert_allclose(row['composite_score'], without_bonus * 1.18, rtol=2e-3)
+
+    # ...y el bonus es condicional: una fila que no pasa strict no lo lleva.
+    plain = cands[~cands['passes_strict'].astype(bool)]
+    assert len(plain) > 0, "el sintético no tiene ninguna fila sin strict para contrastar"
+    plain_row = plain.iloc[0]
+    np.testing.assert_allclose(
+        plain_row['composite_score'],
+        plain_row['meta_score'] * (1 + plain_row['short_boost'] * config.SHORT_TERM_BOOST),
+        rtol=2e-3)
+
+    print(f"[OK] Composite incluye short boost + 18% strict bonus (SPEC 4.5): "
+          f"{forced} {without_bonus:.4f} x 1.18 = {row['composite_score']:.4f}; "
+          f"{plain_row['ticker']} sin strict = {plain_row['composite_score']:.4f}")
     return True
 
 def test_4_6_sector_control():
@@ -282,12 +349,12 @@ def test_4_7_dynamic_recommended():
     print("\n=== SPEC 4.7 Dynamic Recommended ===")
     prices = make_synthetic_prices(n_tickers=30, n_days=200)
     spy = make_synthetic_spy(200)
-    
+
     cands = generate_daily_candidates(prices, spy)
-    
+
     rc = int(cands.iloc[0]['recommended_count'])
     assert 6 <= rc <= 28, f"Dynamic count fuera de rango SPEC: {rc}"
-    
+
     n_rec = cands['recommended'].sum()
     assert n_rec <= rc
     print("[OK] Dynamic count en [6,28] y recommended <= count (SPEC 4.7)")
@@ -421,9 +488,9 @@ def test_output_contract():
     print("\n=== SPEC Section 7 Output Column Contract ===")
     prices = make_synthetic_prices(n_tickers=8, n_days=120)
     spy = make_synthetic_spy(120)
-    
+
     cands = generate_daily_candidates(prices, spy)
-    
+
     required = [
         'rank', 'ticker', 'momentum', 'meta_score', 'composite_score',
         'ret_5d_10d', 'dist_20d_high', 'short_boost',
@@ -432,19 +499,19 @@ def test_output_contract():
         'regime', 'regime_type', 'special_modes', 'aggression', 'recovery_boost',
         'compass_mult', 'pillar_multipliers', 'recommended', 'reason', 'recommended_count'
     ]
-    
+
     missing = [c for c in required if c not in cands.columns]
     if missing:
         print(f"[FAIL] Faltan columnas del contract: {missing}")
         return False
-    
+
     print("[OK] Todas las columnas del Output Contract del SPEC 7 están presentes")
     return True
 
 def main():
     print("=== HYDRA Python vs SPEC.md v1.2 Compliance Tests ===\n")
     print("Validando que la implementación coincide con las fórmulas y comportamientos del SPEC.\n")
-    
+
     tests = [
         test_config_matches_spec_section_6,
         test_4_1_momentum_score,
@@ -457,7 +524,7 @@ def main():
         test_4_7_downtrend_gate,
         test_output_contract,
     ]
-    
+
     all_passed = True
     for test in tests:
         try:
@@ -469,7 +536,7 @@ def main():
             import traceback
             traceback.print_exc()
             all_passed = False
-    
+
     if all_passed:
         print("\n=== ✅ ALL SPEC COMPLIANCE TESTS PASSED ===")
         print("La implementación en core/ es fiel al HYDRA_ALGORITHM_SPEC.md v1.2")
