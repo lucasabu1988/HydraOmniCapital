@@ -8,6 +8,18 @@ Windows — the platform difference is real, hence the headroom). Raise it when 
 rises; it must never be lowered to make a red build green — that is what the floor is
 for.
 
+DO NOT MOVE THE FLOOR UNTIL TWO RUNS ON ONE COMMIT AGREE (TASK-390 follow-up).
+The measurement was not repeatable when the 80.0 floor was set: four CI runs whose code
+trees were identical measured 81.25 / 80.97 / 81.25 / 81.14 % on Linux 3.12, a 0.28 pp
+spread. The cause was test_volume_watchdog.py drawing its fixtures from the process-wide,
+unseeded np.random, which fed core/signals.py a different panel every run and executed a
+different set of core/meta_layer.py branches (40 / 47 / 57 missed statements over 12
+identical local runs). That fixture is seeded now and test_task_390_gates.py keeps it and
+every other test module from going back to the global stream. But the 0.28 pp spread is a
+measured fact about the four runs that produced the current headroom, so a floor of 81.0
+would have failed two of them: the next ratchet needs two runs of the SAME commit
+reporting the same number first. Until then 80.0 stands, headroom and all.
+
 Reads `coverage.xml`, which `run_all_tests.py --cov` writes.
 """
 from __future__ import annotations

@@ -40,7 +40,7 @@ def print_candidates_table(df, top_n: int = 15):
     print("-" * 95)
 
 
-def print_pillar_multipliers(pillar_mults: dict):
+def print_pillar_multipliers(pillar_mults: dict | None):
     """Muestra los Pillar Multipliers de forma textual."""
     if not pillar_mults:
         return
@@ -72,7 +72,7 @@ def print_pillar_multipliers(pillar_mults: dict):
     print("-" * 65)
 
 
-def print_summary(regime_score: float, total_candidates: int, meta_info: dict = None, pillar_mults: dict = None, recommended_count: int = None):
+def print_summary(regime_score: float, total_candidates: int, meta_info: dict | None = None, pillar_mults: dict | None = None, recommended_count: int | None = None):
     """Resumen rapido con informacion de Meta-Layer + Pillar Multipliers."""
     print("\n+" + "-" * 35 + "+")
     if regime_score >= 0.5:

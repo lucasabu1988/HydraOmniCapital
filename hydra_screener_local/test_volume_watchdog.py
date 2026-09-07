@@ -8,24 +8,40 @@ from unittest.mock import patch
 from core.signals import generate_daily_candidates
 
 
-def _make_synthetic_data(n_tickers=10, nan_share=0.0):
-    """Create minimal prices, volumes, spy for generate_daily_candidates."""
+#: TASK-390 — the fixtures below used the global, unseeded np.random, so every run fed
+#: generate_daily_candidates a different panel and a different set of core/meta_layer.py
+#: branches got executed. Measured over 12 identical local runs: 40 / 47 / 57 missed
+#: statements in core/meta_layer.py (64-69-56% on that module), which moved the whole-tree
+#: line coverage by roughly 0.3 pp run to run and made the CI floor undecidable
+#: (81.25 / 80.97 / 81.25 / 81.14 on four CI runs of one code tree). A local Generator with
+#: a fixed seed makes the panel identical every run. The seed is arbitrary; only its
+#: fixedness matters. No assertion below is changed.
+FIXTURE_SEED = 20260906
+
+
+def _make_synthetic_data(n_tickers=10, nan_share=0.0, seed=FIXTURE_SEED):
+    """Create minimal prices, volumes, spy for generate_daily_candidates.
+
+    Deterministic: draws come from a local np.random.default_rng(seed), never from the
+    process-wide np.random state (which other tests also consume).
+    """
+    rng = np.random.default_rng(seed)
     tickers = [f"T{i:02d}" for i in range(n_tickers)]
     dates = pd.date_range("2026-01-01", periods=100, freq="D")
 
-    prices = pd.DataFrame({t: np.random.uniform(10, 100, len(dates)) for t in tickers}, index=dates)
+    prices = pd.DataFrame({t: rng.uniform(10, 100, len(dates)) for t in tickers}, index=dates)
     # Add some momentum so candidates are produced
     for t in tickers:
         prices[t].iloc[-10:] = prices[t].iloc[-10:] * 1.2
 
-    volumes = pd.DataFrame({t: np.random.uniform(1e5, 1e6, len(dates)) for t in tickers}, index=dates)
+    volumes = pd.DataFrame({t: rng.uniform(1e5, 1e6, len(dates)) for t in tickers}, index=dates)
 
     if nan_share > 0:
         n_nan = int(n_tickers * nan_share)
         for t in tickers[:n_nan]:
             volumes[t] = np.nan
 
-    spy = pd.Series(np.random.uniform(400, 600, len(dates)), index=dates)
+    spy = pd.Series(rng.uniform(400, 600, len(dates)), index=dates)
 
     return prices, volumes, spy, tickers
 

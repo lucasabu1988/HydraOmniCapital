@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+from typing import Any, cast
 
 from config import V9
 from core.ledger import CASH_TICKERS, EFFECTIVE_STATUSES, check_invariants
@@ -42,14 +43,16 @@ def _empty_books(state: dict) -> dict:
     """capital_reference split by mix, then by tranche — the new_state layout."""
     capital = _f(state.get("capital_reference"))
     sleeves = state.get("sleeves") or {}
-    mix = dict(state.get("mix") or V9.get("mix") or {})
+    # config.V9 is a heterogeneous literal, so mypy types every V9.get() as `object`.
+    # cast() is a no-op at runtime; it says what the config value is, it does not change it.
+    mix = dict(state.get("mix") or cast("dict[str, float] | None", V9.get("mix")) or {})
     names = list(sleeves.keys()) or list(mix.keys()) or ["stocks", "etf"]
     if not mix:
         mix = {n: 1.0 / len(names) for n in names}
     out = {}
     for name in names:
         trans = list((sleeves.get(name) or {}).get("tranches") or [])
-        k_n = len(trans) or int(V9.get("tranches") or 4)
+        k_n = len(trans) or int(cast("int | None", V9.get("tranches")) or 4)
         w = _f(mix.get(name), 1.0 / len(names))
         each = capital * w / k_n if k_n else 0.0
         out[name] = {
@@ -178,7 +181,8 @@ def check(state: dict) -> list[Finding]:
     for sleeve, block in (st.get("sleeves") or {}).items():
         rec_block = rebuilt.get(sleeve) or {"tranches": []}
         for i, tr in enumerate(block.get("tranches") or []):
-            rec = rec_block["tranches"][i] if i < len(rec_block["tranches"]) else {"units": {}, "cash": 0.0}
+            rec: dict[str, Any] = (rec_block["tranches"][i] if i < len(rec_block["tranches"])
+                                   else {"units": {}, "cash": 0.0})
             cash = _f(tr.get("cash"))
             rec_cash = _f(rec.get("cash"))
             if abs(cash - rec_cash) > REPLAY_TOL:

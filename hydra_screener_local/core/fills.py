@@ -145,7 +145,10 @@ def _reverse_event(state: dict, event: dict) -> dict | None:
 
 def _tranche_index(row: dict) -> int:
     try:
-        return int(row.get("tranche"))
+        # a missing/None "tranche" is the handled case: int(None) raises TypeError and the
+        # except returns -1. The ignore records that the None arm is deliberate rather than
+        # narrowing it away with an `if`, which would change control flow on the live path.
+        return int(row.get("tranche"))  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return -1
 

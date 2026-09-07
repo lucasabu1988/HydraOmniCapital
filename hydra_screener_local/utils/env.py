@@ -39,7 +39,7 @@ def load_hydra_env(env_path: Optional[Path] = None) -> int:
 
     loaded = 0
     try:
-        from dotenv import load_dotenv  # type: ignore
+        from dotenv import load_dotenv
         # override=False means don't clobber existing env
         load_dotenv(dotenv_path=str(env_path), override=False)
         return 1  # we don't have exact count from dotenv easily

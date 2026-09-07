@@ -561,7 +561,7 @@ def plan(state: dict, today: str, ranking: pd.DataFrame, stock_prices: pd.DataFr
     return state, orders
 
 
-def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.Series, cfg: dict = None) -> dict:
+def settle(state: dict, exec_date: str, stock_prices: pd.Series, etf_prices: pd.Series, cfg: dict = None) -> list[dict]:
     """Book the pending orders at the execution-day closes: sells first, then the inter-sleeve cash
     transfer, then buys (dollar amounts kept, units at the fill price, costs charged). Returns the
     list of fills (also appended to the ledger). Idempotent: nothing pending -> nothing done."""
