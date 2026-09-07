@@ -306,24 +306,34 @@ las 23:00 —, A12 excluida explicitamente del plan de integracion, y la contenc
 cuyo cierre real es la `TASK-392` (bloqueante).
 
 
-- [ ] `TASK-392` **Separar persistencia local de respaldo.** Quitar la copia implicita de `journal.save_record`. Un unico
+- [x] `TASK-392` **Separar persistencia local de respaldo.** Quitar la copia implicita de `journal.save_record`. Un unico
   servicio de respaldo que reciba destino, raices permitidas y modo de ejecucion de forma EXPLICITA; el entorno se
   resuelve solo en el punto de entrada (`daily.py` / `portfolio_v9.main`). Aceptacion: ningun modulo bajo `core/`,
   `journal.py` o `portfolio_v9.py` lee `HYDRA_BACKUP_DIR`; grep vacio en el test.
-- [ ] `TASK-393` **Aislar el proceso de tests, no el fichero.** La politica se instala antes de importar modulos y cubre
+  **HECHA en `feat/a12r-backup-service` (`a6244b6`): `backup_service.py` no lee ninguna variable de entorno (verificado recorriendo el AST del paquete), `journal.py` perdio la copia implicita y ya no importa `os` ni `shutil`, y el entorno se resuelve solo en `backup_env.py`. Medido: `pytest test_journal.py` contra un señuelo escribia 4 ficheros, ahora 0.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-393` **Aislar el proceso de tests, no el fichero.** La politica se instala antes de importar modulos y cubre
   subprocesos. Ya hecho parcialmente en `34b0143`; falta que un `--basetemp` propio o un fixture fuera de TEMP no puedan
   alcanzar ningun destino real, y que la politica no dependa de reconocer rutas temporales.
-- [ ] `TASK-394` **Validar antes de escribir, y rechazar sin efectos.** Revisar origenes, destinos, colisiones y rutas
+  **HECHA en la misma rama: `hydra_test_policy.py` se instala por import desde `conftest.py` **y** `run_all_tests.py` (un fichero corrido como script no carga conftest), da un directorio por proceso y construye el entorno de los hijos en vez de heredarlo. Endurecida en `ec3e309`: la propiedad de la sesion es un fichero que la politica escribio, no la forma de la ruta.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-394` **Validar antes de escribir, y rechazar sin efectos.** Revisar origenes, destinos, colisiones y rutas
   resueltas ANTES de crear nada. Aceptacion: tras un rechazo, hashes y conteo del destino identicos a antes (no "exit 1
   despues de escribir"), y un error especifico, no un valor de retorno.
-- [ ] `TASK-395` **Publicar generaciones completas.** `run_id` + estado + hojas + journal como un conjunto; verificar hashes
+  **HECHA: toda la validacion precede al primer `mkdir`, y el rollback deja el destino byte-identico — medido con `tree_fingerprint` a los dos lados de los caminos de rechazo. Corregido en `ec3e309` en dos frentes: ya no borra lo que no creo (borro la generacion de un vecino) y ya no deja el staging con ficheros parciales.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-395` **Publicar generaciones completas.** `run_id` + estado + hojas + journal como un conjunto; verificar hashes
   en el DESTINO y coherencia entre artefactos; publicacion indivisible al final. Aceptacion: un conjunto con roles
   reducidos o con artefactos de dos generaciones **falla**; hoy devuelve cero errores.
-- [ ] `TASK-396` **Endurecer el restore.** Contrato fijo de roles y esquema; rechazar rutas absolutas, `..`, separadores
+  **HECHA: una generacion es `<root>/state_v9/<fecha>/<run_id>/`, publicada con un solo `os.replace` de un staging ya verificado. `ec3e309` cierra los dos agujeros que el ataque encontro: la fecha del manifest se compara con las fechas **en los nombres** (`GEN_DATE_INCOHERENT`, y la publicacion misma se niega) y `generation_is_complete` no afirma "completa" si nadie fijo el juego de roles.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-396` **Endurecer el restore.** Contrato fijo de roles y esquema; rechazar rutas absolutas, `..`, separadores
   inesperados y escapes por enlaces/junctions; cualquier error previo impide crear el destino; copiar a staging aislado y
   publicar solo tras validar. Aceptacion: la reproduccion `../victim.txt` no toca al hermano, y un hash malo no llega al
   destino.
-- [ ] `TASK-397` **Convertir las reproducciones en regresiones.** TEMP personalizado, respaldo heredado, journal directo,
+  **HECHA: contrato de roles y esquema, staging aislado y publicacion solo tras validar. `ec3e309` cierra los tres escapes de escritura del ataque: junction como destino (el guard era codigo muerto), padre junction (se validaba la ruta resuelta y se creaba la sin resolver), y el restore que nunca consultaba la lista de denegados.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-397` **Convertir las reproducciones en regresiones.** TEMP personalizado, respaldo heredado, journal directo,
   rechazo sin efectos, traversal, hashes invalidos, roles manipulados y generaciones mezcladas. Siempre sobre exportacion
   aislada, verificando que los destinos prohibidos no cambian. **Ninguna de las 392-396 se cierra sin su regresion aqui.**
 
@@ -1820,6 +1830,8 @@ was published — you start from green. Claim a task by marking it `[~]`, work o
 Purpose first, as always. None of these touches the live path, so the freeze rule is satisfied by
 construction: nothing here merges to `main` before the 2026-09-08 settle is verified. Context:
 [`hydra_screener_local/docs/AUDIT_REPORT_2026-09.md`](hydra_screener_local/docs/AUDIT_REPORT_2026-09.md).
+
+  **HECHA: `test_backup_regressions.py` (20) mas `test_backup_attack_regressions.py` (19, en `ec3e309`) — los once escapes del ataque, cada uno con su reproduccion, incluida la regresion que yo introduje al endurecer el rollback. 91 tests en los tres ficheros de respaldo.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
 
 - [ ] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
   seven — `build-install-smoke`, `typecheck`, `secret-scan`, `dependency-audit`, `reproducibility`, plus a
