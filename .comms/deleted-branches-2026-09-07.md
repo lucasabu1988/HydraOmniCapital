@@ -54,6 +54,88 @@ analysis is recoverable, it just describes a suite that no longer exists.
 
 ## Not deleted
 
-`rescue/subtract-parked-clis-95f5a53` is LOCAL ONLY and holds Grok's eleven commits from the
+~~`rescue/subtract-parked-clis-95f5a53` is LOCAL ONLY and holds Grok's eleven commits from the
 parked-CLI work, superseded by `audit/subtract-parked-clis-v2`. It was left alone: it is the only
-copy of that work and it costs nothing to keep.
+copy of that work and it costs nothing to keep.~~ **Superseded the same evening.** Keeping the only
+copy on one laptop was the wrong way to preserve it. The eleven commits were pushed to `origin` as
+the annotated tag `rescue/grok-parked-clis-2026-09`, and the branch was then deleted. Second batch below.
+
+## Second batch, 2026-09-07 evening - 21 superseded LOCAL branches (Lucas: "ok proceder")
+
+All twenty-one were local only, so **nothing was removed from GitHub**. Measured before deleting,
+not assumed; every SHA below is still in the object database and recoverable with
+`git branch <name> <sha>`.
+
+### First: the eleven commits that were NOT anywhere on GitHub
+
+This file's earlier "Not deleted" section kept `rescue/subtract-parked-clis-95f5a53` alive on the
+grounds that it was *the only copy* of eleven parked-CLI commits. That was still true today:
+`git branch -r --contains` found each of the eleven on **zero** remote branches. Content-wise they
+are superseded by `audit/subtract-parked-clis-v2` (PR #44), but superseded content is not the same
+thing as a backed-up commit, and "the only copy is on one laptop" is not a place to leave work.
+So before the branch was deleted the eleven were pushed as an annotated tag:
+
+```
+rescue/grok-parked-clis-2026-09 -> 95f5a53   (on origin)
+git branch <name> rescue/grok-parked-clis-2026-09    # to get them back
+```
+
+The eleven, newest first:
+
+- `95f5a539b60ad8612b80e49db5c814b9cd27eff7` chore: strip log_cycle_positions from run_real_full_sp500.py
+- `04d162b22cba503aa6d9cfbef2f189fb84abb233` chore: strip log_cycle_positions from run_real_full_sp500.py
+- `2afb4ccbd663ecf1b08e67b124d0ed7f61478756` chore: strip log_cycle_positions from experiments/run_real_headless.py
+- `9c7d036a02dbb848a85b38ea9312598fc8a77dba` chore: remove --refresh-pnl and maybe_refresh_pnl from daily.py
+- `8d24207e02f8d474f81870c25c50ab0fdb4d0118` chore: drop log_cycle_positions per-file-ignore from ruff.toml
+- `67f188b8299a42c9d77e1fcb4a9b6dfd70092e87` chore: delete test_cycle_logger_calendar.py
+- `8f082aa9d0255e981762053f245c73c3ddd1698d` chore: delete refresh_current_prices.py (parked PnL refresher)
+- `ea009163e7dbd03afe5ff37af718de9b19d110c3` chore: delete log_cycle_positions.py (parked Excel cycle logger)
+- `1a0c1f595c1d31d9abb12dcf73395eb1ba026252` chore: delete parked live_watcher.py
+- `2dde76a5176746b0311ad3c62defa6da9aee6cd5` chore: delete parked console_dashboard.py
+- `cdb417c8d98814140a7293fa73c30584f2388d65` chore: delete parked generate_html_dashboard.py
+
+### The three superseded work branches, now deleted
+
+- **`review-astra03`** - `93d8ddf1e8cd6b218d862ded4e128dcda9592cb4` (2026-09-07) - "Merge remote-tracking branch 'origin/main' into review-astra03"
+- **`audit/subtract-parked-clis`** - `924c656360befcc75798773cf831cf5cd63d55a6` (2026-09-06) - "docs(comms): exhaustive analysis prompt for ChatGPT Astra"
+- **`rescue/subtract-parked-clis-95f5a53`** - `95f5a539b60ad8612b80e49db5c814b9cd27eff7` (2026-09-06) - "chore: strip log_cycle_positions from run_real_full_sp500.py"
+
+Why each one loses nothing:
+
+- **`audit/subtract-parked-clis`** - this file already recorded it as deleted in the first batch,
+  but only the remote side had gone; the local ref survived. Its two unique commits were
+  cherry-picked onto main and both were re-verified today as ancestors of `origin/main`:
+  `309bc60` ("exhaustive analysis prompt for ChatGPT Astra") and `70be198` ("the parked-CLI
+  subtraction is done, coherent, and CI-green"). The audit prompt's blob is byte-identical on
+  main: `260ff7c3176a8884bee9f9735f7e3b56fdcba213`.
+- **`rescue/subtract-parked-clis-95f5a53`** - its eleven commits are now on `origin` as the tag
+  above, and its content is published through v2 (`git grep log_cycle_positions
+  origin/audit/subtract-parked-clis-v2 -- run_real_full_sp500.py` returns nothing).
+- **`review-astra03`** - a scratch review branch. Its single unique commit is a merge, and against
+  `origin/fix/astra-03-observed-fill-prices` its tree **deletes** 614 lines including
+  `test_execution_prices.py` and `test_task_402_mark.py`: it was simply eight commits stale.
+
+### The 18 `worktree-wf_*` leftovers, now deleted
+
+Branch refs left behind by the ultracode workflow runs (their worktrees had already been pruned).
+**Zero unique commits across all eighteen** - `git rev-list --count <b> --not --remotes` returned 0
+for every one, so each was only a second name for a commit already on a remote.
+
+- `worktree-wf_4c9fe854-c54-1` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-10` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-11` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-12` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-2` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-3` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-4` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-5` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-6` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-7` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-8` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_4c9fe854-c54-9` - `1c21bc4c7fa9a0f91f0cd2cd040b0f7d6fe30a8b`
+- `worktree-wf_d930c0a1-edb-1` - `965d22c1531be639230f5635acb5c4cb9ac7fe90`
+- `worktree-wf_d930c0a1-edb-2` - `965d22c1531be639230f5635acb5c4cb9ac7fe90`
+- `worktree-wf_d930c0a1-edb-3` - `965d22c1531be639230f5635acb5c4cb9ac7fe90`
+- `worktree-wf_d930c0a1-edb-4` - `965d22c1531be639230f5635acb5c4cb9ac7fe90`
+- `worktree-wf_d930c0a1-edb-5` - `965d22c1531be639230f5635acb5c4cb9ac7fe90`
+- `worktree-wf_d930c0a1-edb-6` - `965d22c1531be639230f5635acb5c4cb9ac7fe90`
