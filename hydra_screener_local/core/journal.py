@@ -193,6 +193,7 @@ def build_record(
     errors: list | None = None,
     observations: list | None = None,
     last_bars: dict | None = None,
+    settle_refused: dict | None = None,
 ) -> dict:
     """One journal record. Missing pieces become None / empty, never a crash."""
     state = state or {}
@@ -330,6 +331,10 @@ def build_record(
             "rows": list(preflight.get("rows") or []),
         },
         reconcile_residual=None if reconcile is None else reconcile.get("residual"),
+        # A run that declined to settle is inferable from a WARN plus zero fills with pendings
+        # outstanding; for orders the operator is executing by hand, inferable is not enough
+        # (ASTRA-03). None on every ordinary run.
+        settle_refused=dict(settle_refused) if settle_refused else None,
         errors=list(errors or []),
     )
     return dict(

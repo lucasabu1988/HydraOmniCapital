@@ -593,7 +593,12 @@ residual. Shown on the sheet and the dashboard like interest.
 
 schema 1: anchor_date, last_run_date, last_renewal_date, week_index, capital_reference, per sleeve
 four tranches {k, opened, units, cash, last_px, stale}, pending orders, ledger of fills, write_offs,
-transfers, interest. A held name that stops printing is carried at its last price for
+transfers, interest, and `unfilled` — orders the settle could not book because no price printed on
+the execution day. `settle` consumes the pending order either way, so without that list the book
+kept the cash, opened no position, and nothing said so while the broker may have filled at a close
+we had no print for. An entry there makes preflight HARD until `confirm_fills.py` resolves it, and it
+is deliberately not re-planned: re-issuing an order the broker did fill buys the name twice
+(ASTRA-03). A held name that stops printing is carried at its last price for
 `max_stale_bars` (10) **weekly marks** (plan() runs; the lab's `run_book` counts steps the same way)
 and then written off at that price (recorded). No `history/` tracking is run (Lucas 2026-09-06).
 

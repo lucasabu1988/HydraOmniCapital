@@ -334,7 +334,12 @@ def apply_confirmations(state: dict, rows: list[dict]) -> dict:
                    note=f"previous event was {status}")
         report.append(rec)
 
-    return {"report": report, "warnings": warnings, "rejected": rejected, "state": state}
+    # ASTRA-03: a confirmation (real units, or units=0 for "never filled") answers the
+    # obligation settle() left in state["unfilled"]; nothing else clears it and preflight
+    # is HARD while any remain. A rejected row answers nothing.
+    resolved = _resolve_unfilled(state, [r["key"] for r in report if r.get("status") != REJECTED])
+    return {"report": report, "warnings": warnings, "rejected": rejected, "state": state,
+            "resolved_unfilled": resolved}
 
 
 def _new_event(row: dict, trade: dict, status: str, by_id: dict, correction_of: str | None = None) -> dict:
@@ -395,6 +400,30 @@ def cancel_events(state: dict, event_ids: list[str], *, reason: str | None = Non
     return {"cancelled": done, "missing": missing, "already_inert": already, "state": state}
 
 
+def _resolve_unfilled(state: dict, confirmed_keys: list) -> list:
+    """Clear the obligations these confirmations answer (ASTRA-03).
+
+    `state["unfilled"]` holds orders the settle could not book because no price printed on the
+    execution day, and preflight is HARD while any remain. This is the only path that clears them,
+    so without it the gate could never be satisfied. Confirming the order — with real units, or
+    with `units=0` to record that it truly never filled — is the answer either way: the operator is
+    the only one who knows what the broker did.
+    """
+    book = list(state.get("unfilled") or [])
+    if not book:
+        return []
+    keys = {tuple(k) for k in confirmed_keys}
+    keep, resolved = [], []
+    for u in book:
+        if fill_key(u) in keys:
+            resolved.append(u)
+        else:
+            keep.append(u)
+    if resolved:
+        state["unfilled"] = keep
+    return resolved
+
+
 def report_lines(result: dict) -> list[str]:
     lines = ["exec_date sleeve tranche side ticker  units  price  $  fee  status  matched"]
     for r in result.get("report") or []:
@@ -409,6 +438,9 @@ def report_lines(result: dict) -> list[str]:
         )
         for err in r.get("errors") or []:
             lines.append(f"    REJECTED {err}")
+    for u in result.get("resolved_unfilled") or []:
+        lines.append(f"RESOLVED unfilled {u.get('ticker')}@{u.get('exec_date')} "
+                     f"({u.get('reason')}) — preflight clears once this is written")
     for w in result.get("warnings") or []:
         lines.append(f"WARN {w}")
     return lines

@@ -6,6 +6,7 @@ print the table and stop on a hard fail unless `--force`.
 from __future__ import annotations
 
 import os
+import re
 import pandas as pd
 
 from config import (
@@ -43,8 +44,27 @@ def last_weekday_session(asof) -> str:
     return last_nyse_session_on_or_before(asof)
 
 
+def _slug(check: str) -> str:
+    """Stable identifier for a check, derived from its name (`session closed` -> `session_closed`).
+
+    Lucas 2026-09-07: a WARN has to carry a stable id in both the preflight and the journal, so it
+    can neither decay into noise nor be lost at the next cycle. Deriving it from the name keeps every
+    call site unchanged; `test_preflight_row_ids` pins the full set so a rename fails loudly instead
+    of silently minting a new id.
+    """
+    return re.sub(r"[^a-z0-9]+", "_", check.lower()).strip("_")
+
+
 def _row(check: str, status: str, detail: str) -> dict:
-    return {"check": check, "status": status, "detail": detail}
+    return {"id": _slug(check), "check": check, "status": status, "detail": detail}
+
+
+def row_by_id(pf: dict, rid: str) -> dict | None:
+    """The evaluated row with this id, or None. Callers key behaviour off the id, never the text."""
+    for r in (pf or {}).get("rows") or []:
+        if r.get("id") == rid:
+            return r
+    return None
 
 
 def _sessions_between(_frame, earlier: str, later: str) -> int | None:
@@ -66,7 +86,14 @@ def _sessions_between(_frame, earlier: str, later: str) -> int | None:
 
 
 def _session_closed_row(stock_d: str | None, clock, allow_intraday: bool) -> dict:
-    """HARD while the last bar belongs to a session that has not closed yet (ASTRA-03).
+    """WARN while the last bar belongs to a session that has not closed yet (ASTRA-03).
+
+    Severity per Lucas 2026-09-07: HARD is for an inconsistency that makes state, cash, positions,
+    ledger, portfolio identity or the ability to execute and reconcile untrustworthy; an intraday
+    partial print is information not yet available at that hour, so it is a WARN and `daily.py` keeps
+    running. **The refusal did not disappear, it moved to where it belongs**: `run()` will not settle
+    at that bar (portfolio_v9, "refusing to settle"), which is stricter than the old HARD row —
+    the old one also blocked the runs that had nothing to settle.
 
     Every other check here compares dates, and `last_nyse_session_on_or_before` normalises the
     clock away, so a run started at 11:00 ET on a trading day passes them all: yfinance serves
@@ -84,11 +111,12 @@ def _session_closed_row(stock_d: str | None, clock, allow_intraday: bool) -> dic
         return _row("session closed", "OK",
                     f"last bar {stock_d} is a closed session ({when}, close {hh:02d}:{mm:02d} ET)")
     return _row(
-        "session closed", "WARN" if allow_intraday else "HARD",
+        "session closed", "WARN",
         f"last bar {stock_d} is the CURRENT session and it has not closed ({when}, close "
         f"{hh:02d}:{mm:02d} ET + {CLOSE_SETTLE_BUFFER_MIN}min) — that bar is an intraday partial "
-        f"print, fills would book at a price that is not a close"
-        + (" [allowed by --allow-intraday]" if allow_intraday else ""),
+        f"print, so the settle refuses it"
+        + (" [OVERRIDDEN by --allow-intraday: fills may book at a partial print]"
+           if allow_intraday else ""),
     )
 
 
@@ -350,6 +378,18 @@ def evaluate(
             ))
         else:
             rows.append(_row("schema_version", "OK", f"schema_version={ver}"))
+
+    unresolved = list((state or {}).get("unfilled") or [])
+    if unresolved:
+        names = ", ".join(f"{u.get('ticker')}@{u.get('exec_date')}" for u in unresolved[:6])
+        more = "" if len(unresolved) <= 6 else f" (+{len(unresolved) - 6} more)"
+        rows.append(_row(
+            "unfilled orders", "HARD",
+            f"{len(unresolved)} order(s) booked not_filled and never resolved: {names}{more} — the "
+            "book's cash and the broker's positions may disagree; resolve with confirm_fills.py",
+        ))
+    elif state is not None:
+        rows.append(_row("unfilled orders", "OK", "none awaiting resolution"))
 
     hard = any(r["status"] == "HARD" for r in rows)
     warn = any(r["status"] == "WARN" for r in rows)

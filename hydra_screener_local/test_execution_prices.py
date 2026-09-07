@@ -294,16 +294,25 @@ def _status(result, check):
     return {r["check"]: r["status"] for r in result["rows"]}.get(check)
 
 
-def test_preflight_hard_fails_on_an_unclosed_current_session():
-    """The hole that let a run settle 30 real orders at an 11:00 partial bar."""
+def test_preflight_warns_on_an_unclosed_current_session_and_the_settle_refuses():
+    """The hole that let a run settle 30 real orders at an 11:00 partial bar.
+
+    The severity changed on 2026-09-07 (Lucas): HARD is for state, cash, positions, ledger,
+    identity or executability being untrustworthy, and an intraday print is none of those — it is
+    information not yet available at that hour, so `daily.py` keeps preparing a cycle. **The
+    guarantee did not weaken, it moved**: `portfolio_v9.run` refuses to settle at that bar
+    (test_astra_03_closeout.test_run_refuses_to_settle_at_an_unclosed_session_bar), which the old
+    HARD row could not promise anyway — `--force` walked straight past it.
+    """
     prices, etf, irx, ranking, state = _pf_frames()
     r = PF.evaluate(prices, etf, irx, state=state, ranking=ranking,
                     backup_dir="/tmp/b", clock=_clock("2026-09-04", "11:00"))
     assert _status(r, "last bars") == "OK"                  # the date checks all pass...
-    assert _status(r, "session closed") == "HARD"           # ...only the clock catches it
-    assert r["hard"]
-    with pytest.raises(SystemExit):
-        PF.raise_if_hard(r)
+    assert _status(r, "session closed") == "WARN"           # ...only the clock sees it at all
+    assert PF.row_by_id(r, "session_closed")["status"] == "WARN"
+    assert "the settle refuses it" in PF.row_by_id(r, "session_closed")["detail"]
+    assert not r["hard"] and r["warn"]
+    PF.raise_if_hard(r)                                     # a run before the close is not blocked
 
 
 def test_preflight_ok_after_the_close():
