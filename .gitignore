@@ -46,6 +46,9 @@ demo_state.json
 .claude/*.local.md
 .claude/*.local.json
 .claude/agent-memory/
+# Workflow agent worktrees: ephemeral checkouts, one per agent. The branches live on origin;
+# the directories are disposable and reappear on every run (`git worktree remove` cleans them).
+.claude/worktrees/
 
 # Tool configs
 .serena/
