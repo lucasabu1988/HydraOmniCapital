@@ -37,6 +37,46 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 07:55] CLAUDE: **Segunda pasada del respaldo hecha (`ec3e309`). TASK-399/400/401 cerradas; la rama sigue FUERA del orden de merge.**
+Los once escapes del atacante, cerrados uno por uno, cada uno con su regresion en `test_backup_attack_regressions.py`.
+Verificado: 91 tests en los tres ficheros de respaldo; suite completa **EXIT=0 medido sin tuberia, 53 passed, 0 skipped**,
+ruff limpio. Respaldo real intacto de punta a punta: **298 ficheros, `state_v9/` en 60, el mas reciente de las 22:59 del
+2026-09-06** — anterior a la contencion.
+
+**Los cuatro escapes de escritura.** `link_on_path()` mira la ruta **sin resolver** y todos sus ancestros con `islink` **y**
+`isjunction` (en Windows un junction es invisible a `is_symlink()` incluso sin resolver, y `resolve()` ya habia seguido el
+enlace: ahi estaba el guard muerto). El restore crea **la ruta validada**, no la recibida — validar la resuelta y crear la
+sin resolver era el segundo escape. `RESTORE_TARGET_DENIED`: el restore obedece la lista de denegados, que era la unica
+valla que la politica instala y no cubria ese camino. Y el rollback distingue **propiedad, no vacio**.
+
+**Mi propia regresion, y es la mas instructiva del lote.** Al endurecer el rollback para que no borrara el trabajo del
+vecino, deje el staging con ficheros parciales tras un rechazo — un rechazo **con** efectos, la condicion exacta que la
+tarea existe para sostener. La cazo mi propio test, no yo leyendo el codigo. Por eso la distincion quedo como *propiedad*
+y no como *vacio*: el arbol de staging lleva nuestro `run_id` y nadie mas conoce su nombre, asi que se borra entero; un
+ancestro compartido puede tener la generacion de otro, asi que solo se borra vacio. Las dos mitades tienen prueba, porque
+sin ellas el siguiente que endurezca esa funcion repite el intercambio.
+
+**Los tres agujeros de verificacion.** `date_in_name()` + `GEN_DATE_INCOHERENT`, y salio mas fuerte de lo esperado: **la
+publicacion se niega**, asi que la generacion incoherente no llega a existir (y un manifest forjado a mano tampoco pasa).
+`GEN_PROFILE_UNVERIFIED`: `generation_is_complete` ya no afirma "completa" cuando nadie fijo el juego de roles, que es lo
+que compraba la degradacion de perfil. `SOURCE_NAME_CASE_COLLISION` antes de crear nada.
+
+**La valla del entorno.** Deniega **lo que heredo, sin condiciones** — ya no pregunta si la ruta *se llama* como un
+directorio de pruebas, que era el error que su propio docstring condenaba. La sesion heredada solo se acepta si lleva un
+fichero que la politica escribio, `HYDRA_TEST_BACKUP_SESSION` entra al strip de `build_child_env`, y
+`clear_denied_destinations` pasa a privada: eso no la hace segura, la hace visible.
+
+**Dos limites declarados, no disimulados** (en `docs/BACKUP_SERVICE.md`): el `run_id` vive en el mismo manifest sin firmar
+que los hashes, asi que detecta mezclas **accidentales** y no manipulacion — cerrarlo necesita una clave que este proyecto
+no tiene, y la comprobacion que no depende de la cooperacion del editor es la de fechas. Y un `SIGKILL` a media copia deja
+basura de staging inerte: `stale_staging()` la nombra y `sweep_staging(keep_run_id=...)` la quita, con ese argumento porque
+barrer a ciegas borraria una publicacion en vuelo — precisamente el error del rollback viejo.
+
+**Por que sigue fuera del orden de merge:** la primera version paso sus propios 72 tests y eso no la salvo. Esta pasa 91.
+El criterio para que entre no es que sus tests esten verdes, es que **alguien la ataque otra vez** y no encuentre camino de
+escritura fuera del destino ni rechazo con efectos. Hasta entonces, `feat/astra-12-restore-drill` se abandona y esta
+espera.
+
 [2026-09-07 04:10] CLAUDE: **Segundo lote: 5 ramas empujadas, 1 rechazada por mi propio atacante, y mi cierre de A03 devuelto como NEEDS_WORK.**
 8 agentes, 0 errores, 83 min. Ninguna rama toca `main`; el respaldo real quedo intacto (298 ficheros, mismo mtime, medido antes y despues de cada ataque).
 
@@ -80,9 +120,9 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
 
 ## Cola nueva
 
-- [ ] `TASK-399` **A12R segunda pasada: los 4 escapes de escritura.** Junction como destino (guard muerto), padre junction (mkdir sin resolver), restore sin lista de denegados, y el rollback que borra lo que no creo. Aceptacion: las reproducciones del atacante en verde, y un rechazo concurrente que **no** toca la generacion del vecino.
-- [ ] `TASK-400` **A12R: coherencia de la generacion.** Fecha del manifest contra las fechas de los nombres; perfil no degradable por reescritura del nombre; y decir en el diseño que el `run_id` en un manifest sin firmar detecta mezclas accidentales, no manipulacion. Mas la colision de mayusculas en NTFS.
-- [ ] `TASK-401` **A12R: la valla del entorno deja de ser una heuristica de ruta.** `"hydra-test-backup" in str(p)` es la forma de la ruta, no la procedencia; `HYDRA_TEST_BACKUP_SESSION` no lo cubre el strip de `build_child_env`; y `clear_denied_destinations()` es API publica que quita la valla en una linea.
+- [x] `TASK-399` **A12R segunda pasada: los 4 escapes de escritura.** Junction como destino (guard muerto), padre junction (mkdir sin resolver), restore sin lista de denegados, y el rollback que borra lo que no creo. Aceptacion: las reproducciones del atacante en verde, y un rechazo concurrente que **no** toca la generacion del vecino.
+- [x] `TASK-400` **A12R: coherencia de la generacion.** Fecha del manifest contra las fechas de los nombres; perfil no degradable por reescritura del nombre; y decir en el diseño que el `run_id` en un manifest sin firmar detecta mezclas accidentales, no manipulacion. Mas la colision de mayusculas en NTFS.
+- [x] `TASK-401` **A12R: la valla del entorno deja de ser una heuristica de ruta.** `"hydra-test-backup" in str(p)` es la forma de la ruta, no la procedencia; `HYDRA_TEST_BACKUP_SESSION` no lo cubre el strip de `build_child_env`; y `clear_denied_destinations()` es API publica que quita la valla en una linea.
 - [ ] `TASK-402` **A03 objecion 3, segunda pasada.** Valorar al ultimo cierre observado (cayendo a `last_px` solo si no hay ninguno), un fixture cuya ultima barra sea un forward fill para que el arreglo sea falsificable, y una cabecera que no sobreafirme.
 - [ ] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
 
