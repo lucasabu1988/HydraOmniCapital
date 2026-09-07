@@ -37,6 +37,55 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 04:10] CLAUDE: **Segundo lote: 5 ramas empujadas, 1 rechazada por mi propio atacante, y mi cierre de A03 devuelto como NEEDS_WORK.**
+8 agentes, 0 errores, 83 min. Ninguna rama toca `main`; el respaldo real quedo intacto (298 ficheros, mismo mtime, medido antes y despues de cada ataque).
+
+## `feat/a12r-backup-service` — **NO MERGEAR**, y por que dos revisores dicen cosas distintas
+
+El revisor de cierre la marco **SOUND** y el atacante **DO_NOT_MERGE**. No promedio eso: **gana el atacante, por evidencia** — el ejecuto los ataques, el revisor leyo diffs. Los dos aciertan en cosas distintas, y la distincion importa:
+
+**Lo que SI quedo bien y es la parte dificil (TASK-392, la costura del entorno):** `journal.py` ya no lee `HYDRA_BACKUP_DIR` ni copia (fuera el `os.environ.get` y los dos `shutil.copy2`; el modulo ya no importa `os` ni `shutil`). El entorno se lee en **un** modulo, `backup_env.py`, verificado recorriendo el AST de todo el paquete. Medido: `pytest test_journal.py` contra un señuelo escribia 4 ficheros y ahora escribe **0**. Traversal: **20 nombres hostiles del manifest, todos rechazados**, nada aterrizo fuera. Rechazo sin efectos: **15 de 16 caminos** byte-identicos.
+
+**Los 4 escapes de escritura que la matan:**
+1. **El destino del restore puede ser un junction.** El guard `RESTORE_TARGET_IS_LINK` es **codigo muerto**: hace `_resolve(target).is_symlink()`, y `resolve()` ya siguio el enlace. **6 ficheros escritos fuera del directorio nombrado en la linea de comandos, y el CLI imprimio exito.** Alcanzable desde el CLI documentado del operador.
+2. **Un padre junction** basta: `_assert_isolated_target` resuelve, pero `unwind.mkdir(target)` crea la ruta **sin** resolver, asi que se crea a traves del enlace. 6 ficheros en un arbol que el llamador nunca nombro.
+3. **`restore_generation` nunca consulta la lista de denegados.** `publish_generation` si; restore no recibe contexto y no llama ni a `denied_destinations()` ni a `forbidden_by()`. 6 ficheros escritos dentro de una raiz explicitamente denegada — en esta maquina esa raiz es OneDrive\\HydraBackups (el ataque uso un señuelo).
+4. **Un rechazo borro un respaldo bueno.** `_Unwind.mkdir` apunta como "creado por mi" cada ancestro ausente y el rollback hace `rmtree`. Con dos publicaciones concurrentes reales (hilos, sin fallos inyectados), la publicacion A registro el directorio de la fecha, B publico ahi una generacion completa y verificada, y el rechazo de A **borro la generacion de B y la raiz entera**. No es "un rechazo dejo efectos": es **un rechazo destruyo un backup**.
+
+**Y 3 agujeros de verificacion, la misma clase por la que se demolio el intento anterior:**
+5. Nada compara la fecha del manifest con las fechas **en los nombres**: `role_for()` acepta cualquier `instructions_<fecha>` como `sheet_md`, asi que una generacion sellada 2026-09-06 con hojas y journal del 09-04 **verifica COMPLETA**. La coherencia de fechas la impone el llamador, no el servicio.
+6. **Degradacion de perfil**: recortar `required_roles` se rechaza, pero **reescribir el NOMBRE del perfil** (`daily_v9` -> `sheet_only`) y borrar el journal verifica limpio si el llamador no exige perfil.
+7. El `run_id` vive en el mismo manifest sin firmar que los hashes, asi que solo detecta mezclas **accidentales**: libro de B + journal de A con un `run_id` re-sellado y hashes recalculados verifica COMPLETA.
+Ademas: dos nombres que difieren solo en mayusculas (`JOURNAL.md` / `journal.MD`) entran ambos al manifest y en NTFS existe un solo fichero; y la decision de denegar es una heuristica de forma de ruta (`"hydra-test-backup" in str(p)`) — exactamente el error que su propio docstring condena.
+
+## `fix/astra-03-observed-fill-prices` — **NEEDS_WORK**, y es mio
+
+El re-review confirmo objeciones 1 y 2 cerradas **por ejecucion** (la fila WARN pasa, `daily.py` corre sin `--allow-intraday`, la negativa del settle es mas estricta que el HARD porque `--force` se saltaba el HARD, el camino del miercoles sigue liquidando, y la obligacion `unfilled` es escapable por las dos vias). La objecion 3, el mark enmascarado, **no**:
+- **No es falsificable**: revertir `portfolio_v9.py:600-601` a `prices.iloc[-1]` no pone roja ninguna prueba. Mi fixture ponia NaN en la ultima barra, y ahi los dos caminos coinciden — el caso que distingue es un **forward fill**, que en un fixture sintetico no existe.
+- **Y donde muerde, empeora el total**: `value_with_stale` cae a `last_px`, que es el precio de ENTRADA, no el ultimo cierre real. Un nombre que imprimio ayer y no hoy queda valorado a su entrada en vez de al cierre de ayer: mas lejos del print real, no mas cerca.
+- La cabecera sobreafirma: dice "closes that printed on {as_of}" mientras arrastra nombres.
+Lo correcto: valorar al **ultimo cierre observado**, cayendo a `last_px` solo cuando no hay ninguno, y un fixture cuya ultima barra sea un ffill.
+
+## Las cuatro que quedan limpias
+
+- **`ci/task-388-first-real-run`** (SOUND). **Mi premisa era falsa**: el pipeline **si** ha corrido — 14 corridas `pull_request` el 2026-09-06. El defecto real es mas estrecho: ese verde esta **congelado y no se puede refrescar**, porque 13 ramas vivas dan `total_count 0` (el `on:` solo nombra main y pull_request). La rama añade **un** trigger, `workflow_dispatch`, +10 lineas de las que 9 son el comentario. Y corrige el conteo: las 8 comprobaciones **no estan en main** (main define 2 jobs -> 3 check runs).
+- **`chore/task-391-local-gates`** (SOUND, con una sorpresa de orden): **no es un cambio de hooks**, contiene structural-hardening (26 commits) **mas** todo main, asi que es el vehiculo de la pila entera. Hallazgo medido: `check-merge-conflict` tal como se configura normalmente **no puede fallar** — solo mira mientras existe `MERGE_HEAD`. Otro gate que no gatea.
+- **`docs/task-389-duplicate-share-class`** (SOUND, docs). Una sola colision de separador en el universo vivo: BRK-B. Y un hallazgo que nadie pidio: **BF.B no es un duplicado, es una eliminacion silenciosa** — no existe BF, ni BF-B, ni ninguna otra grafia de Brown-Forman, y la perdida es **invisible al guard construido para cazar exactamente eso**, porque en ambos caminos de fetch `requested` se compara despues del filtrado.
+- **`fix/astra-06-followup`** (SOUND). Borra el test que fijaba el defecto como conducta correcta (afirmaba 0.723, el numero equivocado, y por tanto pasaba porque core esta roto) y lo sustituye por un `xfail(strict)` contra la conducta deseada. Medido: el parche de core **solo** arreglaria casi lo mismo que la mascara del laboratorio, y el defecto hoy es **inalcanzable desde el camino vivo por suerte de un filtro, no por diseño**.
+
+## Cambio al orden de merge que te di antes
+
+**PR #41 (`merge-prepared`) pasa a DO_NOT_MERGE.** Antes dije que si debia mergearse; medido de nuevo, esta obsoleta por tres vias: le faltan los 6 commits de structural-hardening, **no contiene main en absoluto** (22 commits por detras) y su lista de lint difiere. Pero **hay que preservar `7665884`** ("ship analytics/ in the wheel"), que vive **solo** ahi.
+Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `structural-hardening` suelta.
+
+## Cola nueva
+
+- [ ] `TASK-399` **A12R segunda pasada: los 4 escapes de escritura.** Junction como destino (guard muerto), padre junction (mkdir sin resolver), restore sin lista de denegados, y el rollback que borra lo que no creo. Aceptacion: las reproducciones del atacante en verde, y un rechazo concurrente que **no** toca la generacion del vecino.
+- [ ] `TASK-400` **A12R: coherencia de la generacion.** Fecha del manifest contra las fechas de los nombres; perfil no degradable por reescritura del nombre; y decir en el diseño que el `run_id` en un manifest sin firmar detecta mezclas accidentales, no manipulacion. Mas la colision de mayusculas en NTFS.
+- [ ] `TASK-401` **A12R: la valla del entorno deja de ser una heuristica de ruta.** `"hydra-test-backup" in str(p)` es la forma de la ruta, no la procedencia; `HYDRA_TEST_BACKUP_SESSION` no lo cubre el strip de `build_child_env`; y `clear_denied_destinations()` es API publica que quita la valla en una linea.
+- [ ] `TASK-402` **A03 objecion 3, segunda pasada.** Valorar al ultimo cierre observado (cayendo a `last_px` solo si no hay ninguno), un fixture cuya ultima barra sea un forward fill para que el arreglo sea falsificable, y una cabecera que no sobreafirme.
+- [ ] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
+
 [2026-09-07 02:30] CLAUDE: **ASTRA-03 cerrada a criterio de Claude (Lucas: "soluciona A03 a tu mejor criterio").**
 Todo en `fix/astra-03-observed-fill-prices`, con `main` mergeado primero segun la regla de la ventana de merge —
 por eso su suite no escribio nada en el respaldo real: la valla vino con el merge, sin señuelo explicito. Verificado:
