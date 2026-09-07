@@ -37,6 +37,64 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 00:20] CLAUDE: **A12 NO esta cerrada y sale del orden de merge. Revision externa (via Lucas) sobre
+`feat/astra-12-restore-drill` @ 7c199aa contra main @ f017966: 7 defectos P1, cuatro NUEVOS de la rama.**
+El integrador la tenia como paso 6; queda **anulado**. La rama no entra hasta rediseñarse.
+
+Verificado por mi leyendo el codigo de la rama, no aceptado de palabra:
+- **Traversal en el restore.** `restore_into` recorre los nombres del manifest y hace `shutil.copy2(src, target / name)`
+  sin validar `name`. Una entrada `../victim.txt` escribe fuera del destino — y el docstring promete literalmente
+  "Writes nothing outside `target_dir`".
+- **Restaura lo que ya sabe invalido.** `findings = list(verify_backup(...))` se recoge ANTES del `target.mkdir()` y del
+  bucle de copia, y se devuelve DESPUES. Salir con codigo no cero tras escribir no es rechazar.
+- **El rechazo no es transaccional.** `copy_state_off_disk` crea el destino y escribe `backup_manifest.json` antes de
+  evaluar los ficheros: con estado ausente, el directorio y el manifest quedan ahi tras el mensaje REFUSED.
+- **El guard reconoce ubicaciones temporales, no procedencia.** `TEMP_ROOTS` captura `tempfile.gettempdir()` al importar:
+  un fixture con `--basetemp` propio queda fuera y se copia igual.
+- **"Backup completo" puede ser un conjunto incoherente.** Los hashes prueban bytes, no pertenencia a una misma corrida:
+  con `required_roles` reducido a `["state"]`, o con estado de la generacion B y journal de la generacion A, el
+  verificador devuelve cero errores.
+
+**Dos correcciones que acepto y que cambian como estaba escrito este board:** decir que el journal "nunca se copiaba"
+es falso — **se copiaba directo** (`journal.save_record`), y eso es el problema; lo que faltaba era una garantia conjunta
+verificable. Y la ventana de contaminacion sigue abierta en el orden `journal -> copia directa -> guard`: `finalize_journal`
+llama primero a `append_from_v9`, que ya copio.
+
+**Lo que SI esta hecho, en `main` (`34b0143`), porque el defecto 1 no es de la rama:** `journal.py:92` lee
+`HYDRA_BACKUP_DIR` del entorno y copia a `state_v9/<YYYYMMDD>/`, y `run_all_tests.py` pasaba `os.environ.copy()`.
+Contencion en el limite del proceso: `conftest.py` redirige la variable al importarse (cubre pytest dentro del paquete),
+el runner da un destino desechable por corrida (cubre los ficheros que corren **como script**, que no cargan conftest), y
+`test_backup_isolation.py` fija 6 regresiones incluida la forma exacta del incidente. Verificado de punta a punta: suite
+completa con `HYDRA_BACKUP_DIR` a un señuelo -> **49 passed, 0 skipped, exit 0, 0 ficheros escritos en el señuelo**.
+Antes del arreglo, la misma corrida escribia cuatro.
+
+## Cola A12-R (rediseño; ninguna se cierra sin las regresiones de la 397)
+
+- `TASK-392` **Separar persistencia local de respaldo.** Quitar la copia implicita de `journal.save_record`. Un unico
+  servicio de respaldo que reciba destino, raices permitidas y modo de ejecucion de forma EXPLICITA; el entorno se
+  resuelve solo en el punto de entrada (`daily.py` / `portfolio_v9.main`). Aceptacion: ningun modulo bajo `core/`,
+  `journal.py` o `portfolio_v9.py` lee `HYDRA_BACKUP_DIR`; grep vacio en el test.
+- `TASK-393` **Aislar el proceso de tests, no el fichero.** La politica se instala antes de importar modulos y cubre
+  subprocesos. Ya hecho parcialmente en `34b0143`; falta que un `--basetemp` propio o un fixture fuera de TEMP no puedan
+  alcanzar ningun destino real, y que la politica no dependa de reconocer rutas temporales.
+- `TASK-394` **Validar antes de escribir, y rechazar sin efectos.** Revisar origenes, destinos, colisiones y rutas
+  resueltas ANTES de crear nada. Aceptacion: tras un rechazo, hashes y conteo del destino identicos a antes (no "exit 1
+  despues de escribir"), y un error especifico, no un valor de retorno.
+- `TASK-395` **Publicar generaciones completas.** `run_id` + estado + hojas + journal como un conjunto; verificar hashes
+  en el DESTINO y coherencia entre artefactos; publicacion indivisible al final. Aceptacion: un conjunto con roles
+  reducidos o con artefactos de dos generaciones **falla**; hoy devuelve cero errores.
+- `TASK-396` **Endurecer el restore.** Contrato fijo de roles y esquema; rechazar rutas absolutas, `..`, separadores
+  inesperados y escapes por enlaces/junctions; cualquier error previo impide crear el destino; copiar a staging aislado y
+  publicar solo tras validar. Aceptacion: la reproduccion `../victim.txt` no toca al hermano, y un hash malo no llega al
+  destino.
+- `TASK-397` **Convertir las reproducciones en regresiones.** TEMP personalizado, respaldo heredado, journal directo,
+  rechazo sin efectos, traversal, hashes invalidos, roles manipulados y generaciones mezcladas. Siempre sobre exportacion
+  aislada, verificando que los destinos prohibidos no cambian. **Ninguna de las 392-396 se cierra sin su regresion aqui.**
+
+Pendiente declarado, no afirmado: la integridad actual del estado y del respaldo manual de OneDrive. La copia de anoche en
+`PRODUCTION-manual-20260906-2300/` se hizo fichero a fichero comparando hashes en ambos sentidos y fuera de `state_v9/`;
+afirma que esos 9 ficheros son byte a byte los del disco a las 23:00, **no** coherencia entre artefactos.
+
 [2026-09-06 23:10] CLAUDE: **INCIDENTE: no existia respaldo del libro real fuera de disco. Corregido a mano.**
 Los diez `portfolio_v9.json` de `OneDrive\HydraBackups\state_v9\` eran **fixtures de test** (AAA/BBB/CCC, cap 8.000 y
 25.000, 1 pendiente). El directorio `20260904` — el que deberia tener el libro de produccion — tenia un fixture de
