@@ -37,6 +37,29 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 01:40] CLAUDE: **SPEC 9.3 corregida (Lucas aprobo la redaccion) y una regla nueva para la ventana de merge.**
+La correccion va en `fix/astra-02-split-fill-order` (`9ed5f32`), no en main: la frase solo existe en esa linea de
+`post-freeze-wiring`, y la regla del repo es que un cambio de conducta aterriza con la spec en el mismo commit — por eso
+**A02 no estaba completa** hasta esto.
+Dos ediciones, no una. La frase final ahora describe el codigo: dos pasadas alrededor del settle por fecha economica
+(`upto=<fecha de ejecucion>` antes de los fills, `after=` cuando ya estan, **ambas antes de dividendos** — verificado,
+`apply_splits` corre dos veces antes de `apply_dividends`), ventana exclusiva por la izquierda e inclusiva por la derecha,
+cota inferior en el watermark por ticker `state["split_marks"]`, y rechazo explicito cuando un split llega despues del fill
+al que debia preceder. La segunda edicion no estaba en el encargo y era necesaria: el parrafo abria con "For each split
+effective **after the previous run**", la ventana vieja, cierta solo por defecto cuando el ticker no tiene marca. Arreglar
+una inconsistencia interna dejando la otra habria fallado el objetivo.
+Verificado en la rama: 27 passed en `test_spec_compliance.py` + `test_splits.py`; suite completa **52 passed / 0 skipped /
+exit 0**, ruff limpio.
+
+**REGLA DE LA VENTANA DE MERGE (medida hoy, no teorica):** la valla contra la contaminacion de respaldos vive en `main`
+(`conftest.py`, `34b0143`) y **las doce ramas nacen de bases anteriores**. Corri la suite de A02 con `HYDRA_BACKUP_DIR`
+apuntando a un señuelo: **25 ficheros escritos** en `state_v9/` del señuelo, entre ellos `20260904/portfolio_v9.json` y
+`20260908/` con sus hojas — las mismas carpetas que aparecieron contaminadas en el respaldo real.
+> Antes de correr la suite de CUALQUIER rama: **mergear `main` en la rama primero**, o pasar un `HYDRA_BACKUP_DIR`
+> señuelo explicito y verificar despues que el destino real no cambio. Correr la suite de una rama sin una de las dos cosas
+> escribe en el respaldo de produccion.
+Esto entra en el checklist del miercoles, antes del primer merge.
+
 [2026-09-07 01:05] CLAUDE: **Decisiones de Lucas sobre las cuatro pendientes. Registradas para ejecutar, no para interpretar.**
 
 **1. ASTRA-03 -> la fila de preflight es `WARN`, no `HARD`.** Regla aprobada por Lucas, que va escrita en el codigo y no
