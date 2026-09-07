@@ -40,7 +40,14 @@ repos:
       # check-merge-conflict: this branch alone resolved three conflicts by hand
       # (.gitignore, test.yml, GROKBOARD.md). A committed `<<<<<<<` in a live module is
       # a syntax error the suite would find 140s later, and in a doc nobody finds it.
+      # --assume-in-merge is not optional here: without it the hook only looks while
+      # MERGE_HEAD exists, so a marker committed after `git merge --abort`, or pasted in
+      # by hand, walks straight through — measured on 2026-09-07, a staged file holding
+      # a full marker triple was reported "Passed". No tracked file legitimately starts
+      # a line with a marker (`git grep -E '^(<<<<<<< |=======$|>>>>>>> )'` is empty),
+      # so always-checking costs nothing.
       - id: check-merge-conflict
+        args: [--assume-in-merge]
       # check-case-conflict: development is on Windows (case-insensitive), CI is
       # ubuntu-latest (case-sensitive). Two files differing only in case work here and
       # break there.
