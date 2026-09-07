@@ -184,9 +184,28 @@ def attach_eligibility_panel(P, *, require_contemporaneous=False):
     c = P.close
     path = os.path.join(getattr(P, 'CACHE_DIR', '') or '', RAW_CLOSE_PKL)
     if path and os.path.exists(path):
-        raw = pd.read_pickle(path)
-        raw = raw.reindex(index=c.index, columns=c.columns)
-        return raw, (raw * P.volume).rolling(20).mean(), f'contemporaneous ({RAW_CLOSE_PKL})'
+        raw = pd.read_pickle(path).reindex(index=c.index, columns=c.columns)
+        # Coverage is PARTIAL and must be said so. The bar store holds as-printed closes from
+        # 2006-09-06 for the names it was seeded with; the OOS panel starts in 2004 and is full
+        # of delisted names (AABA, AAMRQ...) the store never had. On the production cache that is
+        # 84% of priced cells and 671 of 1209 tickers. `eligibility_mask` tests `elig_px.notna()`,
+        # so a NaN raw cell would make a priced name INELIGIBLE -- deleting the delisted half of the
+        # panel is the survivorship bias the PIT panel exists to avoid, and a worse look-ahead than
+        # the dividend one this file fixes. Uncovered cells therefore fall back to the adjusted
+        # close, cell by cell, and the label carries the measured share; strict mode refuses
+        # anything short of full coverage instead of pretending.
+        covered = raw.notna() & c.notna()
+        priced = int(c.notna().sum().sum())
+        share = (int(covered.sum().sum()) / priced) if priced else 0.0
+        filled = raw.where(covered, c)
+        label = (f'contemporaneous on {share:.1%} of priced cells ({RAW_CLOSE_PKL}; the rest adjusted, '
+                 f'{int((~covered.any()).sum())} of {c.shape[1]} names with no as-printed history)')
+        if require_contemporaneous and share < 1.0:
+            raise FileNotFoundError(
+                f"require_contemporaneous=True but {RAW_CLOSE_PKL} covers only {share:.1%} of priced "
+                f"cells: refusing to call a run contemporaneous when {1 - share:.1%} of its eligibility "
+                f"decisions are on dividend-adjusted closes (audit ASTRA-05b)")
+        return filled, (filled * P.volume).rolling(20).mean(), label
     if require_contemporaneous:
         raise FileNotFoundError(
             f"require_contemporaneous=True but {path or RAW_CLOSE_PKL} is missing: refusing to apply "
