@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 12:40] CLAUDE: **Los tres puntos que Lucas aprobo, hechos.** (1) Colision H-004 resuelta: el parche de
+regimen es **H-007**, con nota en el registro; 004-006 siguen siendo las de ASTRA-01/08/10 del dia anterior. (2) **H-007
+aplicada** en `fix/astra-06-followup` (`5266fdf`), regla 6 cumplida: SPEC en el mismo commit y efecto **medido con la
+funcion real en los dos lados** sobre el marco vivo — el parche saca 123 de 3011 columnas (4.1%), breadth +0.0110..+0.0200,
+regimen +0.001..+0.003 (cuantizado a 3 decimales). Uno o dos ordenes de magnitud mas que el +0.0001 del panel OOS, porque
+ese panel es S&P PIT y produccion es Russell-heavy. El `xfail(strict)` se puso rojo al aterrizar el arreglo, como
+prometia. (3) `TASK-402` hecha, ver arriba. Las tres ramas siguen **fuera de `main`** hasta el settle.
+
 [2026-09-07 07:55] CLAUDE: **Segunda pasada del respaldo hecha (`ec3e309`). TASK-399/400/401 cerradas; la rama sigue FUERA del orden de merge.**
 Los once escapes del atacante, cerrados uno por uno, cada uno con su regresion en `test_backup_attack_regressions.py`.
 Verificado: 91 tests en los tres ficheros de respaldo; suite completa **EXIT=0 medido sin tuberia, 53 passed, 0 skipped**,
@@ -123,7 +131,10 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
 - [x] `TASK-399` **A12R segunda pasada: los 4 escapes de escritura.** Junction como destino (guard muerto), padre junction (mkdir sin resolver), restore sin lista de denegados, y el rollback que borra lo que no creo. Aceptacion: las reproducciones del atacante en verde, y un rechazo concurrente que **no** toca la generacion del vecino.
 - [x] `TASK-400` **A12R: coherencia de la generacion.** Fecha del manifest contra las fechas de los nombres; perfil no degradable por reescritura del nombre; y decir en el diseño que el `run_id` en un manifest sin firmar detecta mezclas accidentales, no manipulacion. Mas la colision de mayusculas en NTFS.
 - [x] `TASK-401` **A12R: la valla del entorno deja de ser una heuristica de ruta.** `"hydra-test-backup" in str(p)` es la forma de la ruta, no la procedencia; `HYDRA_TEST_BACKUP_SESSION` no lo cubre el strip de `build_child_env`; y `clear_denied_destinations()` es API publica que quita la valla en una linea.
-- [ ] `TASK-402` **A03 objecion 3, segunda pasada.** Valorar al ultimo cierre observado (cayendo a `last_px` solo si no hay ninguno), un fixture cuya ultima barra sea un forward fill para que el arreglo sea falsificable, y una cabecera que no sobreafirme.
+- [x] `TASK-402` **A03 objecion 3, segunda pasada.** Valorar al ultimo cierre observado (cayendo a `last_px` solo si no hay ninguno), un fixture cuya ultima barra sea un forward fill para que el arreglo sea falsificable, y una cabecera que no sobreafirme.
+  **HECHA en `fix/astra-03-observed-fill-prices` (`52eac42`).** `last_observed()` valora cada nombre a su ultimo cierre **observado** (la mascara `attrs["observed"]` de `data.fetch`), con su fecha; `last_px` queda solo para un nombre sin ningun print en la ventana. Falsificable en las dos direcciones, medido: primera pasada 3600 vs 4000 en aislado (los 400 USD del revisor, reproducidos); revertir a `iloc[-1]` pone 2 de 10 en rojo. Suite EXIT=0 medido, 52/0.
+  **Hallazgo mas profundo, NO arreglado a proposito:** `core/tranche_book.age_stale` toma cualquier precio finito como impreso — un forward fill reescribe `last_px` y **reinicia el reloj de write-off** (`data.fetch` rellena hasta 3 barras; `max_stale_bars=10` cuenta una mezcla de prints y rellenos). Es contabilidad de antiguedad = **H-005**; pinned con un test que afirma lo que hoy es cierto, y tres preguntas añadidas a la medicion de H-005 en `.comms/task-402-mark-and-a-deeper-finding.md`.
+
 - [ ] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
 
 [2026-09-07 02:30] CLAUDE: **ASTRA-03 cerrada a criterio de Claude (Lucas: "soluciona A03 a tu mejor criterio").**
