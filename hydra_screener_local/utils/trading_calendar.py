@@ -116,3 +116,69 @@ def last_nyse_session_on_or_before(date) -> str:
     while not is_nyse_session(d):
         d -= pd.Timedelta(days=1)
     return str(d.date())
+
+
+# --------------------------------------------------------------------------- clock, not calendar
+# ASTRA-03: every helper above normalises the time away, which is right for naming a session and
+# wrong for deciding whether that session has printed its close. A run started at 11:00 ET sees a
+# last bar dated today (yfinance serves the live, partial bar) and `last_nyse_session_on_or_before`
+# agrees with it, so the preflight date comparison passes and fills get booked at an intraday
+# price. These two functions are the only ones in the file that look at the time of day.
+NYSE_TZ = "America/New_York"
+NYSE_CLOSE_ET = (16, 0)
+NYSE_EARLY_CLOSE_ET = (13, 0)
+# yfinance keeps serving the live bar for a few minutes after the bell; the settled close is not
+# necessarily the 16:00 print until the tape is done.
+CLOSE_SETTLE_BUFFER_MIN = 15
+
+
+def to_eastern(clock) -> pd.Timestamp:
+    """`clock` as an America/New_York timestamp. A naive input is the machine's local wall clock."""
+    ts = pd.Timestamp(clock)
+    if ts.tz is None:
+        from dateutil.tz import tzlocal
+        ts = ts.tz_localize(tzlocal())
+    return ts.tz_convert(NYSE_TZ)
+
+
+def nyse_early_closes(year: int) -> set:
+    """The 1pm ET half sessions: July 3, the Friday after Thanksgiving, Dec 24.
+
+    Each counts only when it is itself a session (July 3 also needs July 4 to be a weekday, i.e.
+    not observed on the 3rd or the 5th). Ad-hoc early closes are not knowable in advance.
+    """
+    out = set()
+    thanksgiving = nyse_holidays(f"{year}-11-01", f"{year}-11-30")
+    for d in thanksgiving:
+        if d.month == 11 and d.weekday() == 3:                # the Thursday
+            after = d + pd.Timedelta(days=1)
+            if is_nyse_session(after):
+                out.add(after.normalize())
+    jul3 = pd.Timestamp(year=year, month=7, day=3)
+    if is_nyse_session(jul3) and is_nyse_session(jul3 + pd.Timedelta(days=1)):
+        out.add(jul3.normalize())
+    dec24 = pd.Timestamp(year=year, month=12, day=24)
+    if is_nyse_session(dec24):
+        out.add(dec24.normalize())
+    return out
+
+
+def session_close_et(date) -> tuple:
+    """(hour, minute) of the closing bell for `date` in ET: 16:00, or 13:00 on a half session."""
+    d = pd.Timestamp(date).normalize()
+    return NYSE_EARLY_CLOSE_ET if d in nyse_early_closes(d.year) else NYSE_CLOSE_ET
+
+
+def session_is_closed(clock, *, buffer_minutes: int = CLOSE_SETTLE_BUFFER_MIN) -> bool:
+    """Has the NYSE session covering `clock` printed its close (plus `buffer_minutes`)?
+
+    True on a non-session day: whatever bar the frames hold is a finished one. Fail-closed by
+    construction — anything it cannot resolve reads as "still open", which blocks a settlement.
+    """
+    et = to_eastern(clock)
+    day = pd.Timestamp(et.year, et.month, et.day)
+    if not is_nyse_session(day):
+        return True
+    hour, minute = session_close_et(day)
+    bell = et.normalize() + pd.Timedelta(hours=hour, minutes=minute + int(buffer_minutes))
+    return et >= bell

@@ -11,7 +11,9 @@ import pandas as pd
 from config import SECTOR_UNKNOWN_MAX_SHARE, V9
 from core.portfolio_engine import STATE_SCHEMA
 from data.sectors import sector_degraded_message
-from utils.trading_calendar import first_bar_after, last_nyse_session_on_or_before
+from utils.trading_calendar import (CLOSE_SETTLE_BUFFER_MIN, first_bar_after,
+                                    last_nyse_session_on_or_before, session_close_et,
+                                    session_is_closed, to_eastern)
 
 KNOWN_SCHEMA_VERSIONS = {STATE_SCHEMA}
 PRINT_SHARE_WARN = 0.90
@@ -33,6 +35,33 @@ def _row(check: str, status: str, detail: str) -> dict:
     return {"check": check, "status": status, "detail": detail}
 
 
+def _session_closed_row(stock_d: str | None, clock, allow_intraday: bool) -> dict:
+    """HARD while the last bar belongs to a session that has not closed yet (ASTRA-03).
+
+    Every other check here compares dates, and `last_nyse_session_on_or_before` normalises the
+    clock away, so a run started at 11:00 ET on a trading day passes them all: yfinance serves
+    today's LIVE bar, the date matches the session, and `settle` books fills at an intraday
+    price that is not a close. 30 real orders were pending under exactly that hole.
+    """
+    et = to_eastern(clock)
+    closed = session_is_closed(clock)
+    hh, mm = session_close_et(pd.Timestamp(et.year, et.month, et.day))
+    when = f"{et:%Y-%m-%d %H:%M} ET"
+    clock_session = last_nyse_session_on_or_before(pd.Timestamp(et.year, et.month, et.day))
+    if stock_d is None:
+        return _row("session closed", "HARD", f"no stock bar to check against the clock ({when})")
+    if closed or stock_d != clock_session:
+        return _row("session closed", "OK",
+                    f"last bar {stock_d} is a closed session ({when}, close {hh:02d}:{mm:02d} ET)")
+    return _row(
+        "session closed", "WARN" if allow_intraday else "HARD",
+        f"last bar {stock_d} is the CURRENT session and it has not closed ({when}, close "
+        f"{hh:02d}:{mm:02d} ET + {CLOSE_SETTLE_BUFFER_MIN}min) — that bar is an intraday partial "
+        f"print, fills would book at a price that is not a close"
+        + (" [allowed by --allow-intraday]" if allow_intraday else ""),
+    )
+
+
 def evaluate(
     prices: pd.DataFrame | None,
     etf: pd.DataFrame | None,
@@ -44,9 +73,17 @@ def evaluate(
     last_session: str | None = None,
     backup_dir: str | None = None,
     etf_universe: list[str] | None = None,
+    clock=None,
+    allow_intraday: bool = False,
 ) -> dict:
     """Run every check. `asof` is the wall-clock (or test clock) used to name the
-    last NYSE session when `last_session` is omitted."""
+    last NYSE session when `last_session` is omitted.
+
+    `clock` is the real wall clock and enables the one time-of-day check (ASTRA-03): every other
+    check compares dates, which cannot tell today's finished close from today's live partial bar.
+    Omit it (injected market data, replays) and that check is not reported at all.
+    `allow_intraday=True` downgrades it from HARD to WARN.
+    """
     rows: list[dict] = []
     names = list(etf_universe or ETF_UNIVERSE)
 
@@ -74,6 +111,9 @@ def evaluate(
         ))
     else:
         rows.append(_row("last bars", "OK", f"stocks/etf/^IRX = {stock_d} = session"))
+
+    if clock is not None:
+        rows.append(_session_closed_row(stock_d, clock, allow_intraday))
 
     if prices is None or len(prices) == 0:
         rows.append(_row("universe print share", "HARD", "no stock prices"))

@@ -127,3 +127,79 @@ def compare(adjusted: pd.Series, reference: pd.Series) -> dict:
         "first_bad": str(bad.index[0].date()) if len(bad) else None,
         "n_bad": int(len(bad)),
     }
+
+
+# --------------------------------------------------------------------------- ASTRA-03 inverse
+def deadjust_factor(
+    adjusted_close: pd.Series,
+    date,
+    dividends: pd.Series | dict | None = None,
+    *,
+    report: dict | None = None,
+) -> float:
+    """Cumulative dividend factor that `adjust` put ON the `date` bar of a total-return series.
+
+    ``raw_close[date] == adjusted_close[date] / deadjust_factor(...)``, so this is the exact
+    inverse of the backward compounding in `adjust`, resolved latest-ex-date-first (the factor
+    of a later dividend is needed to recover the raw close an earlier one divided by).
+
+    Only ex-dates in ``(date, last bar]`` count: a dividend that goes ex after the last bar we
+    downloaded has not been priced into the series yet, and one on or before `date` left that
+    bar alone by construction. Returns 1.0 when nothing applies, so the caller can divide
+    unconditionally. Never raises; unusable events are reported and skipped.
+
+    Why it exists: the live book is marked with ``auto_adjust=True`` closes and separately
+    credited cash dividends (TASK-349). Those two are consistent only while the bar being
+    priced has no dividend after it. A settlement booked late (planned Friday, run the
+    following Tuesday, ex-date Monday) books the fill at a price that never printed and then
+    credits the dividend on top of it - 1000 USD bought at a real close of 100 became 1010.10
+    in the audit probe. Dividing the execution row by this factor restores the printed close.
+    """
+    if report is None:
+        report = {}
+    report.setdefault("skipped", [])
+    report["applied"] = 0
+    if adjusted_close is None or len(adjusted_close) == 0:
+        return 1.0
+    closes = _norm_index(adjusted_close)
+    idx = closes.index
+    target = pd.Timestamp(date).normalize()
+    events = [(d, v) for d, v in _events(dividends) if target < d <= idx[-1] and v > 0]
+    factor = 1.0
+    for ex_date, dps in sorted(events, reverse=True):
+        prev = idx[idx < ex_date]
+        if len(prev) == 0:
+            report["skipped"].append(("dividend", str(ex_date.date()), dps, "no bar before ex-date"))
+            continue
+        a_prev = closes.loc[prev[-1]]
+        if pd.isna(a_prev) or not (a_prev > 0):
+            report["skipped"].append(("dividend", str(ex_date.date()), dps, "no previous close"))
+            continue
+        raw_prev = a_prev / factor + dps          # adjust() wrote a_prev = raw_prev * f * factor
+        f = 1.0 - dps / raw_prev
+        if not (f > 0):
+            report["skipped"].append(("dividend", str(ex_date.date()), dps, "dps >= previous close"))
+            continue
+        factor *= f
+        report["applied"] += 1
+    return float(factor)
+
+
+def printed_close(
+    adjusted_close: pd.Series,
+    date,
+    dividends: pd.Series | dict | None = None,
+    *,
+    report: dict | None = None,
+) -> float:
+    """The close that printed on `date`, undoing later dividends. NaN if `date` has no bar."""
+    if adjusted_close is None or len(adjusted_close) == 0:
+        return float("nan")
+    closes = _norm_index(adjusted_close)
+    target = pd.Timestamp(date).normalize()
+    if target not in closes.index:
+        return float("nan")
+    value = closes.loc[target]
+    if pd.isna(value):
+        return float("nan")
+    return float(value) / deadjust_factor(closes, target, dividends, report=report)

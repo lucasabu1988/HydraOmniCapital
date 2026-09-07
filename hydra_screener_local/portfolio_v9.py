@@ -173,13 +173,103 @@ def next_session_date(index, today: str) -> str:
     return next_nyse_session(today)
 
 
-def _row(frame, date: str) -> pd.Series:
-    idx = pd.DatetimeIndex(frame.index).normalize()
+def _dividend_table(state, extra=None, *, dividend_fn=None, fetch_fn=None) -> list:
+    """{ticker, ex_date, dps} rows for everything today's run can be affected by. One fetch.
+
+    Used twice: to strip a post-execution ex-date back out of the total-return execution prices
+    (ASTRA-03) and to credit the cash (TASK-349). `extra` carries the pending tickers, which are
+    not holdings yet but are entitled to any ex-date strictly after the execution bar.
+    `fetch_fn` set means injected market data (tests) — never a network call. A first run has no
+    last_run_date and no pending, so it asks for nothing.
+    """
+    if state is None or not (state.get("last_run_date") or state.get("pending")):
+        return []
+    names = tickers_from_state(state, extra=[str(t) for t in (extra or []) if t])
+    if dividend_fn is not None:
+        return dividend_fn(names)
+    if fetch_fn is not None:
+        return []
+    return fetch_dividends(names)
+
+
+def _dividend_rows(table) -> dict[str, dict]:
+    """{ticker: {ex_date: dps}} from a {ticker, ex_date, dps} table (rows or DataFrame)."""
+    if table is None:
+        return {}
+    if hasattr(table, "to_dict") and hasattr(table, "columns"):
+        rows = [dict(r) for r in table.to_dict(orient="records")]
+    else:
+        rows = list(table)
+    by_ticker: dict[str, dict] = {}
+    for r in rows:
+        ticker = str(r.get("ticker") or "")
+        ex = str(r.get("ex_date") or "")[:10]
+        try:
+            dps = float(r.get("dps") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        if not ticker or not ex or dps <= 0:
+            continue
+        slot = by_ticker.setdefault(ticker, {})
+        slot[ex] = slot.get(ex, 0.0) + dps
+    return by_ticker
+
+
+def _row(frame, date: str, dividends=None) -> pd.Series:
+    """Execution prices for `date`: the closes that PRINTED on that bar, or NaN.
+
+    Three ways this used to manufacture a price nobody could have traded (external audit
+    ASTRA-03, all three reproduced against main):
+
+      * a date with no bar fell back to ``frame.iloc[-1]`` — the LAST row of the frame, which on
+        a late settlement is a FUTURE close (a frame holding 09-11 and 09-15, asked for 09-14,
+        returned the 09-15 close);
+      * ETF holes are forward-filled by `data.fetch` so a 252-bar signal window survives a
+        one-bar gap, which turned a session the ticker never traded into a fill at a stale close;
+      * ``auto_adjust=True`` closes are total return, so a dividend that goes ex AFTER the
+        execution day lowers the price the fill is booked at while the same dividend is also
+        credited in cash (TASK-349) — 1000 USD at a real close of 100 booked 1010.10.
+
+    `engine.settle` already writes ``status="not_filled", reason="no price on execution day"``
+    for a NaN price, so refusing here is the whole fix: no fill beats a fill at a price that
+    never printed. `dividends` is the {ticker, ex_date, dps} table for the run (or None, in
+    which case a total-return close is used as-is — the pre-ASTRA-03 behaviour).
+    """
+    from data.fetch import observed_mask
+    cols = pd.Index(list(getattr(frame, "columns", [])))
     target = pd.Timestamp(date).normalize()
+    if frame is None or len(frame) == 0:
+        return pd.Series(float("nan"), index=cols, dtype=float, name=target)
+    idx = pd.DatetimeIndex(frame.index).normalize()
     hits = frame.index[idx == target]
-    if len(hits):
-        return frame.loc[hits[-1]]
-    return frame.iloc[-1]
+    if not len(hits):
+        # No bar for this date. There is no price; do NOT borrow another bar's.
+        return pd.Series(float("nan"), index=cols, dtype=float, name=target)
+    label = hits[-1]
+    row = pd.to_numeric(frame.loc[label], errors="coerce").astype(float)
+
+    mask = observed_mask(frame)
+    if mask is not None:
+        flags = mask.reindex(columns=row.index)
+        m_idx = pd.DatetimeIndex(flags.index).normalize()
+        m_hits = flags.index[m_idx == target]
+        printed = (flags.loc[m_hits[-1]] if len(m_hits)
+                   else pd.Series(False, index=row.index))
+        row = row.where(printed.reindex(row.index).fillna(False).astype(bool), other=float("nan"))
+
+    by_ticker = _dividend_rows(dividends)
+    if by_ticker and frame.columns.is_unique:
+        from data.adjust import deadjust_factor
+        for ticker, events in by_ticker.items():
+            if ticker not in row.index:
+                continue
+            price = row[ticker]
+            if pd.isna(price) or price <= 0:
+                continue
+            factor = deadjust_factor(frame[ticker], target, events)
+            if factor > 0 and factor != 1.0:
+                row[ticker] = price / factor
+    return row.rename(label)
 
 
 def whole_share_display(order: dict) -> dict | None:
@@ -310,8 +400,12 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False, dividend_fn=None) -> dict:
-    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
+        force: bool = False, dividend_fn=None, allow_intraday: bool = False) -> dict:
+    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
+
+    `allow_intraday` downgrades the one preflight check that refuses to settle at a bar for a
+    session that has not closed yet (ASTRA-03); `--force` still bypasses every check.
+    """
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
     state = load_state(state_path)
@@ -352,10 +446,22 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         asof=today if fetch_fn is not None else pd.Timestamp.now(),
         last_session=today if fetch_fn is not None else None,
         backup_dir=os.environ.get("HYDRA_BACKUP_DIR"),
+        # Only the live path has a real clock to compare against; an injected fetch pins the
+        # session to the fixture's last bar, so there is no intraday question to ask.
+        clock=None if fetch_fn is not None else pd.Timestamp.now(),
+        allow_intraday=allow_intraday,
     )
     if not silent:
         print(PF.format_table(pf))
     PF.raise_if_hard(pf, force=force)
+
+    # One dividend table per run, needed BEFORE settle: an ex-date between the execution bar and
+    # today is already inside the total-return closes and would move the fill price (ASTRA-03).
+    # The pending tickers go in as `extra` because they are not holdings yet.
+    dividend_table = _dividend_table(
+        state, [o.get("ticker") for o in (state.get("pending") or [])],
+        dividend_fn=dividend_fn, fetch_fn=fetch_fn,
+    )
 
     fills = []
     if state.get("pending"):
@@ -366,21 +472,21 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             exec_date = next_session_date(prices.index, planned)
             if pd.Timestamp(exec_date) > pd.Timestamp(today):
                 exec_date = today
-            fills = engine.settle(state, exec_date, _row(prices, exec_date), _row(etf, exec_date), V9)
+            fills = engine.settle(state, exec_date,
+                                  _row(prices, exec_date, dividend_table),
+                                  _row(etf, exec_date, dividend_table), V9)
             if not silent:
+                unfilled = [f for f in fills if f.get("status") == "not_filled"]
                 print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
+                if unfilled:
+                    print(f"[v9] {len(unfilled)} order(s) NOT filled — no price printed on {exec_date}: "
+                          f"{', '.join(sorted({str(f.get('ticker')) for f in unfilled}))}")
         elif not silent:
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
     # Cash dividends (TASK-349): after settle, before plan. Tests with fetch_fn skip the network.
     if state.get("last_run_date"):
-        if dividend_fn is not None:
-            table = dividend_fn(tickers_from_state(state))
-        elif fetch_fn is not None:
-            table = []
-        else:
-            table = fetch_dividends(tickers_from_state(state))
-        credited = apply_dividends(state, table, today)
+        credited = apply_dividends(state, dividend_table, today)
         if credited and not silent:
             total_dv = sum(float(r.get("dollars") or 0) for r in credited)
             print(f"[v9] dividends {len(credited)} credit(s) {total_dv:.2f} USD")
@@ -442,10 +548,13 @@ def main(argv=None) -> int:
     p.add_argument("--universe", type=str, default=None)
     p.add_argument("--force", action="store_true",
                    help="Plan even if preflight hard-fails (stale bars, missing ETFs, unknown schema).")
+    p.add_argument("--allow-intraday", action="store_true",
+                   help="Settle/plan on the current session's bar before the close (ASTRA-03). "
+                        "That bar is an intraday partial print, not a close: only for a rehearsal.")
     args = p.parse_args(argv)
     try:
         run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
-            force=args.force)
+            force=args.force, allow_intraday=args.allow_intraday)
     except SystemExit as e:
         print(f"[v9] {e}")
         return 1
