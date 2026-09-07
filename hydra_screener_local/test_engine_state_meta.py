@@ -239,6 +239,78 @@ def test_costs_are_the_only_leak_when_three_sleeves_trade():
             assert f["cost"] == pytest.approx(f["dollars"] * want / 1e4)
 
 
+def test_every_week_of_a_three_sleeve_run_conserves_the_book_and_restores_the_mix():
+    """The regression net: six consecutive renewals, not just the first one.
+
+    Week 0 is the easy case — every tranche is still cash at exactly mix x capital / K, so a
+    whole-book sizing rule and a bundle sizing rule agree. From week 1 the tranches hold different
+    names at different prices and the two rules diverge; this walks six weeks of plan / settle /
+    mark and asserts, every week, that (a) each sleeve's renewed tranche is aimed at exactly its
+    share of the bundle those tranches own, measured at the plan close, and (b) settling loses
+    exactly the fees the ledger reports.
+    """
+    cfg = CFG3
+    stock, etf = _drifting_frames(60, seed=386)
+    st = E.new_state(1000.0, str(DATES[25].date()), cfg)
+    names = ["stocks", "etf", "etf_slow"]
+    total_fees = 0.0
+    for week in range(6):
+        t = 25 + week * cfg["step_bars"]
+        e = t + 1
+        k = week % cfg["tranches"]
+        # what the renewed tranches own at the plan close, before the engine touches them
+        own = {}
+        for name in names:
+            tr = st["sleeves"][name]["tranches"][k]
+            px = stock.iloc[t] if name == "stocks" else etf.iloc[t]
+            own[name] = float(tr["cash"]) + sum(float(u) * float(px.get(tk, 0.0))
+                                                for tk, u in tr["units"].items())
+        bundle = sum(own.values())
+
+        st, orders = E.plan(st, str(DATES[t].date()), _ranking(STOCKS[week % 3:] + STOCKS[:week % 3]),
+                            stock.iloc[:t + 1], etf.iloc[:t + 1], 0.0, cfg)
+        assert st["week_index"] == week
+        assert {o["tranche"] for o in orders} == {k}
+        legs = _legs(orders)
+        assert sum(legs.values()) == pytest.approx(0.0, abs=1e-9), (week, legs)
+        # the reset aims each sleeve at mix x bundle; a whole-book rule would aim it at
+        # mix x book / K, which from week 1 on is a different number
+        for name in names:
+            aimed = own[name] + legs.get(name, 0.0)
+            assert aimed == pytest.approx(cfg["mix"][name] * bundle, abs=1e-9), (week, name, own)
+
+        before = _book_value(st, stock.iloc[e], etf.iloc[e], cfg)
+        fills = E.settle(st, str(DATES[e].date()), stock.iloc[e], etf.iloc[e], cfg)
+        after = _book_value(st, stock.iloc[e], etf.iloc[e], cfg)
+        fees = sum(float(f.get("cost") or 0.0) for f in fills if f["status"] == "filled")
+        total_fees += fees
+        assert before - after == pytest.approx(fees, abs=1e-9), f"week {week} leaked"
+        E.mark(st, stock.iloc[e], etf.iloc[e], cfg)
+        assert [f.level for f in check(json.loads(json.dumps(st)), cfg=cfg) if f.level == "ERROR"] == []
+    assert total_fees > 0.0
+    assert st["write_offs"] == []
+    assert sum(row["dollars"] for row in st["transfers"]) == pytest.approx(0.0, abs=1e-9)
+
+
+def test_the_equal_weight_fallback_and_an_explicit_5050_are_the_same_engine():
+    """Production's path: a cfg with no mix must plan exactly what mix={0.5, 0.5} plans.
+
+    A merge that starts persisting or validating the mix must not fork these two.
+    """
+    n = 30
+    stock, etf = _stock_frame(n), _etf_frame(n)
+    no_mix = {k: v for k, v in V9.items() if k != "mix"}
+    a = E.new_state(8000.0, str(DATES[0].date()), no_mix)
+    b = E.new_state(8000.0, str(DATES[0].date()), V9)
+    assert json.loads(json.dumps(a)) == json.loads(json.dumps(b))
+    a, orders_a = E.plan(a, str(DATES[0].date()), _ranking(), stock, etf, 0.0, no_mix)
+    b, orders_b = E.plan(b, str(DATES[0].date()), _ranking(), stock, etf, 0.0, V9)
+    assert orders_a == orders_b
+    E.settle(a, str(DATES[1].date()), stock.iloc[1], etf.iloc[1], no_mix)
+    E.settle(b, str(DATES[1].date()), stock.iloc[1], etf.iloc[1], V9)
+    assert json.loads(json.dumps(a)) == json.loads(json.dumps(b))
+
+
 def test_a_third_sleeve_does_not_change_what_the_book_is_worth():
     """Adding a sleeve reallocates the book; it must not create or destroy any of it."""
     two = E.new_state(1000.0, str(DATES[0].date()), V9)
