@@ -51,11 +51,32 @@ record, and no gate here should be read as doing so:
    status check. The preconditions for the N-sleeve engine are listed in the audit
    report.
 
-## Local pre-commit
+## Local pre-commit and pre-push
 
-`.pre-commit-config.yaml` runs ruff and, since TASK-391, the `hydra-gates` hook
-(`tools/precommit_gates.py`: ruff over the tree, the secret sweep and the packaging
-tests, ~4s together). To run the rest of the fast half of CI by hand before pushing:
+Install both hook types once per clone — `default_install_hook_types` in
+`.pre-commit-config.yaml` means one command is enough:
+
+```bash
+python -m pre_commit install
+```
+
+Since TASK-391 the hooks are split by measured cost (2026-09-07, Windows):
+
+| stage | what runs | measured |
+|---|---|---|
+| pre-commit | `hydra-gates` = ruff over the whole screener tree + `test_packaging.py` | 3.7s |
+| pre-commit | `hydra-secret-sweep` = `tools/check_secrets.py`, repo-wide, on **every** commit | 1.0s |
+| pre-commit | trailing-whitespace, end-of-file-fixer, check-json/yaml/toml, merge-conflict (`--assume-in-merge`), case-conflict, detect-private-key — changed files only | ms |
+| pre-push | `hydra-push-gates` = `mypy --config-file mypy.ini` + the five reproducibility test files | 7.6s warm, ~30s on a cold mypy cache |
+
+Everything else is CI-only on purpose: the 140s suite and the two gates that need its
+output (coverage floor, skip census), the wheel build-install smoke (clean venv,
+network) and pip-audit (advisory database, network, report-only).
+
+The secret sweep is *not* filtered to `hydra_screener_local/`: before TASK-391 part 2
+a commit touching only a root file skipped it entirely.
+
+To run the rest of the fast half of CI by hand before pushing:
 
 ```bash
 cd hydra_screener_local
@@ -64,7 +85,9 @@ python tools/check_coverage.py --min 80.0
 python -m ruff check . --config ruff.toml
 python -m mypy --config-file mypy.ini
 python tools/check_secrets.py
-python tools/precommit_gates.py                  # ~4s: ruff tree, secrets, packaging
+python tools/precommit_gates.py                  # 4.7s: ruff tree, secrets, packaging
+python tools/precommit_gates.py --stage push     # 7.6s: mypy + the reproducibility files
+python tools/precommit_gates.py --list           # every gate and the stage it belongs to
 python tools/wheel_smoke.py --structure-only     # ~10s; no venv, no downloads
 ```
 
