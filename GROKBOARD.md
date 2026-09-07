@@ -37,6 +37,44 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-06 23:10] CLAUDE: **INCIDENTE: no existia respaldo del libro real fuera de disco. Corregido a mano.**
+Los diez `portfolio_v9.json` de `OneDrive\HydraBackups\state_v9\` eran **fixtures de test** (AAA/BBB/CCC, cap 8.000 y
+25.000, 1 pendiente). El directorio `20260904` — el que deberia tener el libro de produccion — tenia un fixture de
+`cap=8000.0` con cero pendientes, y hay una carpeta `20260904_clobbered_20260906_155629` que fecha el pisado hoy 15:56.
+Causa: `HYDRA_BACKUP_DIR` es una variable de USUARIO, asi que **cualquier corrida de la suite** (incluidas las mias de esta
+noche y las de los worktrees de los agentes) hereda la ruta y `copy_state_off_disk` escribe sobre el respaldo real.
+El libro con las 30 ordenes existia en **un solo fichero en un solo disco**.
+Copia manual verificada en `OneDrive\HydraBackups\PRODUCTION-manual-20260906-2300\` — 9 ficheros, hashes identicos,
+origen intacto, `portfolio_v9.json` sha256 `eef457c6919342cc97fb8a3e14501d04dbbb6bff68a9f3016f8e99a7a8591419`, 30
+pendientes, cap 100.000, anchor 2026-09-04. **Regla hasta el miercoles: no correr la suite desde ningun arbol con
+`HYDRA_BACKUP_DIR` apuntando a la raiz real.** El arreglo de fondo va en `feat/astra-12-restore-drill`, y el revisor
+demostro que **todavia no cierra el agujero** (`copy_state_off_daisk` sigue creando el directorio y escribiendo
+`backup_manifest.json` en la raiz real aun cuando se niega a copiar). Queda tarea abierta.
+
+[2026-09-06 23:05] CLAUDE: **Lote de 12 ramas de la cola Astra, cada una en su worktree, `main` sin tocar.**
+12 implementadores + revisor adversarial + integrador (14 agentes, 0 errores, 79 min). Todas empujadas y con suite verde.
+Veredictos del revisor: **SOUND** `fix/astra-02-split-fill-order`, `fix/astra-04-skip-gate`, `fix/astra-07-paired-bootstrap`,
+`feat/astra-11-evidence-audit`, `test/astra-09-nsleeve-invariants`, `fix/task-390-tier3-and-stable-coverage`,
+`test/gm-002r-gate-tools`, `docs/astra-prereg-01-08-10`. **NEEDS_WORK** `fix/astra-03-observed-fill-prices` (su fila HARD de
+preflight impide a `daily.py` correr antes del cierre), `fix/astra-05-strict-pit-sectors` (el arreglo de elegibilidad esta
+dormido sin `close_raw.pkl`), `fix/astra-06-pit-breadth` (su test **fija el defecto** en vez de arreglarlo: `core/regime.py`
+es regla 6), `feat/astra-12-restore-drill` (ver incidente arriba).
+**Cero violaciones de alcance**, verificado por barrido: ninguna rama toca SPEC, `config.py`, `core/signals.py`,
+`core/meta_layer.py` ni un golden, y todo commit en `main` es de Lucas.
+Hallazgo que nadie pidio y es **defecto vivo en main**: en `plan()`, `float(px.get(t, ...) or 0.0)` con precio NaN devuelve
+NaN — NaN es truthy, el `or 0.0` nunca dispara —, el valor del paquete se vuelve NaN y **se cancela la renovacion de todas
+las mangas**. Hoy no muerde (el libro no tiene unidades); desde el miercoles tendra 30 nombres. `structural-hardening`
+ya trae la correccion (`mark_px` + `_reject`), asi que la resolucion de `plan()` al mergear N-sleeve decide si entra o se
+pierde.
+**Orden de merge medido (17 pasos) en el informe del integrador.** Correccion importante al plan anterior: el PR #41
+(`merge-prepared`) **si debe mergearse** — mide exactamente 3 conflictos y reconstruirlo a mano sale peor —, pero
+`structural-hardening` entra **en la misma ventana**, no como sustituto, porque le faltan 6 commits. Y
+`fix/astra-02` es **co-requisito duro** del #41: el #41 enciende `APPLY_SPLITS` y sin la 02 una venta total en fecha de
+split deja posicion fantasma que `state_check` reporta como limpia.
+**Tres cosas esperan a Lucas, no al settle:** la fila de preflight de la 03 (HARD o WARN), la resolucion de `plan()` de
+N-sleeve, y las hipotesis **H-004/005/006** pre-registradas en `.comms/hypotheses.md` (cero recomendaciones -> 22 compras,
+la antiguedad que acuña efectivo, el cap que no aplica a lo conservado).
+
 [2026-09-06 20:54] CLAUDE: **Hay un cuarto escritor en `main`: GitHub Copilot.** El commit `5070f2d`
 ("security: comprehensive policy update for HYDRA v9", 20:28) no lo hizo Lucas a mano ni ningun agente del board:
 lo hizo Copilot de GitHub, directo a `main`, sin PR, sin entrada aqui y sin `Co-Authored-By`. Lucas lo confirmo.
