@@ -515,6 +515,32 @@ def test_a_name_without_a_print_is_carried_not_sold_and_not_filled():
 
 
 @pytest.mark.xfail(strict=True, reason=(
+    "one non-printing held name cancels the whole bundle's renewal. plan() builds own_by_sleeve with "
+    "`px.get(t, last_px_fallback) or 0.0`, but the ticker IS a column of the row, so .get returns the "
+    "stored NaN and the `or 0.0` fallback never fires (NaN is truthy). own -> NaN -> bundle_value NaN "
+    "-> every tranche_target NaN -> every `tgt < cur - 1e-9` / `tgt > cur + 1e-9` / `abs(transfer) > "
+    "1e-9` is False, so NO sell, NO buy and NO transfer is emitted for ANY sleeve, and a park is "
+    "emitted for dollars=nan. Visible in the committed golden (which is main's, unchanged): weeks "
+    "12-16, 2021-03-25 to 2021-04-22, emit exactly one order each ('hold_no_price' for S00) and the "
+    "renewal only resumes at week 17, the bar after S00 is written off. The hardening branch fixes "
+    "this (coerced mark, _reject, DataError on a non-finite tranche value) and its golden shows 25 "
+    "orders at that same bar. Fixing it changes the 50/50 golden legitimately: re-pin deliberately."))
+def test_a_name_without_a_print_does_not_cancel_the_whole_renewal():
+    n = 30
+    st = E.new_state(1000.0, str(DATES[0].date()), V9)
+    tr = st["sleeves"]["stocks"]["tranches"][0]
+    tr["units"], tr["last_px"], tr["cash"] = {"AAA": 1.0}, {"AAA": 100.0}, 125.0
+    stock = _stock_frame(n)
+    stock["AAA"] = np.nan                       # a column that exists and never prints
+    st, orders = E.plan(st, str(DATES[0].date()), _ranking(["BBB", "CCC"], 2), stock, _etf_frame(n), 0.0, V9)
+    bad = [o for o in orders if not np.isfinite(float(o["dollars"]))]
+    assert bad == [], f"an order with a non-finite dollar amount reached the sheet: {bad}"
+    assert any(o["sleeve"] == "stocks" and o["side"] == "buy" for o in orders), \
+        "the tranche must still renew into the recommended names"
+    assert any(o["sleeve"] == "etf" and o["side"] in ("buy", "park") for o in orders)
+
+
+@pytest.mark.xfail(strict=True, reason=(
     "the n-sleeve _mix() checks only completeness and the sum, and NaN defeats the sum check "
     "(abs(nan - 1) > 1e-9 is False): mix={'stocks': nan, 'etf': 0.5} and mix={'stocks': -0.5, "
     "'etf': 1.5} are both ACCEPTED today — the first funds a tranche with nan cash, the second "

@@ -353,6 +353,34 @@ def test_each_projection_of_the_golden_catches_its_own_divergence(mutate, expect
     assert any(expect in d for d in diffs), (expect, diffs[:5])
 
 
+def test_the_golden_records_the_five_renewals_a_dead_name_cancelled():
+    """Characterisation of a defect, NOT approval of it — the reason this golden is worth pinning.
+
+    S00 stops printing at week 12. From that bar the committed golden (which is `main`'s, byte for
+    byte) emits exactly ONE order per renewal — `hold_no_price` for S00 — for five consecutive
+    weeks, and nothing else: no sell, no buy, no transfer, no park, for either sleeve. `plan()`
+    reads the dead name's mark as NaN, so the renewed bundle's value is NaN and every order test
+    against it is False. The renewal only resumes at week 17, the bar after the four write-offs of
+    2021-04-22 remove the units.
+
+    See `test_a_name_without_a_print_does_not_cancel_the_whole_renewal` in
+    test_engine_state_meta.py for the invariant the merge owes. Fixing it changes this fixture
+    legitimately: this test and GOLDEN_CANON_SHA256 are updated in that same commit.
+    """
+    blob = _load_golden()
+    frozen = [s for s in blob["steps"] if 12 <= s["week"] <= 16]
+    assert len(frozen) == 5
+    for step in frozen:
+        assert [o["side"] for o in step["orders"]] == ["hold_no_price"], (step["week"], step["orders"])
+        assert [o["ticker"] for o in step["orders"]] == [DEAD]
+    assert frozen[0]["date"] == "2021-03-25" and frozen[-1]["date"] == "2021-04-22"
+    resumed = next(s for s in blob["steps"] if s["week"] == 17)
+    assert len(resumed["orders"]) == 27
+    assert {o["side"] for o in resumed["orders"]} == {"sell", "buy", "transfer_in", "transfer_out"}
+    assert {w["date"] for w in blob["write_offs"]} == {"2021-04-22"}
+    assert {w["ticker"] for w in blob["write_offs"]} == {DEAD}
+
+
 @pytest.mark.xfail(strict=True, reason=(
     "ASTRA-09: the n-sleeve state has no persisted calendar, so the golden cannot compare one. The "
     "hardening side records it (record_calendar / effective_calendar) and the renewal schedule "
