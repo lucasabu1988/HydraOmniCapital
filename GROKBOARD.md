@@ -119,7 +119,7 @@ solo aqui:
 > hora, o evidencia que requiere revision posterior pero no invalida el estado.
 Motivo: la variante HARD bloqueaba `daily.py` antes del cierre — efecto desproporcionado para esa clase de evidencia.
 Esto **no relaja** la disciplina: separa el bloqueo de seguridad/contabilidad del aviso de calidad de observacion.
-- `TASK-398` **Bajar la fila a WARN con identificador estable.** En `fix/astra-03-observed-fill-prices`: la fila
+- [x] `TASK-398` **Bajar la fila a WARN con identificador estable.** HECHA en `fix/astra-03-observed-fill-prices` (`5a47827`): fila WARN, ids estables en preflight y journal, `daily.py` corre sin `--allow-intraday`, y la negativa se mudo al settle. Suite 51/0, exit 0 medido. En `fix/astra-03-observed-fill-prices`: la fila
   "session closed" pasa a WARN, con un id estable que persista **en el preflight y en el journal**, para que no se
   convierta en ruido ni se pierda al ciclo siguiente. `daily.py` deja de necesitar `allow_intraday` para correr.
   Aceptacion: `daily.py` completa un ciclo antes del cierre con la fila en WARN; el id aparece en el registro del journal;
@@ -217,24 +217,24 @@ las 23:00 —, A12 excluida explicitamente del plan de integracion, y la contenc
 cuyo cierre real es la `TASK-392` (bloqueante).
 
 
-- `TASK-392` **Separar persistencia local de respaldo.** Quitar la copia implicita de `journal.save_record`. Un unico
+- [ ] `TASK-392` **Separar persistencia local de respaldo.** Quitar la copia implicita de `journal.save_record`. Un unico
   servicio de respaldo que reciba destino, raices permitidas y modo de ejecucion de forma EXPLICITA; el entorno se
   resuelve solo en el punto de entrada (`daily.py` / `portfolio_v9.main`). Aceptacion: ningun modulo bajo `core/`,
   `journal.py` o `portfolio_v9.py` lee `HYDRA_BACKUP_DIR`; grep vacio en el test.
-- `TASK-393` **Aislar el proceso de tests, no el fichero.** La politica se instala antes de importar modulos y cubre
+- [ ] `TASK-393` **Aislar el proceso de tests, no el fichero.** La politica se instala antes de importar modulos y cubre
   subprocesos. Ya hecho parcialmente en `34b0143`; falta que un `--basetemp` propio o un fixture fuera de TEMP no puedan
   alcanzar ningun destino real, y que la politica no dependa de reconocer rutas temporales.
-- `TASK-394` **Validar antes de escribir, y rechazar sin efectos.** Revisar origenes, destinos, colisiones y rutas
+- [ ] `TASK-394` **Validar antes de escribir, y rechazar sin efectos.** Revisar origenes, destinos, colisiones y rutas
   resueltas ANTES de crear nada. Aceptacion: tras un rechazo, hashes y conteo del destino identicos a antes (no "exit 1
   despues de escribir"), y un error especifico, no un valor de retorno.
-- `TASK-395` **Publicar generaciones completas.** `run_id` + estado + hojas + journal como un conjunto; verificar hashes
+- [ ] `TASK-395` **Publicar generaciones completas.** `run_id` + estado + hojas + journal como un conjunto; verificar hashes
   en el DESTINO y coherencia entre artefactos; publicacion indivisible al final. Aceptacion: un conjunto con roles
   reducidos o con artefactos de dos generaciones **falla**; hoy devuelve cero errores.
-- `TASK-396` **Endurecer el restore.** Contrato fijo de roles y esquema; rechazar rutas absolutas, `..`, separadores
+- [ ] `TASK-396` **Endurecer el restore.** Contrato fijo de roles y esquema; rechazar rutas absolutas, `..`, separadores
   inesperados y escapes por enlaces/junctions; cualquier error previo impide crear el destino; copiar a staging aislado y
   publicar solo tras validar. Aceptacion: la reproduccion `../victim.txt` no toca al hermano, y un hash malo no llega al
   destino.
-- `TASK-397` **Convertir las reproducciones en regresiones.** TEMP personalizado, respaldo heredado, journal directo,
+- [ ] `TASK-397` **Convertir las reproducciones en regresiones.** TEMP personalizado, respaldo heredado, journal directo,
   rechazo sin efectos, traversal, hashes invalidos, roles manipulados y generaciones mezcladas. Siempre sobre exportacion
   aislada, verificando que los destinos prohibidos no cambian. **Ninguna de las 392-396 se cierra sin su regresion aqui.**
 
