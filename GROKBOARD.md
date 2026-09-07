@@ -37,6 +37,56 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 02:30] CLAUDE: **ASTRA-03 cerrada a criterio de Claude (Lucas: "soluciona A03 a tu mejor criterio").**
+Todo en `fix/astra-03-observed-fill-prices`, con `main` mergeado primero segun la regla de la ventana de merge —
+por eso su suite no escribio nada en el respaldo real: la valla vino con el merge, sin señuelo explicito. Verificado:
+0 ficheros nuevos en `state_v9/` (el mas reciente sigue siendo de las 22:59 del 09-06).
+
+**1. La severidad baja a WARN; la negativa se muda al settle.** La fila `session closed` es WARN siempre (regla de Lucas:
+una barra parcial es informacion que aun no esta disponible, no invalida el estado) y `daily.py` ya no necesita
+`--allow-intraday` para preparar un ciclo. La salvaguarda vive ahora en `run()`: si la barra a la que liquidariamos ES la
+sesion sin cerrar, **no liquida** y los pendientes siguen pendientes — el mismo estado que deja una corrida antes de t+1.
+Es a la vez **mas estricta** que el HARD anterior (`--force` se saltaba el HARD; esto no) y **mas estrecha** (el HARD
+tambien bloqueaba corridas que no tenian nada que liquidar). `--allow-intraday` sigue siendo la autorizacion explicita y
+queda escrito **quien** lo permitio, no solo que paso.
+
+**2. Ids estables (`TASK-398`).** `_row` emite `id` derivado del nombre del check (`session closed` -> `session_closed`),
+asi que ningun call site cambio y los ids viajan al journal solos (`core/journal` guarda las filas verbatim). El riesgo de
+derivarlo del nombre es que un renombrado acuñe un id nuevo en silencio: hay un test que **fija el conjunto completo**.
+
+**3. La orden no liquidada deja de desaparecer.** `settle` consume el pendiente de todos modos, asi que antes el libro se
+quedaba el efectivo, no abria posicion y **nada lo decia** — mientras el broker pudo haber ejecutado a un cierre del que no
+teniamos print. Decision: **ni reemitir** (si el broker si ejecuto, se compra el nombre dos veces) **ni dar por cancelada**
+(el libro no puede saberlo). La orden pasa a `state["unfilled"]` como obligacion explicita y **preflight es HARD** mientras
+quede alguna — la categoria HARD de Lucas: efectivo y posiciones que pueden discrepar del broker.
+Y se cerro la trampa que eso creaba: **una puerta HARD sin salida es una puerta que nadie puede abrir.**
+`core.fills.apply_confirmations` limpia ahora las obligaciones que responde, con la misma clave que ya usaba; el reporte
+dice cual resolvio. Se confirma el fill real, **o `units=0`** para dejar constancia de que el broker no hizo nada.
+
+**4. La hoja deja de valorar con un precio que nadie imprimio.** El mark usaba `prices.iloc[-1]` con forward-fill; ahora
+usa la misma mascara de observacion que los fills, un nombre sin print se carga a su `last_px` (SPEC 9.4), la hoja dice
+**en que barra valoro** y lista los nombres que arrastra.
+**No decidido a proposito:** los fills desajustan por dividendo y este mark no. Es una inconsistencia de base de precios,
+es de Lucas, y esta anotada en el codigo en vez de cambiar el total de la hoja en silencio.
+
+**5. El rechazo queda escrito, no inferido.** `settle_refused` viaja al registro del journal (`process.settle_refused`) con
+motivo, fecha de ejecucion y numero de ordenes. Antes era deducible (WARN + cero fills + pendientes vivos); para ordenes que
+se ejecutan a mano, deducible no basta.
+
+**SPEC 9.4** enumera ahora `unfilled` — la lista era exhaustiva y habria quedado falsa.
+
+**Un test de la propia rama afirmaba la severidad vieja** (`test_preflight_hard_fails_on_an_unclosed_current_session`
+esperaba HARD). No se borro ni se debilito: reescrito al contrato nuevo, con puntero al test que sostiene la garantia.
+
+**Nota para `fix/astra-04-skip-gate`:** la linea `RESULTS: N passed, M skipped` se imprime **encima** de la lista de fallos
+sin mencionarlos, asi que de un vistazo se lee como verde (el `return 1` si es correcto). Esa contabilidad la reescribe la
+04; no se toco aqui para no crear un conflicto en ese fichero.
+
+**Correccion de metodo, mia:** los "exit 0" citados en las corridas de fondo de esta noche venian de `tail`, no de la suite
+— una tuberia se come el codigo de salida del proceso real. El veredicto verde/rojo si salia de la linea `All tests passed!`
+del runner, asi que las conclusiones se sostienen, pero se cito un numero que no se habia medido. Las corridas de cierre se
+miden sin tuberia.
+
 [2026-09-07 01:40] CLAUDE: **SPEC 9.3 corregida (Lucas aprobo la redaccion) y una regla nueva para la ventana de merge.**
 La correccion va en `fix/astra-02-split-fill-order` (`9ed5f32`), no en main: la frase solo existe en esa linea de
 `post-freeze-wiring`, y la regla del repo es que un cambio de conducta aterriza con la spec en el mismo commit — por eso
