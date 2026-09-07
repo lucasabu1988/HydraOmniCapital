@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # TASK-388. The two triggers above are the only ones there were, so a push to a
+  # feature branch ran nothing at all: on 2026-09-07, thirteen live branches had
+  # `total_count 0` workflow runs, n-sleeve-engine (13 commits of engine code) among
+  # them. A draft PR is the usual way to get `pull_request` to fire without making a
+  # branch mergeable -- but a *conflicted* PR creates no run whatsoever (measured:
+  # PR #45 on n-sleeve-engine, DIRTY, produced zero runs, while seven draft PRs on
+  # branches that merge clean each produced one). So for a branch that is behind main
+  # the PR route is unavailable exactly when CI is most wanted. workflow_dispatch
+  # tests a ref as it is, with no merge commit and no PR.
+  workflow_dispatch:
 
 jobs:
   # Active product. Legacy COMPASS tests lived at repo-root tests/ and were archived to
