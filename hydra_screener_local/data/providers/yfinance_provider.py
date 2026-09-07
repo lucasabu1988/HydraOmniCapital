@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from data.fetch import _close_frame_from_yf, _volume_frame_from_yf, _yf_download
+from data.fetch import _close_frame_from_yf, _field_frame_from_yf, _volume_frame_from_yf, _yf_download
 
 BATCH_SIZE = 75
 TAIL_BATCH_SIZE = 300      # TASK-382 measured default; see .comms/grok-task-382-tail-batches.md
@@ -96,23 +96,37 @@ def _fetch_batch(batch: list[str], start, end, *, two_pass: bool = False) -> pd.
         if volume.empty:
             volume = _volume_frame_from_yf(data_adj, batch)
         return _assemble_long(close_adj, close_raw, volume)
-    data = _yf_download(batch, auto_adjust=False, start=start, end=end)
+    data = _yf_download(batch, auto_adjust=False, start=start, end=end, actions=True)
     close_raw = _close_frame_from_yf(data, batch, field="Close")
     close_adj = _close_frame_from_yf(data, batch, field="Adj Close")
     volume = _volume_frame_from_yf(data, batch)
-    return _assemble_long(close_adj, close_raw, volume)
+    dividends = _field_frame_from_yf(data, batch, "Dividends")        # TASK-385
+    splits = _field_frame_from_yf(data, batch, "Stock Splits")
+    return _assemble_long(close_adj, close_raw, volume, dividends=dividends, splits=splits)
 
 
 def _assemble_long(
     close_adj: pd.DataFrame,
     close_raw: pd.DataFrame,
     volume: pd.DataFrame,
+    dividends: pd.DataFrame | None = None,
+    splits: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     a = _wide_to_long(close_adj, "close_adj")
     r = _wide_to_long(close_raw, "close_raw")
     v = _wide_to_long(volume, "volume")
     out = a.merge(r, on=["date", "ticker"], how="outer").merge(v, on=["date", "ticker"], how="outer")
     out = out.dropna(subset=["close_adj", "close_raw"], how="all")
+    # actions (TASK-385): present only when the download carried the fields; zeros are kept so the
+    # store records coverage ("asked, none") and not just the non-zero events
+    if dividends is not None and not getattr(dividends, "empty", True):
+        d = _wide_to_long(dividends.fillna(0.0), "dividend")
+        out = out.merge(d, on=["date", "ticker"], how="left")
+        out["dividend"] = out["dividend"].fillna(0.0)
+    if splits is not None and not getattr(splits, "empty", True):
+        sp = _wide_to_long(splits.fillna(0.0), "split")
+        out = out.merge(sp, on=["date", "ticker"], how="left")
+        out["split"] = out["split"].fillna(0.0)
     out["source"] = SOURCE
     out["fetched_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return out.reset_index(drop=True)
