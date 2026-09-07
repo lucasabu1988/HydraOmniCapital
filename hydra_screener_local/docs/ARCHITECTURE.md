@@ -89,8 +89,11 @@ pending, ledger, write_offs, transfers, interest, dividends
 ```
 
 `mix` is in `config.V9` today, not in the state (design: TASK-366). Backups: `state/backup/`
-on disk, plus `HYDRA_BACKUP_DIR/state_v9/<date>/` when the env is set. `journal/` is
-gitignored and copied with the state.
+on disk, plus one **generation** per run off disk when a destination is configured:
+`HYDRA_BACKUP_DIR/state_v9/<YYYYMMDD>/<run_id>/` holding the state, both instruction sheets, the
+day's journal record, `JOURNAL.md` and `backup_manifest.json`, published whole and never appended
+to (`docs/BACKUP_SERVICE.md`, TASK-392..397). `journal/` is gitignored and is part of the
+generation, not a separate copy.
 
 ## What writes vs what is read-only
 
@@ -105,7 +108,11 @@ gitignored and copied with the state.
 
 No API keys. Env names only:
 
-- `HYDRA_BACKUP_DIR` — off-disk copy of `state/` + `journal/`. Unset → same disk, preflight WARN.
+- `HYDRA_BACKUP_DIR` — off-disk generations of `state/` + `journal/`. Unset → same disk, preflight
+  WARN. Resolved in **`backup_env.py` only**, by the three CLI entry points; library code receives
+  a `BackupContext` explicitly and can no longer find a destination on its own (TASK-392).
+- `HYDRA_BACKUP_DENY` — `os.pathsep`-separated roots this process may never publish into. Normally
+  unset in production; the test policy exports the inherited root here.
 - `UNIVERSE` — overrides `config.UNIVERSE` (`all` in production).
 - `HYDRA_NOTIFY` — reserved for TASK-364 (not wired).
 
