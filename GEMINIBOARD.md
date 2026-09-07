@@ -95,7 +95,9 @@ Notes: <anything Claude should know, or "none">
     → must print `All checks passed!`
   - `python run_all_tests.py` → must print `All tests passed!`
 
-- [ ] `GM-002` **Write tests for the two CI gate scripts that have none.**
+- [x] `GM-002` **Write tests for the two CI gate scripts that have none.**
+  *(Done by Claude on 2026-09-06 as `GM-002-R`, with three corrections to the text below —
+  see the report and the message at the bottom of this file. Task text kept verbatim.)*
   `tools/check_coverage.py` and `tools/check_secrets.py` decide whether a build is allowed
   through, and nothing tests them — a gate nobody tests is the exact problem the last audit
   was about. Create **one** new file, `test_gate_tools.py`, in `hydra_screener_local/`.
@@ -143,6 +145,58 @@ Notes: <anything Claude should know, or "none">
   - `python run_all_tests.py` → must print `All tests passed!` (the runner finds new
     `test_*.py` files automatically, so your file will be in it)
 
+- [ ] `GM-003` **Write tests for the third untested CI gate, `tools/check_skips.py`.**
+  Same reason as `GM-002`: it decides whether a build goes through and nothing tests it.
+  A skip is not a pass, and the script that enforces that has no proof it can say no.
+
+  **Do not edit `tools/check_skips.py`.** Its behaviour is being changed on another branch
+  right now (an external audit probe says it lets three unexplained *pytest-level* skips
+  through). Your job is tests only. If the script disagrees with the description below,
+  write down what it actually does and leave that test out — do not adjust the script.
+
+  Create **one** new file, `test_check_skips.py`, in `hydra_screener_local/`. Read
+  `tools/check_skips.py` first. What you are testing:
+
+  - `main(argv)` accepts `--from-file <path>`, which parses an existing runner log instead
+    of running the 150-second suite. **Every test must pass `--from-file`** — without it
+    `main` shells out and runs the whole suite, so a test that omits it is not a unit test,
+    it is a second copy of CI.
+  - `EXPECTED_SKIPS` maps a file name to the reason it is allowed to skip.
+  - `SKIP_LINE_RE` matches a runner `[SKIP] <file>` line; `RESULTS_RE` matches the runner's
+    `RESULTS: N passed, M skipped` line.
+
+  Write these tests, using `tmp_path` to hold the fake runner logs you write yourself:
+
+  1. A log with no `[SKIP]` line and `RESULTS: 59 passed, 0 skipped` → `main` returns `0`.
+  2. A log with `[SKIP] test_something_new.py` (a name that is **not** in `EXPECTED_SKIPS`)
+     → `main` returns `1`. **A gate that cannot fail is not a gate — this is the most
+     important test in the file.**
+  3. A log whose only `[SKIP]` line names a file that **is** in `EXPECTED_SKIPS`
+     → `main` returns `0`. Take the name from `EXPECTED_SKIPS` itself, do not hardcode it,
+     so the test still means something when the dict changes.
+  4. `SKIP_LINE_RE` and `RESULTS_RE` each match one real line and do not match a line that
+     merely contains the word.
+
+  Copy the shape of a real runner log from a `python run_all_tests.py` run: the lines are
+  `[SKIP] <file> (0.12s)`, `[PASS] <file> (1.28s)` and a final
+  `RESULTS: 59 passed, 0 skipped in 146.44s (tests time: 146.41s)`.
+
+  Two things `test_gate_tools.py` (GM-002-R) learned the hard way — read it as the model:
+  - never let a gate fall back to its default path in a test (`--from-file` here, `--xml`
+    and `--root` there); the default reads the real tree and the assertion stops meaning
+    anything;
+  - **the file must not contain the substring for a script entry point** (`if` + the dunder
+    name guard). `run_all_tests.py` runs a discovered file as a plain script when that
+    marker is in the source, which executes no assertion and reports `[PASS]`.
+    `test_gate_tools.py` ends with a test that asserts the marker is absent — copy it.
+
+  Files: `test_check_skips.py` (new, and the only file you create).
+
+  Verify:
+  - `python -m pytest -q test_check_skips.py` → all tests pass
+  - `python run_all_tests.py --strict-console` → must print `All tests passed!`
+  - `python -m ruff check --config ruff.toml test_check_skips.py` → `All checks passed!`
+
 ---
 
 ## Messages from Claude
@@ -161,8 +215,11 @@ Two things I care about more than speed:
 
 Context you do not have to rediscover: the suite baseline is 58 passed / 0 skipped, `ruff` is
 configured with per-file rules relative to `hydra_screener_local/` (so always run it from that
-directory), and CI runs eight gates on every push — the two scripts in `GM-002` are two of
-them, and they are the only two nothing tests.
+directory), and `.github/workflows/test.yml` defines **seven** jobs — which show up as eight
+check runs, because `screener` runs as a matrix on Python 3.12 and 3.13. The two scripts in
+`GM-002` are steps inside the `screener` and `secret-scan` jobs. (Corrected 2026-09-06: an
+earlier version of this paragraph said "eight gates", and said those two were the only
+untested tools. Neither was right — see the GM-002-R message below.)
 
 I read this file and review everything before it is committed. You never commit.
 
@@ -180,9 +237,32 @@ Two things worth carrying into `GM-002`:
   quietly loses the intent. Two of mine became a one-line comment instead. Prefer that.
 
 `GM-002` is bigger than `GM-001` and it matters more: `check_coverage.py` and
-`check_secrets.py` are two of the eight gates CI runs on every push, and neither has a test.
-If the budget is tight, do the coverage tests first — test 3 (the gate must be able to fail)
-is the one I care about most.
+`check_secrets.py` run on every push — the first as a step of the `screener` job, the second
+as a step of `secret-scan` — and neither has a test. If the budget is tight, do the coverage
+tests first — test 3 (the gate must be able to fail) is the one I care about most.
+
+(Corrected 2026-09-06: this paragraph used to call them "two of the eight gates" and the
+message above called them the only untested tools. There are seven jobs / eight check runs,
+and `tools/check_skips.py` and `tools/precommit_gates.py` have no tests either —
+`check_skips.py` is now `GM-003`.)
+
+**[2026-09-06] `GM-002` is closed — I did it, start at `GM-003`.** Lucas moved this queue to
+me while you were unavailable, so `GM-002` shipped as `GM-002-R`:
+`hydra_screener_local/test_gate_tools.py`, 22 tests, on branch `test/gm-002r-gate-tools`.
+The report at the bottom of this file lists the three places where the `GM-002` text as
+written would have produced a green test that proved nothing — read it before `GM-003`,
+because `GM-003` has the same shape and the same two traps (a gate whose default path is the
+real tree, and a runner that turns a pytest module into a no-op script if the source carries
+an entry-point guard).
+
+One correction to my own earlier framing: I told you those two scripts were "the only two
+nothing tests". They were not. `tools/check_skips.py` (a `screener`-job step) and
+`tools/precommit_gates.py` (the whole local hook) have no tests either. `check_skips.py` is
+`GM-003`. `precommit_gates.py` is not queued yet on purpose — it shells out to the other
+three gates, so testing it means faking subprocesses, and I want `GM-003` finished first.
+
+Do not touch `tools/check_skips.py` itself for `GM-003`. Its behaviour is being changed on
+another branch; if you edit it you will collide with that work. Tests only.
 
 ---
 
@@ -211,3 +291,41 @@ Verify:
 Notes: Gemini ran out of budget after the second file and left no report; the state was
 reconstructed from the diff and reviewed line by line before committing. Commits `203ab4e`
 (Gemini's two files) and `ce0a2a1` (the last three).
+
+### GM-002-R — done (Claude, not Gemini)
+What I changed:
+- `hydra_screener_local/test_gate_tools.py` (new, 22 tests) — `tools/check_coverage.py`:
+  `read_line_rate` on a fixture report, the missing `line-rate` attribute, `per_package`
+  ordering, `main` above / below / exactly at the floor, an absent report, a truncated
+  report, and a guard that `DEFAULT_XML` is still the repo's own file.
+  `tools/check_secrets.py`: a clean tree, an AWS-key-shaped literal that must alert, an
+  assigned credential that must alert, a placeholder that must not (asserting the pattern
+  *does* fire, so the test proves the veto rather than a gap in the pattern), the allowlisted
+  filename path, `SKIP_DIRS` and non-text suffixes, `env_files` on `.env` / `.env.production`
+  / `.env.example`, `main` returning 0 clean and 1 dirty, and a guard that `REPO_ROOT` is
+  still the repository.
+- `GEMINIBOARD.md` — two factual errors in Messages corrected; `GM-002` ticked; `GM-003`
+  queued for `tools/check_skips.py`.
+
+Verify:
+- `python -m pytest test_gate_tools.py -q` -> `22 passed in 0.65s`
+- `python run_all_tests.py --strict-console` -> `RESULTS: 59 passed, 0 skipped in 149.57s`
+  / `All tests passed!` (58 -> 59: the one new file)
+- `python -m ruff check --config ruff.toml test_gate_tools.py` -> `All checks passed!`
+- `python tools/check_secrets.py` with the new file staged -> `secret sweep ok` (the test
+  file does not trip the gate it tests)
+
+Notes: three details of the GM-002 text would have made a literal execution fail or lie, and
+are worth knowing before GM-003:
+- The suggested positive fixture, `AWS_SECRET_ACCESS_KEY = "AKIA...7EXAMPLE"`, never alerts:
+  `PLACEHOLDER` vetoes any match containing `example`. A test built on it would have asserted
+  a clean scan while believing it proved detection. It is kept in the file as a regression
+  test *for the veto*, with a working literal added separately.
+- The text never says to pass `--xml` / `--root`. Both defaults point at the real tree
+  (`hydra_screener_local/coverage.xml`, which is gitignored, and the repository root), so
+  every call in the file passes the flag and two tests assert what the defaults are, to keep
+  the reason on the page.
+- Any working credential literal written into `test_gate_tools.py` makes `check_secrets.py`
+  fail on that file, because the filename is not in `ALLOWLIST_NAMES`. Assembling the
+  literals from fragments at runtime solves it with no allowlist entry, so the
+  `test_packaging.py` precedent was not needed.
