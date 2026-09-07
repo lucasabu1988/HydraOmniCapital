@@ -14,23 +14,26 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
+# Patterns are anchored with **/ so they match whether ruff runs from hydra_screener_local/
+# (CI, run_all_tests.py) or from the repo root (the pre-commit hook). Unanchored "core/**" did
+# not match "hydra_screener_local/core/..." and the frozen-path ignores silently stopped applying.
 # Live path FROZEN until Claude posts "first settle verified" (2026-09-08).
 # Findings listed in .comms/grok-task-368-hygiene.md; not fixed here.
-"core/**" = ["E", "F", "I", "B"]
-"portfolio_v9.py" = ["E", "F", "I", "B"]
-"daily.py" = ["E", "F", "I", "B"]
-"preflight.py" = ["E", "F", "I", "B"]
+"**/core/**" = ["E", "F", "I", "B"]
+"**/portfolio_v9.py" = ["E", "F", "I", "B"]
+"**/daily.py" = ["E", "F", "I", "B"]
+"**/preflight.py" = ["E", "F", "I", "B"]
 # Legacy scripts and Pine tools: not in the lint surface.
-"screener.py" = ["E", "F", "I", "B"]
-"analyze_history.py" = ["E", "F", "I", "B"]
-"log_cycle_positions.py" = ["E", "F", "I", "B"]
-"generate_pine_watchlist.py" = ["E", "F", "I", "B"]
-"validate_pine_contract.py" = ["E", "F", "I", "B"]
-"pine/**" = ["E", "F", "I", "B"]
-"experiments/**" = ["E", "F", "I", "B"]
-"test_*.py" = ["I"]
-"experiments/test_*.py" = ["I"]
+"**/screener.py" = ["E", "F", "I", "B"]
+"**/analyze_history.py" = ["E", "F", "I", "B"]
+"**/log_cycle_positions.py" = ["E", "F", "I", "B"]
+"**/generate_pine_watchlist.py" = ["E", "F", "I", "B"]
+"**/validate_pine_contract.py" = ["E", "F", "I", "B"]
+"**/pine/**" = ["E", "F", "I", "B"]
+"**/experiments/**" = ["E", "F", "I", "B"]
+"**/test_*.py" = ["I"]
+"**/experiments/test_*.py" = ["I"]
 # Compact engine/spec tests: semicolons and `== True` are the house style, not bugs.
-"test_portfolio_engine.py" = ["E702"]
-"test_output_integrity.py" = ["E702"]
-"test_spec_compliance.py" = ["E712", "B904"]
+"**/test_portfolio_engine.py" = ["E702"]
+"**/test_output_integrity.py" = ["E702"]
+"**/test_spec_compliance.py" = ["E712", "B904"]
