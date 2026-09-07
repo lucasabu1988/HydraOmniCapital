@@ -217,7 +217,7 @@ def _print_ruff_summary() -> None:
              "reconcile.py", "confirm_fills.py", "journal.py", "store_cli.py",
              "evidence_review.py", "warm_sectors.py", "send_hydra_summary.py",
              "console_dashboard.py", "snapshot_universe.py", "verify_state.py",
-             "runlog_cli.py", *tests],
+             "runlog_cli.py", "reprint_sheet.py", *tests],
             cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace",
         )
     except OSError:
