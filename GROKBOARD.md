@@ -173,6 +173,435 @@ antes de proponer nada: **`BF.B` (Brown-Forman) no tiene gemelo con guion en la 
 panel in-sample de 503 nombres hay **2 columnas todo-NaN: `BF.B` y `BRK.B`**. Dos nombres del S&P 500 que nunca han sido
 elegibles en ninguna medicion in-sample. El panel OOS esta limpio (usa `_yahoo_ticker`, tiene `BRK-B` y `BF-B`).
 Nota completa cuando termine la corrida de frecuencia T20.
+[2026-09-07 17:30] CLAUDE: **Analisis de estado tras los ultimos avances (pedido por Lucas), con dos correcciones y un runbook.**
+- **La fecha que ordena todo**: `renewal_slot` renueva cuando `bars_between(anchor, today) % 5 == 0`; con anchor 09-04 las
+  barras son 09-08/09/10/11/**14**. El proximo `plan()` con posiciones es el **lunes 14**, y dos defectos vivos de `main` son
+  inertes con el libro vacio y muerden con posiciones (NaN truthy en `plan()`, arreglo en `structural-hardening`; `age_stale`
+  absorbiendo rellenos, H-005). **Los merges 1 y 2 tienen que estar en `main` entre el miercoles 9 y el viernes 11.**
+- **El settle del miercoles corre codigo ensayado**: los dos commits post-ensayo (`dbf6e78`, `3cb9ef6`) tocaron solo el camino
+  del bar store, apagado en `main`. Verificado hunk por hunk.
+- **Corregido**: `post-freeze-wiring` (`6958661`) y `n-sleeve-engine` (`eec221e`) llevan ahora `main` mergeado — la valla del
+  respaldo y los ignores anclados de ruff — con suites **55/0 y 56/0, EXIT=0 medido**, `.gitignore` por union. Antes estaban 34
+  commits por detras y su suite habria escrito en OneDrive.
+- **Corregido**: el plan de merge vivia en un JSON temporal; ahora es `.comms/merge-window-2026-09-09.md` (`1b4bb1b`): orden
+  de 15 pasos con precondicion y conflicto medido, la regla de la valla, que ramas la tienen (8) y cuales no (11), y lo que
+  sigue fuera de la ventana y por que.
+- **Ya resueltos en sus ramas, verificado, no se tocan dos veces**: la linea `RESULTS` del runner (`fix/astra-04` imprime
+  `failed=`/`errors=` por caso) y el `check-merge-conflict` que no podia fallar (`chore/task-391`).
+- **Mejoras pendientes, por valor**: vallar las 11 ramas restantes (las 7 de la pila chocan en `test.yml` y piden criterio:
+  conservar los 7 jobs Y la lista de lint); la segunda ronda de ataque sobre `a12r`; `close_raw.pkl` para despertar la 05.
+
+[2026-09-07 12:40] CLAUDE: **Los tres puntos que Lucas aprobo, hechos.** (1) Colision H-004 resuelta: el parche de
+regimen es **H-007**, con nota en el registro; 004-006 siguen siendo las de ASTRA-01/08/10 del dia anterior. (2) **H-007
+aplicada** en `fix/astra-06-followup` (`5266fdf`), regla 6 cumplida: SPEC en el mismo commit y efecto **medido con la
+funcion real en los dos lados** sobre el marco vivo — el parche saca 123 de 3011 columnas (4.1%), breadth +0.0110..+0.0200,
+regimen +0.001..+0.003 (cuantizado a 3 decimales). Uno o dos ordenes de magnitud mas que el +0.0001 del panel OOS, porque
+ese panel es S&P PIT y produccion es Russell-heavy. El `xfail(strict)` se puso rojo al aterrizar el arreglo, como
+prometia. (3) `TASK-402` hecha, ver arriba. Las tres ramas siguen **fuera de `main`** hasta el settle.
+
+[2026-09-07 07:55] CLAUDE: **Segunda pasada del respaldo hecha (`ec3e309`). TASK-399/400/401 cerradas; la rama sigue FUERA del orden de merge.**
+Los once escapes del atacante, cerrados uno por uno, cada uno con su regresion en `test_backup_attack_regressions.py`.
+Verificado: 91 tests en los tres ficheros de respaldo; suite completa **EXIT=0 medido sin tuberia, 53 passed, 0 skipped**,
+ruff limpio. Respaldo real intacto de punta a punta: **298 ficheros, `state_v9/` en 60, el mas reciente de las 22:59 del
+2026-09-06** — anterior a la contencion.
+
+**Los cuatro escapes de escritura.** `link_on_path()` mira la ruta **sin resolver** y todos sus ancestros con `islink` **y**
+`isjunction` (en Windows un junction es invisible a `is_symlink()` incluso sin resolver, y `resolve()` ya habia seguido el
+enlace: ahi estaba el guard muerto). El restore crea **la ruta validada**, no la recibida — validar la resuelta y crear la
+sin resolver era el segundo escape. `RESTORE_TARGET_DENIED`: el restore obedece la lista de denegados, que era la unica
+valla que la politica instala y no cubria ese camino. Y el rollback distingue **propiedad, no vacio**.
+
+**Mi propia regresion, y es la mas instructiva del lote.** Al endurecer el rollback para que no borrara el trabajo del
+vecino, deje el staging con ficheros parciales tras un rechazo — un rechazo **con** efectos, la condicion exacta que la
+tarea existe para sostener. La cazo mi propio test, no yo leyendo el codigo. Por eso la distincion quedo como *propiedad*
+y no como *vacio*: el arbol de staging lleva nuestro `run_id` y nadie mas conoce su nombre, asi que se borra entero; un
+ancestro compartido puede tener la generacion de otro, asi que solo se borra vacio. Las dos mitades tienen prueba, porque
+sin ellas el siguiente que endurezca esa funcion repite el intercambio.
+
+**Los tres agujeros de verificacion.** `date_in_name()` + `GEN_DATE_INCOHERENT`, y salio mas fuerte de lo esperado: **la
+publicacion se niega**, asi que la generacion incoherente no llega a existir (y un manifest forjado a mano tampoco pasa).
+`GEN_PROFILE_UNVERIFIED`: `generation_is_complete` ya no afirma "completa" cuando nadie fijo el juego de roles, que es lo
+que compraba la degradacion de perfil. `SOURCE_NAME_CASE_COLLISION` antes de crear nada.
+
+**La valla del entorno.** Deniega **lo que heredo, sin condiciones** — ya no pregunta si la ruta *se llama* como un
+directorio de pruebas, que era el error que su propio docstring condenaba. La sesion heredada solo se acepta si lleva un
+fichero que la politica escribio, `HYDRA_TEST_BACKUP_SESSION` entra al strip de `build_child_env`, y
+`clear_denied_destinations` pasa a privada: eso no la hace segura, la hace visible.
+
+**Dos limites declarados, no disimulados** (en `docs/BACKUP_SERVICE.md`): el `run_id` vive en el mismo manifest sin firmar
+que los hashes, asi que detecta mezclas **accidentales** y no manipulacion — cerrarlo necesita una clave que este proyecto
+no tiene, y la comprobacion que no depende de la cooperacion del editor es la de fechas. Y un `SIGKILL` a media copia deja
+basura de staging inerte: `stale_staging()` la nombra y `sweep_staging(keep_run_id=...)` la quita, con ese argumento porque
+barrer a ciegas borraria una publicacion en vuelo — precisamente el error del rollback viejo.
+
+**Por que sigue fuera del orden de merge:** la primera version paso sus propios 72 tests y eso no la salvo. Esta pasa 91.
+El criterio para que entre no es que sus tests esten verdes, es que **alguien la ataque otra vez** y no encuentre camino de
+escritura fuera del destino ni rechazo con efectos. Hasta entonces, `feat/astra-12-restore-drill` se abandona y esta
+espera.
+
+[2026-09-07 04:10] CLAUDE: **Segundo lote: 5 ramas empujadas, 1 rechazada por mi propio atacante, y mi cierre de A03 devuelto como NEEDS_WORK.**
+8 agentes, 0 errores, 83 min. Ninguna rama toca `main`; el respaldo real quedo intacto (298 ficheros, mismo mtime, medido antes y despues de cada ataque).
+
+## `feat/a12r-backup-service` — **NO MERGEAR**, y por que dos revisores dicen cosas distintas
+
+El revisor de cierre la marco **SOUND** y el atacante **DO_NOT_MERGE**. No promedio eso: **gana el atacante, por evidencia** — el ejecuto los ataques, el revisor leyo diffs. Los dos aciertan en cosas distintas, y la distincion importa:
+
+**Lo que SI quedo bien y es la parte dificil (TASK-392, la costura del entorno):** `journal.py` ya no lee `HYDRA_BACKUP_DIR` ni copia (fuera el `os.environ.get` y los dos `shutil.copy2`; el modulo ya no importa `os` ni `shutil`). El entorno se lee en **un** modulo, `backup_env.py`, verificado recorriendo el AST de todo el paquete. Medido: `pytest test_journal.py` contra un señuelo escribia 4 ficheros y ahora escribe **0**. Traversal: **20 nombres hostiles del manifest, todos rechazados**, nada aterrizo fuera. Rechazo sin efectos: **15 de 16 caminos** byte-identicos.
+
+**Los 4 escapes de escritura que la matan:**
+1. **El destino del restore puede ser un junction.** El guard `RESTORE_TARGET_IS_LINK` es **codigo muerto**: hace `_resolve(target).is_symlink()`, y `resolve()` ya siguio el enlace. **6 ficheros escritos fuera del directorio nombrado en la linea de comandos, y el CLI imprimio exito.** Alcanzable desde el CLI documentado del operador.
+2. **Un padre junction** basta: `_assert_isolated_target` resuelve, pero `unwind.mkdir(target)` crea la ruta **sin** resolver, asi que se crea a traves del enlace. 6 ficheros en un arbol que el llamador nunca nombro.
+3. **`restore_generation` nunca consulta la lista de denegados.** `publish_generation` si; restore no recibe contexto y no llama ni a `denied_destinations()` ni a `forbidden_by()`. 6 ficheros escritos dentro de una raiz explicitamente denegada — en esta maquina esa raiz es OneDrive\\HydraBackups (el ataque uso un señuelo).
+4. **Un rechazo borro un respaldo bueno.** `_Unwind.mkdir` apunta como "creado por mi" cada ancestro ausente y el rollback hace `rmtree`. Con dos publicaciones concurrentes reales (hilos, sin fallos inyectados), la publicacion A registro el directorio de la fecha, B publico ahi una generacion completa y verificada, y el rechazo de A **borro la generacion de B y la raiz entera**. No es "un rechazo dejo efectos": es **un rechazo destruyo un backup**.
+
+**Y 3 agujeros de verificacion, la misma clase por la que se demolio el intento anterior:**
+5. Nada compara la fecha del manifest con las fechas **en los nombres**: `role_for()` acepta cualquier `instructions_<fecha>` como `sheet_md`, asi que una generacion sellada 2026-09-06 con hojas y journal del 09-04 **verifica COMPLETA**. La coherencia de fechas la impone el llamador, no el servicio.
+6. **Degradacion de perfil**: recortar `required_roles` se rechaza, pero **reescribir el NOMBRE del perfil** (`daily_v9` -> `sheet_only`) y borrar el journal verifica limpio si el llamador no exige perfil.
+7. El `run_id` vive en el mismo manifest sin firmar que los hashes, asi que solo detecta mezclas **accidentales**: libro de B + journal de A con un `run_id` re-sellado y hashes recalculados verifica COMPLETA.
+Ademas: dos nombres que difieren solo en mayusculas (`JOURNAL.md` / `journal.MD`) entran ambos al manifest y en NTFS existe un solo fichero; y la decision de denegar es una heuristica de forma de ruta (`"hydra-test-backup" in str(p)`) — exactamente el error que su propio docstring condena.
+
+## `fix/astra-03-observed-fill-prices` — **NEEDS_WORK**, y es mio
+
+El re-review confirmo objeciones 1 y 2 cerradas **por ejecucion** (la fila WARN pasa, `daily.py` corre sin `--allow-intraday`, la negativa del settle es mas estricta que el HARD porque `--force` se saltaba el HARD, el camino del miercoles sigue liquidando, y la obligacion `unfilled` es escapable por las dos vias). La objecion 3, el mark enmascarado, **no**:
+- **No es falsificable**: revertir `portfolio_v9.py:600-601` a `prices.iloc[-1]` no pone roja ninguna prueba. Mi fixture ponia NaN en la ultima barra, y ahi los dos caminos coinciden — el caso que distingue es un **forward fill**, que en un fixture sintetico no existe.
+- **Y donde muerde, empeora el total**: `value_with_stale` cae a `last_px`, que es el precio de ENTRADA, no el ultimo cierre real. Un nombre que imprimio ayer y no hoy queda valorado a su entrada en vez de al cierre de ayer: mas lejos del print real, no mas cerca.
+- La cabecera sobreafirma: dice "closes that printed on {as_of}" mientras arrastra nombres.
+Lo correcto: valorar al **ultimo cierre observado**, cayendo a `last_px` solo cuando no hay ninguno, y un fixture cuya ultima barra sea un ffill.
+
+## Las cuatro que quedan limpias
+
+- **`ci/task-388-first-real-run`** (SOUND). **Mi premisa era falsa**: el pipeline **si** ha corrido — 14 corridas `pull_request` el 2026-09-06. El defecto real es mas estrecho: ese verde esta **congelado y no se puede refrescar**, porque 13 ramas vivas dan `total_count 0` (el `on:` solo nombra main y pull_request). La rama añade **un** trigger, `workflow_dispatch`, +10 lineas de las que 9 son el comentario. Y corrige el conteo: las 8 comprobaciones **no estan en main** (main define 2 jobs -> 3 check runs).
+- **`chore/task-391-local-gates`** (SOUND, con una sorpresa de orden): **no es un cambio de hooks**, contiene structural-hardening (26 commits) **mas** todo main, asi que es el vehiculo de la pila entera. Hallazgo medido: `check-merge-conflict` tal como se configura normalmente **no puede fallar** — solo mira mientras existe `MERGE_HEAD`. Otro gate que no gatea.
+- **`docs/task-389-duplicate-share-class`** (SOUND, docs). Una sola colision de separador en el universo vivo: BRK-B. Y un hallazgo que nadie pidio: **BF.B no es un duplicado, es una eliminacion silenciosa** — no existe BF, ni BF-B, ni ninguna otra grafia de Brown-Forman, y la perdida es **invisible al guard construido para cazar exactamente eso**, porque en ambos caminos de fetch `requested` se compara despues del filtrado.
+- **`fix/astra-06-followup`** (SOUND). Borra el test que fijaba el defecto como conducta correcta (afirmaba 0.723, el numero equivocado, y por tanto pasaba porque core esta roto) y lo sustituye por un `xfail(strict)` contra la conducta deseada. Medido: el parche de core **solo** arreglaria casi lo mismo que la mascara del laboratorio, y el defecto hoy es **inalcanzable desde el camino vivo por suerte de un filtro, no por diseño**.
+
+## Cambio al orden de merge que te di antes
+
+**PR #41 (`merge-prepared`) pasa a DO_NOT_MERGE.** Antes dije que si debia mergearse; medido de nuevo, esta obsoleta por tres vias: le faltan los 6 commits de structural-hardening, **no contiene main en absoluto** (22 commits por detras) y su lista de lint difiere. Pero **hay que preservar `7665884`** ("ship analytics/ in the wheel"), que vive **solo** ahi.
+Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `structural-hardening` suelta.
+
+## Cola nueva
+
+- [x] `TASK-399` **A12R segunda pasada: los 4 escapes de escritura.** Junction como destino (guard muerto), padre junction (mkdir sin resolver), restore sin lista de denegados, y el rollback que borra lo que no creo. Aceptacion: las reproducciones del atacante en verde, y un rechazo concurrente que **no** toca la generacion del vecino.
+- [x] `TASK-400` **A12R: coherencia de la generacion.** Fecha del manifest contra las fechas de los nombres; perfil no degradable por reescritura del nombre; y decir en el diseño que el `run_id` en un manifest sin firmar detecta mezclas accidentales, no manipulacion. Mas la colision de mayusculas en NTFS.
+- [x] `TASK-401` **A12R: la valla del entorno deja de ser una heuristica de ruta.** `"hydra-test-backup" in str(p)` es la forma de la ruta, no la procedencia; `HYDRA_TEST_BACKUP_SESSION` no lo cubre el strip de `build_child_env`; y `clear_denied_destinations()` es API publica que quita la valla en una linea.
+- [x] `TASK-402` **A03 objecion 3, segunda pasada.** Valorar al ultimo cierre observado (cayendo a `last_px` solo si no hay ninguno), un fixture cuya ultima barra sea un forward fill para que el arreglo sea falsificable, y una cabecera que no sobreafirme.
+  **HECHA en `fix/astra-03-observed-fill-prices` (`52eac42`).** `last_observed()` valora cada nombre a su ultimo cierre **observado** (la mascara `attrs["observed"]` de `data.fetch`), con su fecha; `last_px` queda solo para un nombre sin ningun print en la ventana. Falsificable en las dos direcciones, medido: primera pasada 3600 vs 4000 en aislado (los 400 USD del revisor, reproducidos); revertir a `iloc[-1]` pone 2 de 10 en rojo. Suite EXIT=0 medido, 52/0.
+  **Hallazgo mas profundo, NO arreglado a proposito:** `core/tranche_book.age_stale` toma cualquier precio finito como impreso — un forward fill reescribe `last_px` y **reinicia el reloj de write-off** (`data.fetch` rellena hasta 3 barras; `max_stale_bars=10` cuenta una mezcla de prints y rellenos). Es contabilidad de antiguedad = **H-005**; pinned con un test que afirma lo que hoy es cierto, y tres preguntas añadidas a la medicion de H-005 en `.comms/task-402-mark-and-a-deeper-finding.md`.
+
+- [ ] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
+
+[2026-09-07 02:30] CLAUDE: **ASTRA-03 cerrada a criterio de Claude (Lucas: "soluciona A03 a tu mejor criterio").**
+Todo en `fix/astra-03-observed-fill-prices`, con `main` mergeado primero segun la regla de la ventana de merge —
+por eso su suite no escribio nada en el respaldo real: la valla vino con el merge, sin señuelo explicito. Verificado:
+0 ficheros nuevos en `state_v9/` (el mas reciente sigue siendo de las 22:59 del 09-06).
+
+**1. La severidad baja a WARN; la negativa se muda al settle.** La fila `session closed` es WARN siempre (regla de Lucas:
+una barra parcial es informacion que aun no esta disponible, no invalida el estado) y `daily.py` ya no necesita
+`--allow-intraday` para preparar un ciclo. La salvaguarda vive ahora en `run()`: si la barra a la que liquidariamos ES la
+sesion sin cerrar, **no liquida** y los pendientes siguen pendientes — el mismo estado que deja una corrida antes de t+1.
+Es a la vez **mas estricta** que el HARD anterior (`--force` se saltaba el HARD; esto no) y **mas estrecha** (el HARD
+tambien bloqueaba corridas que no tenian nada que liquidar). `--allow-intraday` sigue siendo la autorizacion explicita y
+queda escrito **quien** lo permitio, no solo que paso.
+
+**2. Ids estables (`TASK-398`).** `_row` emite `id` derivado del nombre del check (`session closed` -> `session_closed`),
+asi que ningun call site cambio y los ids viajan al journal solos (`core/journal` guarda las filas verbatim). El riesgo de
+derivarlo del nombre es que un renombrado acuñe un id nuevo en silencio: hay un test que **fija el conjunto completo**.
+
+**3. La orden no liquidada deja de desaparecer.** `settle` consume el pendiente de todos modos, asi que antes el libro se
+quedaba el efectivo, no abria posicion y **nada lo decia** — mientras el broker pudo haber ejecutado a un cierre del que no
+teniamos print. Decision: **ni reemitir** (si el broker si ejecuto, se compra el nombre dos veces) **ni dar por cancelada**
+(el libro no puede saberlo). La orden pasa a `state["unfilled"]` como obligacion explicita y **preflight es HARD** mientras
+quede alguna — la categoria HARD de Lucas: efectivo y posiciones que pueden discrepar del broker.
+Y se cerro la trampa que eso creaba: **una puerta HARD sin salida es una puerta que nadie puede abrir.**
+`core.fills.apply_confirmations` limpia ahora las obligaciones que responde, con la misma clave que ya usaba; el reporte
+dice cual resolvio. Se confirma el fill real, **o `units=0`** para dejar constancia de que el broker no hizo nada.
+
+**4. La hoja deja de valorar con un precio que nadie imprimio.** El mark usaba `prices.iloc[-1]` con forward-fill; ahora
+usa la misma mascara de observacion que los fills, un nombre sin print se carga a su `last_px` (SPEC 9.4), la hoja dice
+**en que barra valoro** y lista los nombres que arrastra.
+**No decidido a proposito:** los fills desajustan por dividendo y este mark no. Es una inconsistencia de base de precios,
+es de Lucas, y esta anotada en el codigo en vez de cambiar el total de la hoja en silencio.
+
+**5. El rechazo queda escrito, no inferido.** `settle_refused` viaja al registro del journal (`process.settle_refused`) con
+motivo, fecha de ejecucion y numero de ordenes. Antes era deducible (WARN + cero fills + pendientes vivos); para ordenes que
+se ejecutan a mano, deducible no basta.
+
+**SPEC 9.4** enumera ahora `unfilled` — la lista era exhaustiva y habria quedado falsa.
+
+**Un test de la propia rama afirmaba la severidad vieja** (`test_preflight_hard_fails_on_an_unclosed_current_session`
+esperaba HARD). No se borro ni se debilito: reescrito al contrato nuevo, con puntero al test que sostiene la garantia.
+
+**Nota para `fix/astra-04-skip-gate`:** la linea `RESULTS: N passed, M skipped` se imprime **encima** de la lista de fallos
+sin mencionarlos, asi que de un vistazo se lee como verde (el `return 1` si es correcto). Esa contabilidad la reescribe la
+04; no se toco aqui para no crear un conflicto en ese fichero.
+
+**Correccion de metodo, mia:** los "exit 0" citados en las corridas de fondo de esta noche venian de `tail`, no de la suite
+— una tuberia se come el codigo de salida del proceso real. El veredicto verde/rojo si salia de la linea `All tests passed!`
+del runner, asi que las conclusiones se sostienen, pero se cito un numero que no se habia medido. Las corridas de cierre se
+miden sin tuberia.
+
+[2026-09-07 01:40] CLAUDE: **SPEC 9.3 corregida (Lucas aprobo la redaccion) y una regla nueva para la ventana de merge.**
+La correccion va en `fix/astra-02-split-fill-order` (`9ed5f32`), no en main: la frase solo existe en esa linea de
+`post-freeze-wiring`, y la regla del repo es que un cambio de conducta aterriza con la spec en el mismo commit — por eso
+**A02 no estaba completa** hasta esto.
+Dos ediciones, no una. La frase final ahora describe el codigo: dos pasadas alrededor del settle por fecha economica
+(`upto=<fecha de ejecucion>` antes de los fills, `after=` cuando ya estan, **ambas antes de dividendos** — verificado,
+`apply_splits` corre dos veces antes de `apply_dividends`), ventana exclusiva por la izquierda e inclusiva por la derecha,
+cota inferior en el watermark por ticker `state["split_marks"]`, y rechazo explicito cuando un split llega despues del fill
+al que debia preceder. La segunda edicion no estaba en el encargo y era necesaria: el parrafo abria con "For each split
+effective **after the previous run**", la ventana vieja, cierta solo por defecto cuando el ticker no tiene marca. Arreglar
+una inconsistencia interna dejando la otra habria fallado el objetivo.
+Verificado en la rama: 27 passed en `test_spec_compliance.py` + `test_splits.py`; suite completa **52 passed / 0 skipped /
+exit 0**, ruff limpio.
+
+**REGLA DE LA VENTANA DE MERGE (medida hoy, no teorica):** la valla contra la contaminacion de respaldos vive en `main`
+(`conftest.py`, `34b0143`) y **las doce ramas nacen de bases anteriores**. Corri la suite de A02 con `HYDRA_BACKUP_DIR`
+apuntando a un señuelo: **25 ficheros escritos** en `state_v9/` del señuelo, entre ellos `20260904/portfolio_v9.json` y
+`20260908/` con sus hojas — las mismas carpetas que aparecieron contaminadas en el respaldo real.
+> Antes de correr la suite de CUALQUIER rama: **mergear `main` en la rama primero**, o pasar un `HYDRA_BACKUP_DIR`
+> señuelo explicito y verificar despues que el destino real no cambio. Correr la suite de una rama sin una de las dos cosas
+> escribe en el respaldo de produccion.
+Esto entra en el checklist del miercoles, antes del primer merge.
+
+[2026-09-07 01:05] CLAUDE: **Decisiones de Lucas sobre las cuatro pendientes. Registradas para ejecutar, no para interpretar.**
+
+**1. ASTRA-03 -> la fila de preflight es `WARN`, no `HARD`.** Regla aprobada por Lucas, que va escrita en el codigo y no
+solo aqui:
+> **HARD** solo para una inconsistencia que impida confiar en estado, efectivo, posiciones, ledger, identidad de cartera
+> o capacidad de ejecutar/conciliar. **WARN** para diferencias de precio observado, informacion aun no disponible a esa
+> hora, o evidencia que requiere revision posterior pero no invalida el estado.
+Motivo: la variante HARD bloqueaba `daily.py` antes del cierre — efecto desproporcionado para esa clase de evidencia.
+Esto **no relaja** la disciplina: separa el bloqueo de seguridad/contabilidad del aviso de calidad de observacion.
+- [x] `TASK-398` **Bajar la fila a WARN con identificador estable.** HECHA en `fix/astra-03-observed-fill-prices` (`5a47827`): fila WARN, ids estables en preflight y journal, `daily.py` corre sin `--allow-intraday`, y la negativa se mudo al settle. Suite 51/0, exit 0 medido. En `fix/astra-03-observed-fill-prices`: la fila
+  "session closed" pasa a WARN, con un id estable que persista **en el preflight y en el journal**, para que no se
+  convierta en ruido ni se pierda al ciclo siguiente. `daily.py` deja de necesitar `allow_intraday` para correr.
+  Aceptacion: `daily.py` completa un ciclo antes del cierre con la fila en WARN; el id aparece en el registro del journal;
+  y sigue siendo imposible liquidar a una barra parcial sin que quede escrito quien lo permitio. Lo demas de la rama
+  (precios observados, sin sustitucion ni ffill) **no cambia**: ahi el rechazo sigue siendo el comportamiento correcto.
+- Sigue abierto de la misma rama, sin decidir: una orden cuya fecha queda fuera del indice se marca `not_filled` **y se
+  consume**, asi que un hueco de datos de un dia aparca el efectivo de una manga sin reemitir. Es una decision de politica
+  de reintento, no de severidad.
+
+**2. N-SLEEVE -> prevalece la semantica de `plan()` de `structural-hardening`** (`mark_px` + `_reject`). La rama N-sleeve
+la **absorbe antes** de integrarse. No se acepta una resolucion que elija N-sleeve y pierda el arreglo de `NaN`: en cuanto
+las mangas tengan posiciones, un `NaN` truthy contamina el valor de cartera y cancela renovaciones.
+Condiciones de integracion (Lucas), que son el criterio de aceptacion del paso de merge:
+1. Resolver el conflicto a favor de la semantica endurecida de `plan()`.
+2. Regresion que **inyecte `NaN`** en una posicion mantenida de una manga registrada.
+3. Probar que la manga afectada se rechaza de forma **localizada y explicable**.
+4. Probar que **las demas mangas siguen planificando** cuando sus datos son validos.
+5. Paridad N-sleeve contra el motor previo con la configuracion por defecto: **byte-compatible donde el diseño lo promete**.
+`test/astra-09-nsleeve-invariants` ya trae 13 xfail(strict) que cubren parte de 2-5; se convierten en pasa/falla al
+resolver. Orden posterior al settle sin cambios: `post-freeze-wiring` -> endurecimiento estructural -> N-sleeve reconciliado.
+
+**3. H-004 / H-005 / H-006 -> se quedan en PROPOSED.** Ni aceptadas ni rechazadas antes de su medicion predefinida. Nada
+de scoring, seleccion, parametros ni SPEC se toca, y el resultado vivo posterior **no se reinterpreta** como evidencia.
+Criterio de medicion por hipotesis (Lucas):
+- **H-004** (cero recomendaciones -> 22 compras): medir **frecuencia, causa y efecto** del caso "cero recomendaciones".
+  Prohibido convertir el resultado en una regla de compra o inferir que 22 compras "resuelven" el fenomeno.
+- **H-005** (antiguedad que acuña efectivo): medir el efecto contable por antiguedad **contra una referencia sin esa
+  acuñacion**, separando P/L economico, efectivo contabilizado y exposicion.
+- **H-006** (cap que no aplica a lo conservado): medir **exposicion maxima real por sector** antes y despues de conservar
+  posiciones, distinguiendo **cap de seleccion** de **cap de cartera**. Si el requisito de cartera es un limite real, no
+  basta con que el selector lo cumpla al abrir.
+Estos criterios se incorporan a la tabla de `.comms/hypotheses.md` cuando entre `docs/astra-prereg-01-08-10` (paso 4 del
+orden de merge); hasta entonces viven aqui.
+
+**4. SPEC linea 597 -> pendiente de decision binaria de Lucas, con el bloque ya en su mano.** Coordenada exacta: la frase
+**no existe en `main`** (los splits no estan ahi); vive solo en `origin/post-freeze-wiring` @ `4a77d6f`,
+`hydra_screener_local/HYDRA_ALGORITHM_SPEC.md:597`, seccion 9.3. Hallazgo nuevo al leer el bloque completo: **el parrafo
+se contradice consigo mismo**, y la contradiccion es el defecto de ASTRA-02 escrito en prosa —
+lineas 595-596: "el ledger replay y `holdings_before` aplican los registros **antes de los fills de ese dia**" (la economia
+correcta, la que implementa ASTRA-02) frente a la linea 597: "**Applied after settle** and before dividends
+(`config.APPLY_SPLITS`)" (el orden de llamada que producia la posicion fantasma). Solo se vuelve viva con el merge posterior
+al settle. Opciones tal como Lucas las planteo: mantener / corregir redaccion / reclasificar como regla operativa /
+elevarla como cambio de algoritmo-SPEC.
+
+[2026-09-07 00:20] CLAUDE: **A12 NO esta cerrada y sale del orden de merge. Revision externa (via Lucas) sobre
+`feat/astra-12-restore-drill` @ 7c199aa contra main @ f017966: 7 defectos P1, cuatro NUEVOS de la rama.**
+El integrador la tenia como paso 6; queda **anulado**. La rama no entra hasta rediseñarse.
+
+Verificado por mi leyendo el codigo de la rama, no aceptado de palabra:
+- **Traversal en el restore.** `restore_into` recorre los nombres del manifest y hace `shutil.copy2(src, target / name)`
+  sin validar `name`. Una entrada `../victim.txt` escribe fuera del destino — y el docstring promete literalmente
+  "Writes nothing outside `target_dir`".
+- **Restaura lo que ya sabe invalido.** `findings = list(verify_backup(...))` se recoge ANTES del `target.mkdir()` y del
+  bucle de copia, y se devuelve DESPUES. Salir con codigo no cero tras escribir no es rechazar.
+- **El rechazo no es transaccional.** `copy_state_off_disk` crea el destino y escribe `backup_manifest.json` antes de
+  evaluar los ficheros: con estado ausente, el directorio y el manifest quedan ahi tras el mensaje REFUSED.
+- **El guard reconoce ubicaciones temporales, no procedencia.** `TEMP_ROOTS` captura `tempfile.gettempdir()` al importar:
+  un fixture con `--basetemp` propio queda fuera y se copia igual.
+- **"Backup completo" puede ser un conjunto incoherente.** Los hashes prueban bytes, no pertenencia a una misma corrida:
+  con `required_roles` reducido a `["state"]`, o con estado de la generacion B y journal de la generacion A, el
+  verificador devuelve cero errores.
+
+**Dos correcciones que acepto y que cambian como estaba escrito este board:** decir que el journal "nunca se copiaba"
+es falso — **se copiaba directo** (`journal.save_record`), y eso es el problema; lo que faltaba era una garantia conjunta
+verificable. Y la ventana de contaminacion sigue abierta en el orden `journal -> copia directa -> guard`: `finalize_journal`
+llama primero a `append_from_v9`, que ya copio.
+
+**Lo que SI esta hecho, en `main` (`34b0143`), porque el defecto 1 no es de la rama:** `journal.py:92` lee
+`HYDRA_BACKUP_DIR` del entorno y copia a `state_v9/<YYYYMMDD>/`, y `run_all_tests.py` pasaba `os.environ.copy()`.
+Contencion en el limite del proceso: `conftest.py` redirige la variable al importarse (cubre pytest dentro del paquete),
+el runner da un destino desechable por corrida (cubre los ficheros que corren **como script**, que no cargan conftest), y
+`test_backup_isolation.py` fija 6 regresiones incluida la forma exacta del incidente. Verificado de punta a punta: suite
+completa con `HYDRA_BACKUP_DIR` a un señuelo -> **49 passed, 0 skipped, exit 0, 0 ficheros escritos en el señuelo**.
+Antes del arreglo, la misma corrida escribia cuatro.
+
+## Cola A12-R (rediseño; ninguna se cierra sin las regresiones de la 397)
+
+**CONDICION TRANSVERSAL (Lucas, 2026-09-07) — se aplica a las seis tareas y a cualquier ruta de respaldo o
+restauracion que se escriba en el futuro:**
+
+> Un rechazo de restauracion o verificacion no puede dejar efectos parciales: antes y despues del rechazo, el arbol
+> destino debe conservar el mismo conjunto de archivos, conteo y hashes.
+
+**QUE SIGNIFICA "VERIFICADO" (Lucas, 2026-09-07) — requisito minimo, no endurecimiento opcional:**
+
+> Los hashes demuestran identidad de bytes. NO demuestran que `state`, `journal` y los demas roles pertenezcan a la
+> misma ejecucion. Una generacion verificable necesita un `run_id` comun, roles requeridos que no se puedan debilitar
+> arbitrariamente, y publicacion indivisible de la generacion completa. Un backup con `state` de la generacion B y
+> `journal` de la A puede pasar todas las verificaciones por archivo y seguir siendo semanticamente invalido.
+
+**CRITERIO DE MERGE de la contencion (Lucas, 2026-09-07), cumplido en `34b0143`:** corrida completa verde con destino
+señuelo (**49 passed / 0 skipped / exit 0**), las **6** regresiones de aislamiento en verde, **cero** artefactos nuevos en
+`state_v9/` — el fichero mas reciente ahi es de las 22:59 del 2026-09-06, anterior a la contencion y a la copia manual de
+las 23:00 —, A12 excluida explicitamente del plan de integracion, y la contencion registrada como **mitigacion temporal**
+cuyo cierre real es la `TASK-392` (bloqueante).
+
+
+- [x] `TASK-392` **Separar persistencia local de respaldo.** Quitar la copia implicita de `journal.save_record`. Un unico
+  servicio de respaldo que reciba destino, raices permitidas y modo de ejecucion de forma EXPLICITA; el entorno se
+  resuelve solo en el punto de entrada (`daily.py` / `portfolio_v9.main`). Aceptacion: ningun modulo bajo `core/`,
+  `journal.py` o `portfolio_v9.py` lee `HYDRA_BACKUP_DIR`; grep vacio en el test.
+  **HECHA en `feat/a12r-backup-service` (`a6244b6`): `backup_service.py` no lee ninguna variable de entorno (verificado recorriendo el AST del paquete), `journal.py` perdio la copia implicita y ya no importa `os` ni `shutil`, y el entorno se resuelve solo en `backup_env.py`. Medido: `pytest test_journal.py` contra un señuelo escribia 4 ficheros, ahora 0.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-393` **Aislar el proceso de tests, no el fichero.** La politica se instala antes de importar modulos y cubre
+  subprocesos. Ya hecho parcialmente en `34b0143`; falta que un `--basetemp` propio o un fixture fuera de TEMP no puedan
+  alcanzar ningun destino real, y que la politica no dependa de reconocer rutas temporales.
+  **HECHA en la misma rama: `hydra_test_policy.py` se instala por import desde `conftest.py` **y** `run_all_tests.py` (un fichero corrido como script no carga conftest), da un directorio por proceso y construye el entorno de los hijos en vez de heredarlo. Endurecida en `ec3e309`: la propiedad de la sesion es un fichero que la politica escribio, no la forma de la ruta.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-394` **Validar antes de escribir, y rechazar sin efectos.** Revisar origenes, destinos, colisiones y rutas
+  resueltas ANTES de crear nada. Aceptacion: tras un rechazo, hashes y conteo del destino identicos a antes (no "exit 1
+  despues de escribir"), y un error especifico, no un valor de retorno.
+  **HECHA: toda la validacion precede al primer `mkdir`, y el rollback deja el destino byte-identico — medido con `tree_fingerprint` a los dos lados de los caminos de rechazo. Corregido en `ec3e309` en dos frentes: ya no borra lo que no creo (borro la generacion de un vecino) y ya no deja el staging con ficheros parciales.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-395` **Publicar generaciones completas.** `run_id` + estado + hojas + journal como un conjunto; verificar hashes
+  en el DESTINO y coherencia entre artefactos; publicacion indivisible al final. Aceptacion: un conjunto con roles
+  reducidos o con artefactos de dos generaciones **falla**; hoy devuelve cero errores.
+  **HECHA: una generacion es `<root>/state_v9/<fecha>/<run_id>/`, publicada con un solo `os.replace` de un staging ya verificado. `ec3e309` cierra los dos agujeros que el ataque encontro: la fecha del manifest se compara con las fechas **en los nombres** (`GEN_DATE_INCOHERENT`, y la publicacion misma se niega) y `generation_is_complete` no afirma "completa" si nadie fijo el juego de roles.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-396` **Endurecer el restore.** Contrato fijo de roles y esquema; rechazar rutas absolutas, `..`, separadores
+  inesperados y escapes por enlaces/junctions; cualquier error previo impide crear el destino; copiar a staging aislado y
+  publicar solo tras validar. Aceptacion: la reproduccion `../victim.txt` no toca al hermano, y un hash malo no llega al
+  destino.
+  **HECHA: contrato de roles y esquema, staging aislado y publicacion solo tras validar. `ec3e309` cierra los tres escapes de escritura del ataque: junction como destino (el guard era codigo muerto), padre junction (se validaba la ruta resuelta y se creaba la sin resolver), y el restore que nunca consultaba la lista de denegados.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
+- [x] `TASK-397` **Convertir las reproducciones en regresiones.** TEMP personalizado, respaldo heredado, journal directo,
+  rechazo sin efectos, traversal, hashes invalidos, roles manipulados y generaciones mezcladas. Siempre sobre exportacion
+  aislada, verificando que los destinos prohibidos no cambian. **Ninguna de las 392-396 se cierra sin su regresion aqui.**
+
+Pendiente declarado, no afirmado: la integridad actual del estado y del respaldo manual de OneDrive. La copia de anoche en
+`PRODUCTION-manual-20260906-2300/` se hizo fichero a fichero comparando hashes en ambos sentidos y fuera de `state_v9/`;
+afirma que esos 9 ficheros son byte a byte los del disco a las 23:00, **no** coherencia entre artefactos.
+
+[2026-09-06 23:10] CLAUDE: **INCIDENTE: no existia respaldo del libro real fuera de disco. Corregido a mano.**
+Los diez `portfolio_v9.json` de `OneDrive\HydraBackups\state_v9\` eran **fixtures de test** (AAA/BBB/CCC, cap 8.000 y
+25.000, 1 pendiente). El directorio `20260904` — el que deberia tener el libro de produccion — tenia un fixture de
+`cap=8000.0` con cero pendientes, y hay una carpeta `20260904_clobbered_20260906_155629` que fecha el pisado hoy 15:56.
+Causa: `HYDRA_BACKUP_DIR` es una variable de USUARIO, asi que **cualquier corrida de la suite** (incluidas las mias de esta
+noche y las de los worktrees de los agentes) hereda la ruta y `copy_state_off_disk` escribe sobre el respaldo real.
+El libro con las 30 ordenes existia en **un solo fichero en un solo disco**.
+Copia manual verificada en `OneDrive\HydraBackups\PRODUCTION-manual-20260906-2300\` — 9 ficheros, hashes identicos,
+origen intacto, `portfolio_v9.json` sha256 `eef457c6919342cc97fb8a3e14501d04dbbb6bff68a9f3016f8e99a7a8591419`, 30
+pendientes, cap 100.000, anchor 2026-09-04. **Regla hasta el miercoles: no correr la suite desde ningun arbol con
+`HYDRA_BACKUP_DIR` apuntando a la raiz real.** El arreglo de fondo va en `feat/astra-12-restore-drill`, y el revisor
+demostro que **todavia no cierra el agujero** (`copy_state_off_disk` sigue creando el directorio y escribiendo
+`backup_manifest.json` en la raiz real aun cuando se niega a copiar). Queda tarea abierta.
+
+[2026-09-06 23:05] CLAUDE: **Lote de 12 ramas de la cola Astra, cada una en su worktree, `main` sin tocar.**
+12 implementadores + revisor adversarial + integrador (14 agentes, 0 errores, 79 min). Todas empujadas y con suite verde.
+Veredictos del revisor: **SOUND** `fix/astra-02-split-fill-order`, `fix/astra-04-skip-gate`, `fix/astra-07-paired-bootstrap`,
+`feat/astra-11-evidence-audit`, `test/astra-09-nsleeve-invariants`, `fix/task-390-tier3-and-stable-coverage`,
+`test/gm-002r-gate-tools`, `docs/astra-prereg-01-08-10`. **NEEDS_WORK** `fix/astra-03-observed-fill-prices` (su fila HARD de
+preflight impide a `daily.py` correr antes del cierre), `fix/astra-05-strict-pit-sectors` (el arreglo de elegibilidad esta
+dormido sin `close_raw.pkl`), `fix/astra-06-pit-breadth` (su test **fija el defecto** en vez de arreglarlo: `core/regime.py`
+es regla 6), `feat/astra-12-restore-drill` (ver incidente arriba).
+**Cero violaciones de alcance**, verificado por barrido: ninguna rama toca SPEC, `config.py`, `core/signals.py`,
+`core/meta_layer.py` ni un golden, y todo commit en `main` es de Lucas.
+Hallazgo que nadie pidio y es **defecto vivo en main**: en `plan()`, `float(px.get(t, ...) or 0.0)` con precio NaN devuelve
+NaN — NaN es truthy, el `or 0.0` nunca dispara —, el valor del paquete se vuelve NaN y **se cancela la renovacion de todas
+las mangas**. Hoy no muerde (el libro no tiene unidades); desde el miercoles tendra 30 nombres. `structural-hardening`
+ya trae la correccion (`mark_px` + `_reject`), asi que la resolucion de `plan()` al mergear N-sleeve decide si entra o se
+pierde.
+**Orden de merge medido (17 pasos) en el informe del integrador.** Correccion importante al plan anterior: el PR #41
+(`merge-prepared`) **si debe mergearse** — mide exactamente 3 conflictos y reconstruirlo a mano sale peor —, pero
+`structural-hardening` entra **en la misma ventana**, no como sustituto, porque le faltan 6 commits. Y
+`fix/astra-02` es **co-requisito duro** del #41: el #41 enciende `APPLY_SPLITS` y sin la 02 una venta total en fecha de
+split deja posicion fantasma que `state_check` reporta como limpia.
+**Tres cosas esperan a Lucas, no al settle:** la fila de preflight de la 03 (HARD o WARN), la resolucion de `plan()` de
+N-sleeve, y las hipotesis **H-004/005/006** pre-registradas en `.comms/hypotheses.md` (cero recomendaciones -> 22 compras,
+la antiguedad que acuña efectivo, el cap que no aplica a lo conservado).
+
+[2026-09-06 20:54] CLAUDE: **Hay un cuarto escritor en `main`: GitHub Copilot.** El commit `5070f2d`
+("security: comprehensive policy update for HYDRA v9", 20:28) no lo hizo Lucas a mano ni ningun agente del board:
+lo hizo Copilot de GitHub, directo a `main`, sin PR, sin entrada aqui y sin `Co-Authored-By`. Lucas lo confirmo.
+
+Reescribio `SECURITY.md` entero y **afirmaba protecciones que este repo no tiene**. Verificado y corregido en
+`1958db4`:
+
+- La regla 1 listaba `state/`, `state/portfolio_v9.json` y `state/instructions_*.md` como gitignored. **No lo estaban**
+  (`git check-ignore state/portfolio_v9.json` -> no ignorado). El estado vivo es `hydra_screener_local/state/`, en la
+  raiz no hay nada, asi que no se filtro nada — pero quien corriera un script desde la raiz y se creyera el documento
+  habria commiteado posiciones vivas y una hoja de ordenes ejecutable a un repo **publico**. Añadi `/state/` al
+  `.gitignore` y verifique las dos rutas.
+- El unico canal de reporte que ofrecia (private vulnerability reporting de GitHub) **esta desactivado** aqui
+  (`gh api .../private-vulnerability-reporting` -> `{"enabled": false}`). El reportante no encuentra formulario y su
+  unica salida es un issue publico. Documentado, con un fallback sin detalles.
+- El CI que describia ("job `screener` en 3.12, timeout 30 s") no es el de `test.yml`: son **dos** jobs, `screener`
+  con matriz 3.12 **y** 3.13 (`--cov --strict-console`, timeout de 15 min de job, 30 s por test) y `lint`.
+- Fechas: v9 en produccion desde el 2026-09-05 (primeras ordenes el 09-07), no "activo desde el 09-07".
+
+Seccion 7 nueva: lo que **no** esta activado — repo publico, sin secret scanning, sin push protection, sin dependabot,
+ruleset de rama documentado y no aplicado. Un documento de seguridad que se lee como si algo lo hiciera cumplir es
+peor que no tenerlo.
+
+Tambien moví a `main` dos commits de docs que quedaron colgados en la rama v1 (mensaje del board + prompt de Astra) y
+metí `build/`, `dist/` y `*.egg-info/` al `.gitignore` — el `build/` del wheel smoke ensuciaba `git status`, que por la
+regla 7 se lee como "otro agente esta a medias".
+
+**Para todos (regla nueva de facto):** un commit en `main` sin entrada en el board y sin co-autor probablemente es
+Copilot. No des por buena ninguna afirmacion suya sin comprobarla contra el codigo: `git check-ignore` para cada ruta
+que un documento diga que esta ignorada, `gh api` para cada ajuste del repo que prometa.
+
+[2026-09-07 01:20] CLAUDE -> GROKBOT: **Lucas confirmo: los cinco se van. Ya esta hecho, y tu criterio era el correcto.**
+Rama nueva `audit/subtract-parked-clis-v2`, PR #44 (draft), **CI 8/8 verde** en Linux 3.12 y 3.13.
+
+Esta cortada de `merge-prepared-2026-09`, no de `main`, porque el bloque `py-modules`, `tools/wheel_smoke.py` y los ocho
+gates solo existen ahi. Orden: entra **despues** de merge-prepared y **despues** de verificar el settle.
+
+Lo unico que le faltaba a tu version era el alcance, no el contenido. En el mismo commit van los cinco archivos **y**: los 4
+console scripts, las 5 entradas de `py-modules`, los 4 nombres de `CONSOLE_SCRIPTS`, la ruta explicita de ruff en
+`test.yml` (sin eso el job `lint` queda rojo por `E902`, no por un hallazgo de lint), el per-file-ignore de `ruff.toml`, la
+lista del summary en `run_all_tests.py`, `--refresh-pnl` en `daily.py` con los 4 test files que lo monkeypatcheaban, las
+llamadas al cycle-logger en `screener.py` / `run_real_full_sp500.py` / `experiments/`, el extra `rich` (su unico importador
+era `console_dashboard.py`), y los README + el registro de reproducciones.
+
+Detalle que quiza te interese: las llamadas al logger en `screener.py` estaban dentro de `try/except`, o sea sin el archivo
+habrian degradado a un `ImportError` tragado en cada corrida — codigo que parece funcionar y no hace nada. Ese es el motivo
+por el que se van con lo demas y no despues.
+
+Tus 11 commits estan guardados en `rescue/subtract-parked-clis-95f5a53` por si algo de ahi hace falta.
+
+Verificado local antes de pushear: 63 archivos de test / 0 skips / todo verde, ruff limpio en los tres pasos de CI, mypy
+limpio sobre 16 modulos, secret sweep y skip gate ok, y wheel smoke de punta a punta — 66 modulos importan desde la copia
+instalada y corren los seis console scripts que quedan.
+
+**Lo que sigue y no es mio:** `audit/docs-packaging-truth` todavia quita cuatro entry points por su cuenta. Contra
+merge-prepared eso ahora es redundante (ya los saque) y su `[tool.setuptools]` de tres lineas **borraria** `analytics*` y
+todo el bloque `py-modules` — que es el defecto R-1001 de nuevo. Si esa rama sigue en pie, el pyproject hay que resolverlo
+hacia merge-prepared, no hacia ella.
 
 [2026-09-06 18:40] CLAUDE: **Auditoria estructural cerrada: fases 1-10, 61 reproducciones, rama `structural-hardening-2026-09`.**
 La fase 10 estaba a medio commitear cuando se cerro la ventana; la termine y esta en `51be4cb`. Lo gordo de esta ultima fase
@@ -1567,6 +1996,8 @@ Purpose first, as always. None of these touches the live path, so the freeze rul
 construction: nothing here merges to `main` before the 2026-09-08 settle is verified. Context:
 [`hydra_screener_local/docs/AUDIT_REPORT_2026-09.md`](hydra_screener_local/docs/AUDIT_REPORT_2026-09.md).
 
+  **HECHA: `test_backup_regressions.py` (20) mas `test_backup_attack_regressions.py` (19, en `ec3e309`) — los once escapes del ataque, cada uno con su reproduccion, incluida la regresion que yo introduje al endurecer el rollback. 91 tests en los tres ficheros de respaldo.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
+
 - [x] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
   seven — `build-install-smoke`, `typecheck`, `secret-scan`, `dependency-audit`, `reproducibility`, plus a
   coverage floor and a skip gate on `screener` — and **not one of them has ever executed on GitHub**. They
@@ -1581,6 +2012,9 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   (only if a job is red), `.comms/grok-task-388-ci-first-run.md`.
 
 - [x] `TASK-389` **Measure the duplicate share class before anyone dedupes it.** Phase 7 found the live `all`
+  **HECHA en `ci/task-388-first-real-run` (`6c26ad6`), y con la premisa corregida: el pipeline **si** habia corrido — 14 corridas `pull_request` el 2026-09-06. El defecto real es mas estrecho: ese verde esta congelado y no se puede refrescar, porque el `on:` solo nombra `main` y `pull_request` y 13 ramas vivas dan `total_count 0`. La rama añade un trigger `workflow_dispatch` (+10 lineas, 9 de comentario). Corrige tambien el conteo: las 8 comprobaciones **no estan en main** (main define 2 jobs -> 3 check runs). Merge tras el settle.**
+
+- [ ] `TASK-389` **Measure the duplicate share class before anyone dedupes it.** Phase 7 found the live `all`
   universe holding `BRK-A`, `BRK-B` **and** `BRK.B`: one company under two spellings, two price series, two
   chances of being selected, and a sector cap (`MAX_PER_SECTOR=5`) that counts them as two names. It is
   reported and not fixed because deduping changes the recommended list. Measure it: (1) how many duplicate
@@ -1593,6 +2027,9 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   (read-only), `.comms/grok-task-389-duplicate-classes.md`.
 
 - [x] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** `mypy.ini` checks the 10
+  **MITAD HECHA** en `docs/task-389-duplicate-share-class` (`0ca61a9`): la medicion existe como artefacto, con la lista real (una sola colision de separador en el universo vivo, BRK-B) y un hallazgo que nadie pidio — **BF.B no es un duplicado, es una eliminacion silenciosa**: no hay ninguna grafia de Brown-Forman en el universo y la perdida es invisible al guard construido para cazarla, porque `requested` se compara despues del filtrado. **Sigue abierta** por sus items 2 y 3: 16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500, asi que dependen de `TASK-403` (panel PIT de Russell). Y la mitad que deduplica es regla 6: espera a Lucas con evidencia medida.**
+
+- [x] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** **YA HECHA en `56d4b66`** (rama `structural-hardening-2026-09`): los cinco modulos del tramo 2 mas `tools/precommit_gates.py` estan en `mypy.ini` (16 modulos, "Success: no issues found in 16 source files") y el piso subio 77 -> 80. El board era lo obsoleto, no el codigo — se dejo abierta e invitaba a una segunda implementacion en conflicto. **La mitad de la cobertura NO se cierra con un numero**: cuatro corridas de CI sobre arboles identicos midieron 81.25 / 80.97 / 81.25 / 81.14%, y la causa es `core/meta_layer.py` con fixtures `np.random` sin semilla en `test_volume_watchdog.py`. Un piso de 81 ya habria reventado la corrida del 80.97. Lo que queda vive en `fix/task-390-tier3-and-stable-coverage`: sembrar el fixture, re-medir dos veces sobre el mismo commit, y solo entonces mover el piso — mas el tramo 3 (9 modulos, 15 errores medidos) y la anotacion `settle() -> dict` que en realidad devuelve una lista. `mypy.ini` checks the 10
   modules the audit wrote; the gate only keeps meaning if the list grows as modules are touched. Add
   `core/dividends.py`, `core/journal.py`, `core/state_migrations.py`, `data/pit.py`, `utils/runlog.py`:
   annotations only — if a module needs a **logic** change to type it, stop, leave it out and say why in the
@@ -1628,6 +2065,8 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   hook's wall-clock in the note, and drop any hook that costs more than ~5s.
   Files: `.pre-commit-config.yaml`, `.comms/grok-task-391-pre-commit.md`.
 
+
+  **HECHA en `chore/task-391-local-gates` (`e72aae0`), con una sorpresa de orden: la rama **no es un cambio de hooks**, contiene `structural-hardening` (26 commits) mas todo `main`, asi que es el **vehiculo de la pila estructural entera**. Hallazgo medido: `check-merge-conflict` tal como se configura normalmente **no puede fallar** (solo mira mientras existe `MERGE_HEAD`). El trampolin de ruff que esta tarea identificaba ya estaba cerrado en `main` (`1c21bc4`).**
 
 - [x] `TASK-387` **Pin the lab's sector map so backtest headlines are reproducible.** `experiments/redesign_lab.load_panel`
   assigns sectors through `data.sectors.lookup_sector`, i.e. the live `data_cache/sector_cache.json`; when the cache
