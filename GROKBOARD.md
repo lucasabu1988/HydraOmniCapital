@@ -1757,7 +1757,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Lucas's call). Files: `experiments/` (new script), `hydra_screener_local/data/universe_registry.py`
   (read-only), `.comms/grok-task-389-duplicate-classes.md`.
 
-- [ ] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** `mypy.ini` checks the 10
+- [x] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** **YA HECHA en `56d4b66`** (rama `structural-hardening-2026-09`): los cinco modulos del tramo 2 mas `tools/precommit_gates.py` estan en `mypy.ini` (16 modulos, "Success: no issues found in 16 source files") y el piso subio 77 -> 80. El board era lo obsoleto, no el codigo — se dejo abierta e invitaba a una segunda implementacion en conflicto. **La mitad de la cobertura NO se cierra con un numero**: cuatro corridas de CI sobre arboles identicos midieron 81.25 / 80.97 / 81.25 / 81.14%, y la causa es `core/meta_layer.py` con fixtures `np.random` sin semilla en `test_volume_watchdog.py`. Un piso de 81 ya habria reventado la corrida del 80.97. Lo que queda vive en `fix/task-390-tier3-and-stable-coverage`: sembrar el fixture, re-medir dos veces sobre el mismo commit, y solo entonces mover el piso — mas el tramo 3 (9 modulos, 15 errores medidos) y la anotacion `settle() -> dict` que en realidad devuelve una lista. `mypy.ini` checks the 10
   modules the audit wrote; the gate only keeps meaning if the list grows as modules are touched. Add
   `core/dividends.py`, `core/journal.py`, `core/state_migrations.py`, `data/pit.py`, `utils/runlog.py`:
   annotations only — if a module needs a **logic** change to type it, stop, leave it out and say why in the
