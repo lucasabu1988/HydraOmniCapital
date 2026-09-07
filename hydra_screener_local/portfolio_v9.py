@@ -18,6 +18,7 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -93,6 +94,23 @@ BACKUP_MANIFEST = "backup_manifest.json"
 BACKUP_REQUIRED_ROLES = ("state", "sheet_md", "sheet_json", "journal")
 _JOURNAL_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}\.json$")
 _PIT_FILE = re.compile(r"^(universe_.+|sectors_\d{8})\.json$")
+# Every test that calls run() with a tmp_path state dir but leaves HYDRA_BACKUP_DIR alone used to
+# copy its fixture straight into the production backup root. Found 2026-09-06: the only off-disk
+# copy of the live 2026-09-04 book had been overwritten with a pytest state (1 pending order
+# instead of 30). A temp-dir source may never land in a non-temp backup root.
+TEMP_ROOTS = (Path(tempfile.gettempdir()).resolve(),)
+
+
+def _under(path, roots) -> bool:
+    try:
+        p = Path(path).resolve()
+    except OSError:  # pragma: no cover - unresolvable path
+        return False
+    return any(r == p or r in p.parents for r in roots)
+
+
+def refuses_synthetic_copy(src, dest) -> bool:
+    return _under(src, TEMP_ROOTS) and not _under(dest, TEMP_ROOTS)
 
 
 def sha256_file(path: Path) -> str:
@@ -146,9 +164,13 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> 
         except (OSError, json.JSONDecodeError):
             manifest = {}
     entries = dict(manifest.get("files") or {})
+    refused = []
     for p in files:
         p = Path(p)
         if not p.exists():
+            continue
+        if refuses_synthetic_copy(p, dest):
+            refused.append(p.name)
             continue
         shutil.copy2(p, dest / p.name)
         prev = entries.get(p.name)
@@ -170,6 +192,8 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> 
     tmp = man_path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     tmp.replace(man_path)
+    if refused:
+        print(f"[v9] REFUSED to copy temp-dir file(s) into {dest}: {', '.join(refused)}")
     if not silent:
         missing = sorted(set(BACKUP_REQUIRED_ROLES) - {e.get("role") for e in entries.values()})
         print(f"[v9] off-disk backup -> {dest}")

@@ -20,6 +20,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -54,6 +55,29 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(1 << 16), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _in_temp(path) -> bool:
+    if not path:
+        return False
+    try:
+        p = Path(str(path)).resolve()
+    except OSError:  # pragma: no cover - unresolvable path
+        return False
+    root = Path(tempfile.gettempdir()).resolve()
+    return root == p or root in p.parents
+
+
+def _from_temp_dir(source, backup_dir) -> bool:
+    """A real backup holding a file copied out of a temp dir is a test fixture wearing the
+    book's name.
+
+    Found 2026-09-06: state_v9/20260904..20260911 in the production backup root held pytest
+    states (1 pending order against the live 30). portfolio_v9.py now refuses that copy; this
+    reports the ones already on disk. A backup that itself lives in a temp dir is a drill, so
+    a temp source there is expected.
+    """
+    return _in_temp(source) and not _in_temp(backup_dir)
 
 
 def _report(label: str, state: dict) -> tuple[str, bool]:
@@ -107,6 +131,10 @@ def verify_backup(backup_dir) -> list[Finding]:
         if rec.get("collides_with"):
             out.append(Finding("ERROR", "BACKUP_NAME_COLLISION",
                                f"{name}: two sources share this name ({rec['collides_with']})"))
+        if _from_temp_dir(rec.get("source"), backup_dir):
+            out.append(Finding("ERROR", "BACKUP_SYNTHETIC_SOURCE",
+                               f"{name}: copied from a temp dir ({rec.get('source')}) — this is a "
+                               f"test fixture, not the book"))
         roles.add(rec.get("role"))
     missing = [r for r in (manifest.get("required_roles") or REQUIRED_ROLES) if r not in roles]
     if missing:

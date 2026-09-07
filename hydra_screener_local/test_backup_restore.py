@@ -533,6 +533,38 @@ def test_restore_writes_nothing_outside_the_target(tmp_path):
     assert set(res["files"]) == expected - {VS.BACKUP_MANIFEST}
 
 
+def test_a_temp_dir_file_never_lands_in_a_real_backup_root(tmp_path, monkeypatch):
+    """Found on real data 2026-09-06: OneDrive/HydraBackups/state_v9/20260904 held a pytest
+    state (1 pending order) instead of the live book (30). Every suite run did that, because
+    tests call run() with a tmp state dir and leave HYDRA_BACKUP_DIR pointing at production.
+    """
+    fake_temp = tmp_path / "fixtures"
+    fake_temp.mkdir()
+    monkeypatch.setattr(V, "TEMP_ROOTS", (fake_temp.resolve(),))
+    src = fake_temp / V.STATE_NAME
+    src.write_text(json.dumps(_clean_state()), encoding="utf-8")
+    real_root = tmp_path / "production_backups"          # not under the patched TEMP_ROOTS
+    monkeypatch.setenv("HYDRA_BACKUP_DIR", str(real_root))
+
+    dest = V.copy_state_off_disk(DATE, [src], silent=True)
+    assert not (dest / V.STATE_NAME).exists(), "a fixture must never overwrite the book's copy"
+    assert V.STATE_NAME not in (VS.read_backup_manifest(dest)["files"])
+
+    # the same copy into a drill directory under the temp root is fine
+    monkeypatch.setenv("HYDRA_BACKUP_DIR", str(fake_temp / "drill_backups"))
+    dest2 = V.copy_state_off_disk(DATE, [src], silent=True)
+    assert (dest2 / V.STATE_NAME).exists()
+
+
+def test_a_backup_built_from_temp_sources_is_reported_not_trusted(tmp_path, monkeypatch):
+    """The manifests already on disk in production carry pytest source paths."""
+    files, dest = _full_backup(tmp_path)
+    assert VS.verify_backup(dest) == [], "a drill backup under tmp is legitimate"
+    monkeypatch.setattr(VS, "_in_temp", lambda p: str(p) != str(dest))
+    codes = {f.code for f in VS.verify_backup(dest)}
+    assert "BACKUP_SYNTHETIC_SOURCE" in codes, codes
+
+
 def test_every_closeout_gap_is_error_level_not_a_warning(tmp_path):
     """Regression: downgrading any of the four to WARN silently un-gates the CLI."""
     row = {"exec_date": EXEC_DATE, "sleeve": "stocks", "tranche": 0, "ticker": "AAA",

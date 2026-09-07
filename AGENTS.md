@@ -55,5 +55,11 @@ are reported separately from passes. CI runs only this suite (legacy root tests 
   (`state/run_status.json` records it). Restore only with `--restore-into` into an empty,
   isolated directory — never over a live book. Whether OneDrive actually synced those
   directories is not knowable from the repo; check it on the machine.
+- A test that calls `portfolio_v9.run()` or `journal.save_record()` without overriding
+  `HYDRA_BACKUP_DIR` writes its fixture into the **production** backup root. That is how
+  `state_v9/20260904/portfolio_v9.json` came to hold one pending order for `AAA` while the live
+  book holds 30 (found 2026-09-06). `copy_state_off_disk` now refuses a temp-dir source bound for
+  a non-temp backup root; `journal.save_record` does not — always
+  `monkeypatch.setenv("HYDRA_BACKUP_DIR", str(tmp_path / "off"))` in a test that touches either.
 - The measurement harness (`experiments/backtest_variant_sweep.py`) is S&P 500 survivors,
   2020-2026. Validate it (`--validate`) before trusting a number from it.
