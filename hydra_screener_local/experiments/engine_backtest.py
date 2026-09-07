@@ -310,9 +310,12 @@ def main(argv=None):
                     help="PIT panel _sweep_cache_oos/ 2004-2026 (TASK-350). Default: in-sample 2020-26.")
     ap.add_argument("--check", action="store_true",
                     help="TASK-369: JSON-roundtrip + state_check.check after every settle and plan.")
-    ap.add_argument("--sectors", choices=("pit", "live"), default="pit",
-                    help="TASK-387: sector map for the lab's cap: latest PIT snapshot (default) or the live cache.")
-    ap.add_argument("--sectors-date", default=None, help="YYYYMMDD: PIT sectors snapshot on/before this date.")
+    ap.add_argument("--sectors", choices=L.SECTOR_MODES, default="fixed",
+                    help="sector map for the lab's cap (audit ASTRA-05): pit = strict point-in-time, "
+                         "fails on a date no snapshot covers; fixed (default) = one snapshot for every "
+                         "date, reproducible but NOT point-in-time; live = today's mutable cache.")
+    ap.add_argument("--sectors-date", default=None,
+                    help="YYYYMMDD: pin the fixed map to the snapshot on/before this date (--sectors fixed only).")
     args = ap.parse_args(argv)
 
     cache = os.path.join(HERE, "_sweep_cache_oos" if args.oos else "_sweep_cache", "close.pkl")
@@ -388,6 +391,12 @@ def main(argv=None):
                    engine_last=str(eng.index[-1].date()) if len(eng) else None,
                    note="production plumbing of the 50/50 T20+ETF mix; not a new variant",
                    sector_snapshot=getattr(P, "SECTOR_SOURCE", None),
+                   # audit ASTRA-05: which mode produced these numbers. sector_pit_valid=False means
+                   # one fixed sector map served every date -> a fixed-map scenario, reproducible but
+                   # not point-in-time, and not admissible as PIT evidence.
+                   sector_mode=(getattr(P, "SECTOR_SOURCE", None) or {}).get("mode"),
+                   sector_pit_valid=(getattr(P, "SECTOR_SOURCE", None) or {}).get("pit_valid"),
+                   eligibility_currency=getattr(P, "ELIG_CURRENCY", None),
                    pit_payload=getattr(P, "PIT_META", None))
     if args.check:
         payload["check"] = dict(

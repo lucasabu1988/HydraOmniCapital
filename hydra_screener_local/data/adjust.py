@@ -91,6 +91,72 @@ def adjust(
     return (raw * cum).rename(getattr(raw_close, "name", None))
 
 
+def contemporaneous_close(
+    adjusted: pd.Series,
+    dividends: pd.Series | dict | None = None,
+    splits: pd.Series | dict | None = None,
+    *,
+    report: dict | None = None,
+) -> pd.Series:
+    """Exact inverse of `adjust`: every bar back in the currency it actually printed in.
+
+    Audit ASTRA-05b. A total-return series is the right input for a *ratio* (momentum, returns):
+    scaling the whole history by a constant leaves ratios alone. It is the wrong input for an
+    ABSOLUTE currency threshold (price >= 5 USD, close x volume >= 5M USD), because a dividend
+    paid in the future lowers every earlier adjusted bar: a stock that printed 6 USD in 2005 and
+    later paid 2 USD of dividends shows up as 4 USD and fails a 5 USD floor it passed at the
+    time. That is look-ahead in the eligibility mask.
+
+    Given the same event series `adjust` was called with, this returns the as-printed closes, so
+    eligibility is invariant to anything that happens after the bar. Without the events there is
+    nothing to invert - the caller needs a raw close panel instead (`report['recovered']` is 0).
+    """
+    if report is None:
+        report = {}
+    report.setdefault("skipped", [])
+    report["recovered"] = 0
+    if adjusted is None or len(adjusted) == 0:
+        return pd.Series(dtype=float)
+    adj = _norm_index(adjusted)
+    idx = adj.index
+    div_at, split_at = {}, {}
+    for ex_date, dps in _events(dividends):
+        prev = idx[idx < ex_date]
+        if len(prev) == 0:
+            report["skipped"].append(("dividend", str(ex_date.date()), dps, "no bar before ex-date"))
+            continue
+        div_at[prev[-1]] = div_at.get(prev[-1], 0.0) + dps
+    for date, ratio in _events(splits):
+        prev = idx[idx < date]
+        if not (ratio > 0):
+            report["skipped"].append(("split", str(date.date()), ratio, "ratio <= 0"))
+            continue
+        if len(prev) == 0:
+            report["skipped"].append(("split", str(date.date()), ratio, "no bar before split"))
+            continue
+        split_at[prev[-1]] = split_at.get(prev[-1], 1.0) * ratio
+
+    out = pd.Series(index=idx, dtype=float)
+    s = 1.0                                   # product of the factors of the bars already seen
+    for bar in idx[::-1]:
+        dps = float(div_at.get(bar, 0.0))
+        ratio = float(split_at.get(bar, 1.0))
+        a = float(adj.loc[bar]) if pd.notna(adj.loc[bar]) else float("nan")
+        # adjust(): adj_u = (raw_u - dps) * s / ratio  ->  raw_u = adj_u * ratio / s + dps
+        raw = a * ratio / s + dps
+        if dps and not (raw > dps):            # adjust() skipped this dividend; so must the inverse
+            report["skipped"].append(("dividend", str(pd.Timestamp(bar).date()), dps, "dps >= previous close"))
+            dps, raw = 0.0, a * ratio / s
+        out.loc[bar] = raw
+        if pd.notna(raw) and raw > 0:
+            f = (1.0 - dps / raw) / ratio
+            if f > 0:
+                s *= f
+                if dps or ratio != 1.0:
+                    report["recovered"] += 1
+    return out.rename(getattr(adjusted, "name", None))
+
+
 def dividends_from_rows(rows: list[dict], ticker: str) -> pd.Series:
     """`data.dividends.fetch_dividends` rows ({ticker, ex_date, dps}) -> Series ex_date -> dps."""
     pairs = {}

@@ -16,6 +16,16 @@ Leverage is capped at 1.0 (project rule): vol targeting can only reduce exposure
 Reuses the validated harness (Panels, PIT membership, sector cap, meta-layer) and re-implements
 only what the harness cannot express: a stateful buffer, holding periods, weights, exposure.
 
+What "point-in-time" covers here (audit ASTRA-05). Membership is PIT (the Wikipedia/GitHub payload,
+per date). SECTORS are not, unless you ask for them to be: `--sectors pit` resolves the classification
+effective at each panel date and FAILS on any date the snapshots do not cover; `--sectors fixed` (the
+default, what TASK-387 pinned) applies ONE snapshot to every date, which buys reproducibility and says
+nothing about the sector a name had in 2005 - those runs are labelled a fixed-map scenario and must not
+be quoted as PIT evidence on sectors. Absolute currency filters (price >= 5, close x volume) need the
+price the bar printed, so they read a raw close panel when the cache has one; on auto-adjusted closes a
+dividend paid later moves historical eligibility, and the run says so (`--require-contemporaneous` to
+fail instead).
+
 Usage:
     python experiments/redesign_lab.py --dev                 # lever table on DEV only
     python experiments/redesign_lab.py --test F1 F2 F3       # the one look at TEST
@@ -51,51 +61,184 @@ from data.sectors import lookup_sector
 CYCLES_PER_YEAR = 252
 
 
-def resolve_sector_map(columns, sectors="pit", sectors_date=None, *, pit_dir=None, lookup=None):
-    """TASK-387: the sector map the lab's sector cap uses, and where it came from.
+SECTOR_MODES = ('pit', 'fixed', 'live')
 
-    sectors="pit"  -> latest PIT sectors snapshot on/before `sectors_date` (data/pit.py, TASK-362); names
-                      missing from the snapshot fall back to config.SECTOR_BUCKETS, then "Other" — never the
-                      live cache, so two runs with the same snapshot pick the same names.
-    sectors="live" -> data.sectors.lookup_sector (the mutable data_cache/sector_cache.json; the old behaviour).
-    sectors=dict   -> used as is (tests).
-    Returns (map, info) with info = {source, snapshot_date, n_mapped, n_fallback}."""
+
+def resolve_sector_map(columns, sectors="fixed", sectors_date=None, *, pit_dir=None, lookup=None):
+    """The sector map the lab's sector cap uses, and where it came from (TASK-387, audit ASTRA-05).
+
+    sectors="pit"   -> STRICT point-in-time: the classification effective at `sectors_date`, i.e. the
+                       snapshot on/before it, or `data.pit.PitMissing`. Never the live cache, never a
+                       later snapshot, never config.SECTOR_BUCKETS (a hand-made map is not a dated
+                       observation): names absent from the snapshot are "Other" = "unknown at t", which
+                       the cap exempts. Ask for one date and you get one date's classification; a panel
+                       that spans many dates must ask per date (see `SectorMapper`).
+    sectors="fixed" -> FIXED-MAP SCENARIO: one snapshot (the latest on/before `sectors_date`, or the
+                       latest on disk) applied to every date, with config.SECTOR_BUCKETS then "Other"
+                       for the rest. This is what TASK-387 pinned, and it buys REPRODUCIBILITY, not
+                       point-in-time knowledge: it says nothing about the sector a name had in 2005.
+                       Runs in this mode are labelled and excluded from PIT conclusions. Still fails
+                       when there is no snapshot at all - sectors are never fabricated.
+    sectors="live"  -> data.sectors.lookup_sector (the mutable data_cache/sector_cache.json; the old
+                       behaviour, today's classification, not reproducible).
+    sectors=dict    -> used as is (tests).
+
+    Returns (map, info); info = {source, mode, pit_valid, snapshot_date, snapshot, n_mapped, n_fallback}.
+    `pit_valid` is the only field that licenses a point-in-time claim about the numbers."""
     from config import SECTOR_BUCKETS
     cols = [str(c) for c in columns]
     if isinstance(sectors, dict):
         m = {t: str(sectors.get(t, SECTOR_BUCKETS.get(t, "Other"))) for t in cols}
-        return m, dict(source="dict", snapshot_date=None, n_mapped=sum(t in sectors for t in cols),
-                       n_fallback=sum(t not in sectors for t in cols))
+        return m, dict(source="dict", mode="dict", pit_valid=False, snapshot_date=None, snapshot=None,
+                       n_mapped=sum(t in sectors for t in cols), n_fallback=sum(t not in sectors for t in cols))
     if sectors == "live":
         look = lookup or lookup_sector
-        return {t: look(t) for t in cols}, dict(source="live", snapshot_date=None, n_mapped=len(cols), n_fallback=0)
-    if sectors != "pit":
-        raise ValueError(f"sectors must be 'pit', 'live' or a dict, got {sectors!r}")
-    from data.pit import sectors_at
-    snap, when = sectors_at(sectors_date, pit_dir=pit_dir)
-    if not snap:
-        print("[lab] WARNING: no PIT sectors snapshot found; falling back to the LIVE sector cache "
-              "(run snapshot_universe.py --seed to pin it)")
-        look = lookup or lookup_sector
-        return {t: look(t) for t in cols}, dict(source="live-fallback", snapshot_date=None, n_mapped=len(cols), n_fallback=0)
+        return {t: look(t) for t in cols}, dict(source="live", mode="live", pit_valid=False,
+                                                snapshot_date=None, snapshot=None,
+                                                n_mapped=len(cols), n_fallback=0)
+    if sectors not in ("pit", "fixed", "fixed_map"):
+        raise ValueError(f"sectors must be one of {SECTOR_MODES}, a dict, or 'fixed_map'; got {sectors!r}")
+    from data.pit import require_sectors_at
+    snap, when, ident = require_sectors_at(sectors_date, pit_dir=pit_dir)     # raises PitMissing
+    if sectors == "pit":
+        m = {t: str(snap[t]) if snap.get(t) else "Other" for t in cols}
+        return m, dict(source="pit", mode="strict_pit", pit_valid=True, snapshot_date=when, snapshot=ident,
+                       n_mapped=sum(bool(snap.get(t)) for t in cols),
+                       n_fallback=sum(not snap.get(t) for t in cols))
     m = {t: str(snap.get(t) or SECTOR_BUCKETS.get(t, "Other")) for t in cols}
-    return m, dict(source="pit", snapshot_date=when, n_mapped=sum(t in snap for t in cols),
-                   n_fallback=sum(t not in snap for t in cols))
+    return m, dict(source="fixed_map", mode="fixed_map", pit_valid=False, snapshot_date=when, snapshot=ident,
+                   n_mapped=sum(bool(snap.get(t)) for t in cols),
+                   n_fallback=sum(not snap.get(t) for t in cols))
+
+
+class SectorMapper:
+    """Sector map per panel date, plus the mode that produced it (audit ASTRA-05).
+
+    `at(ts)` is what selection must call. In strict 'pit' mode it resolves the classification
+    effective at `ts` and raises `data.pit.PitMissing` for any date the snapshots do not cover -
+    a 2004-2026 panel with only a 2026 snapshot fails on its first cycle instead of reporting the
+    2026 taxonomy as point-in-time. In 'fixed'/'live'/dict mode one map serves every date and
+    `info['pit_valid']` is False, so the run is reported as a fixed-map scenario.
+    """
+
+    def __init__(self, columns, sectors="fixed", sectors_date=None, *, pit_dir=None, lookup=None):
+        self.columns = [str(c) for c in columns]
+        self.strict = isinstance(sectors, str) and sectors == "pit"
+        self._sectors, self._date, self._pit_dir, self._lookup = sectors, sectors_date, pit_dir, lookup
+        self._by_date = {}
+        if self.strict:
+            if sectors_date is not None:
+                raise ValueError(
+                    "sectors='pit' resolves the classification effective at each panel date; pinning "
+                    "sectors_date to one date is a fixed-map scenario -> use sectors='fixed'")
+            self.map = None
+            self.info = dict(source="pit", mode="strict_pit", pit_valid=True, snapshot_date=None,
+                             snapshot=None, n_mapped=0, n_fallback=0, snapshots_used=[])
+        else:
+            self.map, self.info = resolve_sector_map(columns, sectors, sectors_date,
+                                                     pit_dir=pit_dir, lookup=lookup)
+
+    def at(self, ts):
+        """The sector map to use for panel date `ts`."""
+        if not self.strict:
+            return self.map
+        d = pd.Timestamp(ts).strftime('%Y%m%d')
+        if d not in self._by_date:
+            m, info = resolve_sector_map(self.columns, "pit", d, pit_dir=self._pit_dir)
+            self._by_date[d] = m
+            self.info['snapshot_date'] = info['snapshot_date']
+            self.info['snapshot'] = info['snapshot']
+            self.info['n_mapped'], self.info['n_fallback'] = info['n_mapped'], info['n_fallback']
+            used = self.info['snapshots_used']
+            if info['snapshot_date'] not in used:
+                used.append(info['snapshot_date'])
+        return self._by_date[d]
+
+    def describe(self):
+        i = self.info
+        line = (f"[lab] sectors: mode={i['mode']} snapshot={i['snapshot_date']} "
+                f"mapped={i['n_mapped']} fallback={i['n_fallback']} pit_valid={i['pit_valid']}")
+        if i['mode'] == 'strict_pit':
+            return line + "  (classification effective at each date; missing date -> PitMissing)"
+        return line + ("  FIXED-MAP SCENARIO: one map for every date, reproducible but NOT "
+                       "point-in-time -> excluded from PIT conclusions")
+
+
 SPLIT = pd.Timestamp('2016-01-01')
 
 
+RAW_CLOSE_PKL = 'close_raw.pkl'
+ADJUSTED_ELIG_NOTE = ('adjusted (no %s in the panel cache: the absolute price and dollar-volume '
+                      'filters carry dividend look-ahead)' % RAW_CLOSE_PKL)
+
+
+def attach_eligibility_panel(P, *, require_contemporaneous=False):
+    """(close, dollar volume, label) for the ABSOLUTE currency filters (audit ASTRA-05b).
+
+    A total-return close is fine for a ratio and wrong for a threshold in dollars: back-adjustment
+    scales every bar before an ex-date down, so a future dividend can drop a name below the 5 USD
+    floor it passed at the time, and eligibility depends on the future. When the panel cache holds
+    `close_raw.pkl` (as-printed closes on the same index/columns) it is used for those filters;
+    otherwise the adjusted panel is used and the run is LABELLED as contaminated, or fails when
+    `require_contemporaneous=True`."""
+    c = P.close
+    path = os.path.join(getattr(P, 'CACHE_DIR', '') or '', RAW_CLOSE_PKL)
+    if path and os.path.exists(path):
+        raw = pd.read_pickle(path)
+        raw = raw.reindex(index=c.index, columns=c.columns)
+        return raw, (raw * P.volume).rolling(20).mean(), f'contemporaneous ({RAW_CLOSE_PKL})'
+    if require_contemporaneous:
+        raise FileNotFoundError(
+            f"require_contemporaneous=True but {path or RAW_CLOSE_PKL} is missing: refusing to apply "
+            f"absolute currency filters (price >= 5, close x volume) to dividend-adjusted closes, "
+            f"which makes historical eligibility depend on future dividends (audit ASTRA-05b)")
+    print('[lab] WARNING: ' + ADJUSTED_ELIG_NOTE, flush=True)
+    return None, None, ADJUSTED_ELIG_NOTE
+
+
+def eligibility_mask(P, t, c):
+    """The eligibility mask for date t: absolute currency filters on the contemporaneous close
+    when there is one, share-volume and flat-line filters on the panel, PIT membership last."""
+    px_adj = P.close.iloc[t]
+    elig_px = P.CLOSE_ELIG.iloc[t] if getattr(P, 'CLOSE_ELIG', None) is not None else px_adj
+    elig_adv = P.ADV_USD_ELIG.iloc[t] if getattr(P, 'ADV_USD_ELIG', None) is not None else P.ADV_USD.iloc[t]
+    elig = (px_adj.notna() & elig_px.notna() & (elig_px >= 5.0)
+            & (P.VOL20M.iloc[t] >= 100_000) & (P.FLAT5.iloc[t] != 1)
+            & (elig_adv >= c['min_dollar_vol']))
+    if c['max_jump'] is not None:
+        elig &= ~(P.JUMP252.iloc[t] > c['max_jump']).fillna(False)
+    if getattr(P, 'pit_payload', None):
+        from data.universe import yahoo_membership_as_of
+        members = set(yahoo_membership_as_of(P.close.index[t].strftime('%Y-%m-%d'), P.pit_payload))
+        elig &= px_adj.index.isin(members)
+    return elig.fillna(False)
+
+
 # ----------------------------------------------------------------------------- panels
-def load_panel(oos=True, sectors="pit", sectors_date=None):
+def load_panel(oos=True, sectors="fixed", sectors_date=None, *, pit_dir=None,
+               require_contemporaneous=False):
+    """Feature panels for the lab.
+
+    `sectors`: 'pit' = strict point-in-time (fails on any date the snapshots do not cover),
+    'fixed' = one snapshot for every date (reproducible fixed-map scenario, NOT point-in-time,
+    excluded from PIT conclusions), 'live' = today's mutable cache. Default 'fixed' is what the
+    lab has actually been doing since TASK-387; it is now labelled as such (audit ASTRA-05).
+
+    `require_contemporaneous`: fail instead of applying the absolute currency filters (price >= 5,
+    close x volume) to dividend-adjusted closes, which is look-ahead (audit ASTRA-05b).
+    """
     if oos:
         from data.universe import fetch_sp500_pit_payload
         payload = fetch_sp500_pit_payload()
         P = bvs.Panels(cache_dir=bvs.OOS_CACHE, pit_payload=payload)
+        P.CACHE_DIR = bvs.OOS_CACHE
         # TASK-387: which membership payload this run used (a worktree without data_cache/ fetches a fresh
         # one from Wikipedia, which is not the cached one -> different eligibility, different headline)
         P.PIT_META = {k: (payload or {}).get(k) for k in ("updated", "cache_version", "source_wiki", "source_github")}
         print(f"[lab] PIT payload: updated={P.PIT_META.get('updated')} cache_version={P.PIT_META.get('cache_version')}", flush=True)
     else:
         P = bvs.Panels()
+        P.CACHE_DIR = bvs.CACHE
         P.PIT_META = None
     c = P.close
     P.MOM_12_1 = c.shift(21) / c.shift(252) - 1
@@ -113,15 +256,27 @@ def load_panel(oos=True, sectors="pit", sectors_date=None):
     # legacy COMPASS EXP56 (2026-03-05 design doc): risk-adjusted momentum at 21/63/126/252 bars with a
     # 5-bar skip, percentile-ranked within the eligible universe, averaged. Taken as specified, not tuned.
     P.ENS_PARTS = {lb: (c.shift(5) / c.shift(5 + lb) - 1) for lb in ENS_LOOKBACKS}
-    # TASK-387: sectors pinned to a PIT snapshot by default; the live cache moved the OOS headline
-    # 7.10 -> 6.96 between two runs of the same engine on 2026-09-06
-    P.SECTOR, P.SECTOR_SOURCE = resolve_sector_map(c.columns, sectors, sectors_date)
-    print(f"[lab] sectors: {P.SECTOR_SOURCE['source']} snapshot={P.SECTOR_SOURCE['snapshot_date']} "
-          f"mapped={P.SECTOR_SOURCE['n_mapped']} fallback={P.SECTOR_SOURCE['n_fallback']}", flush=True)
+    # audit ASTRA-05b: the absolute currency filters (price >= 5, close x volume) need the price the
+    # bar actually printed. P.close is auto_adjust=True, so a dividend paid LATER lowers every earlier
+    # bar and changes historical eligibility - look-ahead. Use a raw close panel when the cache has
+    # one; total-return closes stay for every signal (momentum, returns, vol are ratios).
+    P.CLOSE_ELIG, P.ADV_USD_ELIG, P.ELIG_CURRENCY = attach_eligibility_panel(
+        P, require_contemporaneous=require_contemporaneous)
+    print(f"[lab] eligibility currency: {P.ELIG_CURRENCY}", flush=True)
+
+    # TASK-387 pinned the sectors for REPRODUCIBILITY; ASTRA-05: that is not knowing the sector at the
+    # date. 'fixed' says so; 'pit' resolves per date and fails on a date no snapshot covers.
+    P.SECTOR_MAPPER = SectorMapper(c.columns, sectors, sectors_date, pit_dir=pit_dir)
+    if P.SECTOR_MAPPER.strict:
+        P.SECTOR_MAPPER.at(c.index[0])          # fail closed here, not 200 cycles in
+    P.SECTOR = P.SECTOR_MAPPER.map              # None in strict mode: there is no single map
+    P.sector_at = P.SECTOR_MAPPER.at
+    P.SECTOR_SOURCE = P.SECTOR_MAPPER.info
+    print(P.SECTOR_MAPPER.describe(), flush=True)
     n_all = max(1, P.SECTOR_SOURCE['n_mapped'] + P.SECTOR_SOURCE['n_fallback'])
-    if P.SECTOR_SOURCE['source'] != 'pit' or P.SECTOR_SOURCE['n_fallback'] / n_all > 0.6:
-        print("[lab] WARNING: sector map is not the pinned PIT snapshot or is mostly fallback -> the sector "
-              "cap will not bind the same way; headline not comparable with pinned runs", flush=True)
+    if P.SECTOR_SOURCE['n_fallback'] / n_all > 0.6:
+        print("[lab] WARNING: the sector map is mostly fallback -> the sector cap will not bind the same "
+              "way; headline not comparable with other runs", flush=True)
 
     # the harness recomputes the regime on the whole panel per date: O(T*N) each. Same values
     # from the last 300 rows (SMA200 is the longest window it uses); ~40x faster.
@@ -224,15 +379,7 @@ CONFIGS = {
 def rank_day(P, t, c):
     """Ranked frame for date t. Same scoring as production except the momentum panel."""
     px = P.close.iloc[t]
-    elig = (px.notna() & (px >= 5.0) & (P.VOL20M.iloc[t] >= 100_000) & (P.FLAT5.iloc[t] != 1)
-            & (P.ADV_USD.iloc[t] >= c['min_dollar_vol']))
-    if c['max_jump'] is not None:
-        elig &= ~(P.JUMP252.iloc[t] > c['max_jump']).fillna(False)
-    if getattr(P, 'pit_payload', None):
-        from data.universe import yahoo_membership_as_of
-        members = set(yahoo_membership_as_of(P.close.index[t].strftime('%Y-%m-%d'), P.pit_payload))
-        elig &= px.index.isin(members)
-    tk = px.index[elig.fillna(False)]
+    tk = px.index[eligibility_mask(P, t, c)]
     if len(tk) < 50:
         return None
     vol = P.VOL63.iloc[t][tk].replace(0, np.nan)
@@ -252,7 +399,9 @@ def rank_day(P, t, c):
     comp = f['mom'] * (1 + boost * c['boost'])
     comp = comp.where(~strict, comp * (1 + c['strict_bonus']))
     out = pd.DataFrame({'comp': comp, 'ret': f['ret'], 'dist': f['dist'], 'vol': f['vol']})
-    out['sector'] = [P.SECTOR.get(x, 'Other') for x in out.index]
+    # the map for THIS date: strict PIT resolves it per date, a fixed-map run returns the same one
+    smap = P.sector_at(P.close.index[t]) if hasattr(P, 'sector_at') else (P.SECTOR or {})
+    out['sector'] = [smap.get(x, 'Other') for x in out.index]
     return out.sort_values('comp', ascending=False)
 
 
@@ -511,10 +660,23 @@ def main():
     ap.add_argument('--insample', nargs='*')
     ap.add_argument('--only', nargs='*', help='restrict --dev to these config names')
     ap.add_argument('--nominal', action='store_true', help='pre-audit nominal accounting (comparison only)')
+    ap.add_argument('--sectors', choices=SECTOR_MODES, default='fixed',
+                    help="pit = strict point-in-time (fails on a date no snapshot covers); "
+                         "fixed = one snapshot for every date (reproducible, NOT point-in-time, "
+                         "excluded from PIT conclusions); live = today's mutable cache")
+    ap.add_argument('--sectors-date', default=None,
+                    help='YYYYMMDD: pin the fixed map to the snapshot on/before this date (--sectors fixed only)')
+    ap.add_argument('--require-contemporaneous', action='store_true',
+                    help='fail unless the absolute price/dollar-volume filters can use as-printed closes')
     a = ap.parse_args()
+    panel_kw = dict(sectors=a.sectors, sectors_date=a.sectors_date,
+                    require_contemporaneous=a.require_contemporaneous)
+    if a.sectors != 'pit':
+        print(f"[lab] NOTE: --sectors {a.sectors} -> fixed-map scenario; these numbers are not "
+              f"point-in-time on sectors and must not be quoted as PIT evidence", flush=True)
 
     if a.dev or a.test is not None or a.full is not None:
-        P = load_panel(oos=True)
+        P = load_panel(oos=True, **panel_kw)
         print(f'PIT panel {P.close.shape}  {P.close.index[0].date()} .. {P.close.index[-1].date()}  '
               f'DEV < {SPLIT.date()} <= TEST')
     if a.dev:
@@ -540,7 +702,7 @@ def main():
             table([stats(df[df.index < SPLIT], h, f'{name} DEV'), stats(df[df.index >= SPLIT], h, f'{name} TEST'),
                    stats(df, h, f'{name} ALL')])
     if a.insample is not None:
-        P2 = load_panel(oos=False)
+        P2 = load_panel(oos=False, **panel_kw)
         rows = [stats(run_any(P2, CONFIGS[n], nominal=a.nominal), step_of(CONFIGS[n]), f'{n} in-sample 2020-26') for n in (a.insample or ['PROD'])]
         table(rows)
 
