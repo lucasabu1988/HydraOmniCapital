@@ -414,32 +414,49 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         print(PF.format_table(pf))
     PF.raise_if_hard(pf, force=force)
 
+    # Stock splits (TASK-363, H-003, behind APPLY_SPLITS). The table is fetched BEFORE settle so
+    # the events can be ordered by economic date around the fills (ASTRA-02): a split effective on
+    # or before the execution date is already inside the price the fill is booked at, so it must
+    # scale the position first (otherwise a `close` sell on the split date sells the pre-split
+    # units and the split then hands the tranche a phantom position back); a split effective after
+    # the execution date is applied after, so a late-confirmed fill is scaled once, not twice.
+    # Pending tickers join the fetch list: a name being bought is not in `units` yet.
+    split_table = None
+    if APPLY_SPLITS and state.get("last_run_date"):
+        pending_names = [str(o.get("ticker")) for o in (state.get("pending") or []) if o.get("ticker")]
+        if split_fn is not None:
+            split_table = split_fn(tickers_from_state(state, pending_names))
+        elif fetch_fn is not None:
+            split_table = []
+        else:
+            split_table = fetch_splits(tickers_from_state(state, pending_names))
+
+    def _apply_splits(**window):
+        if split_table is None:
+            return
+        applied = apply_splits(state, split_table, today, **window)
+        if applied and not silent:
+            print(f"[v9] splits {len(applied)} record(s): " + ", ".join(f"{r['ticker']} x{r['ratio']:g}" for r in applied))
+
     fills = []
+    settled_at = None
     if state.get("pending"):
         planned = state["pending"][0].get("planned")
         if planned and pd.Timestamp(today) > pd.Timestamp(planned):
             # Fills are booked at the close of the FIRST bar after the plan (t+1, the MOC the sheet
             # asked for), not at whatever close the CLI happens to run on (integration review 340).
-            exec_date = next_session_date(prices.index, planned)
-            if pd.Timestamp(exec_date) > pd.Timestamp(today):
-                exec_date = today
-            fills = engine.settle(state, exec_date, _row(prices, exec_date), _row(etf, exec_date), cfg)
+            settled_at = next_session_date(prices.index, planned)
+            if pd.Timestamp(settled_at) > pd.Timestamp(today):
+                settled_at = today
+            _apply_splits(upto=settled_at)
+            fills = engine.settle(state, settled_at, _row(prices, settled_at), _row(etf, settled_at), cfg)
             if not silent:
-                print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
+                print(f"[v9] settled {len(fills)} fill(s) at {settled_at} (planned {planned}, run {today})")
         elif not silent:
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
-
-    # Stock splits (TASK-363, H-003): after settle, before dividends, behind APPLY_SPLITS.
-    if APPLY_SPLITS and state.get("last_run_date"):
-        if split_fn is not None:
-            stable = split_fn(tickers_from_state(state))
-        elif fetch_fn is not None:
-            stable = []
-        else:
-            stable = fetch_splits(tickers_from_state(state))
-        applied = apply_splits(state, stable, today)
-        if applied and not silent:
-            print(f"[v9] splits {len(applied)} record(s): " + ", ".join(f"{r['ticker']} x{r['ratio']:g}" for r in applied))
+    # Nothing settled this run -> one pass over the whole window; otherwise only what the fills
+    # did not already see.
+    _apply_splits(**({"after": settled_at} if settled_at else {}))
 
     # Cash dividends (TASK-349): after settle, before plan. Tests with fetch_fn skip the network.
     if state.get("last_run_date"):
