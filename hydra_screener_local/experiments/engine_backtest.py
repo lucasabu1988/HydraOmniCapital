@@ -81,7 +81,7 @@ def _ranking(P, t, c):
     out = L.rank_day(P, t, c)
     if out is None:
         return None
-    m = P.meta_for(t, True)
+    m = P.meta_for(t, c)
     n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers["COMPASS"])), 28))
     return pd.DataFrame({
         "ticker": out.index,

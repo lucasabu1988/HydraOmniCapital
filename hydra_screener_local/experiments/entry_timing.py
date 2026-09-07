@@ -74,7 +74,7 @@ def _replay_sels(P, start=260, step=5, hold=5, lag=1):
         out, _tk = sweep.score_day(P, t, c)
         if out is None:
             continue
-        m = P.meta_for(t)
+        m = P.meta_for(t, c)
         n = c["fixed_n"] or max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers["COMPASS"])), 28))
         sel = sweep.pick(out, n, c) if (not c["regime_gate"] or m.regime_score >= c["regime_thr"]) else out.head(0)
         if c["gate"] and len(sel):
