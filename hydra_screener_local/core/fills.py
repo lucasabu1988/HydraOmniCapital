@@ -132,7 +132,32 @@ def apply_confirmations(state: dict, rows: list[dict]) -> dict:
             rec.update(changed=True, status="confirmed_unplanned", cash_after=raw["cash"])
         report.append(rec)
     state["ledger"] = ledger
-    return {"report": report, "warnings": warnings, "state": state}
+    resolved = _resolve_unfilled(state, [r["key"] for r in report])
+    return {"report": report, "warnings": warnings, "state": state, "resolved_unfilled": resolved}
+
+
+def _resolve_unfilled(state: dict, confirmed_keys: list) -> list:
+    """Clear the obligations these confirmations answer (ASTRA-03).
+
+    `state["unfilled"]` holds orders the settle could not book because no price printed on the
+    execution day, and preflight is HARD while any remain. This is the only path that clears them,
+    so without it the gate could never be satisfied. Confirming the order — with real units, or
+    with `units=0` to record that it truly never filled — is the answer either way: the operator is
+    the only one who knows what the broker did.
+    """
+    book = list(state.get("unfilled") or [])
+    if not book:
+        return []
+    keys = {tuple(k) for k in confirmed_keys}
+    keep, resolved = [], []
+    for u in book:
+        if fill_key(u) in keys:
+            resolved.append(u)
+        else:
+            keep.append(u)
+    if resolved:
+        state["unfilled"] = keep
+    return resolved
 
 
 def report_lines(result: dict) -> list[str]:
@@ -143,6 +168,9 @@ def report_lines(result: dict) -> list[str]:
             f"{k[0]} {k[1]} {k[2]} {k[4]} {k[3]}  {r['units']:.4f}  {r['price']:.4f}  "
             f"{r['dollars']:.2f}  {r['fee']:.4f}  {r.get('status')}  {r['matched']}"
         )
+    for u in result.get("resolved_unfilled") or []:
+        lines.append(f"RESOLVED unfilled {u.get('ticker')}@{u.get('exec_date')} "
+                     f"({u.get('reason')}) — preflight clears once this is written")
     for w in result.get("warnings") or []:
         lines.append(f"WARN {w}")
     return lines

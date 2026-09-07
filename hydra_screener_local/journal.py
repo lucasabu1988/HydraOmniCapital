@@ -118,6 +118,7 @@ def append_from_v9(out: dict, journal_dir: Path | None = None, note: str | None 
         orders=out.get("orders") or out.get("sheet_orders"),
         fills=out.get("fills"),
         preflight=out.get("preflight"),
+        settle_refused=out.get("settle_refused"),
         reconcile=out.get("reconcile"),
         prices=out.get("prices"),
         etf=out.get("etf"),

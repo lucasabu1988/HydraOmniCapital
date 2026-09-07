@@ -5,6 +5,11 @@
     python confirm_fills.py --interactive
 
 CSV columns: exec_date, sleeve, tranche, ticker, side, units, price, fee
+
+This is also the only way out of the ASTRA-03 HARD gate: an order the settle could not book (no
+price printed on the execution day) is kept in `state["unfilled"]` and preflight stays HARD until a
+confirmation answers it. Confirm the real fill, or confirm `units=0` to record that the broker never
+filled it — either way the obligation clears and the report says which ones it resolved.
 """
 from __future__ import annotations
 

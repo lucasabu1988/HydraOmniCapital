@@ -1,10 +1,10 @@
 # HYDRA Scoring Algorithm - Language Agnostic Specification
 
-**Version**: 1.2 (Expanded & Formal)  
-**Date**: June 2026  
+**Version**: 1.2 (Expanded & Formal)
+**Date**: June 2026
 **Source of Truth**: Current production implementation in `hydra_screener_local/core/`
 
-**Scope**: This document defines the **scoring and ranking logic** in a language-independent way.  
+**Scope**: This document defines the **scoring and ranking logic** in a language-independent way.
 Final selection/portfolio construction rules are intentionally left as "implementation-specific".
 
 ---
@@ -442,11 +442,11 @@ From `config.py`:
 
 The final ranked DataFrame must include (standardized names after column renaming):
 
-rank, ticker, momentum, meta_score, composite_score,  
-ret_5d_10d, dist_20d_high, short_boost,  
-vol_ratio, passes_strict, dynamic_vol_threshold, vol_ratio_nan_share,  
-sector, sector_rank, sector_penalty_applied,  
-regime, regime_type, special_modes, aggression, recovery_boost,  
+rank, ticker, momentum, meta_score, composite_score,
+ret_5d_10d, dist_20d_high, short_boost,
+vol_ratio, passes_strict, dynamic_vol_threshold, vol_ratio_nan_share,
+sector, sector_rank, sector_penalty_applied,
+regime, regime_type, special_modes, aggression, recovery_boost,
 compass_mult, pillar_multipliers, recommended, reason, recommended_count
 
 `vol_ratio_nan_share` is a run-level scalar (same value on every row): share of scored
@@ -501,16 +501,16 @@ dropped from the contract the warning cannot fire.
 
 ### Próximas 4 opciones (elegí una o combiná):
 
-1. **Mejorar el Pine Script ahora mismo**  
+1. **Mejorar el Pine Script ahora mismo**
    (Hacer la tabla más completa, agregar más visualizaciones, mejorar detección de Special Modes y Pillars, manejo de múltiples símbolos en watchlist, etc.)
 
-2. **Alinear el Python actual al spec**  
+2. **Alinear el Python actual al spec**
    (Revisar `core/signals.py`, `meta_layer.py`, etc. para que sean 100% fieles a esta especificación formal, limpiar cualquier diferencia histórica.)
 
-3. **Definir la capa de integración híbrida**  
+3. **Definir la capa de integración híbrida**
    (Cómo el Python le "sugiere" los candidatos diarios al usuario para que los agregue al watchlist de TradingView: webhook + alert, formato de mensaje, archivo, etc.)
 
-4. **Otra cosa**  
+4. **Otra cosa**
    (Por ejemplo: crear tests automáticos contra el spec, generar documentación visual de los componentes, empezar a implementar una versión "lite" del algoritmo en otro lenguaje, etc.)
 
 ---
@@ -590,7 +590,12 @@ residual. Shown on the sheet and the dashboard like interest.
 
 schema 1: anchor_date, last_run_date, last_renewal_date, week_index, capital_reference, per sleeve
 four tranches {k, opened, units, cash, last_px, stale}, pending orders, ledger of fills, write_offs,
-transfers, interest. A held name that stops printing is carried at its last price for
+transfers, interest, and `unfilled` — orders the settle could not book because no price printed on
+the execution day. `settle` consumes the pending order either way, so without that list the book
+kept the cash, opened no position, and nothing said so while the broker may have filled at a close
+we had no print for. An entry there makes preflight HARD until `confirm_fills.py` resolves it, and it
+is deliberately not re-planned: re-issuing an order the broker did fill buys the name twice
+(ASTRA-03). A held name that stops printing is carried at its last price for
 `max_stale_bars` (10) **weekly marks** (plan() runs; the lab's `run_book` counts steps the same way)
 and then written off at that price (recorded). No `history/` tracking is run (Lucas 2026-09-06).
 

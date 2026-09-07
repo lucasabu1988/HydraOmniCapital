@@ -272,6 +272,53 @@ def _row(frame, date: str, dividends=None) -> pd.Series:
     return row.rename(label)
 
 
+def _carried_stale(summary: dict, mark_stocks, mark_etf) -> list:
+    """Held names with no print on the valuation bar, so the sheet says which ones are carried."""
+    out = set()
+    for sleeve, px in (("stocks", mark_stocks), ("etf", mark_etf)):
+        names = ((summary.get("sleeves") or {}).get(sleeve) or {}).get("names") or []
+        for tk in names:
+            try:
+                v = float(px.get(tk, float("nan")))
+            except (TypeError, ValueError):
+                v = float("nan")
+            if v != v:  # NaN: no print on that bar
+                out.add(tk)
+    return sorted(out)
+
+UNFILLED_KEYS = ("exec_date", "sleeve", "tranche", "ticker", "side", "dollars", "reason")
+
+
+def _record_unfilled(state: dict, fills: list, seen_on: str) -> list:
+    """Carry a `not_filled` order forward as an unresolved obligation.
+
+    `engine.settle` consumes the pending order either way, so before this the book kept the cash,
+    opened no position, and nothing said so — while the broker may well have filled at a close we
+    had no print for. The book cannot decide that; only `confirm_fills.py` can. So the order becomes
+    an explicit obligation and preflight goes HARD until it is resolved (Lucas 2026-09-07: cash and
+    positions that may disagree with the broker are exactly the HARD category).
+
+    It is deliberately NOT re-issued: re-planning it while the broker did fill buys the name twice.
+
+    Idempotent on (exec_date, sleeve, tranche, ticker).
+    """
+    newly = [f for f in (fills or []) if f.get("status") == "not_filled"]
+    if not newly:
+        return []
+    book = state.setdefault("unfilled", [])
+    seen = {(u.get("exec_date"), u.get("sleeve"), u.get("tranche"), u.get("ticker")) for u in book}
+    added = []
+    for f in newly:
+        key = (f.get("exec_date"), f.get("sleeve"), f.get("tranche"), f.get("ticker"))
+        if key in seen:
+            continue
+        rec = {k: f.get(k) for k in UNFILLED_KEYS}
+        rec["seen"] = seen_on
+        book.append(rec)
+        seen.add(key)
+        added.append(rec)
+    return added
+
 def whole_share_display(order: dict) -> dict | None:
     """Display-only: floor(dollars / est_price). Engine orders stay fractional."""
     if order.get("side") not in ("buy", "sell"):
@@ -377,10 +424,16 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
             lines += ["", "Cash left over by rounding (buys, display-only; engine still books dollars):", ""]
             for (sleeve, k), amt in leftover_by.items():
                 lines.append(f"- {sleeve} tranche {k}: **{amt:.2f}** USD stays unspent if you buy whole shares")
-    lines += ["", "## Valuation (last close)", ""]
+    as_of = (summary or {}).get("as_of")
+    lines += ["", f"## Valuation (closes that printed on {as_of})" if as_of
+              else "## Valuation (last close)", ""]
     if summary:
         tot = summary.get("total") or 0.0
         lines.append(f"Book: **{tot:,.2f}**")
+        stale = summary.get("carried_stale") or []
+        if stale:
+            lines.append(f"Carried at their last known price, no print on {as_of}: "
+                         f"**{', '.join(stale)}** (SPEC 9.4)")
         for name, sl in (summary.get("sleeves") or {}).items():
             lines.append(
                 f"- {name}: {sl.get('value', 0):,.2f} ({100 * sl.get('share', 0):.1f}%)  "
@@ -463,6 +516,16 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         dividend_fn=dividend_fn, fetch_fn=fetch_fn,
     )
 
+    # The severity of the intraday row is WARN (Lucas 2026-09-07), so the refusal lives here: an
+    # unclosed session bar is a partial print and must not become a fill price. Stricter than the
+    # old HARD row, which also blocked runs with nothing to settle, and narrower: it only bites
+    # when the bar we would settle AT is the unclosed one.
+    session_row = PF.row_by_id(pf, "session_closed")
+    session_open = bool(session_row and session_row.get("status") == "WARN")
+    last_bar = (str(pd.Timestamp(pd.DatetimeIndex(prices.index)[-1]).date())
+                if prices is not None and len(prices) else None)
+    settle_refused = None
+
     fills = []
     if state.get("pending"):
         planned = state["pending"][0].get("planned")
@@ -472,15 +535,40 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             exec_date = next_session_date(prices.index, planned)
             if pd.Timestamp(exec_date) > pd.Timestamp(today):
                 exec_date = today
-            fills = engine.settle(state, exec_date,
-                                  _row(prices, exec_date, dividend_table),
-                                  _row(etf, exec_date, dividend_table), V9)
-            if not silent:
-                unfilled = [f for f in fills if f.get("status") == "not_filled"]
-                print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
-                if unfilled:
-                    print(f"[v9] {len(unfilled)} order(s) NOT filled — no price printed on {exec_date}: "
-                          f"{', '.join(sorted({str(f.get('ticker')) for f in unfilled}))}")
+            if session_open and exec_date == last_bar and not allow_intraday:
+                # Pendings stay pending — the same state a run before t+1 leaves, which the next
+                # run settles normally once the close is in. Nothing is written.
+                settle_refused = {
+                    "exec_date": exec_date, "reason": "session_not_closed",
+                    "detail": (session_row or {}).get("detail"),
+                    "orders": len(state.get("pending") or []),
+                }
+                if not silent:
+                    print(f"[v9] REFUSING to settle {settle_refused['orders']} order(s) at "
+                          f"{exec_date}: that session has not closed, so the bar is a partial "
+                          f"print. Re-run after the close, or pass --allow-intraday to accept it "
+                          f"on the record.")
+            else:
+                if session_open and exec_date == last_bar and allow_intraday:
+                    settle_refused = {
+                        "exec_date": exec_date, "reason": "overridden",
+                        "detail": "settled at an unclosed session bar via --allow-intraday",
+                    }
+                    if not silent:
+                        print(f"[v9] --allow-intraday: settling at {exec_date} on a partial "
+                              f"print, on the operator's authority")
+                fills = engine.settle(state, exec_date,
+                                      _row(prices, exec_date, dividend_table),
+                                      _row(etf, exec_date, dividend_table), V9)
+                _record_unfilled(state, fills, today)
+                if not silent:
+                    unfilled = [f for f in fills if f.get("status") == "not_filled"]
+                    print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
+                    if unfilled:
+                        names = ", ".join(sorted({str(f.get("ticker")) for f in unfilled}))
+                        print(f"[v9] {len(unfilled)} order(s) NOT filled — no price printed on "
+                              f"{exec_date}: {names}. Recorded in state['unfilled']; preflight is "
+                              f"HARD until confirm_fills.py resolves them.")
         elif not silent:
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
@@ -505,7 +593,15 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         print(f"[v9] DEGRADED {sector_warning}")
 
     backup = save_state(state_path, state)
-    summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
+    # Valuation at the last bar, masked the way execution prices are: a forward-filled close is
+    # not a print, and a held name without one is carried at its `last_px` (SPEC 9.4) rather than
+    # valued at a price nobody saw. No dividend de-adjustment here on purpose — the fills use one
+    # and this does not; that basis mismatch is a question for Lucas, not one to settle silently.
+    mark_stocks = _row(prices, last_bar) if last_bar else prices.iloc[-1]
+    mark_etf = _row(etf, last_bar) if last_bar else etf.iloc[-1]
+    summary = engine.summary_table(state, mark_stocks, mark_etf, V9)
+    summary["as_of"] = last_bar
+    summary["carried_stale"] = _carried_stale(summary, mark_stocks, mark_etf)
     exec_date = next_session_date(prices.index, today)
     # A same-day rerun must not overwrite today's sheet with "No trades": the pending orders planned
     # today ARE the instructions still to execute (integration review 340).
@@ -533,6 +629,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         instructions_md=str(md_path), no_trades=len(orders) == 0,
         # pieces for the journal builder (TASK-355); no journal logic here
         state=state, ranking=ranking, summary=summary, preflight=pf,
+        settle_refused=settle_refused,
         sheet_orders=sheet_orders, sector_warning=sector_warning,
         last_bars={"stocks": today, "etf": _last_date(etf), "^IRX": _last_date(irx) if irx is not None and len(irx) else None},
         prices=prices, etf=etf, irx=irx,
