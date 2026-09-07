@@ -235,7 +235,7 @@ def eligibility_mask(P, t, c):
 
 # ----------------------------------------------------------------------------- panels
 def load_panel(oos=True, sectors="fixed", sectors_date=None, *, pit_dir=None,
-               require_contemporaneous=False):
+               require_contemporaneous=False, cache_dir=None, payload=None):
     """Feature panels for the lab.
 
     `sectors`: 'pit' = strict point-in-time (fails on any date the snapshots do not cover),
@@ -245,20 +245,29 @@ def load_panel(oos=True, sectors="fixed", sectors_date=None, *, pit_dir=None,
 
     `require_contemporaneous`: fail instead of applying the absolute currency filters (price >= 5,
     close x volume) to dividend-adjusted closes, which is look-ahead (audit ASTRA-05b).
+    `cache_dir`, `payload` and `pit_dir` are injection points for offline callers (tests and the
+    ASTRA-06 measurement script): pass them and the loader touches no network and no default cache.
     """
     if oos:
-        from data.universe import fetch_sp500_pit_payload
-        payload = fetch_sp500_pit_payload()
-        P = bvs.Panels(cache_dir=bvs.OOS_CACHE, pit_payload=payload)
-        P.CACHE_DIR = bvs.OOS_CACHE
+        if payload is None:
+            from data.universe import fetch_sp500_pit_payload
+            payload = fetch_sp500_pit_payload()
+        P = bvs.Panels(cache_dir=cache_dir or bvs.OOS_CACHE, pit_payload=payload)
+        P.CACHE_DIR = cache_dir or bvs.OOS_CACHE
         # TASK-387: which membership payload this run used (a worktree without data_cache/ fetches a fresh
         # one from Wikipedia, which is not the cached one -> different eligibility, different headline)
         P.PIT_META = {k: (payload or {}).get(k) for k in ("updated", "cache_version", "source_wiki", "source_github")}
         print(f"[lab] PIT payload: updated={P.PIT_META.get('updated')} cache_version={P.PIT_META.get('cache_version')}", flush=True)
     else:
-        P = bvs.Panels()
-        P.CACHE_DIR = bvs.CACHE
+        P = bvs.Panels(cache_dir=cache_dir) if cache_dir else bvs.Panels()
+        P.CACHE_DIR = cache_dir or bvs.CACHE
         P.PIT_META = None
+    return prepare_panel(P, sectors=sectors, sectors_date=sectors_date, pit_dir=pit_dir,
+                         require_contemporaneous=require_contemporaneous)
+
+
+def prepare_panel(P, sectors="fixed", sectors_date=None, pit_dir=None, *, require_contemporaneous=False):
+    """Derive the feature panels, the sector map and P.meta_for on an already-loaded Panels."""
     c = P.close
     P.MOM_12_1 = c.shift(21) / c.shift(252) - 1
     P.MOM_6_1 = c.shift(21) / c.shift(126) - 1
@@ -299,21 +308,39 @@ def load_panel(oos=True, sectors="fixed", sectors_date=None, *, pit_dir=None,
 
     # the harness recomputes the regime on the whole panel per date: O(T*N) each. Same values
     # from the last 300 rows (SMA200 is the longest window it uses); ~40x faster.
-    P._cache_nb = {}
-    def meta_fast(t, breadth=True, _cache=P._cache):
-        if not breadth:
-            _cache = P._cache_nb
-        if t not in _cache:
+    P._meta_cache = {}
+
+    def meta_fast(t, cfg=True):
+        """Meta-layer adjustment at bar t. `cfg` is the run config (a bool is accepted for
+        backwards compatibility and means `regime_breadth`, with BASE's filters).
+
+        ASTRA-06: breadth is computed over breadth_universe(P, t, c) -- the members at t that pass
+        the filters the signal reproduces -- never over the whole panel. See breadth_universe.
+        """
+        c_ = dict(BASE)
+        if isinstance(cfg, dict):
+            c_.update(cfg)
+        else:
+            c_['regime_breadth'] = bool(cfg)
+        use = bool(c_['regime_breadth'])
+        # the universe (hence breadth, hence the regime) depends on the filter config, and one P is
+        # reused across every CONFIG in a --dev sweep: the cache has to key on those filters too.
+        key = (t, use, c_['min_dollar_vol'], c_['max_jump']) if use else (t, False, None, None)
+        if key not in P._meta_cache:
             lo = max(0, t - 300)
             s = P.spy.iloc[lo:t + 1]
-            rr = compute_rich_regime_scores(s, c.iloc[lo:t + 1] if breadth else None)
+            px_frame = None
+            if use:
+                univ = breadth_universe(P, t, c_)
+                px_frame = c.loc[:, univ].iloc[lo:t + 1]
+            rr = compute_rich_regime_scores(s, px_frame)
             cur = float(s.iloc[-1]); mx = float(s.rolling(60).max().iloc[-1])
             vl = float(s.pct_change(fill_method=None).rolling(20).std().iloc[-1] * np.sqrt(252))
-            _cache[t] = P.meta.compute_adjustment(
+            P._meta_cache[key] = P.meta.compute_adjustment(
                 regime_score=rr.overall, recent_drawdown=max(0.0, (mx - cur) / mx),
                 spy_20d_return=cur / float(s.iloc[-20]) - 1, spy_60d_return=cur / float(s.iloc[-60]) - 1,
                 volatility_level=min(max(vl / 0.25, 0.3), 0.9))
-        return _cache[t]
+        return P._meta_cache[key]
     P.meta_for = meta_fast
     return P
 
@@ -395,10 +422,45 @@ CONFIGS = {
 
 
 # ----------------------------------------------------------------------------- one date
+def eligible_at(P, t, c):
+    """Boolean mask over P.close.columns: the instruments the strategy may look at on bar t.
+
+    This is the lab's replica of what production's panel contains on a given day: the current
+    S&P members (here, the point-in-time members as of t) after screener.py's filter chain
+    (apply_practical_filters -> apply_data_quality_filter -> remove_zombie_tickers), evaluated
+    with data up to and including t. Shared by rank_day and breadth_universe so eligibility and
+    breadth can never see different instruments (ASTRA-06). Delegates to `eligibility_mask`, so the
+    contemporaneous-currency filters of ASTRA-05 apply to ranking and breadth alike.
+    """
+    return eligibility_mask(P, t, c)
+
+
+def breadth_universe(P, t, c):
+    """Columns the breadth sub-score is allowed to see on bar t: the historical universe.
+
+    ASTRA-06. core.regime counts every column of the frame it is handed: a name with no
+    observation at t compares False against its own SMA and still sits in the denominator, so
+    handing it the whole lab panel (the union of every S&P member 2004-2026) let names that were
+    not in the index at t -- and columns with no history at all -- set the historical regime.
+    Astra's probe: 50 all-NaN columns moved overall 0.773 -> 0.723 (breadth 1.0 -> 0.5), which
+    moves aggression, hence dynamic_count, hence how many names get bought. Production cannot
+    have that column: it fetches today's members and filters them, so the faithful replica of
+    production at a past date is exactly the eligible set at that date.
+
+    Why not `dropna(axis=1)` over the window: dropna answers "did this column have data", the
+    index answers "was this company a member". They differ in both directions -- dropna throws
+    away a 2005 member that is missing one bar (production would have kept it: its price prints
+    today) and it keeps a 2015 joiner that already traded in 2005 (production could not have seen
+    it in the 2005 universe). Only the PIT member list is point-in-time, and only the filters
+    reproduce which of those members production would still be holding in the panel.
+    """
+    return P.close.columns[eligible_at(P, t, c)]
+
+
 def rank_day(P, t, c):
     """Ranked frame for date t. Same scoring as production except the momentum panel."""
     px = P.close.iloc[t]
-    tk = px.index[eligibility_mask(P, t, c)]
+    tk = px.index[eligible_at(P, t, c)]
     if len(tk) < 50:
         return None
     vol = P.VOL63.iloc[t][tk].replace(0, np.nan)
@@ -466,7 +528,7 @@ def run(P, cfg, start=280, lag=1):
         out = rank_day(P, t, c)
         if out is None:
             continue
-        m = P.meta_for(t, c['regime_breadth'])
+        m = P.meta_for(t, c)
         n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
 
         sel = select(out, n, held, c['buffer'])
@@ -543,7 +605,7 @@ def run_tranched(P, cfg, start=280, lag=1):
         out = rank_day(P, t, c)
         turnover, traded = 0.0, {}
         if out is not None:
-            m = P.meta_for(t, c['regime_breadth'])
+            m = P.meta_for(t, c)
             n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
             sel = select(out, n, held[k], c['buffer'])
             if c['exposure'] == 'regime_gate':
@@ -610,7 +672,7 @@ def run_exec(P, cfg, start=280, lag=1):
         out = rank_day(P, t, c)
         if out is None:
             return None
-        m = P.meta_for(t, c['regime_breadth'])
+        m = P.meta_for(t, c)
         n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
         sel = select(out, n, held, c['buffer'])
         if c['exposure'] == 'regime_gate':

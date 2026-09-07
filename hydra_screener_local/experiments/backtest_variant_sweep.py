@@ -134,18 +134,47 @@ class Panels:
         self.meta = LightweightMetaLayer()
         self._cache = {}
 
-    def meta_for(self, t):
-        if t not in self._cache:
+    def eligible_at(self, t, c=None):
+        """Boolean mask over close.columns: the instruments the sweep may look at on bar t.
+
+        The same mask score_day applies -- price/liquidity/flat filters plus point-in-time S&P
+        membership when the panel carries a PIT payload -- factored out so eligibility and the
+        breadth universe can never disagree (ASTRA-06).
+        """
+        c = {**DEFAULTS, **(c or {})}
+        px = self.close.iloc[t]
+        elig = px.notna() & (px >= c['min_price']) & (self.VOL20M.iloc[t] >= c['min_advol']) & (self.FLAT5.iloc[t] != 1)
+        if getattr(self, 'pit_payload', None):
+            from data.universe import yahoo_membership_as_of
+            members = set(yahoo_membership_as_of(self.close.index[t].strftime('%Y-%m-%d'), self.pit_payload))
+            elig = elig & px.index.isin(members)
+        return elig.fillna(False)
+
+    def breadth_universe(self, t, c=None):
+        """Columns the breadth sub-score may see on bar t: the historical universe, not the panel.
+
+        ASTRA-06. core.regime counts every column it is handed, and a column with no observation
+        at t is False against its own SMA while still sitting in the denominator -- so the panel's
+        future members (and its all-NaN columns) were setting the historical regime here too. See
+        redesign_lab.breadth_universe for why dropna() is not the same question.
+        """
+        return self.close.columns[self.eligible_at(t, c)]
+
+    def meta_for(self, t, c=None):
+        cc = {**DEFAULTS, **(c or {})}
+        key = (t, cc['min_price'], cc['min_advol'])       # the universe depends on those filters
+        if key not in self._cache:
             s = self.spy.iloc[:t + 1]
-            rr = compute_rich_regime_scores(s, self.close.iloc[:t + 1])
+            univ = self.breadth_universe(t, cc)
+            rr = compute_rich_regime_scores(s, self.close.loc[:, univ].iloc[:t + 1])
             cur = float(s.iloc[-1]); mx = float(s.rolling(60).max().iloc[-1])
             vl = float(s.pct_change(fill_method=None).rolling(20).std().iloc[-1] * np.sqrt(252))
-            self._cache[t] = self.meta.compute_adjustment(
+            self._cache[key] = self.meta.compute_adjustment(
                 regime_score=rr.overall, recent_drawdown=max(0.0, (mx - cur) / mx),
                 spy_20d_return=cur / float(s.iloc[-20]) - 1,
                 spy_60d_return=cur / float(s.iloc[-60]) - 1,
                 volatility_level=min(max(vl / 0.25, 0.3), 0.9))
-        return self._cache[t]
+        return self._cache[key]
 
 
 # sector_mode: 'hardcap'    = TASK-320 production behaviour (cap enforced while picking the
@@ -164,12 +193,7 @@ DEFAULTS = dict(mom='mom90', vol_exp=1.0, dist='d20', vratio='overlap', boost=SH
 def score_day(P, t, c):
     """Return the ranked frame for one date, or None."""
     px = P.close.iloc[t]
-    elig = px.notna() & (px >= c['min_price']) & (P.VOL20M.iloc[t] >= c['min_advol']) & (P.FLAT5.iloc[t] != 1)
-    if getattr(P, 'pit_payload', None):
-        from data.universe import yahoo_membership_as_of
-        members = set(yahoo_membership_as_of(P.close.index[t].strftime('%Y-%m-%d'), P.pit_payload))
-        elig = elig & px.index.isin(members)
-    tk = px.index[elig.fillna(False)]
+    tk = px.index[P.eligible_at(t, c)]
     if len(tk) < 50:
         return None, None
     src = {'mom90': P.MOM, 'mom90_skip5': P.MOM_SKIP5}[c['mom']].iloc[t][tk]
@@ -225,7 +249,7 @@ def run(P, cfg=None, start=260, step=5, hold=5, lag=1, topk=None):
         out, tk = score_day(P, t, c)
         if out is None:
             continue
-        m = P.meta_for(t)
+        m = P.meta_for(t, c)
         n = c['fixed_n'] or max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers['COMPASS'])), 28))
         # two independent controls: the regime gate (market timing) and the downtrend gate (per name)
         sel = pick(out, n, c) if (not c['regime_gate'] or m.regime_score >= c['regime_thr']) else out.head(0)
