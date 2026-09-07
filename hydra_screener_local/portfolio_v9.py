@@ -334,6 +334,48 @@ def _row(frame, date: str, dividends=None) -> pd.Series:
     return row.rename(label)
 
 
+def last_observed(frame) -> tuple[pd.Series, dict]:
+    """Each column's most recent PRINTED close, and the date it printed on.
+
+    Returns (prices, {ticker: date}). A column with no print anywhere in the frame is NaN and
+    absent from the dict, which is what makes `value_with_stale` fall back to `last_px`.
+
+    The point of the mask is that a forward-filled value is not a print. `data.fetch` fills ETF
+    holes so a 252-bar signal window survives a one-bar gap, and after the fill a filled cell is
+    indistinguishable from an observation — so this walks the OBSERVED frame, not the filled one.
+    Without the mask (an unprovenanced frame, e.g. a test fixture built by hand) `notna()` is the
+    best available answer and is used instead.
+    """
+    from data.fetch import observed_mask
+
+    cols = pd.Index(list(getattr(frame, "columns", [])))
+    if frame is None or len(frame) == 0:
+        return pd.Series(float("nan"), index=cols, dtype=float), {}
+    numeric = frame.apply(pd.to_numeric, errors="coerce")
+    mask = observed_mask(frame)
+    printed = numeric.notna() if mask is None else (
+        numeric.notna() & mask.reindex(index=numeric.index, columns=numeric.columns).fillna(False).astype(bool))
+    observed = numeric.where(printed)
+    values = observed.ffill().iloc[-1]
+    idx = pd.DatetimeIndex(observed.index).normalize()
+    asof = {}
+    for col in observed.columns:
+        hits = printed[col].to_numpy().nonzero()[0]
+        if len(hits):
+            asof[str(col)] = str(idx[hits[-1]].date())
+    return values, asof
+
+
+def _carried_forward(summary: dict, priced_asof: dict, as_of: str | None) -> list:
+    """Held names whose price is real but older than the valuation bar: (ticker, its date)."""
+    out = []
+    for sleeve in ("stocks", "etf"):
+        for tk in ((summary.get("sleeves") or {}).get(sleeve) or {}).get("names") or []:
+            d = priced_asof.get(str(tk))
+            if d and as_of and d != as_of:
+                out.append((str(tk), d))
+    return sorted(set(out))
+
 def _carried_stale(summary: dict, mark_stocks, mark_etf) -> list:
     """Held names with no print on the valuation bar, so the sheet says which ones are carried."""
     out = set()
@@ -493,15 +535,19 @@ def render_instructions(date: str, orders: list, fills: list, summary: dict,
             for (sleeve, k), amt in leftover_by.items():
                 lines.append(f"- {sleeve} tranche {k}: **{amt:.2f}** USD stays unspent if you buy whole shares")
     as_of = (summary or {}).get("as_of")
-    lines += ["", f"## Valuation (closes that printed on {as_of})" if as_of
+    lines += ["", f"## Valuation (each name at its last real print, bar {as_of})" if as_of
               else "## Valuation (last close)", ""]
     if summary:
         tot = summary.get("total") or 0.0
         lines.append(f"Book: **{tot:,.2f}**")
+        older = summary.get("carried_forward") or []
+        if older:
+            shown = ", ".join(f"{tk} ({d})" for tk, d in older)
+            lines.append(f"Priced at an earlier print than {as_of}: **{shown}**")
         stale = summary.get("carried_stale") or []
         if stale:
-            lines.append(f"Carried at their last known price, no print on {as_of}: "
-                         f"**{', '.join(stale)}** (SPEC 9.4)")
+            lines.append(f"No print anywhere in the window, carried at the price the tranche "
+                         f"bought at: **{', '.join(stale)}** (SPEC 9.4)")
         for name, sl in (summary.get("sleeves") or {}).items():
             lines.append(
                 f"- {name}: {sl.get('value', 0):,.2f} ({100 * sl.get('share', 0):.1f}%)  "
@@ -735,15 +781,24 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         print(f"[v9] DEGRADED {sector_warning}")
 
     # (the state itself is written only by the RunTransaction commit below, audit phase 3)
-    # Valuation at the last bar, masked the way execution prices are: a forward-filled close is
-    # not a print, and a held name without one is carried at its `last_px` (SPEC 9.4) rather than
-    # valued at a price nobody saw. No dividend de-adjustment here on purpose — the fills use one
-    # and this does not; that basis mismatch is a question for Lucas, not one to settle silently.
-    mark_stocks = _row(prices, last_bar) if last_bar else prices.iloc[-1]
-    mark_etf = _row(etf, last_bar) if last_bar else etf.iloc[-1]
+    # Valuation at each name's LAST OBSERVED close (TASK-402). The first pass marked at
+    # `_row(prices, last_bar)` — this bar's prints or nothing — which was right to refuse a
+    # forward-filled price and wrong about what to do instead: `value_with_stale` then fell back to
+    # `last_px`, the price the tranche BOUGHT at, so a name that printed yesterday and not today
+    # was valued at its entry instead of at yesterday's close. That moves the sheet's total further
+    # from reality, not closer. `last_observed` walks back to each ticker's most recent real print
+    # and reports how old it is; `last_px` remains the fallback only for a name with no print in
+    # the window at all (SPEC 9.4).
+    #
+    # No dividend de-adjustment here on purpose — the fills use one and this does not; that basis
+    # mismatch is a question for Lucas, not one to settle silently.
+    mark_stocks, stocks_asof = last_observed(prices)
+    mark_etf, etf_asof = last_observed(etf)
     summary = engine.summary_table(state, mark_stocks, mark_etf, V9)
     summary["as_of"] = last_bar
+    summary["priced_asof"] = {**stocks_asof, **etf_asof}
     summary["carried_stale"] = _carried_stale(summary, mark_stocks, mark_etf)
+    summary["carried_forward"] = _carried_forward(summary, summary["priced_asof"], last_bar)
     exec_date = next_session_date(prices.index, today)
     # A same-day rerun must not overwrite today's sheet with "No trades": the pending orders planned
     # today ARE the instructions still to execute (integration review 340).
