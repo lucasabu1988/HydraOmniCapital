@@ -244,14 +244,21 @@ def test_the_sheet_names_the_bar_it_valued_and_the_names_it_carried(tmp_path, mo
 
     out = V.run(tmp_path, fetch_fn=held_but_dark, rank_fn=_rank, silent=True,
                 dividend_fn=lambda _t: [], force=True)
+    # TASK-402 changed the answer here, deliberately and for the better. AAA has no print on the
+    # LAST bar but it printed on 09-14, so it is now priced at that real print and reported as
+    # `carried_forward` — not as `carried_stale`, which is reserved for a name with no print
+    # anywhere in the window and therefore carried at what the tranche paid. Asserting
+    # `carried_stale == ["AAA"]` was asserting the worse behaviour: falling back to the entry
+    # price when a real, one-day-older close was available.
     assert out["summary"]["as_of"] == "2026-09-15"
-    assert out["summary"]["carried_stale"] == ["AAA"]
+    assert out["summary"]["priced_asof"]["AAA"] == "2026-09-14"
+    assert out["summary"]["carried_forward"] == [("AAA", "2026-09-14")]
+    assert out["summary"]["carried_stale"] == []
     sheet = Path(out["instructions_md"]).read_text(encoding="utf-8")
-    assert "## Valuation (closes that printed on 2026-09-15)" in sheet
-    assert "Carried at their last known price, no print on 2026-09-15: **AAA**" in sheet
-    # AAA is carried at last_px 100, not at the 99 an ffill would have shown. The sleeve is
-    # 10 units + the 3000 of cash the other three tranches still hold, plus accrued interest;
-    # valued at 99 it would come out ~10 lower.
+    assert "## Valuation (each name at its last real print, bar 2026-09-15)" in sheet
+    assert "Priced at an earlier print than 2026-09-15: **AAA (2026-09-14)**" in sheet
+    # AAA at its 09-14 print of 100, not at the 99 an ffill would have shown and not at an entry
+    # price. The sleeve is 10 units + the 3000 the other three tranches hold, plus interest.
     assert out["summary"]["sleeves"]["stocks"]["value"] == pytest.approx(4000.0, abs=1.0)
 
 
