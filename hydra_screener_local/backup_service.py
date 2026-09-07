@@ -136,8 +136,14 @@ def denied_destinations() -> tuple[Path, ...]:
     return tuple(_DENIED)
 
 
-def clear_denied_destinations() -> None:
-    """Only the tests of the deny list itself should need this."""
+def _clear_denied_destinations_for_tests() -> None:
+    """Drop the process-wide deny list. Private: only the tests of the list itself may call it.
+
+    It was public API, so any test module — or any future write path — removed the fence in one
+    line, and an adversarial pass published seven files into the root the policy had just denied by
+    doing exactly that. Renaming it does not make it safe, it makes it visible: a caller now has to
+    reach for a private name and say why.
+    """
     _DENIED.clear()
 
 
@@ -195,6 +201,23 @@ def role_for(name: str) -> str:
     return ""
 
 
+def date_in_name(name: str) -> str | None:
+    """The trading date a file name encodes, normalised to YYYY-MM-DD, or None if it carries none.
+
+    `role_for` matched ANY day's sheet as `sheet_md` and any day's record as `journal`, so a
+    generation stamped 2026-09-06 whose sheet and journal were 2026-09-04 files verified COMPLETE.
+    Coherence of dates was enforced by the caller and by nothing else; this is what lets the
+    service enforce it.
+    """
+    m = _SHEET.match(name)
+    if m:
+        raw = m.group(1)
+        return raw if "-" in raw else f"{raw[0:4]}-{raw[4:6]}-{raw[6:8]}"
+    if _JOURNAL_DAY.match(name):
+        return name[:-len(".json")]
+    return None
+
+
 def required_roles(profile: str) -> tuple[str, ...]:
     try:
         return GENERATION_PROFILES[profile]
@@ -220,6 +243,31 @@ def tree_fingerprint(root) -> dict[str, str]:
 
 def _resolve(path) -> Path:
     return Path(path).expanduser().resolve()
+
+
+def link_on_path(path) -> Path | None:
+    """The first component of `path` that is a link or a junction, or None.
+
+    `Path.resolve()` FOLLOWS links, so `resolve().is_symlink()` can never be true — that was the
+    dead guard an adversarial pass walked straight through with a junction, writing six files
+    outside the directory named on the command line while the CLI printed success. And on Windows
+    `Path.is_symlink()` is False for a junction even unresolved, so `os.path.isjunction` is the
+    other half of the answer. Every existing component is checked, root first, because a junctioned
+    PARENT is enough: validating the resolved path and then creating the unresolved one crosses the
+    link on the way in.
+    """
+    node = Path(path)
+    chain = [node]
+    while node.parent != node:
+        node = node.parent
+        chain.append(node)
+    for node in reversed(chain):
+        try:
+            if os.path.islink(node) or os.path.isjunction(node):
+                return node
+        except OSError:  # pragma: no cover - unreadable component
+            continue
+    return None
 
 
 def _is_within(child: Path, parent: Path) -> bool:
@@ -250,10 +298,27 @@ class _Unwind:
 
     def __init__(self) -> None:
         self._dirs: list[Path] = []
+        self._owned: list[Path] = []
         self._files: list[Path] = []
 
     def created(self, path: Path) -> None:
         self._dirs.append(path)
+
+    def owned_tree(self, path: Path) -> Path:
+        """A directory that is exclusively ours — a staging tree named after our own run_id.
+
+        The distinction is ownership, not emptiness. A shared ancestor (`dest_root`, `state_v9/`,
+        the date directory) may hold a neighbour's generation, so it is only removed while empty.
+        A staging directory cannot: nobody else knows its name. Without this split, tightening the
+        rollback to "empty only" left `.staging-<run_id>` behind with its partial files on every
+        refusal that happened after the copy began — a refusal WITH effects, which is the condition
+        this whole task exists to hold.
+        """
+        for node in _missing_ancestors(path):
+            self.created(node)
+        path.mkdir(parents=True, exist_ok=True)
+        self._owned.append(path)
+        return path
 
     def mkdir(self, path: Path) -> Path:
         for node in _missing_ancestors(path):
@@ -267,18 +332,34 @@ class _Unwind:
         return path
 
     def rollback(self) -> None:
+        """Undo our own writes and NOTHING else.
+
+        This used to `shutil.rmtree` every directory it believed it had created. Two publishes
+        racing into the same date directory was enough: A recorded the directory as its own, B
+        published a complete generation inside it, and A's later refusal deleted B's backup and the
+        destination root with it. A rejection that destroys a good generation is worse than one
+        that leaves debris, so a directory is now removed only while it is EMPTY — anything else in
+        there belongs to somebody else.
+        """
         for path in self._files:
             try:
                 path.unlink()
             except OSError:  # pragma: no cover - best effort
                 pass
+        for path in reversed(self._owned):
+            shutil.rmtree(path, ignore_errors=True)   # exclusively ours, partial files included
         for path in reversed(self._dirs):
-            shutil.rmtree(path, ignore_errors=True)
+            try:
+                path.rmdir()
+            except OSError:
+                pass  # not empty (or already gone): someone else's files live here now
         self._files.clear()
+        self._owned.clear()
         self._dirs.clear()
 
     def commit(self) -> None:
         self._files.clear()
+        self._owned.clear()
         self._dirs.clear()
 
 
@@ -395,6 +476,23 @@ class GenerationPlan:
         return tuple(sorted(self.entries))
 
 
+def _refuse_case_collisions(names: Sequence[str]) -> None:
+    """Two names differing only in case are one file on NTFS and two manifest entries.
+
+    `JOURNAL.md` and `journal.MD` both entered the manifest while the directory held a single file,
+    so the manifest listed a file that was not a distinct file — and it verified complete.
+    """
+    seen: dict[str, str] = {}
+    for name in names:
+        key = name.casefold()
+        if key in seen and seen[key] != name:
+            raise BackupRefused(
+                "SOURCE_NAME_CASE_COLLISION",
+                f"{name!r} and {seen[key]!r} differ only in case: on a case-insensitive filesystem "
+                f"they are one file and two manifest entries")
+        seen[key] = name
+
+
 def plan_generation(ctx: BackupContext, sources: Sequence) -> GenerationPlan:
     """Validate every source and the destination. Writes NOTHING, creates NOTHING.
 
@@ -413,6 +511,7 @@ def plan_generation(ctx: BackupContext, sources: Sequence) -> GenerationPlan:
     paths = [Path(p) for p in sources]
     if not paths:
         raise BackupRefused("NO_SOURCES", "a generation needs at least the state file")
+    _refuse_case_collisions([p.name for p in paths])
 
     entries: dict[str, dict] = {}
     for src in paths:
@@ -483,7 +582,7 @@ def publish_generation(ctx: BackupContext, sources: Sequence) -> dict:
     staging = ctx.date_dir / f"{_STAGING_PREFIX}{ctx.run_id}"
     try:
         unwind.mkdir(ctx.date_dir)
-        unwind.mkdir(staging)
+        unwind.owned_tree(staging)
         hashes: dict[str, str] = {}
         for name, entry in sorted(plan.entries.items()):
             dest = staging / name
@@ -540,6 +639,38 @@ def _write_latest(date_dir: Path, run_id: str) -> Path:
     return path
 
 
+def stale_staging(date_dir, *, keep_run_id: str | None = None) -> list[Path]:
+    """Staging directories left in `date_dir` by a process that died mid-copy.
+
+    A refusal cleans its own staging tree; a SIGKILL cannot. The debris is inert — it is not a
+    generation, `latest_generation` never resolves to it and `verify_generation` never reads it —
+    but it accumulates in the operator's backup root, so it is worth being able to name and
+    remove. `keep_run_id` protects a publish that is in flight right now: sweeping blindly while
+    another process stages would delete its work, which is the mistake the rollback made.
+    """
+    date_dir = Path(date_dir)
+    if not date_dir.is_dir():
+        return []
+    out = []
+    for child in sorted(date_dir.iterdir()):
+        if not child.is_dir() or not child.name.startswith(_STAGING_PREFIX):
+            continue
+        if keep_run_id and child.name == f"{_STAGING_PREFIX}{keep_run_id}":
+            continue
+        out.append(child)
+    return out
+
+
+def sweep_staging(date_dir, *, keep_run_id: str | None = None) -> list[Path]:
+    """Remove the staging debris `stale_staging` reports. Returns what it removed."""
+    removed = []
+    for path in stale_staging(date_dir, keep_run_id=keep_run_id):
+        shutil.rmtree(path, ignore_errors=True)
+        if not path.exists():
+            removed.append(path)
+    return removed
+
+
 def latest_generation(date_dir) -> Path | None:
     """The newest published generation for a date, or None. Refuses an unsafe pointer."""
     date_dir = Path(date_dir)
@@ -588,6 +719,12 @@ def verify_generation(generation_dir, *, require_profile: str | None = None,
     if manifest.get("schema") != SCHEMA:
         out.append(Finding("ERROR", "GEN_SCHEMA",
                            f"manifest schema {manifest.get('schema')!r} != {SCHEMA}"))
+    # What the run_id proves, and what it does not. It lives in the same unsigned manifest as the
+    # hashes, so it detects ACCIDENTAL incoherence — yesterday's sheets kept beside today's state,
+    # two runs' artefacts in one directory — and not tampering: an editor who re-stamps one run_id
+    # and recomputes the hashes produces a set that verifies. Closing that would need a key this
+    # project does not have. The date check below is the part that does not depend on the editor's
+    # cooperation, because it compares the manifest's claim against the file NAMES.
     run_id = str(manifest.get("run_id") or "")
     if not _RUN_ID.match(run_id):
         out.append(Finding("ERROR", "GEN_NO_RUN_ID",
@@ -600,6 +737,14 @@ def verify_generation(generation_dir, *, require_profile: str | None = None,
     elif require_profile is not None and profile != require_profile:
         out.append(Finding("ERROR", "GEN_PROFILE_MISMATCH",
                            f"generation is profile {profile!r}, caller demands {require_profile!r}"))
+    elif require_profile is None:
+        # Taking the role set from GENERATION_PROFILES by the manifest's profile NAME defeats a cut
+        # `required_roles` list but not a rewritten name: `daily_v9` -> `sheet_only` plus deleting
+        # the journal verified clean. The role set is only as trustworthy as the name that selected
+        # it, so a caller that demands no profile is told so instead of being reassured.
+        out.append(Finding("WARNING", "GEN_PROFILE_UNVERIFIED",
+                           f"the role set was chosen by the manifest's own profile name "
+                           f"({profile!r}); pass require_profile to detect a downgrade"))
     if require_mode is not None and str(manifest.get("mode") or "") != require_mode.value:
         out.append(Finding("ERROR", "GEN_MODE_MISMATCH",
                            f"generation mode {manifest.get('mode')!r}, caller demands "
@@ -643,6 +788,13 @@ def verify_generation(generation_dir, *, require_profile: str | None = None,
                                f"{name}: manifest claims role {rec.get('role')!r}, the name is "
                                f"{actual_role!r}"))
             continue
+        named_date = date_in_name(name)
+        gen_date = str(manifest.get("date") or "")
+        if named_date is not None and gen_date and named_date != gen_date:
+            out.append(Finding("ERROR", "GEN_DATE_INCOHERENT",
+                               f"{name} is a {named_date} artefact inside a {gen_date} generation: "
+                               f"the roles are filled, by the wrong day's files"))
+            continue
         if str(rec.get("run_id") or "") != run_id:
             out.append(Finding("ERROR", "GEN_RUN_ID_MIXED",
                                f"{name}: run_id {rec.get('run_id')!r} != generation {run_id!r}; "
@@ -667,31 +819,60 @@ def verify_generation(generation_dir, *, require_profile: str | None = None,
 
 def generation_is_complete(generation_dir, *, require_profile: str | None = None,
                            require_mode: ExecutionMode | None = None) -> bool:
+    """True only when the generation verifies AND its role set was actually checked.
+
+    Without the second half this answered True for a generation whose profile name had been
+    rewritten `daily_v9` -> `sheet_only` and whose journal had been deleted. "Complete" is a claim
+    about a role set, so it cannot be made when nothing pinned which role set applies.
+    """
     findings = verify_generation(generation_dir, require_profile=require_profile,
                                  require_mode=require_mode)
-    return not any(f.level == "ERROR" for f in findings)
+    if any(f.level == "ERROR" for f in findings):
+        return False
+    return not any(f.code == "GEN_PROFILE_UNVERIFIED" for f in findings)
 
 
 # --------------------------------------------------------------------------- 396: hardened restore
 
-def _assert_isolated_target(target: Path, live_state_path: Path) -> None:
-    """Refuse a target that could be, contain or be contained by the live book — before any mkdir."""
+def _assert_isolated_target(target: Path, live_state_path: Path) -> Path:
+    """Judge a restore target before anything is created, and return the path to create.
+
+    Returns the RESOLVED target: the caller must create and write that one, never the path it was
+    given. Creating the unresolved path after validating the resolved one is how a junctioned
+    parent got written through.
+    """
     live_dir = _resolve(live_state_path).parent
     try:
         resolved = _resolve(target)
     except OSError as e:  # pragma: no cover - unresolvable path
         raise BackupRefused("RESTORE_TARGET_UNRESOLVABLE", f"cannot resolve {target}: {e}") from e
+
+    # A link anywhere on the way in, checked BEFORE resolving it away.
+    link = link_on_path(target)
+    if link is not None:
+        raise BackupRefused(
+            "RESTORE_TARGET_IS_LINK",
+            f"{link} on the way to {target} is a link or junction; refusing to follow it. "
+            f"It points at {_resolve(link)} — name that directory if you meant it")
+
     if _is_within(resolved, live_dir) or _is_within(live_dir, resolved):
         raise BackupRefused("RESTORE_TARGET_IS_LIVE",
                             f"{resolved} is the live state tree ({live_dir}); restore into an "
                             f"isolated directory and compare there")
-    if resolved.is_symlink():
-        raise BackupRefused("RESTORE_TARGET_IS_LINK", f"{target} is a link; refusing to follow it")
+
+    # The deny list covered publish and not restore, so the one fence the test policy installs did
+    # not cover the restore path at all. A restore is a write; it obeys the same fence.
+    for denied in denied_destinations():
+        if _is_within(resolved, denied) or _is_within(denied, resolved):
+            raise BackupRefused("RESTORE_TARGET_DENIED",
+                                f"{resolved} is inside a denied destination ({denied})")
+
     if resolved.exists():
         if not resolved.is_dir():
             raise BackupRefused("RESTORE_TARGET_NOT_A_DIR", f"{resolved} is not a directory")
         if any(resolved.iterdir()):
             raise BackupRefused("RESTORE_TARGET_NOT_EMPTY", f"{resolved} is not empty")
+    return resolved
 
 
 def restore_generation(generation_dir, target_dir, *, live_state_path,
@@ -718,7 +899,7 @@ def restore_generation(generation_dir, target_dir, *, live_state_path,
             f"{gen} did not verify: " + "; ".join(f"{f.code} {f.message}" for f in bad),
             bad,
         )
-    _assert_isolated_target(target, Path(live_state_path))
+    target = _assert_isolated_target(target, Path(live_state_path))
 
     manifest = read_manifest(gen) or {}
     entries = dict(manifest.get("files") or {})
@@ -732,7 +913,7 @@ def restore_generation(generation_dir, target_dir, *, live_state_path,
     staging = target / f"{_STAGING_PREFIX}{manifest.get('run_id')}"
     try:
         unwind.mkdir(target)
-        unwind.mkdir(staging)
+        unwind.owned_tree(staging)
         staging_root = _resolve(staging)
         hashes: dict[str, str] = {}
         for name in sorted(entries):

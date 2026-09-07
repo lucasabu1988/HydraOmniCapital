@@ -50,16 +50,39 @@ ENV_POLICY = "HYDRA_TEST_POLICY"
 _INSTALLED: dict | None = None
 
 
-def _looks_like_a_throwaway(path: str) -> bool:
-    return TEST_BACKUP_MARKER in str(path or "")
+#: Written inside a session tree this policy created. Ownership is a fact we recorded, not a
+#: shape we recognise: an inherited directory is only ours if this file is in it.
+OWNERSHIP_MARKER = ".hydra-test-policy"
+
+
+def _is_our_session(path: str) -> bool:
+    """True only for a directory this policy created and stamped.
+
+    The first version asked `"hydra-test-backup" in str(path)` — the shape of the path, which is
+    exactly the mistake this module's own docstring condemns. Two consequences, both reproduced:
+    an inherited `HYDRA_BACKUP_DIR` merely CONTAINING that substring (say
+    `.../OneDrive/HydraBackups/hydra-test-backup/oops`) was treated as a throwaway and never
+    denied, so the service had no forbidden root at all; and `HYDRA_TEST_BACKUP_SESSION` could
+    relocate the whole suite's destination into any directory whose name carried the substring.
+    """
+    if not path or not path.strip():
+        return False
+    root = Path(path.strip())
+    try:
+        return root.is_dir() and (root / OWNERSHIP_MARKER).is_file()
+    except OSError:  # pragma: no cover - unreadable path
+        return False
 
 
 def _session_root() -> tuple[Path, bool]:
-    """The suite run's throwaway tree. Inherited if an outer process already made one."""
+    """The suite run's throwaway tree. Inherited only from a session we can prove is ours."""
     inherited = os.environ.get(ENV_SESSION, "")
-    if _looks_like_a_throwaway(inherited) and Path(inherited).is_dir():
-        return Path(inherited), False
-    return Path(tempfile.mkdtemp(prefix=f"{TEST_BACKUP_MARKER}-session-")), True
+    if _is_our_session(inherited):
+        return Path(inherited.strip()), False
+    root = Path(tempfile.mkdtemp(prefix=f"{TEST_BACKUP_MARKER}-session-"))
+    (root / OWNERSHIP_MARKER).write_text(
+        f"created by hydra_test_policy, pid {os.getpid()}\n", encoding="utf-8")
+    return root, True
 
 
 def install() -> dict:
@@ -75,7 +98,11 @@ def install() -> dict:
     #    BEFORE the export below overwrites it, which is the only moment it is still visible.
     denied: list[str] = []
     inherited = os.environ.get(ENV_BACKUP_DIR, "")
-    if inherited.strip() and not _looks_like_a_throwaway(inherited):
+    if inherited.strip():
+        # Whatever we inherited is denied, unconditionally. No shape test: a path is not
+        # trustworthy because of what it is called. If an outer policy process passed its own
+        # per-process directory, denying it is also correct — processes must not publish into each
+        # other's fixtures, which is what the per-process split is for.
         denied.append(inherited.strip())
     for part in (os.environ.get(ENV_BACKUP_DENY) or "").split(os.pathsep):
         if part.strip() and part.strip() not in denied:
@@ -132,8 +159,10 @@ def build_child_env(extra: dict | None = None, base: dict | None = None) -> dict
     developer opt-ins (`HYDRA_REGEN_GOLDEN`, `HYDRA_SKIP_HYBRID`, `UNIVERSE`) are deliberate.
     """
     state = install()
+    # `HYDRA_TEST_BACKUP_SESSION` does not start with HYDRA_BACKUP, so the original strip left the
+    # one variable that relocates the session tree in place, contrary to this docstring.
     env = {k: v for k, v in (base if base is not None else os.environ).items()
-           if not k.startswith("HYDRA_BACKUP")}
+           if not k.startswith(("HYDRA_BACKUP", "HYDRA_TEST_BACKUP"))}
     env[ENV_BACKUP_DIR] = str(state["process_dir"])
     env[ENV_SESSION] = str(state["session_root"])
     env[ENV_BACKUP_DENY] = os.pathsep.join(state["denied"])

@@ -19,7 +19,7 @@ from backup_service import (
     BackupContext,
     BackupRefused,
     ExecutionMode,
-    clear_denied_destinations,
+    _clear_denied_destinations_for_tests,
     deny_destination,
     generation_is_complete,
     is_safe_entry_name,
@@ -74,7 +74,7 @@ def _keep_the_session_deny_list():
     from backup_service import denied_destinations
     installed = list(denied_destinations())
     yield
-    clear_denied_destinations()
+    _clear_denied_destinations_for_tests()
     for d in installed:
         deny_destination(d)
 
@@ -192,8 +192,11 @@ def test_a_drill_generation_cannot_pass_as_the_live_backup(tmp_path):
     files = _live_tree(tmp_path / "live")
     ctx = _ctx(tmp_path, mode=ExecutionMode.DRILL)
     gen = publish_generation(ctx, files["all"])["generation_dir"]
-    assert not generation_is_complete(gen, require_mode=ExecutionMode.LIVE)
-    assert generation_is_complete(gen, require_mode=ExecutionMode.DRILL)
+    # `require_profile` is named because "complete" is a claim about a role set: since the second
+    # pass, generation_is_complete refuses to make that claim when nothing pinned which set applies
+    # (a rewritten profile name used to buy a clean verdict for a generation missing its journal).
+    assert not generation_is_complete(gen, require_profile="daily_v9", require_mode=ExecutionMode.LIVE)
+    assert generation_is_complete(gen, require_profile="daily_v9", require_mode=ExecutionMode.DRILL)
 
 
 def test_an_incomplete_set_is_refused_before_anything_is_created(tmp_path):

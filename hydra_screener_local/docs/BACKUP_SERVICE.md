@@ -209,3 +209,30 @@ the backup seam and is not ported here. `docs/RUNBOOK.md` still describes the pr
 layout for historical copies made before this lands; those directories have no manifest and
 `verify_generation` reports `GEN_NO_MANIFEST` on them, which is the correct answer — they were
 never verifiable.
+
+## What this design does NOT promise (second pass, 2026-09-07)
+
+An adversarial pass took the first version apart — six files written outside the directory named on
+the command line through a junction, a restore that ignored the deny list, and a refusal that
+deleted a concurrently published generation. Those are fixed and each one has a regression in
+`test_backup_attack_regressions.py`. Two findings from the same pass are **limits**, not defects,
+and are written here so nobody has to rediscover them:
+
+1. **The `run_id` detects accidental incoherence, not tampering.** It lives in the same unsigned
+   manifest as the hashes, so an editor who re-stamps one `run_id` and recomputes the hashes
+   produces a set that verifies. Closing that needs a signing key this project does not have. The
+   check that does not depend on the editor's cooperation is `GEN_DATE_INCOHERENT`: it compares the
+   manifest's date against the dates encoded in the file NAMES, so yesterday's sheet cannot fill
+   today's role however the manifest is rewritten.
+2. **A killed process leaves staging debris.** A refusal removes its own staging tree; a `SIGKILL`
+   cannot. The debris is inert — it is not a generation, `latest_generation` never resolves to it,
+   `verify_generation` never reads it — but it accumulates. `stale_staging(date_dir)` names it and
+   `sweep_staging(date_dir, keep_run_id=...)` removes it; the `keep_run_id` argument exists because
+   sweeping blindly would delete a publish that is staging right now, which is precisely the
+   mistake the old rollback made.
+
+And one rule the second pass turned into code, after breaking it itself: **a rollback removes what
+it OWNS, not what it merely created.** A staging tree carries our own `run_id` and nobody else
+knows its name, so it goes whole; a shared ancestor may hold a neighbour's generation, so it goes
+only while empty. Tightening that to "empty only" everywhere is what left partial files behind on
+a refusal — a refusal with effects, which is the one condition this task exists to hold.
