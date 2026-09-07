@@ -52,9 +52,14 @@ def test_live_source_uses_lookup_and_is_labelled(tmp_path):
         resolve_sector_map(["AAA"], "cache")
 
 
-def test_missing_snapshot_falls_back_to_live_with_a_label(tmp_path):
-    m, info = resolve_sector_map(["AAA"], "pit", None, pit_dir=tmp_path / "none", lookup=lambda t: "L")
-    assert m == {"AAA": "L"} and info["source"] == "live-fallback"
+def test_missing_snapshot_never_falls_back_to_live(tmp_path):
+    """ASTRA-05: the live-fallback this used to assert made a run with NO snapshot report the
+    mutable cache under a 'pit' label. Every snapshot-backed mode now fails closed instead."""
+    from data.pit import PitMissing
+
+    for mode in ("pit", "fixed"):
+        with pytest.raises(PitMissing):
+            resolve_sector_map(["AAA"], mode, None, pit_dir=tmp_path / "none", lookup=lambda t: "L")
 
 
 def test_dict_source_for_tests():
