@@ -1,6 +1,8 @@
 """TASK-373 — characterisation golden for the v9 engine. Engine not edited."""
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import os
 import sys
@@ -25,6 +27,17 @@ DEAD = "S00"
 GHOST = "S01"
 FIXTURE = Path(__file__).parent / "test_fixtures" / "engine_golden_v9.json"
 ATOL = 1e-9
+
+# ASTRA-09: the golden is pinned by the sha256 of its *canonical* JSON (sorted keys, no spacing,
+# so CRLF checkouts and re-indentation do not move it). Regenerating the fixture to make a test
+# pass is the failure mode this pin exists to stop: if this hash moves, the run that moved it must
+# be reported with the `_diff` output, not committed. A merge that starts persisting metadata in
+# the state (config / mix / sleeve_registry / calendar) legitimately changes `final_state` — that
+# is a deliberate re-pin with the diff quoted in the commit body, reviewed by a human.
+GOLDEN_CANON_SHA256 = "95769e08f51b6cafe9f2beffa7dab63756f82d81e35d3fa00a97e00a546e0ef5"
+GOLDEN_SHAPE = {"steps": 30, "transfers": 42, "interest": 58, "write_offs": 4}
+# projections the golden must compare; "orders" alone is not a book
+GOLDEN_PROJECTIONS = ("steps", "transfers", "interest", "write_offs", "final_state")
 
 
 def _market():
@@ -209,3 +222,146 @@ def test_engine_golden():
     want = json.loads(FIXTURE.read_text(encoding="utf-8"))
     diffs = _diff(blob, want)
     assert diffs == [], "golden mismatch:\n" + "\n".join(diffs[:40])
+
+
+# ------------------------------------------------------------------ ASTRA-09 merge invariants
+def _canonical(blob: dict) -> str:
+    return json.dumps(blob, sort_keys=True, separators=(",", ":"))
+
+
+def _load_golden() -> dict:
+    assert FIXTURE.exists(), f"golden missing: {FIXTURE}"
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+
+def test_the_golden_fixture_is_pinned_and_was_not_regenerated():
+    """The 50/50 golden is the contract, not a snapshot to be refreshed.
+
+    Hashing the canonical JSON (not the bytes) so a CRLF checkout or a reformat is not a false
+    alarm, and so a changed number is not hidden by one.
+    """
+    blob = _load_golden()
+    got = hashlib.sha256(_canonical(blob).encode("utf-8")).hexdigest()
+    assert got == GOLDEN_CANON_SHA256, (
+        "the golden fixture changed. STOP and report it: run `python -m pytest test_engine_golden.py "
+        "-q` to see the `_diff` lines, decide whether the engine change was intended, and only then "
+        "re-pin GOLDEN_CANON_SHA256 in the same commit with the diff in the commit body. "
+        f"expected {GOLDEN_CANON_SHA256}, got {got}")
+    assert {k: len(blob[k]) for k in GOLDEN_SHAPE} == GOLDEN_SHAPE
+
+
+def test_the_suite_never_regenerates_the_golden():
+    """`HYDRA_REGEN_GOLDEN=1` makes test_engine_golden overwrite the fixture and pass.
+
+    That is a deliberate, reviewed act; it must never happen inside a normal run, a CI job or an
+    agent's acceptance gate. This test is the tripwire, so a regen run reports one failure by
+    design.
+    """
+    assert os.environ.get("HYDRA_REGEN_GOLDEN") != "1", (
+        "HYDRA_REGEN_GOLDEN=1 is set: this run rewrites the golden instead of checking it")
+
+
+def test_the_golden_drives_the_5050_two_sleeve_engine():
+    """What the fixture is a golden *of*: production's two sleeves at 50/50, four tranches."""
+    cfg = dict(V9)
+    assert cfg["mix"] == {"stocks": 0.5, "etf": 0.5}
+    assert cfg["tranches"] == 4 and cfg["step_bars"] == 5
+    assert list(E._sleeves(cfg)) == ["stocks", "etf"]
+    blob = _load_golden()
+    assert list(blob["final_state"]["sleeves"]) == ["stocks", "etf"]
+    assert blob["final_state"]["capital_reference"] == 1000.0
+    assert blob["seed"] == SEED and blob["n_weeks"] == N_WEEKS
+
+
+def test_the_golden_compares_the_full_state_not_only_the_order_list():
+    """Orders, fills, fees, transfers, interest, write-offs and the whole final state.
+
+    Two engines can agree on every order and disagree on cash; the diff has to reach the book.
+    """
+    blob = _load_golden()
+    assert set(GOLDEN_PROJECTIONS) <= set(blob)
+    st = blob["final_state"]
+    for key in ("sleeves", "ledger", "pending", "transfers", "interest", "write_offs",
+                "week_index", "last_run_date", "last_renewal_date", "capital_reference"):
+        assert key in st, key
+    # fees are compared: every filled ledger row carries the cost it charged
+    filled = [f for f in st["ledger"] if f.get("status") == "filled"]
+    assert filled and all("cost" in f for f in filled)
+    assert sum(float(f["cost"]) for f in filled) > 0.0
+    # transfers are compared, and they net to zero across the whole run
+    assert blob["transfers"]
+    assert sum(float(t["dollars"]) for t in blob["transfers"]) == pytest.approx(0.0, abs=1e-9)
+    # per-tranche cash and units are in the compared payload
+    tr0 = st["sleeves"]["stocks"]["tranches"][0]
+    assert {"cash", "units", "last_px", "stale", "opened"} <= set(tr0)
+
+
+def _mutate_cash(b):
+    b["final_state"]["sleeves"]["stocks"]["tranches"][0]["cash"] += 0.01
+
+
+def _mutate_units(b):
+    b["final_state"]["sleeves"]["etf"]["tranches"][1]["units"]["SPY"] = 1.0
+
+
+def _mutate_fee(b):
+    row = next(f for f in b["final_state"]["ledger"] if f.get("status") == "filled")
+    row["cost"] = float(row["cost"]) + 0.001
+
+
+def _mutate_transfer(b):
+    b["transfers"][0]["dollars"] = float(b["transfers"][0]["dollars"]) + 0.01
+
+
+def _mutate_interest(b):
+    b["interest"][0]["dollars"] = float(b["interest"][0]["dollars"]) + 1e-6
+
+
+def _mutate_week(b):
+    b["final_state"]["week_index"] = 999
+
+
+def _mutate_order(b):
+    b["steps"][7]["orders"][0]["dollars"] = float(b["steps"][7]["orders"][0]["dollars"]) + 0.01
+
+
+def _mutate_writeoff(b):
+    b["write_offs"][0]["dollars"] = float(b["write_offs"][0].get("dollars") or 0.0) + 1.0
+
+
+@pytest.mark.parametrize("mutate,expect", [
+    (_mutate_cash, "cash"),
+    (_mutate_units, "units"),
+    (_mutate_fee, "cost"),
+    (_mutate_transfer, "transfers"),
+    (_mutate_interest, "interest"),
+    (_mutate_week, "week_index"),
+    (_mutate_order, "orders"),
+    (_mutate_writeoff, "write_offs"),
+])
+def test_each_projection_of_the_golden_catches_its_own_divergence(mutate, expect):
+    """A one-cent change anywhere in the compared payload must show up as a diff line.
+
+    This guards the comparison itself: `_close`'s tolerance is 1e-9, and a golden that "passes"
+    because the diff never looks at a field is the thing being ruled out here.
+    """
+    want = _load_golden()
+    got = copy.deepcopy(want)
+    mutate(got)
+    diffs = _diff(got, want)
+    assert diffs, f"a change to {expect} produced no diff line"
+    assert any(expect in d for d in diffs), (expect, diffs[:5])
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "ASTRA-09: the n-sleeve state has no persisted calendar, so the golden cannot compare one. The "
+    "hardening side records it (record_calendar / effective_calendar) and the renewal schedule "
+    "depends on it — a merge that keeps N sleeves but drops the calendar leaves the week index at "
+    "the mercy of the download length. When the merge lands, the golden must carry the calendar, "
+    "the fixture is re-pinned deliberately, and this marker goes away."))
+def test_the_golden_compares_the_persisted_calendar():
+    blob = _load_golden()
+    assert "calendar" in blob["final_state"]
+    got = copy.deepcopy(blob)
+    got["final_state"]["calendar"] = list(blob["final_state"]["calendar"])[:-1]
+    assert any("calendar" in d for d in _diff(got, blob))
