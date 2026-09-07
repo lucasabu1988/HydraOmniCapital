@@ -623,20 +623,42 @@ def publish_generation(ctx: BackupContext, sources: Sequence) -> dict:
         unwind.rollback()
         raise
     unwind.commit()
-    _write_latest(ctx.date_dir, ctx.run_id)
+    latest = _write_latest(ctx.date_dir, ctx.run_id)
     return {
         "generation_dir": ctx.generation_dir, "run_id": ctx.run_id, "date": ctx.date,
         "profile": ctx.profile, "mode": ctx.mode.value,
         "names": sorted(hashes), "hashes": hashes,
+        "latest": latest,   # None if the pointer could not be updated; the generation still exists
     }
 
 
-def _write_latest(date_dir: Path, run_id: str) -> Path:
+def _write_latest(date_dir: Path, run_id: str) -> Path | None:
+    """Point LATEST at `run_id`. Returns the path, or None if the pointer could not be updated.
+
+    Two clean publishes racing into one date directory both used to stage the pointer as the
+    SAME `LATEST.tmp`; on Windows the second writer's rename failed with WinError 32 (file in use
+    by another process) — AFTER its generation was fully published and verified. The caller then
+    saw an exception for a publish that had succeeded. Each writer now stages under its own name,
+    the final replace is retried briefly (a reader may hold LATEST open for a moment), and a
+    pointer that still cannot be written is reported, not raised: the generation is the thing that
+    matters and it is on disk; `latest_generation` falls back to scanning when the pointer is
+    stale or absent.
+    """
+    import time
     path = date_dir / LATEST_NAME
-    tmp = date_dir / f"{LATEST_NAME}.tmp"
+    tmp = date_dir / f"{LATEST_NAME}.{run_id}.tmp"
     tmp.write_text(run_id + "\n", encoding="utf-8")
-    tmp.replace(path)
-    return path
+    for attempt in range(6):
+        try:
+            os.replace(tmp, path)
+            return path
+        except PermissionError:
+            time.sleep(0.05 * (attempt + 1))
+    try:
+        tmp.unlink()
+    except OSError:  # pragma: no cover - best effort
+        pass
+    return None
 
 
 def stale_staging(date_dir, *, keep_run_id: str | None = None) -> list[Path]:

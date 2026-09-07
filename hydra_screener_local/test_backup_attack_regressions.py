@@ -359,3 +359,27 @@ def test_staging_debris_from_a_killed_process_can_be_named_and_swept(tmp_path):
     assert removed == [dead] and not dead.exists()
     assert inflight.is_dir(), "sweeping must not delete a publish that is staging right now"
     assert generation_is_complete(gen, require_profile="daily_v9"), "and must not touch a generation"
+
+
+def test_two_publishers_do_not_share_a_latest_tmp_and_a_failed_pointer_does_not_fail_the_publish(tmp_path, monkeypatch):
+    """Found by the second attack round (a7 6b-ii): two clean publishes racing into one date
+    directory both staged the pointer as the same LATEST.tmp, and on Windows the second rename
+    raised WinError 32 AFTER its generation was fully published. The generation is what matters."""
+    gen = _published(tmp_path)
+    date_dir = gen.parent
+    # per-writer staging name: two writers cannot collide on the tmp file
+    a = BS._write_latest(date_dir, gen.name)          # a real run_id: the pointer must resolve
+    assert a == date_dir / BS.LATEST_NAME
+    assert BS.latest_generation(date_dir) == gen
+    assert not list(date_dir.glob(f"{BS.LATEST_NAME}.*.tmp")), "no staging file left behind"
+    # a pointer that cannot be replaced is reported as None, never raised
+    import os as _os
+    real = _os.replace
+    def always_busy(src, dst):
+        raise PermissionError(32, "in use")
+    monkeypatch.setattr(BS.os, "replace", always_busy)
+    monkeypatch.setattr(BS.time if hasattr(BS, "time") else __import__("time"), "sleep", lambda s: None, raising=False)
+    assert BS._write_latest(date_dir, "20260904T000002Z-bbbbbbbb") is None
+    monkeypatch.setattr(BS.os, "replace", real)
+    assert not list(date_dir.glob(f"{BS.LATEST_NAME}.*.tmp")), "the failed writer cleaned its tmp"
+    assert BS.latest_generation(date_dir) == gen, "and the previous pointer still resolves"
