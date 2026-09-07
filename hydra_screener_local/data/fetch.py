@@ -116,6 +116,9 @@ def fetch_prices_and_volume(tickers: list[str], period: str = "1y", batch_size: 
                       failed_tickers=failed_tickers, missing_share=round(missing_share, 4))
     lost = f" | {failed_batches} lote(s) perdidos, {len(failed_tickers)} tickers" if failed_batches else ""
     print(f"\nDescarga completada: {downloaded}/{requested} tickers con precios + volumen{lost}.\n")
+    # This path never forward-fills, so notna() IS the print mask; attach it anyway so the
+    # execution accessor sees the same provenance contract on stocks and on ETFs (ASTRA-03).
+    attach_observed(prices, prices.notna())
     return prices, volumes
 
 
@@ -154,6 +157,39 @@ TBILL_SYMBOL = "^IRX"
 # Isolated holiday/gap fills only. A hole longer than this stays NaN (the engine's 10-bar
 # stale carry / write-off is a holdings policy, not a fetch policy).
 FFILL_LIMIT_BARS = 3
+
+# ASTRA-03. The forward fill above is a SIGNAL convenience: a one-bar hole must not break a
+# 252-bar momentum window. It is not permission to trade at the carried price. Every frame this
+# module returns therefore carries a per-bar/per-ticker boolean of what actually printed, in
+# `frame.attrs[OBSERVED_ATTR]`; the execution-price accessor (portfolio_v9._row) reads it and
+# books "no price on execution day" instead of a fill at a stale close.
+OBSERVED_ATTR = "observed"
+
+
+def attach_observed(frame: pd.DataFrame, mask) -> pd.DataFrame:
+    """Record which cells of `frame` are prints (not forward fills). Returns `frame`."""
+    if frame is None or getattr(frame, "empty", True):
+        return frame
+    try:
+        frame.attrs[OBSERVED_ATTR] = pd.DataFrame(mask).reindex(
+            index=frame.index, columns=frame.columns, fill_value=False).astype(bool)
+    except Exception:                                    # attrs are best-effort provenance
+        frame.attrs.pop(OBSERVED_ATTR, None)
+    return frame
+
+
+def observed_mask(frame) -> pd.DataFrame | None:
+    """The observation mask carried by `frame`, or None when the frame has no provenance.
+
+    None means "unknown", not "nothing printed": callers that require a printed price decide
+    what to do with an unprovenanced frame (see portfolio_v9._row, which trusts notna()).
+    """
+    if frame is None:
+        return None
+    mask = getattr(frame, "attrs", {}).get(OBSERVED_ATTR)
+    if mask is None or getattr(mask, "empty", True):
+        return None
+    return mask
 
 
 def _yf_download(batch: list[str], *, auto_adjust: bool, period: str | None = None,
@@ -289,13 +325,17 @@ def _fetch_closes(tickers: list[str], period: str, *, auto_adjust: bool, report:
         return pd.DataFrame()
 
     prices = pd.concat(frames, axis=1).dropna(axis=1, how="all")
-    # Provenance before the fill (audit phase 2.6): downstream a carried price is
-    # indistinguishable from a printed one, and an order may only be priced from a
-    # real print. `last_observed` is the evidence data.quality.classify() needs.
+    # Provenance before the fill: downstream a carried price is indistinguishable from a
+    # printed one, and an order may only be priced from a real print. Two consumers:
+    # `report["last_observed"]` is the evidence data.quality.classify() needs (audit
+    # phase 2.6); `attrs["observed"]` is the per-cell mask the execution-price and
+    # last-observed-close paths need (ASTRA-03). Same fact, captured once.
     from data.quality import last_observed_dates
-    observed = last_observed_dates(prices)
+    observed_dates = last_observed_dates(prices)
+    observed = prices.notna()
     prices = prices.ffill(limit=FFILL_LIMIT_BARS)
-    report["last_observed"] = observed
+    attach_observed(prices, observed)
+    report["last_observed"] = observed_dates
     report["ffill_limit_bars"] = int(FFILL_LIMIT_BARS)
     report["source"] = "yfinance"
     report["fetched_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -640,5 +680,3 @@ def _relative_mismatch(stored: pd.Series, incoming: pd.Series, tol: float = _REA
     a, b = a[valid], b[valid]
     rel = (b - a).abs() / a.abs().clip(lower=1e-12)
     return bool((rel > tol).any())
-
-
