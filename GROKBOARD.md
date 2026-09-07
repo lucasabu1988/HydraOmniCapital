@@ -1601,6 +1601,23 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   `tools/check_coverage.py` in the same commit. Depends on TASK-388 for that number.
   Files: `hydra_screener_local/mypy.ini`, the five modules listed, `hydra_screener_local/tools/check_coverage.py`,
   `.github/workflows/test.yml`, `.comms/grok-task-390-typing-tier-2.md`.
+  **Evidence (tier 2):** `56d4b66` — the five modules plus `tools/precommit_gates.py` in `mypy.ini`,
+  "Success: no issues found in 16 source files", floor ratcheted 77 -> 80. The board entry was already
+  `[x]`; it is repeated here so a second implementer does not redo it.
+  **Evidence (follow-up, `10e2675`, branch `fix/task-390-tier3-and-stable-coverage`):** tier 3 = 9 more modules (`core/tranche_book.py`,
+  `core/fills.py`, `core/state_check.py`, `core/portfolio_state.py`, `core/regime.py`, `reconcile.py`,
+  `utils/env.py`, `utils/trading_calendar.py`, `utils/display.py`), the 15 errors they cost fixed with
+  annotations and narrowing only — no logic change, six of them are on the frozen money path.
+  `python -m mypy --config-file mypy.ini` -> "Success: no issues found in 25 source files".
+  `core.portfolio_engine.settle()` was annotated `-> dict` and returns a **list** of fills that every
+  caller iterates; annotation fixed, behaviour untouched. The coverage measurement was not repeatable
+  (81.25 / 80.97 / 81.25 / 81.14 % over four CI runs of one tree; 40 / 47 / 57 missed statements in
+  `core/meta_layer.py` over 12 identical local runs) because `test_volume_watchdog.py` drew its fixtures
+  from the unseeded global `np.random`; it now uses `np.random.default_rng(20260906)` and two full runs on
+  one commit agree exactly (81.09 %, 1123/5809 missed, zero differing files). **The floor stays at 80.0
+  until two runs on one commit agree in CI** — 81.0 would already have failed the 80.97 % run.
+  `test_task_390_gates.py` (15 tests) pins all of it, including a guard that no test module draws from
+  the unseeded global `np.random` again.
 
 - [x] `TASK-391` **The local half of the gates.** `.pre-commit-config.yaml` runs ruff over
   `hydra_screener_local/` and nothing else, so the four cheap audit checks only fire in CI — minutes after
