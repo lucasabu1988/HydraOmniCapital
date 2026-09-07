@@ -575,10 +575,22 @@ def main():
     ap.add_argument('--insample', nargs='*')
     ap.add_argument('--only', nargs='*', help='restrict --dev to these config names')
     ap.add_argument('--nominal', action='store_true', help='pre-audit nominal accounting (comparison only)')
+    # Offline injection points (ASTRA-06 follow-up). load_panel/prepare_panel already accept these;
+    # without them on the CLI a headline can only be re-derived from the operator's own tree, which
+    # is how "5.38 -> 4.87" ended up unreproducible for anyone else. Read-only paths.
+    ap.add_argument('--cache-dir', default=None, help='panel cache dir (default experiments/_sweep_cache_oos)')
+    ap.add_argument('--payload', default=None, help='sp500_pit.json to use instead of fetching one')
+    ap.add_argument('--pit-dir', default=None, help='PIT snapshots dir for the pinned sector map')
     a = ap.parse_args()
 
+    payload = json.load(open(a.payload, encoding='utf-8')) if a.payload else None
+
+    def _panel(oos):
+        return load_panel(oos=oos, cache_dir=a.cache_dir, payload=payload if oos else None,
+                          pit_dir=a.pit_dir)
+
     if a.dev or a.test is not None or a.full is not None:
-        P = load_panel(oos=True)
+        P = _panel(True)
         print(f'PIT panel {P.close.shape}  {P.close.index[0].date()} .. {P.close.index[-1].date()}  '
               f'DEV < {SPLIT.date()} <= TEST')
     if a.dev:
@@ -604,7 +616,7 @@ def main():
             table([stats(df[df.index < SPLIT], h, f'{name} DEV'), stats(df[df.index >= SPLIT], h, f'{name} TEST'),
                    stats(df, h, f'{name} ALL')])
     if a.insample is not None:
-        P2 = load_panel(oos=False)
+        P2 = _panel(False)
         rows = [stats(run_any(P2, CONFIGS[n], nominal=a.nominal), step_of(CONFIGS[n]), f'{n} in-sample 2020-26') for n in (a.insample or ['PROD'])]
         table(rows)
 

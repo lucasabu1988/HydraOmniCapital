@@ -37,6 +37,58 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 09:30] CLAUDE: **ASTRA-06 seguimiento: una decision para Lucas (H-004) y dos defectos de test cerrados.**
+Rama `fix/astra-06-followup` (base `fix/astra-06-pit-breadth` + `origin/main` mergeado primero, por la valla de
+respaldo). `core/` sigue SIN tocar; nada mergeado, la ruta viva sigue congelada hasta verificar el settle del 09-08.
+
+**1. Lo que pedia la review: el test que fijaba el numero equivocado.** El test de caracterizacion afirmaba que
+core AUN devuelve 0.723 con 50 columnas sin observacion — verde porque el codigo esta roto. Ahora son tres tests:
+la referencia sobre un frame bien formado (0.773 / breadth 1.0, cobertura real), un `xfail(strict=True)` escrito
+contra el comportamiento DESEADO (`test_DEFECT_core_regime_counts_unobserved_columns_in_breadth`: se pone ROJO el
+dia que se aplique el parche, que es justo lo que queremos) y la prueba de que hoy el defecto es inalcanzable desde
+la cadena de filtros viva. Marcador `@pytest.mark.defect` + `DEFECT` en el nombre: `pytest -m defect` los lista.
+
+**2. LA DECISION (H-004, regla 6).** Parche propuesto para `core/regime.py`, con diff exacto, medicion y criterio
+de muerte en `.comms/claude-astra06-core-proposal-2026-09-07.md`; registrado en `.comms/hypotheses.md`. Dos tamanos:
+- **A (minima)**: solo excluye del breadth las columnas SIN precio en la fecha. Es **neutra en vivo hoy** y esta
+  demostrado en un test: el filtro de precio minimo (`prices.iloc[-1] >= 5.0`, False para NaN) ya las elimina antes
+  de scorear. Mi recomendacion: aprobarla.
+- **B (completa)**: excluye tambien las columnas cuya SMA50/SMA200 no esta definida (historia corta). Esta **SI
+  mueve el regimen en vivo** y cuanto es algo que NO he medido — haria falta el frame de produccion, que vive en
+  `data_cache/bars.sqlite` (WAL: un lector toca el `-shm`), y no lo he abierto. No la apruebes a ciegas.
+
+Medido sobre el panel PIT OOS (1084 fechas de 5 barras, 2005-02-11..2026-08-24, S&P solo, ~53% de cobertura de
+precios en 2005): **encima del arreglo de ASTRA-06 el parche de core es casi un no-op** — el regimen cambia en
+122/1084 fechas por una media de +0.0001 (max 0.0010), `dynamic_count` cambia en **2 fechas**, la lista de ordenes
+en esas mismas 2 (0.2%) y el gate de regimen no se voltea ninguna vez. En cambio **el parche de core solo** (sin
+el arreglo del lab) habria arreglado casi lo mismo: breadth 0.3029 -> 0.5839 frente a 0.5861 del lab, +0.0281 de
+regimen medio. Eran dos caminos al mismo defecto; ASTRA-06 tomo el que no necesitaba aprobacion.
+
+**Backtest emparejado (la metrica que decide, escrita ANTES de correrlo):** T20 `ann_net` 7.28 -> 7.30 ALL
+(6.97 -> 7.00 DEV, 7.60 -> 7.60 TEST); PROD 4.87 -> 4.88 ALL (3.19 -> 3.20 DEV, 6.63 -> 6.63 TEST). Sharpe,
+maxDD, rotacion, exposicion y numero de nombres no se mueven. El criterio de muerte pedia |delta| < 0.25 pp con
+el mismo signo en DEV y TEST: **lo pasa**. Un "arreglo de correccion" que moviera medio punto seria la senal de
+alarma, no esta.
+
+**Y de paso queda verificado el titular de ASTRA-06 que la review no podia reproducir:** el lado POST-arreglo
+sale identico al ultimo digito re-derivado aqui desde cero (T20 7.28/6.97/7.60, PROD 4.87/3.19/6.63, maxdd
+-41.6), con los sha256 y las fechas de cada fichero de entrada apuntados en la nota. El lado PRE-arreglo (5.38,
+7.55) NO lo he re-derivado y no lo repito como hecho medido: hace falta `git checkout 1c21bc4` y el comando que
+queda escrito en la nota (por eso anadi `--cache-dir/--payload/--pit-dir` al CLI de `redesign_lab.py`: sin ellos
+un titular solo se puede reproducir dentro del arbol de produccion, que es justo como se perdio este).
+
+**3. Los tres parity tests que nunca corrian.** `test_parity_stock_targets_with_redesign_lab`,
+`test_parity_etf_targets_with_sleeve_lab` y `test_review_341::test_parity_stock_targets_reproduced` leian
+`experiments/_sweep_cache*` (gitignored, solo existe en el arbol de produccion): fuera de esta maquina hacian
+`skip` y el fichero imprimia [PASS]. La paridad del motor que mueve dinero real nunca se habia comprobado en CI.
+Ahora corren sobre `lab_fixture.py` (panel sintetico determinista, comprometido, cargado por el loader real) y un
+test comprueba que el fixture pasa por todas las ramas (veto, tope por sector, exencion de `Other`, keep-zone,
+exposicion < 1 y == 1). Queda uno que necesita datos reales de verdad (huecos, deslistados, 500 columnas) y ese
+skip ahora imprime su razon (`-rs` en pytest.ini). Verificado a mano contra el cache de produccion en solo
+lectura: la paridad se cumple en 25 fechas con atol=1e-9.
+
+Suite: 50 ficheros PASS, 0 skip de ficheros, EXIT=0, ruff limpio.
+
 [2026-09-07 02:30] CLAUDE: **ASTRA-03 cerrada a criterio de Claude (Lucas: "soluciona A03 a tu mejor criterio").**
 Todo en `fix/astra-03-observed-fill-prices`, con `main` mergeado primero segun la regla de la ventana de merge —
 por eso su suite no escribio nada en el respaldo real: la valla vino con el merge, sin señuelo explicito. Verificado:
