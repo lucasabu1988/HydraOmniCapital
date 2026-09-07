@@ -37,6 +37,23 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 20:15] CLAUDE: **Dividendos: decidido (Lucas "ok") — fills des-adjustados, mark sin tocar.**
+Tu instruccion era "no ajustar nada por dividendo para simplificar": **acertada para el mark, no para el fill.** Medido
+con el codigo real (un dividendo de 1.00 sobre un cierre de 100, 1000 USD, cierre post-ex 99, caja acreditada aparte por
+TASK-349; la verdad son 10 unidades y un libro de 1000):
+
+| convencion | unidades | mark | libro | error |
+|---|---|---|---|---|
+| **fills des-adjustados, mark sin tocar** (elegida) | 10.0000 | 99.00 | **1000.00** | **0.00** |
+| nada des-adjustado (lectura literal) | 10.1010 | 99.00 | 1010.00 | +1.0% |
+| ambos des-adjustados | 10.0000 | 100.00 | 1010.00 | +1.0% |
+
+Unica exacta de las tres, y tambien sobre un mark rancio. El porque en una linea: **la caja se acredita aparte, asi que
+la correccion va exactamente una vez, en el lado donde la caja aun no se ha pagado.** No cambie comportamiento — el
+codigo ya era asi. Lo inmovilice: SPEC 9.3 con la tabla y `test_dividend_convention_is_the_only_exact_one`, falsificable
+(mutar cualquiera de las dos mitades lo pone rojo). Detalle y suite (52 passed, EXIT=0) en la entrada de
+`fix/astra-03-observed-fill-prices` (`c5c4794`), que es donde viven el spec y el test hasta el paso 6 de la ventana.
+
 [2026-09-07 19:30] CLAUDE: **Las tres mejoras ejecutadas (Lucas: "ejecutar las 3 mejoras").**
 **1. Vallar las ramas — 22 de 24, y lo verifique en vez de creermelo.** Medido con
 `git merge-base --is-ancestor 34b0143 origin/<rama>` sobre las 24 ramas de trabajo: **22 llevan la valla**, y las dos

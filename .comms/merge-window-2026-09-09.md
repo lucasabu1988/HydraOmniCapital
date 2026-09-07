@@ -97,7 +97,7 @@ El respaldo real no cambio en ~16 suites: 298 ficheros, `state_v9/` en 60, el ma
 | 3 | `ci/task-388-first-real-run` | paso 1 | 0 | Un trigger `workflow_dispatch`; independiente del orden |
 | 4 | `docs/astra-prereg-01-08-10` | paso 2 | 0 | Registra H-004/005/006 y los 3 xfail(strict) |
 | 5 | `fix/astra-06-pit-breadth` + `fix/astra-06-followup` | paso 4 | 1 | Una sola unidad (el followup **contiene** pit-breadth). Lleva **H-007 aplicada** (regla 6, Lucas 09-07): `core/regime.py` + SPEC + efecto medido |
-| 6 | `fix/astra-03-observed-fill-prices` | paso 4 y **veredicto del re-review** | 0 | Objeciones 1 y 2 cerradas por ejecución; la 3 (TASK-402) cerrada en `52eac42`, pendiente de que alguien lo confirme. Fila WARN por decisión de Lucas |
+| 6 | `fix/astra-03-observed-fill-prices` | paso 4 y **veredicto del re-review** | 0 | Objeciones 1 y 2 cerradas por ejecución; la 3 (TASK-402) cerrada en `52eac42`, pendiente de que alguien lo confirme. Fila WARN por decisión de Lucas. Lleva la **convención de dividendos** (fills des-adjustados, mark sin tocar; Lucas 09-07) en SPEC 9.3 + `test_dividend_convention_is_the_only_exact_one`. **Al resolver `GROKBOARD.md` por unión quedarán dos entradas de esa decisión** (una en `main`, una en la rama): borrar la corta de `main` a mano, quedarse con la detallada |
 | 7 | `fix/astra-04-skip-gate` | paso 1 | 4 | Reescribe la contabilidad del runner (casos, no ficheros). Tras ella el baseline pasa a ~59 ficheros / 672 casos / 3 skips nominados: actualizar CLAUDE.md |
 | 8 | `fix/task-390-tier3-and-stable-coverage` | paso 7 | 3 | **No mover el piso de cobertura** hasta dos corridas iguales sobre un commit |
 | 9 | `test/gm-002r-gate-tools` | paso 8 | 3 | Necesita `tools/` de la pila estructural; no cherry-pickear a main |
