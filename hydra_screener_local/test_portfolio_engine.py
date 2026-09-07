@@ -1,6 +1,8 @@
 """HYDRA v9 engine: hand-computable cases, idempotence, and parity with the executable simulator.
 
-The parity tests need the lab caches (experiments/_sweep_cache*, gitignored) and skip without them.
+The lab/engine parity tests run on `lab_fixture` (a committed deterministic panel) since
+2026-09-07; before that they all skipped without the gitignored `experiments/_sweep_cache*` and the
+file still reported [PASS]. One of them still needs the real cache and says so when it skips.
 """
 import os
 import sys
@@ -223,64 +225,164 @@ def test_costs_and_unfilled_orders_are_recorded():
 
 
 # ----------------------------------------------------------------------------- parity with the lab
+# These four tests assert a CODE-PATH equivalence: `core.portfolio_engine` (production) must
+# reproduce `experiments/redesign_lab` and `sleeves/etf_trend` (the code every OOS number was
+# measured with), name for name and weight for weight. If they diverge, the backtest stops being
+# evidence about the thing that trades.
+#
+# Until 2026-09-07 all three parity tests called `L.load_panel(oos=False)` / `S.load_etfs()`,
+# which read `experiments/_sweep_cache*` — a gitignored yfinance download that exists only in the
+# operator's production tree. Everywhere else they hit `pytest.skip` and the file still reported
+# [PASS]: the parity of the engine that trades real money had never been checked outside one
+# machine. They now run on `lab_fixture`, a committed deterministic panel (see that module for why
+# a synthetic panel is the right fixture for an equivalence property), so they run in CI, in every
+# worktree and in every clone. `test_lab_fixture_exercises_every_parity_branch` is what stops the
+# fixture from going quietly degenerate and making the parity trivially true.
+#
+# What the fixture does NOT reproduce is real yfinance data: mid-history gaps, delistings,
+# duplicated tickers, splits. `test_parity_stock_targets_on_the_real_lab_cache` covers that and is
+# the one test here that still skips without the cache — with the reason printed (`-rs` in
+# pytest.ini), so the skip is visible instead of hiding inside a green count.
 LAB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "experiments")
+sys.path.insert(0, LAB)
+
+import lab_fixture as FIX  # noqa: E402
 
 
-def _lab():
-    if not os.path.exists(os.path.join(LAB, "_sweep_cache", "close.pkl")):
-        pytest.skip("lab cache experiments/_sweep_cache/ not present")
-    sys.path.insert(0, LAB)
+def _cfg():
     import redesign_lab as L
-    return L
+    c = dict(L.BASE); c.update(L.CONFIGS["T20"])
+    return L, c
 
 
-def test_parity_stock_targets_with_redesign_lab():
-    L = _lab()
-    P = L.load_panel(oos=False)
-    cfg = L.CONFIGS["T20"]; c = dict(L.BASE); c.update(cfg)
-    checked = 0
-    held = set()
-    for t in range(1300, len(P.close.index) - 6, 5):
-        out = L.rank_day(P, t, c)
+def _lab_weights(L, P, t, c, held):
+    """The lab's target weights at bar t: select() + equal weights + vol-scaled exposure."""
+    out = L.rank_day(P, t, c)
+    if out is None:
+        return None, None, None
+    m = P.meta_for(t, c)
+    n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers["COMPASS"])), 28))
+    sel = L.select(out, n, held, c["buffer"])
+    basket = P.rets.iloc[t - 62:t + 1][sel.index].mean(axis=1)
+    rv = float(basket.std(ddof=1)) * np.sqrt(252)
+    expo = min(1.0, c["target_vol"] / rv) if rv > 0 else 1.0
+    w = pd.Series(expo / len(sel), index=sel.index) if len(sel) else pd.Series(dtype=float)
+    return out, sel, (w, n, expo)
+
+
+def _engine_weights(L, out, n, held, prices, c):
+    """The same day through production: the ranking frame screener.py emits, fed to stock_targets."""
+    rk = pd.DataFrame({"ticker": out.index, "rank": range(1, len(out) + 1), "sector": out["sector"].values,
+                       "reason": np.where(L.vetoed(out).values, "Vetado: gate", ""), "recommended_count": n})
+    return E.stock_targets(rk, held, prices, dict(V9, stock_buffer=c["buffer"], stock_target_vol=c["target_vol"]))
+
+
+@pytest.fixture(scope="module")
+def fixture_panel(tmp_path_factory):
+    return FIX.build_panel(str(tmp_path_factory.mktemp("parity")))
+
+
+def test_parity_stock_targets_with_redesign_lab(fixture_panel):
+    """stock_targets == lab select + equal weights + exposure, on every rebalance bar."""
+    L, c = _cfg()
+    P = fixture_panel
+    checked, held = 0, set()
+    for t in range(320, len(P.close.index) - 6, 5):
+        out, sel, got = _lab_weights(L, P, t, c, held)
         if out is None:
             continue
-        m = P.meta_for(t, c)
-        n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers["COMPASS"])), 28))
-        sel = L.select(out, n, held, c["buffer"])
-        basket = P.rets.iloc[t - 62:t + 1][sel.index].mean(axis=1)
-        rv = float(basket.std(ddof=1)) * np.sqrt(252)
-        expo = min(1.0, c["target_vol"] / rv) if rv > 0 else 1.0
-        lab_w = pd.Series(expo / len(sel), index=sel.index) if len(sel) else pd.Series(dtype=float)
-        # production-shaped ranking from the same frame: rank order, sector, veto as a "Vetado" reason
-        rk = pd.DataFrame({"ticker": out.index, "rank": range(1, len(out) + 1), "sector": out["sector"].values,
-                           "reason": np.where(L.vetoed(out).values, "Vetado: gate", ""), "recommended_count": n})
-        eng_w = E.stock_targets(rk, held, P.close.iloc[:t + 1], dict(V9, stock_buffer=c["buffer"], stock_target_vol=c["target_vol"]))
-        pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(), check_names=False, rtol=0, atol=1e-9)
+        lab_w, n, _expo = got
+        eng_w = _engine_weights(L, out, n, held, P.close.iloc[:t + 1], c)
+        pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(), check_names=False,
+                                       rtol=0, atol=1e-12)
         held = set(sel.index)
         checked += 1
-        if checked >= 25:
-            break
-    assert checked >= 20
+    assert checked >= 25, checked
+
+
+def test_lab_fixture_exercises_every_parity_branch(fixture_panel):
+    """The fixture must drive both implementations through every branch, or parity proves nothing.
+
+    A parity test on a panel where nothing is vetoed, the sector cap never binds and exposure is
+    always 1.0 would compare two identity functions. Each assertion below names the branch it
+    keeps alive; if one starts failing, the fixture — not the engine — is what regressed."""
+    from config import MAX_PER_SECTOR
+    L, c = _cfg()
+    P = fixture_panel
+    counts, vetoes, expos, caps, others, kept = [], [], [], [], [], []
+    held = set()
+    for t in range(320, len(P.close.index) - 6, 5):
+        out, sel, got = _lab_weights(L, P, t, c, held)
+        if out is None:
+            continue
+        _w, n, expo = got
+        counts.append(n); expos.append(expo)
+        vetoes.append(int(L.vetoed(out).sum()))
+        caps.append(bool((sel["sector"].value_counts() >= MAX_PER_SECTOR).any()))
+        others.append(int((sel["sector"] == "Other").sum()))
+        kept.append(len(held & set(sel.index)))
+        held = set(sel.index)
+    assert len(counts) >= 25, "too few rebalance bars to be a parity test"
+    assert min(counts) < max(counts), f"dynamic_count never moves: {sorted(set(counts))}"
+    assert min(expos) < 0.95 and max(expos) == 1.0, f"vol-target exposure branch not covered: {min(expos)}/{max(expos)}"
+    assert min(vetoes) > 0, "the veto gate never fires: the 'Vetado' filter path is untested"
+    assert any(caps), "the hard sector cap never binds"
+    assert min(others) > 0, "no 'Other' name is ever selected: the cap exemption is untested"
+    assert max(kept) > 0, "no held name is ever kept: the buffer keep-zone is untested"
 
 
 def test_parity_etf_targets_with_sleeve_lab():
-    L = _lab()
-    import sleeve_lab as S
+    """etf_trend.target_weights == the lab's inverse-vol TSMOM rule, hurdle and eligibility included."""
     from sleeves.etf_trend import target_weights
-    P = L.load_panel(oos=False)
-    P.ETF = S.load_etfs(P.close.index)
-    tb_daily = P.IRX / 252.0
-    px = P.ETF; rets = px.pct_change(fill_method=None); vol63 = rets.rolling(63).std() * np.sqrt(252)
+    px, tb_daily = FIX.build_etf_frames()
+    rets = px.pct_change(fill_method=None); vol63 = rets.rolling(63).std() * np.sqrt(252)
     tb12 = tb_daily.rolling(252).sum(); mom12 = px / px.shift(252) - 1
-    checked = 0
-    for t in range(1300, len(px.index) - 6, 5):
+    checked, off_seen, elig_seen = 0, 0, 0
+    for t in range(320, len(px.index) - 6, 5):
         names = px.columns[(px.iloc[t].notna() & px.iloc[t - 252].notna()).values]
         on = mom12.iloc[t][names] - tb12.iloc[t] > 0
         iv = (1.0 / vol63.iloc[t][names]).replace([np.inf, -np.inf], np.nan).fillna(0.0)
         base = iv / iv.sum()
         lab_w = (base * on.astype(float)); lab_w = lab_w[lab_w > 0]
         eng_w = target_weights(px.iloc[:t + 1], tb_daily.iloc[:t + 1])
-        pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(), check_names=False, rtol=0, atol=1e-9)
+        pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(), check_names=False,
+                                       rtol=0, atol=1e-12)
+        off_seen += int((~on).sum()); elig_seen += int(len(px.columns) - len(names))
+        checked += 1
+    assert checked >= 25, checked
+    assert off_seen > 0, "every ETF was long on every bar: the T-bill hurdle is untested"
+    assert elig_seen > 0, "every ETF was eligible on every bar: eligible() is untested"
+    assert float(target_weights(px.iloc[:400], tb_daily.iloc[:400]).sum()) < 1.0, \
+        "weights sum to 1: the share of the 'off' ETFs is not being left in T-bill"
+
+
+def test_parity_stock_targets_on_the_real_lab_cache():
+    """The same parity on the REAL panel — the shapes the synthetic fixture cannot make.
+
+    Real yfinance data brings mid-history NaN gaps, names that stop printing, and 500 columns.
+    This is the only test in this file that needs `experiments/_sweep_cache/` (gitignored, ~13 MB,
+    rebuilt with `python experiments/backtest_variant_sweep.py --download`), so it skips without
+    it. That skip is NOT covered by the fixture tests above and is reported by name: pytest.ini
+    carries `-rs`, so a suite run prints this reason instead of an anonymous 'skipped' count.
+    """
+    cache = os.path.join(LAB, "_sweep_cache", "close.pkl")
+    if not os.path.exists(cache):
+        pytest.skip("REAL-DATA PARITY NOT RUN: experiments/_sweep_cache/close.pkl absent (gitignored). "
+                    "The synthetic-fixture parity tests above did run; what is untested here is "
+                    "parity on real yfinance shapes (mid-history gaps, delisted names, 500 columns). "
+                    "Rebuild with: python experiments/backtest_variant_sweep.py --download")
+    L, c = _cfg()
+    P = L.load_panel(oos=False)
+    checked, held = 0, set()
+    for t in range(1300, len(P.close.index) - 6, 5):
+        out, sel, got = _lab_weights(L, P, t, c, held)
+        if out is None:
+            continue
+        lab_w, n, _expo = got
+        eng_w = _engine_weights(L, out, n, held, P.close.iloc[:t + 1], c)
+        pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(), check_names=False,
+                                       rtol=0, atol=1e-9)
+        held = set(sel.index)
         checked += 1
         if checked >= 25:
             break

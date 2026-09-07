@@ -130,18 +130,31 @@ def test_park_and_hold_no_price_survive_settle_into_the_ledger():
     )
 
 
-def test_parity_stock_targets_reproduced():
+def test_parity_stock_targets_reproduced(tmp_path):
+    """Reproduce the lab/engine parity independently of test_portfolio_engine.py.
+
+    A review that reads the code and agrees with it is worth little; this recomputes the lab's
+    target weights from the panels here, in this file, and compares them with what the engine
+    returns. The duplication with test_portfolio_engine.py is deliberate — an independent
+    reproduction is the point of the review.
+
+    Until 2026-09-07 this called `L.load_panel(oos=False)` and skipped without the gitignored
+    `experiments/_sweep_cache/`, so the review's central claim was never actually re-run outside
+    the operator's machine. It now uses `lab_fixture`, a committed deterministic panel: the claim
+    is a code-path equivalence, and the fixture drives both paths through the veto, sector-cap,
+    keep-zone and vol-target branches (asserted in
+    test_portfolio_engine.py::test_lab_fixture_exercises_every_parity_branch).
+    """
     lab = os.path.join(os.path.dirname(os.path.abspath(__file__)), "experiments")
-    if not os.path.exists(os.path.join(lab, "_sweep_cache", "close.pkl")):
-        pytest.skip("lab cache experiments/_sweep_cache/ not present")
     sys.path.insert(0, lab)
+    import lab_fixture as FIX
     import redesign_lab as L
-    P = L.load_panel(oos=False)
+    P = FIX.build_panel(str(tmp_path / "review341"))
     cfg = L.CONFIGS["T20"]
     c = dict(L.BASE)
     c.update(cfg)
     checked, held = 0, set()
-    for t in range(1300, len(P.close.index) - 6, 5):
+    for t in range(320, len(P.close.index) - 6, 5):
         out = L.rank_day(P, t, c)
         if out is None:
             continue
@@ -163,9 +176,7 @@ def test_parity_stock_targets_reproduced():
             dict(V9, stock_buffer=c["buffer"], stock_target_vol=c["target_vol"]),
         )
         pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(),
-                                       check_names=False, rtol=0, atol=1e-9)
+                                       check_names=False, rtol=0, atol=1e-12)
         held = set(sel.index)
         checked += 1
-        if checked >= 20:
-            break
-    assert checked >= 20
+    assert checked >= 25, checked
