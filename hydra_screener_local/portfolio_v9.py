@@ -83,24 +83,35 @@ def load_state(path: Path) -> dict | None:
         return json.load(f)
 
 
-def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> Path | None:
-    """Copy state + instruction files to HYDRA_BACKUP_DIR/state_v9/<date>/ when the env is set."""
+def publish_off_disk(context, files: list[Path], silent: bool = False) -> dict | None:
+    """Publish one complete generation off disk. TASK-392: the destination is GIVEN, never found.
+
+    `copy_state_off_disk` used to live here and read HYDRA_BACKUP_DIR from the environment at call
+    time. That is the leak of 2026-09-06: a test with a fixture state and an inherited variable
+    copied the fixture over the live book's only off-disk copy. There is no ambient destination
+    any more — `context` is a `backup_service.BackupContext` built by an entry point (see
+    `backup_env.context_from_env`), and `None` means this run has no backup, not "go and look".
+
+    Returns the publish result, or None when there is no context or the service refused. A refusal
+    writes nothing: the destination tree keeps the same file set, count and hashes.
+    """
     global _OFFDISK_WARNED
-    dest_root = os.environ.get("HYDRA_BACKUP_DIR")
-    if not dest_root:
+    if context is None:
         if not _OFFDISK_WARNED and not silent:
-            print("[v9] AVISO: HYDRA_BACKUP_DIR no esta definido; el backup de state/ queda en el mismo disco")
+            print("[v9] AVISO: sin contexto de backup (HYDRA_BACKUP_DIR sin definir); "
+                  "el backup de state/ queda en el mismo disco")
             _OFFDISK_WARNED = True
         return None
-    dest = Path(dest_root) / "state_v9" / today.replace("-", "")
-    dest.mkdir(parents=True, exist_ok=True)
-    for p in files:
-        p = Path(p)
-        if p.exists():
-            shutil.copy2(p, dest / p.name)
+    from backup_service import BackupRefused, publish_generation
+    try:
+        result = publish_generation(context, [Path(f) for f in files if Path(f).exists()])
+    except BackupRefused as e:
+        print(f"[v9] backup REFUSED ({e.code}): {e.message}")
+        return None
     if not silent:
-        print(f"[v9] off-disk backup -> {dest}")
-    return dest
+        print(f"[v9] off-disk generation {result['run_id']} -> {result['generation_dir']} "
+              f"({len(result['names'])} file(s), profile {result['profile']})")
+    return result
 
 
 def save_state(path: Path, state: dict) -> Path | None:
@@ -310,8 +321,17 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False, dividend_fn=None) -> dict:
-    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
+        force: bool = False, dividend_fn=None,
+        backup_context=None, publish_backup: bool = True) -> dict:
+    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
+
+    `backup_context` is a `backup_service.BackupContext` or None; this function reads no
+    environment variable to find a backup destination (TASK-392). `publish_backup=False` says the
+    CALLER owns publication — `daily.py` passes False because the journal is written after this
+    returns, and the journal, the state and both sheets have to be published as ONE generation
+    with one run_id (the rejected branch published the state first and appended the journal after,
+    so a later refusal could not undo what had already been overwritten).
+    """
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
     state = load_state(state_path)
@@ -351,7 +371,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         prices, etf, irx, state=state, ranking=ranking,
         asof=today if fetch_fn is not None else pd.Timestamp.now(),
         last_session=today if fetch_fn is not None else None,
-        backup_dir=os.environ.get("HYDRA_BACKUP_DIR"),
+        backup_dir=str(backup_context.dest_root) if backup_context is not None else None,
     )
     if not silent:
         print(PF.format_table(pf))
@@ -398,7 +418,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     if sector_warning and not silent:
         print(f"[v9] DEGRADED {sector_warning}")
 
-    backup = save_state(state_path, state)
+    state_backup = save_state(state_path, state)
     summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
     exec_date = next_session_date(prices.index, today)
     # A same-day rerun must not overwrite today's sheet with "No trades": the pending orders planned
@@ -410,10 +430,19 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         state_dir, today, sheet_orders, fills, summary, state, exec_date,
         sector_warning=sector_warning,
     )
-    copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent)
+    # The generation is published by whoever owns the WHOLE set for this run. daily.py owns it
+    # (state + both sheets + journal); a standalone `python portfolio_v9.py` owns the sheet_only
+    # set and publishes it here.
+    backup = None
+    if backup_context is not None:
+        # The entry point could not know which bar this run lands on; re-key the SAME execution
+        # (same run_id) to the real trading date.
+        backup_context = backup_context.with_date(today)
+    if publish_backup:
+        backup = publish_off_disk(backup_context, [state_path, md_path, json_path], silent=silent)
     if not silent:
-        if backup:
-            print(f"[v9] backed up previous state -> {backup}")
+        if state_backup:
+            print(f"[v9] backed up previous state -> {state_backup}")
         print(f"[v9] state -> {state_path}")
         print(f"[v9] instructions -> {md_path}")
         ix = summarize_interest(state)
@@ -430,6 +459,9 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         sheet_orders=sheet_orders, sector_warning=sector_warning,
         last_bars={"stocks": today, "etf": _last_date(etf), "^IRX": _last_date(irx) if irx is not None and len(irx) else None},
         prices=prices, etf=etf, irx=irx,
+        # the files a generation of this run must hold, so daily.py never re-derives them
+        backup_files=[str(state_path), str(md_path), str(json_path)], backup=backup,
+        backup_context=backup_context,
     )
 
 
@@ -443,9 +475,26 @@ def main(argv=None) -> int:
     p.add_argument("--force", action="store_true",
                    help="Plan even if preflight hard-fails (stale bars, missing ETFs, unknown schema).")
     args = p.parse_args(argv)
+    # ENTRY POINT: this is one of the three places allowed to resolve HYDRA_BACKUP_DIR
+    # (backup_env). Everything below receives the destination explicitly. A standalone run writes
+    # no journal, so it declares the lesser `sheet_only` profile — which can never later pass as
+    # a complete daily_v9 generation in a restore drill.
+    import backup_env
+    try:
+        ctx = backup_env.context_from_env(
+            date=datetime.now().strftime("%Y-%m-%d"), profile="sheet_only",
+            # The entry point states which tree it is authorised to publish. `--state-dir` is the
+            # operator's own declaration, so it counts; a fixture nobody declared does not.
+            allowed_source_roots=(ROOT, Path(args.state_dir).expanduser().resolve()),
+        )
+    except Exception as e:
+        print(f"[v9] backup context unavailable: {e}")
+        ctx = None
+    if ctx is None:
+        print(f"[v9] {backup_env.unset_message()}")
     try:
         run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
-            force=args.force)
+            force=args.force, backup_context=ctx)
     except SystemExit as e:
         print(f"[v9] {e}")
         return 1

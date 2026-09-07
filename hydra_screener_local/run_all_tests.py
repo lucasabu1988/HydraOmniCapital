@@ -11,15 +11,18 @@ Exit code 0 if all pass, 1 if any fail.
 
 import argparse
 import glob
-import os
 import re
-import atexit
-import shutil
 import subprocess
-import tempfile
 import sys
 import time
 from pathlib import Path
+
+# TASK-393: installed by IMPORT, before anything from the package is imported, and before any
+# child process is spawned. Files run as scripts never load conftest.py, so this layer is the one
+# that covers them.
+import hydra_test_policy
+
+hydra_test_policy.install()
 
 ROOT = Path(__file__).parent
 
@@ -67,9 +70,9 @@ def discover_tests() -> list[str]:
     ordered.extend(sorted(found))
     return ordered
 
-#: Marks a throwaway backup destination; conftest.py uses the same marker.
-TEST_BACKUP_MARKER = "hydra-test-backup"
-_TEST_BACKUP_DIR = None
+#: Marks a throwaway backup destination; conftest.py uses the same marker (both re-export it
+#: from hydra_test_policy, so the two layers cannot drift apart).
+TEST_BACKUP_MARKER = hydra_test_policy.TEST_BACKUP_MARKER
 
 def _invocation(test_file: str) -> tuple[list[str], str]:
     """How to run this file, and why.
@@ -92,18 +95,14 @@ def _invocation(test_file: str) -> tuple[list[str], str]:
 
 
 def test_backup_dir() -> str:
-    """One throwaway HYDRA_BACKUP_DIR for the whole suite run.
+    """This runner process's throwaway HYDRA_BACKUP_DIR, inside the run's session tree.
 
-    The variable is a USER variable on this machine and every write path reads it from the
-    environment, so an inherited value points test writes at the production backup root — that is
-    how the only off-disk copies of the live book became fixtures (2026-09-06). conftest.py covers
-    pytest-routed files; files run as SCRIPTS never load a conftest, so the boundary has to be here.
+    Every child gets its OWN directory under the same session tree (hydra_test_policy installs
+    itself in each process), so a parent and its children cannot scribble on each other. The
+    inherited value — on this machine the operator's real backup root — is registered as a
+    forbidden destination with the backup service instead of merely being replaced.
     """
-    global _TEST_BACKUP_DIR
-    if _TEST_BACKUP_DIR is None:
-        _TEST_BACKUP_DIR = tempfile.mkdtemp(prefix=f"{TEST_BACKUP_MARKER}-")
-        atexit.register(shutil.rmtree, _TEST_BACKUP_DIR, True)
-    return _TEST_BACKUP_DIR
+    return str(hydra_test_policy.process_backup_dir())
 
 
 def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = None) -> tuple[str, float]:
@@ -111,10 +110,9 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
     suffix = "" if how == "script" else f"  [via {how}]"
     print(f"\n=== {test_file} ==={suffix}")
     start = time.perf_counter()
-    env = os.environ.copy()
-    env["HYDRA_BACKUP_DIR"] = test_backup_dir()
-    if extra_env:
-        env.update(extra_env)
+    # TASK-393: built, not inherited. os.environ.copy() is exactly how the production backup root
+    # reached the children on 2026-09-06.
+    env = hydra_test_policy.build_child_env(extra_env)
     # Only the subprocess call is guarded: a failure while printing the report
     # is a runner bug, not a test failure, and must not be swallowed here.
     try:
@@ -240,7 +238,9 @@ def _print_ruff_summary() -> None:
              "reconcile.py", "confirm_fills.py", "journal.py", "store_cli.py",
              "evidence_review.py", "warm_sectors.py", "send_hydra_summary.py",
              "console_dashboard.py", "snapshot_universe.py", "verify_state.py",
-             "runlog_cli.py", "reprint_sheet.py", *tests],
+             "runlog_cli.py", "reprint_sheet.py",
+             "backup_service.py", "backup_env.py", "hydra_test_policy.py", "conftest.py",
+             *tests],
             cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace",
         )
     except OSError:

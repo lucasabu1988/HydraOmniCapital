@@ -212,16 +212,40 @@ def test_gitignore_covers_state_dir():
     assert "hydra_screener_local/state/" in text
 
 
-def test_offdisk_backup_copies_when_env_set(tmp_path, monkeypatch):
+def test_offdisk_backup_publishes_a_generation_when_given_a_context(tmp_path):
+    """TASK-392: run() publishes only when an entry point HANDS it a destination.
+
+    The env var is deliberately not set here: setting it used to be enough, which is how a test
+    fixture reached the operator's real backup root on 2026-09-06. The test also has to declare
+    tmp_path as an authorised source root — a fixture nobody declared publishes nothing.
+    """
+    from backup_service import BackupContext, ExecutionMode, new_run_id, verify_generation
     dest = tmp_path / "off"
-    monkeypatch.setenv("HYDRA_BACKUP_DIR", str(dest))
+    ctx = BackupContext.create(run_id=new_run_id(), date="2026-09-04", dest_root=dest,
+                               allowed_source_roots=(tmp_path,), profile="sheet_only",
+                               mode=ExecutionMode.LIVE)
     V._OFFDISK_WARNED = False
     out = V.run(tmp_path / "state", capital=100000.0, fetch_fn=_market, rank_fn=_rank,
-                engine=FakeEngine(), silent=True)
-    copied = dest / "state_v9" / "20260904"
-    assert (copied / "portfolio_v9.json").exists()
-    assert list(copied.glob("instructions_*.md"))
+                engine=FakeEngine(), silent=True, backup_context=ctx)
+    gen = dest / "state_v9" / "20260904" / ctx.run_id
+    assert (gen / "portfolio_v9.json").exists()
+    assert list(gen.glob("instructions_*.md"))
     assert Path(out["state_path"]).exists()
+    assert out["backup"]["run_id"] == ctx.run_id
+    assert not any(f.level == "ERROR"
+                   for f in verify_generation(gen, require_profile="sheet_only"))
+
+
+def test_run_publishes_nothing_without_a_context(tmp_path, monkeypatch):
+    """The 2026-09-06 shape: a fixture state, the production variable inherited, and a caller that
+    never asked for a backup. Nothing may be written off disk."""
+    decoy = tmp_path / "inherited"
+    decoy.mkdir()
+    monkeypatch.setenv("HYDRA_BACKUP_DIR", str(decoy))
+    V._OFFDISK_WARNED = False
+    V.run(tmp_path / "state", capital=100000.0, fetch_fn=_market, rank_fn=_rank,
+          engine=FakeEngine(), silent=True)
+    assert list(decoy.rglob("*")) == []
 
 
 def test_instruction_sheet_shows_interest(tmp_path):

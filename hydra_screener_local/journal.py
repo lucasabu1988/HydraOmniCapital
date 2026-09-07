@@ -11,8 +11,6 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import argparse
 import json
-import os
-import shutil
 from datetime import date
 from pathlib import Path
 
@@ -62,12 +60,19 @@ def merge_observations(existing: dict | None, incoming: dict, note: str | None) 
     return notes
 
 
-def save_record(record: dict, journal_dir: Path, note: str | None = None,
-                backup_date: str | None = None) -> Path:
-    """Write journal/<date>.json (update in place) and rebuild JOURNAL.md.
+def save_record(record: dict, journal_dir: Path, note: str | None = None) -> Path:
+    """Write journal/<date>.json (update in place) and rebuild JOURNAL.md. LOCAL ONLY.
 
     Observations are appended and never overwritten. The rest of the record is
     replaced with the latest run of that date.
+
+    TASK-392: this function used to end by reading `HYDRA_BACKUP_DIR` from the environment and
+    copying the record and JOURNAL.md into `<root>/state_v9/<date>/`. That was the leak: every
+    test process inherits the production value, so a `save_record` in any test wrote into the
+    operator's real backup root, bypassing every guard the copy path grew. Local persistence and
+    backup are now separate concerns. The off-disk copy is `backup_service.publish_generation`,
+    which an ENTRY POINT calls with an explicit context (`daily.py` does, after the journal is
+    written, so the journal is part of the same generation as the state and the sheets).
     """
     from core.journal import render_markdown
 
@@ -89,13 +94,6 @@ def save_record(record: dict, journal_dir: Path, note: str | None = None,
     tmp.replace(path)
     md = journal_dir / "JOURNAL.md"
     md.write_text(render_markdown(load_records(journal_dir)), encoding="utf-8")
-    dest_root = os.environ.get("HYDRA_BACKUP_DIR")
-    if dest_root:
-        dest = Path(dest_root) / "state_v9" / (backup_date or date_s).replace("-", "")
-        dest.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, dest / path.name)
-        if md.exists():
-            shutil.copy2(md, dest / md.name)
     return path
 
 
@@ -128,7 +126,7 @@ def append_from_v9(out: dict, journal_dir: Path | None = None, note: str | None 
         errors=errors,
         last_bars=out.get("last_bars"),
     )
-    return save_record(record, journal_dir, note=note, backup_date=today)
+    return save_record(record, journal_dir, note=note)
 
 
 def append_error(message: str, journal_dir: Path | None = None, note: str | None = None,
@@ -137,7 +135,7 @@ def append_error(message: str, journal_dir: Path | None = None, note: str | None
     journal_dir = Path(journal_dir or DEFAULT_DIR)
     today = today or str(date.today())
     record = build_record(date=today, state={}, errors=[message])
-    return save_record(record, journal_dir, note=note, backup_date=today)
+    return save_record(record, journal_dir, note=note)
 
 
 def main(argv=None) -> int:

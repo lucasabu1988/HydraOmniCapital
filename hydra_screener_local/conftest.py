@@ -1,39 +1,28 @@
-"""Test-session policy: a test run must never be able to write into the real backup root.
+"""Test-session policy: a test run must never be able to write into a real backup root.
 
-`journal.save_record` and `portfolio_v9.copy_state_off_disk` both read `HYDRA_BACKUP_DIR` from the
-environment at call time and copy into `<root>/state_v9/<YYYYMMDD>/`. `HYDRA_BACKUP_DIR` is a USER
-variable on this machine, so every test process inherits the production value: on 2026-09-06 the only
-off-disk copies of the live book were test fixtures, and `state_v9/20260904/` — the directory for the
-book holding the 30 pending orders — had been overwritten by a fixture with `capital_reference: 8000`.
-Reproduced: `python -m pytest test_journal.py` against a decoy root writes four files into
-`state_v9/20260903/` and `state_v9/20260904/`.
+This file exists to be imported by pytest BEFORE any test module, so the policy is in place
+before any package module can be imported. Everything it does lives in `hydra_test_policy`, which
+`run_all_tests.py` imports too — files run as scripts never load a conftest, so one layer here
+would leave the subprocesses uncovered (TASK-393).
 
-This redirects the variable for the whole session, at import time, before any test module is imported
-and therefore before any code can read it. It is containment, not the fix: the real fix is to stop
-resolving the environment deep inside the write path and to hand the backup an explicit destination
-(queued as the ASTRA-12 redesign). Until that lands, this is what keeps a suite run away from the book.
+History: `HYDRA_BACKUP_DIR` is a USER variable on this machine and, until TASK-392,
+`journal.save_record` and `portfolio_v9.copy_state_off_disk` both read it at call time and copied
+into it. On 2026-09-06 every off-disk copy of the live book turned out to be a test fixture, and
+`state_v9/20260904/` — the directory for the book holding the 30 pending orders — had been
+overwritten by a fixture with `capital_reference: 8000`.
 
-Two layers are needed, and this is only one of them: `run_all_tests.py` also runs some files as
-scripts, and a script never loads a conftest — the runner sets the same redirect for its subprocesses.
+This redirect is no longer the thing standing between a test and the real root. Since TASK-392 the
+backup service reads no environment variable at all and refuses any source file the caller has not
+declared authorised, so a test that does not build a `BackupContext` publishes nothing. The policy
+here is the fence around that: an explicit deny list for the inherited root, per-process throwaway
+destinations, and an explicitly built environment for child processes.
 """
-import atexit
-import os
-import shutil
-import tempfile
+import hydra_test_policy
 
-#: Any path carrying this marker is a throwaway test destination, never a real backup root.
-TEST_BACKUP_MARKER = "hydra-test-backup"
+#: Re-exported so the isolation tests can assert both layers agree on one marker.
+TEST_BACKUP_MARKER = hydra_test_policy.TEST_BACKUP_MARKER
 
-
-def _redirect_backup_dir() -> str:
-    """Point HYDRA_BACKUP_DIR at a private temp directory unless it already is one."""
-    current = os.environ.get("HYDRA_BACKUP_DIR", "")
-    if TEST_BACKUP_MARKER in current:
-        return current  # the runner (or an outer session) already installed the policy
-    path = tempfile.mkdtemp(prefix=f"{TEST_BACKUP_MARKER}-")
-    os.environ["HYDRA_BACKUP_DIR"] = path
-    atexit.register(shutil.rmtree, path, True)
-    return path
-
-
-BACKUP_DIR = _redirect_backup_dir()
+_POLICY = hydra_test_policy.install()
+BACKUP_DIR = str(_POLICY["process_dir"])
+SESSION_ROOT = str(_POLICY["session_root"])
+DENIED_ROOTS = _POLICY["denied"]
