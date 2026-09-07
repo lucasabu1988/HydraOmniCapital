@@ -48,7 +48,7 @@ Copia manual verificada en `OneDrive\HydraBackups\PRODUCTION-manual-20260906-230
 origen intacto, `portfolio_v9.json` sha256 `eef457c6919342cc97fb8a3e14501d04dbbb6bff68a9f3016f8e99a7a8591419`, 30
 pendientes, cap 100.000, anchor 2026-09-04. **Regla hasta el miercoles: no correr la suite desde ningun arbol con
 `HYDRA_BACKUP_DIR` apuntando a la raiz real.** El arreglo de fondo va en `feat/astra-12-restore-drill`, y el revisor
-demostro que **todavia no cierra el agujero** (`copy_state_off_daisk` sigue creando el directorio y escribiendo
+demostro que **todavia no cierra el agujero** (`copy_state_off_disk` sigue creando el directorio y escribiendo
 `backup_manifest.json` en la raiz real aun cuando se niega a copiar). Queda tarea abierta.
 
 [2026-09-06 23:05] CLAUDE: **Lote de 12 ramas de la cola Astra, cada una en su worktree, `main` sin tocar.**
