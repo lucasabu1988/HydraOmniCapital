@@ -139,17 +139,29 @@ python -m pytest test_volume_watchdog.py -q             # any single pytest-styl
 - The runner routes files that define `test_*` functions but have no `__main__` block through
   pytest — running them as scripts used to report `[PASS]` without executing anything.
 - Skips are reported separately from passes (`N passed, M skipped`). A skip is not a pass.
-- `test_hybrid_integration.py` skips when `history/` is absent.
-- CI (`.github/workflows/test.yml`) runs ONE job, `screener` (`hydra_screener_local/run_all_tests.py`
-  on Python 3.12, `pytest-timeout` 30 s). The legacy `test` job was removed with the root `tests/`
-  archive on 2026-09-05; if the docs and the workflow disagree, the workflow wins. Baseline since the
-  2026-09-06 audit: 22 files pass, 2 skip (`test_hybrid_integration.py` needs `history/`,
-  `validate_pine_contract.py` needs `pine/hydra_last_summary.json`). A skip is not a pass; CI green
-  proves code regression coverage, not financial validity or a track record.
+- `test_hybrid_integration.py` no longer skips: TASK-374 committed `test_fixtures/history_min`, so it
+  falls back live `history/` -> `HYDRA_HISTORY_DIR` -> fixture. The one artefact-dependent skip left is
+  `validate_pine_contract.py` (needs `pine/hydra_last_summary.json`; a fresh clone has none).
+- CI (`.github/workflows/test.yml`) on `main` runs TWO jobs: `screener`
+  (`hydra_screener_local/run_all_tests.py --cov --strict-console` on the Python 3.12 **and** 3.13
+  matrix, `pytest-timeout` 30 s per test, 15-minute job timeout) and `lint` (ruff over an explicit
+  module list plus `test_*.py`). The legacy `test` job went away with the root `tests/` archive on
+  2026-09-05; if the docs and the workflow disagree, the workflow wins. `structural-hardening-2026-09`
+  takes this to eight jobs (wheel smoke, mypy, secrets, pip-audit, reproducibility, coverage floor,
+  skip gate) — it merges after the 2026-09-08 settle.
+- Baseline measured on `main` 2026-09-06: **47 files pass, 0 skip, 110 s**, ruff clean. Measured on
+  this machine, where `history/` and the Pine artefact exist — a fresh clone or CI can still report
+  the `validate_pine_contract.py` skip. A skip is not a pass; CI green proves code regression
+  coverage, not financial validity or a track record.
 
 ## Claude ↔ Grok protocol
 
 Two agents share this working tree: **Claude** (architect/reviewer) and **Grok** (implementer).
+Two more write to the repo without sharing it: **Gemini** (own board `GEMINIBOARD.md`, mechanical
+tasks, no git — Claude commits its work) and **GitHub Copilot**, which pushes straight to `main`
+under Lucas's account with no PR, no board entry and no `Co-Authored-By`. Its first commit
+(`5070f2d`, `SECURITY.md`) asserted gitignore rules and repo settings that did not exist, so:
+verify every claim in an unattributed `main` commit against the code before letting it stand.
 
 - `GROKBOARD.md` is the formal task board (queue, messages newest-first, completed). `.comms/`
   holds coordination notes, design notes and audits; each agent edits only its own section of

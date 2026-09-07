@@ -22,7 +22,10 @@ import argparse
 import glob
 import os
 import re
+import atexit
+import shutil
 import subprocess
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -80,6 +83,9 @@ def discover_tests() -> list[str]:
 #: [PASS] in 0.09s. Found while porting ASTRA-04.
 MAIN_GUARD_RE = re.compile(r"^\s*if\s+__name__\s*==\s*[\"']__main__[\"']", re.MULTILINE)
 
+#: Marks a throwaway backup destination; conftest.py uses the same marker.
+TEST_BACKUP_MARKER = "hydra-test-backup"
+_TEST_BACKUP_DIR = None
 
 def _invocation(test_file: str) -> tuple[list[str], str]:
     """How to run this file, and why.
@@ -158,6 +164,21 @@ def _display_output(output: str) -> str:
                      if not (CASE_SKIP_RE.match(ln.strip()) or CASE_COUNTS_RE.match(ln.strip())))
 
 
+def test_backup_dir() -> str:
+    """One throwaway HYDRA_BACKUP_DIR for the whole suite run.
+
+    The variable is a USER variable on this machine and every write path reads it from the
+    environment, so an inherited value points test writes at the production backup root — that is
+    how the only off-disk copies of the live book became fixtures (2026-09-06). conftest.py covers
+    pytest-routed files; files run as SCRIPTS never load a conftest, so the boundary has to be here.
+    """
+    global _TEST_BACKUP_DIR
+    if _TEST_BACKUP_DIR is None:
+        _TEST_BACKUP_DIR = tempfile.mkdtemp(prefix=f"{TEST_BACKUP_MARKER}-")
+        atexit.register(shutil.rmtree, _TEST_BACKUP_DIR, True)
+    return _TEST_BACKUP_DIR
+
+
 def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = None) -> tuple[str, float, dict | None]:
     cmd, how = _invocation(test_file)
     suffix = "" if how == "script" else f"  [via {how}]"
@@ -169,6 +190,7 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
         # puts the rootdir on sys.path, so pass it explicitly.
         existing = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = str(ROOT) + (os.pathsep + existing if existing else "")
+    env["HYDRA_BACKUP_DIR"] = test_backup_dir()
     if extra_env:
         env.update(extra_env)
     # Only the subprocess call is guarded: a failure while printing the report
@@ -342,7 +364,7 @@ def _print_ruff_summary() -> None:
              "reconcile.py", "confirm_fills.py", "journal.py", "store_cli.py",
              "evidence_review.py", "warm_sectors.py", "send_hydra_summary.py",
              "console_dashboard.py", "snapshot_universe.py", "verify_state.py",
-             "runlog_cli.py", *tests],
+             "runlog_cli.py", "reprint_sheet.py", *tests],
             cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace",
         )
     except OSError:
