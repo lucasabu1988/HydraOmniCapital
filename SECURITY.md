@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-HYDRA v9 is the current production version (active since 2026-09-07). Security updates are provided for:
+HYDRA v9 is the current production version (in production since 2026-09-05; first live orders 2026-09-07). Security updates are provided for:
 
 | Version | Supported | Notes |
 | ------- | --------- | ------ |
@@ -17,7 +17,14 @@ We take the security of HydraOmniCapital seriously. This is a **local screener w
 
 ### How to Report
 
-Send a detailed report using GitHub's private vulnerability reporting feature (Security tab > "Report a vulnerability"). Please include:
+Send a detailed report using GitHub's private vulnerability reporting feature (Security tab > "Report a vulnerability").
+
+> **If the Security tab shows no reporting form, private vulnerability reporting is not enabled on this repository.**
+> (It is disabled as of 2026-09-06.) In that case open a public issue containing **only** "I have a security report,
+> please open a private channel" — no details, no reproduction, no exploit — and wait for the private thread.
+> This repository is **public**: never put the finding itself in a public issue.
+
+Please include:
 
 - A clear description of the vulnerability
 - Steps to reproduce the issue
@@ -58,14 +65,18 @@ Send a detailed report using GitHub's private vulnerability reporting feature (S
 **This is non-negotiable.** The following are **gitignored** and must never be committed:
 
 ```
-.env                           # Environment variables (API keys, broker configs, credentials)
-omnicapital_config.json        # Trading configuration with secrets
-state/                         # Portfolio state, positions, trading history
-state/portfolio_v9.json        # Current portfolio positions (backed up locally, not in git)
-state/instructions_*.md        # Generated trade instructions
-hydra_screener_local/state/    # Screener runtime state files
-hydra_screener_local/history/  # Historical signals and performance (sensitive; gitignored)
+.env                             # Environment variables (API keys, credentials)
+omnicapital_config.json          # Legacy trading configuration with secrets
+hydra_screener_local/state/      # Live portfolio state, ledger, instruction sheets
+hydra_screener_local/history/    # Historical signals and performance (single-disk record)
+hydra_screener_local/output/     # Run outputs
+hydra_screener_local/backtest/   # Backtest outputs
+/state/                          # Legacy COMPASS state at the repo root
 ```
+
+The **live state is `hydra_screener_local/state/`**, not a `state/` directory at the repo root — root `/state/`
+is ignored only as a precaution (it holds nothing today). Do not trust a path because this file lists it:
+`git check-ignore -q <path>` is the only answer that counts.
 
 **Verify before every commit**: `git status` must not show any of the above. Use `git add <file>` for specific files, never `git add -A`.
 
@@ -79,8 +90,8 @@ If you accidentally commit credentials:
 
 ### 2. Portfolio State and Strategy — Keep Local
 
-- `state/portfolio_v9.json` contains **live portfolio positions** — it is backed up locally but not stored in git
-- `state/instructions_<date>.md` contains **executable trade instructions** for the weekly cycle
+- `hydra_screener_local/state/portfolio_v9.json` contains **live portfolio positions** — backed up locally (`HYDRA_BACKUP_DIR`), not in git
+- `hydra_screener_local/state/instructions_<date>.md` contains **executable trade instructions** for the weekly cycle
 - `hydra_screener_local/history/` contains **complete performance history** and is a single-disk record — do not assume a fresh clone has it
 - These files are **not for version control**; they are backed up separately by the user
 
@@ -103,13 +114,30 @@ If you accidentally commit credentials:
 - Review and test all changes before submitting a pull request
 - Run the check that could fail: `python run_all_tests.py` must exit `0`
 - Three times in one week tests have reported green without running — verify with real data where it exists
-- CI (`.github/workflows/test.yml`) runs `screener` on Python 3.12 with 30 s timeout; a skip is not a pass
+- CI (`.github/workflows/test.yml`) runs two jobs: `screener` on Python 3.12 **and** 3.13
+  (`run_all_tests.py --cov --strict-console`, 30 s per-test `pytest-timeout`, 15-minute job
+  timeout) and `lint` (ruff). A skip is not a pass, and CI green proves regression coverage —
+  never financial validity
 
 ### 6. Privilege and Access
 
 - Follow the principle of least privilege — only access the state/config you need
 - Never use `git reset --hard` or force-push to discard someone else's uncommitted work
 - Confirm with Lucas before deleting files or branches
+
+### 7. Repository Settings — What Is NOT Enabled
+
+This policy describes contributor discipline, **not** enforced controls. As of 2026-09-06 the repository is
+**public** and every one of these is **disabled** (each needs an admin, i.e. Lucas):
+
+| Control | Status |
+| ------- | ------ |
+| Private vulnerability reporting | disabled |
+| Secret scanning + push protection | disabled |
+| Dependabot security updates | disabled |
+| Branch protection ruleset on `main` | documented in `hydra_screener_local/docs/BRANCH_PROTECTION.md`, **not applied** |
+
+Until push protection exists, rule 1 is enforced by nothing but the person typing `git add`. Treat it that way.
 
 ## Data Handling
 
@@ -140,6 +168,6 @@ For security-related questions that are not vulnerability reports, open a **priv
 
 ---
 
-**Last Updated:** 2026-09-07  
-**HYDRA Version:** v9  
+**Last Updated:** 2026-09-06
+**HYDRA Version:** v9
 **Repository:** lucasabu1988/HydraOmniCapital

@@ -104,3 +104,7 @@ hydra_screener_local/experiments/_sweep_cache_etf/
 hydra_screener_local/build/
 hydra_screener_local/dist/
 hydra_screener_local/*.egg-info/
+
+# Root-level legacy COMPASS state directory: nothing lives here today, but SECURITY.md
+# rule 1 promises it is ignored, so make the promise true (live state = hydra_screener_local/state/)
+/state/
