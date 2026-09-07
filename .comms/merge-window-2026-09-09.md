@@ -59,12 +59,34 @@ git merge origin/main        # trae la valla y los ignores anclados de ruff
 python run_all_tests.py --strict-console > /tmp/s.log 2>&1; echo "EXIT=$?"   # sin tubería
 ```
 
-Ya vallados (2026-09-07): `post-freeze-wiring`, `n-sleeve-engine`, `chore/task-391-local-gates`,
-`ci/task-388`, `docs/task-389`, `feat/a12r-backup-service`, `fix/astra-03`, `fix/astra-06-followup`.
-**Sin vallar**: `structural-hardening-2026-09`, `fix/task-390`, `test/gm-002r`, `fix/astra-04`,
-`fix/astra-02`, `test/astra-09`, `audit/subtract-parked-clis-v2`, `docs/astra-prereg-01-08-10`,
-`feat/astra-11`, `fix/astra-05`, `fix/astra-06-pit-breadth`, `fix/astra-07`, `audit/dead-cloud-ops`,
-`audit/docs-packaging-truth`.
+**Estado de la valla, medido rama por rama (2026-09-07, tarde):**
+
+```
+git merge-base --is-ancestor 34b0143 origin/<rama>     # 34b0143 = el commit de la valla
+```
+
+- **22 de las 24 ramas de trabajo llevan la valla.** Las dos que no son exactamente las dos que se
+  excluyeron a proposito: `feat/astra-12-restore-drill` (abandonada) y `merge-prepared-2026-09` (a cerrar).
+- **19 recibieron su merge hoy**, con suite verde y codigo de salida medido sin tuberia: `post-freeze-wiring`
+  55, `n-sleeve-engine` 56, `structural-hardening` 60, `task-391` (vehiculo), `task-390` 61, `gm-002r` 61,
+  `astra-02` 55, `astra-03`, `astra-04` 61, `astra-05` 51, `astra-06-pit-breadth` 50, `astra-06-followup`,
+  `astra-07` 49, `astra-09` 57, `astra-11` 50, `prereg` 50, `dead-cloud-ops` 49, `docs-packaging` 49,
+  `subtract-v2` 65. Las otras 3 (`task-388`, `task-389`, `a12r`) ya contenian `main` hasta `965d22c`.
+- **Solo `fix/astra-04-skip-gate` contiene la punta actual de `main` (`97e171d`)**, porque `main` avanzo
+  *despues* del vallado: el `test_console_encoding` mas estricto de la 04 cazo que `reprint_sheet.py` no
+  reconfiguraba stdout, y el arreglo fue a `main`. Las otras 21 llevan `main` a `965d22c` o `1c21bc4`. **Da
+  igual para lo que importa** — la valla y los ignores anclados estan en todas — y cada una recoge la punta
+  al mergear en la ventana. No hay que re-vallar nada.
+- **`feat/astra-12-restore-drill` sigue sin valla: correr su suite escribiria en el respaldo real de
+  OneDrive.** Esta abandonada; la accion limpia es borrarla, y eso es decision de Lucas. Hasta entonces:
+  no correr su suite.
+
+Conflictos resueltos por regla: `.gitignore` y `GROKBOARD.md` por union de lineas (`git merge-file --union`
+sobre las etapas del indice); `test.yml` conservando los siete jobs **y** la lista de lint completa;
+`run_all_tests.py` de `astra-04` **a mano**, porque la union linea a linea dejo una cabecera colgando (ambos
+lados insertaron una funcion en el mismo anclaje); y en `subtract-v2` **la forma de `main` menos los seis
+ficheros que esa rama borra**, porque una union ingenua revive `console_dashboard.py` en la lista de lint.
+El respaldo real no cambio en ~16 suites: 298 ficheros, `state_v9/` en 60, el mas reciente de las 22:59 del 09-06.
 
 ## 4. Orden de merge, con precondición y conflicto medido
 
@@ -88,14 +110,19 @@ Ya vallados (2026-09-07): `post-freeze-wiring`, `n-sleeve-engine`, `chore/task-3
 
 **Fuera de esta ventana:**
 
-- `feat/a12r-backup-service` — **hasta que alguien la ataque otra vez**. La primera versión pasó sus
-  72 tests y fue demolida; esta pasa 91 y eso tampoco basta. Criterio: cero escrituras fuera del
-  destino, cero rechazos con efectos.
+- `feat/a12r-backup-service` — **segunda ronda de ataque superada el 2026-09-07** con los nueve probes del
+  atacante original: traversal 20/20, junctions rechazados en las cuatro formas, 16/16 rechazos sin efecto, la
+  generacion del vecino intacta tras un rechazo concurrente, fecha incoherente rechazada al publicar. Un hallazgo
+  nuevo menor (dos escritores compartian `LATEST.tmp`; el segundo levantaba `PermissionError` tras publicar) corregido
+  en `b0892d1`. Los dos limites declarados salieron como limites. **Puede entrar en la ventana, despues del paso 2**,
+  con la nota de que el `run_id` en un manifest sin firmar detecta mezclas accidentales y no manipulacion.
 - `n-sleeve-engine` + `test/astra-09` — espera la resolución de `plan()` decidida por Lucas (prevalece
   la semántica de `structural-hardening`) y sus 5 condiciones de aceptación (regresión con NaN
   inyectado; rechazo localizado; las demás mangas siguen; paridad byte-compatible). Ya vallada (`eec221e`).
-- `fix/astra-05` — su arreglo de elegibilidad está dormido sin `close_raw.pkl` (cierres tal como
-  imprimieron 2004-2026): hay que generarlo en el árbol de producción antes.
+- `fix/astra-05` — **despierto desde el 2026-09-07**: `close_raw.pkl` + `close_raw_coverage.pkl` construidos desde el
+  bar store (solo lectura) en la cache OOS del arbol de produccion. Cobertura **83.6% de celdas, 671 de 1209 tickers,
+  desde 2006-09-06**; los 538 que faltan son los delistados, asi que las celdas sin raw caen al cierre ajustado (`b0130e0`),
+  la etiqueta lleva la cifra y el modo estricto rechaza. Puede entrar en la ventana (paso 11).
 - `merge-prepared-2026-09` (PR #41) — **cerrar**: no contiene `main` (22 atrás) ni la punta de
   `structural-hardening`. Rescatar `7665884` antes.
 - `feat/astra-12-restore-drill` — **abandonar**, superada por `a12r`.

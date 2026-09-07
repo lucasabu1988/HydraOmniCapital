@@ -37,6 +37,41 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 19:30] CLAUDE: **Las tres mejoras ejecutadas (Lucas: "ejecutar las 3 mejoras").**
+**1. Vallar las ramas — 22 de 24, y lo verifique en vez de creermelo.** Medido con
+`git merge-base --is-ancestor 34b0143 origin/<rama>` sobre las 24 ramas de trabajo: **22 llevan la valla**, y las dos
+que no son exactamente las dos excluidas a proposito (`astra-12` abandonada, `merge-prepared` a cerrar). **19 recibieron
+el merge hoy** con suite verde y EXIT medido sin tuberia (`post-freeze-wiring` 55, `n-sleeve-engine` 56,
+`structural-hardening` 60, `task-390` 61, `gm-002r` 61, `astra-02` 55, `astra-09` 57, `astra-04` 61, `astra-05` 51,
+`prereg` 50, `astra-11` 50, `astra-07` 49, `astra-06-pit-breadth` 50, `dead-cloud-ops` 49, `docs-packaging` 49,
+`subtract-v2` 65, mas `task-391`, `astra-03` y `astra-06-followup`); las otras 3 (`task-388`, `task-389`, `a12r`) ya
+contenian `main` hasta `965d22c`. **Correccion a lo que dije antes:** hable de "13 de 13" y el numero real de ramas
+vivas es 24 — la cuenta de 13 era la de una tanda, no la del repo. Y **solo `astra-04` contiene la punta de `main`
+(`97e171d`)**, porque `main` avanzo despues del vallado; las otras 21 llevan `965d22c` o `1c21bc4`, que ya incluyen la
+valla y los ignores anclados, asi que no hay que re-vallar: cada una recoge la punta al mergear. Respaldo real intacto
+en ~16 suites (298 / 60 / 22:59 del 09-06). **Aviso operativo:** `feat/astra-12-restore-drill` **no tiene valla** —
+correr su suite escribiria en el respaldo real de OneDrive. Esta abandonada y lo limpio es borrarla; es decision tuya,
+Lucas. Hasta entonces, no correr su suite. Reglas de resolucion en `.comms/merge-window-2026-09-09.md`; la que costo:
+la union linea a linea **rompe codigo** cuando ambos lados insertan en el mismo anclaje (`run_all_tests.py` en la 04, a
+mano + `ast.parse`), y una rama que borra ficheros necesita "la forma de `main` menos lo borrado" (`subtract-v2`).
+**Hallazgo colateral, arreglado en `main` (`97e171d`):** el `test_console_encoding` mas estricto de la 04 cazo que
+`reprint_sheet.py` y su test **no reconfiguraban stdout** — imprimen guiones largos y en `cmd.exe` (cp1252) habrian
+reventado delante del operador el martes. Corrian bien para mi solo porque Git Bash es UTF-8.
+**2. Re-ataque a `a12r` — superado**, con los nueve probes del atacante original reejecutados contra `ec3e309`: traversal
+20/20, junctions rechazados (destino, padre, hacia raiz denegada), `RESTORE_TARGET_DENIED`, **16/16 rechazos sin efecto**,
+generacion del vecino **intacta** tras un rechazo concurrente, fecha incoherente rechazada al publicar, entorno heredado
+denegado aunque lleve el marcador, valla solo removible por nombre privado. Limites declarados reproducidos como limites.
+**Hallazgo nuevo menor, corregido (`b0892d1`):** dos publicaciones en carrera compartian `LATEST.tmp`; en Windows la
+segunda levantaba `PermissionError` **despues** de publicar su generacion completa. Ahora tmp por escritor, reintento, y un
+puntero que no se puede escribir se **reporta** (`latest=None`) en vez de lanzar. Probe confirmado: ambas completan.
+**3. `close_raw.pkl` — hecho sin esperar al settle** (el bar store ya tiene `close_raw`; solo lectura, `immutable=1`).
+Trampa esquivada: cobertura **83.6% de celdas, 671 de 1209 tickers, desde 2006-09-06**, y **los 538 que faltan son los
+delistados** — un pkl ingenuo los volvia inelegibles (`eligibility_mask` exige `notna()`), reintroduciendo el sesgo de
+supervivencia por la puerta de atras. `fix/astra-05` (`b0130e0`): relleno celda a celda con el ajustado, etiqueta con la
+cifra medida, modo estricto rechaza. Verificado contra la cache real: `contemporaneous on 83.6% of priced cells (...538 of
+1209 names with no as-printed history)`, 0 NaN donde hay precio. Matiz: el raw del store es el Close de Yahoo — ajustado
+por splits, no por dividendos.
+
 [2026-09-07 17:30] CLAUDE: **Analisis de estado tras los ultimos avances (pedido por Lucas), con dos correcciones y un runbook.**
 - **La fecha que ordena todo**: `renewal_slot` renueva cuando `bars_between(anchor, today) % 5 == 0`; con anchor 09-04 las
   barras son 09-08/09/10/11/**14**. El proximo `plan()` con posiciones es el **lunes 14**, y dos defectos vivos de `main` son
