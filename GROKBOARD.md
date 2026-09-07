@@ -1833,7 +1833,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
 
   **HECHA: `test_backup_regressions.py` (20) mas `test_backup_attack_regressions.py` (19, en `ec3e309`) — los once escapes del ataque, cada uno con su reproduccion, incluida la regresion que yo introduje al endurecer el rollback. 91 tests en los tres ficheros de respaldo.** La rama sigue **fuera del orden de merge** hasta que alguien la ataque otra vez.
 
-- [ ] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
+- [x] `TASK-388` **The CI's first real run.** Phase 10 took `.github/workflows/test.yml` from two jobs to
   seven — `build-install-smoke`, `typecheck`, `secret-scan`, `dependency-audit`, `reproducibility`, plus a
   coverage floor and a skip gate on `screener` — and **not one of them has ever executed on GitHub**. They
   are green on Windows / Python 3.14 and nowhere else, which is exactly the shape of the defect phase 10
@@ -1845,6 +1845,8 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   do not move `--min` to make the leg green. Report job-by-job status. Leave the PR in draft.
   Files: `.github/workflows/test.yml`, `hydra_screener_local/tools/*.py` and `hydra_screener_local/mypy.ini`
   (only if a job is red), `.comms/grok-task-388-ci-first-run.md`.
+
+  **HECHA en `ci/task-388-first-real-run` (`6c26ad6`), y con la premisa corregida: el pipeline **si** habia corrido — 14 corridas `pull_request` el 2026-09-06. El defecto real es mas estrecho: ese verde esta congelado y no se puede refrescar, porque el `on:` solo nombra `main` y `pull_request` y 13 ramas vivas dan `total_count 0`. La rama añade un trigger `workflow_dispatch` (+10 lineas, 9 de comentario). Corrige tambien el conteo: las 8 comprobaciones **no estan en main** (main define 2 jobs -> 3 check runs). Merge tras el settle.**
 
 - [ ] `TASK-389` **Measure the duplicate share class before anyone dedupes it.** Phase 7 found the live `all`
   universe holding `BRK-A`, `BRK-B` **and** `BRK.B`: one company under two spellings, two price series, two
@@ -1858,6 +1860,8 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Lucas's call). Files: `experiments/` (new script), `hydra_screener_local/data/universe_registry.py`
   (read-only), `.comms/grok-task-389-duplicate-classes.md`.
 
+  **MITAD HECHA** en `docs/task-389-duplicate-share-class` (`0ca61a9`): la medicion existe como artefacto, con la lista real (una sola colision de separador en el universo vivo, BRK-B) y un hallazgo que nadie pidio — **BF.B no es un duplicado, es una eliminacion silenciosa**: no hay ninguna grafia de Brown-Forman en el universo y la perdida es invisible al guard construido para cazarla, porque `requested` se compara despues del filtrado. **Sigue abierta** por sus items 2 y 3: 16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500, asi que dependen de `TASK-403` (panel PIT de Russell). Y la mitad que deduplica es regla 6: espera a Lucas con evidencia medida.**
+
 - [x] `TASK-390` **The next tier of typed modules, and the coverage ratchet.** **YA HECHA en `56d4b66`** (rama `structural-hardening-2026-09`): los cinco modulos del tramo 2 mas `tools/precommit_gates.py` estan en `mypy.ini` (16 modulos, "Success: no issues found in 16 source files") y el piso subio 77 -> 80. El board era lo obsoleto, no el codigo — se dejo abierta e invitaba a una segunda implementacion en conflicto. **La mitad de la cobertura NO se cierra con un numero**: cuatro corridas de CI sobre arboles identicos midieron 81.25 / 80.97 / 81.25 / 81.14%, y la causa es `core/meta_layer.py` con fixtures `np.random` sin semilla en `test_volume_watchdog.py`. Un piso de 81 ya habria reventado la corrida del 80.97. Lo que queda vive en `fix/task-390-tier3-and-stable-coverage`: sembrar el fixture, re-medir dos veces sobre el mismo commit, y solo entonces mover el piso — mas el tramo 3 (9 modulos, 15 errores medidos) y la anotacion `settle() -> dict` que en realidad devuelve una lista. `mypy.ini` checks the 10
   modules the audit wrote; the gate only keeps meaning if the list grows as modules are touched. Add
   `core/dividends.py`, `core/journal.py`, `core/state_migrations.py`, `data/pit.py`, `utils/runlog.py`:
@@ -1868,7 +1872,7 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   Files: `hydra_screener_local/mypy.ini`, the five modules listed, `hydra_screener_local/tools/check_coverage.py`,
   `.github/workflows/test.yml`, `.comms/grok-task-390-typing-tier-2.md`.
 
-- [ ] `TASK-391` **The local half of the gates.** `.pre-commit-config.yaml` runs ruff over
+- [x] `TASK-391` **The local half of the gates.** `.pre-commit-config.yaml` runs ruff over
   `hydra_screener_local/` and nothing else, so the four cheap audit checks only fire in CI — minutes after
   the push, on someone else's machine. Add hooks that run in seconds: `ruff check .` over the whole tree
   (R-1004 was exactly the gap between "the list" and "the tree"), `tools/check_secrets.py`,
@@ -1877,6 +1881,8 @@ construction: nothing here merges to `main` before the 2026-09-08 settle is veri
   hook's wall-clock in the note, and drop any hook that costs more than ~5s.
   Files: `.pre-commit-config.yaml`, `.comms/grok-task-391-pre-commit.md`.
 
+
+  **HECHA en `chore/task-391-local-gates` (`e72aae0`), con una sorpresa de orden: la rama **no es un cambio de hooks**, contiene `structural-hardening` (26 commits) mas todo `main`, asi que es el **vehiculo de la pila estructural entera**. Hallazgo medido: `check-merge-conflict` tal como se configura normalmente **no puede fallar** (solo mira mientras existe `MERGE_HEAD`). El trampolin de ruff que esta tarea identificaba ya estaba cerrado en `main` (`1c21bc4`).**
 
 - [x] `TASK-387` **Pin the lab's sector map so backtest headlines are reproducible.** `experiments/redesign_lab.load_panel`
   assigns sectors through `data.sectors.lookup_sector`, i.e. the live `data_cache/sector_cache.json`; when the cache
