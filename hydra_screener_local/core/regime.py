@@ -47,7 +47,7 @@ def compute_rich_regime_scores(
     # 1. Trend (30% weight)
     sma200 = float(spy.rolling(lookback).mean().iloc[-1])
     trend_strength = 1.0 if current > sma200 else 0.0
-    
+
     # Pendiente de 20 días normalizada
     ret_20 = (current / float(spy.iloc[-20]) - 1) if len(spy) >= 20 else 0
     trend_strength = (trend_strength * 0.6) + (np.clip(ret_20 + 0.04, -0.1, 0.15) / 0.15 * 0.4)
@@ -73,14 +73,25 @@ def compute_rich_regime_scores(
     breadth_score = 0.5
     if prices is not None and len(prices.columns) > 30:
         try:
-            ret_1d = prices.pct_change().iloc[-1]
-            pct_positive = (ret_1d > 0).mean()
-            above_sma50 = (prices.iloc[-1] > prices.rolling(50).mean().iloc[-1]).mean()
-            above_sma200 = (prices.iloc[-1] > prices.rolling(200).mean().iloc[-1]).mean()
-            # Blend: participation + momentum breadth
-            breadth_score = 0.3 * pct_positive + 0.3 * above_sma50 + 0.4 * above_sma200
-            breadth_score = max(0.0, min(1.0, breadth_score))
-        except:
+            # H-007 (ASTRA-06, approved by Lucas 2026-09-07, rule 6): a column enters the breadth
+            # statistics only when all of its comparisons are DEFINED on this date -- it has a
+            # close, a return, a 50-bar average and a 200-bar average. `NaN > sma` is False, and
+            # that False used to sit in the DENOMINATOR: a name with no print, and a name too young
+            # to have a 200-day average, were both counted as "not participating" and pushed
+            # breadth down. What matters is how many columns participate, not how wide the frame is.
+            last = prices.iloc[-1]
+            ret_1d = prices.pct_change(fill_method=None).iloc[-1]
+            sma50 = prices.rolling(50).mean().iloc[-1]
+            sma200 = prices.rolling(200).mean().iloc[-1]
+            ok = last.notna() & ret_1d.notna() & sma50.notna() & sma200.notna()
+            if int(ok.sum()) > 30:
+                pct_positive = (ret_1d[ok] > 0).mean()
+                above_sma50 = (last[ok] > sma50[ok]).mean()
+                above_sma200 = (last[ok] > sma200[ok]).mean()
+                # Blend: participation + momentum breadth
+                breadth_score = 0.3 * pct_positive + 0.3 * above_sma50 + 0.4 * above_sma200
+                breadth_score = max(0.0, min(1.0, breadth_score))
+        except Exception:
             breadth_score = 0.5
 
     # Score general (ponderado) - exact weights from SPEC 4.3

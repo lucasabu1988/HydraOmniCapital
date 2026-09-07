@@ -24,7 +24,7 @@ The last section says so out loud: `test_DEFECT_core_regime_counts_unobserved_co
 is an `xfail(strict=True)` written against the DESIRED behaviour, so it is red-in-waiting rather
 than a test that passes because the code is wrong. It carries `@pytest.mark.defect`; the patch,
 its measured effect and its kill criterion are in
-`.comms/claude-astra06-core-proposal-2026-09-07.md` (hypothesis H-004), and Lucas decides.
+`.comms/claude-astra06-core-proposal-2026-09-07.md` (hypothesis H-007), and Lucas decides.
 """
 import os
 import sys
@@ -291,27 +291,21 @@ def test_core_regime_breadth_reference_on_a_clean_frame():
     assert (rr.overall, rr.breadth_proxy) == (0.773, 1.0), rr
 
 
-@pytest.mark.defect
-@pytest.mark.xfail(strict=True, reason=(
-    "LIVE DEFECT (ASTRA-06 / H-004): core.regime counts a column with no observation on the date "
-    "in the breadth denominator. NOT fixed here -- core/regime.py's treatment of missing data is "
-    "GROKBOARD rule 6 (Lucas's explicit approval). The patch, its measured effect and its kill "
-    "criterion are in .comms/claude-astra06-core-proposal-2026-09-07.md, registered as H-004. "
-    "This test is written against the DESIRED behaviour on purpose: it xfails while the defect is "
-    "live and turns RED the day the fix lands, so nobody has to remember to come back."))
-def test_DEFECT_core_regime_counts_unobserved_columns_in_breadth():
-    """DESIRED behaviour, asserted so the fix un-xfails this test. Currently xfail.
+def test_core_regime_ignores_columns_that_cannot_participate_in_breadth():
+    """H-007, APPROVED by Lucas 2026-09-07 (rule 6) and applied in `core/regime.py`.
 
-    Waiting on: Lucas's rule-6 approval of H-004 (.comms/claude-astra06-core-proposal-2026-09-07.md).
+    This was an `xfail(strict=True)` written against the desired behaviour, so that it would turn
+    RED the day the fix landed instead of relying on somebody remembering to come back. It did
+    exactly that, and this is the other side of it.
 
     Astra's probe (external audit 2026-09-06), verbatim: appending 50 columns with no observation
     at all must not move the regime, because a column with no price cannot be a market
-    participant. Today it moves overall 0.773 -> 0.723 (breadth 1.0 -> 0.5): `NaN > sma` is False,
-    and False sits in the denominator of `(...).mean()`.
+    participant. Before the patch it moved overall 0.773 -> 0.723 (breadth 1.0 -> 0.5), because
+    `NaN > sma` is False and that False sat in the denominator of `(...).mean()`.
 
-    The lab is already immune -- the tests above assert that on the lab's own panel -- because
-    ASTRA-06 restricted the frame handed to core to the point-in-time eligible universe. This
-    test is about core itself, which the live screener calls directly (core/signals.py:195)."""
+    The lab was already immune -- the tests above assert that on the lab's own panel -- because
+    ASTRA-06 restricted the frame handed to core to the point-in-time eligible universe. This test
+    is about core itself, which the live screener calls directly (core/signals.py:195)."""
     idx = pd.bdate_range("2005-01-03", periods=260)
     t = np.arange(260)
     prices = pd.DataFrame({f"M{i}": 100 + t for i in range(50)}, index=idx)
@@ -351,3 +345,31 @@ def test_DEFECT_is_currently_unreachable_from_the_live_filter_chain():
     out = remove_zombie_tickers(apply_data_quality_filter(out, max_abs_daily_return=1.0, lookback=252))
     assert "NOOBS" not in out.columns and "GONE" not in out.columns, list(out.columns)
     assert out.iloc[-1].notna().all(), "every surviving column prints on the run date"
+
+
+def test_a_name_too_young_for_an_sma200_does_not_count_as_not_participating():
+    """The half of H-007 the older probe did not reach, and the half that moves the LIVE number.
+
+    Astra's probe used all-NaN columns, which the minimal variant would also have fixed. This is
+    the case that made the approved variant the right one: a name that prints every day but has
+    only 80 bars of history has no 200-day average, so `last > sma200` was False for it and that
+    False sat in the denominator. On the live frame — a 2-year window over ~3000 Russell-heavy
+    names — that is 123 of 3011 columns (4.1%), measured against the bar store, and it is why the
+    OOS panel's "nearly a no-op" (0-6 columns) does not describe production.
+    """
+    idx = pd.bdate_range("2005-01-03", periods=260)
+    t = np.arange(260)
+    prices = pd.DataFrame({f"M{i}": 100.0 + t for i in range(50)}, index=idx)
+    spy = pd.Series(100 + t * 0.1, index=idx)
+    established = compute_rich_regime_scores(spy, prices)
+
+    young = np.full(len(idx), np.nan)
+    young[-80:] = 100.0 + t[-80:]          # prints every day, but only 80 bars: no SMA200
+    with_young = prices.assign(**{f"IPO{i}": young for i in range(50)})
+    after = compute_rich_regime_scores(spy, with_young)
+    assert (after.overall, after.breadth_proxy) == (established.overall, established.breadth_proxy), (
+        f"a name without a 200-bar average must not enter breadth: {established} -> {after}")
+
+    # and it DOES enter once it has the history, which is what keeps this from being a blanket skip
+    grown = prices.assign(**{f"OLD{i}": 100.0 + t for i in range(50)})
+    assert compute_rich_regime_scores(spy, grown).breadth_proxy == established.breadth_proxy

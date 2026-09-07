@@ -8,7 +8,7 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 | H-001 | 2026-09-06 | Claude | Dividends credited to the tranche holding the units on ex-date (accounting parity with total-return backtests) | book vs broker residual | ACCEPTED by Lucas 2026-09-06 (accounting, not scoring): TASK-349, `a38c732`; spec 9.3 |
 | H-002 | 2026-09-06 | Claude | The 1/8-per-week pair reset vs a full weekly 50/50 reset: measure the return/Sharpe difference on the OOS panel with the production engine | paired ann_net / Sharpe, OOS | PROPOSED — evidence from TASK-350 first |
 | H-003 | 2026-09-06 | Claude | Stock splits applied to the book's units on the effective date (`units *= ratio`, `last_px /= ratio`, recorded in `state["splits"]`); accounting parity with split-adjusted closes, same principle as H-001 | book vs broker residual; no phantom quantity diff in `reconcile` after a split | ACCEPTED by Lucas 2026-09-06 (accounting, not scoring): TASK-363 on branch `post-freeze-wiring`, `APPLY_SPLITS = True` (`4a77d6f`), SPEC 9.3; live after the post-settle merge |
-| H-004 | 2026-09-07 | Claude | `core/regime.py` breadth counts columns whose comparisons are UNDEFINED on the date (no close / no return / no 50d or 200d SMA); count only the columns that participate | paired OOS ann_net (T20, executable) and the live regime series | PROPOSED — patch, measured effect and provenance in `.comms/claude-astra06-core-proposal-2026-09-07.md`; rule 6, Lucas decides |
+| H-007 | 2026-09-07 | Claude | `core/regime.py` breadth counts columns whose comparisons are UNDEFINED on the date (no close / no return / no 50d or 200d SMA); count only the columns that participate | paired OOS ann_net (T20, executable) and the live regime series | PROPOSED — patch, measured effect and provenance in `.comms/claude-astra06-core-proposal-2026-09-07.md`; rule 6, Lucas decides |
 
 ## Template
 
@@ -27,7 +27,14 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
   date | REJECTED (why) | WITHDRAWN.
 ```
 
-### H-004 — breadth counts only the columns that participate (core/regime.py)
+> **Numbering note (2026-09-07).** This was registered as H-004 and renumbered to H-007. H-004,
+> H-005 and H-006 were taken a day earlier, on `docs/astra-prereg-01-08-10`, by the three
+> approval-gated Astra findings (ASTRA-01 zero-recommendations, ASTRA-08 staleness, ASTRA-10 the
+> sector cap on held positions). Two branches using one id for different hypotheses would have made
+> Lucas's approval ambiguous in the record — he approved THIS one, the breadth patch — so the later
+> claimant moved. The rows for H-004..H-006 arrive with that branch; the gap here is not a loss.
+
+### H-007 — breadth counts only the columns that participate (core/regime.py)
 
 - Date / proposer: 2026-09-07 / Claude (follow-up to ASTRA-06, external audit 2026-09-06).
 - Statement: in `core.regime.compute_rich_regime_scores`, a column enters the three breadth

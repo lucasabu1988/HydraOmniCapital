@@ -1,10 +1,10 @@
 # HYDRA Scoring Algorithm - Language Agnostic Specification
 
-**Version**: 1.2 (Expanded & Formal)  
-**Date**: June 2026  
+**Version**: 1.2 (Expanded & Formal)
+**Date**: June 2026
 **Source of Truth**: Current production implementation in `hydra_screener_local/core/`
 
-**Scope**: This document defines the **scoring and ranking logic** in a language-independent way.  
+**Scope**: This document defines the **scoring and ranking logic** in a language-independent way.
 Final selection/portfolio construction rules are intentionally left as "implementation-specific".
 
 ---
@@ -199,10 +199,14 @@ velocity = max(0, curr_dd - dd20) / 20
 vel_score = 1 - clamp(velocity * 40, 0, 1)
 
 # 5. Breadth (optional)
-if full_universe_prices and n_tickers > 30:
-    pct_positive  = share of tickers with a positive 1-day return
-    above_sma50   = share of tickers above their own SMA50
-    above_sma200  = share of tickers above their own SMA200
+# A ticker PARTICIPATES on this date only if all four quantities are defined for it: a close, a
+# 1-day return, an SMA50 and an SMA200. The shares below are over the participants, and the ">30"
+# test counts participants, not the width of the matrix (H-007, Lucas 2026-09-07).
+participants = tickers with a close, a return, an SMA50 and an SMA200 on this date
+if full_universe_prices and n_participants > 30:
+    pct_positive  = share of PARTICIPANTS with a positive 1-day return
+    above_sma50   = share of PARTICIPANTS above their own SMA50
+    above_sma200  = share of PARTICIPANTS above their own SMA200
     breadth = clamp(0.3*pct_positive + 0.3*above_sma50 + 0.4*above_sma200, 0, 1)
 else:
     breadth = 0.5
@@ -210,6 +214,21 @@ else:
 overall = 0.30*trend + 0.25*mom + 0.20*vol + 0.15*vel + 0.10*breadth
 regime_score = round(clamp(overall, 0, 1), 3)
 ```
+
+> **Nota (2026-09-07, H-007, aprobada por Lucas).** Hasta esta fecha el denominador de las tres
+> cuotas era el ancho de la matriz, no los participantes. `NaN > sma` es False en pandas, y ese
+> False se contaba: un nombre sin precio ese dia, y un nombre demasiado joven para tener media de
+> 200 sesiones, entraban los dos como "no participa" y empujaban breadth hacia abajo. Medido sobre
+> el marco vivo (ventana de 2 anos, 3011 nombres del bar store) llamando a la funcion **real** en
+> los dos lados, antes y despues: el parche saca **123 columnas (4.1%)**, sube breadth entre
+> **+0.0110 y +0.0200** en cinco fechas muestreadas (2026-09-04, 08-28, 08-21, 08-07, 07-10) y con
+> ello el regimen entre **+0.001 y +0.003** — el rango se ve cuantizado porque `regime_score` se
+> redondea a 3 decimales (seccion 4.3), asi que el desplazamiento observable salta de milesima en
+> milesima. Sobre el panel OOS PIT S&P (1084 fechas) el
+> efecto marginal encima del arreglo del laboratorio es casi nulo: el regimen se mueve en 122
+> fechas con media +0.0001, `dynamic_count` en 2 fechas y la lista de ordenes en esas mismas 2
+> (0.2%, 3 nombres entran, 0 salen); el gate no vuelca nunca. Detalle y criterio de kill en
+> `.comms/claude-astra06-core-proposal-2026-09-07.md`.
 
 > **Nota (2026-09-05).** Hasta esta fecha el spec documentaba `0.4*sma50 + 0.6*sma200`,
 > que nunca fue lo que hacía `core/regime.py`. Se corrigió el spec (el código es la fuente
@@ -442,11 +461,11 @@ From `config.py`:
 
 The final ranked DataFrame must include (standardized names after column renaming):
 
-rank, ticker, momentum, meta_score, composite_score,  
-ret_5d_10d, dist_20d_high, short_boost,  
-vol_ratio, passes_strict, dynamic_vol_threshold, vol_ratio_nan_share,  
-sector, sector_rank, sector_penalty_applied,  
-regime, regime_type, special_modes, aggression, recovery_boost,  
+rank, ticker, momentum, meta_score, composite_score,
+ret_5d_10d, dist_20d_high, short_boost,
+vol_ratio, passes_strict, dynamic_vol_threshold, vol_ratio_nan_share,
+sector, sector_rank, sector_penalty_applied,
+regime, regime_type, special_modes, aggression, recovery_boost,
 compass_mult, pillar_multipliers, recommended, reason, recommended_count
 
 `vol_ratio_nan_share` is a run-level scalar (same value on every row): share of scored
@@ -501,16 +520,16 @@ dropped from the contract the warning cannot fire.
 
 ### Próximas 4 opciones (elegí una o combiná):
 
-1. **Mejorar el Pine Script ahora mismo**  
+1. **Mejorar el Pine Script ahora mismo**
    (Hacer la tabla más completa, agregar más visualizaciones, mejorar detección de Special Modes y Pillars, manejo de múltiples símbolos en watchlist, etc.)
 
-2. **Alinear el Python actual al spec**  
+2. **Alinear el Python actual al spec**
    (Revisar `core/signals.py`, `meta_layer.py`, etc. para que sean 100% fieles a esta especificación formal, limpiar cualquier diferencia histórica.)
 
-3. **Definir la capa de integración híbrida**  
+3. **Definir la capa de integración híbrida**
    (Cómo el Python le "sugiere" los candidatos diarios al usuario para que los agregue al watchlist de TradingView: webhook + alert, formato de mensaje, archivo, etc.)
 
-4. **Otra cosa**  
+4. **Otra cosa**
    (Por ejemplo: crear tests automáticos contra el spec, generar documentación visual de los componentes, empezar a implementar una versión "lite" del algoritmo en otro lenguaje, etc.)
 
 ---

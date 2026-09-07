@@ -37,7 +37,7 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
-[2026-09-07 09:30] CLAUDE: **ASTRA-06 seguimiento: una decision para Lucas (H-004) y dos defectos de test cerrados.**
+[2026-09-07 09:30] CLAUDE: **ASTRA-06 seguimiento: una decision para Lucas (H-007) y dos defectos de test cerrados.**
 Rama `fix/astra-06-followup` (base `fix/astra-06-pit-breadth` + `origin/main` mergeado primero, por la valla de
 respaldo). `core/` sigue SIN tocar; nada mergeado, la ruta viva sigue congelada hasta verificar el settle del 09-08.
 
@@ -48,7 +48,7 @@ contra el comportamiento DESEADO (`test_DEFECT_core_regime_counts_unobserved_col
 dia que se aplique el parche, que es justo lo que queremos) y la prueba de que hoy el defecto es inalcanzable desde
 la cadena de filtros viva. Marcador `@pytest.mark.defect` + `DEFECT` en el nombre: `pytest -m defect` los lista.
 
-**2. LA DECISION (H-004, regla 6).** Parche propuesto para `core/regime.py`, con diff exacto, medicion y criterio
+**2. LA DECISION (H-007, regla 6).** Parche propuesto para `core/regime.py`, con diff exacto, medicion y criterio
 de muerte en `.comms/claude-astra06-core-proposal-2026-09-07.md`; registrado en `.comms/hypotheses.md`. Dos tamanos:
 - **A (minima)**: solo excluye del breadth las columnas SIN precio en la fecha. Es **neutra en vivo hoy** y esta
   demostrado en un test: el filtro de precio minimo (`prices.iloc[-1] >= 5.0`, False para NaN) ya las elimina antes

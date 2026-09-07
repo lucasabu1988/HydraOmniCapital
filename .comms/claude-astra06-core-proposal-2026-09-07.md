@@ -1,4 +1,4 @@
-# ASTRA-06 follow-up — the `core/regime.py` breadth patch, as a proposal (H-004)
+# ASTRA-06 follow-up — the `core/regime.py` breadth patch, as a proposal (H-007)
 
 **Claude, 2026-09-07. Branch `fix/astra-06-followup` (base `fix/astra-06-pit-breadth` + `origin/main`).
 Nothing in `core/` is modified by that branch. This note asks Lucas for one decision.**
@@ -124,7 +124,7 @@ re-implementation's. For the paired backtest it wraps the lab's `meta_for` the s
 
 Four states are compared per date:
 
-| | lab masks the frame (ASTRA-06) | core patched (H-004) |
+| | lab masks the frame (ASTRA-06) | core patched (H-007) |
 |---|---|---|
 | **A** | yes | no  — today's branch |
 | **B** | yes | yes — what approval would give |
@@ -143,7 +143,7 @@ columns the patch would DROP from the breadth denominator: on the PIT frame min/
   (of 373 median); on the whole panel 474/574/716
 breadth sub-score mean: A 0.5861  B 0.5871  C 0.3029  D 0.5839
 
---- A -> B  the marginal effect of the core patch ON TOP of the lab fix (what H-004 asks for) ---
+--- A -> B  the marginal effect of the core patch ON TOP of the lab fix (what H-007 asks for) ---
 regime differs   122/1084 dates (11.3%)  mean +0.0001  mean|d| 0.0001  max|d| 0.0010  higher/lower 121/1
 dynamic count    2 dates differ  mean 17.16 -> 17.16  delta {0: 1082, 3: 2}
 gate flips       0 dates (threshold 0.2975)
@@ -174,35 +174,35 @@ gate flips       14 dates (threshold 0.2975)
 ### Paired executable backtest — the deciding metric
 
 Same panel, same 1084 cycles, executable accounting, 10 bp/side. `current` = this branch;
-`H-004` = the proposal, produced by wrapping the lab's `meta_for` with the masked frame (identity
+`H-007` = the proposal, produced by wrapping the lab's `meta_for` with the masked frame (identity
 of section 3, and `validate_replica` passed on six dates before the run).
 
 ```
-=== paired executable backtest, T20 (current core vs H-004) ===
+=== paired executable backtest, T20 (current core vs H-007) ===
           config  cycles  hold  ann_gross  ann_net  sharpe_net  maxdd_net  turnover  exposure  avg_n  distinct
 T20 DEV  current     549     5       8.16     6.97        0.56      -31.5      11.0      85.0   16.7      30.6
-  T20 DEV  H-004     549     5       8.20     7.00        0.56      -31.5      11.0      85.0   16.7      30.6
+  T20 DEV  H-007     549     5       8.20     7.00        0.56      -31.5      11.0      85.0   16.7      30.6
 T20 TEST current     535     5       8.89     7.60        0.59      -26.9      11.8      86.0   17.5      33.6
-  T20 TEST H-004     535     5       8.88     7.60        0.59      -26.9      11.8      86.0   17.5      33.6
+  T20 TEST H-007     535     5       8.88     7.60        0.59      -26.9      11.8      86.0   17.5      33.6
 T20 ALL  current    1084     5       8.52     7.28        0.58      -31.5      11.4      86.0   17.1      32.1
-  T20 ALL  H-004    1084     5       8.53     7.30        0.58      -31.5      11.4      86.0   17.1      32.1
+  T20 ALL  H-007    1084     5       8.53     7.30        0.58      -31.5      11.4      86.0   17.1      32.1
 paired net difference per cycle: mean +0.000003  cycles differing 744/1084
 
-=== paired executable backtest, PROD (current core vs H-004) ===
+=== paired executable backtest, PROD (current core vs H-007) ===
            config  cycles  hold  ann_gross  ann_net  sharpe_net  maxdd_net  turnover  exposure  avg_n  distinct
 PROD DEV  current     549     5       7.30     3.19        0.28      -41.6      38.8      93.0   16.3      16.3
-  PROD DEV  H-004     549     5       7.32     3.20        0.28      -41.6      38.8      93.0   16.3      16.3
+  PROD DEV  H-007     549     5       7.32     3.20        0.28      -41.6      38.8      93.0   16.3      16.3
 PROD TEST current     535     5      11.00     6.63        0.50      -26.5      39.9      92.0   17.0      17.0
-  PROD TEST H-004     535     5      11.00     6.63        0.50      -26.5      39.9      92.0   17.0      17.0
+  PROD TEST H-007     535     5      11.00     6.63        0.50      -26.5      39.9      92.0   17.0      17.0
 PROD ALL  current    1084     5       9.11     4.87        0.38      -41.6      39.4      92.0   16.7      16.7
-  PROD ALL  H-004    1084     5       9.12     4.88        0.38      -41.6      39.4      92.0   16.7      16.7
+  PROD ALL  H-007    1084     5       9.12     4.88        0.38      -41.6      39.4      92.0   16.7      16.7
 paired net difference per cycle: mean +0.000002  cycles differing 545/1084
 ```
 
 - **ann_net: T20 7.28 -> 7.30 (ALL), 6.97 -> 7.00 (DEV), 7.60 -> 7.60 (TEST). PROD 4.87 -> 4.88,
   3.19 -> 3.20, 6.63 -> 6.63.** Sharpe, maxDD, turnover, exposure, avg_n and distinct do not move
   at all. The kill criterion asks for |delta| < 0.25 pp with the same sign on DEV and TEST: the
-  measured delta is +0.02/+0.03 pp, positive or flat in both eras. **H-004 passes its own test.**
+  measured delta is +0.02/+0.03 pp, positive or flat in both eras. **H-007 passes its own test.**
 - The paired per-cycle difference is +0.000003 (T20) and +0.000002 (PROD) — three parts per
   million of a cycle's return.
 - "cycles differing 744/1084" is path dependence, not 744 independent changes: `dynamic_count`
@@ -221,6 +221,29 @@ secondary IWM regime, observability only). `prices` there is the post-filter fra
   observation on the run date is already gone before scoring. Asserted, not argued:
   `test_pit_breadth.py::test_DEFECT_is_currently_unreachable_from_the_live_filter_chain`. If that
   test ever fails, the live regime IS eating unobserved columns and this stops being cosmetic.
+> **MEASURED 2026-09-07, after Lucas approved (rule 6). The hole below is filled.**
+> Read `data_cache/bars.sqlite` read-only (`mode=ro&immutable=1`, so no `-shm` file is created —
+> the reason the first pass declined to open it). On a live-shaped frame, the last 200 sessions of
+> a 2-year window over the store's 3011 tickers:
+> - the patch drops **123 of 3011 columns (4.1%)** from the breadth denominator — names with a gap
+>   or with fewer than 200 consecutive prints, so no defined SMA200. None is absent entirely; all
+>   123 do print, which is exactly why the minimal variant would not have caught them;
+> - breadth rises **+0.0110 / +0.0140 / +0.0150 / +0.0180 / +0.0200** on 2026-09-04, 08-28, 08-21,
+>   08-07 and 07-10, and the regime with it by **+0.001 / +0.001 / +0.002 / +0.002 / +0.003**.
+>   Those numbers come from calling the REAL function on both sides — the pre-patch module loaded
+>   out of git as `regime_prepatch` and the patched one imported normally, on one identical panel.
+>   A first pass used a re-implementation and reported +0.0112..+0.0205 for breadth; the real code
+>   gives +0.0110..+0.0200, and the regime range looks quantised because `regime_score` is rounded
+>   to three decimals. Measuring a claim with your own re-implementation of the thing you are
+>   claiming about is how you end up off by 0.0002 and not know it;
+> - the live effect is therefore **one to two orders of magnitude larger than the OOS panel's
+>   +0.0001**, because that panel is S&P PIT (0-6 droppable columns) while production is
+>   Russell-heavy and full of young names. Do not quote the 1084-date table as the live effect.
+>
+> What that can move: `dynamic_count = clamp(round(14 * aggression * compass), 6, 28)` changes only
+> when a rounding boundary falls inside that shift, and the regime gate (0.2975) flips only on a
+> date sitting within ~0.002 of it. Both are possible; neither is common.
+
 - **Variant B does change the live number, and by how much is UNMEASURED.** The live frame is a 2y
   window over a ~3000-name Russell-heavy universe, and any name with fewer than 200 bars in it has
   an undefined SMA200 — those names are in the denominator today and would leave it. To measure it
@@ -302,10 +325,10 @@ way to point at a panel, which is exactly why the number could not be checked.)
 What IS settled without that run is the direction and the mechanism: section 4's C -> D block shows
 the pre-fix regime was lower by a mean of 0.028 with `dynamic_count` 16.68 vs 17.17 on 161 of 1084
 dates, so the look-ahead breadth was moving the lab's positions materially — far more than the
-0.02 pp that H-004 moves on top of the fix. Every T20/PROD OOS figure written in `.comms/` before
+0.02 pp that H-007 moves on top of the fix. Every T20/PROD OOS figure written in `.comms/` before
 2026-09-06 predates the fix and should be re-read with that in mind.
 
-## 8. The decision, and the kill criterion (registered as H-004)
+## 8. The decision, and the kill criterion (registered as H-007)
 
 **What I am asking for:** approval of **Variant A** (provably live-neutral, removes the latent
 risk, makes the lab mask belt-and-braces) and a decision on **Variant B** (correct, but it moves

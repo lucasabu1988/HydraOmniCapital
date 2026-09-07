@@ -3,7 +3,7 @@
 
 `core/regime.py` is NOT modified by this script or by the branch that carries it. Its treatment of
 missing data is GROKBOARD rule 6 (Lucas's explicit approval), so the patch is a proposal with
-numbers attached: .comms/claude-astra06-core-proposal-2026-09-07.md, hypothesis H-004.
+numbers attached: .comms/claude-astra06-core-proposal-2026-09-07.md, hypothesis H-007.
 
 HOW THE PROPOSED BEHAVIOUR IS MEASURED WITHOUT PATCHING CORE
 ------------------------------------------------------------
@@ -217,13 +217,13 @@ def main():
             new = L.run_any(P, cfg)
             P.meta_for = unpatched                     # never leave the panel in the patched state
             print()
-            print(f'=== paired executable backtest, {name} (current core vs H-004) ===')
+            print(f'=== paired executable backtest, {name} (current core vs H-007) ===')
             L.table([L.stats(cur[cur.index < L.SPLIT], h, f'{name} DEV  current'),
-                     L.stats(new[new.index < L.SPLIT], h, f'{name} DEV  H-004'),
+                     L.stats(new[new.index < L.SPLIT], h, f'{name} DEV  H-007'),
                      L.stats(cur[cur.index >= L.SPLIT], h, f'{name} TEST current'),
-                     L.stats(new[new.index >= L.SPLIT], h, f'{name} TEST H-004'),
+                     L.stats(new[new.index >= L.SPLIT], h, f'{name} TEST H-007'),
                      L.stats(cur, h, f'{name} ALL  current'),
-                     L.stats(new, h, f'{name} ALL  H-004')])
+                     L.stats(new, h, f'{name} ALL  H-007')])
             d = (new['net'] - cur['net'])
             print(f'paired net difference per cycle: mean {d.mean():+.6f}  cycles differing '
                   f'{int((d != 0).sum())}/{len(d)}')
@@ -298,7 +298,7 @@ def main():
           f'{d.bad_all.min()}/{int(d.bad_all.median())}/{d.bad_all.max()}')
     print(f'breadth sub-score mean: A {d.br_a.mean():.4f}  B {d.br_b.mean():.4f}  '
           f'C {d.br_c.mean():.4f}  D {d.br_d.mean():.4f}')
-    block('A -> B  the marginal effect of the core patch ON TOP of the lab fix (what H-004 asks for)',
+    block('A -> B  the marginal effect of the core patch ON TOP of the lab fix (what H-007 asks for)',
           'reg_a', 'reg_b', 'n_a', 'n_b')
     print(f'order list differs {int((~d.same_list).sum())} dates ({(~d.same_list).mean() * 100:.1f}%)  '
           f'mean in/out on a changed date '
