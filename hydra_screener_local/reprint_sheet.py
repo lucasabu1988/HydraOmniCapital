@@ -21,7 +21,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+# Windows consoles are cp1252 and the sheet carries em dashes: never let a print take the
+# tool down in front of the operator (TASK-380 rule; test_console_encoding enforces it).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from portfolio_v9 import whole_share_display
 

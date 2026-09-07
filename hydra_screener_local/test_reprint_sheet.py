@@ -1,7 +1,11 @@
 """reprint_sheet.py: whole-share view of pending orders, and proof that it writes nothing."""
 import json
+import sys
 
 import reprint_sheet as R
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 STATE = {
     "capital_reference": 100000.0,
