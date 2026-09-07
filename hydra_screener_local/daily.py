@@ -18,9 +18,11 @@ After this script finishes you only need to:
 """
 
 import argparse
+import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Consolas/pipes Windows usan cp1252 por defecto y rompen con flechas/emojis UTF-8
@@ -111,6 +113,63 @@ def backup_history_after_run():
             print("     v9 state/ also needs HYDRA_BACKUP_DIR for an off-disk copy (TASK-346)")
 
 
+def record_run_status(state_path, status: str, detail: str | None = None,
+                      today: str | None = None):
+    """Leave a machine-readable marker next to the state saying how the run ended.
+
+    TASK-ASTRA-12: a printed traceback is not a record. Best-effort — if this write fails the
+    caller still returns non-zero, so the run is never reported as complete on a print alone.
+    """
+    if not state_path:
+        return None
+    try:
+        path = Path(state_path).parent / "run_status.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "date": today or datetime.now().strftime("%Y-%m-%d"),
+            "status": status,
+            "detail": detail,
+            "recorded_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        tmp.replace(path)
+        return path
+    except OSError as e:
+        print(f"[run] could not record status: {e}")
+        return None
+
+
+def finalize_journal(v9_out: dict, note: str | None = None) -> tuple[bool, str | None]:
+    """Persist the journal, put it in the off-disk copy, and verify that copy is complete.
+
+    Returns (ok, detail). Raising is the caller's cue that nothing was recorded. The journal is
+    written after the sheet, so `copy_state_off_disk` cannot have contained it; calling it again
+    here is what puts the journal (and JOURNAL.md) under the same backup manifest and lets
+    `verify_backup` say whether the run is actually recoverable (TASK-ASTRA-12).
+    """
+    from journal import append_from_v9
+
+    jpath = Path(append_from_v9(v9_out, note=note))
+    print(f"[journal] {jpath}")
+    today = str(v9_out.get("today") or datetime.now().strftime("%Y-%m-%d"))
+    if not os.environ.get("HYDRA_BACKUP_DIR"):
+        return True, "no HYDRA_BACKUP_DIR: journal is on the same disk as the book"
+    from portfolio_v9 import copy_state_off_disk
+    extra = [jpath]
+    md = jpath.parent / "JOURNAL.md"
+    if md.exists():
+        extra.append(md)
+    dest = copy_state_off_disk(today, extra, silent=True)
+    if dest is None:
+        return False, "off-disk copy of the journal did not run"
+    from verify_state import verify_backup
+    bad = [f for f in verify_backup(dest) if f.level == "ERROR"]
+    if bad:
+        return False, "backup incomplete: " + "; ".join(f"{f.code} {f.message}" for f in bad)
+    return True, None
+
+
 def maybe_refresh_pnl(do_refresh: bool):
     if not do_refresh:
         return
@@ -189,12 +248,23 @@ def main(argv=None):
             except Exception as je:
                 print(f"[journal] skip: {je}")
         if v9_out is not None and v9_out.get("state") is not None:
+            # A journal that does not land, or a backup missing one of its required roles, makes
+            # the run INCOMPLETE. Printing the exception and finishing 0 let a run complete having
+            # recorded nothing (TASK-ASTRA-12).
+            ok, detail = False, None
             try:
-                from journal import append_from_v9
-                jpath = append_from_v9(v9_out, note=args.note)
-                print(f"[journal] {jpath}")
+                ok, detail = finalize_journal(v9_out, note=args.note)
             except Exception as je:
-                print(f"[journal] skip: {je}")
+                ok, detail = False, f"journal write failed: {je}"
+            if ok:
+                if detail:
+                    print(f"[journal] WARN {detail}")
+                record_run_status(v9_out.get("state_path"), "complete", detail, v9_out.get("today"))
+            else:
+                print(f"[journal] INCOMPLETE — {detail}")
+                record_run_status(v9_out.get("state_path"), "incomplete", detail, v9_out.get("today"))
+                if exit_code == 0:
+                    exit_code = 1
 
     if exit_code != 0:
         print(f"\n[Note] Screener exited with code {exit_code}. Check output above.")

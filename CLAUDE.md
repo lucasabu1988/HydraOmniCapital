@@ -149,7 +149,10 @@ python -m pytest test_volume_watchdog.py -q             # any single pytest-styl
   2026-09-05; if the docs and the workflow disagree, the workflow wins. `structural-hardening-2026-09`
   takes this to eight jobs (wheel smoke, mypy, secrets, pip-audit, reproducibility, coverage floor,
   skip gate) — it merges after the 2026-09-08 settle.
-- Baseline measured on `main` 2026-09-06: **47 files pass, 0 skip, 110 s**, ruff clean. Measured on
+- Baseline measured on `feat/astra-12-restore-drill` 2026-09-06: **49 files pass, 0 skip, 125 s**,
+  ruff clean. `main` discovers 48 (47 `test_*.py` + `validate_pine_contract.py`, so the earlier
+  "47 files" here undercounted by one); `test_backup_restore.py` is the only file this branch adds.
+  Measured on
   this machine, where `history/` and the Pine artefact exist — a fresh clone or CI can still report
   the `validate_pine_contract.py` skip. A skip is not a pass; CI green proves code regression
   coverage, not financial validity or a track record.

@@ -49,5 +49,11 @@ are reported separately from passes. CI runs only this suite (legacy root tests 
   sectors resolved once in `screener.py`, never in `core/`.
 - Horizons are trading days. Entry is the first executable price, not the signal close.
 - `history/` is gitignored and may not exist in your clone.
+- A `copy2` to `HYDRA_BACKUP_DIR` is not a verified backup. `copy_state_off_disk` writes
+  `backup_manifest.json` (role + sha256 per file); `verify_state.py --verify-backup` is what says
+  a run is recoverable, and a run whose journal or backup role is missing exits non-zero
+  (`state/run_status.json` records it). Restore only with `--restore-into` into an empty,
+  isolated directory — never over a live book. Whether OneDrive actually synced those
+  directories is not knowable from the repo; check it on the machine.
 - The measurement harness (`experiments/backtest_variant_sweep.py`) is S&P 500 survivors,
   2020-2026. Validate it (`--validate`) before trusting a number from it.

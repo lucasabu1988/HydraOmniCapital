@@ -11,12 +11,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -83,8 +85,50 @@ def load_state(path: Path) -> dict | None:
         return json.load(f)
 
 
+BACKUP_MANIFEST = "backup_manifest.json"
+# A run is only recoverable if all four are in the copy. The journal is written AFTER the
+# sheet (daily.py), so the first copy of a run cannot contain it: the manifest records what
+# is there and verify_state.py --verify-backup is what says whether the set is complete
+# (TASK-ASTRA-12; a local copy2 is not a verified backup).
+BACKUP_REQUIRED_ROLES = ("state", "sheet_md", "sheet_json", "journal")
+_JOURNAL_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}\.json$")
+_PIT_FILE = re.compile(r"^(universe_.+|sectors_\d{8})\.json$")
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with Path(path).open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 16), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def backup_role(name: str) -> str:
+    """Which guarantee a backed-up file carries. Name-based: the copy is flat."""
+    if name == STATE_NAME:
+        return "state"
+    if name.startswith("instructions_") and name.endswith(".md"):
+        return "sheet_md"
+    if name.startswith("instructions_") and name.endswith(".json"):
+        return "sheet_json"
+    if name.upper() == "JOURNAL.MD":
+        return "journal_md"
+    if _JOURNAL_DAY.match(name):
+        return "journal"
+    if name == "manifest.json":
+        return "run_manifest"
+    if _PIT_FILE.match(name):
+        return "pit"
+    return "other"
+
+
 def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> Path | None:
-    """Copy state + instruction files to HYDRA_BACKUP_DIR/state_v9/<date>/ when the env is set."""
+    """Copy state + instruction files to HYDRA_BACKUP_DIR/state_v9/<date>/ when the env is set.
+
+    Also writes/updates `backup_manifest.json` in that directory: role, sha256 and byte size of
+    every file copied, so a restore can be verified instead of assumed. Repeated calls for the
+    same date append to the same manifest (daily.py calls again with the journal).
+    """
     global _OFFDISK_WARNED
     dest_root = os.environ.get("HYDRA_BACKUP_DIR")
     if not dest_root:
@@ -94,12 +138,43 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> 
         return None
     dest = Path(dest_root) / "state_v9" / today.replace("-", "")
     dest.mkdir(parents=True, exist_ok=True)
+    man_path = dest / BACKUP_MANIFEST
+    manifest = {}
+    if man_path.exists():
+        try:
+            manifest = json.loads(man_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            manifest = {}
+    entries = dict(manifest.get("files") or {})
     for p in files:
         p = Path(p)
-        if p.exists():
-            shutil.copy2(p, dest / p.name)
+        if not p.exists():
+            continue
+        shutil.copy2(p, dest / p.name)
+        prev = entries.get(p.name)
+        entry = {
+            "role": backup_role(p.name),
+            "sha256": sha256_file(p),
+            "bytes": p.stat().st_size,
+            "source": str(p),
+            "copied_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        if prev and prev.get("source") not in (None, entry["source"]):
+            entry["collides_with"] = prev.get("source")
+        entries[p.name] = entry
+    manifest.update(
+        schema=1, date=today, files=entries,
+        required_roles=list(BACKUP_REQUIRED_ROLES),
+        updated_utc=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    )
+    tmp = man_path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    tmp.replace(man_path)
     if not silent:
+        missing = sorted(set(BACKUP_REQUIRED_ROLES) - {e.get("role") for e in entries.values()})
         print(f"[v9] off-disk backup -> {dest}")
+        if missing:
+            print(f"[v9] backup still missing role(s): {', '.join(missing)}")
     return dest
 
 
