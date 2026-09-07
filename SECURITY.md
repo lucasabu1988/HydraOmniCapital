@@ -127,17 +127,24 @@ If you accidentally commit credentials:
 
 ### 7. Repository Settings — What Is NOT Enabled
 
-This policy describes contributor discipline, **not** enforced controls. As of 2026-09-06 the repository is
-**public** and every one of these is **disabled** (each needs an admin, i.e. Lucas):
+The repository is **public**. Enforced controls, as measured on 2026-09-06 (`gh api repos/{owner}/{repo}`
+and `.../private-vulnerability-reporting`):
 
 | Control | Status |
 | ------- | ------ |
-| Private vulnerability reporting | disabled |
-| Secret scanning + push protection | disabled |
-| Dependabot security updates | disabled |
-| Branch protection ruleset on `main` | documented in `hydra_screener_local/docs/BRANCH_PROTECTION.md`, **not applied** |
+| Dependabot alerts + security updates | **enabled** 2026-09-06 |
+| Secret scanning | **enabled** 2026-09-06 — 0 open alerts on the existing history |
+| Private vulnerability reporting | **enabled** 2026-09-06 (the Security-tab form above now exists) |
+| Secret scanning **push protection** | not enabled yet — deliberately held until the first settle is verified: a false positive blocks the push itself and clearing it needs a human in a browser |
+| Ruleset on `main` | pending: history guard (block deletion and force-push, no required reviews) |
 
-Until push protection exists, rule 1 is enforced by nothing but the person typing `git add`. Treat it that way.
+Two rules in `hydra_screener_local/docs/BRANCH_PROTECTION.md` are **not** applied and should not be:
+requiring a pull request with 1 approval is unsatisfiable with a single collaborator (GitHub forbids
+self-approval), and four of its seven required status checks do not run on `main` — a required check
+that never reports blocks every merge forever. `main` produces exactly three check runs today:
+`screener (3.12)`, `screener (3.13)`, `lint`.
+
+Until push protection is on, rule 1 is enforced by nothing but the person typing `git add`. Treat it that way.
 
 ## Data Handling
 
