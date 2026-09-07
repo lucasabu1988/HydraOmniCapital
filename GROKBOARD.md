@@ -70,6 +70,26 @@ Antes del arreglo, la misma corrida escribia cuatro.
 
 ## Cola A12-R (rediseño; ninguna se cierra sin las regresiones de la 397)
 
+**CONDICION TRANSVERSAL (Lucas, 2026-09-07) — se aplica a las seis tareas y a cualquier ruta de respaldo o
+restauracion que se escriba en el futuro:**
+
+> Un rechazo de restauracion o verificacion no puede dejar efectos parciales: antes y despues del rechazo, el arbol
+> destino debe conservar el mismo conjunto de archivos, conteo y hashes.
+
+**QUE SIGNIFICA "VERIFICADO" (Lucas, 2026-09-07) — requisito minimo, no endurecimiento opcional:**
+
+> Los hashes demuestran identidad de bytes. NO demuestran que `state`, `journal` y los demas roles pertenezcan a la
+> misma ejecucion. Una generacion verificable necesita un `run_id` comun, roles requeridos que no se puedan debilitar
+> arbitrariamente, y publicacion indivisible de la generacion completa. Un backup con `state` de la generacion B y
+> `journal` de la A puede pasar todas las verificaciones por archivo y seguir siendo semanticamente invalido.
+
+**CRITERIO DE MERGE de la contencion (Lucas, 2026-09-07), cumplido en `34b0143`:** corrida completa verde con destino
+señuelo (**49 passed / 0 skipped / exit 0**), las **6** regresiones de aislamiento en verde, **cero** artefactos nuevos en
+`state_v9/` — el fichero mas reciente ahi es de las 22:59 del 2026-09-06, anterior a la contencion y a la copia manual de
+las 23:00 —, A12 excluida explicitamente del plan de integracion, y la contencion registrada como **mitigacion temporal**
+cuyo cierre real es la `TASK-392` (bloqueante).
+
+
 - `TASK-392` **Separar persistencia local de respaldo.** Quitar la copia implicita de `journal.save_record`. Un unico
   servicio de respaldo que reciba destino, raices permitidas y modo de ejecucion de forma EXPLICITA; el entorno se
   resuelve solo en el punto de entrada (`daily.py` / `portfolio_v9.main`). Aceptacion: ningun modulo bajo `core/`,
