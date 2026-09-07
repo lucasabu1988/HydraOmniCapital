@@ -362,3 +362,44 @@ def test_to_eastern_accepts_an_aware_clock_from_any_zone():
     assert TC.to_eastern(utc).hour == 16
     assert not TC.session_is_closed(utc)                     # the bell, before the buffer
     assert TC.session_is_closed(pd.Timestamp("2026-09-04 20:30", tz="UTC"))
+
+
+# --------------------------------------------- the dividend convention, pinned (Lucas 2026-09-07)
+def test_dividend_convention_is_the_only_exact_one():
+    """Fills de-adjusted, mark left alone — and the other two readings are both 1% wrong.
+
+    Lucas's instruction was "no adjustar nada por dividendo para simplificar". That is right for the
+    MARK and wrong for the FILL, and this test is why: the cash is credited separately (TASK-349), so
+    the correction belongs exactly once, on the side where the cash has not been paid yet. Truth:
+    1000 USD at a printed close of 100 is 10 units; the name goes ex 1.00 and prints 99; the book is
+    10 * 99 + 10 = 1000. Any convention that does not land on 1000 is double-counting the dividend.
+    """
+    idx = pd.to_datetime(['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05'])
+    raw = pd.Series([100., 100., 100., 99., 99.], index=idx)      # drops on the ex-date, as it must
+    divs = pd.Series({pd.Timestamp('2026-09-04'): 1.00})
+    frame = pd.DataFrame({'AAA': adjust(raw, dividends=divs)})
+    rows = [dict(ticker='AAA', ex_date='2026-09-04', dps=1.00)]
+    cash = 10.0                                                   # 10 units x 1.00, credited by TASK-349
+
+    fill_deadjusted = V._row(frame, '2026-09-02', rows)['AAA']
+    fill_unadjusted = V._row(frame, '2026-09-02')['AAA']
+    mark_as_is = V.last_observed(frame)[0]['AAA']
+    mark_deadjusted = V._row(frame, '2026-09-03', rows)['AAA']     # a stale mark, if we corrected it
+    mark_stale_as_is = V._row(frame, '2026-09-03')['AAA']
+
+    assert fill_deadjusted == pytest.approx(100.0)                # the price that printed
+    assert fill_unadjusted == pytest.approx(99.0)                 # the total-return close
+    assert mark_as_is == pytest.approx(99.0)                      # last bar: factor is 1.0 anyway
+
+    # chosen: exact, and exact on a stale mark too
+    assert (1000.0 / fill_deadjusted) * mark_as_is + cash == pytest.approx(1000.0)
+    assert (1000.0 / fill_deadjusted) * mark_stale_as_is + cash == pytest.approx(1000.0)
+    # the two rejected readings overstate the book by the whole dividend, from opposite sides
+    assert (1000.0 / fill_unadjusted) * mark_as_is + cash == pytest.approx(1010.0, abs=0.02)
+    assert (1000.0 / fill_deadjusted) * mark_deadjusted + cash == pytest.approx(1010.0)
+
+
+if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    raise SystemExit(pytest.main([__file__, "-q"]))

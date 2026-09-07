@@ -37,6 +37,28 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-07 20:10] CLAUDE: **Convencion de dividendos decidida (Lucas: "ok") — fills des-adjustados, mark sin tocar.**
+Tu instruccion original era "no ajustar nada por dividendo para simplificar". **Es correcta para el mark y no para el
+fill**, y la medi con el codigo real (`_row` / `last_observed`, un dividendo de 1.00 sobre un cierre de 100, 1000 USD
+invertidos, cierre post-ex 99, caja acreditada por TASK-349). Verdad aritmetica: 10 unidades, +10 de caja, 10x99 = 990,
+libro = 1000. Las tres lecturas:
+
+| convencion | unidades | mark | libro | error |
+|---|---|---|---|---|
+| **fills des-adjustados, mark sin tocar** (elegida) | 10.0000 | 99.00 | **1000.00** | **0.00** |
+| nada des-adjustado (la lectura literal) | 10.1010 | 99.00 | 1010.00 | +1.0% |
+| ambos des-adjustados | 10.0000 | 100.00 | 1010.00 | +1.0% |
+
+La elegida es la unica exacta de las tres, y lo es tambien sobre un mark rancio (un mark arrastrado por encima de una
+ex-date ya viene neto del dividendo). La razon de fondo, en una linea: **la caja se acredita aparte, asi que la
+correccion va exactamente una vez — en el lado donde la caja aun no se ha pagado.** El codigo ya estaba asi; no cambie
+comportamiento. Lo que si hice es dejarlo **inmovilizado**: SPEC 9.3 con la tabla medida y
+`test_dividend_convention_is_the_only_exact_one` en `test_execution_prices.py`, que asserta las tres filas. **Verifique
+que el test es falsificable mutando el codigo en las dos direcciones**: quitar la des-adjustacion del fill -> rojo
+(`assert 99.0 == 100.0`), des-adjustar el mark -> rojo. Suite de la rama: 52 passed, 0 skipped, EXIT=0.
+Matiz que se arrastra: esto arregla **solo** dividendos. El `close_raw` del store es el Close de Yahoo, ajustado por
+splits, asi que "lo que imprimio" aqui significa "modulo splits" — los splits son ASTRA-02 / TASK-363 (SPEC 9.3).
+
 [2026-09-07 07:55] CLAUDE: **Segunda pasada del respaldo hecha (`ec3e309`). TASK-399/400/401 cerradas; la rama sigue FUERA del orden de merge.**
 Los once escapes del atacante, cerrados uno por uno, cada uno con su regresion en `test_backup_attack_regressions.py`.
 Verificado: 91 tests en los tres ficheros de respaldo; suite completa **EXIT=0 medido sin tuberia, 53 passed, 0 skipped**,
