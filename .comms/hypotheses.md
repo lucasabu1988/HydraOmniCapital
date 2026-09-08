@@ -11,7 +11,7 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 
 | H-008 | 2026-09-08 | Lucas (pregunta) / Claude (registro) | Buffett indicator (equities Z.1 / GDP nominal) as a RISK-BUDGET modifier - never as a selection criterion, which is arithmetically impossible for a market-wide scalar | paired OOS `sharpe_excess` difference with SE, **behind a pre-declared power gate** | **PROPOSED, phase 1 only** - the indicator is recorded and changes nothing; phase 2 is gated and the gate currently fails, see below |
 
-| H-009 | 2026-09-08 | Lucas (elige) / Claude (propone) | The PATH of the momentum, not its size: information discreteness (Da-Gurun-Warachka 2014) as a **tie-break** inside the candidate pool - a gradual riser continues better than a jumpy one with the same 12-7 return | DEV forward-return spread by ID tercile first; only then paired DEV `sharpe_excess` with a block-bootstrap interval | **PROPOSED, written before measuring** |
+| H-009 | 2026-09-08 | Lucas (elige) / Claude (propone) | The PATH of the momentum, not its size: information discreteness (Da-Gurun-Warachka 2014) as a **tie-break** inside the candidate pool - a gradual riser continues better than a jumpy one with the same 12-7 return | DEV forward-return spread by ID tercile first; only then paired DEV `sharpe_excess` with a block-bootstrap interval | **REJECTED at step 0, same day.** Full pool **-0.42 bp** [-5.29, +5.29], wrong sign; winners-only (the pre-declared subsample) **+2.20 bp** [-4.45, +8.23], right sign but indistinguishable from zero. No portfolio lever built, TEST not read. |
 
 ## Template
 
@@ -121,7 +121,32 @@ cap, the buffer and the veto gate exactly as now. Primary specification `m = 1.5
   said so. Nothing in this hypothesis touches it before that.
 - **Rule 6:** this changes selection, so production stays exactly as it is until Lucas approves
   with the measured table in front of him. `config.py` is untouched by the measurement.
-- **Result:** (to be filled by the measurement, below this line)
+- **Result (2026-09-08, `experiments/path_momentum.py`, DEV < 2016-01-01, 1084-bar PIT panel):**
+
+  | pool | steps | continuous | middle | discrete | spread | 90 % interval | p(spread<=0) | steps positive |
+  |---|---|---|---|---|---|---|---|---|
+  | full eligible pool (mean 257 names) | 545 | 16.00 bp | 15.59 bp | 16.42 bp | **-0.42 bp** | [-5.29, +5.29] | 0.484 | 52.7 % |
+  | winners only (mean 186 names) | 512 | 14.66 bp | 12.90 bp | 12.46 bp | **+2.20 bp** | [-4.45, +8.23] | 0.304 | 53.1 % |
+
+  ID separated the terciles as intended (mean ID -0.13 continuous vs +0.02 discrete), so the
+  measure works; what is absent is the return difference. On the full pool the point estimate has
+  the **wrong sign** and sits in the middle of its own interval. On winners - the subsample the
+  paper predicts and this pre-registration declared - the sign is right and the interval still
+  straddles zero, with 53 % of steps positive against a coin's 50 %.
+
+- **Decision: REJECTED at step 0, by the rule written before the run.** No portfolio lever, no
+  robustness sweep at m = 1.25 / 2.0, and **TEST was not read**. Two further reasons not to
+  rescue it: a +2.20 bp TERCILE SPREAD is not what a tie-break would capture (the lever re-orders
+  inside a pool of ~1.5 x n, it does not go long-continuous / short-discrete), and this book pays
+  10 bp a side, so the effect would have to be an order of magnitude larger before costs left
+  anything. The `frog in the pan` result may well be real in its original sample (US 1927-2010,
+  monthly, no costs, deciles); it is not measurable in the pool HYDRA actually chooses from.
+- **Testing budget:** this spent **2 DEV trials**. The deflated-Sharpe haircut currently assumes
+  N=38; it should be read as 40 from here.
+- **What is kept:** the measure and its harness (`information_discreteness`, the tercile study, 14
+  tests including the two look-ahead guards). The next path-shaped idea costs an afternoon, not a
+  week - and a negative result that is recorded is worth more than one that is forgotten and
+  re-proposed in six months.
 
 ## Closed before the register existed (for the record)
 

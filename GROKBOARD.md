@@ -37,6 +37,45 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 08:15] CLAUDE: **H-009 (trayectoria del momentum) medida y RECHAZADA el mismo dia, por la regla escrita antes de medir. Lucas eligio esta capa; el dato dice que no.**
+
+Pre-registro commiteado **antes** de correr nada (`cffc74d`) — eso es lo que hace creible el
+resultado: la conclusion no se pudo negociar despues de ver los numeros.
+
+**Lo medido** (`experiments/path_momentum.py`, DEV < 2016, panel PIT, convencion de produccion:
+compra al cierre t+1, venta al cierre t+6):
+
+| pool | pasos | continuo | medio | discreto | spread | IC 90% | p(<=0) |
+|---|---|---|---|---|---|---|---|
+| pool elegible completo (257 nombres de media) | 545 | 16.00 bp | 15.59 bp | 16.42 bp | **-0.42 bp** | [-5.29, +5.29] | 0.484 |
+| solo winners (submuestra pre-declarada) | 512 | 14.66 bp | 12.90 bp | 12.46 bp | **+2.20 bp** | [-4.45, +8.23] | 0.304 |
+
+El ID **si** separa los terciles (ID media -0.13 continuo vs +0.02 discreto), asi que la medida
+funciona; lo que no aparece es la diferencia de retorno. En el pool completo el signo es **el
+contrario** al predicho. En winners el signo es el correcto y el intervalo sigue cruzando cero, con
+53% de pasos positivos contra el 50% de una moneda.
+
+**Rechazada en el paso 0.** Ni lever de cartera, ni barrido de robustez a m=1.25/2.0, y **TEST no se
+leyo**. Dos razones mas para no rescatarla: un spread de tercil de +2.20 bp **no es** lo que
+capturaria un desempate (el lever reordena dentro de un pool de ~1.5n, no va largo-continuo /
+corto-discreto), y este libro paga 10 bp por lado. El efecto tendria que ser un orden de magnitud
+mayor para que quedara algo despues de costes.
+
+**Presupuesto de test gastado: 2 pruebas DEV.** El haircut del deflated Sharpe asume N=38; desde
+aqui hay que leerlo como 40.
+
+**Lo que queda en el repo:** la medida y su arnes (`information_discreteness`, el estudio por
+terciles, 14 tests con los dos guards de look-ahead: perturbar un retorno **posterior** a la ventana
+no puede mover el ID, y perturbar uno **dentro** tiene que moverlo). La proxima idea de forma
+parecida cuesta una tarde.
+
+**Sigue sin medir la que yo puse primera:** momentum **residual** (Blitz-Huij-Martens 2011), que es
+una afirmacion distinta — que el momentum convencional esta contaminado por beta — no una
+afirmacion sobre la trayectoria. Verificado que nunca se probo aqui: los levers barridos son
+`mom90`, `mom12_1`, `mom6_1`, `mom12_7`, el ensemble, `invvol`, hold, buffer, exposure,
+vol_estimator, crash_brake, cash_yield y breadth. Si Lucas quiere seguir, seria H-010 con el mismo
+protocolo.
+
 [2026-09-09 06:40] CLAUDE: **Buffett indicator, fase 1 implementada (Lucas: "Fase 1 si, fase 2 con el freno puesto. implementar esto"). Registra, no decide. Y la puerta de poder ya tiene numeros.**
 
 **Lo que hay:** `data/macro.py` (FRED sin API key: `NCBEILQ027S` de la Z.1 L.223 sobre `GDP`
