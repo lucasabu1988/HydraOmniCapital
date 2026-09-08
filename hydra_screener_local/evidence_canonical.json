@@ -1,0 +1,73 @@
+{
+  "generated_by": "render_evidence.py --promote",
+  "measured_at": "2026-09-08",
+  "source": {
+    "script": "experiments/engine_backtest.py",
+    "args": [
+      "--oos"
+    ],
+    "scratch": "experiments/_lab_scratch/task350.json",
+    "commit": "7acf22a"
+  },
+  "panel": {
+    "name": "S&P 500 point-in-time panel with delistings",
+    "first_mark": "2005-02-11",
+    "last_mark": "2026-08-24",
+    "first_year": "2005",
+    "last_year": "2026",
+    "task": "TASK-350",
+    "name_es": "panel S&P 500 point-in-time con delistings"
+  },
+  "rows": [
+    {
+      "key": "engine",
+      "label": "engine production (pair reset)",
+      "cycles": 1083,
+      "ann_net": 7.1,
+      "ratio_net_vol": 0.75,
+      "sharpe_excess": 0.57,
+      "maxdd_net": -17.8,
+      "rf_ann_pct": 1.76,
+      "ratio_minus_sharpe": 0.18
+    },
+    {
+      "key": "lab_mix",
+      "label": "lab mix T20+ETF equal (audit)",
+      "cycles": 1084,
+      "ann_net": 6.91,
+      "ratio_net_vol": 0.74,
+      "sharpe_excess": 0.56,
+      "maxdd_net": -19.5,
+      "rf_ann_pct": 1.76,
+      "ratio_minus_sharpe": 0.18
+    }
+  ],
+  "reference": [
+    {
+      "key": "screener_v84",
+      "label": "screener v8.4 alone (T5, no ETF sleeve)",
+      "cycles": null,
+      "ann_net": 5.5,
+      "ratio_net_vol": 0.42,
+      "sharpe_excess": null,
+      "maxdd_net": -37.8,
+      "rf_ann_pct": null,
+      "ratio_minus_sharpe": null,
+      "source": "2026-09-06",
+      "note": "audit figure, not re-measured with the corrected metric (TASK-404)"
+    },
+    {
+      "key": "spy_buy_hold",
+      "label": "SPY buy-and-hold",
+      "cycles": null,
+      "ann_net": 11.0,
+      "ratio_net_vol": 0.68,
+      "sharpe_excess": null,
+      "maxdd_net": -54.7,
+      "rf_ann_pct": null,
+      "ratio_minus_sharpe": null,
+      "source": "2026-09-06",
+      "note": "audit figure, not re-measured with the corrected metric (TASK-404)"
+    }
+  ]
+}

@@ -37,6 +37,38 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-08 23:30] CLAUDE: **TASK-404, 405, 407 y 408 implementadas y medidas (Lucas: "implementar 404, 405, 407, 408"). Y TASK-350 reproducido exactamente hoy.**
+
+**Lo que mas cambia la lectura del sistema:** el "Sharpe 0.75" del panel PIT es, restando el T-bill
+barra a barra, **0.57**. In-sample la correccion es mayor (1.32 -> 0.95, T-bill al 3.38%). Nada de
+esto cambia el algoritmo: cambia lo que podemos afirmar.
+
+**Y una correccion a mi propio diagnostico de H-006.** Dije que el agujero del carry era el mecanismo
+de la concentracion. Medido: **0 brechas por tramo en 1084 pasos**. El agujero existe en el codigo
+—- queda fijado con test —- pero es **inalcanzable desde la dinamica del motor**, porque un tramo que
+empieza vacio nunca llega a seis de un sector. Lo que concentra es que **el cap es por tramo**: la
+cartera llega a **13 nombres y 53.6% de peso** en un sector, y pasa **84.3% del tiempo** por encima
+de 5, con una racha de 116 pasos. Eso es una decision de riesgo real, no un bug — y sigue siendo
+regla 6, asi que H-006 no se mueve de PROPOSED.
+
+**Acciones enteras (TASK-407):** al libro de 100k cuestan **-1.06 pp/ano** y 1.00% de tracking error,
+con un tercio de las ordenes con precio cayendose a cero y 2.17% del libro sin invertir por
+renovacion — que **reproduce el ~3% de la primera hoja**. A 1M el efecto desaparece (-0.05 pp). Es
+tracking error dependiente del tamano, no capital perdido.
+
+**TASK-350, reproducido hoy con el codigo de `main`:** 7.10 / 0.75 / -17.8 sobre 1083 marcas, y la
+fontaneria identica a la de septiembre (1 `not_filled` TWX, 5 `hold_no_price` ESRX, 2 write-offs por
+0.0764, 2150 patas de traspaso, interes 0.2348 sobre libro inicial 1.0). H-002 pasa a **TESTED IN
+PART**: la comparacion disponible (motor par-reset vs mezcla del laboratorio con reset semanal
+completo) **no es un A/B limpio** — la T20 del laboratorio no cobraba T-bill y sus filas van
+desplazadas un paso. El A/B limpio es `TASK-409`.
+
+**Nada de esto toca el camino vivo:** solo `experiments/`, un CLI nuevo en la raiz, docs y tests.
+`bootstrap_compare.py` quedo intacto a proposito porque `fix/astra-07` lo reescribe entero
+(`TASK-410`, despues del paso 10 de la ventana).
+
+**Cola nueva abajo: TASK-409 y TASK-410.**
+
 [2026-09-08 21:10] CLAUDE: **Dos cosas que la segunda vuelta de la revision hizo evidentes, hechas hoy y solo en docs.**
 
 **1. El pre-registro del experimento Russell, escrito ANTES de comprar los datos**
@@ -261,9 +293,22 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   **HECHA en `fix/astra-03-observed-fill-prices` (`52eac42`).** `last_observed()` valora cada nombre a su ultimo cierre **observado** (la mascara `attrs["observed"]` de `data.fetch`), con su fecha; `last_px` queda solo para un nombre sin ningun print en la ventana. Falsificable en las dos direcciones, medido: primera pasada 3600 vs 4000 en aislado (los 400 USD del revisor, reproducidos); revertir a `iloc[-1]` pone 2 de 10 en rojo. Suite EXIT=0 medido, 52/0.
   **Hallazgo mas profundo, NO arreglado a proposito:** `core/tranche_book.age_stale` toma cualquier precio finito como impreso — un forward fill reescribe `last_px` y **reinicia el reloj de write-off** (`data.fetch` rellena hasta 3 barras; `max_stale_bars=10` cuenta una mezcla de prints y rellenos). Es contabilidad de antiguedad = **H-005**; pinned con un test que afirma lo que hoy es cierto, y tres preguntas añadidas a la medicion de H-005 en `.comms/task-402-mark-and-a-deeper-finding.md`.
 
+- [ ] `TASK-409` **H-002, el A/B limpio del reset.** La unica comparacion que existe (motor par-reset
+  7.10/0.75/0.57/-17.8 vs mezcla del laboratorio 6.91/0.74/0.56/-19.5) tiene dos confusores
+  reconocidos: la T20 del laboratorio no cobra T-bill y sus filas van desplazadas un paso.
+  Aceptacion: el **mismo** motor con una bandera de reset semanal completo, mismo panel, misma rf,
+  diferencia **pareada** con su error estandar y las dos convenciones alineadas. Si sale dentro del
+  ruido, se escribe eso y H-002 se cierra como indistinguible: no se adopta nada por narrativa.
+  `Files:` `experiments/engine_backtest.py` (bandera de laboratorio), script o flag nuevo + test.
+- [ ] `TASK-410` **Cablear `sharpe_excess` en `bootstrap_compare.py`, DESPUES del paso 10.**
+  `fix/astra-07` reescribe ese fichero entero (+157 lineas) arreglando el pareado; tocarlo en `main`
+  hoy era conflicto garantizado, asi que TASK-404 se quedo en `experiments/metrics.py` y en el motor.
+  Aceptacion: tras mergear la 07, `bootstrap_compare` importa `metrics.sharpe_excess` y
+  `step_risk_free` (no reimplementa la formula), y los intervalos se reportan sobre el excess return
+  con el nombre correcto. `Files:` `experiments/bootstrap_compare.py`, `test_bootstrap_compare.py`.
 - [ ] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
 
-- [ ] `TASK-404` **La metrica publicada deja de llamarse Sharpe y empieza a serlo.** Hoy
+- [x] `TASK-404` **La metrica publicada deja de llamarse Sharpe y empieza a serlo.** Hoy
   `engine_backtest.py` y `bootstrap_compare.py` calculan `mean/sd * sqrt(periods)` sobre el retorno
   **neto**, sin restar nada — y el libro mantiene una manga con efectivo remunerado, asi que el numero
   esta sesgado al alza precisamente aqui. Aceptacion: (1) la clave existente se renombra a
@@ -272,7 +317,19 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   reporta en pp; (3) un test que falla si se pasa una serie risk-free no nula y `sharpe_excess` no se
   mueve. Sin cambio de scoring (regla 6 no aplica: es reporte).
   `Files:` `experiments/engine_backtest.py`, `experiments/bootstrap_compare.py`, sus tests, nuevo test.
-- [ ] `TASK-405` **H-006 medida: exposicion sectorial real DESPUES de conservar.** `MAX_PER_SECTOR=5`
+  **HECHA (Claude, 2026-09-08).** `experiments/metrics.py` nuevo: `net_vol_ratio` (la formula
+  publicada, con su `ddof=1` de siempre para que los numeros sigan comparables), `sharpe_excess`
+  sobre `neto - rf`, y `step_risk_free`, que compone el ^IRX diario **barra a barra** con dos
+  convenciones — la del motor (la marca en t cubre t-5..t) y la del laboratorio (la fila fechada en
+  t cubre t+1..t+6, SPEC 9.5) — porque mezclarlas desplaza el excess return un paso entero.
+  `engine_backtest.py` delega en el modulo y renombra la clave. **Medido, panel PIT (TASK-350):
+  ratio 0.75 -> sharpe_excess `0.57`**, con el T-bill al 1.76% anualizado en la muestra; in-sample
+  2020-26 la correccion es mayor, **1.32 -> 0.95** con el T-bill al 3.38%. 10 tests en
+  `test_metrics.py`, incluido el falsificador que la tarea pedia (una rf no nula tiene que mover el
+  Sharpe y no mover el ratio) y dos que exigen error en vez de cero silencioso cuando falta la serie.
+  **`bootstrap_compare.py` NO se toco a proposito:** `fix/astra-07` lo reescribe entero (+157) y
+  editarlo aqui era conflicto garantizado en el paso 10. Ese cableado es `TASK-410`.
+- [x] `TASK-405` **H-006 medida: exposicion sectorial real DESPUES de conservar.** `MAX_PER_SECTOR=5`
   vincula en la **seleccion** (`core/portfolio_engine.stock_targets`), pero el buffer conserva nombres ya
   en cartera, asi que la cartera resultante puede pasar de 5 por sector sin violar el cap.
   **El mecanismo, ya localizado, no lo busques:** en `select_tranche_names` el primer bucle mete los
@@ -283,6 +340,21 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   por encima de 5 nombres y su duracion, y contribucion sectorial al maxDD. **Solo medir**: la decision
   de añadir un cap a nivel cartera es regla 6 y espera a Lucas con la medicion delante.
   `Files:` nuevo `experiments/sector_exposure_post_carry.py` + su test.
+  **HECHA (Claude, 2026-09-08), y el resultado corrige mi propio diagnostico.**
+  `experiments/sector_exposure_post_carry.py` + 11 tests. **Panel PIT, 1084 pasos: el limite real de
+  la cartera no es 5, es 13.** Maximo 13 nombres de un sector, p95 10, mediana 7; **84.3% de los
+  pasos por encima del cap**, racha mas larga **116 pasos** (~2.2 anos), y en peso **53.6% del sleeve
+  invertido** en un solo sector (p95 36.9%, mediana 24.0%). Los que mas repiten: Consumer Cyclical
+  180, Technology 148, Healthcare 134.
+  **Pero el mecanismo NO es el que dije.** Brechas por tramo: **0 en 1084 pasos**. El agujero del
+  carry existe en el codigo (queda fijado con test) y es **inalcanzable desde la dinamica del
+  motor**: un tramo que empieza vacio nunca llega a 6 de un sector, porque el bucle que rellena si
+  respeta el cap, asi que el carry no tiene un sexto que conservar (test de induccion, 12
+  renovaciones). Lo que concentra es el **alcance del cap: es por tramo**, y 4 tramos x 5 son 20 sin
+  violar ninguna regla. El maxDD de la medicion (**-46.7%**, 2008-05-09 -> 2009-03-04, Energy
+  -13.9 pp, Healthcare -10.2) es el sleeve de acciones **totalmente invertido, sin vol-target ni
+  manga ETF ni caja**: no es el drawdown del libro (-17.8%), y esa diferencia es precisamente el
+  50/50. H-006 sigue PROPOSED: un cap de cartera es regla 6 y espera a Lucas con esto delante.
 - [ ] `TASK-406` **Costes: empezar a calibrar con fills reales en vez de con 10/5 bp de supuesto.**
   El modelo actual depende de ADV/precio y no ve tamaño de orden, AUM, spread ni participacion en la
   subasta, asi que no soporta ninguna afirmacion de capacidad. Aceptacion: un informe que, desde el
@@ -297,14 +369,30 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   sin cambiar la contabilidad) y renderizarlos en el informe. Para las 30 ordenes del 09-08 la evidencia
   se salva a mano segun el paso 2 de `.comms/merge-window-2026-09-09.md`.
   `Files:` nuevo `experiments/fill_cost_report.py` + test con un ledger sintetico; luego `core/fills.py` + `test_confirm_fills.py`.
-- [ ] `TASK-407` **Acciones enteras: medir la divergencia antes de tocar el sizing.** TASK-353 dejo las
+- [x] `TASK-407` **Acciones enteras: medir la divergencia antes de tocar el sizing.** TASK-353 dejo las
   acciones enteras como **vista** (`whole_share_display`); el motor sigue en dolares y `est_units`
   fraccionarias, y en la primera hoja tres nombres no cabian ni a una accion (SNDK, LITE, QQQ). Aceptacion:
   sobre el panel PIT, el mismo backtest con sizing fraccionario y con `floor(dollars/price)` + efectivo
   no invertido, y la diferencia en pp de CAGR, maxDD y tracking. **Solo medir**: cambiar el sizing es
   regla 6.
   `Files:` `experiments/engine_backtest.py` (flag de solo lectura) o script nuevo + test.
-- [ ] `TASK-408` **Los numeros publicados se generan, no se teclean.** El README llevaba 6.9/0.74/-19.5
+  **HECHA (Claude, 2026-09-08).** `experiments/whole_share_sizing.py` + 9 tests, y
+  `engine_backtest.floor_orders_to_whole_shares` (redondea cada orden con precio a acciones enteras
+  a su propio `est_price`, deja en paz las ventas `close=True` y los traspasos; el sobrante se queda
+  en caja, que es lo que pasa de verdad). `drive_engine` acepta ahora `capital` y `whole_shares`.
+  **Medido in-sample 2020-26, y el efecto depende del tamano del libro, que era la pregunta:**
+
+  | libro | neto | vs fraccionario | tracking error | ordenes que caen a cero | sin invertir por renovacion |
+  |---|---|---|---|---|---|
+  | fraccionario | 12.18% | — | — | — | — |
+  | 25.000 | 9.33% | **-2.85 pp** | 3.45% | 60% | 7.7% |
+  | **100.000** | 11.12% | **-1.06 pp** | **1.00%** | **33%** | **2.17%** |
+  | 1.000.000 | 12.13% | -0.05 pp | 0.08% | 6% | 0.24% |
+
+  El 2.17% por renovacion **reproduce el ~3% de la primera hoja viva**. Y ojo con el libro de 25k:
+  su maxDD "mejora" (-5.4% vs -9.0%) solo porque la mitad del libro se queda en caja — distorsion,
+  no mejora. Cambiar el sizing sigue siendo regla 6; esto solo mide.
+- [x] `TASK-408` **Los numeros publicados se generan, no se teclean.** El README llevaba 6.9/0.74/-19.5
   (la mezcla del laboratorio) mientras el spec llevaba 7.10/0.75/-17.8 (el motor); corregido a mano hoy,
   y volvera a divergir. Aceptacion: un artefacto canonico (JSON) escrito por `engine_backtest.py`, un
   generador que rellena la linea de evidencia del README y la tabla del spec desde ese JSON, y un test
@@ -393,6 +481,13 @@ solo aqui:
 > hora, o evidencia que requiere revision posterior pero no invalida el estado.
 Motivo: la variante HARD bloqueaba `daily.py` antes del cierre — efecto desproporcionado para esa clase de evidencia.
 Esto **no relaja** la disciplina: separa el bloqueo de seguridad/contabilidad del aviso de calidad de observacion.
+  **HECHA (Claude, 2026-09-08).** `evidence_canonical.json` (promovido desde el payload real de
+  `engine_backtest.py --oos`, con procedencia: script, args, scratch, commit y fecha),
+  `render_evidence.py` con `--promote` / `--write` / `--check`, y marcadores `EVIDENCE:BEGIN/END` en
+  el README y en SPEC 9.5. Las filas de referencia (v8.4 y SPY) se conservan a mano y van **marcadas
+  como no recomputadas** con la metrica corregida, en vez de fingir un Sharpe que nadie midio.
+  10 tests, y el que importa: **el ultimo compara los dos documentos contra el JSON y se pone rojo
+  si alguien teclea un numero a mano.**
 - [x] `TASK-398` **Bajar la fila a WARN con identificador estable.** HECHA en `fix/astra-03-observed-fill-prices` (`5a47827`): fila WARN, ids estables en preflight y journal, `daily.py` corre sin `--allow-intraday`, y la negativa se mudo al settle. Suite 51/0, exit 0 medido. En `fix/astra-03-observed-fill-prices`: la fila
   "session closed" pasa a WARN, con un id estable que persista **en el preflight y en el journal**, para que no se
   convierta en ruido ni se pierda al ciclo siguiente. `daily.py` deja de necesitar `allow_intraday` para correr.

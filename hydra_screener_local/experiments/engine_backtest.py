@@ -27,6 +27,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 sys.path.insert(0, ROOT)
 
+import metrics as M  # noqa: E402
 import redesign_lab as L  # noqa: E402
 import sleeve_lab as S  # noqa: E402
 from config import V9  # noqa: E402
@@ -35,46 +36,20 @@ from core.state_check import check  # noqa: E402
 
 START = 280
 STEP = 5
-AUDIT_MIX = dict(ann_net=6.91, sharpe_net=0.74, maxdd_net=-19.5)
+AUDIT_MIX = dict(ann_net=6.91, ratio_net_vol=0.74, maxdd_net=-19.5)
 AUDIT_STEPS = os.path.join(HERE, "_sweep_cache_etf", "audit_steps.pkl")
 
 
-def _stats(values: pd.Series, label: str, step=STEP) -> dict:
-    r = values.pct_change().dropna()
-    if r.empty:
-        return dict(config=label, cycles=0)
-    py = 252.0 / step
-
-    def ann(x):
-        return float(((1 + x).prod() ** (py / len(x)) - 1) * 100)
-
-    eq = (1 + r).cumprod()
-    dd = float((eq / eq.cummax() - 1).min()) * 100
-    return dict(
-        config=label, cycles=int(len(r)),
-        ann_net=round(ann(r), 2),
-        sharpe_net=round(float(r.mean() / r.std() * np.sqrt(py)), 2) if r.std() else 0.0,
-        maxdd_net=round(dd, 1),
-    )
+def _stats(values: pd.Series, label: str, step=STEP, rf=None) -> dict:
+    """Stats of a BOOK VALUE series (marks). TASK-404: `ratio_net_vol` is the number this
+    project used to print as "Sharpe"; `sharpe_excess` is the real one, and it only exists
+    when a risk-free series is handed in."""
+    return M.stats(values.pct_change().dropna(), label, step, rf=rf)
 
 
-def _stats_from_net(net: pd.Series, label: str, step=STEP) -> dict:
-    r = net.dropna()
-    if r.empty:
-        return dict(config=label, cycles=0)
-    py = 252.0 / step
-
-    def ann(x):
-        return float(((1 + x).prod() ** (py / len(x)) - 1) * 100)
-
-    eq = (1 + r).cumprod()
-    dd = float((eq / eq.cummax() - 1).min()) * 100
-    return dict(
-        config=label, cycles=int(len(r)),
-        ann_net=round(ann(r), 2),
-        sharpe_net=round(float(r.mean() / r.std() * np.sqrt(py)), 2) if r.std() else 0.0,
-        maxdd_net=round(dd, 1),
-    )
+def _stats_from_net(net: pd.Series, label: str, step=STEP, rf=None) -> dict:
+    """Same, for a series that is already per-step NET returns (the lab rows)."""
+    return M.stats(net.dropna(), label, step, rf=rf)
 
 
 def _ranking(P, t, c):
@@ -158,15 +133,50 @@ def _run_check(st, when: str, today: str, counts: dict) -> None:
     raise SystemExit(1)
 
 
-def drive_engine(P, *, progress_every=50, check_state: bool = False) -> tuple[pd.Series, dict]:
+def floor_orders_to_whole_shares(state: dict) -> dict:
+    """TASK-407: round every priced order down to a whole number of shares at its own est_price.
+
+    This is what the instruction sheet actually asks of Lucas: the engine sizes in dollars, he
+    buys N shares at the close, and the remainder stays in cash. `close=True` sells are left
+    alone (they liquidate the whole position, whatever its size), and an order that floors to
+    zero share simply does not happen - which is exactly what the first live sheet hit with
+    SNDK, LITE and QQQ.
+
+    Mutates `state["pending"]` in place; returns what the rounding cost."""
+    left, zeroed, touched = 0.0, 0, 0
+    for o in state.get("pending") or []:
+        if o.get("side") not in ("buy", "sell") or o.get("close"):
+            continue
+        price = o.get("est_price")
+        dollars = float(o.get("dollars") or 0.0)
+        if not price or not np.isfinite(float(price)) or float(price) <= 0 or dollars <= 0:
+            continue
+        shares = np.floor(dollars / float(price))
+        new_dollars = float(shares * float(price))
+        left += dollars - new_dollars
+        touched += 1
+        if shares <= 0:
+            zeroed += 1
+        o["dollars"] = new_dollars
+        o["est_units"] = float(shares)
+        o["whole_shares"] = True
+    return dict(unspent=left, zeroed=zeroed, orders=touched)
+
+
+def drive_engine(P, *, progress_every=50, check_state: bool = False, capital: float = 1.0,
+                 whole_shares: bool = False) -> tuple[pd.Series, dict]:
+    """`capital` is the starting book (the engine is linear in it unless `whole_shares` is on,
+    which is the whole point of TASK-407: integer share sizes make the result depend on size)."""
     cfg = dict(V9)
     idx = P.close.index
-    st = E.new_state(1.0, str(idx[START].date()), cfg)
+    st = E.new_state(float(capital), str(idx[START].date()), cfg)
     recs = []
-    expos, distincts, turnovers = [], [], []
+    expos, distincts, turnovers, cash_shares = [], [], [], []
     counts = dict(not_filled=0, hold_no_price=0, write_offs=0, write_off_dollars=0.0,
                   transfers=0, plans=0, _hnp_tickers=set(), _nf_tickers=set(),
-                  check_seconds=0.0, check_calls=0, check_warns=0)
+                  check_seconds=0.0, check_calls=0, check_warns=0,
+                  rounded_orders=0, rounded_to_zero=0, unspent_dollars=0.0,
+                  capital=float(capital), whole_shares=bool(whole_shares))
     prev_t = None
     etf = P.ETF
     irx = P.IRX
@@ -183,6 +193,11 @@ def drive_engine(P, *, progress_every=50, check_state: bool = False) -> tuple[pd
             prev_t = t
             continue
         st, orders = E.plan(st, today, rk, P.close.iloc[: t + 1], etf.iloc[: t + 1], irx, cfg)
+        if whole_shares:
+            r = floor_orders_to_whole_shares(st)
+            counts["rounded_orders"] += r["orders"]
+            counts["rounded_to_zero"] += r["zeroed"]
+            counts["unspent_dollars"] += r["unspent"]
         if check_state:
             _run_check(st, "plan", today, counts)
         counts["plans"] += 1
@@ -194,6 +209,8 @@ def drive_engine(P, *, progress_every=50, check_state: bool = False) -> tuple[pd
         s = E.summary_table(st, P.close.iloc[t], etf.iloc[t], cfg)
         recs.append((idx[t], s["total"]))
         tot = s["total"] or 1.0
+        cash = sum(float(s["sleeves"][sl]["cash"]) for sl in ("stocks", "etf"))
+        cash_shares.append(cash / tot if tot else 0.0)
         expos.append(s["sleeves"]["stocks"]["exposure"] * 0.5 + s["sleeves"]["etf"]["exposure"] * 0.5)
         distincts.append(s["sleeves"]["stocks"]["distinct"] + s["sleeves"]["etf"]["distinct"])
         turnovers.append(traded / tot if tot else 0.0)
@@ -215,6 +232,8 @@ def drive_engine(P, *, progress_every=50, check_state: bool = False) -> tuple[pd
     counts["hold_no_price_names"] = sorted(counts.pop("_hnp_tickers"))
     counts["not_filled_names"] = sorted(counts.pop("_nf_tickers"))
     counts["turnover"] = round(float(np.mean(turnovers) * 100), 1) if turnovers else 0.0
+    counts["cash_share"] = round(float(np.mean(cash_shares) * 100), 2) if cash_shares else 0.0
+    counts["unspent_dollars"] = round(float(counts["unspent_dollars"]), 2)
     counts["exposure"] = round(float(np.mean(expos) * 100), 0) if expos else 0.0
     counts["distinct"] = round(float(np.mean(distincts)), 1) if distincts else 0.0
     interest = list(st.get("interest") or [])
@@ -331,7 +350,7 @@ def main(argv=None):
     lab_net, lab_s = _load_lab_mix(P, args.oos)
     if args.oos:
         lab_s["ann_net_audit"] = AUDIT_MIX["ann_net"]
-        lab_s["sharpe_audit"] = AUDIT_MIX["sharpe_net"]
+        lab_s["ratio_audit"] = AUDIT_MIX["ratio_net_vol"]
         lab_s["maxdd_audit"] = AUDIT_MIX["maxdd_net"]
 
     print("engine (pair reset, trailing hurdle, interest)...", flush=True)
@@ -341,21 +360,37 @@ def main(argv=None):
     print("  engine series", len(eng), str(eng.index[0].date()), "->", str(eng.index[-1].date()),
           flush=True)
 
+    # TASK-404: the risk-free leg, from the same annualised ^IRX the engine accrues interest
+    # with. The engine's mark at t is the return of t-5..t; the lab row dated t covers t+1..t+6
+    # (spec 9.5), so the two conventions need different windows or the excess return is off by
+    # one step.
+    rf_eng = M.step_risk_free(P.IRX, eng.index)
+    rf_lab = M.step_risk_free(P.IRX, lab_net.index, forward=True, step=STEP)
+
     common = lab_net.index.intersection(eng.index)
-    lab_on_overlap = _stats_from_net(lab_net.reindex(common).dropna(), lab_s["config"] + " overlap")
-    mix_c = lab_net.reindex(common).dropna()
+    lab_on_overlap = _stats_from_net(lab_net.reindex(common).dropna(),
+                                    lab_s["config"] + " overlap", rf=rf_lab)
     rows = [
-        {**lab_s, "overlap_ann_net": lab_on_overlap.get("ann_net"),
-         "overlap_sharpe": lab_on_overlap.get("sharpe_net"),
+        {**_stats_from_net(lab_net, lab_s["config"], rf=rf_lab),
+         **{k: v for k, v in lab_s.items() if k.endswith("_audit")},
+         "overlap_ann_net": lab_on_overlap.get("ann_net"),
+         "overlap_ratio": lab_on_overlap.get("ratio_net_vol"),
+         "overlap_sharpe_excess": lab_on_overlap.get("sharpe_excess"),
          "overlap_maxdd": lab_on_overlap.get("maxdd_net"),
          "overlap_cycles": lab_on_overlap.get("cycles")},
-        {**_stats(eng, "engine production (pair reset)"), **{
+        {**_stats(eng, "engine production (pair reset)", rf=rf_eng), **{
             k: v for k, v in counts.items()
             if k not in ("write_off_names", "hold_no_price_names", "not_filled_names",
                          "interest_by_year", "replayed")
         }},
     ]
     print(pd.DataFrame(rows).to_string(index=False), flush=True)
+    eng_row = rows[1]
+    print("", flush=True)
+    print(f"TASK-404: ratio_net_vol {eng_row['ratio_net_vol']} is NOT a Sharpe. "
+          f"sharpe_excess {eng_row['sharpe_excess']} subtracts the T-bill, which ran at "
+          f"{eng_row['rf_ann_pct']}% annualised over the sample; the two differ by "
+          f"{eng_row['ratio_minus_sharpe']}.", flush=True)
 
     yearly = _yearly(eng, lab_net)
     print("\nyearly net (%) engine vs lab mix", flush=True)
