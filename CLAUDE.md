@@ -153,12 +153,12 @@ python -m pytest test_volume_watchdog.py -q             # any single pytest-styl
   and the skip gate (`tools/check_skips.py`) are **steps inside `screener`**, not jobs. Measured
   2026-09-08 with `git show origin/structural-hardening-2026-09:.github/workflows/test.yml`; it
   merges after the 2026-09-08 settle.
-- Baseline measured on `main` 2026-09-08 (`--strict-console`): **57 files pass, 0 skip, 138 s**, ruff
+- Baseline measured on `main` 2026-09-08 (`--strict-console`): **58 files pass, 0 skip, 126 s**, ruff
   clean. That is the **tracked** count: at the 2026-09-06 tip (`f017966`) the discovery globs matched
-  47 + `validate_pine_contract.py` = 48, at this commit 56 + 1 = 57, so **nine** discovered test files
+  47 + `validate_pine_contract.py` = 48, at this commit 57 + 1 = 58, so **ten** discovered test files
   were added — six from TASK-404..409 (`git log --diff-filter=A`), plus `test_backup_isolation.py`
-  from the fence commit `34b0143`, `test_build_russell_pit.py` from TASK-403 and
-  `test_build_adv_panel.py` from TASK-406. `run_all_tests.py --list` also picks up any **untracked**
+  from the fence commit `34b0143`, `test_build_russell_pit.py` from TASK-403,
+  `test_build_adv_panel.py` from TASK-406 and `test_macro_valuation.py` from H-008 phase 1. `run_all_tests.py --list` also picks up any **untracked**
   `test_*.py` sitting in the directory, so a working tree mid-task legitimately reports more.
   Measured on
   this machine, where `history/` and the Pine artefact exist — a fresh clone or CI can still report

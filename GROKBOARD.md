@@ -37,6 +37,47 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 06:40] CLAUDE: **Buffett indicator, fase 1 implementada (Lucas: "Fase 1 si, fase 2 con el freno puesto. implementar esto"). Registra, no decide. Y la puerta de poder ya tiene numeros.**
+
+**Lo que hay:** `data/macro.py` (FRED sin API key: `NCBEILQ027S` de la Z.1 L.223 sobre `GDP`
+nominal, con `/1000` porque una serie va en millones y la otra en miles de millones),
+`core/valuation.py` (percentil **expandido**, nunca full-sample, y el conteo de **episodios** que es
+la unidad honesta de tamaño de muestra), `snapshot_macro.py` (sidecar, como `snapshot_universe.py`)
+y 24 tests sin red. **Nadie los importa**: el cableado es `TASK-414`, despues del settle.
+
+**Primera lectura, medida hoy:** **2.1814** (Q1 2026), percentil-conocido-entonces **98.84** contra
+una mediana 1947-2026 de **0.72** y un maximo historico de 2.287 (Q4 2025). Primera vintage propia
+guardada: `data_cache/macro_snapshots.json`, 1 entrada.
+
+**La puerta de poder, pre-declarada antes de medir nada, y su resultado:** un regla que actua
+"cuando esta caro" recibe una observacion por **episodio**, no por trimestre (la serie autocorrela
+~0.98). Minimo declarado: 5 episodios **dentro de la ventana donde existe panel de precios**.
+Medido: **14 episodios desde 1947, pero solo 4 solapan 2004-2026** — y dos de esos cuatro duran 3 y
+4 trimestres, mientras los otros dos son tiradas unicas de 54 y 58 trimestres (1995-2008 y
+2011-2026). **La puerta no pasa**, y la conclusion pre-declarada es **NO MEDIBLE con estos datos**,
+no "sin efecto". Corrijo mi propia estimacion de ayer: dije "unos dos episodios" a ojo; medidos son
+4, dos de ellos marginales.
+
+**Una propiedad que conviene saber antes de construir nada encima:** un percentil **se habitua**.
+Con percentil expandido y midrank, un nivel que se queda alto deja de puntuar como extremo — 8
+trimestres planos seguidos de valores altos identicos dan una racha que se corta a las 5
+observaciones. Es exactamente la critica clasica al indicador (caro desde 2013 y subiendo), y esta
+fijada con test para que nadie la "arregle" con un percentil full-sample, que seria look-ahead.
+
+**Dos hallazgos de infraestructura:** (1) **FRED cuelga** (read timeout, 3 intentos, las dos series)
+con el User-Agent tipo navegador que manda `data.universe._get_headers()`, y responde en 0.5 s a
+cualquier UA plano — el modulo lleva su propio header y un test que lo fija, porque el sintoma era
+un timeout silencioso, no un 4xx. (2) ALFRED **no** da vintages sin key (el endpoint CSV libre da
+404 con `vintage_date`), asi que la historia honesta empieza hoy y crece; la historia revisada se
+guarda etiquetada como `revised` y `pit_series()` **se niega** a devolverla.
+
+**Y una nota operativa:** `data_cache/` esta gitignoreado, asi que nuestras vintages viven en un
+solo disco — el mismo problema que `history/`. Conviene meterlo en el set de respaldo cuando se
+retome el servicio de backup (`feat/a12r-backup-service`).
+
+Pre-registro completo en `.comms/hypotheses.md` como **H-008**, con la forma funcional, el
+falsificador y la decision de Lucas citada.
+
 [2026-09-09 05:30] CLAUDE: **Las cuatro tareas desbloqueadas, ejecutadas con 4 implementadores + 8 verificadores adversariales + 1 critico de completitud. 12 hallazgos major; los arregle todos antes de commitear.**
 
 **TASK-413 (nueva, filas de referencia recomputadas).** `experiments/reference_rows.py`: el screener
@@ -448,6 +489,19 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   `metrics`, con un test que afirma la identidad para que las dos definiciones no puedan divergir.
   Cinco pruebas nuevas, incluida la de auto-comparacion sobre el camino de exceso (intervalo
   exactamente cero). Suite de la rama: **53 passed, 0 skipped, EXIT=0 medido**, ruff limpio.
+- [ ] `TASK-414` **Cablear la lectura macro en el registro de la corrida, DESPUES del settle verificado.**
+  La fase 1 de H-008 ya esta hecha y es **inerte**: `data/macro.py`, `core/valuation.py` y
+  `snapshot_macro.py` existen y **nadie los importa**. Lo que falta es la mitad que toca camino vivo:
+  (1) llamar `snapshot_macro`/`data.macro` desde el ritual diario y guardar el registro de
+  `core.valuation.describe()` en el JSON de `history/`; (2) una linea en la cabecera de
+  `state/instructions_<fecha>.md` con el nivel, el percentil-conocido-entonces y el conteo de
+  episodios; (3) el journal semanal. Aceptacion: la corrida **no falla nunca** por macro — si FRED
+  no responde, la lectura es `None` y el resto sigue igual (el CLI ya se comporta asi, verificado
+  hoy con FRED tumbado por el User-Agent); y un test que lo demuestre con el fetch mockeado a fallo.
+  **No mueve ninguna orden**: si alguien quiere que mueva algo, eso es la fase 2 de H-008 y su
+  puerta de poder hoy **no pasa**.
+  `Files:` `daily.py` o `screener.py` (una llamada), `core/history.py`, `portfolio_v9.py` (cabecera
+  de la hoja), `journal.py`, + test.
 - [ ] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.**
   **PARCIALMENTE EJECUTABLE HOY — y la version anterior de este bloqueo era falsa** (la escribi yo;
   la tumbo la revision adversarial del 2026-09-08, verificado despues por mi):
