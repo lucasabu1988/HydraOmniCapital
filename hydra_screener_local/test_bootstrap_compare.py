@@ -62,7 +62,12 @@ def test_expected_max_sharpe_positive_and_corr_reduces():
 def test_paired_sharpe_identical_series_is_exactly_zero():
     x = np.random.default_rng(7).normal(.001, .02, 400)
     r = summarise_diff(x, x, 5, 'self', np.random.default_rng(0))
-    assert r['d_sharpe_p05'] == r['d_sharpe_p95'] == 0., r
+    # TASK-410 renamed the no-risk-free quantity to d_ratio*; the estimator is unchanged
+    assert r['d_ratio_p05'] == r['d_ratio_p95'] == 0., r
+    # and with a risk-free leg the true Sharpe difference is just as exactly zero
+    rf = np.full_like(x, 0.0004)
+    r2 = summarise_diff(x, x, 5, 'self', np.random.default_rng(0), rf=rf)
+    assert r2['d_sharpe_p05'] == r2['d_sharpe_p95'] == 0., r2
 
 
 def test_cagr_interval_estimates_difference_of_cagrs():
@@ -90,8 +95,8 @@ def test_one_index_matrix_is_applied_to_both_series():
     assert idx.shape == (300, 200)
     from bootstrap_compare import sharpe
     want = np.array([sharpe(a[i], 5) - sharpe(b[i], 5) for i in idx])
-    assert round(float(np.percentile(want, 5)), 3) == got["d_sharpe_p05"]
-    assert round(float(np.percentile(want, 95)), 3) == got["d_sharpe_p95"]
+    assert round(float(np.percentile(want, 5)), 3) == got["d_ratio_p05"]
+    assert round(float(np.percentile(want, 95)), 3) == got["d_ratio_p95"]
 
 
 def test_point_estimate_lies_inside_its_own_interval():
@@ -106,7 +111,7 @@ def test_point_estimate_lies_inside_its_own_interval():
     b = rng.normal(0.001, 0.02, size=300)
     s = summarise_diff(a, b, step=5, label="inside", rng=rng, n=1000)
     assert s["d_ann_p05"] <= s["d_ann_net_pp"] <= s["d_ann_p95"], s
-    assert s["d_sharpe_p05"] <= s["d_sharpe"] <= s["d_sharpe_p95"], s
+    assert s["d_ratio_p05"] <= s["d_ratio"] <= s["d_ratio_p95"], s
 
 
 def test_summarise_diff_rejects_misaligned_series():
@@ -187,3 +192,57 @@ def test_trailing_f1_window_without_a_right_edge_is_dropped():
     assert abs(got.iloc[0] - (1.01 ** 2 - 1)) < 1e-12, got
     old = _old_rule(prod, f1)
     assert abs(old.iloc[-1] - (1.01 ** 3 - 1)) < 1e-12, old   # 3 legs vs 2: over-covered
+
+
+# --------------------------------------------------------------- TASK-410 probes
+# What the module called a Sharpe never subtracted a rate. These pin the two
+# quantities apart and keep the formula in experiments/metrics.py.
+
+def test_without_a_risk_free_series_the_sharpe_keys_are_absent_not_mislabelled():
+    rng = np.random.default_rng(11)
+    a = rng.normal(0.002, 0.02, size=200)
+    b = rng.normal(0.001, 0.02, size=200)
+    s = summarise_diff(a, b, 5, "no rf", np.random.default_rng(0), n=200)
+    assert "d_ratio" in s and "d_sharpe" not in s
+    assert "not a Sharpe ratio" in s["risk_free"]
+
+
+def test_a_zero_rate_makes_the_sharpe_difference_equal_the_ratio_difference():
+    rng = np.random.default_rng(12)
+    a = rng.normal(0.002, 0.02, size=200)
+    b = rng.normal(0.001, 0.02, size=200)
+    s = summarise_diff(a, b, 5, "zero rf", np.random.default_rng(0), n=200,
+                       rf=np.zeros_like(a))
+    assert s["d_sharpe"] == s["d_ratio"]
+    assert s["d_sharpe_p05"] == s["d_ratio_p05"]
+
+
+def test_a_real_rate_moves_the_sharpe_and_leaves_the_ratio_alone():
+    rng = np.random.default_rng(13)
+    a = rng.normal(0.004, 0.02, size=300)          # higher mean, same vol
+    b = rng.normal(0.001, 0.04, size=300)          # lower mean, twice the vol
+    rf = np.full_like(a, (1 + 0.05 / 252) ** 5 - 1)
+    s = summarise_diff(a, b, 5, "real rf", np.random.default_rng(1), n=300, rf=rf)
+    # subtracting the same rate from both hurts the noisier leg less per unit of vol,
+    # so the DIFFERENCE of Sharpes must not equal the difference of ratios
+    assert s["d_sharpe"] != s["d_ratio"]
+    assert "annualised over the sample" in s["risk_free"]
+
+
+def test_a_misaligned_risk_free_series_is_refused():
+    import pytest
+    rng = np.random.default_rng(14)
+    a = rng.normal(0.002, 0.02, size=100)
+    with pytest.raises(ValueError, match="rf must align"):
+        summarise_diff(a, a, 5, "bad rf", np.random.default_rng(0), n=50,
+                       rf=np.zeros(99))
+
+
+def test_the_formula_comes_from_metrics_and_is_not_reimplemented():
+    """TASK-410's acceptance: one definition of the ratio, in experiments/metrics.py."""
+    import metrics as M
+    from bootstrap_compare import ann_net, sharpe
+    rng = np.random.default_rng(15)
+    r = rng.normal(0.002, 0.02, size=120)
+    assert sharpe(r, 5) == M.net_vol_ratio(r, 5)
+    assert ann_net(r, 5) * 100 == M.annualised_return(r, 5)

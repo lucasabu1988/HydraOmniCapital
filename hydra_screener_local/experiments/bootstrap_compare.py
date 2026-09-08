@@ -32,6 +32,16 @@ SUPERSEDED. Three defects, all in the estimator, none in the series:
 
 Fix: ONE moving-block index matrix per replicate, applied to both series, with
 every statistic differenced INSIDE the replicate.
+
+TASK-410 (2026-09-08) - what this module called a Sharpe never subtracted a
+risk-free rate. `mean/sd * sqrt(periods)` on the NET return is a return/volatility
+ratio; with the 13-week T-bill at 1.76% annualised over this panel the two differ
+by about 0.18 for the production engine. The formula now lives in
+`experiments/metrics.py` and is used from there, not reimplemented: `d_ratio*`
+keys are the old quantity under its real name, and `d_sharpe*` keys are the
+excess-return difference whenever a risk-free series is supplied. `main()` builds
+that series with `metrics.step_risk_free` on the lab's FORWARD convention (the row
+dated t covers the `step` bars after t), so the two legs cover the same calendar.
 """
 from __future__ import annotations
 
@@ -50,6 +60,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.dirname(HERE))
 
+import metrics as M  # noqa: E402
 import redesign_lab as L
 
 SCRATCH = os.path.join(HERE, "_lab_scratch", "task332_series.json")
@@ -115,29 +126,38 @@ def block_bootstrap(diff, block=BLOCK, n=N_BOOT, rng=None, idx=None):
 
 
 def ann_net(r, step):
-    py = 252 / step
+    """Compounded annual return as a FRACTION. The formula lives in metrics (TASK-410)."""
     r = np.asarray(r, dtype=float)
     if len(r) == 0 or np.any(r <= -1):
         return np.nan
-    return float((1 + r).prod() ** (py / len(r)) - 1)
+    return M.annualised_return(r, step) / 100.0
 
 
 def sharpe(r, step):
-    py = 252 / step
+    """mean/sd * sqrt(periods) on whatever it is handed.
+
+    Handed a NET return series this is the return/volatility ratio, not a Sharpe ratio; handed
+    `net - risk_free` it is the Sharpe ratio. Both callers exist below, and they say which.
+    """
     r = np.asarray(r, dtype=float)
-    sd = r.std(ddof=1)
-    if sd == 0:
+    if len(r) == 0:
         return 0.0
-    return float(r.mean() / sd * np.sqrt(py))
+    return M.net_vol_ratio(r, step)
 
 
-def summarise_diff(a, b, step, label, rng, n=N_BOOT, block=BLOCK):
+def summarise_diff(a, b, step, label, rng, n=N_BOOT, block=BLOCK, rf=None):
     """Paired moving-block bootstrap of CAGR(a)-CAGR(b) and SR(a)-SR(b).
 
     `a` and `b` must be net-return series of equal length on the same dates and
     the same `step`. ONE index matrix is drawn per replicate and applied to both
     series, and each statistic is differenced INSIDE the replicate, so the
     interval estimates exactly the statistic the point estimate reports.
+
+    `rf` is the per-step risk-free return on the same dates (TASK-410). With it,
+    `d_sharpe*` is a difference of true Sharpe ratios (excess over the T-bill) and
+    `d_ratio*` keeps the old return/volatility difference under its honest name.
+    Without it only `d_ratio*` is reported and the Sharpe keys are absent rather
+    than a ratio wearing the wrong label.
 
     Before ASTRA-07 this returned an interval for CAGR of the compounded
     (a - b) series next to a point estimate of CAGR(a) - CAGR(b) (defect 1) and
@@ -151,23 +171,41 @@ def summarise_diff(a, b, step, label, rng, n=N_BOOT, block=BLOCK):
     idx = block_index_matrix(len(a), block=block, n=n, rng=rng)
     pa, pb = a[idx], b[idx]
     ann = np.array([ann_net(x, step) - ann_net(y, step) for x, y in zip(pa, pb)]) * 100
-    sr_d = np.array([sharpe(x, step) - sharpe(y, step) for x, y in zip(pa, pb)])
+    ratio_d = np.array([sharpe(x, step) - sharpe(y, step) for x, y in zip(pa, pb)])
     point_ann = (ann_net(a, step) - ann_net(b, step)) * 100
-    point_sr = sharpe(a, step) - sharpe(b, step)
-    return dict(
+    point_ratio = sharpe(a, step) - sharpe(b, step)
+    out = dict(
         label=label, n=len(a), step=step, n_boot=n, block=block,
-        estimator="paired-blocks; diff of CAGRs and diff of Sharpes per replicate",
+        estimator="paired-blocks; diff of CAGRs and diff of ratios per replicate",
         d_ann_net_pp=round(point_ann, 2),
         d_ann_p05=round(float(np.percentile(ann, 5)), 2),
         d_ann_p10=round(float(np.percentile(ann, 10)), 2),
         d_ann_p90=round(float(np.percentile(ann, 90)), 2),
         d_ann_p95=round(float(np.percentile(ann, 95)), 2),
         p_le_prod=round(float((ann <= 0).mean()), 3),
+        d_ratio=round(point_ratio, 3),
+        d_ratio_p05=round(float(np.percentile(ratio_d, 5)), 3),
+        d_ratio_p95=round(float(np.percentile(ratio_d, 95)), 3),
+        p_ratio_le_0=round(float((ratio_d <= 0).mean()), 3),
+        risk_free="none: d_ratio is mean/sd on the NET return, not a Sharpe ratio",
+    )
+    if rf is None:
+        return out
+    rf = np.asarray(rf, dtype=float)
+    if rf.shape != a.shape:
+        raise ValueError(f"rf must align with a and b, got {rf.shape} vs {a.shape}")
+    prf = rf[idx]
+    sr_d = np.array([sharpe(x - r, step) - sharpe(y - r, step)
+                     for x, y, r in zip(pa, pb, prf)])
+    point_sr = sharpe(a - rf, step) - sharpe(b - rf, step)
+    out.update(
+        risk_free=f"T-bill, {M.annualised_return(rf, step):.2f}% annualised over the sample",
         d_sharpe=round(point_sr, 3),
         d_sharpe_p05=round(float(np.percentile(sr_d, 5)), 3),
         d_sharpe_p95=round(float(np.percentile(sr_d, 95)), 3),
         p_sharpe_le_0=round(float((sr_d <= 0).mean()), 3),
     )
+    return out
 
 
 def _compound_prod_to_f1(prod: pd.Series, f1: pd.Series) -> pd.Series:
@@ -234,16 +272,23 @@ def main():
     t20 = _series(P, "T20")
     print("  lens", len(prod), len(f1), len(t20), flush=True)
 
-    # align T20 and PROD on common dates (both 5-bar)
+    # align T20 and PROD on common dates (both 5-bar). The lab dates a row by the START of the
+    # window it earns (t+lag..t+lag+hold), so the risk-free leg uses the FORWARD convention.
     common = t20.index.intersection(prod.index)
     t20_a, prod_a = t20.loc[common], prod.loc[common]
-    rows = [summarise_diff(t20_a.values, prod_a.values, L.step_of(L.CONFIGS["T20"]),
-                           "T20-PROD", rng)]
+    step_5 = L.step_of(L.CONFIGS["T20"])
+    rf5 = M.step_risk_free(P.IRX, common, forward=True, step=step_5)
+    keep5 = common.intersection(rf5.index)
+    rows = [summarise_diff(t20_a.loc[keep5].values, prod_a.loc[keep5].values, step_5,
+                           "T20-PROD", rng, rf=rf5.loc[keep5].values)]
 
     prod_on_f1 = _compound_prod_to_f1(prod, f1).dropna()
     f1_a = f1.loc[prod_on_f1.index]
-    rows.append(summarise_diff(f1_a.values, prod_on_f1.values, L.step_of(L.CONFIGS["F1"]),
-                               "F1-PROD", rng))
+    step_10 = L.step_of(L.CONFIGS["F1"])
+    rf10 = M.step_risk_free(P.IRX, prod_on_f1.index, forward=True, step=step_10)
+    keep10 = prod_on_f1.index.intersection(rf10.index)
+    rows.append(summarise_diff(f1_a.loc[keep10].values, prod_on_f1.loc[keep10].values, step_10,
+                               "F1-PROD", rng, rf=rf10.loc[keep10].values))
 
     cols = ["label", "n", "d_ann_net_pp", "d_ann_p05", "d_ann_p95",
             "d_sharpe", "d_sharpe_p05", "d_sharpe_p95", "p_le_prod"]
@@ -251,18 +296,29 @@ def main():
     print("intervals below are NOT estimates of the point estimate beside them")
     print(pd.DataFrame(SUPERSEDED_TASK332)[cols].to_string(index=False))
     print("\n=== CURRENT (paired blocks, differences inside each replicate) ===")
+    print("d_ratio* = the old net/vol quantity; d_sharpe* = excess over the T-bill (TASK-410)")
     print(pd.DataFrame(rows).to_string(index=False))
     dsr = expected_max_sharpe(N_TRIALS, len(t20_a[t20_a.index < L.SPLIT]), step=5)
     print("\nDeflated-Sharpe haircut (Bailey & López de Prado 2014)")
     print(dsr)
-    print(f"T20 full-sample Sharpe {sharpe(t20_a.values, 5):.3f}  "
-          f"DEV Sharpe {sharpe(t20_a[t20_a.index < L.SPLIT].values, 5):.3f}")
+    dev = t20_a.index < L.SPLIT
+    rf_dev = rf5.reindex(t20_a.index[dev]).dropna()
+    print(f"T20 full-sample net/vol {sharpe(t20_a.values, 5):.3f}  "
+          f"DEV net/vol {sharpe(t20_a[dev].values, 5):.3f}")
+    print(f"T20 full-sample Sharpe (excess) "
+          f"{sharpe(t20_a.loc[keep5].values - rf5.loc[keep5].values, 5):.3f}  "
+          f"DEV Sharpe (excess) "
+          f"{sharpe(t20_a.loc[rf_dev.index].values - rf_dev.values, 5):.3f}")
+    print("The deflated-Sharpe haircut above is computed against the net/vol numbers it was "
+          "written for; recomputing it on excess returns is not part of TASK-410.")
 
     os.makedirs(os.path.dirname(SCRATCH), exist_ok=True)
     with open(SCRATCH, "w", encoding="utf-8") as f:
         json.dump({"rows": rows, "dsr": dsr,
                    "superseded_task332": SUPERSEDED_TASK332,
-                   "estimator_fixed": "ASTRA-07 2026-09-06"}, f, indent=2, default=str)
+                   "estimator_fixed": "ASTRA-07 2026-09-06",
+                   "metric_named": "TASK-410 2026-09-08: d_ratio vs d_sharpe (excess)"},
+                  f, indent=2, default=str)
 
 
 if __name__ == "__main__":
