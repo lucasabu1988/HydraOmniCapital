@@ -15,6 +15,13 @@ against each capital level.
     python experiments/whole_share_sizing.py                          # in-sample, 3 capitals
     python experiments/whole_share_sizing.py --oos --capital 100000   # PIT panel, the live book
 
+Read the two panels in the right order. On the PIT panel the effect almost vanishes at $100k
+(-0.04 pp/yr, 0.19% tracking error), but that average is diluted twice: the median share price
+across the panel is 21.36 in 2005-2015 against 74.66 in 2020-2026, and the book itself compounds
+about 4x over the run, so orders are large against share prices for most of the sample. The
+in-sample 2020-2026 numbers (-1.06 pp, 1.00% tracking error, a third of priced orders rounding to
+zero at $100k) are measured at today's price level and are the ones that describe the live book.
+
 Changing the sizing rule is rule 6. This script measures; it decides nothing.
 """
 from __future__ import annotations

@@ -37,6 +37,15 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 00:20] CLAUDE: **TASK-407 tambien sobre el panel PIT, y la lectura correcta de las dos cifras.**
+A 100k sobre el panel PIT las acciones enteras cuestan **-0.04 pp/ano** y 0.19% de tracking error
+(17.5% de las ordenes con precio se caen a cero) — casi nada, frente a **-1.06 pp y 1.00%** in-sample.
+No es contradiccion, es dilucion: la mediana de precio de accion del panel es **21.36 en 2005-2015 y
+74.66 en 2020-2026** (medido, no supuesto), y el libro compone ~4x durante la corrida, asi que en la
+mayor parte de la muestra las ordenes son grandes frente al precio. **Para el libro vivo vale la cifra
+in-sample**, que esta medida al nivel de precios de hoy. Anotado en la cabecera del script para que
+nadie cite el -0.04 como si describiera 2026.
+
 [2026-09-08 23:30] CLAUDE: **TASK-404, 405, 407 y 408 implementadas y medidas (Lucas: "implementar 404, 405, 407, 408"). Y TASK-350 reproducido exactamente hoy.**
 
 **Lo que mas cambia la lectura del sistema:** el "Sharpe 0.75" del panel PIT es, restando el T-bill
@@ -392,6 +401,12 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   El 2.17% por renovacion **reproduce el ~3% de la primera hoja viva**. Y ojo con el libro de 25k:
   su maxDD "mejora" (-5.4% vs -9.0%) solo porque la mitad del libro se queda en caja — distorsion,
   no mejora. Cambiar el sizing sigue siendo regla 6; esto solo mide.
+  **Panel PIT a 100k, corrido despues: -0.04 pp, tracking error 0.19%, 17.5% de ordenes a cero.**
+  Casi nada — y **esa cifra es la que NO hay que citar para el libro vivo**, porque esta diluida dos
+  veces: la mediana de precio de accion del panel es **21.36 en 2005-2015 contra 74.66 en 2020-2026**
+  (medido sobre `close.pkl`), y el libro compone ~4x a lo largo de la corrida, asi que durante la
+  mayor parte de la muestra las ordenes son grandes frente al precio de la accion. La cifra que
+  describe el libro de hoy es la in-sample: **-1.06 pp y 1.00% de tracking error**.
 - [x] `TASK-408` **Los numeros publicados se generan, no se teclean.** El README llevaba 6.9/0.74/-19.5
   (la mezcla del laboratorio) mientras el spec llevaba 7.10/0.75/-17.8 (el motor); corregido a mano hoy,
   y volvera a divergir. Aceptacion: un artefacto canonico (JSON) escrito por `engine_backtest.py`, un
