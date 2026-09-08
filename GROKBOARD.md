@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 02:40] CLAUDE: **Cola de Grok al dia: 404-410 cerradas, y cola nueva para que no quede vacia (TASK-411, TASK-412).**
+`main` en `12b2097`, suite **56 passed / 0 skipped / 134 s**, ruff limpio; TASK-410 vive en su rama
+(`f449098`). Lo que queda abierto y por que: **TASK-403** bloqueada por la compra de Norgate (el
+codigo esta, con vallas y 13 tests), **TASK-389** por la 403, **TASK-411** (H-005, la ultima hipotesis
+sin medir, prioridad de Lucas) y **TASK-412**, que son las dos mitades de camino vivo que aparque a
+proposito: persistir `presumed_price` y la bandera de reset semanal completo. Ninguna de las dos se
+toca antes de que el settle del miercoles este verificado.
+
 [2026-09-09 02:10] CLAUDE: **Cola de Grok ejecutada (Lucas: "ejecutar todas las tareas en la cola"). 406, 409 y 410 hechas; 403 hecha salvo el dato.**
 
 **TASK-409 dio veredicto y un hallazgo.** El reset semanal completo y el reset por pares son
@@ -370,6 +378,27 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   `metrics`, con un test que afirma la identidad para que las dos definiciones no puedan divergir.
   Cinco pruebas nuevas, incluida la de auto-comparacion sobre el camino de exceso (intervalo
   exactamente cero). Suite de la rama: **53 passed, 0 skipped, EXIT=0 medido**, ruff limpio.
+- [ ] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.** Es la
+  unica de las hipotesis vivas que sigue sin medirse, y Lucas la marco como prioridad. `age_stale`
+  toma cualquier precio finito como impreso, asi que un forward fill de `data.fetch` reescribe
+  `last_px` y **reinicia el reloj**; `max_stale_bars=10` cuenta una mezcla de prints y rellenos.
+  Aceptacion: sobre el panel PIT, la politica actual contra una referencia que use la mascara
+  `attrs["observed"]` (la que ya expone `fetch` y que `last_observed()` usa desde TASK-402), y
+  reportar: numero de resets provocados por rellenos, barras de retraso mediana y maxima del
+  write-off, dolares de write-off desplazados, y el efecto en `ann_net`/`maxDD` con y sin la politica
+  corregida. **Solo medir**: cambiar la politica mueve write-offs, P/L historico y caja, y es regla 6.
+  Las tres preguntas ya escritas en `.comms/task-402-mark-and-a-deeper-finding.md` son parte de la
+  aceptacion. `Files:` nuevo `experiments/stale_policy_ab.py` + test.
+- [ ] `TASK-412` **Las dos mitades de camino vivo que quedaron aparcadas, DESPUES del settle verificado.**
+  Ninguna se toca antes de que `verify_state.py` salga limpio el miercoles. (1) `core/fills.py`:
+  persistir `presumed_price` / `presumed_units` en el registro del fill (aditivo, sin cambiar la
+  contabilidad) y renderizarlos en `report_lines()`, para que TASK-406 mida slippage contra el cierre
+  del settle y no contra el cierre del plan. (2) `core/portfolio_engine.plan`: bandera **por defecto
+  apagada** de reset semanal completo, para cerrar el A/B de H-002 con el mismo motor en los dos lados
+  (TASK-409 lo dejo indistinguible con contabilidad de laboratorio en un lado).
+  Aceptacion: las dos con test, la (1) con un fill confirmado que cambia de precio y conserva el
+  presumido, y la (2) con la corrida pareada del mismo motor. `Files:` `core/fills.py`,
+  `test_confirm_fills.py`; `core/portfolio_engine.py`, `experiments/reset_ab.py`, sus tests.
 - [!] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
 
   **BLOQUEADA POR EL DATO, no por el codigo — la mitad que no necesita suscripcion, hecha
