@@ -37,6 +37,37 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-08 18:40] CLAUDE: **Revision externa verificada linea por linea: los defectos son reales, dos afirmaciones no lo son, y hay cola nueva (TASK-404..408).**
+Lucas me paso una revision del repo. La comprobe contra el codigo en vez de aceptarla:
+
+**Se sostiene, medido:** (1) el NaN truthy vive en `main`, `core/portfolio_engine.py:245` —
+`float(px.get(t, ...) or 0.0)` con `NaN` devuelve `NaN`, no 0.0, y contamina `tranche_target`; el arreglo
+(`_price_for_order` / `DataError` / `is_finite_money`) esta en `structural-hardening-2026-09`, fuera de `main`.
+(2) `age_stale` absorbe rellenos = H-005, sin corregir a proposito. (3) El "Sharpe" publicado no es Sharpe:
+`engine_backtest.py` calcula `r.mean()/r.std()*sqrt(py)` sin restar risk-free, y el libro tiene una manga con
+efectivo remunerado. (4) `MAX_PER_SECTOR` vincula en seleccion, no en cartera. (5) La evidencia fuerte sigue
+siendo S&P PIT mientras produccion es Russell-heavy.
+
+**No se sostiene:** (a) el bootstrap pareado, el evidence audit, el orden fill/split y el resto de la pila
+**ya estan hechos en ramas** con test — la revision los presenta como pendientes; lo pendiente es el merge,
+no el hallazgo; (b) la "primera hoja deja 3 por ciento sin invertir" es condicional: los tres nombres que no
+caben a una accion se confirman con `units=0` el miercoles — no se pierde capital, se queda en caja.
+
+**Corregido hoy, solo docs (no toca el camino vivo):** el README llevaba 6.9/0.74/-19.5 (la mezcla del
+laboratorio) como si fuera la cartera de produccion, mientras el spec lleva 7.10/0.75/-17.8 (el motor
+end-to-end, TASK-350). Ahora el README dice las dos con su procedencia, y ambos documentos dicen que el
+ratio **no es Sharpe** y por que esta sesgado al alza aqui.
+
+**Runbook sin cambios:** hoy martes 09-08 se ejecutan las 30 ordenes al cierre y **no se corre `daily.py`**;
+el miercoles, el settle verificado. Los pasos 1 y 2 de `.comms/merge-window-2026-09-09.md` tienen que estar
+en `main` entre el miercoles y el viernes, porque el proximo `plan()` con posiciones es el **lunes 14**.
+
+**Grok:** cola nueva abajo, TASK-404..408 — metrica de verdad (excess return), H-006 medida, coste desde
+fills reales, acciones enteras medidas antes de tocar el sizing, y numeros publicados generados desde un
+artefacto. Ninguna toca scoring; 405 y 407 son **solo medir** a proposito. `TASK-403` (panel PIT de Russell)
+sigue bloqueada por lo unico que solo Lucas puede desbloquear: Norgate Platinum, 630 USD/año, aprobado sin
+comprar.
+
 [2026-09-07 20:15] CLAUDE: **Dividendos: decidido (Lucas "ok") — fills des-adjustados, mark sin tocar.**
 Tu instruccion era "no ajustar nada por dividendo para simplificar": **acertada para el mark, no para el fill.** Medido
 con el codigo real (un dividendo de 1.00 sobre un cierre de 100, 1000 USD, cierre post-ex 99, caja acreditada aparte por
@@ -206,6 +237,44 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   **Hallazgo mas profundo, NO arreglado a proposito:** `core/tranche_book.age_stale` toma cualquier precio finito como impreso — un forward fill reescribe `last_px` y **reinicia el reloj de write-off** (`data.fetch` rellena hasta 3 barras; `max_stale_bars=10` cuenta una mezcla de prints y rellenos). Es contabilidad de antiguedad = **H-005**; pinned con un test que afirma lo que hoy es cierto, y tres preguntas añadidas a la medicion de H-005 en `.comms/task-402-mark-and-a-deeper-finding.md`.
 
 - [ ] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
+
+- [ ] `TASK-404` **La metrica publicada deja de llamarse Sharpe y empieza a serlo.** Hoy
+  `engine_backtest.py` y `bootstrap_compare.py` calculan `mean/sd * sqrt(periods)` sobre el retorno
+  **neto**, sin restar nada — y el libro mantiene una manga con efectivo remunerado, asi que el numero
+  esta sesgado al alza precisamente aqui. Aceptacion: (1) la clave existente se renombra a
+  `ratio_net_vol` y se añade `sharpe_excess` construida sobre `neto - ^IRX alineado barra a barra` con
+  la misma serie que usa `accrue_interest`; (2) las dos cifras se imprimen juntas y la diferencia se
+  reporta en pp; (3) un test que falla si se pasa una serie risk-free no nula y `sharpe_excess` no se
+  mueve. Sin cambio de scoring (regla 6 no aplica: es reporte).
+  `Files:` `experiments/engine_backtest.py`, `experiments/bootstrap_compare.py`, sus tests, nuevo test.
+- [ ] `TASK-405` **H-006 medida: exposicion sectorial real DESPUES de conservar.** `MAX_PER_SECTOR=5`
+  vincula en la **seleccion** (`core/portfolio_engine.stock_targets`), pero el buffer conserva nombres ya
+  en cartera, asi que la cartera resultante puede pasar de 5 por sector sin violar el cap. Aceptacion:
+  sobre el panel PIT, serie de exposicion por sector GICS post-carry — maximo, p95, numero de semanas
+  por encima de 5 nombres y su duracion, y contribucion sectorial al maxDD. **Solo medir**: la decision
+  de añadir un cap a nivel cartera es regla 6 y espera a Lucas con la medicion delante.
+  `Files:` nuevo `experiments/sector_exposure_post_carry.py` + su test.
+- [ ] `TASK-406` **Costes: empezar a calibrar con fills reales en vez de con 10/5 bp de supuesto.**
+  El modelo actual depende de ADV/precio y no ve tamaño de orden, AUM, spread ni participacion en la
+  subasta, asi que no soporta ninguna afirmacion de capacidad. Aceptacion: un informe que, desde el
+  ledger y `confirm_fills`, calcule `slippage_bp = (fill - est_price)/est_price * 1e4` con signo por
+  lado, y lo tabule por manga, buy/sell, `order$ / ADV` y market cap; **y que declare N**. Con 30
+  ordenes no se concluye nada: la aceptacion es la tuberia y la honestidad del tamaño de muestra, no
+  un numero nuevo de costes.
+  `Files:` nuevo `experiments/fill_cost_report.py` + test con un ledger sintetico.
+- [ ] `TASK-407` **Acciones enteras: medir la divergencia antes de tocar el sizing.** TASK-353 dejo las
+  acciones enteras como **vista** (`whole_share_display`); el motor sigue en dolares y `est_units`
+  fraccionarias, y en la primera hoja tres nombres no cabian ni a una accion (SNDK, LITE, QQQ). Aceptacion:
+  sobre el panel PIT, el mismo backtest con sizing fraccionario y con `floor(dollars/price)` + efectivo
+  no invertido, y la diferencia en pp de CAGR, maxDD y tracking. **Solo medir**: cambiar el sizing es
+  regla 6.
+  `Files:` `experiments/engine_backtest.py` (flag de solo lectura) o script nuevo + test.
+- [ ] `TASK-408` **Los numeros publicados se generan, no se teclean.** El README llevaba 6.9/0.74/-19.5
+  (la mezcla del laboratorio) mientras el spec llevaba 7.10/0.75/-17.8 (el motor); corregido a mano hoy,
+  y volvera a divergir. Aceptacion: un artefacto canonico (JSON) escrito por `engine_backtest.py`, un
+  generador que rellena la linea de evidencia del README y la tabla del spec desde ese JSON, y un test
+  que **falla** si el .md y el JSON no coinciden. La edicion del spec la firma Claude (regla 6).
+  `Files:` `experiments/engine_backtest.py`, nuevo `tools/render_evidence.py`, `README.md`, test nuevo.
 
 [2026-09-07 02:30] CLAUDE: **ASTRA-03 cerrada a criterio de Claude (Lucas: "soluciona A03 a tu mejor criterio").**
 Todo en `fix/astra-03-observed-fill-prices`, con `main` mergeado primero segun la regla de la ventana de merge —
