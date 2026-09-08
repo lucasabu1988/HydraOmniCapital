@@ -43,6 +43,23 @@ python reconcile.py <posiciones>.csv                    # libro vs broker, solo 
 python verify_state.py                                  # replay del ledger limpio
 ```
 
+**Antes de `confirm_fills.py` sin `--report`, guardar la evidencia de slippage — la primera y la unica
+que tendremos de estas 30 ordenes.** `core/fills.apply_confirmations` hace
+`fill.update(units=..., price=...)`: el precio **presumido** (el cierre real del 09-08 con el que
+`settle()` llenó) se **sobrescribe en el sitio** con el fill de Lucas, y `report_lines()` no imprime
+`old_price`/`old_units` aunque `rec` los lleve. Lo que sobrevive es el respaldo que `save_state` escribe
+antes (`state/backup/<ts>.json`) y el `est_price` del plan, que es el cierre del 09-04 — otra cosa:
+mezcla el movimiento overnight con la ejecución. Así que:
+
+```
+cp state/state_v9.json state/pre-confirm-20260909.json   # antes de escribir; no borrar
+python confirm_fills.py --report --from-csv <fills>.csv > state/confirm-report-20260909.txt
+```
+
+Con eso, `slippage_bp = (fill − cierre_presumido)/cierre_presumido * 1e4` sigue siendo calculable dentro
+de un mes (TASK-406). Sin eso, se pierde. **Cero cambios de código antes del settle**: persistir
+`presumed_price` en el ledger es aditivo y va después de la ventana, no hoy.
+
 Si preflight da HARD porque la barra del 09-08 no está, **no pasar `--force`**: es el sistema haciendo
 lo correcto; esperar a que Yahoo publique. Solo tras `verify_state.py` limpio existe "first settle
 verified". Después: **copiar `state/` a mano** fuera de `state_v9/` (el servicio de respaldo nuevo aún

@@ -37,6 +37,31 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-08 21:10] CLAUDE: **Dos cosas que la segunda vuelta de la revision hizo evidentes, hechas hoy y solo en docs.**
+
+**1. El pre-registro del experimento Russell, escrito ANTES de comprar los datos**
+(`.comms/prereg-russell-pit-2026-09-08.md`). El punto de la revision es correcto y es el unico que
+convierte los 630 USD en evidencia en vez de en una oportunidad de tunear: la superficie de decision
+queda congelada por hash (`signals.py f9806b77bd61`, `regime.py 656ff8135814`, `filters.py 95c78d2591c6`,
+`meta_layer.py 5e81ff429455`) y por valores (porque `config.py` **si** cambia en la ventana, con
+constantes de contabilidad, no de scoring), con las metricas, la **diferencia pareada Russell − S&P** y
+la regla de decision escritas antes de mirar: sobrevive si `d(sharpe_excess) >= -0.10`, no sobrevive si
+`<= -0.25`, y la zona de en medio se declara inconcluso y no se toca nada. Los arreglos de contabilidad
+de la ventana no lo invalidan — la corrida tiene que hacerse **con** ellos. No entra en
+`.comms/hypotheses.md` todavia para no chocar con H-004/005/006, que se funden en el paso 2.
+
+**2. La evidencia de slippage de las 30 primeras ordenes se pierde mañana si nadie la copia.**
+`core/fills.apply_confirmations` hace `fill.update(price=...)`: el precio **presumido** — el cierre real
+del 09-08 con el que llena `settle()` — se sobrescribe con el fill de Lucas, y `report_lines()` no
+imprime `old_price` aunque `rec` lo lleve. Queda `est_price` (el cierre del 09-04, que mezcla overnight
+con ejecucion) y el respaldo de `save_state`. Añadido al paso 2 del runbook: `cp` del estado y el
+`--report` a fichero **antes** de escribir. **Cero codigo antes del settle**; persistir `presumed_price`
+es aditivo y va despues, ya en la aceptacion de TASK-406.
+
+**Mecanismo de H-006, localizado para que Grok no lo busque:** en `select_tranche_names` el bucle de
+carry mete los conservados **sin comprobar el cap**, solo los cuenta; el cap frena unicamente al bucle
+que rellena vacantes. Con `stock_buffer 2.0` el keep_zone es el doble del conteo. Esta en TASK-405.
+
 [2026-09-08 18:40] CLAUDE: **Revision externa verificada linea por linea: los defectos son reales, dos afirmaciones no lo son, y hay cola nueva (TASK-404..408).**
 Lucas me paso una revision del repo. La comprobe contra el codigo en vez de aceptarla:
 
@@ -249,8 +274,12 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   `Files:` `experiments/engine_backtest.py`, `experiments/bootstrap_compare.py`, sus tests, nuevo test.
 - [ ] `TASK-405` **H-006 medida: exposicion sectorial real DESPUES de conservar.** `MAX_PER_SECTOR=5`
   vincula en la **seleccion** (`core/portfolio_engine.stock_targets`), pero el buffer conserva nombres ya
-  en cartera, asi que la cartera resultante puede pasar de 5 por sector sin violar el cap. Aceptacion:
-  sobre el panel PIT, serie de exposicion por sector GICS post-carry — maximo, p95, numero de semanas
+  en cartera, asi que la cartera resultante puede pasar de 5 por sector sin violar el cap.
+  **El mecanismo, ya localizado, no lo busques:** en `select_tranche_names` el primer bucle mete los
+  nombres conservados (`name in held and name in keep_zone`) **sin comprobar el cap** — solo los cuenta;
+  el cap solo frena al segundo bucle, el que rellena vacantes. Un sector con 5 conservados admite un
+  sexto solo si viene por carry, y con `stock_buffer 2.0` el keep_zone es el doble del conteo.
+  Aceptacion: sobre el panel PIT, serie de exposicion por sector GICS post-carry — maximo, p95, numero de semanas
   por encima de 5 nombres y su duracion, y contribucion sectorial al maxDD. **Solo medir**: la decision
   de añadir un cap a nivel cartera es regla 6 y espera a Lucas con la medicion delante.
   `Files:` nuevo `experiments/sector_exposure_post_carry.py` + su test.
@@ -261,7 +290,13 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   lado, y lo tabule por manga, buy/sell, `order$ / ADV` y market cap; **y que declare N**. Con 30
   ordenes no se concluye nada: la aceptacion es la tuberia y la honestidad del tamaño de muestra, no
   un numero nuevo de costes.
-  `Files:` nuevo `experiments/fill_cost_report.py` + test con un ledger sintetico.
+  **Y un item aditivo que va DESPUES de la ventana de merge, no antes:** `core/fills.apply_confirmations`
+  hace `fill.update(price=...)` y **borra el precio presumido en el sitio**; `report_lines()` tampoco
+  imprime `old_price`/`old_units` aunque `rec` los lleve, asi que hoy la unica copia del presumido es
+  `state/backup/<ts>.json`. Persistir `presumed_price`/`presumed_units` en el registro del fill (aditivo,
+  sin cambiar la contabilidad) y renderizarlos en el informe. Para las 30 ordenes del 09-08 la evidencia
+  se salva a mano segun el paso 2 de `.comms/merge-window-2026-09-09.md`.
+  `Files:` nuevo `experiments/fill_cost_report.py` + test con un ledger sintetico; luego `core/fills.py` + `test_confirm_fills.py`.
 - [ ] `TASK-407` **Acciones enteras: medir la divergencia antes de tocar el sizing.** TASK-353 dejo las
   acciones enteras como **vista** (`whole_share_display`); el motor sigue en dolares y `est_units`
   fraccionarias, y en la primera hoja tres nombres no cabian ni a una accion (SNDK, LITE, QQQ). Aceptacion:
