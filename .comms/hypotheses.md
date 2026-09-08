@@ -11,6 +11,8 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 
 | H-008 | 2026-09-08 | Lucas (pregunta) / Claude (registro) | Buffett indicator (equities Z.1 / GDP nominal) as a RISK-BUDGET modifier - never as a selection criterion, which is arithmetically impossible for a market-wide scalar | paired OOS `sharpe_excess` difference with SE, **behind a pre-declared power gate** | **PROPOSED, phase 1 only** - the indicator is recorded and changes nothing; phase 2 is gated and the gate currently fails, see below |
 
+| H-009 | 2026-09-08 | Lucas (elige) / Claude (propone) | The PATH of the momentum, not its size: information discreteness (Da-Gurun-Warachka 2014) as a **tie-break** inside the candidate pool - a gradual riser continues better than a jumpy one with the same 12-7 return | DEV forward-return spread by ID tercile first; only then paired DEV `sharpe_excess` with a block-bootstrap interval | **PROPOSED, written before measuring** |
+
 ## Template
 
 ```
@@ -73,6 +75,53 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
   registering costs little and gives HYDRA a macro series of its own with honest vintages;
   turning it into a rule would add a parameter fitted on two effective episodes on top of a
   vol-target and a trend gate that already de-risk, and would de-risk sooner.
+
+### H-009 — information discreteness as a tie-break (pre-registered 2026-09-08, before any run)
+
+- **Date / proposer:** 2026-09-08. Claude proposed three candidate layers, Lucas picked this one.
+- **Statement:** two names with the same 12-7 momentum do not continue equally. Information that
+  arrived **gradually** is absorbed more slowly than information that arrived in jumps, so the
+  gradual riser has more continuation left (Da, Gurun & Warachka, *Frog in the Pan*, RFS 2014).
+  Measured as information discreteness over the SAME formation window production already uses
+  (the 126 daily returns from t-251 to t-126, i.e. the window behind `MOM_12_7`):
+
+      ID = sign(PRET) x (%neg - %pos)
+
+  with `%pos`/`%neg` the fractions of NON-ZERO days in the window that were positive/negative and
+  `PRET` the window's cumulative return. Low (negative) ID = continuous information. High ID =
+  discrete. Zero-return days count in neither fraction.
+- **Why this shape and not a new score:** it consumes almost no test budget. The momentum ranking
+  is untouched; ID only re-orders candidates that already passed selection, so `m = 1.0 x n`
+  reproduces production **exactly** and the lever has one structural constant, in the same spirit
+  as the existing `buffer = 2.0`.
+
+**Step 0 - does the effect exist in OUR data (DEV only, < 2016-01-01).** Before any portfolio
+variant: at each rebalance date, take the eligible candidate pool `rank_day` produces (same
+filters, same gate as production), split it into ID terciles, and measure the forward 5-bar return
+on the production convention (buy at the t+1 close, sell at the t+6 close). Pre-declared
+expectation: **continuous (low ID) beats discrete (high ID) among winners**. The deciding number
+is the tercile spread in bp per 5-bar step with a moving-block bootstrap interval (13-step blocks,
+one index matrix for both legs - the paired construction from `experiments/reset_ab.py`).
+**If the DEV spread does not have the predicted sign, this hypothesis stops here and no portfolio
+variant is built.** A wrong-signed spread is a rejection, not an invitation to flip the rule.
+
+**Step 1 - the portfolio A/B, only if step 0 passes.** Lab lever `id_tiebreak = m`: take the top
+`round(m x n)` names by composite score, keep the `n` with the lowest ID, then apply the sector
+cap, the buffer and the veto gate exactly as now. Primary specification `m = 1.5`, declared here.
+
+- **Deciding metric:** paired difference of DEV `sharpe_excess` between the lever and production on
+  the same weeks, with a block-bootstrap interval; `ann_net` and maxDD reported alongside; turnover
+  reported, because a re-ordered pool still changes trades and this book pays 10 bp a side.
+- **Robustness requirement, pre-declared:** the sign of the difference must hold at `m = 1.25` and
+  `m = 2.0`. If it flips with the widening, the effect is fragile and the hypothesis is REJECTED
+  regardless of how good `m = 1.5` looks. This is the guard against picking the pool width that
+  happens to work.
+- **Falsifier:** a DEV interval straddling zero -> indistinguishable, and TEST is not read.
+- **TEST discipline:** TEST (>= 2016-01-01) is read ONCE, and only after Lucas has seen DEV and
+  said so. Nothing in this hypothesis touches it before that.
+- **Rule 6:** this changes selection, so production stays exactly as it is until Lucas approves
+  with the measured table in front of him. `config.py` is untouched by the measurement.
+- **Result:** (to be filled by the measurement, below this line)
 
 ## Closed before the register existed (for the record)
 
