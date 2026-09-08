@@ -52,7 +52,7 @@ antes (`state/backup/<ts>.json`) y el `est_price` del plan, que es el cierre del
 mezcla el movimiento overnight con la ejecución. Así que:
 
 ```
-cp state/state_v9.json state/pre-confirm-20260909.json   # antes de escribir; no borrar
+cp state/portfolio_v9.json state/pre-confirm-20260909.json   # antes de escribir; no borrar
 python confirm_fills.py --report --from-csv <fills>.csv > state/confirm-report-20260909.txt
 ```
 
