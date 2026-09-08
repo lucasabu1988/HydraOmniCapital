@@ -46,28 +46,32 @@
     {
       "key": "screener_v84",
       "label": "screener v8.4 alone (T5, no ETF sleeve)",
-      "cycles": null,
-      "ann_net": 5.5,
+      "cycles": 1084,
+      "ann_net": 5.48,
       "ratio_net_vol": 0.42,
-      "sharpe_excess": null,
+      "sharpe_excess": 0.31,
       "maxdd_net": -37.8,
-      "rf_ann_pct": null,
-      "ratio_minus_sharpe": null,
+      "rf_ann_pct": 1.76,
+      "ratio_minus_sharpe": 0.11,
       "source": "2026-09-06",
-      "note": "audit figure, not re-measured with the corrected metric (TASK-404)"
+      "note": "re-measured 2026-09-08 by experiments/reference_rows.py on the same OOS PIT mark grid as the engine rows (the net column of _sweep_cache_etf/audit_steps.pkl['PROD_cy'], 1084 forward 5-bar steps 2005-02-11 -> 2026-08-24); reproduces the 2026-09-06 audit's 5.5 / 0.42 / -37.8 exactly, and adds the Sharpe the audit never computed",
+      "measured_at": "2026-09-08",
+      "measured_by": "experiments/reference_rows.py"
     },
     {
       "key": "spy_buy_hold",
       "label": "SPY buy-and-hold",
-      "cycles": null,
-      "ann_net": 11.0,
-      "ratio_net_vol": 0.68,
-      "sharpe_excess": null,
-      "maxdd_net": -54.7,
-      "rf_ann_pct": null,
-      "ratio_minus_sharpe": null,
+      "cycles": 1084,
+      "ann_net": 10.99,
+      "ratio_net_vol": 0.69,
+      "sharpe_excess": 0.59,
+      "maxdd_net": -52.5,
+      "rf_ann_pct": 1.76,
+      "ratio_minus_sharpe": 0.1,
       "source": "2026-09-06",
-      "note": "audit figure, not re-measured with the corrected metric (TASK-404)"
+      "note": "re-measured 2026-09-08 by experiments/reference_rows.py on the engine's own mark grid (dividend-adjusted SPY, 1084 forward 5-bar steps 2005-02-11 -> 2026-08-24). The audit's 10.96 % return reproduces at one decimal (10.99) and its 0.68 ratio comes out one tick higher (0.6934 -> 0.69), but its -54.7 % maxDD does not reproduce here: -54.7 and the audit's TEST -31.7 are both the drawdowns of a 5-bar grid starting 2004-01-05 (1140 marks), whose own return is 10.83 %. Only those two drawdown figures reproduce, and they belong to that offset grid; the audit's returns and ratios match neither grid exactly. The row published here is internally consistent: every field from one grid, the engine's.",
+      "measured_at": "2026-09-08",
+      "measured_by": "experiments/reference_rows.py"
     }
   ]
 }

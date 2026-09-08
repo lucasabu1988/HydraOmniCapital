@@ -522,11 +522,14 @@ dropped from the contract the warning cannot fire.
 ## 9. HYDRA v9 — 50/50 T20 + ETF portfolio (authorised 2026-09-06, active since 2026-09-05)
 
 Lucas authorised on 2026-09-06 moving production to a two-sleeve portfolio whose objective is
-**return per unit of risk** (simulated on the S&P 500 PIT panel with executable accounting:
-6.91% net, Sharpe 0.74, maxDD -19.5%, vs v8.4 5.48 / 0.42 / -37.8; SPY buy-and-hold 10.96 / 0.68
-/ -54.7). `config.ALGO_VERSION` stays `"v8.4"` until parity and cross review are done; flipping it
-is the production switch. Design and acceptance criteria:
-`.comms/claude-v9-production-design-2026-09-06.md`.
+**return per unit of risk**. The numbers are in section 9.5, generated from
+`evidence_canonical.json`; they are not repeated here, because this paragraph carried
+`Sharpe 0.74` (the ratio, not a Sharpe: the real one is 0.56) and a SPY drawdown of -54.7 %
+that the same document contradicts 100 lines later. **`config.ALGO_VERSION` is `"v9"`** since
+2026-09-07 (`config.py`), and the first sheet executed at the 2026-09-08 close - the sentence
+that used to stand here said it "stays v8.4 until parity and cross review are done", which was
+true when it was written and false from the moment Lucas flipped it. Design and acceptance
+criteria: `.comms/claude-v9-production-design-2026-09-06.md`.
 
 ### 9.1 Sleeves and tranches
 
@@ -623,8 +626,12 @@ Canonical numbers, S&P 500 point-in-time panel with delistings, 2005-02-11 -> 20
 |---|---|---|---|---|---|
 | engine production (pair reset) | 1083 | **7.10** | 0.75 | **0.57** | -17.8 |
 | lab mix T20+ETF equal (audit) | 1084 | **6.91** | 0.74 | **0.56** | -19.5 |
+| _baseline (2026-09-06 audit):_ screener v8.4 alone (T5, no ETF sleeve) | 1084 | 5.48 | 0.42 | 0.31 | -37.8 |
+| _baseline (2026-09-06 audit):_ SPY buy-and-hold | 1084 | 10.99 | 0.69 | 0.59 | -52.5 |
 
 `net/vol` is `mean/sd * sqrt(periods)` on the NET return - the quantity this project published as "Sharpe" until 2026-09-08, and not a Sharpe ratio. `Sharpe (excess)` subtracts the 13-week T-bill bar by bar (the same series `accrue_interest` uses), which ran at 1.76 % annualised over this panel; the two differ by 0.18 for the engine (TASK-404).
+
+The last two rows are the COMPARISON BASELINES, not the engine: the v8.4 screener alone and passive SPY. Both come from the 2026-09-06 audit and were re-measured on 2026-09-08 by `experiments/reference_rows.py` on this same mark grid, so the four rows share a calendar and a risk-free level (1.76 %). SPY's return reproduces the audit at one decimal (11.0 % vs 10.96 %) and its ratio comes out one tick higher (0.69 vs 0.68); its published -54.7 % maxDD does not reproduce at all - that figure, and the audit's TEST -31.7 %, are the drawdowns of a 5-bar grid starting 2004-01-05, while on the engine's grid the drawdown is -52.5 % (daily series over the same window: -55.19 %). Only those two drawdown figures reproduce anywhere; every field of the row published here comes from one grid, the engine's.
 <!-- EVIDENCE:END -->
 
 Step-return correlation is 0.76 once the lab series is aligned to the

@@ -37,6 +37,76 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 05:30] CLAUDE: **Las cuatro tareas desbloqueadas, ejecutadas con 4 implementadores + 8 verificadores adversariales + 1 critico de completitud. 12 hallazgos major; los arregle todos antes de commitear.**
+
+**TASK-413 (nueva, filas de referencia recomputadas).** `experiments/reference_rows.py`: el screener
+v8.4 solo (el `net` de `PROD_cy`) da **5.48 / 0.42 / Sharpe 0.31 / -37.8**, y SPY comprar-y-mantener
+**10.99 / 0.69 / Sharpe 0.59 / -52.5** sobre la rejilla del motor. Las cuatro filas publicadas
+comparten calendario y nivel de T-bill (1.76%), y **desaparece el asterisco "sin recomputar"** del
+README. Hallazgo de paso: el **-54.7% de maxDD de SPY de la auditoria no reproduce** — ese numero (y
+el -31.7% de TEST) son los drawdowns de una rejilla de 5 barras que arranca el 2004-01-05, cuyo
+retorno propio es 10.83%. Solo esas dos cifras reproducen, y en otra rejilla; la fila publicada ahora
+es internamente consistente, todos sus campos de la misma.
+
+**TASK-406, panel de ADV.** `experiments/build_adv_panel.py` + 26 tests. **Cobertura medida: 6 de los
+30 tickers vivos** (20%) — la caché es S&P 500 PIT y produccion es Russell-heavy. De los 24 que
+faltan, 7 son ETFs (nunca fueron constituyentes) y uno es canadiense. Con un libro de 100k las
+ordenes son de 324-616 USD contra un bucket de 0.5% de ADV, asi que la dimension es casi degenerada:
+esta anotado en el docstring de `fill_cost_report.py` para que nadie lea esos buckets como evidencia.
+
+**Ensayo del settle** (`.comms/settle-rehearsal-2026-09-08.md`), y aqui salio **lo mas util del dia
+para mañana**: `reconcile.py` **no puede** dar residual 0. `accrue_interest` se llama desde `plan()`,
+no desde `settle()`, y escribe el interes dentro de la caja de cada tramo. Con 85.560,91 USD de caja
+post-settle y el ultimo ^IRX medido (3,757%), **una sola barra son ~12,76 USD** que estan en el libro
+y no en el broker. El objetivo correcto es **residual ≈ `interest recorded`** (la linea que
+`reconcile.py:194` ya imprime), netearlo, y leer el resto. Corregido tambien que **si se puede
+ensayar `daily.py`** contra una copia via `portfolio_v9.py --state-dir` — pero solo con
+`HYDRA_BACKUP_DIR` apuntado a un temporal, porque `run()` llama `copy_state_off_disk`
+incondicionalmente.
+
+**Lo que arregle despues de la revision, antes de commitear:** la intro de la seccion 9 del SPEC
+decia `Sharpe 0.74` (era el ratio; el Sharpe real es 0.56), un maxDD de SPY que su propia tabla
+contradice 100 lineas mas abajo, y **`ALGO_VERSION stays "v8.4"`** cuando `config.py:65` dice `"v9"`
+desde el 2026-09-07 y hoy se ejecutaron 30 ordenes v9 — ningun verificador rankeo esa tercera, y era
+la peor. Las filas de referencia llevan ahora **su propia fecha de medicion** (rendarizarlas desde
+`measured_at` global habria publicado "recomputadas el <dia del proximo promote>" para filas que
+nadie remidio). Y el unico test que cazaba un numero teclado a mano dependia de caches gitignoreadas
+— o sea que en CI se salta y el runner lo reporta `[PASS], 0 skipped`: añadido un guard **sin caches**
+que usa la identidad `ratio - sharpe = ratio_minus_sharpe` con tolerancia de 2 decimales, verificado
+mutando 0.59 -> 0.60 (rojo) y restaurando.
+
+**Correcciones a lo que yo mismo escribi:** el bloqueo de TASK-411 era falso para el panel (ver la
+entrada de la cola), `CLAUDE.md` decia "ocho jobs" donde la rama tiene **siete** (el piso de
+cobertura y el gate de skips son **pasos** dentro de `screener`), "56 ficheros" sin el matiz de que
+son los **rastreados** (el runner descubre tambien los no rastreados: 57 en el arbol de trabajo), y
+un veredicto nuevo sobre `FILTERS` ("el de dolares es el que vincula") que **contradice el comentario
+de `config.py`** y es falso por encima de ~50 USD/accion. Los tres, corregidos.
+
+**Pendiente, a proposito:** `config.py:62` lleva un comentario stale ("Production runs v8.4 until
+ALGO_VERSION flips"). Es camino vivo y hoy no se toca: va en `TASK-412`, despues del settle.
+
+[2026-09-09 03:10] CLAUDE: **Re-medida la valla del respaldo sobre TODAS las ramas remotas: 22 de 24 la llevan, y las 2 que faltan son exactamente las dos excluidas a proposito. Queda corregida la linea "vallar las 11 ramas restantes" de la entrada del 2026-09-07 17:30.**
+Medido ahora, rama por rama, sin creerme ningun conteo previo:
+`git merge-base --is-ancestor 34b0143 origin/<rama>` (`34b0143` = "fix: a test run can no longer write
+into the real backup root", 2026-09-07 07:16) sobre lo que devuelve
+`git for-each-ref refs/remotes/origin`: **26 refs = `origin/HEAD` (symref) + `origin/main` + 24 ramas
+de trabajo** (la entrada decia 25 y sumaba 26; `git for-each-ref refs/remotes/origin | wc -l` da 26). Resultado: **22 de 24 llevan la valla**; las dos que NO son
+`feat/astra-12-restore-drill` (abandonada) y `merge-prepared-2026-09` (DO_NOT_MERGE). O sea: las "11
+ramas restantes" que la entrada del **2026-09-07 17:30** lista como pendiente **ya no existen** — las
+resolvio la entrada de las 19:30 del mismo dia (19 merges) y hoy lo confirmo desde cero. No reescribo
+la entrada de las 17:30: el log es un registro, las correcciones se anexan. **Lo unico que sigue vivo
+de ese punto:** no correr la suite de `feat/astra-12-restore-drill` — sin valla, escribiria en el
+respaldo real de OneDrive; borrarla es decision de Lucas.
+**Segunda correccion: `TASK-411` (H-005) NO se puede empezar hoy en `main`.** Su aceptacion exige la
+mascara `attrs["observed"]` y esa mascara **no esta en `main`**: `grep -c observed
+hydra_screener_local/data/fetch.py` en `main` da **0** (grep exit 1), y las unicas apariciones de
+"observed" en el arbol de `main` son un comentario y un `observed=False` de `groupby`
+(`core/tracking.py:24`, `experiments/fill_cost_report.py:145`, `test_cycle_logger_calendar.py:50`,
+`test_trading_calendar.py:53/55`) — nada de la mascara. Vive en `fix/astra-03-observed-fill-prices`:
+alli `data/fetch.py` define `OBSERVED_ATTR`/`attach_observed()`/`observed_mask()` (lineas 165-180) y
+la usa en dos sitios (120, 331), y `portfolio_v9.py:275` define `last_observed()` (commit `52eac42`,
+TASK-402). Dependencia anotada en la propia entrada de la cola para que nadie la reclame y se atasque.
+
 [2026-09-09 02:40] CLAUDE: **Cola de Grok al dia: 404-410 cerradas, y cola nueva para que no quede vacia (TASK-411, TASK-412).**
 `main` en `12b2097`, suite **56 passed / 0 skipped / 134 s**, ruff limpio; TASK-410 vive en su rama
 (`f449098`). Lo que queda abierto y por que: **TASK-403** bloqueada por la compra de Norgate (el
@@ -378,12 +448,25 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   `metrics`, con un test que afirma la identidad para que las dos definiciones no puedan divergir.
   Cinco pruebas nuevas, incluida la de auto-comparacion sobre el camino de exceso (intervalo
   exactamente cero). Suite de la rama: **53 passed, 0 skipped, EXIT=0 medido**, ruff limpio.
-- [ ] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.** Es la
-  unica de las hipotesis vivas que sigue sin medirse, y Lucas la marco como prioridad. `age_stale`
+- [ ] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.**
+  **PARCIALMENTE EJECUTABLE HOY — y la version anterior de este bloqueo era falsa** (la escribi yo;
+  la tumbo la revision adversarial del 2026-09-08, verificado despues por mi):
+  la mitad del A/B **sobre el panel PIT se puede correr ya en `main`**, porque **el panel nunca pasa
+  por `data/fetch.py`**: lo escribe un `yf.download` directo (`experiments/backtest_variant_sweep.py:78`)
+  y `Panels.__init__` **no** rellena `close` — solo `spy` (linea 120). Asi que en el panel
+  `P.close.notna()` **es** la mascara de observados, bit a bit lo que la rama A03 guardaria como
+  `attach_observed(prices, prices.notna())`, y los NaN llegan intactos a `E.plan`.
+  **Lo que si sigue bloqueado por la rama** es la mitad del camino VIVO: cuantos resets provoca de
+  verdad el forward fill de `data.fetch` (hasta 3 barras) en produccion. Eso necesita
+  `OBSERVED_ATTR`/`attach_observed()` de `fix/astra-03-observed-fill-prices` (`52eac42`, TASK-402),
+  que entra en el paso 6 de la ventana. Medido el 2026-09-09:
+  `grep -c observed hydra_screener_local/data/fetch.py` en `main` = **0**.
+  Es la unica de las hipotesis vivas que sigue sin medirse, y Lucas la marco como prioridad. `age_stale`
   toma cualquier precio finito como impreso, asi que un forward fill de `data.fetch` reescribe
   `last_px` y **reinicia el reloj**; `max_stale_bars=10` cuenta una mezcla de prints y rellenos.
-  Aceptacion: sobre el panel PIT, la politica actual contra una referencia que use la mascara
-  `attrs["observed"]` (la que ya expone `fetch` y que `last_observed()` usa desde TASK-402), y
+  Aceptacion, en dos mitades: **(a) hoy**, sobre el panel PIT, la politica actual contra una
+  referencia que use `P.close.notna()` como mascara de observados (equivalente exacto alli); **(b)
+  tras el paso 6**, la frecuencia real de resets en el camino vivo con la mascara de `data.fetch`. Y
   reportar: numero de resets provocados por rellenos, barras de retraso mediana y maxima del
   write-off, dolares de write-off desplazados, y el efecto en `ann_net`/`maxDD` con y sin la politica
   corregida. **Solo medir**: cambiar la politica mueve write-offs, P/L historico y caja, y es regla 6.
@@ -395,7 +478,9 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   contabilidad) y renderizarlos en `report_lines()`, para que TASK-406 mida slippage contra el cierre
   del settle y no contra el cierre del plan. (2) `core/portfolio_engine.plan`: bandera **por defecto
   apagada** de reset semanal completo, para cerrar el A/B de H-002 con el mismo motor en los dos lados
-  (TASK-409 lo dejo indistinguible con contabilidad de laboratorio en un lado).
+  (TASK-409 lo dejo indistinguible con contabilidad de laboratorio en un lado). (3) `config.py:62`:
+  el comentario stale "Production runs v8.4 until ALGO_VERSION flips" — la linea 65 dice `"v9"` desde
+  el 2026-09-07. Solo un comentario, pero es camino vivo y el settle corre codigo ensayado.
   Aceptacion: las dos con test, la (1) con un fill confirmado que cambia de precio y conserva el
   presumido, y la (2) con la corrida pareada del mismo motor. `Files:` `core/fills.py`,
   `test_confirm_fills.py`; `core/portfolio_engine.py`, `experiments/reset_ab.py`, sus tests.

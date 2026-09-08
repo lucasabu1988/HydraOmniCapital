@@ -10,8 +10,10 @@ documents, and `test_render_evidence.py` fails if a document and the file disagr
     python render_evidence.py --check                                           # drift? exit 1
 
 `--promote` copies the measured rows out of an `engine_backtest.py --oos` scratch payload into
-`evidence_canonical.json`, keeping the hand-curated `reference` rows (the v8.4 screener and SPY
-buy-and-hold, which come from the 2026-09-06 audit and are labelled as not re-measured).
+`evidence_canonical.json`, keeping the `reference` rows (the v8.4 screener and SPY buy-and-hold,
+the comparison baselines) as they stand: those two are not produced by `engine_backtest.py` but
+by `experiments/reference_rows.py`, which since 2026-09-08 measures them with the corrected
+metric on the engine's own mark grid - so all four published rows carry a ratio AND a Sharpe.
 """
 from __future__ import annotations
 
@@ -71,11 +73,17 @@ def readme_block(data: dict) -> str:
         f"{_fmt(lab['ann_net'])} / {_fmt(lab['ratio_net_vol'])} / {_fmt(lab['maxdd_net'], 1)} "
         f"(Sharpe {_fmt(lab['sharpe_excess'])}), contra el screener v8.4 solo "
         f"({_fmt(v84['ann_net'], 1)} % / {_fmt(v84['ratio_net_vol'])} / "
-        f"{_fmt(v84['maxdd_net'], 1)} %) y SPY comprar-y-mantener ({_fmt(spy['ann_net'], 1)} % / "
-        f"{_fmt(spy['ratio_net_vol'])} / {_fmt(spy['maxdd_net'], 1)} %), ambos de la auditoría "
-        f"{v84['source']} y **sin recomputar** con la métrica corregida. El 10 % neto **no se "
-        f"demuestra**; el universo Russell de producción **no está medido** (solo S&P 500). No hay "
-        f"track record: el único registro vivo es el ledger de `state/`.\n"
+        f"{_fmt(v84['maxdd_net'], 1)} %, Sharpe {_fmt(v84['sharpe_excess'])}) y SPY "
+        f"comprar-y-mantener ({_fmt(spy['ann_net'], 1)} % / {_fmt(spy['ratio_net_vol'])} / "
+        f"{_fmt(spy['maxdd_net'], 1)} %, Sharpe {_fmt(spy['sharpe_excess'])}); estas dos son las "
+        f"**líneas de comparación**, no el motor, vienen de la auditoría {v84['source']} y están "
+        f"**recomputadas el {v84.get('measured_at', '?')}** con la métrica corregida sobre la misma "
+        f"rejilla de marcas ({v84['cycles']} pasos de 5 barras, "
+        f"[`experiments/reference_rows.py`](hydra_screener_local/experiments/reference_rows.py)) — "
+        f"el maxDD de SPY baja a {_fmt(spy['maxdd_net'], 1)} % porque la auditoría lo había medido "
+        f"en otra rejilla. El 10 % neto **no se demuestra**; el universo Russell de producción "
+        f"**no está medido** (solo S&P 500). No hay track record: el único registro vivo es el "
+        f"ledger de `state/`.\n"
         f"\n"
         f"Estas cifras se generan desde [`evidence_canonical.json`]"
         f"(hydra_screener_local/evidence_canonical.json) con `render_evidence.py` (TASK-408); "
@@ -100,7 +108,16 @@ def spec_block(data: dict) -> str:
             f"{_fmt(r['ratio_net_vol'])} | **{_fmt(r['sharpe_excess'])}** | "
             f"{_fmt(r['maxdd_net'], 1)} |"
         )
+    # The baselines share the table so the comparison cannot be made against a number nobody
+    # measured, and stay unbolded so a reader never mistakes one for the engine's own row.
+    for r in data.get("reference", []):
+        lines.append(
+            f"| _baseline ({r.get('source', 'n/a')} audit):_ {r['label']} | {_fmt(r['cycles'], 0)} | "
+            f"{_fmt(r['ann_net'])} | {_fmt(r['ratio_net_vol'])} | {_fmt(r['sharpe_excess'])} | "
+            f"{_fmt(r['maxdd_net'], 1)} |"
+        )
     eng = _row(data, "engine")
+    v84, spy = _row(data, "screener_v84"), _row(data, "spy_buy_hold")
     lines += [
         "",
         f"`net/vol` is `mean/sd * sqrt(periods)` on the NET return - the quantity this project "
@@ -108,6 +125,19 @@ def spec_block(data: dict) -> str:
         f"subtracts the 13-week T-bill bar by bar (the same series `accrue_interest` uses), which "
         f"ran at {_fmt(eng['rf_ann_pct'])} % annualised over this panel; the two differ by "
         f"{_fmt(eng['ratio_minus_sharpe'])} for the engine (TASK-404).",
+        "",
+        f"The last two rows are the COMPARISON BASELINES, not the engine: the v8.4 screener alone "
+        f"and passive SPY. Both come from the {v84['source']} audit and were re-measured on "
+        f"{v84.get('measured_at', '?')} by `{v84.get('measured_by', 'experiments/reference_rows.py')}` "
+        f"on this same mark grid, so the "
+        f"four rows share a calendar and a risk-free level ({_fmt(spy['rf_ann_pct'])} %). SPY's "
+        f"return reproduces the audit at one decimal ({_fmt(spy['ann_net'], 1)} % vs 10.96 %) and "
+        f"its ratio comes out one tick higher ({_fmt(spy['ratio_net_vol'])} vs 0.68); its "
+        f"published -54.7 % maxDD does not reproduce at all - that figure, and the audit's TEST "
+        f"-31.7 %, are the drawdowns of a 5-bar grid starting 2004-01-05, while on the engine's "
+        f"grid the drawdown is {_fmt(spy['maxdd_net'], 1)} % (daily series over the same window: "
+        f"-55.19 %). Only those two drawdown figures reproduce anywhere; every field of the row "
+        f"published here comes from one grid, the engine's.",
     ]
     return "\n".join(lines)
 
@@ -194,6 +224,10 @@ def promote(scratch: Path, out: Path = CANONICAL) -> dict:
                 "ratio_minus_sharpe": lab.get("ratio_minus_sharpe"),
             },
         ],
+        # the reference rows are carried over verbatim, INCLUDING their own measured_at: a new
+        # engine run re-dates `measured_at` at the top level, and rendering the baselines from
+        # that date would publish "re-measured on <today>" for rows nobody re-measured (found by
+        # the TASK-413 falsifiability review).
         "reference": prev.get("reference") or [],
     }
     with open(out, "w", encoding="utf-8") as f:

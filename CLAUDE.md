@@ -69,7 +69,8 @@ core/filters.py       — practical filters, zombie removal, sector cap at selec
 core/history.py       — one JSON per run in history/ (gitignored)
 core/tracking.py      — forward returns of recommended names, win-rate report (history/tracking/)
 
-data/fetch.py         — batched yfinance download (prices + volume), 1y window
+data/fetch.py         — batched yfinance download (prices + volume); period defaults to "1y",
+                        v9 callers pass V9_PRICE_PERIOD="2y" (12-7 momentum needs 252+126+vol63)
 data/universe.py      — index constituents from several sources with JSON caches
 data/sectors.py       — GICS sector cache; resolved once upstream in screener.py, never in core/
 
@@ -101,7 +102,7 @@ run_all_tests.py      — the test runner (see Testing)
 | `SECTOR_FETCH_BUDGET_SECONDS` | 120 | sector resolution upstream, time-boxed |
 | dynamic count | `clamp(round(14 × aggression × compass), 6, 28)` | hardcoded in signals.py |
 | `COST_BP_PER_SIDE` | 10 | modelled cost for sweep and tracking reports |
-| `FILTERS` | min_avg_volume 100000 shares, min_price 5.0 | |
+| `FILTERS` | min_avg_volume 100000 shares, min_dollar_volume 5_000_000 USD, min_price 5.0 | both applied independently in `core/filters.py`; which one binds is **unmeasured on the production universe** (`config.py`: on the S&P 500 every name passes the dollar one, and above ~$50/share the 100k-share filter is the tighter of the two). max_price None, exclude_sectors [] |
 | `UNIVERSE` | "all" | |
 
 If you need a value, read `config.py`. This table exists to stop legacy numbers being reused,
@@ -147,10 +148,19 @@ python -m pytest test_volume_watchdog.py -q             # any single pytest-styl
   matrix, `pytest-timeout` 30 s per test, 15-minute job timeout) and `lint` (ruff over an explicit
   module list plus `test_*.py`). The legacy `test` job went away with the root `tests/` archive on
   2026-09-05; if the docs and the workflow disagree, the workflow wins. `structural-hardening-2026-09`
-  takes this to eight jobs (wheel smoke, mypy, secrets, pip-audit, reproducibility, coverage floor,
-  skip gate) — it merges after the 2026-09-08 settle.
-- Baseline measured on `main` 2026-09-08 (`--strict-console`): **56 files pass, 0 skip, 134 s**, ruff
-  clean (was 47 files / 110 s on 2026-09-06; TASK-404..409 added seven test files). Measured on
+  takes this to **seven** jobs (screener, lint, build-install-smoke, typecheck, secret-scan,
+  dependency-audit, reproducibility) — the coverage floor (`tools/check_coverage.py --min 80.0`)
+  and the skip gate (`tools/check_skips.py`) are **steps inside `screener`**, not jobs. Measured
+  2026-09-08 with `git show origin/structural-hardening-2026-09:.github/workflows/test.yml`; it
+  merges after the 2026-09-08 settle.
+- Baseline measured on `main` 2026-09-08 (`--strict-console`): **57 files pass, 0 skip, 138 s**, ruff
+  clean. That is the **tracked** count: at the 2026-09-06 tip (`f017966`) the discovery globs matched
+  47 + `validate_pine_contract.py` = 48, at this commit 56 + 1 = 57, so **nine** discovered test files
+  were added — six from TASK-404..409 (`git log --diff-filter=A`), plus `test_backup_isolation.py`
+  from the fence commit `34b0143`, `test_build_russell_pit.py` from TASK-403 and
+  `test_build_adv_panel.py` from TASK-406. `run_all_tests.py --list` also picks up any **untracked**
+  `test_*.py` sitting in the directory, so a working tree mid-task legitimately reports more.
+  Measured on
   this machine, where `history/` and the Pine artefact exist — a fresh clone or CI can still report
   the `validate_pine_contract.py` skip. A skip is not a pass; CI green proves code regression
   coverage, not financial validity or a track record.

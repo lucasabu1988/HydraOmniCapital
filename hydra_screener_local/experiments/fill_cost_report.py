@@ -13,6 +13,12 @@ evidence.
     python experiments/fill_cost_report.py --state path/to.json   # any state file
     python experiments/fill_cost_report.py --adv-pickle cache.pkl # add order$/ADV buckets
 
+The panel that feeds `--adv-pickle` is produced by `experiments/build_adv_panel.py`
+(TASK-406). Note before reading those buckets: on the S&P 500 PIT cache it covers only 6 of
+the 30 live pending tickers, and at a 100k book the orders are 324-616 USD against a 0.5 %
+bucket edge, so the dimension is close to degenerate until the panel covers the production
+universe.
+
 Which reference price the slippage is measured against matters, and the ledger only sometimes
 keeps the right one:
 
