@@ -37,6 +37,33 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 02:10] CLAUDE: **Cola de Grok ejecutada (Lucas: "ejecutar todas las tareas en la cola"). 406, 409 y 410 hechas; 403 hecha salvo el dato.**
+
+**TASK-409 dio veredicto y un hallazgo.** El reset semanal completo y el reset por pares son
+**indistinguibles**: d_ann -0.13 pp [-0.82, +0.55], d_sharpe -0.003 [-0.075, +0.069], pareado sobre
+las mismas semanas. H-002 se cierra como "sin diferencia medible". Y al construir la comparacion se
+cayo una frase del SPEC: la mezcla publicada **si** cobraba T-bill sobre la caja ociosa (`P_5050` es
+`mix(T20_cy + ETF)`, diferencia 0.0e+00), asi que la explicacion del hueco 7.10 vs 6.91 que llevaba
+el spec era falsa. Corregida y fijada con test.
+
+**TASK-406** entrega la tuberia y **declara N**: hoy N=0 (ledger vacio, 30 ordenes pendientes), y con
+menos de 50 fills imprime que nada de eso calibra un modelo de costes. Etiqueta la referencia de cada
+fila para que no se promedien `presumed_close` y `planning_close`.
+
+**TASK-403** esta hecha entera menos el dato: builder, adaptador de tres funciones, cuatro vallas y 13
+tests contra un cliente falso. **Lo unico que la desbloquea es la compra de Norgate Platinum (630
+USD/año).**
+
+**TASK-410** se hizo **en su rama** (`fix/astra-07-paired-bootstrap`, worktree aparte, `main`
+mergeado antes de correr su suite como manda la regla de la valla), porque hacerla en `main` era
+conflicto garantizado en el paso 10. Ahi `d_ratio*` es la cantidad vieja con su nombre real y
+`d_sharpe*` es la diferencia de Sharpes sobre el exceso, con la formula importada de
+`experiments/metrics.py` en vez de reimplementada.
+
+**Nada de esto toca el camino vivo.** Las dos mitades que si lo tocarian — persistir
+`presumed_price` (406) y la bandera de reset semanal completo (409) — quedan explicitamente para
+despues de que el settle del miercoles este verificado.
+
 [2026-09-09 00:20] CLAUDE: **TASK-407 tambien sobre el panel PIT, y la lectura correcta de las dos cifras.**
 A 100k sobre el panel PIT las acciones enteras cuestan **-0.04 pp/ano** y 0.19% de tracking error
 (17.5% de las ordenes con precio se caen a cero) — casi nada, frente a **-1.06 pp y 1.00%** in-sample.
@@ -302,21 +329,64 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   **HECHA en `fix/astra-03-observed-fill-prices` (`52eac42`).** `last_observed()` valora cada nombre a su ultimo cierre **observado** (la mascara `attrs["observed"]` de `data.fetch`), con su fecha; `last_px` queda solo para un nombre sin ningun print en la ventana. Falsificable en las dos direcciones, medido: primera pasada 3600 vs 4000 en aislado (los 400 USD del revisor, reproducidos); revertir a `iloc[-1]` pone 2 de 10 en rojo. Suite EXIT=0 medido, 52/0.
   **Hallazgo mas profundo, NO arreglado a proposito:** `core/tranche_book.age_stale` toma cualquier precio finito como impreso — un forward fill reescribe `last_px` y **reinicia el reloj de write-off** (`data.fetch` rellena hasta 3 barras; `max_stale_bars=10` cuenta una mezcla de prints y rellenos). Es contabilidad de antiguedad = **H-005**; pinned con un test que afirma lo que hoy es cierto, y tres preguntas añadidas a la medicion de H-005 en `.comms/task-402-mark-and-a-deeper-finding.md`.
 
-- [ ] `TASK-409` **H-002, el A/B limpio del reset.** La unica comparacion que existe (motor par-reset
+- [x] `TASK-409` **H-002, el A/B limpio del reset.** La unica comparacion que existe (motor par-reset
   7.10/0.75/0.57/-17.8 vs mezcla del laboratorio 6.91/0.74/0.56/-19.5) tiene dos confusores
   reconocidos: la T20 del laboratorio no cobra T-bill y sus filas van desplazadas un paso.
   Aceptacion: el **mismo** motor con una bandera de reset semanal completo, mismo panel, misma rf,
   diferencia **pareada** con su error estandar y las dos convenciones alineadas. Si sale dentro del
   ruido, se escribe eso y H-002 se cierra como indistinguible: no se adopta nada por narrativa.
   `Files:` `experiments/engine_backtest.py` (bandera de laboratorio), script o flag nuevo + test.
-- [ ] `TASK-410` **Cablear `sharpe_excess` en `bootstrap_compare.py`, DESPUES del paso 10.**
+  **HECHA (Claude, 2026-09-08). Veredicto: INDISTINGUIBLE — y de paso encontro un error en el SPEC.**
+  `experiments/reset_ab.py` + 9 tests. Reset semanal completo (laboratorio, T-bill sobre la caja
+  ociosa) **6.97%** y Sharpe **0.567** contra el reset por pares del motor **7.10%** y **0.569**;
+  pareado sobre las mismas semanas: **d_ann -0.13 pp, intervalo 90% [-0.82, +0.55]**; **d_sharpe
+  -0.003 [-0.075, +0.069]**; p(A<=B) 0.625. Los dos intervalos cruzan cero, asi que **H-002 se cierra
+  como "sin diferencia medible"**: produccion se queda con el reset por pares porque ya esta ahi, no
+  porque gane.
+  **El error del SPEC:** decia que el motor sube sobre la mezcla porque "la T20 del laboratorio no
+  cobraba T-bill". **Si lo cobraba.** Medido: `P_5050` del `audit_steps.pkl` es
+  `mix(T20_cy + ETF)` con diferencia maxima **0.0e+00**, contra 2.2e-04 frente a `mix(T20 + ETF)`
+  (T20 sola 7.36% vs T20_cy 7.55%). Corregido en SPEC 9.5 y fijado con un test que se salta solo si
+  falta la cache. El bootstrap es pareado por construccion (una matriz de indices para las dos
+  series), con el test de auto-comparacion que da intervalo exactamente cero — la regresion del
+  defecto de TASK-332.
+  **Lo que falta y por que:** el A/B totalmente limpio (motor con bandera de reset semanal completo)
+  toca `core/portfolio_engine.plan`, que esta congelado hasta que el settle este verificado. Queda
+  para despues de la ventana.
+- [x] `TASK-410` **Cablear `sharpe_excess` en `bootstrap_compare.py`, DESPUES del paso 10.**
   `fix/astra-07` reescribe ese fichero entero (+157 lineas) arreglando el pareado; tocarlo en `main`
   hoy era conflicto garantizado, asi que TASK-404 se quedo en `experiments/metrics.py` y en el motor.
   Aceptacion: tras mergear la 07, `bootstrap_compare` importa `metrics.sharpe_excess` y
   `step_risk_free` (no reimplementa la formula), y los intervalos se reportan sobre el excess return
   con el nombre correcto. `Files:` `experiments/bootstrap_compare.py`, `test_bootstrap_compare.py`.
-- [ ] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
+  **HECHA EN SU RAMA (Claude, 2026-09-08, `f449098` en `fix/astra-07-paired-bootstrap`).** No en
+  `main`: ese fichero lo reescribe la 07 entera, y la regla de la ventana dice mergear `main` en la
+  rama ANTES de correr su suite — hecho, en un worktree aparte, y de paso el paso 10 ya no choca con
+  los cambios de hoy. `d_ratio*` es la cantidad de siempre con su nombre real; `d_sharpe*` aparece
+  **solo** si se le pasa una serie risk-free, calculada dentro de la misma replica pareada (una sola
+  matriz de indices, las dos series, diferencia dentro del sorteo: el arreglo de ASTRA-07 intacto).
+  `main()` construye la rf con `metrics.step_risk_free` en la convencion **forward** del laboratorio
+  y reindexa las dos series a las fechas que la rf cubre de verdad. `ann_net` y `sharpe` delegan en
+  `metrics`, con un test que afirma la identidad para que las dos definiciones no puedan divergir.
+  Cinco pruebas nuevas, incluida la de auto-comparacion sobre el camino de exceso (intervalo
+  exactamente cero). Suite de la rama: **53 passed, 0 skipped, EXIT=0 medido**, ruff limpio.
+- [!] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
 
+  **BLOQUEADA POR EL DATO, no por el codigo — la mitad que no necesita suscripcion, hecha
+  (Claude, 2026-09-08).** `experiments/build_russell_pit.py` + 13 tests que ejercitan el camino
+  completo contra un cliente falso: `NorgateClient` (tres funciones de ancho: `watchlist_symbols`,
+  `index_constituent_timeseries`, `price_timeseries`), membresia como union de Russell 1000 y 2000,
+  precios con `close` ajustado **y** `close_raw` como se imprimio, y `_sweep_cache_russell/` en el
+  mismo formato que la cache OOS mas `membership.pkl` y `coverage.json`.
+  **Cuatro vallas, cada una pagada ya por este repo:** los delistados tienen que estar (si no es un
+  screen de lista actual, TASK-326); un sufijo `-YYYYMM` **nunca** se recorta sobre un ticker vivo
+  (TASK-325); la cobertura de celdas se mide y se imprime, no se supone (la trampa de `close_raw`:
+  83.6% de celdas y los 538 que faltaban eran justo los delistados); y **modo estricto por defecto**,
+  que si una valla falla no escribe la cache. Sin `norgatedata` el CLI imprime que hay que comprar y
+  sale 0.
+  **Lo unico que falta es el dato: Norgate Platinum, 630 USD/año** (aprobado 2026-09-06, sin comprar).
+  El experimento ya esta pre-registrado en `.comms/prereg-russell-pit-2026-09-08.md`: congelado, sin
+  mover umbrales despues de ver el resultado.
 - [x] `TASK-404` **La metrica publicada deja de llamarse Sharpe y empieza a serlo.** Hoy
   `engine_backtest.py` y `bootstrap_compare.py` calculan `mean/sd * sqrt(periods)` sobre el retorno
   **neto**, sin restar nada — y el libro mantiene una manga con efectivo remunerado, asi que el numero
@@ -364,7 +434,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   -13.9 pp, Healthcare -10.2) es el sleeve de acciones **totalmente invertido, sin vol-target ni
   manga ETF ni caja**: no es el drawdown del libro (-17.8%), y esa diferencia es precisamente el
   50/50. H-006 sigue PROPOSED: un cap de cartera es regla 6 y espera a Lucas con esto delante.
-- [ ] `TASK-406` **Costes: empezar a calibrar con fills reales en vez de con 10/5 bp de supuesto.**
+- [x] `TASK-406` **Costes: empezar a calibrar con fills reales en vez de con 10/5 bp de supuesto.**
   El modelo actual depende de ADV/precio y no ve tamaño de orden, AUM, spread ni participacion en la
   subasta, asi que no soporta ninguna afirmacion de capacidad. Aceptacion: un informe que, desde el
   ledger y `confirm_fills`, calcule `slippage_bp = (fill - est_price)/est_price * 1e4` con signo por
@@ -378,6 +448,17 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   sin cambiar la contabilidad) y renderizarlos en el informe. Para las 30 ordenes del 09-08 la evidencia
   se salva a mano segun el paso 2 de `.comms/merge-window-2026-09-09.md`.
   `Files:` nuevo `experiments/fill_cost_report.py` + test con un ledger sintetico; luego `core/fills.py` + `test_confirm_fills.py`.
+  **HECHA (Claude, 2026-09-08), la tuberia; la calibracion no, y esa es la respuesta honesta.**
+  `experiments/fill_cost_report.py` + 14 tests. Lee el ledger real
+  (`state/portfolio_v9.json`), calcula `slippage_bp` con signo **a favor del libro** (una compra por
+  encima de la referencia cuesta, una venta por debajo tambien) y lo tabula por manga, lado, decil de
+  precio y `order$ / ADV` cuando se le pasa un panel de volumen. Dos cosas que hacen que sirva:
+  **(1) declara N en la primera linea** y con menos de 50 fills confirmados imprime `NOT ENOUGH DATA
+  to calibrate a cost model` — hoy N=0, ledger vacio, 30 ordenes pendientes; **(2) etiqueta la
+  referencia de cada fila**: `presumed_close` (el cierre del settle, la referencia limpia) o
+  `planning_close` (`est_price`, que mezcla el movimiento overnight), y avisa en la cabecera de no
+  promediarlas. La mitad aditiva (persistir `presumed_price` en `core/fills.apply_confirmations`)
+  sigue **despues del settle**: es camino vivo.
 - [x] `TASK-407` **Acciones enteras: medir la divergencia antes de tocar el sizing.** TASK-353 dejo las
   acciones enteras como **vista** (`whole_share_display`); el motor sigue en dolares y `est_units`
   fraccionarias, y en la primera hoja tres nombres no cabian ni a una accion (SNDK, LITE, QQQ). Aceptacion:

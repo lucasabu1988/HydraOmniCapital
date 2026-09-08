@@ -629,8 +629,15 @@ Canonical numbers, S&P 500 point-in-time panel with delistings, 2005-02-11 -> 20
 
 Step-return correlation is 0.76 once the lab series is aligned to the
 same weeks (the lab row dated t covers t+1..t+6; the engine's return at t covers t-5..t). The engine
-sits above the mix because its stock sleeve also earns the T-bill (the lab's T20 did not) and its
-sleeves drift within 47-51 % between pair resets instead of a full weekly reset. Plumbing exercised:
+sits above the mix by 0.13-0.19 pp, and the reason given here until 2026-09-08 was wrong: it said
+the lab's T20 earned no T-bill on idle cash. It does. `audit_steps.pkl`'s `P_5050` is
+`mix(T20_cy + ETF)` to machine precision (max abs difference 0.0e+00 against `mix(T20 + ETF)`'s
+2.2e-04; T20 alone 7.36 % vs T20_cy 7.55 %), measured by TASK-409. What is left is the reset rule
+itself plus lab-versus-engine accounting, and paired on the same weeks that difference is noise:
+-0.13 pp/yr, 90 % interval [-0.82, +0.55], Sharpe difference -0.003 [-0.075, +0.069] (H-002,
+`experiments/reset_ab.py`). The engine's sleeves do drift within 47-51 % between pair resets
+instead of resetting fully every week; that is a description, not an explanation of the gap.
+Plumbing exercised:
 1 `not_filled` (TWX), 5 `hold_no_price` (ESRX), 2 write-offs (ESRX at last price, 0.076 on a 2.4
 book), 2150 transfer legs netting to zero, interest 0.23 on a start book of 1.0.
 
