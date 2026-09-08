@@ -1,12 +1,46 @@
-# Ensayo del settle del 2026-09-08 (la mitad confirm / reconcile / verify)
+# Ensayo del settle, 2026-09-08
 
-Fecha del ensayo: 2026-09-08. Todo se corrio contra **copias** de `hydra_screener_local/state/`
-en `C:\Users\caslu\AppData\Local\Temp\hydra_settle_rehearsal_20260908\`.
-El `state/` real quedo **byte a byte identico** (sha256 y mtime de los 9 ficheros iguales antes y
-despues; no aparecio `state/backup/`).
+## USA ESTO (2026-09-08, tras ensayar la secuencia entera contra una copia)
 
-**Todos los precios y unidades de este documento son inventados.** Se derivan de `est_price` con
-unos pocos bp de desvio para poder ejercitar el codigo. No son cierres reales del 08-09.
+```
+python daily.py                      # tu, primero: necesita el cierre real
+python settle.py --fills fills.csv   # snapshot + diff, y PARA. Lee el diff.
+python settle.py --fills fills.csv --write \
+                 --positions posiciones.csv --cash-total <caja del broker>
+```
+
+`settle.py` no toca ninguno de los CLI congelados: los **invoca**. Hace por ti las dos cosas que
+esta nota te dejaba recordar a las nueve de la mañana, y ademas se niega a dejarte cometer el error
+que encontre ensayandolo. Las tres cosas, en orden de gravedad:
+
+**1. Confirmar antes de `daily.py` duplica el libro, sin un solo mensaje de error.**
+`confirm_fills` empareja contra el **ledger**, y el ledger esta vacio hasta que `settle()` corre
+dentro de `daily.py`. Ensayado sobre una copia: los 26 fills entraron como
+`confirmed_unplanned  matched False`, y la rama `else` de `core/fills.apply_confirmations`
+**los aplica igualmente** a unidades y caja del tramo — mientras los 30 pending siguen pendientes y
+`daily.py` los liquida otra vez al dia siguiente. Posicion doble y caja descuadrada.
+`settle.py` lo detecta y **se niega** (`order guard`), diciendo que falta `daily.py`.
+
+**2. Los nombres que no compraste necesitan una fila con `units=0`.** Cuatro de las 30 ordenes no
+caben ni a una accion (**SLAB, SNDK, LITE, QQQ** — medido sobre las ordenes reales). Sin fila en el
+CSV, su fill *presumido* se queda en el libro como real, al precio estimado del plan.
+`settle.py` avisa nombrandolos.
+
+**3. `verify_state` va a dar `ERROR replay_cash`, y NO es un problema.** `accrue_interest` acredita
+a cada tramo su `cash * factor` con la caja **anterior** a la confirmacion; luego `confirm_fills`
+mueve esa caja, y `core/state_check.replay` reparte el interes del sleeve por **pesos posteriores**
+(`_apply_interest`). Resultado: hasta 8 `ERROR replay_cash` con diferencias de centimos.
+Medido en el ensayo: **totales por manga identicos (0.00e+00), unidades identicas, diferencia
+maxima por tramo 0.2293 USD**. `settle.py` lo comprueba cada vez y lo explica con los numeros
+delante, en vez de dejarte una pantalla roja. Si aparece **cualquier** otro codigo, o si el total de
+una manga no cuadra, lo reporta como fallo real. El arreglo de fondo es registrar el interes **por
+tramo** para que el replay no tenga que repartirlo: `TASK-415`, despues del settle.
+
+**Y el residual no va a ser cero: va a ser ~-12,75.** El interes esta en el libro y no en el broker,
+y `reconcile` calcula `broker - state` sin restar nada a proposito. `settle.py` lo netea y te dice
+lo que queda **sin explicar** (en el ensayo: `-0.00`, 0.000% del equity). El interes real devengado
+por una barra al ultimo ^IRX medido (3,757%) sobre 85.550,13 de caja post-settle:
+**12,7544 USD**, calculado con la funcion de verdad.
 
 ---
 

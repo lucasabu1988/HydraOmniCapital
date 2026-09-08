@@ -37,6 +37,47 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 11:20] CLAUDE: **`settle.py`: el settle de mañana, ensayado entero contra una copia. Tres hallazgos, uno de ellos habria bloqueado la mañana.**
+
+Lucas: "trabajar en esto de una vez". En vez de repetirle dos recordatorios, la herramienta los hace.
+`settle.py` **no modifica** ningun CLI congelado — los invoca como subprocesos, nunca pasa `--force`,
+y no corre `daily.py` (ese paso necesita el cierre real y tiene que correr tal como se ensayo).
+Por defecto **no escribe**: snapshot + diff y para.
+
+**Hallazgo 1, el que importa: confirmar antes de `daily.py` duplica el libro en silencio.**
+`confirm_fills` empareja contra el **ledger**, que esta vacio hasta que `settle()` corre dentro de
+`daily.py`. Ensayado: los 26 fills entraron como `confirmed_unplanned  matched False`, y la rama
+`else` de `apply_confirmations` **los aplica igual** a unidades y caja, mientras los 30 pending
+siguen pendientes y se liquidan otra vez al dia siguiente. Posicion doble, caja descuadrada, cero
+mensajes de error. `settle.py` lo detecta y **se niega**, diciendo que falta `daily.py`.
+
+**Hallazgo 2: cuatro nombres necesitan fila con `units=0`.** No caben ni a una accion: **SLAB,
+SNDK, LITE, QQQ** (medido sobre las 30 ordenes reales, no sobre un ejemplo). Sin esa fila, el fill
+presumido se queda en el libro al precio del plan. El driver avisa nombrandolos.
+
+**Hallazgo 3: `verify_state` va a dar hasta 8 `ERROR replay_cash` mañana, y no es un problema —
+pero el runbook hace de un `verify_state` limpio la puerta de TODO, incluida la ventana de merge.**
+`accrue_interest` acredita por tramo con la caja anterior a la confirmacion; el replay reparte el
+interes del sleeve por pesos posteriores. Medido: **totales por manga identicos (0.00e+00),
+unidades identicas, peor diferencia por tramo 0.2293 USD**. El driver lo comprueba **cada vez** y lo
+explica con los numeros; si aparece cualquier otro codigo, o si un total de manga no cuadra, lo
+reporta como fallo real. Arreglo de fondo: `TASK-415`, registrar el interes por tramo.
+
+**Y el numero que llevaba mal todo el dia, corregido:** el residual sera **~-12,75, negativo** —
+`reconcile` calcula `broker - state` y el interes esta en el libro y no en el broker. Yo lo venia
+diciendo sin signo. El driver netea y reporta lo que queda sin explicar: en el ensayo **-0.00
+(0.000% del equity)**, 26 posiciones `match`, 0 missing, 0 unknown, 0 quantity-diff. El interes real
+de una barra al ultimo ^IRX medido (3,757%) sobre 85.550,13 de caja post-settle: **12,7544 USD**,
+calculado con `accrue_interest` de verdad.
+
+Tambien anotado: `interest recorded` de `reconcile` es **acumulado**, no del ciclo. El neteo es
+exacto mientras el broker no haya pagado interes nunca; despues del primer pago es una cota
+superior, y el driver lo dice en cada corrida.
+
+17 tests en `test_settle_driver.py`. Y dos veces mas hoy el test estaba mal y el codigo bien: mi
+fixture del artefacto era incoherente con su propio ledger, y el explainer lo detecto como "esto no
+es el artefacto" — que es exactamente su trabajo.
+
 [2026-09-09 09:40] CLAUDE: **H-010 (momentum residual) medida y RECHAZADA en el paso 0, las dos celdas del pre-registro. Dos hipotesis de alpha caidas en un dia, las dos con la regla escrita antes.**
 
 Pre-registro commiteado antes de que existiera el codigo de medicion (`9052c0c`).
@@ -586,6 +627,18 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   puerta de poder hoy **no pasa**.
   `Files:` `daily.py` o `screener.py` (una llamada), `core/history.py`, `portfolio_v9.py` (cabecera
   de la hoja), `journal.py`, + test.
+- [ ] `TASK-415` **Registrar el interes POR TRAMO, para que el replay no tenga que repartirlo.**
+  Camino vivo: **despues** del settle verificado. `accrue_interest` acredita a cada tramo
+  `cash * factor` calculado con la caja del momento, pero deja en `state["interest"]` una entrada
+  **por manga**; `core/state_check._apply_interest` la reparte por pesos, asi que en cuanto
+  `confirm_fills` mueve la caja, stored y replay discrepan por tramo y `verify_state` saca hasta 8
+  `ERROR replay_cash`. Medido el 2026-09-08 sobre una copia: totales por manga identicos
+  (0.00e+00), unidades identicas, peor diferencia por tramo **0.2293 USD** — atribucion, no dinero.
+  Aceptacion: la entrada de interes lleva `tranche` (aditivo, sin cambiar cuanto se acredita),
+  `_apply_interest` la aplica al tramo cuando el campo esta y cae al reparto por pesos cuando no
+  (compatibilidad con el historico), y un test que hoy sale rojo: acreditar, mover la caja,
+  replay -> sin findings. Mientras no este, `settle.py` explica el artefacto con los numeros.
+  `Files:` `core/portfolio_engine.py` (`accrue_interest`), `core/state_check.py`, sus tests.
 - [ ] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.**
   **PARCIALMENTE EJECUTABLE HOY — y la version anterior de este bloqueo era falsa** (la escribi yo;
   la tumbo la revision adversarial del 2026-09-08, verificado despues por mi):
