@@ -13,7 +13,7 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 
 | H-009 | 2026-09-08 | Lucas (elige) / Claude (propone) | The PATH of the momentum, not its size: information discreteness (Da-Gurun-Warachka 2014) as a **tie-break** inside the candidate pool - a gradual riser continues better than a jumpy one with the same 12-7 return | DEV forward-return spread by ID tercile first; only then paired DEV `sharpe_excess` with a block-bootstrap interval | **REJECTED at step 0, same day.** Full pool **-0.42 bp** [-5.29, +5.29], wrong sign; winners-only (the pre-declared subsample) **+2.20 bp** [-4.45, +8.23], right sign but indistinguishable from zero. No portfolio lever built, TEST not read. |
 
-| H-010 | 2026-09-08 | Claude (propone) / Lucas (elige) | **Residual momentum** (Blitz-Huij-Martens 2011): rank the momentum of the part of the return the market does not explain, not the raw return. Same 12-7 window, same everything downstream | DEV tercile-spread of the residual ranking **against** the conventional one, paired; only then the portfolio A/B | **PROPOSED, written before measuring** |
+| H-010 | 2026-09-08 | Claude (propone) / Lucas (elige) | **Residual momentum** (Blitz-Huij-Martens 2011): rank the momentum of the part of the return the market does not explain, not the raw return. Same 12-7 window, same everything downstream | DEV tercile-spread of the residual ranking **against** the conventional one, paired; only then the portfolio A/B | **REJECTED at step 0, same day.** Primary `sum(e)/sd(e)`: paired **-1.08 bp** [-6.65, +5.31]; secondary `sum(e)/vol63`: **-3.07 bp** [-8.51, +3.31]. Both standardisations wrong-signed, Spearman 0.85 so there WAS room. TEST not read. |
 
 ## Template
 
@@ -211,7 +211,43 @@ identically there is no room for a difference regardless of the spread.
   with the measured table in front of him.
 - **Testing budget:** step 0 spends 1 primary trial (+1 secondary robustness). The deflated-Sharpe
   haircut's N should be read as 42 after this, having been 38 before H-009.
-- **Result:** (to be filled by the measurement, below this line)
+- **Result (2026-09-08, `experiments/residual_momentum.py`, DEV < 2016-01-01, 475 rebalance
+  dates, both scores on the SAME pool and dates so the comparison is paired by construction):**
+
+  | score | conventional spread | residual spread | paired difference | 90 % interval | p(<=0) | steps residual better |
+  |---|---|---|---|---|---|---|
+  | primary `sum(e)/sd(e)` | 7.89 bp | 6.81 bp | **-1.08 bp** | [-6.65, +5.31] | 0.583 | 50.7 % |
+  | secondary `sum(e)/vol63` | 7.89 bp | 4.82 bp | **-3.07 bp** | [-8.51, +3.31] | 0.785 | 48.2 % |
+
+  Cross-sectional Spearman between the two scores: **0.848** (primary) / 0.854 (secondary), so the
+  residual ranking genuinely differs from production's - there was room for it to win, and it did
+  not. Mean pool beta 1.037. The residual score starts later than the conventional one (2006-07
+  rather than 2005-02) because it needs 756 + 126 bars of history, which is why there are 475
+  steps and not 545.
+
+- **Decision: REJECTED at step 0, both cells of the pre-registration.** No lab lever, no portfolio
+  A/B, and **TEST was not read**. What this does NOT say: that Blitz-Huij-Martens is wrong. Their
+  result is long-short deciles on a broad universe with monthly data and no costs. This measured
+  something much narrower and much closer to what HYDRA does - whether, inside an already
+  liquidity-filtered, gate-passed, large-cap pool (mean beta 1.04), re-ranking by the residual
+  sorts the NEXT FIVE DAYS better than `ret/vol63` does. It does not.
+- **A property found while testing, and it changes how the signal reads:** a constant idiosyncratic
+  drift across the whole 756-bar estimation window is **absorbed by alpha** and scores ~0. What
+  survives is the deviation from the name's own three-year alpha, so residual momentum is not
+  "this name has quietly compounded for three years" but "the last six months beat what this name
+  normally does". My first test asserted the opposite and failed; the code was right. Pinned by
+  two tests.
+- **Correctness of the machinery, verified rather than assumed:** betas, `sum(e)` and `sd(e)` come
+  from rolling sums in closed form (6.9 million regressions would be the naive route) and match
+  `numpy.linalg.lstsq` on the same bars to 8 decimals. An algebra error here would have produced
+  plausible wrong numbers that no portfolio test would have caught.
+- **Testing budget:** 2 more DEV trials. With H-009's two, the deflated-Sharpe haircut's N should
+  be read as **42** from here, having been 38.
+- **What is kept:** `residual_momentum()` and its 15 tests, including the two look-ahead guards
+  (a return after the formation window cannot move any output; one inside it must). If the Russell
+  PIT panel ever lands (TASK-403), this is worth re-running there before anything else: the paper's
+  effect is strongest in small caps, which is exactly the half of production this panel cannot
+  see.
 
 ## Closed before the register existed (for the record)
 

@@ -37,6 +37,51 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 09:40] CLAUDE: **H-010 (momentum residual) medida y RECHAZADA en el paso 0, las dos celdas del pre-registro. Dos hipotesis de alpha caidas en un dia, las dos con la regla escrita antes.**
+
+Pre-registro commiteado antes de que existiera el codigo de medicion (`9052c0c`).
+
+**Lo medido** (DEV < 2016, 475 fechas, los dos scores sobre **el mismo pool y las mismas fechas**,
+asi que el pareado es por construccion):
+
+| score | spread convencional | spread residual | diferencia pareada | IC 90% | p(<=0) | pasos mejor |
+|---|---|---|---|---|---|---|
+| primario `sum(e)/sd(e)` | 7.89 bp | 6.81 bp | **-1.08 bp** | [-6.65, +5.31] | 0.583 | 50.7% |
+| secundario `sum(e)/vol63` | 7.89 bp | 4.82 bp | **-3.07 bp** | [-8.51, +3.31] | 0.785 | 48.2% |
+
+**Spearman 0.848** entre los dos scores: rankean de verdad distinto, o sea que **habia sitio** para
+que ganara, y no gano. Beta media del pool 1.037.
+
+**Lo que esto NO dice:** que Blitz-Huij-Martens se equivoque. Su resultado es long-short por
+deciles, universo amplio, datos mensuales y sin costes. Aqui medi algo mucho mas estrecho y mucho
+mas parecido a lo que HYDRA hace: si dentro de un pool ya filtrado por liquidez, ya pasado por el
+gate y de gran capitalizacion (beta 1.04), reordenar por el residual ordena **los proximos cinco
+dias** mejor que `ret/vol63`. No lo hace.
+
+**Dos cosas del camino, mas utiles que el veredicto:**
+1. **Mi test estaba mal, no el codigo.** Asumi que una deriva idiosincratica constante durante 3
+   años puntuaria alto. Falla: **alpha se come la deriva**. Lo que sobrevive es la desviacion
+   respecto al alpha propio del nombre a 3 años, asi que el momentum residual no es "lleva tres
+   años componiendo" sino "los ultimos seis meses baten lo que este nombre hace normalmente".
+   Fijado con dos tests y documentado.
+2. **La forma cerrada, verificada en vez de supuesta.** Beta, `sum(e)` y `sd(e)` salen de sumas
+   rodantes (la ruta ingenua serian 6.9 millones de regresiones) y coinciden con
+   `numpy.linalg.lstsq` sobre las mismas barras **a 8 decimales**. Un error de algebra ahi habria
+   dado numeros plausibles y falsos que ningun test de cartera habria cazado.
+
+**Presupuesto:** 2 pruebas DEV mas. Con las 2 de H-009, el haircut del deflated Sharpe pasa de
+N=38 a **N=42**.
+
+**Lo que queda:** `residual_momentum()` con 15 tests y los dos guards de look-ahead. Si algun dia
+aterriza el panel PIT de Russell (TASK-403), esto merece re-correrse **alli antes que nada**: el
+efecto del paper es mas fuerte en small caps, que es justo la mitad de produccion que este panel no
+ve.
+
+**Estado de la caza de alpha:** dos de las tres capas que propuse, medidas y descartadas
+(trayectoria, residual). Queda la tercera, la menos glamurosa: **alpha de coste** — margen de score
+en vez de ventana de rank para el buffer. No cambia la señal, se queda con mas del edge que ya
+existe, y TASK-407 mostro que la friccion de implementacion cuesta ~1 pp/año a 100k.
+
 [2026-09-09 08:15] CLAUDE: **H-009 (trayectoria del momentum) medida y RECHAZADA el mismo dia, por la regla escrita antes de medir. Lucas eligio esta capa; el dato dice que no.**
 
 Pre-registro commiteado **antes** de correr nada (`cffc74d`) — eso es lo que hace creible el
