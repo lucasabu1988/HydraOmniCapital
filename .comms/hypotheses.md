@@ -13,6 +13,8 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 
 | H-009 | 2026-09-08 | Lucas (elige) / Claude (propone) | The PATH of the momentum, not its size: information discreteness (Da-Gurun-Warachka 2014) as a **tie-break** inside the candidate pool - a gradual riser continues better than a jumpy one with the same 12-7 return | DEV forward-return spread by ID tercile first; only then paired DEV `sharpe_excess` with a block-bootstrap interval | **REJECTED at step 0, same day.** Full pool **-0.42 bp** [-5.29, +5.29], wrong sign; winners-only (the pre-declared subsample) **+2.20 bp** [-4.45, +8.23], right sign but indistinguishable from zero. No portfolio lever built, TEST not read. |
 
+| H-010 | 2026-09-08 | Claude (propone) / Lucas (elige) | **Residual momentum** (Blitz-Huij-Martens 2011): rank the momentum of the part of the return the market does not explain, not the raw return. Same 12-7 window, same everything downstream | DEV tercile-spread of the residual ranking **against** the conventional one, paired; only then the portfolio A/B | **PROPOSED, written before measuring** |
+
 ## Template
 
 ```
@@ -147,6 +149,69 @@ cap, the buffer and the veto gate exactly as now. Primary specification `m = 1.5
   tests including the two look-ahead guards). The next path-shaped idea costs an afternoon, not a
   week - and a negative result that is recorded is worth more than one that is forgotten and
   re-proposed in six months.
+
+### H-010 — residual momentum (pre-registered 2026-09-08, before any run)
+
+- **Date / proposer:** 2026-09-08. Claude's first-ranked candidate of the three; Lucas asked for
+  H-009 first, it was rejected the same day, and then asked for this one.
+- **The claim:** conventional momentum is contaminated by market exposure. A name that rose because
+  the market rose is not showing the same thing as a name that rose against a flat market, yet
+  `ret / vol63` scores them alike. Ranking the momentum of the **residual** — the part of the
+  return a market regression does not explain — isolates the idiosyncratic piece, and in
+  Blitz, Huij & Martens (*Residual Momentum*, JEmpFin 2011) it roughly doubles the information
+  ratio of conventional momentum at the same turnover.
+- **Why it is a different claim from H-009:** H-009 was about the PATH of the return (gradual vs
+  jumpy) and died at step 0. This is about the SOURCE of the return (market vs idiosyncratic).
+  A rejection of one says nothing about the other.
+- **Verified 2026-09-08:** never tried in this repo. The levers ever swept are `mom90`, `mom12_1`,
+  `mom6_1`, `mom12_7`, the `ens` ensemble, `invvol`, `hold`, `buffer`, `exposure`,
+  `vol_estimator`, `crash_brake`, `cash_yield`, `regime_breadth`. Nothing beta-adjusted.
+
+**The construction, fixed here so it cannot be tuned later.** Same formation window production
+already uses (the 126 daily returns from t-251 to t-126, the window behind `MOM_12_7`):
+
+1. `beta_i` and `alpha_i` from an OLS of the name's daily returns on SPY's over the **756 bars
+   ending at t-126** (36 months, the paper's estimation length). That window CONTAINS the
+   formation window as its last 126 bars and **nothing after it**, so the residuals are the
+   paper's in-sample ones and no post-window information can enter.
+2. Residuals over the formation window with those fixed coefficients:
+   `e_s = r_s - alpha - beta * m_s`.
+3. **Primary score (the paper's):** `S_e / sd(e)` over the window — a t-stat-like quantity, so it
+   is ALREADY risk-adjusted and it replaces `mom / vol63` wholesale rather than feeding into it.
+   Dividing by `vol63` on top would standardise twice.
+4. **Secondary, robustness only:** `S_e / vol63`, i.e. only the numerator changes. Declared here so
+   that if the two disagree, that disagreement is a finding and not a choice.
+
+Data guards, declared: a name needs >= 500 of the 756 bars for its beta and >= 100 of the 126
+returns for its window, or it has no residual momentum that day and drops out exactly as a NaN
+momentum does today.
+
+**Step 0 — does the residual ranking sort future returns better than the one in production?**
+DEV only (< 2016-01-01), the pool straight out of `rank_day` so filters and gate are production's,
+forward return on the production convention (buy at the t+1 close, sell at the t+6 close). At each
+rebalance date, split the pool into terciles by each score and take top-minus-bottom. The deciding
+number is the **paired** difference of those two spreads — residual minus conventional — in bp per
+5-bar step, with a moving-block interval (13-step blocks, ONE index matrix for both legs).
+Reported alongside, because it decides whether there is anything to gain at all: the cross-
+sectional **Spearman correlation** between the two scores. If they rank the pool nearly
+identically there is no room for a difference regardless of the spread.
+
+- **Pre-declared expectation:** the residual spread is the larger, so the paired difference is
+  positive.
+- **Falsifier:** a paired interval straddling zero -> indistinguishable, stop, do not read TEST.
+  A negative point estimate -> REJECTED, and, as with H-009, a wrong sign is not an invitation to
+  invert the rule.
+- **Step 1, only if step 0 passes:** lab lever `mom='resid12_7'` in `redesign_lab.rank_day`, added
+  so every existing config stays **bit-identical** (proven by re-running one and comparing, not
+  asserted), then the portfolio A/B on DEV: paired `sharpe_excess` with its interval, `ann_net`,
+  maxDD and turnover.
+- **TEST discipline:** TEST (>= 2016-01-01) is read ONCE and only after Lucas has seen DEV and said
+  so.
+- **Rule 6:** this changes the score, so production stays exactly as it is until Lucas approves
+  with the measured table in front of him.
+- **Testing budget:** step 0 spends 1 primary trial (+1 secondary robustness). The deflated-Sharpe
+  haircut's N should be read as 42 after this, having been 38 before H-009.
+- **Result:** (to be filled by the measurement, below this line)
 
 ## Closed before the register existed (for the record)
 
