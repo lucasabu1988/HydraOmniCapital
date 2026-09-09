@@ -37,6 +37,30 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-09 14:30] CLAUDE: **TASK-411 mitad (a) medida sobre el panel PIT, y `max_stale_bars` no significa lo que dice.**
+
+Rama `feat/task-411-stale-policy-ab` (`232e8ed`), nota completa en
+`.comms/task-411-stale-policy-ab-2026-09-09.md`. Solo medir, regla 6 intacta.
+
+**El arnes se valida solo:** el brazo `observed` reproduce **exacto** la cifra publicada de `main`
+(7.10 / 0.75 / -17.8, TASK-350), mismo panel y mismos sectores. Sin eso ningun numero valdria.
+
+**El A/B**: dos brazos con **rankings identicos** (los dos del panel crudo) que difieren en una sola
+cosa, la serie que ve el libro: crudo contra `close.ffill(limit=3)`, el relleno de produccion.
+OOS PIT 2004-26: `ann_net` **7.10 vs 7.05** (-0.05 pp), maxDD identico, **2 write-offs en cada brazo**,
+**0.007273 de libro desplazados**, **656 celdas** (0,0095% del panel) que el relleno inventaria,
+**3 marks** con `last_px` puesto desde un relleno (ESRX, SCG) y **0 relojes ya acumulados borrados**.
+Un write-off comparable retrasado **7 dias** (ESRX). Control in-sample: **1 celda** rellenable en todo
+el panel, 0 write-offs, cero diferencia — el efecto solo existe donde hay deslistados.
+
+**Y el hallazgo que nadie pidio: un nombre se carga 46-51 barras antes del write-off, no 10.**
+`max_stale_bars = 10` cuenta **marks**, y el laboratorio marca una vez cada 5 barras. La misma
+constante significa ~50 sesiones en el laboratorio y 10 en el camino vivo, que marca a diario. Eso no
+depende del relleno: es la unidad del contador, y es lo que hay que mirar antes de tocar la politica.
+
+**La mitad (b) sigue bloqueada** por `OBSERVED_ATTR`/`attach_observed()` de `fix/astra-03` (paso 6 de
+la ventana). Es tambien donde el defecto puede morder de verdad: marca diaria y universo Russell-pesado.
+
 [2026-09-09 11:20] CLAUDE: **`settle.py`: el settle de mañana, ensayado entero contra una copia. Tres hallazgos, uno de ellos habria bloqueado la mañana.**
 
 Lucas: "trabajar en esto de una vez". En vez de repetirle dos recordatorios, la herramienta los hace.
@@ -639,7 +663,10 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   (compatibilidad con el historico), y un test que hoy sale rojo: acreditar, mover la caja,
   replay -> sin findings. Mientras no este, `settle.py` explica el artefacto con los numeros.
   `Files:` `core/portfolio_engine.py` (`accrue_interest`), `core/state_check.py`, sus tests.
-- [ ] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.**
+- [~] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.**
+  **MITAD (a) HECHA** (Claude, 2026-09-09, `feat/task-411-stale-policy-ab` `232e8ed`): numeros y
+  las tres preguntas de la nota de TASK-402 contestadas en
+  `.comms/task-411-stale-policy-ab-2026-09-09.md`. La mitad (b) sigue esperando al paso 6.
   **PARCIALMENTE EJECUTABLE HOY — y la version anterior de este bloqueo era falsa** (la escribi yo;
   la tumbo la revision adversarial del 2026-09-08, verificado despues por mi):
   la mitad del A/B **sobre el panel PIT se puede correr ya en `main`**, porque **el panel nunca pasa
