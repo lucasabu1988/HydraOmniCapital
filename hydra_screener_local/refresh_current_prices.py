@@ -27,7 +27,7 @@ import argparse
 import os
 import shutil
 from datetime import datetime
-from pathlib import Path
+
 
 # Import the real implementation (keeps logic in one place)
 try:
@@ -79,7 +79,7 @@ def main():
             print(f"  excel_path     = {excel_path}")
             print(f"  lookback_cycles= {args.lookback}")
             print("  (No changes will be written)")
-        # We still call it but it won't save in dry-run mode? 
+        # We still call it but it won't save in dry-run mode?
         # For simplicity we just describe — the real function always saves.
         # Alternative: temporarily monkey patch save, but better to just inform.
         print("\nDry-run mode: the actual refresh function would now run and save.")
