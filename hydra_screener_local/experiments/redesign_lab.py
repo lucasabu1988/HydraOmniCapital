@@ -350,6 +350,7 @@ ENS_LOOKBACKS = (21, 63, 126, 252)
 
 BASE = dict(
     mom='mom90',            # mom90 | mom12_1 | mom6_1 | mom12_7 | ens
+    risk_adjust=True,       # H-011 lever: True = score is mom / vol63 (production); False = raw momentum, nothing else changes
     boost=SHORT_TERM_BOOST, strict_bonus=0.18,
     hold=5,                 # bars held = rebalance step
     buffer=1.0,             # keep a held name while it ranks within buffer * n (1.0 = no buffer)
@@ -401,6 +402,7 @@ CONFIGS = {
     'm12_7_h20_nobuf_gate':     dict(mom='mom12_7', hold=20, buffer=1.0),
     # tranched (overlapping) portfolios: the phase-robust way to hold for 10 or 20 bars
     'T20':      dict(mom='mom12_7', hold=20, tranches=4, buffer=2.0, exposure='voltarget', vol_estimator='basket63'),
+    'T20_raw':  dict(mom='mom12_7', hold=20, tranches=4, buffer=2.0, exposure='voltarget', vol_estimator='basket63', risk_adjust=False),   # H-011 candidate
     'T20_gate': dict(mom='mom12_7', hold=20, tranches=4, buffer=2.0),
     'T10':      dict(mom='mom12_7', hold=10, tranches=2, buffer=2.0, exposure='voltarget', vol_estimator='basket63'),
     'T10_gate': dict(mom='mom12_7', hold=10, tranches=2, buffer=2.0),
@@ -465,11 +467,12 @@ def rank_day(P, t, c):
         return None
     vol = P.VOL63.iloc[t][tk].replace(0, np.nan)
     if c['mom'] == 'ens':
-        parts = pd.DataFrame({lb: P.ENS_PARTS[lb].iloc[t][tk] / vol for lb in ENS_LOOKBACKS})
+        scale = vol if c.get('risk_adjust', True) else 1.0
+        parts = pd.DataFrame({lb: P.ENS_PARTS[lb].iloc[t][tk] / scale for lb in ENS_LOOKBACKS})
         ram = parts.rank(pct=True).mean(axis=1).where(parts.notna().all(axis=1))
     else:
         src = {'mom90': P.MOM, 'mom12_1': P.MOM_12_1, 'mom6_1': P.MOM_6_1, 'mom12_7': P.MOM_12_7}[c['mom']].iloc[t][tk]
-        ram = src / vol
+        ram = src / vol if c.get('risk_adjust', True) else src        # H-011: candidate drops the /vol63
     f = pd.DataFrame({'mom': ram, 'ret': P.RET10.iloc[t][tk], 'dist': P.DIST20.iloc[t][tk],
                       'vr': P.VRATIO.iloc[t][tk], 'vol': vol}).dropna(subset=['mom'])
     if f.empty:

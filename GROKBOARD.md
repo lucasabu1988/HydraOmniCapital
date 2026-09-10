@@ -37,6 +37,29 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 12:23] CLAUDE: **Segunda ronda del 2026-09-10: infraestructura cerrada, B0 congelado, H-011 rechazada en el paso 0.**
+
+- **Branch protection de `main` ACTIVA** (decision de Lucas): required status checks estrictos con los 8 contextos
+  literales que GitHub reporta (`screener (3.12)`, `screener (3.13)`, `lint`, `build-install-smoke`, `typecheck`,
+  `secret-scan`, `dependency-audit`, `reproducibility`), admins incluidos, sin force push, sin borrado. El ruleset "a"
+  de abril sigue deshabilitado y no lo sustituye.
+- **#44 cerrado como superseded** y reconstruido desde `e29599e` como **#61** (mergeado): fuera las cinco CLIs
+  aparcadas y `test_cycle_logger_calendar.py` con TODA declaracion que las nombraba (pyproject, wheel_smoke, listas
+  de lint, ruff.toml, `--refresh-pnl` de daily.py, los bloques del Excel legacy en screener/runners, dos monkeypatches).
+  `hydra-daily` es el unico console script. 81 archivos / 0 skips, cobertura 81,98 %.
+- **Estado vivo**: NO sincronizado. `settle.py` exige `--fills` (CSV del broker) y `--positions`/`--cash-total` para
+  reconcile; sin esos ficheros no hay reconciliacion explicita posible y no se reconstruye ni edita estado a mano.
+  Secuencia lista: `python settle.py --fills <csv> --positions <csv> --cash-total <n> --dry-run` y luego `--write`.
+- **B0 congelado** (`.comms/hypotheses.md`, `experiments/baseline_b0.py`): motor 50/50 **7,03** / 0,74 / 0,56 / -17,7;
+  T20 **7,50** (cash 0) y **7,68** con T-bill; PROD 4,91. Misma convencion que la fila publicada del motor. Regla:
+  delta CAGR neto > +1,00 pp sobre la fila B0 correspondiente; manga y produccion por separado.
+- **H-011** (`mom12_7` sin `/vol63`) pre-registrada y **RECHAZADA en el paso 0**: los 14 nombres que elige el crudo
+  rinden **18,91 bp** por paso frente a **23,41 bp** del control (**-4,50 bp**, IC90 [-12,47, +3,44], p 0,822), son un
+  30 % mas volatiles y coinciden con los del control solo en el 59,5 %. Sin A/B de cartera, TEST no leido. N: 42 -> 43.
+  Nota: `.comms/h011-step0-2026-09-10.md`. Palanca `risk_adjust` y arnes conservados.
+- **H-012** (seasonality) registrada solo como protocolo (paso 0 primero): falta que Lucas elija el efecto de
+  calendario concreto antes de gastar el ensayo.
+
 [2026-09-10 10:53] CLAUDE: **Consolidacion 2026-09-10: hardening + ASTRA-03 trasplantados sobre `main`, bateria de cierre en verde.**
 
 Rama `consolidation/hardening-2026-09-10` (42 commits sobre `main` `9e18d08`). Orden ejecutado hoy: #42 -> #43 ->
