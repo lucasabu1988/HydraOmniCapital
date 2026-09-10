@@ -37,6 +37,8 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 16:27] CLAUDE: **H-016 (momentum de IEF a 12 meses como predictor cross-asset de los ETFs de renta variable) RECHAZADA en el paso 0, con el signo contrario.** Especificacion de Lucas registrada antes de correr; OWN y BOND reutilizan la regla SLOW de produccion (identidad probada por test). Puerta de potencia superada: 150 fechas CROSS-BAD de 490 elegibles en DEV (30,6 %; 5,6 ETFs afectados de media). Los ETFs de renta variable en tendencia propia con IEF en momentum no positivo **ganan al T-bill +88,83 bp** por periodo de 20 barras, IC90 **[+36,49, +160,61]**, p(X >= 0) 0,994; con IEF positivo ganan +68,85 bp (diferencia -19,98 bp). Treasury debil ha coincidido con periodos risk-on, no con debilidad de la renta variable. Sin palanca, sin A/B, TEST no leido, senal no invertida. N: 46 -> **47**. **H-017** (reversion a corto condicionada a tendencia de 12 m) queda registrada como hipotesis post hoc generada por H-015, sin medir, y pagara su propio ensayo. Siete hipotesis muertas en el paso 0 sin leer TEST. Nota: `.comms/h016-step0-2026-09-10.md`.
+
 [2026-09-10 16:01] CLAUDE: **H-015 (confirmacion rapida del momentum absoluto ETF, FAST = 21 barras) RECHAZADA en el paso 0, con el
 signo contrario y el intervalo entero al otro lado.** Especificacion de Lucas registrada antes de correr; SLOW reutiliza la
 regla de produccion con identidad probada por test. En DEV, CORRECTION (`SLOW > 0`, `FAST <= 0`) aparece en el 82 % de las
