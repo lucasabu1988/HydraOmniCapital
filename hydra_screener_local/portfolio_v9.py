@@ -49,6 +49,7 @@ from core.filters import (  # noqa: E402
     remove_zombie_tickers,
 )
 from core.signals import generate_daily_candidates  # noqa: E402
+from core.sizing import sizing_summary  # noqa: E402
 from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
 from core.dividends import (  # noqa: E402
@@ -425,20 +426,10 @@ def _record_unfilled(state: dict, fills: list, seen_on: str) -> list:
     return added
 
 def whole_share_display(order: dict) -> dict | None:
-    """Display-only: floor(dollars / est_price). Engine orders stay fractional."""
-    if order.get("side") not in ("buy", "sell"):
-        return None
-    dollars = float(order.get("dollars") or 0.0)
-    price = order.get("est_price")
-    try:
-        price = float(price) if price is not None else None
-    except (TypeError, ValueError):
-        price = None
-    if price is None or price <= 0 or dollars <= 0:
-        return None
-    shares = int(math.floor(dollars / price))
-    at = shares * price
-    return {"shares": shares, "at_est": round(at, 4), "leftover": round(dollars - at, 4)}
+    """Display-only: floor(dollars / est_price). Engine orders stay fractional. One rule, shared with
+    the journal's per-run sizing loss (core.sizing)."""
+    from core.sizing import whole_share
+    return whole_share(order)
 
 
 def render_instructions(date: str, orders: list, fills: list, summary: dict,
@@ -466,6 +457,7 @@ def render_instructions(date: str, orders: list, fills: list, summary: dict,
         "interest": _json_ready(summarize_interest(state)),
         "dividends": _json_ready(summarize_dividends(state)),
         "whole_shares": "display-only; orders and presumed fills stay in dollars/fractional",
+        "sizing": _json_ready(sizing_summary(orders)),
     }
     md_name = f"instructions_{date.replace('-', '')}.md"
     json_name = f"instructions_{date.replace('-', '')}.json"
@@ -535,6 +527,13 @@ def render_instructions(date: str, orders: list, fills: list, summary: dict,
             lines += ["", "Cash left over by rounding (buys, display-only; engine still books dollars):", ""]
             for (sleeve, k), amt in leftover_by.items():
                 lines.append(f"- {sleeve} tranche {k}: **{amt:.2f}** USD stays unspent if you buy whole shares")
+        sz = payload["sizing"]
+        if sz.get("n_buys"):
+            pct = sz.get("loss_share")
+            lines += ["", f"Sizing loss (whole shares vs the dollars asked, buys only): **{sz['loss_dollars']:.2f}** USD "
+                      f"of {sz['target_dollars']:.2f} ({'-' if pct is None else f'{100 * pct:.1f}%'}); "
+                      f"{sz['n_zero_share']} buy(s) round to zero shares"
+                      + (f": {', '.join(sz['zero_share_names'])}" if sz["n_zero_share"] else "") + "."]
     as_of = (summary or {}).get("as_of")
     lines += ["", f"## Valuation (each name at its last real print, bar {as_of})" if as_of
               else "## Valuation (last close)", ""]

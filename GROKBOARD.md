@@ -37,6 +37,18 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 17:25] CLAUDE: **Paper trading, decisiones de Lucas y la metrica de sizing.** (1) La corrida del 2026-09-10 queda como ENSAYO:
+`state_paper/` se movio a `state_paper_rehearsal_20260910/` (ignorado por git, respaldo en `state_v9_paper/20260910` intacto) y el
+libro de papel se inicializa de nuevo **el viernes 2026-09-11 tras el cierre** con `portfolio_v9.py --state-dir state_paper
+--capital 100000`, ancla viernes -> primera ejecucion lunes 14, como el diseno. (2) Capital **100.000 USD sin excepciones** y
+acciones enteras tal cual: un 0 shares es informacion sobre implementabilidad, no algo que tapar subiendo el notional.
+(3) #69 fusionado (test de aislamiento de respaldos independiente del orden). Nuevo en este PR: `core/sizing.py` y el
+**sizing loss por corrida** = dolares pedidos en compras - dolares que las acciones enteras pueden colocar, con la parte
+proporcional y los nombres que redondean a cero; sale en la hoja ("Sizing loss ... USD of ... asked") y en el journal
+(`did.sizing`), 4 tests; `whole_share_display` delega en la misma regla. Runbook: que mide el libro de papel desde el dia uno
+y la separacion B0 / paper / live; H-017 fuera de este libro hasta que supere su TEST (tendra su propio `--state-dir`).
+Antes de la corrida del viernes: el checkout principal esta en la rama de #69 -> `git checkout main && git pull`.
+
 [2026-09-10 16:56] CLAUDE: **Libro de papel arrancado.** `portfolio_v9.py --state-dir state_paper --capital 100000` tras el cierre del
 2026-09-10: preflight 13 filas, todas OK salvo el WARN habitual de procedencia del frame de acciones; **26 ordenes** (18 acciones,
 8 ETFs, tramo 0) a ejecutar al cierre del 2026-09-11 como fills presuntos en la proxima corrida; respaldo en

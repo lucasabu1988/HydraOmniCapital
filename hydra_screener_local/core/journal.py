@@ -290,10 +290,13 @@ def build_record(
         coverage=coverage,
         last_bars=bars,
     )
+    from core.sizing import sizing_summary
     did = dict(
         orders=[{"sleeve": o.get("sleeve"), "tranche": o.get("tranche"), "side": o.get("side"),
                  "ticker": o.get("ticker"), "dollars": _f(o.get("dollars"))} for o in orders],
         n_orders=len(orders),
+        # paper evidence (2026-09-10): target risky exposure - achievable whole-share exposure, per run
+        sizing=sizing_summary(orders),
         fills_presumed=len(presumed),
         fills_confirmed=len(confirmed),
         slippage=_slippage_bp(fills),
@@ -382,6 +385,13 @@ def render_markdown(records: list[dict]) -> str:
                      f"transfers {did.get('transfers')}  interest {did.get('interest_dollars')}")
         slip = (did.get("slippage") or {}).get("mean_bp")
         lines.append(f"Slippage mean {slip} bp vs modelled 10/5.")
+        sz = did.get("sizing") or {}
+        if sz.get("n_buys"):
+            pct = sz.get("loss_share")
+            lines.append(f"Sizing loss {sz.get('loss_dollars')} USD of {sz.get('target_dollars')} asked "
+                         f"({'-' if pct is None else f'{100 * pct:.1f}%'}) on {sz.get('n_buys')} buys; "
+                         f"{sz.get('n_zero_share')} round to zero shares"
+                         + (f" ({', '.join(sz.get('zero_share_names') or [])})" if sz.get("n_zero_share") else ""))
         if exp.get("step_return") is not None:
             lines.append(f"Step return {100 * exp['step_return']:.2f}%  "
                          f"percentile {exp.get('step_return_percentile')}  "
