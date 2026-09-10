@@ -257,28 +257,7 @@ def main():
     except Exception as e:
         print(f"[yellow]⚠[/yellow] No se pudo guardar histórico: {e}")
 
-    # 9. Log the top-5 cycle for dynamic PnL tracking (entry=last close from fetch, current starts=entry, formulas for PnL)
-    # This turns every screener run (esp. UNIVERSE=all) into an auditable entry for the 5/5 rotation strategy.
-    try:
-        # Top5 ejecutable = top 5 de los RECOMENDADOS (post downtrend gate, SPEC 4.7).
-        # Antes usaba head(5) crudo, que podía incluir nombres vetados por caída reciente.
-        # Zero recommended = zero positions. The old `exec_pool = candidates` fallback logged five
-        # rejected names as executed positions (audit finding A).
-        top5 = executable_top5(candidates)
-        if not top5:
-            print("[CycleLog] 0 recommended today - no Top5 cycle logged (no positions)")
-        else:
-            # entry price = most recent close used by the screener (point-in-time for signal)
-            entry_prices = {}
-            for t in top5:
-                if t in prices.columns and len(prices[t].dropna()) > 0:
-                    entry_prices[t] = float(prices[t].dropna().iloc[-1])
-            import log_cycle_positions
-            log_cycle_positions.log_cycle(datetime.now(), top5, candidates.head(20), notes=f"live run UNIVERSE={effective_universe}", entry_prices=entry_prices)
-            # Note: entry from the live prices df; current starts=entry (PnL=0), later refresh_current_prices() or manual edit current -> formulas recalc PnL for the 5
-            print(f"[CycleLog] Top5 cycle logged to backtest/portfolio_cycles.xlsx for dynamic PnL tracking")
-    except Exception as e:
-        print(f"[yellow]⚠[/yellow] Cycle PnL log skipped: {e}")
+    # 9. (removed 2026-09-10) the legacy Excel cycle log lived here; log_cycle_positions.py is gone.
 
     # 10. Hybrid integration layer (task 1+2)
     # - Auto-generate Pine watchlist string/file
@@ -300,26 +279,6 @@ def main():
             print("  → pine/hydra_last_summary.txt  (human readable summary)")
             print("  In TradingView: the dashboard table will now use Python's exact recommended_tickers for the 'Rec?' column.")
 
-            # Close the loop: also log the *exact* recommended list that was sent to Pine (the one user pastes)
-            # This allows PnL tracking specifically for the lists that appeared in the TV dashboard.
-            try:
-                # Only flagged names; no head(15) fallback (audit finding A/B).
-                hybrid_recs = candidates[candidates['recommended'] == True]['ticker'].tolist() if 'recommended' in candidates.columns else []
-                if hybrid_recs:
-                    entry_prices = {}
-                    for t in hybrid_recs:
-                        if t in prices.columns and len(prices[t].dropna()) > 0:
-                            entry_prices[t] = float(prices[t].dropna().iloc[-1])
-                    import log_cycle_positions
-                    log_cycle_positions.log_cycle(
-                        datetime.now(), hybrid_recs, candidates,
-                        notes=f"HYBRID exact recommended list sent to Pine/TV (UNIVERSE={effective_universe})",
-                        entry_prices=entry_prices
-                    )
-                    print(f"[CycleLog] Exact hybrid recommended list ({len(hybrid_recs)}) logged for Pine-matched PnL tracking")
-                    print("           Run: python refresh_current_prices.py --lookback 5   (to update live current prices & PnL)")
-            except Exception as e:
-                print(f"[yellow]⚠[/yellow] Hybrid recommended cycle log skipped: {e}")
         except Exception as e:
             print(f"[yellow]⚠[/yellow] Hybrid integration skipped: {e}")
     

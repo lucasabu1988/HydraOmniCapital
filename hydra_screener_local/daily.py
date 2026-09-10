@@ -95,20 +95,6 @@ def backup_history_after_run():
             print("     v9 state/ also needs HYDRA_BACKUP_DIR for an off-disk copy (TASK-346)")
 
 
-def maybe_refresh_pnl(do_refresh: bool):
-    if not do_refresh:
-        return
-    print(">>> Refreshing current prices for legacy Excel PnL (portfolio_cycles.xlsx)...\n")
-    try:
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "refresh_current_prices.py"), "--lookback", "10"],
-            cwd=ROOT,
-        )
-        if result.returncode != 0:
-            print("[WARN] PnL refresh had issues (you can run it manually later).")
-    except Exception as e:
-        print(f"[WARN] Could not run refresher: {e}")
-
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
@@ -118,12 +104,6 @@ def main(argv=None):
         "--universe",
         default="all",
         help="Universe to use (all, sp500, nasdaq100, etc.). Default: all",
-    )
-    parser.add_argument(
-        "--refresh-pnl",
-        "--pnl",
-        action="store_true",
-        help="(Legacy) Also refresh prices in portfolio_cycles.xlsx.",
     )
     parser.add_argument(
         "--tv-instructions",
@@ -178,8 +158,6 @@ def main(argv=None):
     if args.tv_instructions and not args.no_instructions:
         print_tv_instructions()
 
-    if args.refresh_pnl:
-        maybe_refresh_pnl(True)
 
     from config import ALGO_VERSION
 

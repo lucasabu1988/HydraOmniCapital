@@ -38,7 +38,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKAGES = ("core", "data", "utils", "sleeves")
 #: scripts whose --help must work from an installed wheel
 CONSOLE_SCRIPTS = (
-    "hydra-daily", "hydra-refresh", "hydra-watch", "hydra-dashboard", "hydra-console",
+    "hydra-daily",
     "hydra-store", "hydra-journal", "hydra-reconcile", "hydra-confirm", "hydra-runlog",
 )
 
