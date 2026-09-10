@@ -39,6 +39,18 @@ Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
 [2026-09-10 16:27] CLAUDE: **H-016 (momentum de IEF a 12 meses como predictor cross-asset de los ETFs de renta variable) RECHAZADA en el paso 0, con el signo contrario.** Especificacion de Lucas registrada antes de correr; OWN y BOND reutilizan la regla SLOW de produccion (identidad probada por test). Puerta de potencia superada: 150 fechas CROSS-BAD de 490 elegibles en DEV (30,6 %; 5,6 ETFs afectados de media). Los ETFs de renta variable en tendencia propia con IEF en momentum no positivo **ganan al T-bill +88,83 bp** por periodo de 20 barras, IC90 **[+36,49, +160,61]**, p(X >= 0) 0,994; con IEF positivo ganan +68,85 bp (diferencia -19,98 bp). Treasury debil ha coincidido con periodos risk-on, no con debilidad de la renta variable. Sin palanca, sin A/B, TEST no leido, senal no invertida. N: 46 -> **47**. **H-017** (reversion a corto condicionada a tendencia de 12 m) queda registrada como hipotesis post hoc generada por H-015, sin medir, y pagara su propio ensayo. Siete hipotesis muertas en el paso 0 sin leer TEST. Nota: `.comms/h016-step0-2026-09-10.md`.
 
+[2026-09-10 16:35] CLAUDE: **Paper trading: libro de papel `state_paper/`, mismo motor, sin Norgate (decision de Lucas: usamos la data que tenemos).**
+Un segundo directorio de estado junto al vivo: `portfolio_v9.py --state-dir state_paper --capital N` la primera vez y sin
+capital cada barra de renovacion tras el cierre; nadie confirma fills, asi que los fills presuntos del motor al cierre de
+ejecucion SON los fills de papel. `daily.py --v9 --state-dir state_paper` hace lo mismo con el screener delante;
+`dashboard_v9.py --state-dir` y `verify_state.py --state` ya lo admitian. Lo nuevo (`core/books.py`, `test_paper_book.py`,
+6 tests): los respaldos fuera de disco van a `HYDRA_BACKUP_DIR/state_v9_paper/<fecha>/` y el journal a `journal_paper/`;
+antes un run de papel en la misma fecha habria PISADO el respaldo del libro real en OneDrive. `state/` y `journal/` no se
+tocan; sin `--state-dir` nada cambia (test). Runbook: seccion "Paper trading". Hallazgo de paso: `test_backup_isolation`
+depende del orden en un `pytest` combinado (compara conjuntos de ficheros y otro test ya escribio la misma fecha);
+preexistente en `main`, anotado como tarea aparte. El panel S&P PIT sigue siendo la base de investigacion; TASK-403 y
+Norgate quedan fuera de este ciclo.
+
 [2026-09-10 16:01] CLAUDE: **H-015 (confirmacion rapida del momentum absoluto ETF, FAST = 21 barras) RECHAZADA en el paso 0, con el
 signo contrario y el intervalo entero al otro lado.** Especificacion de Lucas registrada antes de correr; SLOW reutiliza la
 regla de produccion con identidad probada por test. En DEV, CORRECTION (`SLOW > 0`, `FAST <= 0`) aparece en el 82 % de las
