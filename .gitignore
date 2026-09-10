@@ -92,6 +92,8 @@ hydra_screener_local/experiments/_sweep_cache_oos/
 hydra_screener_local/experiments/_sweep_cache_russell/
 hydra_screener_local/experiments/_lab_scratch/
 hydra_screener_local/state/
+hydra_screener_local/state_*/
+hydra_screener_local/journal_*/
 hydra_screener_local/journal/
 hydra_screener_local/runs/
 

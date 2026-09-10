@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 16:56] CLAUDE: **Libro de papel arrancado.** `portfolio_v9.py --state-dir state_paper --capital 100000` tras el cierre del
+2026-09-10: preflight 13 filas, todas OK salvo el WARN habitual de procedencia del frame de acciones; **26 ordenes** (18 acciones,
+8 ETFs, tramo 0) a ejecutar al cierre del 2026-09-11 como fills presuntos en la proxima corrida; respaldo en
+`OneDrive/HydraBackups/state_v9_paper/20260910`. Dos avisos: (1) el ancla quedo en jueves (el motor avisa que Lucas pidio
+ancla viernes -> ejecucion lunes); si se quiere alinear con el libro vivo, borrar `state_paper/` y reiniciar el viernes tras el
+cierre; (2) con 100k, 4 tramos y ~18 nombres cada orden es de ~328 USD y SNDK / LITE quedan en 0 acciones enteras, lo que
+TASK-407 ya midio. `state_*/` y `journal_*/` pasan al .gitignore para que un libro de papel no acabe commiteado.
+
 [2026-09-10 16:27] CLAUDE: **H-016 (momentum de IEF a 12 meses como predictor cross-asset de los ETFs de renta variable) RECHAZADA en el paso 0, con el signo contrario.** Especificacion de Lucas registrada antes de correr; OWN y BOND reutilizan la regla SLOW de produccion (identidad probada por test). Puerta de potencia superada: 150 fechas CROSS-BAD de 490 elegibles en DEV (30,6 %; 5,6 ETFs afectados de media). Los ETFs de renta variable en tendencia propia con IEF en momentum no positivo **ganan al T-bill +88,83 bp** por periodo de 20 barras, IC90 **[+36,49, +160,61]**, p(X >= 0) 0,994; con IEF positivo ganan +68,85 bp (diferencia -19,98 bp). Treasury debil ha coincidido con periodos risk-on, no con debilidad de la renta variable. Sin palanca, sin A/B, TEST no leido, senal no invertida. N: 46 -> **47**. **H-017** (reversion a corto condicionada a tendencia de 12 m) queda registrada como hipotesis post hoc generada por H-015, sin medir, y pagara su propio ensayo. Siete hipotesis muertas en el paso 0 sin leer TEST. Nota: `.comms/h016-step0-2026-09-10.md`.
 
 [2026-09-10 16:35] CLAUDE: **Paper trading: libro de papel `state_paper/`, mismo motor, sin Norgate (decision de Lucas: usamos la data que tenemos).**
