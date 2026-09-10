@@ -1,20 +1,14 @@
 #!/usr/bin/env python
 """
-HYDRA Daily One-Command Ritual
+HYDRA daily ritual (v9 production).
 
-Run this for the full recommended daily experience:
     python daily.py
-    python daily.py --refresh-pnl          # also update live PnL in the Excel tracker
-    python daily.py --universe sp500       # smaller/faster run
+    python daily.py --universe sp500
+    python daily.py --v9-capital 100000   # first-run capital
 
-What it does:
-1. Runs the full screener (with hybrid artifacts generation for Pine/TV).
-2. Prints extremely clear, copy-paste ready instructions for TradingView.
-3. (Optional) Refreshes current prices in portfolio_cycles.xlsx so PnL formulas are live.
-
-After this script finishes you only need to:
-- Open TradingView
-- Paste two things into the HYDRA_Screener indicator
+Runs the screener, then the v9 instruction CLI when ALGO_VERSION is v9
+(or when --v9 is passed). Pine/TradingView paste instructions are parked;
+pass --tv-instructions only if you still need that path.
 """
 
 import argparse
@@ -29,16 +23,15 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = Path(__file__).parent
 
+
 def run_screener(universe: str = "all") -> int:
     """Run the main screener. Returns the exit code."""
     env = os.environ.copy()
-    # Let the user override universe via env if they want, but prefer the flag
     if universe:
         env["UNIVERSE"] = universe
 
     print(">>> Running full HYDRA screener (this may take a while for UNIVERSE=all)...\n")
     try:
-        # Run via the existing entrypoint so all its prints, hybrid calls, cycle logging etc. happen
         result = subprocess.run(
             [sys.executable, str(ROOT / "screener.py")],
             env=env,
@@ -54,13 +47,13 @@ def run_screener(universe: str = "all") -> int:
 
 
 def print_tv_instructions():
-    """The single most important output of the daily ritual."""
+    """Parked hybrid path: copy-paste into TradingView (not the v9 production ritual)."""
     watchlist_file = ROOT / "pine" / "watchlist.txt"
     summary_json = ROOT / "pine" / "hydra_last_summary.json"
     summary_txt = ROOT / "pine" / "hydra_last_summary.txt"
 
     print("\n" + "=" * 70)
-    print("===  COPY-PASTE THESE TWO THINGS INTO TRADINGVIEW  ===")
+    print("===  (PARKED) COPY-PASTE INTO TRADINGVIEW  ===")
     print("=" * 70)
 
     print("\n1. Watchlist (paste into the 'Watchlist Symbols' input of HYDRA_Screener):")
@@ -71,23 +64,14 @@ def print_tv_instructions():
     else:
         print("   (file not found — did the screener run successfully?)")
 
-    print("\n2. Full JSON (RECOMMENDED for exact Rec? + Python values):")
-    print(f"   Open this file and paste its ENTIRE contents into the")
-    print(f"   'Optional: paste FULL content of pine/hydra_last_summary.json' input:")
+    print("\n2. Full JSON:")
+    print(f"   Open and paste ENTIRE contents into the Pine JSON input:")
     print(f"   {summary_json.relative_to(ROOT)}")
 
     if summary_txt.exists():
-        print(f"\n   (Human-readable version also available: {summary_txt.relative_to(ROOT)})")
+        print(f"\n   (Human-readable: {summary_txt.relative_to(ROOT)})")
 
-    print("\nAfter pasting both:")
-    print("   • The table will show Python's exact recommended tickers with correct 'Rec?' flags.")
-    print("   • Ranks, composites, strict, and special modes come from the full SPEC run.")
-    print("   • Set alerts on the script (e.g. Strict + High Composite).")
-
-    print("\n" + "=" * 70)
-    print("Optional next step for live PnL tracking:")
-    print("   python refresh_current_prices.py --lookback 5")
-    print("=" * 70 + "\n")
+    print("\n" + "=" * 70 + "\n")
 
 
 def backup_history_after_run():
@@ -114,7 +98,7 @@ def backup_history_after_run():
 def maybe_refresh_pnl(do_refresh: bool):
     if not do_refresh:
         return
-    print(">>> Refreshing current prices for live PnL (portfolio_cycles.xlsx)...\n")
+    print(">>> Refreshing current prices for legacy Excel PnL (portfolio_cycles.xlsx)...\n")
     try:
         result = subprocess.run(
             [sys.executable, str(ROOT / "refresh_current_prices.py"), "--lookback", "10"],
@@ -127,29 +111,63 @@ def maybe_refresh_pnl(do_refresh: bool):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="HYDRA Daily Ritual — one command to rule them all.")
-    parser.add_argument("--universe", default="all",
-                        help="Universe to use (all, sp500, nasdaq100, etc.). Default: all")
-    parser.add_argument("--refresh-pnl", "--pnl", action="store_true",
-                        help="Also run the price refresher at the end for live PnL in Excel.")
-    parser.add_argument("--no-instructions", action="store_true",
-                        help="Skip the big TradingView copy-paste instructions (not recommended).")
-    parser.add_argument("--skip-screener", action="store_true",
-                        help="Only print instructions + optional refresh (assumes you already ran the screener).")
-    parser.add_argument("--v9", action="store_true",
-                        help="After the screener, run the v9 instruction CLI (50/50 T20+ETF). "
-                             "Also runs automatically if ALGO_VERSION is v9.")
-    parser.add_argument("--v9-capital", type=float, default=None,
-                        help="USD capital for the first v9 run (passed to portfolio_v9.py --capital).")
-    parser.add_argument("--force", action="store_true",
-                        help="Pass through to portfolio_v9.py: plan even if preflight hard-fails.")
-    parser.add_argument("--note", type=str, default=None,
-                        help="Free-text observation appended to today's journal entry (never overwritten).")
+    parser = argparse.ArgumentParser(
+        description="HYDRA daily ritual — screener + v9 instruction sheet."
+    )
+    parser.add_argument(
+        "--universe",
+        default="all",
+        help="Universe to use (all, sp500, nasdaq100, etc.). Default: all",
+    )
+    parser.add_argument(
+        "--refresh-pnl",
+        "--pnl",
+        action="store_true",
+        help="(Legacy) Also refresh prices in portfolio_cycles.xlsx.",
+    )
+    parser.add_argument(
+        "--tv-instructions",
+        action="store_true",
+        help="(Parked) Print TradingView paste instructions after the screener.",
+    )
+    parser.add_argument(
+        "--no-instructions",
+        action="store_true",
+        help=argparse.SUPPRESS,  # legacy alias; TV instructions are off by default
+    )
+    parser.add_argument(
+        "--skip-screener",
+        action="store_true",
+        help="Skip screener (assumes you already ran it); still runs v9 when enabled.",
+    )
+    parser.add_argument(
+        "--v9",
+        action="store_true",
+        help="After the screener, run the v9 instruction CLI (50/50 T20+ETF). "
+        "Also runs automatically if ALGO_VERSION is v9.",
+    )
+    parser.add_argument(
+        "--v9-capital",
+        type=float,
+        default=None,
+        help="USD capital for the first v9 run (passed to portfolio_v9.py --capital).",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Pass through to portfolio_v9.py: plan even if preflight hard-fails.",
+    )
+    parser.add_argument(
+        "--note",
+        type=str,
+        default=None,
+        help="Free-text observation appended to today's journal entry (never overwritten).",
+    )
 
     args = parser.parse_args(argv)
 
-    print("HYDRA DAILY RITUAL")
-    print("==================\n")
+    print("HYDRA DAILY RITUAL (v9)")
+    print("=======================\n")
 
     exit_code = 0
     if not args.skip_screener:
@@ -157,18 +175,20 @@ def main(argv=None):
         if exit_code == 0:
             backup_history_after_run()
 
-    if not args.no_instructions:
+    if args.tv_instructions and not args.no_instructions:
         print_tv_instructions()
 
     if args.refresh_pnl:
         maybe_refresh_pnl(True)
 
     from config import ALGO_VERSION
+
     if args.v9 or ALGO_VERSION == "v9":
         print("\n>>> HYDRA v9 instruction CLI...")
         v9_out = None
         try:
             from portfolio_v9 import run as run_v9
+
             v9_out = run_v9(capital=args.v9_capital, force=args.force)
         except SystemExit as e:
             print(f"[v9] {e}")
@@ -176,6 +196,7 @@ def main(argv=None):
                 exit_code = 1
             try:
                 from journal import append_error
+
                 append_error(str(e), note=args.note)
             except Exception as je:
                 print(f"[journal] skip: {je}")
@@ -185,12 +206,14 @@ def main(argv=None):
                 exit_code = 1
             try:
                 from journal import append_error
+
                 append_error(str(e), note=args.note)
             except Exception as je:
                 print(f"[journal] skip: {je}")
         if v9_out is not None and v9_out.get("state") is not None:
             try:
                 from journal import append_from_v9
+
                 jpath = append_from_v9(v9_out, note=args.note)
                 print(f"[journal] {jpath}")
             except Exception as je:
@@ -200,7 +223,7 @@ def main(argv=None):
         print(f"\n[Note] Screener exited with code {exit_code}. Check output above.")
         return exit_code
 
-    print("Daily ritual complete. Go trade (or at least look at the pretty table in TradingView).")
+    print("Daily ritual complete. Check state/instructions_*.md (and dashboard_v9 if needed).")
     return 0
 
 
