@@ -182,3 +182,43 @@ def test_cli_clean_and_restore_requires_yes(tmp_path, capsys):
     assert rc == 0
     kept = list((tmp_path / "backup").glob("*_replaced.json"))
     assert len(kept) == 1
+
+
+# ------------------------------------------------------------------ TASK-415
+def test_task_415_interest_replays_per_tranche_after_cash_moved():
+    """Red before TASK-415: accrue_interest credited each tranche from ITS cash but recorded one
+    number per sleeve; replay re-split that number by the cash weights of the moment. Move cash
+    between tranches after the accrual (what confirm_fills does) and the replay put the interest
+    in the wrong place: identical sleeve totals, ERROR replay_cash per tranche."""
+    st = _state(capital=800.0)                       # 2x2 tranches of 200
+    st["sleeves"]["stocks"]["tranches"][0]["cash"] = 300.0
+    st["sleeves"]["stocks"]["tranches"][1]["cash"] = 100.0
+    # the replay starts from capital_reference split equally; record the 300/100 as a transfer
+    st["transfers"] = [
+        {"date": "2026-01-10", "sleeve": "stocks", "tranche": 0, "dollars": 100.0},
+        {"date": "2026-01-10", "sleeve": "stocks", "tranche": 1, "dollars": -100.0},
+    ]
+    idx = pd.bdate_range("2026-01-10", periods=6)
+    E.accrue_interest(st, idx, "2026-01-16", 0.0504)             # 5 bars at 5.04%
+    rec = [r for r in st["interest"] if r["sleeve"] == "stocks"][0]
+    assert set(rec["by_tranche"]) == {"0", "1"}
+    assert rec["by_tranche"]["0"] == pytest.approx(3 * rec["by_tranche"]["1"])     # 300 vs 100
+    assert sum(rec["by_tranche"].values()) == pytest.approx(rec["dollars"])
+    st["last_run_date"] = "2026-01-16"
+    # now a fill dated BEFORE the accrual is confirmed (confirm_fills books the real numbers after
+    # the fact): tranche 0 bought 20 AAA @ 10 on 01-12. The tranche's cash at accrual time was the
+    # pre-confirmation 300, but the replayed book at 01-16 has 100, so a weight split would put the
+    # sleeve's interest 50/50 instead of the 75/25 that was actually credited.
+    st["ledger"] = [{"exec_date": "2026-01-12", "sleeve": "stocks", "tranche": 0, "side": "buy",
+                     "ticker": "AAA", "units": 20.0, "price": 10.0, "dollars": 200.0, "cost": 0.0,
+                     "status": "confirmed"}]
+    st["sleeves"]["stocks"]["tranches"][0]["cash"] -= 200.0
+    st["sleeves"]["stocks"]["tranches"][0]["units"] = {"AAA": 20.0}
+    assert [f for f in check(st) if f.level == "ERROR"] == []
+    # and a record WITHOUT by_tranche (historical) is still split by weights, as before: the
+    # sleeve total agrees, the per-tranche attribution does not
+    legacy = json.loads(json.dumps(st))
+    legacy["interest"] = [{k: v for k, v in r.items() if k != "by_tranche"} for r in st["interest"]]
+    codes = {f.code for f in check(legacy) if f.level == "ERROR"}
+    assert codes == {"replay_cash"}, codes
+

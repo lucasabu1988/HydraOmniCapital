@@ -862,7 +862,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   puerta de poder hoy **no pasa**.
   `Files:` `daily.py` o `screener.py` (una llamada), `core/history.py`, `portfolio_v9.py` (cabecera
   de la hoja), `journal.py`, + test.
-- [ ] `TASK-415` **Registrar el interes POR TRAMO, para que el replay no tenga que repartirlo.**
+- [x] `TASK-415` **Registrar el interes POR TRAMO, para que el replay no tenga que repartirlo.** **HECHA** (Claude, 2026-09-10, `fix/task-415-interest-per-tranche`): `accrue_interest` anade `by_tranche` {tramo: dolares} a la entrada por manga (aditivo: `dollars` y el conteo de entradas no cambian, todo consumidor sigue sumando `dollars`); `_apply_interest` lo aplica exacto cuando esta y reparte por pesos cuando no (historico). Test rojo->verde en `test_state_check.py` (acreditar 300/100, confirmar un fill fechado antes del devengo, replay -> 0 findings; la misma entrada sin `by_tranche` -> `replay_cash`). Golden TASK-373 regenerado: 116 lineas de diff, todas `by_tranche missing in fixture`, ningun numero cambia. `settle.py` explica el artefacto como propio de entradas anteriores a esta tarea.
   Camino vivo: **despues** del settle verificado. `accrue_interest` acredita a cada tramo
   `cash * factor` calculado con la caja del momento, pero deja en `state["interest"]` una entrada
   **por manga**; `core/state_check._apply_interest` la reparte por pesos, asi que en cuanto

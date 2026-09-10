@@ -429,8 +429,9 @@ def main(argv=None) -> int:
         print(f"    worst tranche difference {verified.get('worst_tranche_diff')} USD, "
               f"units identical: {verified.get('units_identical')}", flush=True)
         print("  The sleeve totals and every position agree; only the per-tranche split of the "
-              "interest differs. The book is not short a dollar. The real fix is to record "
-              "interest per tranche so the replay need not re-split it (TASK-415).", flush=True)
+              "interest differs. The book is not short a dollar. Since TASK-415 (2026-09-10) every "
+              "new accrual records `by_tranche` and replays exactly; this artefact can only come "
+              "from interest records written before it, and it fades as they age out.", flush=True)
     else:
         print(f"[settle] verify_state FAILED and it is not the known artefact: "
               f"{verified.get('reason')}", flush=True)
