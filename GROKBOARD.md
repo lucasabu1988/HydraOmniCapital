@@ -874,7 +874,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   (compatibilidad con el historico), y un test que hoy sale rojo: acreditar, mover la caja,
   replay -> sin findings. Mientras no este, `settle.py` explica el artefacto con los numeros.
   `Files:` `core/portfolio_engine.py` (`accrue_interest`), `core/state_check.py`, sus tests.
-- [~] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.**
+- [x] `TASK-411` **H-005 medida: cuanto efectivo acuña la antiguedad que cuenta rellenos.** **LAS DOS MITADES HECHAS** (Claude; (a) 2026-09-09 `#59`, (b) 2026-09-10 `feat/task-411-half-b`, nota `.comms/task-411-half-b-2026-09-10.md`). Mitad (b), camino vivo real (`fetch_v9_market`, universo `all` = 3000 nombres, 2y = 502 barras, mascara `attrs["observed"]` de `data.fetch`): 95,3% de celdas impresas; **32 huecos** tras el primer print: 22 `trailing` de 1 barra (la barra de hoy aun no publicada para 22 preferentes/warrants), 8 huecos de 37-38 barras desde 2026-07-20 (warrants, misma ventana: proveedor), 2 `hidden`; **50 barras arrastradas = 50 reescrituras de `last_px` sobre 1.506.000 celdas (0,0033%)**; retraso maximo posible de un write-off **3 sesiones**; **0 huecos en los 22 nombres de acciones del libro vivo**. Lo importante sigue siendo la divergencia semantica de `max_stale_bars` (46-51 barras en el lab vs ~10 en vivo); su coste en vivo es hoy despreciable. Solo medir; regla 6 intacta.
   **MITAD (a) HECHA** (Claude, 2026-09-09, `feat/task-411-stale-policy-ab` `232e8ed`): numeros y
   las tres preguntas de la nota de TASK-402 contestadas en
   `.comms/task-411-stale-policy-ab-2026-09-09.md`. La mitad (b) sigue esperando al paso 6.
