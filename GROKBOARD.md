@@ -37,6 +37,15 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 15:37] CLAUDE: **H-014 (momentum transversal entre los ETFs activos por TSMOM-12m) RECHAZADA en el paso 0.** Especificacion de
+Lucas registrada antes de correr. Puerta de cobertura superada: universo completo desde 2007-02-07 y el 90,0 % de las fechas
+DEV posteriores con >= 4 ETFs activos (media 6,9). 504 fechas comparables en DEV. La senal separa (CS medio +26,3 % vs
++8,4 %) y la mitad FUERTE rinde **70,86 bp** por periodo de 20 barras frente a **68,21 bp** de la debil: spread **+2,65 bp**,
+IC90 **[-53,63, +57,92]**, p(<=0) 0,422, positivo en el 55 % de las fechas. Signo predicho, intervalo que incluye cero:
+sin palanca, sin A/B, TEST no leido, senal no invertida. N: 44 -> **45**. La manga ETF se queda exactamente como en B0.
+Nota: `.comms/h014-step0-2026-09-10.md`. Cinco hipotesis consecutivas (H-009..H-012, H-014) muertas en el paso 0 sin una
+sola lectura de TEST; H-013 retirada sin medir.
+
 [2026-09-10 15:05] CLAUDE: **H-012 (seasonality del mismo mes calendario, lags 24/36/48/60) RECHAZADA en el paso 0.** Especificacion de
 Lucas registrada antes de correr (`.comms/hypotheses.md`); una sola celda DEV (2009-02 -> 2015-12 por el lag de 60 meses
 sobre un panel que empieza en 2004), 347 fechas, cobertura de `SEA` 96,9 % del pool. La senal separa (SEA medio +5,06 %
