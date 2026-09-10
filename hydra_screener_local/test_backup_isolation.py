@@ -49,16 +49,28 @@ def test_the_runner_hands_subprocesses_a_throwaway_destination():
     assert d == run_all_tests.test_backup_dir(), "one destination per run, not one per test file"
 
 
-def test_a_journal_write_lands_in_the_throwaway_root_and_nowhere_else(tmp_path):
-    """The real leak, reproduced: save_record copies into <HYDRA_BACKUP_DIR>/state_v9/<date>/."""
-    backup = Path(os.environ["HYDRA_BACKUP_DIR"])
-    before = {p for p in backup.rglob("*") if p.is_file()}
-    journal.save_record({"date": "2026-09-04", "book": {"total": 100000.0}}, journal_dir=tmp_path)
-    written = {p for p in backup.rglob("*") if p.is_file()} - before
-    assert written, "save_record did copy off-disk; if this fails the copy moved and this test is stale"
+def test_a_journal_write_lands_in_the_throwaway_root_and_nowhere_else(tmp_path, monkeypatch):
+    """The real leak, reproduced: save_record copies into <HYDRA_BACKUP_DIR>/state_v9/<date>/.
+
+    The destination is a FRESH root private to this test, not the session-wide one from conftest:
+    test_journal.py writes state_v9/20260904/ into the shared root when it runs earlier in the same
+    process, and a before/after diff against it came back empty because save_record overwrote the
+    same names. A fresh root makes the expected set exact, and it still carries the marker so the
+    isolation half of the assertion means what it says.
+    """
+    backup = tmp_path / f"{conftest.TEST_BACKUP_MARKER}-root"
+    backup.mkdir()
+    monkeypatch.setenv("HYDRA_BACKUP_DIR", str(backup))
+    journal.save_record({"date": "2026-09-04", "book": {"total": 100000.0}}, journal_dir=tmp_path / "journal")
+    written = sorted(p.relative_to(backup).as_posix() for p in backup.rglob("*") if p.is_file())
+    assert written == [
+        "state_v9/20260904/2026-09-04.json",
+        "state_v9/20260904/2026-09-04_r01.json",
+        "state_v9/20260904/JOURNAL.md",
+    ], "save_record's off-disk copy moved or changed shape; if so this test is stale: " + str(written)
     for p in written:
-        assert conftest.TEST_BACKUP_MARKER in str(p)
-    assert (tmp_path / "2026-09-04.json").exists()
+        assert conftest.TEST_BACKUP_MARKER in str(backup / p)
+    assert (tmp_path / "journal" / "2026-09-04.json").exists()
 
 
 def test_a_bare_pytest_run_of_the_real_leaker_writes_nothing_to_the_inherited_root(tmp_path):
