@@ -18,6 +18,7 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 | H-012 | 2026-09-10 | Lucas (especifica) / Claude (registro) | **Same-calendar-month seasonality** (Heston-Sadka): `SEA` = mean of the same calendar month's total return at lags 24/36/48/60 months; step 0 tercile spread in the pool, then secondary selection inside the top 1.5n | step 0: high-minus-low SEA tercile fwd 5-bar spread, DEV, block bootstrap; step 1: Δ CAGR net engine > +1.00 pp vs B0 | **REJECTED at step 0** (2026-09-10, wrong sign, interval clear of zero) |
 | H-013 | 2026-09-10 | Claude (idea) / Lucas (retira) | GRJMOM-style partial vol scaling (`mom / vol^a`, a in (0,1)) | — | **WITHDRAWN** - premise falsified by H-011, never measured |
 | H-014 | 2026-09-10 | Lucas (especifica) / Claude (registro) | **Absolute + cross-sectional momentum inside the ETF sleeve**: among the ETFs that already pass production's TSMOM-12m filter, keep the upper half by 12-month excess return, same total risky exposure | step 0: HIGH-minus-LOW fwd 20-bar spread, DEV, block bootstrap, 90 % CI; step 1 DEV: Δ CAGR HYDRA > +1.00 pp; step 2 TEST once: Δ ALL > +1.00 pp and Δ TEST > 0 | **REJECTED at step 0** (2026-09-10, predicted sign, 90 % interval includes zero) |
+| H-015 | 2026-09-10 | Lucas (especifica) / Claude (registro) | **Fast confirmation of ETF absolute momentum**: when the 12-month excess return is still > 0 but the 21-bar excess return is <= 0 (CORRECTION), does the ETF lose against the T-bill over the next 20 bars, so that slice should sit in cash? | step 0: mean per-date CORRECTION forward-20 EXCESS over the T-bill < 0 with the 90 % upper bound < 0; step 1 DEV: Δ CAGR HYDRA > +1.00 pp; step 2 TEST once: Δ ALL > +1.00 pp and Δ TEST > 0 | **REJECTED at step 0** (2026-09-10: CORRECTION beat the T-bill by +88.8 bp per 20 bars, CI clear of zero on the WRONG side) |
 
 ## Template
 
@@ -502,3 +503,99 @@ carries no result and spends no trial.
 - **Testing budget:** 1 DEV trial spent. N: 44 -> **45**.
 - **What is kept:** `abs_signal()` (B0's rule, pinned bit for bit by test), `split_halves()`, the coverage
   gate and the harness with 5 tests. The ETF sleeve keeps its TSMOM-12m rule exactly as B0 has it.
+
+### H-015 — fast confirmation of the ETF absolute momentum (pre-registered 2026-09-10, before any run)
+
+- **Date / proposer:** 2026-09-10. Lucas specified it after checking it repeats no earlier experiment: the
+  old `crash_brake` was a market rule on SPY (-6 %/5d, -10 %/10d) that cost T20 return, not a per-ETF
+  trend confirmation; the old VORTEX "dual timeframe" was stock selection (120d/30d, acceleration,
+  vol adjustment, stops). Support: Goulding, Harvey & Mazzoleni (JFE 2023) - the disagreement of slow
+  and fast signals carries information about turning points; classic TSMOM finds persistence between
+  one and twelve months. Budget before the trial: N = 45. Baseline: B0 frozen. Scope: the ETF sleeve
+  only; T20 identical to B0.
+- **Single question:** when the 12-month absolute momentum is still positive but the 1-month momentum
+  is no longer positive, does the ETF exposure earn LESS than the T-bill over the next 20 bars, so that
+  it should sit temporarily in cash? Nothing else in the algorithm changes.
+- **Universe:** exactly B0's ten ETFs, same data-availability rules; nothing added or removed.
+- **SLOW - production's signal, reused literally:** `SLOW_{i,t} = R252_{i,t} - RF252_t` with B0's T-bill
+  convention; ON iff `SLOW > 0`. The harness may NOT re-implement it approximately: it calls the same
+  function H-014 pinned against `sleeve_lab.run_sleeve`, and a test proves identity.
+- **FAST - the only new variable:** `FAST_{i,t} = R21_{i,t} - RF21_t`, the same convention over 21 bars.
+  No 5 / 10 / 20 / 42 / 63; the fast horizon is not optimised.
+- **States, for ETFs with `SLOW > 0`:** CONFIRMED = `FAST > 0`; CORRECTION = `FAST <= 0`. `SLOW <= 0` is
+  outside the hypothesis (B0 already holds it in T-bill).
+- **Step 0 (DEV only, TEST closed; `experiments/h015_fast_confirmation.py`):** decision at the close of
+  t; forward return from the next executable price over the life of an ETF tranche,
+  `R_fwd20 = P_{t+21} / P_{t+1} - 1`; the T-bill realisable over exactly that interval,
+  `RF_fwd20 = sum of IRX/252 over bars t+2..t+21` (the 20 accrual bars between the two closes, the
+  same per-bar convention as `RF252`); `EXCESS_fwd20 = R_fwd20 - RF_fwd20`. Not gross return against
+  zero: the economic alternative is the T-bill, so the falsifier compares against the T-bill. For each
+  DEV date with at least one CORRECTION ETF, `C_t = mean(EXCESS_fwd20 | SLOW > 0, FAST <= 0)`; the
+  deciding statistic is `C_bar = mean(C_t)`; each date weighs once however many ETFs are in
+  CORRECTION (ten correlated same-day observations are not ten observations).
+- **Single expectation:** `E[C_bar] < 0`. Deliberately stronger than "CONFIRMED beats CORRECTION": if
+  CORRECTION still beats the T-bill, switching it off has no economic justification even if it earns
+  less than CONFIRMED.
+- **Inference:** moving-block bootstrap over decision dates, block 13, 90 % interval. Reported but not
+  deciding: eligible DEV dates; dates with >= 1 CORRECTION and their share; ETF-CORRECTION observations;
+  mean CORRECTION count when present; mean fwd-20 excess of CORRECTION and of CONFIRMED and their
+  difference; 90 % CI of CORRECTION; `p(C >= 0)`; share of CORRECTION dates with negative excess. No
+  second research cell.
+- **Falsifier:** REJECTED at once if `C_bar >= 0` OR the 90 % interval contains zero. To survive:
+  `C_bar < 0` AND `CI_90_upper < 0`. Too few observations for a valid bootstrap (fewer than two full
+  blocks, i.e. < 26 CORRECTION dates) -> UNMEASURABLE; the specification is not modified; TEST stays
+  closed. If step 0 fails, NOT tried: FAST 5d/10d/42d/63d, 3/6/12, majority votes, signal averages,
+  FAST/SLOW weights, the inverted signal, a non-zero FAST threshold, waiting periods, multi-day
+  confirmation. H-015 ends; N 45 -> 46.
+- **Step 1 (portfolio A/B, only if step 0 survives):** B0 unchanged. H-015 changes one condition of the
+  ETF sleeve: B0 `SLOW > 0 -> ON`; H-015 `SLOW > 0 and FAST > 0 -> ON`, `SLOW > 0 and FAST <= 0 ->
+  T-bill`, `SLOW <= 0 -> T-bill`. Potential weights are B0's inverse-vol63 exactly; the survivors are
+  NOT renormalised - an ETF that would carry 8 % in B0 and enters CORRECTION sends that 8 % to the
+  T-bill, not to the other ETFs (this is an absolute-timing hypothesis, not a concentration one; H-014
+  already tested and rejected that). Frozen: 4 tranches, renewal every 5 bars, hold 20, ETF costs
+  5 bp/side, inverse-vol63, B0 execution, T-bill, accounting, pair reset, identical T20, identical
+  50/50 mix, no leverage, no regime or universe change. The only causal difference: SLOW positive and
+  FAST non-positive -> cash. **DEV gate:** `Δ CAGR_HYDRA,DEV > +1.00 pp` (unrounded) to open TEST;
+  otherwise REJECTED, TEST closed, FAST not tuned.
+- **Step 2 (TEST once):** code, parameters, input hashes and spec frozen; one run. DEV, TEST and ALL
+  reported: HYDRA net CAGR, Δ CAGR, ETF-sleeve CAGR, T20 return, Sharpe excess, net/vol, maxDD, ETF
+  turnover, costs, mean ETF exposure, mean T-bill share, CORRECTION frequency, extra switch-offs caused
+  by FAST.
+- **Final decision:** APPROVED iff `Δ CAGR_HYDRA,ALL > +1.00 pp` (with B0 = 7.03, strictly
+  `CAGR_H015,ALL > 8.03 %`, unrounded) AND `Δ CAGR_HYDRA,TEST > 0`. REJECTED otherwise. No "almost".
+- **Ex-ante mechanism:** not better ETF selection; detecting a lost trend before the 252-bar window
+  recognises it. SLOW brings persistence and noise reduction, FAST brings recent information; when
+  they disagree in this specific direction the old information is stale enough that staying exposed
+  is worse than the T-bill over the tranche's economic horizon. That is the only claim being tested.
+- **Multiplicity:** one specification, one FAST = 21, one threshold = 0, one forward horizon = 20, one
+  DEV cell, no TEST unless survival. Running step 0 moves N 45 -> 46.
+- **Rule 6:** research; production untouched while PROPOSED or TESTED; any engine change needs
+  APPROVED and Lucas's explicit authorisation.
+- **Result (2026-09-10, `experiments/h015_fast_confirmation.py`, DEV < 2016-01-01, production ETF panel on
+  the OOS calendar, ^IRX from the panel):** 549 eligible DEV dates (>= 1 ETF with `SLOW > 0`); CORRECTION
+  present on **450 of them (82.0 %)**, 1358 ETF-CORRECTION observations, 3.02 CORRECTION ETFs on average
+  when present - the state is common, not rare, so the rule would have cut exposure most of the time.
+
+  | | CORRECTION (`SLOW > 0`, `FAST <= 0`) | CONFIRMED (`SLOW > 0`, `FAST > 0`) |
+  |---|---|---|
+  | mean forward 20-bar EXCESS over the T-bill, per date | **+88.81 bp** | +37.27 bp |
+  | 90 % bootstrap interval (block 13, 5000 draws) | **[+49.68, +139.86]** | |
+  | p(C_bar >= 0) | 1.000 | |
+  | share of CORRECTION dates with negative excess | 37.8 % | |
+  | CONFIRMED - CORRECTION | | **-51.54 bp** |
+
+  The ETFs whose 1-month excess return had turned non-positive while the 12-month trend was still up
+  did not lose against the T-bill over the next 20 bars: they beat it by about 89 bp, more than twice
+  what the CONFIRMED ETFs earned, with the entire 90 % interval on the wrong side of zero. In this
+  universe and at this horizon a one-month dip inside a twelve-month uptrend has been a point of
+  short-term reversal, not the early sign of a lost trend.
+- **Decision: REJECTED at step 0, by the rule written above before the run** (`C_bar >= 0`). No lever,
+  no portfolio A/B, **TEST was not read**. **The signal is NOT inverted:** the pre-registration lists the
+  inverted signal among the things not to try, and "buy the CORRECTION ETFs" would be a new hypothesis
+  with its own registration, not a rescue of this one. Not tried either: FAST 5/10/42/63, 3/6/12,
+  votes, averages, weights, thresholds, waiting periods, multi-day confirmation.
+- **Testing budget:** 1 DEV trial spent. N: 45 -> **46**.
+- **What is kept:** `slow_signal()` (production's rule, reused, identity pinned by test), `fast_signal()`,
+  `forward_excess()` (return net of the T-bill accrued over the same bars) and the harness with 5
+  tests. Per Lucas's ex-ante plan, the next move is not another momentum speed but a genuinely
+  different hypothesis (cross-asset predictive signals inside the ETF sleeve), to be written before any run.

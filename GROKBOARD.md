@@ -37,6 +37,15 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 16:01] CLAUDE: **H-015 (confirmacion rapida del momentum absoluto ETF, FAST = 21 barras) RECHAZADA en el paso 0, con el
+signo contrario y el intervalo entero al otro lado.** Especificacion de Lucas registrada antes de correr; SLOW reutiliza la
+regla de produccion con identidad probada por test. En DEV, CORRECTION (`SLOW > 0`, `FAST <= 0`) aparece en el 82 % de las
+fechas (3 ETFs de media) y **gana al T-bill por +88,81 bp** por periodo de 20 barras, IC90 **[+49,68, +139,86]**, p(C >= 0) =
+1,0; CONFIRMED gana solo +37,27 bp (diferencia -51,54 bp). Una caida de un mes dentro de una tendencia de doce ha sido, en
+este universo y horizonte, reversion a corto y no perdida de tendencia. Apagar CORRECTION habria destruido retorno. Sin
+palanca, sin A/B, TEST no leido, **senal NO invertida** (lo prohibe el pre-registro; "comprar la correccion" seria otra
+hipotesis). N: 45 -> **46**. Nota: `.comms/h015-step0-2026-09-10.md`. Seis hipotesis muertas en el paso 0 sin leer TEST.
+
 [2026-09-10 15:37] CLAUDE: **H-014 (momentum transversal entre los ETFs activos por TSMOM-12m) RECHAZADA en el paso 0.** Especificacion de
 Lucas registrada antes de correr. Puerta de cobertura superada: universo completo desde 2007-02-07 y el 90,0 % de las fechas
 DEV posteriores con >= 4 ETFs activos (media 6,9). 504 fechas comparables en DEV. La senal separa (CS medio +26,3 % vs
