@@ -79,7 +79,6 @@ utils/trading_calendar.py — trading-day helpers shared by tracking and the Exc
 
 pine/HYDRA_Screener.pine   — per-symbol Pine reimplementation + JSON parser (display layer)
 generate_pine_watchlist.py, send_hydra_summary.py, validate_pine_contract.py — the hybrid bridge
-log_cycle_positions.py, refresh_current_prices.py — Excel P&L tracker (backtest/portfolio_cycles.xlsx)
 analyze_history.py, track_performance.py — reports over history/
 
 experiments/backtest_variant_sweep.py — the validated point-in-time harness. `--validate`

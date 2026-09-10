@@ -330,6 +330,7 @@ Recorded at the base commit:
 R-1001  wheel contents: core/, data/, utils/ only
         missing: sleeves/, config.py, daily.py, refresh_current_prices.py,
                  live_watcher.py, generate_html_dashboard.py, console_dashboard.py
+        (2026-09-10: the four parked CLIs and log_cycle_positions.py were deleted; hydra-daily is the one entry point)
         hydra-daily --help  ->  ModuleNotFoundError: No module named 'daily'
 R-1002  only in requirements.txt: rich, python-dateutil, scipy
         only in pyproject:        requests
