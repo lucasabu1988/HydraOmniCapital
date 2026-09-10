@@ -17,7 +17,7 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 | H-011 | 2026-09-10 | Claude (propone) / Lucas (elige) | Drop the `/vol63` penalty from the stock score: `mom12_7` instead of `mom12_7 / vol63`, nothing else changes (lab lever `risk_adjust`) | Δ CAGR net vs B0: sleeve > +1.00 pp = valid; 50/50 engine > +1.00 pp = production | **REJECTED at step 0** (2026-09-10) |
 | H-012 | 2026-09-10 | Lucas (especifica) / Claude (registro) | **Same-calendar-month seasonality** (Heston-Sadka): `SEA` = mean of the same calendar month's total return at lags 24/36/48/60 months; step 0 tercile spread in the pool, then secondary selection inside the top 1.5n | step 0: high-minus-low SEA tercile fwd 5-bar spread, DEV, block bootstrap; step 1: Δ CAGR net engine > +1.00 pp vs B0 | **REJECTED at step 0** (2026-09-10, wrong sign, interval clear of zero) |
 | H-013 | 2026-09-10 | Claude (idea) / Lucas (retira) | GRJMOM-style partial vol scaling (`mom / vol^a`, a in (0,1)) | — | **WITHDRAWN** - premise falsified by H-011, never measured |
-| H-014 | 2026-09-10 | Lucas (siguiente en cola) | ETF sleeve with absolute + cross-sectional momentum | Δ CAGR net engine > +1.00 pp vs B0 | PROPOSED (to be written before any run) |
+| H-014 | 2026-09-10 | Lucas (especifica) / Claude (registro) | **Absolute + cross-sectional momentum inside the ETF sleeve**: among the ETFs that already pass production's TSMOM-12m filter, keep the upper half by 12-month excess return, same total risky exposure | step 0: HIGH-minus-LOW fwd 20-bar spread, DEV, block bootstrap, 90 % CI; step 1 DEV: Δ CAGR HYDRA > +1.00 pp; step 2 TEST once: Δ ALL > +1.00 pp and Δ TEST > 0 | **REJECTED at step 0** (2026-09-10, predicted sign, 90 % interval includes zero) |
 
 ## Template
 
@@ -418,3 +418,87 @@ opposite (raw momentum: -4.50 bp per step, 46 % of dates, ~30 % more volatile pi
 `mom / vol^0.7`, `mom / vol^0.5`, ... now would turn a negative result into a parameter search.
 **WITHDRAWN - premise falsified by H-011**, not REJECTED: GRJMOM itself was never measured, so it
 carries no result and spends no trial.
+
+### H-014 — absolute + cross-sectional momentum inside the ETF sleeve (pre-registered 2026-09-10, before any run)
+
+- **Date / proposer:** 2026-09-10. Lucas specified the hypothesis, the universe, the signals, the step-0
+  design, the exposure invariant and the decision rules; Claude registers and measures. One new question
+  only: among the ETFs that already pass production's absolute filter, do the relatively strong ones keep
+  beating the relatively weak ones? The absolute filter itself is not re-examined (the sleeve already
+  validated it; re-opening the 12-month horizon would spend a trial on a settled question).
+- **Universe:** exactly production's, `SPY QQQ IWM EFA EEM TLT IEF GLD DBC VNQ`. Nothing added or
+  removed. An ETF participates only with at least 252 bars of history, as in B0.
+- **Absolute signal (unchanged from B0):** `ABS_{i,t} = R252_{i,t} - RF252_t`, the 252-bar total return
+  minus the 252-bar accumulated T-bill (`(IRX/252).rolling(252).sum()`, the lab's and the engine's
+  definition). Active iff `ABS > 0`. Horizon, threshold and T-bill definition untouched.
+- **Cross-sectional signal:** among the active ETFs at the same date, `CS_{i,t} = ABS_{i,t}` (the T-bill
+  is common across ETFs on a date, so this orders by 12-month total return; `ABS` is kept so there is
+  one definition). No combination, coefficient, normalisation or optimisable parameter.
+- **Step 0 (DEV only, TEST closed; `experiments/h014_etf_xs_momentum.py`):** at each ETF-sleeve decision
+  date (the sleeve's own grid: from bar 280, every 5 bars), with information at the close of t only:
+  (1) the set of ETFs with 252 valid bars and `ABS > 0`; (2) a date is comparable iff at least 4 are
+  active; (3) sort by `CS` descending; (4) split at the median - `HIGH` upper half, `LOW` lower half,
+  the middle name left out of both when the count is odd so the halves are equal; (5) forward total
+  return from the t+1 close to the t+21 close (the ~20 bars an ETF tranche lives); (6) per date,
+  `SPREAD_t = mean(R_fwd20_HIGH) - mean(R_fwd20_LOW)`. Primary statistic: the mean of `SPREAD_t` in bp
+  per 20-bar period. **Single expectation: E[SPREAD] > 0.** Inference: moving-block bootstrap, ONE
+  index matrix shared by HIGH and LOW, 13 decision dates per block, 90 % interval. Also reported,
+  descriptive only: comparable dates, mean active ETFs, HIGH return, LOW return, spread, CI, p(spread <= 0),
+  share of dates positive.
+- **Power / coverage gate:** if fewer than 50 % of the DEV dates after the universe becomes available
+  (the first date on which every ETF in the universe has 252 bars) have at least four active ETFs,
+  the result is **UNMEASURABLE**, not REJECTED. The definition is not modified to manufacture
+  observations.
+- **Falsifier at step 0 - REJECTED and finished at once if the point estimate of SPREAD is <= 0 OR the
+  90 % interval includes 0.** Then: no lever, no portfolio A/B, TEST not read, the signal not inverted,
+  no top-2 / top-3 / terciles / quintiles / other horizons / combinations. Exactly one trial.
+- **Step 1 (portfolio A/B, only if step 0 passes):** the candidate ETF sleeve keeps the same absolute
+  filter and the same total risky exposure as B0. At each renewal: compute production's ETF portfolio;
+  ETFs ON by `ABS > 0`; sort ON by `CS`; keep only the upper half, `K = ceil(N/2)`; no ETF ON -> all
+  T-bill as in B0; one ETF ON -> identical to B0 that date. **Exposure invariant:** with
+  `E_t = sum_i w_B0_{i,t}` the risky ETF exposure B0 would have had, the candidate's weights are
+  inverse-vol (vol63) over the selected ETFs, rescaled so `sum_i w_H014_{i,t} = E_t`: same total risky
+  exposure and same T-bill share as B0 at every renewal, only WHICH ETFs receive it changes; no
+  renormalising to 100 % where B0 held cash. Frozen: hold 20, tranches 4, step 5, vol63, inverse-vol,
+  ETF cost 5 bp/side, execution lag, T-bill, reset and executable accounting, 50/50 mix, T20
+  byte-identical to B0. **Step 1 gate on DEV:** `Δ CAGR_HYDRA,DEV <= +1.00 pp` -> REJECTED, TEST stays
+  closed, no variants; `> +1.00 pp` -> one reading of TEST is authorised.
+- **Step 2 (TEST, once):** B0 and H-014 on TEST with the spec frozen; DEV, TEST and ALL reported
+  separately: HYDRA net CAGR, Δ CAGR in pp, ETF-sleeve CAGR, Sharpe excess, net/vol, maxDD, turnover,
+  costs, ETF exposure, mean number of ETFs, maximum concentration per asset.
+- **Final decision:** **APPROVED iff `Δ CAGR_HYDRA,ALL > +1.00 pp` AND `Δ CAGR_HYDRA,TEST > 0`**
+  (the second stops a > 1 pp gain made entirely in DEV that reverses sign out of sample; TEST need not
+  itself clear +1 pp). REJECTED otherwise. No "almost approved".
+- **Multiplicity:** step 0 is one trial; if it dies, N 44 -> 45. The portfolio A/B is not a new
+  specification search but the test of the single pre-registered rule that survived step 0; no other
+  ranking cuts or horizons under H-014. Why the upper half and not "top 3": top-3 is a new arbitrary
+  parameter; the median split ties step 0 to the portfolio exactly - first ask whether HIGH beats LOW,
+  then, only if it does, retire LOW and hand its risk budget to HIGH.
+- **Rule 6:** nothing here touches production while PROPOSED or TESTED; any production change needs
+  APPROVED and Lucas's explicit authorisation.
+- **Expectation, written down:** moderate. Cross-sectional momentum is well documented across asset
+  classes and considerably weaker in ETF-only samples (country/sector ETFs, late 1990s-2014). This
+  hypothesis is worth running because it can die cheaply at step 0; a clean positive spread inside
+  the small universe HYDRA actually trades would be the more valuable outcome, not the more likely.
+- **Result (2026-09-10, `experiments/h014_etf_xs_momentum.py`, DEV < 2016-01-01, production ETF panel on
+  the OOS calendar, ^IRX from the panel):** coverage gate PASSED - the universe is complete (every ETF
+  with 252 bars) from 2007-02-07; of the 449 DEV decision dates after that, 404 (**90.0 %**) had at least
+  four active ETFs, mean 6.9 active. Comparable dates in all of DEV: 504 (2005-02-11 -> 2015-12-31),
+  mean 7.3 active ETFs.
+
+  | | HIGH (upper half by CS) | LOW (lower half) | spread | 90 % interval | p(spread<=0) | dates positive |
+  |---|---|---|---|---|---|---|
+  | mean `CS` = `ABS` (12-m excess return) | +26.3 % | +8.4 % | the sort works | | | |
+  | mean forward 20-bar total return | **70.86 bp** | **68.21 bp** | **+2.65 bp** | [-53.63, +57.92] | 0.422 | 55.0 % |
+
+  The relatively strong active ETFs earned 2.65 bp more per 20-bar period than the relatively weak ones,
+  a difference that is small next to a 20-bar ETF return of about 70 bp and sits in the middle of a
+  110 bp-wide interval. The sign is the predicted one; the evidence is not.
+- **Decision: REJECTED at step 0, by the rule written above before the run** (predicted sign, 90 %
+  interval includes 0). No lever, no portfolio A/B, **TEST was not read**, signal not inverted, no
+  top-2 / top-3 / terciles / other horizons. Consistent with the ETF-only literature that found
+  cross-sectional momentum weak in country/sector ETF samples: with ten broad-asset ETFs, of which about
+  seven are ON on a typical date, there is very little cross-section to rank.
+- **Testing budget:** 1 DEV trial spent. N: 44 -> **45**.
+- **What is kept:** `abs_signal()` (B0's rule, pinned bit for bit by test), `split_halves()`, the coverage
+  gate and the harness with 5 tests. The ETF sleeve keeps its TSMOM-12m rule exactly as B0 has it.
