@@ -52,6 +52,21 @@ CREATE TABLE IF NOT EXISTS actions_cov (
     updated_at TEXT
 )
 """
+_ARCHIVE_DDL = """
+CREATE TABLE IF NOT EXISTS bars_archive (
+    snapshot TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    date TEXT NOT NULL,
+    close_adj REAL,
+    close_raw REAL,
+    volume REAL,
+    source TEXT,
+    fetched_at TEXT,
+    archived_at TEXT,
+    reason TEXT,
+    PRIMARY KEY (snapshot, ticker, date)
+)
+"""
 _RUNS_DDL = """
 CREATE TABLE IF NOT EXISTS runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,7 +102,9 @@ class BarStore:
         self._conn.execute(_RUNS_DDL)
         self._conn.execute(_ACTIONS_DDL)      # TASK-385: dividends / splits from yfinance actions
         self._conn.execute(_ACTCOV_DDL)       # which date range each ticker's actions were asked for
+        self._conn.execute(_ARCHIVE_DDL)      # audit phase 5.4: rollback for a destructive replace
         self._conn.execute("CREATE INDEX IF NOT EXISTS bars_date ON bars(date)")
+        self._conn.execute("CREATE INDEX IF NOT EXISTS archive_ticker ON bars_archive(ticker)")
         self._conn.commit()
 
     def close(self) -> None:
@@ -134,22 +151,229 @@ class BarStore:
             )
         return len(rows)
 
-    def replace_ticker(self, ticker: str, long_frame: pd.DataFrame, *, min_bars: int = 10) -> int:
-        """Replace a ticker's bars. Refuses empty or shorter-than-overlap frames
-        so a bad Yahoo batch cannot wipe stored history (TASK-376). Returns 0
-        when the stored rows are kept."""
+    def merge_ticker(self, ticker: str, long_frame: pd.DataFrame) -> int:
+        """Upsert a ticker's bars without deleting anything (audit phase 5.3).
+
+        The default backfill path: an existing range is extended, overlapping bars
+        are refreshed, and bars outside the incoming frame are untouched. Returns
+        rows written.
+        """
+        rows = _rows_from_long(long_frame)
+        if not rows:
+            return 0
+        mine = [r for r in rows if r[0] == str(ticker)]
+        if not mine:
+            return 0
+        return self.upsert(long_frame[long_frame[_ticker_col(long_frame)].astype(str) == str(ticker)])
+
+    def stored_span(self, ticker: str) -> tuple[str | None, str | None, int]:
+        """(first, last, n_bars) for a ticker, straight off the bars table."""
+        row = self._conn.execute(
+            "SELECT MIN(date), MAX(date), COUNT(*) FROM bars WHERE ticker=?", (str(ticker),)
+        ).fetchone()
+        if not row or not row[2]:
+            return None, None, 0
+        return row[0], row[1], int(row[2])
+
+    def replace_ticker(self, ticker: str, long_frame: pd.DataFrame, *, min_bars: int = 10,
+                       allow_shrink: bool = False, reason: str = "replace_ticker") -> int:
+        """Replace a ticker's bars, archiving the old ones first.
+
+        Refuses by default when the incoming frame does not cover the stored span.
+        `min_bars` alone was not a guard: a 12-bar frame passed it and wiped 2800
+        bars of history down to 12, silently (repro R-501). The old rows are copied
+        into `bars_archive` inside the same transaction, so `restore_ticker()` can
+        roll the change back (phase 5.4).
+
+        Returns rows written, or 0 when the stored rows are kept.
+        """
         t = str(ticker)
         rows = _rows_from_long(long_frame)
-        n_dates = len({r[1] for r in rows})
-        if n_dates < int(min_bars):
+        dates = sorted({r[1] for r in rows})
+        if len(dates) < int(min_bars):
             return 0
+        first, last, n_bars = self.stored_span(t)
+        if first is not None and not allow_shrink:
+            # the incoming frame must cover at least the stored window
+            if dates[0] > first or dates[-1] < last:
+                return 0
+        snapshot = None
+        if n_bars:
+            snapshot = self.archive_ticker(t, reason=reason)
         with self._conn:
             self._conn.execute("DELETE FROM bars WHERE ticker=?", (t,))
             self._conn.execute("DELETE FROM meta WHERE ticker=?", (t,))
             if _has_actions(long_frame):        # a full refetch with actions replaces the actions too
                 self._conn.execute("DELETE FROM actions WHERE ticker=?", (t,))
                 self._conn.execute("DELETE FROM actions_cov WHERE ticker=?", (t,))
-        return self.upsert(long_frame)
+        written = self.upsert(long_frame)
+        if snapshot is not None:
+            self._conn.execute(
+                "UPDATE bars_archive SET reason=? WHERE snapshot=?",
+                (f"{reason}; replaced {n_bars} bars ({first}..{last}) with {written}", snapshot))
+            self._conn.commit()
+        return written
+
+    def replace_range(self, ticker: str, long_frame: pd.DataFrame, start, end, *,
+                      reason: str = "replace_range") -> int:
+        """Correct one window of a ticker's history, keeping everything outside it.
+
+        Phase 5.5: fixing a bad stretch must not cost the rest of the series, nor the
+        `actions` rows. The replaced window is archived first.
+        """
+        t = str(ticker)
+        s, e = _as_date_str(start), _as_date_str(end)
+        if e < s:
+            raise ValueError(f"replace_range needs start <= end, got {s}..{e}")
+        snapshot = self.archive_ticker(t, start=s, end=e, reason=reason)
+        with self._conn:
+            self._conn.execute("DELETE FROM bars WHERE ticker=? AND date>=? AND date<=?", (t, s, e))
+        rows = _rows_from_long(long_frame)
+        keep = [r for r in rows if r[0] == t and s <= r[1] <= e]
+        if not keep:
+            if snapshot:
+                self.restore_ticker(snapshot)   # nothing usable arrived: put the window back
+            return 0
+        with self._conn:
+            self._conn.executemany(
+                "INSERT OR REPLACE INTO bars "
+                "(ticker, date, close_adj, close_raw, volume, source, fetched_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                keep,
+            )
+        self._refresh_meta([t])
+        return len(keep)
+
+    def archive_ticker(self, ticker: str, *, start=None, end=None,
+                       reason: str = "manual") -> str | None:
+        """Copy a ticker's bars (optionally one window) into `bars_archive`.
+
+        Returns the snapshot id, or None when there was nothing to archive.
+        """
+        t = str(ticker)
+        snapshot = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + "_" + t
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        where = "ticker=?"
+        params: list = [t]
+        if start is not None:
+            where += " AND date>=?"
+            params.append(_as_date_str(start))
+        if end is not None:
+            where += " AND date<=?"
+            params.append(_as_date_str(end))
+        with self._conn:
+            cur = self._conn.execute(
+                f"INSERT INTO bars_archive "
+                f"(snapshot, ticker, date, close_adj, close_raw, volume, source, fetched_at, archived_at, reason) "
+                f"SELECT ?, ticker, date, close_adj, close_raw, volume, source, fetched_at, ?, ? "
+                f"FROM bars WHERE {where}",
+                [snapshot, now, str(reason), *params],
+            )
+        return snapshot if cur.rowcount else None
+
+    def restore_ticker(self, snapshot: str) -> int:
+        """Put an archived snapshot's bars back. The rollback half of phase 5.4."""
+        rows = self._conn.execute(
+            "SELECT ticker, date, close_adj, close_raw, volume, source, fetched_at "
+            "FROM bars_archive WHERE snapshot=?", (str(snapshot),)
+        ).fetchall()
+        if not rows:
+            return 0
+        with self._conn:
+            self._conn.executemany(
+                "INSERT OR REPLACE INTO bars "
+                "(ticker, date, close_adj, close_raw, volume, source, fetched_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+        self._refresh_meta(sorted({r[0] for r in rows}))
+        return len(rows)
+
+    def archives(self, ticker: str | None = None) -> list[dict]:
+        """What can be rolled back, newest first."""
+        if ticker is None:
+            cur = self._conn.execute(
+                "SELECT snapshot, ticker, COUNT(*), MIN(date), MAX(date), MIN(archived_at), MIN(reason) "
+                "FROM bars_archive GROUP BY snapshot, ticker ORDER BY snapshot DESC")
+        else:
+            cur = self._conn.execute(
+                "SELECT snapshot, ticker, COUNT(*), MIN(date), MAX(date), MIN(archived_at), MIN(reason) "
+                "FROM bars_archive WHERE ticker=? GROUP BY snapshot, ticker ORDER BY snapshot DESC",
+                (str(ticker),))
+        return [{"snapshot": r[0], "ticker": r[1], "n_bars": int(r[2]), "first": r[3],
+                 "last": r[4], "archived_at": r[5], "reason": r[6]} for r in cur.fetchall()]
+
+    def _refresh_meta(self, tickers: list[str]) -> None:
+        if not tickers:
+            return
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        placeholders = ",".join("?" * len(tickers))
+        with self._conn:
+            self._conn.execute(f"DELETE FROM meta WHERE ticker IN ({placeholders})", list(tickers))
+            self._conn.execute(
+                f"""
+                INSERT INTO meta (ticker, first, last, updated_at)
+                SELECT ticker, MIN(date), MAX(date), ? FROM bars
+                WHERE ticker IN ({placeholders})
+                GROUP BY ticker
+                """,
+                [now, *tickers],
+            )
+
+    def quality(self, tickers: list[str], *, calendar=None) -> pd.DataFrame:
+        """Per-ticker data-quality metrics (audit phase 5.6).
+
+        first, last, n_bars, gaps (missing sessions inside the stored span),
+        duplicates, non-positive closes, provider and the last capture time. `calendar`
+        is a DatetimeIndex of expected sessions; without one the gap count is measured
+        against business days, which over-counts market holidays and is reported as
+        such by `gap_basis`.
+        """
+        tickers = [str(t) for t in tickers]
+        if not tickers:
+            return pd.DataFrame(columns=[
+                "ticker", "first", "last", "n_bars", "gaps", "duplicates",
+                "non_positive", "sources", "last_fetched_at", "gap_basis"])
+        placeholders = ",".join("?" * len(tickers))
+        agg = {
+            r[0]: r[1:]
+            for r in self._conn.execute(
+                f"SELECT ticker, MIN(date), MAX(date), COUNT(*), COUNT(DISTINCT date), "
+                f"MAX(fetched_at), SUM(CASE WHEN close_adj IS NOT NULL AND close_adj <= 0 THEN 1 ELSE 0 END) "
+                f"FROM bars WHERE ticker IN ({placeholders}) GROUP BY ticker", tickers)
+        }
+        srcs: dict[str, list[str]] = {}
+        for tk, src in self._conn.execute(
+            f"SELECT DISTINCT ticker, source FROM bars WHERE ticker IN ({placeholders})", tickers
+        ):
+            srcs.setdefault(str(tk), []).append("" if src is None else str(src))
+        rows = []
+        for t in tickers:
+            first, last, n_rows, n_dates, fetched, non_pos = agg.get(t, (None, None, 0, 0, None, 0))
+            gaps = None
+            basis = "none"
+            if first and last and n_dates:
+                if calendar is not None:
+                    idx = pd.DatetimeIndex(calendar).normalize()
+                    expected = int(((idx >= pd.Timestamp(first)) & (idx <= pd.Timestamp(last))).sum())
+                    basis = "calendar"
+                else:
+                    expected = len(pd.bdate_range(first, last))
+                    basis = "bdays"
+                gaps = max(0, expected - int(n_dates))
+            rows.append({
+                "ticker": t,
+                "first": first,
+                "last": last,
+                "n_bars": int(n_dates or 0),
+                "gaps": gaps,
+                "duplicates": int((n_rows or 0) - (n_dates or 0)),
+                "non_positive": int(non_pos or 0),
+                "sources": ",".join(sorted({s for s in srcs.get(t, []) if s})) or None,
+                "last_fetched_at": fetched,
+                "gap_basis": basis,
+            })
+        return pd.DataFrame(rows)
 
     # ------------------------------------------------------------- actions (TASK-385)
     def _upsert_actions(self, long_frame: pd.DataFrame) -> int:
@@ -327,6 +551,11 @@ class BarStore:
         last_run = self.last_run()
         n_actions = self._conn.execute("SELECT COUNT(*) FROM actions").fetchone()[0]
         n_cov = self._conn.execute("SELECT COUNT(*) FROM actions_cov").fetchone()[0]
+        n_arch = self._conn.execute("SELECT COUNT(DISTINCT snapshot) FROM bars_archive").fetchone()[0]
+        n_dupe = self._conn.execute(
+            "SELECT COUNT(*) - COUNT(DISTINCT ticker || '|' || date) FROM bars").fetchone()[0]
+        n_nonpos = self._conn.execute(
+            "SELECT COUNT(*) FROM bars WHERE close_adj IS NOT NULL AND close_adj <= 0").fetchone()[0]
         return {
             "path": str(self.path),
             "tickers": int(n_tickers or 0),
@@ -338,6 +567,9 @@ class BarStore:
             "size_bytes": int(size),
             "readjusted_last_run": None if last_run is None else last_run["readjusted"],
             "last_run": last_run,
+            "archived_snapshots": int(n_arch or 0),
+            "duplicate_rows": int(n_dupe or 0),
+            "non_positive_closes": int(n_nonpos or 0),
         }
 
     def vacuum(self) -> None:
@@ -367,6 +599,13 @@ class BarStore:
         wide.index = pd.DatetimeIndex(wide.index).tz_localize(None)
         ordered = [t for t in tickers if t in wide.columns]
         return wide.reindex(columns=ordered).sort_index()
+
+
+def _ticker_col(long_frame: pd.DataFrame) -> str:
+    for c in long_frame.columns:
+        if str(c).lower() == "ticker":
+            return c
+    raise ValueError("long_frame needs a ticker column")
 
 
 def _has_actions(long_frame: pd.DataFrame) -> bool:
@@ -441,3 +680,7 @@ def coverage(tickers, asof, *, store: BarStore | None = None) -> pd.DataFrame:
 
 def last_dates(tickers=None, *, store: BarStore | None = None) -> dict[str, pd.Timestamp]:
     return (store or BarStore()).last_dates(tickers)
+
+
+def quality(tickers, *, calendar=None, store: BarStore | None = None) -> pd.DataFrame:
+    return (store or BarStore()).quality(tickers, calendar=calendar)

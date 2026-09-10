@@ -1,5 +1,10 @@
 # TASK-332 — paired block bootstrap T20−PROD and F1−PROD
 
+> **SUPERSEDED (2026-09-10)** by ASTRA-07 / TASK-410 (`experiments/bootstrap_compare.py`, merged in #55):
+> the paired block bootstrap here did not estimate the difference, and `d_ratio` was reported as a
+> Sharpe. Kept as the record of what was measured on 2026-09-06; do not quote its numbers.
+
+
 **From:** Grok
 **Date:** 2026-09-06
 Full sample, already-reported series. Not a new variant. Moving block = 13 weeks, 5000 draws.

@@ -5,6 +5,11 @@
     python confirm_fills.py --interactive
 
 CSV columns: exec_date, sleeve, tranche, ticker, side, units, price, fee
+
+This is also the only way out of the ASTRA-03 HARD gate: an order the settle could not book (no
+price printed on the execution day) is kept in `state["unfilled"]` and preflight stays HARD until a
+confirmation answers it. Confirm the real fill, or confirm `units=0` to record that the broker never
+filled it — either way the obligation clears and the report says which ones it resolved.
 """
 from __future__ import annotations
 
@@ -19,7 +24,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.fills import apply_confirmations, report_lines  # noqa: E402
+from core.fills import apply_confirmations, cancel_events, report_lines  # noqa: E402
+from core.ledger import check_invariants, format_violations  # noqa: E402
 from portfolio_v9 import DEFAULT_STATE_DIR, STATE_NAME, load_state, save_state  # noqa: E402
 
 
@@ -54,6 +60,8 @@ def main(argv=None) -> int:
     p.add_argument("--interactive", action="store_true")
     p.add_argument("--report", action="store_true", help="print diffs, do not write")
     p.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR))
+    p.add_argument("--cancel", action="append", default=None, metavar="EVENT_ID",
+                   help="reverse and retire a booked event by event_id (repeatable)")
     args = p.parse_args(argv)
 
     path = Path(args.state_dir) / STATE_NAME
@@ -61,12 +69,31 @@ def main(argv=None) -> int:
     if not state:
         print(f"[confirm] no state at {path}")
         return 1
+    if args.cancel:
+        out = cancel_events(state, list(args.cancel))
+        for eid in out["cancelled"]:
+            print(f"[confirm] cancelled {eid}")
+        for eid in out["already_inert"]:
+            print(f"[confirm] {eid} was already inert — no-op")
+        if out["missing"]:
+            print(f"[confirm] ERROR unknown event_id(s): {', '.join(out['missing'])}")
+            return 1
+        violations = check_invariants(state)
+        if violations:
+            print(format_violations(violations))
+            print("[confirm] ABORT — cancellation broke an invariant; state not written")
+            return 1
+        if args.report:
+            return 0
+        backup = save_state(path, state)
+        print(f"[confirm] wrote {path}" + (f" (backup {backup})" if backup else ""))
+        return 0
     if args.from_csv:
         rows = read_csv(Path(args.from_csv))
     elif args.interactive:
         rows = interactive()
     else:
-        print("need --from-csv or --interactive")
+        print("need --from-csv, --interactive or --cancel")
         return 1
     result = apply_confirmations(state, rows)
     for line in report_lines(result):
@@ -74,6 +101,16 @@ def main(argv=None) -> int:
     if result["warnings"]:
         for w in result["warnings"]:
             print(f"[WARN] {w}")
+    # A rejected row is a data error, not a partial success: report it and exit non-zero
+    # so an unattended run cannot swallow it (audit rule 11).
+    if result["rejected"]:
+        print(f"[confirm] ERROR {len(result['rejected'])} row(s) rejected; state not written")
+        return 1
+    violations = check_invariants(result["state"])
+    if violations:
+        print(format_violations(violations))
+        print("[confirm] ABORT — invariants broken after applying fills; state not written")
+        return 1
     if args.report:
         return 0
     backup = save_state(path, result["state"])

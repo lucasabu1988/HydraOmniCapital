@@ -100,14 +100,111 @@ def test_coverage_and_last_dates(tmp_path):
     store.close()
 
 
-def test_replace_ticker_drops_old_rows(tmp_path):
+def test_replace_ticker_refuses_to_shrink_history(tmp_path):
+    """Audit phase 5.3/5.4. This test used to assert the *bug* (repro R-501): a
+    15-bar frame replaced a 40-bar history and the store silently kept 15. On the
+    real store a 12-bar Yahoo batch cut 2800 bars down to 12.
+    """
     store = BarStore(tmp_path / "bars.sqlite")
     store.upsert(_long())
     slim = _long(["AAA"]).iloc[-15:]
-    store.replace_ticker("AAA", slim)
+    written = store.replace_ticker("AAA", slim)
+    assert written == 0, "a frame that does not cover the stored span is refused"
     px = store.closes(["AAA"], IDX[0], IDX[-1])
-    assert len(px) == 15
+    assert len(px) == 40, "the full history is kept"
     assert store.last_dates(["AAA"])["AAA"] == pd.Timestamp(IDX[-1]).normalize()
+    store.close()
+
+
+def test_replace_ticker_shrinks_only_when_asked_and_keeps_a_rollback(tmp_path):
+    store = BarStore(tmp_path / "bars.sqlite")
+    store.upsert(_long())
+    slim = _long(["AAA"]).iloc[-15:]
+    written = store.replace_ticker("AAA", slim, allow_shrink=True, reason="deliberate reset")
+    assert written == 15
+    assert len(store.closes(["AAA"], IDX[0], IDX[-1])) == 15
+
+    snaps = store.archives("AAA")
+    assert len(snaps) == 1 and snaps[0]["n_bars"] == 40
+    assert "deliberate reset" in snaps[0]["reason"]
+    store.restore_ticker(snaps[0]["snapshot"])
+    assert len(store.closes(["AAA"], IDX[0], IDX[-1])) == 40
+    store.close()
+
+
+def test_merge_ticker_extends_without_deleting(tmp_path):
+    """Phase 5.3: the backfill path never destroys a bar."""
+    store = BarStore(tmp_path / "bars.sqlite")
+    store.upsert(_long(["AAA"]))
+    before = len(store.closes(["AAA"], IDX[0], IDX[-1]))
+    later = pd.bdate_range(IDX[-1] + pd.Timedelta(days=1), periods=5)
+    extra = pd.DataFrame({"ticker": ["AAA"] * 5, "date": list(later),
+                          "close_adj": [99.0] * 5, "close_raw": [99.0] * 5,
+                          "volume": [1e6] * 5, "source": ["test"] * 5})
+    store.merge_ticker("AAA", extra)
+    after = store.closes(["AAA"], IDX[0], later[-1])
+    assert len(after) == before + 5
+    assert store.archives("AAA") == [], "a merge archives nothing because it deletes nothing"
+    store.close()
+
+
+def test_replace_range_keeps_history_outside_the_window(tmp_path):
+    """Phase 5.5: correcting a stretch must not cost the rest of the series."""
+    store = BarStore(tmp_path / "bars.sqlite")
+    store.upsert(_long(["AAA"]))
+    start, end = IDX[10], IDX[14]
+    fixed = pd.DataFrame({"ticker": ["AAA"] * 5, "date": list(IDX[10:15]),
+                          "close_adj": [1.0, 2.0, 3.0, 4.0, 5.0],
+                          "close_raw": [1.0, 2.0, 3.0, 4.0, 5.0],
+                          "volume": [1e6] * 5, "source": ["fix"] * 5})
+    n = store.replace_range("AAA", fixed, start, end)
+    assert n == 5
+    px = store.closes(["AAA"], IDX[0], IDX[-1])
+    assert len(px) == 40, "nothing outside the window was touched"
+    assert list(px["AAA"].iloc[10:15]) == [1.0, 2.0, 3.0, 4.0, 5.0]
+    assert store.archives("AAA")[0]["n_bars"] == 5
+    store.close()
+
+
+def test_replace_range_rolls_back_when_nothing_usable_arrives(tmp_path):
+    store = BarStore(tmp_path / "bars.sqlite")
+    store.upsert(_long(["AAA"]))
+    original = list(store.closes(["AAA"], IDX[0], IDX[-1])["AAA"])
+    empty = pd.DataFrame(columns=["ticker", "date", "close_adj", "close_raw", "volume", "source"])
+    assert store.replace_range("AAA", empty, IDX[10], IDX[14]) == 0
+    restored = list(store.closes(["AAA"], IDX[0], IDX[-1])["AAA"])
+    assert restored == original
+    store.close()
+
+
+def test_quality_reports_gaps_duplicates_and_provenance(tmp_path):
+    """Phase 5.6: the metrics that were missing entirely."""
+    store = BarStore(tmp_path / "bars.sqlite")
+    frame = _long(["AAA"])
+    holed = pd.concat([frame.iloc[:10], frame.iloc[15:]], ignore_index=True)
+    store.upsert(holed)
+    q = store.quality(["AAA"], calendar=IDX).set_index("ticker").loc["AAA"]
+    assert q["n_bars"] == 35
+    assert q["gaps"] == 5
+    assert q["duplicates"] == 0
+    assert q["non_positive"] == 0
+    assert q["sources"] == "fake"
+    assert q["last_fetched_at"]
+    assert q["gap_basis"] == "calendar"
+
+    stats = store.stats()
+    for key in ("duplicate_rows", "non_positive_closes", "archived_snapshots"):
+        assert key in stats
+    store.close()
+
+
+def test_quality_flags_a_non_positive_close(tmp_path):
+    store = BarStore(tmp_path / "bars.sqlite")
+    frame = _long(["AAA"]).copy()
+    frame.loc[frame.index[5], "close_adj"] = -1.0
+    store.upsert(frame)
+    q = store.quality(["AAA"]).set_index("ticker").loc["AAA"]
+    assert q["non_positive"] == 1
     store.close()
 
 

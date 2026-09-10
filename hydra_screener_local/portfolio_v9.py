@@ -35,6 +35,14 @@ from config import (  # noqa: E402
     V9,
 )
 from core import portfolio_engine as E  # noqa: E402
+from core.commit import (  # noqa: E402
+    INSTRUCTIONS_WRITTEN,
+    RunTransaction,
+    new_run_id,
+    recover,
+    unique_path,
+)
+from core.ledger import check_invariants, format_violations  # noqa: E402
 from core.filters import (  # noqa: E402
     apply_data_quality_filter,
     apply_practical_filters,
@@ -43,10 +51,17 @@ from core.filters import (  # noqa: E402
 from core.signals import generate_daily_candidates  # noqa: E402
 from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
-from core.dividends import apply_dividends, summarize_dividends, tickers_from_state  # noqa: E402
+from core.dividends import (  # noqa: E402
+    apply_dividends,
+    coverage_is_complete,
+    pending_gaps,
+    summarize_dividends,
+    tickers_from_state,
+)
 from dashboard_v9 import summarize_interest  # noqa: E402
 from data.dividends import fetch_dividends  # noqa: E402
 from data.universe import get_universe  # noqa: E402
+from data.universe_registry import universe_report  # noqa: E402
 import preflight as PF  # noqa: E402
 
 STATE_NAME = "portfolio_v9.json"
@@ -104,26 +119,48 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> 
 
 
 def save_state(path: Path, state: dict) -> Path | None:
-    """Backup the previous file (if any), then write. Returns the backup path."""
+    """Backup the previous file (if any), then write. Returns the backup path.
+
+    Backup names carry microseconds and a uuid tail and are never reused: with
+    second resolution, three saves inside one second left a single backup file and
+    the first two versions were gone (repro R-302).
+
+    This is the single-file writer, used by confirm_fills.py and by tools that touch
+    only the state. The daily run goes through `core.commit.RunTransaction`, which
+    also stages the instruction sheet — see `run()`.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     backup_path = None
     if path.exists():
         bdir = path.parent / "backup"
         bdir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = bdir / f"{ts}.json"
+        backup_path = unique_path(bdir / f"{new_run_id()}.json")
         shutil.copy2(path, backup_path)
     tmp = path.with_suffix(".json.tmp")
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(_json_ready(state), f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
     tmp.replace(path)
     return backup_path
+
+
+def resolve_universe(universe: str | None = None) -> tuple[str, str]:
+    """(requested, effective) universe key.
+
+    Audit phase 9.1/9.2: `--universe` reaches every stage explicitly and the effective
+    value is recorded, instead of each stage re-deriving it from the environment and
+    nobody knowing which one actually ran.
+    """
+    requested = universe if universe is not None else None
+    effective = universe or os.environ.get("UNIVERSE") or UNIVERSE
+    return (str(requested) if requested is not None else "(unset)"), str(effective)
 
 
 def fetch_v9_market(universe: str = None) -> dict:
     """Prices for the engine. Stocks/ETFs use V9['price_period']; T-bill stays percent until /100."""
     period = V9["price_period"]
-    uni = universe or os.environ.get("UNIVERSE") or UNIVERSE
+    requested, uni = resolve_universe(universe)
     tickers = get_universe(universe=uni)
     stock_report, etf_report, irx_report = {}, {}, {}
     prices, volumes = fetch_prices_and_volume(tickers, period=period, report=stock_report)
@@ -131,10 +168,15 @@ def fetch_v9_market(universe: str = None) -> dict:
     etf = fetch_etf_closes(list(V9["etf_universe"]), period=period, report=etf_report)
     irx = fetch_tbill(period=period, report=irx_report)
     return dict(prices=prices, volumes=volumes, spy=spy, etf=etf, irx=irx,
-                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report)
+                stock_report=stock_report, etf_report=etf_report, irx_report=irx_report,
+                universe_requested=requested, universe_effective=uni,
+                universe_tickers=list(tickers))
 
 
-def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -> pd.DataFrame:
+def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame,
+                  universe: str | None = None) -> pd.DataFrame:
+    """Rank the fetched names. `universe` is accepted so the stage can record which
+    universe it was handed rather than re-deriving one (audit phase 9.2)."""
     prices, _ = apply_practical_filters(
         prices, volumes=volumes,
         min_avg_volume=FILTERS.get("min_avg_volume", 1_000_000),
@@ -152,6 +194,19 @@ def build_ranking(prices: pd.DataFrame, spy: pd.Series, volumes: pd.DataFrame) -
         prices, spy, volumes=volumes, sector_map=sector_map,
         momentum_window=V9["stock_momentum_window"],
     )
+
+
+def _rank(rank_fn, prices, spy, volumes, universe_effective):
+    """Call the ranking stage, passing the universe when the callee accepts it.
+
+    Injected test doubles take three positional arguments; the real `build_ranking`
+    takes the universe too (phase 9.2).
+    """
+    fn = rank_fn or build_ranking
+    try:
+        return fn(prices, spy, volumes, universe_effective)
+    except TypeError:
+        return fn(prices, spy, volumes)
 
 
 def _last_date(frame) -> str:
@@ -173,14 +228,200 @@ def next_session_date(index, today: str) -> str:
     return next_nyse_session(today)
 
 
-def _row(frame, date: str) -> pd.Series:
-    idx = pd.DatetimeIndex(frame.index).normalize()
-    target = pd.Timestamp(date).normalize()
-    hits = frame.index[idx == target]
-    if len(hits):
-        return frame.loc[hits[-1]]
-    return frame.iloc[-1]
+def _dividend_table(state, extra=None, *, dividend_fn=None, fetch_fn=None,
+                    report: dict | None = None) -> list:
+    """{ticker, ex_date, dps} rows for everything today's run can be affected by. One fetch.
 
+    Used twice: to strip a post-execution ex-date back out of the total-return execution prices
+    (ASTRA-03) and to credit the cash (TASK-349). `extra` carries the pending tickers, which are
+    not holdings yet but are entitled to any ex-date strictly after the execution bar.
+    `fetch_fn` set means injected market data (tests) — never a network call. A first run has no
+    last_run_date and no pending, so it asks for nothing.
+    `report`, when given, receives the provider report (`requested` / `downloaded` /
+    `failed_tickers` / `skipped_fresh`) so `apply_dividends` can mark the credit verified.
+    """
+    if state is None or not (state.get("last_run_date") or state.get("pending")):
+        return []
+    names = tickers_from_state(state, extra=[str(t) for t in (extra or []) if t])
+    if dividend_fn is not None:
+        table = dividend_fn(names)
+        if report is not None:      # an injected table is complete by construction
+            report.update({"requested": len(names), "downloaded": len(names),
+                           "failed_tickers": [], "skipped_fresh": []})
+        return table
+    if fetch_fn is not None:
+        return []                   # injected market data: no provider, report stays empty
+    return fetch_dividends(names, report=report)
+
+
+def _dividend_rows(table) -> dict[str, dict]:
+    """{ticker: {ex_date: dps}} from a {ticker, ex_date, dps} table (rows or DataFrame)."""
+    if table is None:
+        return {}
+    if hasattr(table, "to_dict") and hasattr(table, "columns"):
+        rows = [dict(r) for r in table.to_dict(orient="records")]
+    else:
+        rows = list(table)
+    by_ticker: dict[str, dict] = {}
+    for r in rows:
+        ticker = str(r.get("ticker") or "")
+        ex = str(r.get("ex_date") or "")[:10]
+        try:
+            dps = float(r.get("dps") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        if not ticker or not ex or dps <= 0:
+            continue
+        slot = by_ticker.setdefault(ticker, {})
+        slot[ex] = slot.get(ex, 0.0) + dps
+    return by_ticker
+
+
+def _row(frame, date: str, dividends=None) -> pd.Series:
+    """Execution prices for `date`: the closes that PRINTED on that bar, or NaN.
+
+    Three ways this used to manufacture a price nobody could have traded (external audit
+    ASTRA-03, all three reproduced against main):
+
+      * a date with no bar fell back to ``frame.iloc[-1]`` — the LAST row of the frame, which on
+        a late settlement is a FUTURE close (a frame holding 09-11 and 09-15, asked for 09-14,
+        returned the 09-15 close);
+      * ETF holes are forward-filled by `data.fetch` so a 252-bar signal window survives a
+        one-bar gap, which turned a session the ticker never traded into a fill at a stale close;
+      * ``auto_adjust=True`` closes are total return, so a dividend that goes ex AFTER the
+        execution day lowers the price the fill is booked at while the same dividend is also
+        credited in cash (TASK-349) — 1000 USD at a real close of 100 booked 1010.10.
+
+    `engine.settle` already writes ``status="not_filled", reason="no price on execution day"``
+    for a NaN price, so refusing here is the whole fix: no fill beats a fill at a price that
+    never printed. `dividends` is the {ticker, ex_date, dps} table for the run (or None, in
+    which case a total-return close is used as-is — the pre-ASTRA-03 behaviour).
+    """
+    from data.fetch import observed_mask
+    cols = pd.Index(list(getattr(frame, "columns", [])))
+    target = pd.Timestamp(date).normalize()
+    if frame is None or len(frame) == 0:
+        return pd.Series(float("nan"), index=cols, dtype=float, name=target)
+    idx = pd.DatetimeIndex(frame.index).normalize()
+    hits = frame.index[idx == target]
+    if not len(hits):
+        # No bar for this date. There is no price; do NOT borrow another bar's.
+        return pd.Series(float("nan"), index=cols, dtype=float, name=target)
+    label = hits[-1]
+    row = pd.to_numeric(frame.loc[label], errors="coerce").astype(float)
+
+    mask = observed_mask(frame)
+    if mask is not None:
+        flags = mask.reindex(columns=row.index)
+        m_idx = pd.DatetimeIndex(flags.index).normalize()
+        m_hits = flags.index[m_idx == target]
+        printed = (flags.loc[m_hits[-1]] if len(m_hits)
+                   else pd.Series(False, index=row.index))
+        row = row.where(printed.reindex(row.index).fillna(False).astype(bool), other=float("nan"))
+
+    by_ticker = _dividend_rows(dividends)
+    if by_ticker and frame.columns.is_unique:
+        from data.adjust import deadjust_factor
+        for ticker, events in by_ticker.items():
+            if ticker not in row.index:
+                continue
+            price = row[ticker]
+            if pd.isna(price) or price <= 0:
+                continue
+            factor = deadjust_factor(frame[ticker], target, events)
+            if factor > 0 and factor != 1.0:
+                row[ticker] = price / factor
+    return row.rename(label)
+
+
+def last_observed(frame) -> tuple[pd.Series, dict]:
+    """Each column's most recent PRINTED close, and the date it printed on.
+
+    Returns (prices, {ticker: date}). A column with no print anywhere in the frame is NaN and
+    absent from the dict, which is what makes `value_with_stale` fall back to `last_px`.
+
+    The point of the mask is that a forward-filled value is not a print. `data.fetch` fills ETF
+    holes so a 252-bar signal window survives a one-bar gap, and after the fill a filled cell is
+    indistinguishable from an observation — so this walks the OBSERVED frame, not the filled one.
+    Without the mask (an unprovenanced frame, e.g. a test fixture built by hand) `notna()` is the
+    best available answer and is used instead.
+    """
+    from data.fetch import observed_mask
+
+    cols = pd.Index(list(getattr(frame, "columns", [])))
+    if frame is None or len(frame) == 0:
+        return pd.Series(float("nan"), index=cols, dtype=float), {}
+    numeric = frame.apply(pd.to_numeric, errors="coerce")
+    mask = observed_mask(frame)
+    printed = numeric.notna() if mask is None else (
+        numeric.notna() & mask.reindex(index=numeric.index, columns=numeric.columns).fillna(False).astype(bool))
+    observed = numeric.where(printed)
+    values = observed.ffill().iloc[-1]
+    idx = pd.DatetimeIndex(observed.index).normalize()
+    asof = {}
+    for col in observed.columns:
+        hits = printed[col].to_numpy().nonzero()[0]
+        if len(hits):
+            asof[str(col)] = str(idx[hits[-1]].date())
+    return values, asof
+
+
+def _carried_forward(summary: dict, priced_asof: dict, as_of: str | None) -> list:
+    """Held names whose price is real but older than the valuation bar: (ticker, its date)."""
+    out = []
+    for sleeve in ("stocks", "etf"):
+        for tk in ((summary.get("sleeves") or {}).get(sleeve) or {}).get("names") or []:
+            d = priced_asof.get(str(tk))
+            if d and as_of and d != as_of:
+                out.append((str(tk), d))
+    return sorted(set(out))
+
+def _carried_stale(summary: dict, mark_stocks, mark_etf) -> list:
+    """Held names with no print on the valuation bar, so the sheet says which ones are carried."""
+    out = set()
+    for sleeve, px in (("stocks", mark_stocks), ("etf", mark_etf)):
+        names = ((summary.get("sleeves") or {}).get(sleeve) or {}).get("names") or []
+        for tk in names:
+            try:
+                v = float(px.get(tk, float("nan")))
+            except (TypeError, ValueError):
+                v = float("nan")
+            if v != v:  # NaN: no print on that bar
+                out.add(tk)
+    return sorted(out)
+
+UNFILLED_KEYS = ("exec_date", "sleeve", "tranche", "ticker", "side", "dollars", "reason")
+
+
+def _record_unfilled(state: dict, fills: list, seen_on: str) -> list:
+    """Carry a `not_filled` order forward as an unresolved obligation.
+
+    `engine.settle` consumes the pending order either way, so before this the book kept the cash,
+    opened no position, and nothing said so — while the broker may well have filled at a close we
+    had no print for. The book cannot decide that; only `confirm_fills.py` can. So the order becomes
+    an explicit obligation and preflight goes HARD until it is resolved (Lucas 2026-09-07: cash and
+    positions that may disagree with the broker are exactly the HARD category).
+
+    It is deliberately NOT re-issued: re-planning it while the broker did fill buys the name twice.
+
+    Idempotent on (exec_date, sleeve, tranche, ticker).
+    """
+    newly = [f for f in (fills or []) if f.get("status") == "not_filled"]
+    if not newly:
+        return []
+    book = state.setdefault("unfilled", [])
+    seen = {(u.get("exec_date"), u.get("sleeve"), u.get("tranche"), u.get("ticker")) for u in book}
+    added = []
+    for f in newly:
+        key = (f.get("exec_date"), f.get("sleeve"), f.get("tranche"), f.get("ticker"))
+        if key in seen:
+            continue
+        rec = {k: f.get(k) for k in UNFILLED_KEYS}
+        rec["seen"] = seen_on
+        book.append(rec)
+        seen.add(key)
+        added.append(rec)
+    return added
 
 def whole_share_display(order: dict) -> dict | None:
     """Display-only: floor(dollars / est_price). Engine orders stay fractional."""
@@ -199,8 +440,14 @@ def whole_share_display(order: dict) -> dict | None:
     return {"shares": shares, "at_est": round(at, 4), "leftover": round(dollars - at, 4)}
 
 
-def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
-                       state: dict, exec_date: str, sector_warning: str | None = None) -> tuple[Path, Path]:
+def render_instructions(date: str, orders: list, fills: list, summary: dict,
+                        state: dict, exec_date: str, sector_warning: str | None = None) -> dict:
+    """Build the instruction sheet in memory. Pure: writes nothing.
+
+    Split out of `write_instructions` so the daily run can stage and validate the
+    sheet *before* the state is committed (audit phase 3.2). Rendering it only after
+    the state had been saved is repro R-301.
+    """
     payload = {
         "date": date,
         "algo_version": "v9",
@@ -219,8 +466,8 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         "dividends": _json_ready(summarize_dividends(state)),
         "whole_shares": "display-only; orders and presumed fills stay in dollars/fractional",
     }
-    md_path = state_dir / f"instructions_{date.replace('-', '')}.md"
-    json_path = state_dir / f"instructions_{date.replace('-', '')}.json"
+    md_name = f"instructions_{date.replace('-', '')}.md"
+    json_name = f"instructions_{date.replace('-', '')}.json"
     lines = [
         f"# HYDRA v9 instructions — {date}",
         "",
@@ -287,10 +534,20 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
             lines += ["", "Cash left over by rounding (buys, display-only; engine still books dollars):", ""]
             for (sleeve, k), amt in leftover_by.items():
                 lines.append(f"- {sleeve} tranche {k}: **{amt:.2f}** USD stays unspent if you buy whole shares")
-    lines += ["", "## Valuation (last close)", ""]
+    as_of = (summary or {}).get("as_of")
+    lines += ["", f"## Valuation (each name at its last real print, bar {as_of})" if as_of
+              else "## Valuation (last close)", ""]
     if summary:
         tot = summary.get("total") or 0.0
         lines.append(f"Book: **{tot:,.2f}**")
+        older = summary.get("carried_forward") or []
+        if older:
+            shown = ", ".join(f"{tk} ({d})" for tk, d in older)
+            lines.append(f"Priced at an earlier print than {as_of}: **{shown}**")
+        stale = summary.get("carried_stale") or []
+        if stale:
+            lines.append(f"No print anywhere in the window, carried at the price the tranche "
+                         f"bought at: **{', '.join(stale)}** (SPEC 9.4)")
         for name, sl in (summary.get("sleeves") or {}).items():
             lines.append(
                 f"- {name}: {sl.get('value', 0):,.2f} ({100 * sl.get('share', 0):.1f}%)  "
@@ -302,19 +559,58 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
         for f in fills:
             lines.append(f"- {f.get('status')} {f.get('side')} {f.get('ticker')} "
                          f"{f.get('sleeve')} ${f.get('dollars', 0):.2f}")
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {
+        "md_name": md_name,
+        "json_name": json_name,
+        "md_text": "\n".join(lines) + "\n",
+        "json_text": json.dumps(payload, indent=2, ensure_ascii=False),
+        "payload": payload,
+    }
+
+
+def write_instructions(state_dir: Path, date: str, orders: list, fills: list, summary: dict,
+                       state: dict, exec_date: str, sector_warning: str | None = None) -> tuple[Path, Path]:
+    """Render and write the sheet directly. Kept for callers outside the daily run."""
+    sheet = render_instructions(date, orders, fills, summary, state, exec_date,
+                                sector_warning=sector_warning)
+    md_path = Path(state_dir) / sheet["md_name"]
+    json_path = Path(state_dir) / sheet["json_name"]
+    md_path.write_text(sheet["md_text"], encoding="utf-8")
+    json_path.write_text(sheet["json_text"], encoding="utf-8")
     return md_path, json_path
 
 
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False, dividend_fn=None) -> dict:
-    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network."""
+        force: bool = False, dividend_fn=None, run_id: str | None = None,
+        allow_intraday: bool = False) -> dict:
+    """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
+
+    `allow_intraday` downgrades the one preflight check that refuses to settle at a bar for a
+    session that has not closed yet (ASTRA-03); `--force` still bypasses every check.
+    """
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
+
+    # Finish or discard anything an earlier interrupted run left staged, before the
+    # state is read (audit phase 3.4). Idempotent: a clean tree is a no-op.
+    healed = recover(state_dir)
+    if healed["recovered"] and not silent:
+        print(f"[v9] recovered interrupted run(s): {', '.join(healed['recovered'])}")
+    if healed["failed"]:
+        detail = "; ".join(f"{f['run_id']}: {f['error']}" for f in healed["failed"])
+        raise SystemExit(f"unrecoverable staged run(s), fix by hand before planning: {detail}")
+
+    run_id = run_id or new_run_id()
     state = load_state(state_path)
+    if state is not None:
+        # a state that already breaks an invariant must not be planned on
+        violations = check_invariants(state)
+        if violations:
+            raise SystemExit(
+                "state on disk breaks a ledger invariant; refusing to plan:\n"
+                + format_violations(violations))
 
     data = (fetch_fn or fetch_v9_market)(universe)
     prices, volumes, spy, etf, irx = data["prices"], data["volumes"], data["spy"], data["etf"], data["irx"]
@@ -342,9 +638,24 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         if not silent:
             print(f"[v9] new state capital={cap:.2f} anchor={state['anchor_date']}")
 
+    # phase 9.2: the effective universe, recorded once and carried, not re-derived
+    universe_requested = data.get("universe_requested")
+    universe_effective = data.get("universe_effective")
+    if universe_effective is None:
+        universe_requested, universe_effective = resolve_universe(universe)
+    universe_tickers = data.get("universe_tickers")
+    uni_report = None
+    if universe_tickers is not None:
+        uni_report = universe_report(universe_effective, universe_tickers, date=None,
+                                     requested=len(universe_tickers))
+    if not silent:
+        print(f"[v9] universe requested={universe_requested} effective={universe_effective}"
+              + (f" ({uni_report['n']} names, {uni_report['kind']}"
+                 + (", PROXY" if uni_report["is_proxy"] else "") + ")" if uni_report else ""))
+
     ranking = None
     if not state.get("pending"):
-        ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+        ranking = _rank(rank_fn, prices, spy, volumes, universe_effective)
     # Injected fetch (tests) uses the fixture's last bar as the session so the suite
     # does not depend on the wall clock. Live fetch compares to the last weekday.
     pf = PF.evaluate(
@@ -352,10 +663,39 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         asof=today if fetch_fn is not None else pd.Timestamp.now(),
         last_session=today if fetch_fn is not None else None,
         backup_dir=os.environ.get("HYDRA_BACKUP_DIR"),
+        reports={
+            "stocks": data.get("stock_report") or {},
+            "etf": data.get("etf_report") or {},
+            "^IRX": data.get("irx_report") or {},
+        },
+        # Only the live path has a real clock to compare against; an injected fetch pins the
+        # session to the fixture's last bar, so there is no intraday question to ask.
+        clock=None if fetch_fn is not None else pd.Timestamp.now(),
+        allow_intraday=allow_intraday,
     )
     if not silent:
         print(PF.format_table(pf))
     PF.raise_if_hard(pf, force=force)
+
+    # One dividend table per run, needed BEFORE settle: an ex-date between the execution bar and
+    # today is already inside the total-return closes and would move the fill price (ASTRA-03).
+    # The pending tickers go in as `extra` because they are not holdings yet.
+    # `dividend_fetch_report` stays None for injected market data (no provider = unverified).
+    dividend_fetch_report: dict | None = None if (fetch_fn is not None and dividend_fn is None) else {}
+    dividend_table = _dividend_table(
+        state, [o.get("ticker") for o in (state.get("pending") or [])],
+        dividend_fn=dividend_fn, fetch_fn=fetch_fn, report=dividend_fetch_report,
+    )
+
+    # The severity of the intraday row is WARN (Lucas 2026-09-07), so the refusal lives here: an
+    # unclosed session bar is a partial print and must not become a fill price. Stricter than the
+    # old HARD row, which also blocked runs with nothing to settle, and narrower: it only bites
+    # when the bar we would settle AT is the unclosed one.
+    session_row = PF.row_by_id(pf, "session_closed")
+    session_open = bool(session_row and session_row.get("status") == "WARN")
+    last_bar = (str(pd.Timestamp(pd.DatetimeIndex(prices.index)[-1]).date())
+                if prices is not None and len(prices) else None)
+    settle_refused = None
 
     fills = []
     if state.get("pending"):
@@ -366,29 +706,71 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             exec_date = next_session_date(prices.index, planned)
             if pd.Timestamp(exec_date) > pd.Timestamp(today):
                 exec_date = today
-            fills = engine.settle(state, exec_date, _row(prices, exec_date), _row(etf, exec_date), V9)
-            if not silent:
-                print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
+            if session_open and exec_date == last_bar and not allow_intraday:
+                # Pendings stay pending — the same state a run before t+1 leaves, which the next
+                # run settles normally once the close is in. Nothing is written.
+                settle_refused = {
+                    "exec_date": exec_date, "reason": "session_not_closed",
+                    "detail": (session_row or {}).get("detail"),
+                    "orders": len(state.get("pending") or []),
+                }
+                if not silent:
+                    print(f"[v9] REFUSING to settle {settle_refused['orders']} order(s) at "
+                          f"{exec_date}: that session has not closed, so the bar is a partial "
+                          f"print. Re-run after the close, or pass --allow-intraday to accept it "
+                          f"on the record.")
+            else:
+                if session_open and exec_date == last_bar and allow_intraday:
+                    settle_refused = {
+                        "exec_date": exec_date, "reason": "overridden",
+                        "detail": "settled at an unclosed session bar via --allow-intraday",
+                    }
+                    if not silent:
+                        print(f"[v9] --allow-intraday: settling at {exec_date} on a partial "
+                              f"print, on the operator's authority")
+                fills = engine.settle(state, exec_date,
+                                      _row(prices, exec_date, dividend_table),
+                                      _row(etf, exec_date, dividend_table), V9)
+                _record_unfilled(state, fills, today)
+                if not silent:
+                    unfilled = [f for f in fills if f.get("status") == "not_filled"]
+                    print(f"[v9] settled {len(fills)} fill(s) at {exec_date} (planned {planned}, run {today})")
+                    if unfilled:
+                        names = ", ".join(sorted({str(f.get("ticker")) for f in unfilled}))
+                        print(f"[v9] {len(unfilled)} order(s) NOT filled — no price printed on "
+                              f"{exec_date}: {names}. Recorded in state['unfilled']; preflight is "
+                              f"HARD until confirm_fills.py resolves them.")
         elif not silent:
             print(f"[v9] pending orders from {planned} still waiting for t+1 (today={today})")
 
     # Cash dividends (TASK-349): after settle, before plan. Tests with fetch_fn skip the network.
+    # The coverage watermark only advances on a *verified* fetch (audit phase 4.1):
+    # a provider outage used to lose every ex-date inside that window for good.
+    dividend_report: dict = {}
     if state.get("last_run_date"):
-        if dividend_fn is not None:
-            table = dividend_fn(tickers_from_state(state))
-        elif fetch_fn is not None:
-            table = []
-        else:
-            table = fetch_dividends(tickers_from_state(state))
-        credited = apply_dividends(state, table, today)
+        # One table, fetched once (ASTRA-03), with the provider report the credit needs to be
+        # marked verified or not (R-40x): an injected fetch has no provider, so unverified.
+        credited = apply_dividends(state, dividend_table, today, report=dividend_report,
+                                   fetch_report=dividend_fetch_report, source="yfinance")
         if credited and not silent:
             total_dv = sum(float(r.get("dollars") or 0) for r in credited)
             print(f"[v9] dividends {len(credited)} credit(s) {total_dv:.2f} USD")
+        if not silent and not dividend_report.get("verified"):
+            print(f"[v9] AVISO dividendos NO verificados; marca de agua retenida en "
+                  f"{dividend_report.get('coverage_through')} "
+                  f"({dividend_report.get('open_gaps')} hueco(s) abierto(s))")
+        for conflict in dividend_report.get("conflicts") or []:
+            if not silent:
+                print(f"[v9] AVISO dividendo en conflicto {conflict['ticker']} "
+                      f"{conflict['ex_date']}: {conflict['values']}")
+        for bad in dividend_report.get("rejected") or []:
+            if not silent:
+                print(f"[v9] AVISO fila de dividendo rechazada: {bad['reason']}")
 
     orders = []
     if not state.get("pending"):
         if ranking is None:
-            ranking = (rank_fn or build_ranking)(prices, spy, volumes)
+            ranking = _rank(rank_fn, prices, spy, volumes, universe_effective)
         state, orders = engine.plan(state, today, ranking, prices, etf, tbill_rate, V9)
         if not silent:
             print(f"[v9] plan {today}: {len(orders)} order(s)")
@@ -398,22 +780,62 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     if sector_warning and not silent:
         print(f"[v9] DEGRADED {sector_warning}")
 
-    backup = save_state(state_path, state)
-    summary = engine.summary_table(state, prices.iloc[-1], etf.iloc[-1], V9)
+    # (the state itself is written only by the RunTransaction commit below, audit phase 3)
+    # Valuation at each name's LAST OBSERVED close (TASK-402). The first pass marked at
+    # `_row(prices, last_bar)` — this bar's prints or nothing — which was right to refuse a
+    # forward-filled price and wrong about what to do instead: `value_with_stale` then fell back to
+    # `last_px`, the price the tranche BOUGHT at, so a name that printed yesterday and not today
+    # was valued at its entry instead of at yesterday's close. That moves the sheet's total further
+    # from reality, not closer. `last_observed` walks back to each ticker's most recent real print
+    # and reports how old it is; `last_px` remains the fallback only for a name with no print in
+    # the window at all (SPEC 9.4).
+    #
+    # No dividend de-adjustment here on purpose — the fills use one and this does not; that basis
+    # mismatch is a question for Lucas, not one to settle silently.
+    mark_stocks, stocks_asof = last_observed(prices)
+    mark_etf, etf_asof = last_observed(etf)
+    summary = engine.summary_table(state, mark_stocks, mark_etf, V9)
+    summary["as_of"] = last_bar
+    summary["priced_asof"] = {**stocks_asof, **etf_asof}
+    summary["carried_stale"] = _carried_stale(summary, mark_stocks, mark_etf)
+    summary["carried_forward"] = _carried_forward(summary, summary["priced_asof"], last_bar)
     exec_date = next_session_date(prices.index, today)
     # A same-day rerun must not overwrite today's sheet with "No trades": the pending orders planned
     # today ARE the instructions still to execute (integration review 340).
     sheet_orders = orders
     if not orders and state.get("pending") and state["pending"][0].get("planned") == today:
         sheet_orders = list(state["pending"])
-    md_path, json_path = write_instructions(
-        state_dir, today, sheet_orders, fills, summary, state, exec_date,
-        sector_warning=sector_warning,
-    )
+
+    # --- transactional commit (audit phase 3) -----------------------------------
+    # Nothing final is written until the state AND the sheet are both staged,
+    # validated and read back. Before this the state was saved first, so a failure
+    # writing the sheet left the book advanced with no instructions (repro R-301).
+    sheet = render_instructions(today, sheet_orders, fills, summary, state, exec_date,
+                                sector_warning=sector_warning)
+    tx = RunTransaction(state_dir, kind="v9-daily", date=today, run_id=run_id)
+    md_path = state_dir / sheet["md_name"]
+    json_path = state_dir / sheet["json_name"]
+    try:
+        tx.stage_text(sheet["md_name"], sheet["md_text"])
+        tx.stage_json(sheet["json_name"], sheet["payload"])
+        tx.mark(INSTRUCTIONS_WRITTEN, staged=[sheet["md_name"], sheet["json_name"]])
+        tx.stage_state(STATE_NAME, _json_ready(state))
+        record = tx.commit(state=state)
+    except Exception as e:
+        # the previous state is untouched; say so instead of half-succeeding
+        if tx.status not in ("failed", "failed_pending_recovery"):
+            tx.fail(f"{type(e).__name__}: {e}", recovery_required=False)
+        if not silent:
+            print(f"[v9] COMMIT ABORTED: {e}")
+            print(f"[v9] previous state kept at {state_path}; run {tx.run_id} needs no recovery")
+        raise
+    backup = (record.get("backups") or [None])[0]
+
     copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent)
     if not silent:
         if backup:
             print(f"[v9] backed up previous state -> {backup}")
+        print(f"[v9] run {tx.run_id} committed")
         print(f"[v9] state -> {state_path}")
         print(f"[v9] instructions -> {md_path}")
         ix = summarize_interest(state)
@@ -425,8 +847,15 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     return dict(
         today=today, orders=orders, fills=fills, state_path=str(state_path),
         instructions_md=str(md_path), no_trades=len(orders) == 0,
+        run_id=tx.run_id, run_status=tx.status, commit_record=record,
+        universe_requested=universe_requested, universe_effective=universe_effective,
+        universe_report=uni_report,
+        dividend_report=dividend_report,
+        dividend_gaps=pending_gaps(state),
+        dividend_coverage_complete=coverage_is_complete(state, today),
         # pieces for the journal builder (TASK-355); no journal logic here
         state=state, ranking=ranking, summary=summary, preflight=pf,
+        settle_refused=settle_refused,
         sheet_orders=sheet_orders, sector_warning=sector_warning,
         last_bars={"stocks": today, "etf": _last_date(etf), "^IRX": _last_date(irx) if irx is not None and len(irx) else None},
         prices=prices, etf=etf, irx=irx,
@@ -442,10 +871,13 @@ def main(argv=None) -> int:
     p.add_argument("--universe", type=str, default=None)
     p.add_argument("--force", action="store_true",
                    help="Plan even if preflight hard-fails (stale bars, missing ETFs, unknown schema).")
+    p.add_argument("--allow-intraday", action="store_true",
+                   help="Settle/plan on the current session's bar before the close (ASTRA-03). "
+                        "That bar is an intraday partial print, not a close: only for a rehearsal.")
     args = p.parse_args(argv)
     try:
         run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
-            force=args.force)
+            force=args.force, allow_intraday=args.allow_intraday)
     except SystemExit as e:
         print(f"[v9] {e}")
         return 1

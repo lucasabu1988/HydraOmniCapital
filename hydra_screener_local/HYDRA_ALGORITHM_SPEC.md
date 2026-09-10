@@ -589,11 +589,39 @@ yfinance `Ticker.dividends`, cached in `data_cache/dividends_cache.json`, failur
 cache. The broker pays on pay-date, later than ex-date; `reconcile.py` lists that lag as a known
 residual. Shown on the sheet and the dashboard like interest.
 
+**Where the dividend correction is applied, and where it deliberately is not** (Lucas, 2026-09-07):
+**fills are de-adjusted, the mark is left alone.** Both halves are forced, and the reason is that the
+cash is credited separately. A fill booked on a total-return close is booked at a price that already
+has a *future* dividend removed from it, while that same dividend is also credited as cash — so
+1000 USD at a printed close of 100 became 10.101 units instead of 10. `_row()` therefore divides by
+`deadjust_factor` and books the printed close. The mark is the opposite case: by the time the book is
+marked, the cash has already been credited, and the adjusted close has the dividend out of the price
+exactly once. Correcting it again would put the dividend in twice. Measured on the real
+`_row`/`last_observed` with one 1.00 dividend on a 100 close and 1000 USD invested:
+
+| convention | units | mark | book | error |
+|---|---|---|---|---|
+| **fills de-adjusted, mark as-is** (chosen) | 10.0000 | 99.00 | **1000.00** | **0.00** |
+| nothing de-adjusted anywhere | 10.1010 | 99.00 | 1010.00 | +1.0% |
+| both de-adjusted (fill and mark) | 10.0000 | 100.00 | 1010.00 | +1.0% |
+
+The chosen convention is the only one of the three that is exact, and it is exact on a stale mark too
+(a mark carried across an ex-date is already net of the dividend). Pinned by
+`test_dividend_convention_is_the_only_exact_one` in `test_execution_prices.py`, so neither half can be
+removed for tidiness without a red test. Caveat: this fixes dividends only — the store's `close_raw`
+is Yahoo's Close, split-adjusted, so "printed" here means "modulo splits" (splits are TASK-363 /
+ASTRA-02, section 9.3).
+
 ### 9.4 State (`state/portfolio_v9.json`, gitignored; see design section 3)
 
 schema 1: anchor_date, last_run_date, last_renewal_date, week_index, capital_reference, per sleeve
 four tranches {k, opened, units, cash, last_px, stale}, pending orders, ledger of fills, write_offs,
-transfers, interest. A held name that stops printing is carried at its last price for
+transfers, interest, and `unfilled` — orders the settle could not book because no price printed on
+the execution day. `settle` consumes the pending order either way, so without that list the book
+kept the cash, opened no position, and nothing said so while the broker may have filled at a close
+we had no print for. An entry there makes preflight HARD until `confirm_fills.py` resolves it, and it
+is deliberately not re-planned: re-issuing an order the broker did fill buys the name twice
+(ASTRA-03). A held name that stops printing is carried at its last price for
 `max_stale_bars` (10) **weekly marks** (plan() runs; the lab's `run_book` counts steps the same way)
 and then written off at that price (recorded). No `history/` tracking is run (Lucas 2026-09-06).
 

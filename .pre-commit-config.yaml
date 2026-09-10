@@ -1,16 +1,105 @@
-# TASK-368. Existing json/yaml hooks kept; ruff now uses hydra_screener_local/ruff.toml.
+# TASK-368, extended by TASK-391 (audit phase 10 follow-up).
+#
+# The hook set had never been run: `pre-commit install` had not been done in this clone,
+# so .git/hooks/pre-commit did not exist and `pre-commit run --all-files` was red on two
+# hooks. Both are fixed here. Install it once per clone — `default_install_hook_types`
+# below means one command installs both the commit and the push hook:
+#
+#     python -m pre_commit install
+#
+# TASK-391 placed each of the seven CI jobs in the stage it can afford, from measured
+# wall-clock (2026-09-07, this machine). Commit stage ~5s: ruff over the tree, the
+# dependency-free secret sweep, test_packaging.py. Push stage ~10s warm: mypy and the
+# five reproducibility files. Still CI-only, on purpose: the 140s suite and the two
+# gates that need its output (coverage floor, skip census), the wheel build-install
+# smoke (clean venv, network) and pip-audit (advisory database, network, report-only).
+# tools/precommit_gates.py carries the full table and prints each gate's cost.
+default_install_hook_types: [pre-commit, pre-push]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # archive/ is frozen legacy and hydra_backtest-era text: `run --all-files` used to
+      # rewrite 145 archived files in one go, which is a mass reformat of history nobody
+      # asked for. The whitespace fixers stay on the live tree only.
       - id: trailing-whitespace
+        exclude: ^archive/
       - id: end-of-file-fixer
+        exclude: ^archive/
       - id: check-json
+        # archive/ is frozen legacy (COMPASS era): one run log there is concatenated
+        # JSON objects, not a JSON document. It is not ours to reformat.
+        exclude: ^archive/
       - id: check-yaml
+      # TASK-391 additions. All four are changed-files-only and cost milliseconds.
+      # check-toml: pyproject.toml, ruff.toml and the requirements pins are read by the
+      # packaging gate and by CI; a syntax error there fails four jobs at once.
+      - id: check-toml
+        exclude: ^archive/
+      # check-merge-conflict: this branch alone resolved three conflicts by hand
+      # (.gitignore, test.yml, GROKBOARD.md). A committed `<<<<<<<` in a live module is
+      # a syntax error the suite would find 140s later, and in a doc nobody finds it.
+      # --assume-in-merge is not optional here: without it the hook only looks while
+      # MERGE_HEAD exists, so a marker committed after `git merge --abort`, or pasted in
+      # by hand, walks straight through — measured on 2026-09-07, a staged file holding
+      # a full marker triple was reported "Passed". No tracked file legitimately starts
+      # a line with a marker (`git grep -E '^(<<<<<<< |=======$|>>>>>>> )'` is empty),
+      # so always-checking costs nothing.
+      - id: check-merge-conflict
+        args: [--assume-in-merge]
+      # check-case-conflict: development is on Windows (case-insensitive), CI is
+      # ubuntu-latest (case-sensitive). Two files differing only in case work here and
+      # break there.
+      - id: check-case-conflict
+      # detect-private-key: the cheap half of the secret gate, on changed files only.
+      # SECURITY.md's allowlist covers the shape-only examples; a real key block is not
+      # one of them.
+      - id: detect-private-key
+        exclude: ^archive/
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.10
+  # TASK-391 — the CI jobs that fit in a commit: `lint` and the packaging half of
+  # `reproducibility`, measured at ~4s together.
+  #
+  # This replaces the ruff-pre-commit hook that used to live here. That one passed
+  # `--config hydra_screener_local/ruff.toml` but pre-commit runs from the repo root,
+  # so the config's per-file-ignores (`core/**`, `experiments/**`, …) matched nothing
+  # and `pre-commit run --all-files` reported 107 errors in files CI lints clean. Same
+  # shape as R-1004: a gate that never looked at what it claimed to certify. That trap
+  # is fixed at the source in 1c21bc4 (every pattern anchored `**/`, verified equal
+  # from both directories on 2026-09-07); precommit_gates.py still chdir's into
+  # hydra_screener_local/ because `ruff.toml` sets `src = ["."]` and the pytest gate
+  # needs that working directory anyway.
+  - repo: local
     hooks:
-      - id: ruff
-        args: ["--config", "hydra_screener_local/ruff.toml"]
+      - id: hydra-gates
+        name: hydra commit gates (ruff tree, packaging)
+        entry: python hydra_screener_local/tools/precommit_gates.py --only ruff --only packaging
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
         files: ^hydra_screener_local/
+
+      # The secret sweep is repo-wide, so it must not be gated on
+      # `files: ^hydra_screener_local/` the way the ruff/packaging gate is: a commit
+      # that only touches a root file (a workflow, a doc, a root `.env`) skipped the
+      # sweep entirely. 1.0s, no dependencies, every commit.
+      - id: hydra-secret-sweep
+        name: hydra secret sweep (repo-wide)
+        entry: python hydra_screener_local/tools/check_secrets.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # Push stage: the `typecheck` job (0.8s incremental, 21.8s on a cold cache) and
+      # the five reproducibility files (9.0s). Both are whole-target commands — mypy.ini
+      # and the CI job name fixed file lists — so there is nothing to narrow with a
+      # filter, which is exactly why they belong to the push and not to the commit.
+      - id: hydra-push-gates
+        name: hydra push gates (mypy, reproducibility)
+        entry: python hydra_screener_local/tools/precommit_gates.py --stage push
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

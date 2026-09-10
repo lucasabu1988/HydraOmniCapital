@@ -28,7 +28,6 @@ Does NOT touch:
 """
 
 import argparse
-import os
 import shutil
 from pathlib import Path
 import glob

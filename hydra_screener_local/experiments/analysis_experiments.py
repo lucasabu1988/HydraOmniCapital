@@ -9,7 +9,7 @@ Run with the project venv.
 """
 import json
 import os
-from collections import Counter, defaultdict
+from collections import defaultdict
 import pandas as pd
 
 HISTORY_DIR = "history"
@@ -33,22 +33,22 @@ def analyze_overlap_and_stability():
     print("=" * 60)
     h31 = load_history("20260531")
     h01 = load_history("20260601")
-    
+
     r31 = get_recommended_tickers(h31)
     r01 = get_recommended_tickers(h01)
-    
+
     print(f"20260531 recommended: {len(r31)} -> {r31}")
     print(f"20260601 recommended: {len(r01)} -> {r01}")
-    
+
     common = set(r31) & set(r01)
     only31 = set(r31) - set(r01)
     only01 = set(r01) - set(r31)
-    
+
     print(f"\nOverlap: {len(common)} names")
     print(f"  {sorted(common)}")
     print(f"\nOnly in 05-31: {sorted(only31)}")
     print(f"Only in 06-01: {sorted(only01)}")
-    
+
     # Rank stability for common names
     print("\nRank movement for overlapping names:")
     for t in sorted(common):
@@ -62,20 +62,19 @@ def analyze_short_term_boost_impact():
     print("=" * 60)
     h01 = load_history("20260601")
     if not h01: return
-    
+
     cands = h01.get("top_candidates", [])
     df = pd.DataFrame(cands)
-    
+
     # Top by pure momentum vs by composite (which includes short boost)
     print("Top 10 by raw 'momentum' (old way):")
     print(df.nlargest(10, "momentum")[["rank", "ticker", "momentum", "meta_score", "composite_score", "ret_5d_10d", "short_boost", "recommended"]].to_string(index=False))
-    
+
     print("\nTop 10 by 'composite_score' (current with short boost):")
     print(df.nlargest(10, "composite_score")[["rank", "ticker", "momentum", "meta_score", "composite_score", "ret_5d_10d", "short_boost", "recommended"]].to_string(index=False))
-    
-    # How many in top 15 would change without the boost?
-    top15_comp = set(df.nsmallest(15, "rank")["ticker"])  # already sorted by composite in the json? Wait, rank is by composite
-    # Actually in the saved json the 'rank' reflects the final composite order
+
+    # How many in top 15 would change without the boost? Never worked out: in the saved
+    # json the 'rank' already reflects the final composite order, boost included.
     print("\nNote: current rank already reflects composite_score ordering (short boost applied).")
 
 def inspect_data_quality_issues():
@@ -84,21 +83,21 @@ def inspect_data_quality_issues():
     print("=" * 60)
     h01 = load_history("20260601")
     cands = h01.get("top_candidates", [])[:25]
-    
+
     suspicious = []
     for c in cands:
         t = c["ticker"]
         # Known delisted or problematic
         if t in ["SNDK", "BRK.B", "BF.B", "FB"]:  # FB old ticker
             suspicious.append((t, c.get("ret_5d_10d"), c.get("dist_20d_high")))
-    
+
     if suspicious:
         print("Suspicious/delisted tickers appearing in top candidates:")
         for t, ret, dist in suspicious:
             print(f"  {t}: 5/10d_ret={ret}%, dist_high={dist}")
     else:
         print("No obvious delisted in top 25 of latest run.")
-    
+
     # Check volume-related (all have dynamic_vol_threshold but no real vol data in screener)
     print("\nAll candidates have dynamic_vol_threshold=1.5 but volume filter is DISABLED in live screener (min_avg_volume=0 in config).")
     print("This is the #1 known limitation per README and analyze_history.py comments.")
@@ -111,7 +110,6 @@ def check_backtest_insights():
     if os.path.exists(bt_path):
         bt = json.load(open(bt_path))
         print(json.dumps(bt, indent=2))
-        s = bt.get("summary", {})
         print(f"\nKey signal: Strict filter (vol surge + short mom + near high) showed +4.54% next day, 100% WR on tiny sample (3 names).")
     else:
         print("No backtest results file yet. Run analyze_history.py to populate.")
@@ -146,7 +144,7 @@ def sector_concentration_heuristic():
     print("=" * 60)
     h01 = load_history("20260601")
     recs = get_recommended_tickers(h01)
-    
+
     # Very rough manual buckets
     buckets = {
         "Semis/Storage/HW": ["DELL","SNDK","STX","HPE","MU","WDC","AMD","INTC","NVDA","AVGO","QCOM","LRCX","AMAT","KLAC","ON","MRVL","NXPI"],
@@ -165,7 +163,7 @@ def sector_concentration_heuristic():
                 break
         if not placed:
             counts["Other/Unknown"] += 1
-    
+
     print("Distribution of 22 recommended (20260601):")
     for b, c in sorted(counts.items(), key=lambda x:-x[1]):
         print(f"  {b}: {c} ({c/22*100:.0f}%)")
@@ -186,27 +184,27 @@ def experiment_bad_ticker_filter():
     print("EXPERIMENT: Hard Bad-Ticker Blacklist (kill SNDK etc.)")
     print("=" * 60)
     from config import DELISTED_OR_BAD_TICKERS
-    
+
     h01 = load_history("20260601")
     cands = [c for c in h01.get("top_candidates", [])]
-    
+
     bad_ones = [c for c in cands if c["ticker"] in DELISTED_OR_BAD_TICKERS]
     clean = [c for c in cands if c["ticker"] not in DELISTED_OR_BAD_TICKERS]
-    
+
     print(f"DELISTED_OR_BAD_TICKERS en config: {sorted(DELISTED_OR_BAD_TICKERS)}")
     print(f"Top candidates actuales contienen {len(bad_ones)} tickers en la blacklist: {[b['ticker'] for b in bad_ones]}")
-    
+
     # Re-rank the clean ones as if we had filtered before composite
     clean_df = pd.DataFrame(clean)
     if not clean_df.empty:
         clean_df = clean_df.sort_values("composite_score", ascending=False).reset_index(drop=True)
         clean_df["new_rank"] = range(1, len(clean_df)+1)
-        
+
         print(f"\nSi se hubiera aplicado el filtro (como ahora hace el screener):")
         print("  - Se eliminan los bad antes de rankear -> se promueven los siguientes clean del universo.")
         print(f"  - Top 5 limpio sería:")
         print(clean_df.head(5)[["new_rank", "ticker", "composite_score", "ret_5d_10d", "short_boost"]].to_string(index=False))
-        
+
         orig_rec = [c for c in cands if c.get("recommended")]
         clean_rec = [c for c in orig_rec if c["ticker"] not in DELISTED_OR_BAD_TICKERS]
         print(f"\nDe los 22 recomendados originales, ahora quedarían {len(clean_rec)} después del filtro.")
@@ -265,7 +263,7 @@ def simulate_sector_control_impact():
 
         # Ver concentración antes vs después
         orig_sectors = rec_df["ticker"].apply(lambda t: config.SECTOR_BUCKETS.get(t, "Other")).value_counts()
-        new_sectors = controlled["sector"].value_counts()
+        # (the "despues" half of this comparison was never written)
 
         print("Concentración original:")
         for s, c in orig_sectors.items():

@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from core.dividends import summarize_dividends  # noqa: E402
+from core.ledger import is_trade  # noqa: E402
 
 DEFAULT_STATE_DIR = ROOT / "state"
 DEFAULT_PORT = 8765
@@ -66,15 +67,14 @@ def _lots_from_ledger(state: dict) -> dict:
             lots[key] = {"qty": 0.0, "cost_total": 0.0, "realised": 0.0, "fees": 0.0}
         return lots[key]
 
+    # `is_trade` is the canonical projection (core.ledger). This used to read
+    # `status != "filled"`, so every confirmed or corrected fill dropped out of the
+    # lots walk and cost basis, realised P&L and fees all reverted to zero (R-108).
     for fill in state.get("ledger") or []:
-        if fill.get("status") != "filled":
+        if not is_trade(fill):
             continue
         side = fill.get("side")
-        if side not in ("buy", "sell"):
-            continue
         ticker = fill.get("ticker")
-        if not ticker or ticker in ("CASH", "TBILL"):
-            continue
         lot = slot(fill.get("sleeve"), fill.get("tranche", 0), ticker)
         u = _f(fill.get("units"))
         px = _f(fill.get("price"))

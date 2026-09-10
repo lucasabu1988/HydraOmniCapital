@@ -190,6 +190,20 @@ SECTOR_FETCH_BUDGET_SECONDS = 120
 # (the sector cap is exempting unknowns). Filter/selection quality, not scoring (TASK-344).
 SECTOR_UNKNOWN_MAX_SHARE = 0.30
 
+# --- preflight data-freshness budget (audit phase 2.5) ---------------------------
+# The last downloaded bar must be the last regular NYSE session, and it must not
+# postdate the as-of instant. These are the explicit thresholds the preflight uses
+# instead of leaving staleness implicit; they are execution guards, not scoring.
+MAX_BAR_AGE_SESSIONS = 0         # sessions between the last bar and the asof session
+MAX_PRICE_AGE_SESSIONS = 0       # a price may only be used for an order if printed today
+
+# --- dividend / corporate-action coverage (audit phase 4) ------------------------
+# The dividend query window is (coverage_through - DIVIDEND_OVERLAP_DAYS, today].
+# The overlap exists because providers publish ex-dates late: without it, a dividend
+# first reported after the watermark had moved past its ex-date was lost for good
+# (repro R-401). Calendar days, deliberately generous.
+DIVIDEND_OVERLAP_DAYS = 21
+
 # Buckets gruesos (coarse buckets). Mantener pocos y estables.
 # Los tickers no listados caen en "Other".
 SECTOR_BUCKETS = {
