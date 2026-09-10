@@ -29,6 +29,7 @@ from core.ledger import (
     CONFIRMED_UNPLANNED,
     CORRECTED,
     EFFECTIVE_STATUSES,
+    LEGACY_NOT_FILLED,
     LEGACY_PRESUMED,
     PRESUMED,
     REJECTED,
@@ -216,6 +217,46 @@ def apply_confirmations(state: dict, rows: list[dict]) -> dict:
     for row in rows:
         key = natural_key(row)
         rec = {"key": key, "matched": False, "changed": False}
+
+        # ASTRA-03: `units=0` is the operator saying the broker did nothing for a planned line.
+        # It is not a trade, so it does not go through validate_event (which rightly refuses
+        # units <= 0 for a fill): whatever the plan booked is reversed, the event is retired as
+        # not_filled, and the obligation in state["unfilled"] is answered below. Negative, NaN
+        # or non-numeric units still fall through to validate_event and are rejected.
+        if as_finite(row.get("units")) == 0.0:
+            sleeve = str(row.get("sleeve") or "")
+            k = _tranche_index(row)
+            raw = _tranche_or_none(state, sleeve, k)
+            pos = _find_target(ledger, by_id, row, {})
+            if pos is None:
+                pos = next((i for i, e in enumerate(ledger) if natural_key(e) == key), None)
+            if raw is None or pos is None:
+                msg = (f"no tranche {sleeve}[{k}]" if raw is None
+                       else "units=0 confirms a planned line never filled, but no plan matches this key")
+                rec.update(status=REJECTED, errors=[msg], units=0.0, price=None, fee=None, dollars=None)
+                report.append(rec)
+                rejected.append({"key": key, "errors": [msg]})
+                warnings.append(f"rejected {key}: {msg}")
+                continue
+            event = ledger[pos]
+            eid = ensure_event_id(event)
+            by_id[eid] = pos
+            old_status = str(event.get("status") or "")
+            changed = False
+            if moves_book(old_status):
+                _reverse_event(state, event)
+                event.setdefault("revisions", []).append({
+                    "status": old_status, "units": event.get("units"), "price": event.get("price"),
+                    "cost": event.get("cost"), "dollars": event.get("dollars"),
+                })
+                changed = True
+            event["status"] = LEGACY_NOT_FILLED
+            event["reason"] = str(event.get("reason") or "confirmed not filled (units=0)")
+            rec.update(matched=True, changed=changed, status=LEGACY_NOT_FILLED, units=0.0,
+                       price=None, fee=None, dollars=0.0, cash_after=raw["cash"], event_id=eid,
+                       note=f"previous event was {old_status}" if changed else "never filled")
+            report.append(rec)
+            continue
 
         errors = validate_event(row)
         if errors:

@@ -294,6 +294,8 @@ def _status(result, check):
     return {r["check"]: r["status"] for r in result["rows"]}.get(check)
 
 
+# The four clock tests pin `asof` / `last_session` to the fixture (2026-09-04): written on that day,
+# they depended on the wall clock and went HARD on "last bars" from 2026-09-08 on (consolidation 2026-09-10).
 def test_preflight_warns_on_an_unclosed_current_session_and_the_settle_refuses():
     """The hole that let a run settle 30 real orders at an 11:00 partial bar.
 
@@ -306,7 +308,8 @@ def test_preflight_warns_on_an_unclosed_current_session_and_the_settle_refuses()
     """
     prices, etf, irx, ranking, state = _pf_frames()
     r = PF.evaluate(prices, etf, irx, state=state, ranking=ranking,
-                    backup_dir="/tmp/b", clock=_clock("2026-09-04", "11:00"))
+                    backup_dir="/tmp/b", asof="2026-09-04", last_session="2026-09-04",
+                    clock=_clock("2026-09-04", "11:00"))
     assert _status(r, "last bars") == "OK"                  # the date checks all pass...
     assert _status(r, "session closed") == "WARN"           # ...only the clock sees it at all
     assert PF.row_by_id(r, "session_closed")["status"] == "WARN"
@@ -318,13 +321,15 @@ def test_preflight_warns_on_an_unclosed_current_session_and_the_settle_refuses()
 def test_preflight_ok_after_the_close():
     prices, etf, irx, ranking, state = _pf_frames()
     r = PF.evaluate(prices, etf, irx, state=state, ranking=ranking,
-                    backup_dir="/tmp/b", clock=_clock("2026-09-04", "16:20"))
+                    backup_dir="/tmp/b", asof="2026-09-04", last_session="2026-09-04",
+                    clock=_clock("2026-09-04", "16:20"))
     assert _status(r, "session closed") == "OK" and not r["hard"]
 
 
 def test_preflight_intraday_override_is_a_warn_not_a_pass():
     prices, etf, irx, ranking, state = _pf_frames()
     r = PF.evaluate(prices, etf, irx, state=state, ranking=ranking, backup_dir="/tmp/b",
+                    asof="2026-09-04", last_session="2026-09-04",
                     clock=_clock("2026-09-04", "11:00"), allow_intraday=True)
     assert _status(r, "session closed") == "WARN" and not r["hard"] and r["warn"]
 
@@ -332,7 +337,8 @@ def test_preflight_intraday_override_is_a_warn_not_a_pass():
 def test_preflight_weekend_clock_is_a_closed_session():
     prices, etf, irx, ranking, state = _pf_frames()
     r = PF.evaluate(prices, etf, irx, state=state, ranking=ranking,
-                    backup_dir="/tmp/b", clock=_clock("2026-09-05", "11:00"))
+                    backup_dir="/tmp/b", asof="2026-09-05", last_session="2026-09-04",
+                    clock=_clock("2026-09-05", "11:00"))
     assert _status(r, "session closed") == "OK" and not r["hard"]
 
 

@@ -36,8 +36,11 @@ def test_every_row_carries_a_stable_id_and_the_set_is_pinned():
     """A rename must fail here rather than silently mint a new id (Lucas: stable identifier)."""
     pf = _evaluate(state=E.new_state(8000.0, "2026-09-04", V9))
     ids = sorted(r["id"] for r in pf["rows"])
-    assert ids == ["etfs_present", "hydra_backup_dir", "last_bars", "pending_age",
-                   "schema_version", "sector_unknown", "unfilled_orders",
+    # Pinned set as of the 2026-09-10 consolidation: the ASTRA-03 rows plus the structural
+    # audit's (bar_age, bar_not_in_the_future, prices_are_valid, provenance, etf_prices_observed).
+    assert ids == ["bar_age", "bar_not_in_the_future", "etf_prices_observed", "etfs_present",
+                   "hydra_backup_dir", "last_bars", "pending_age", "prices_are_valid",
+                   "provenance", "schema_version", "sector_unknown", "unfilled_orders",
                    "universe_print_share"], ids
     assert all(r["id"] and r["id"] == r["id"].lower() for r in pf["rows"])
     assert PF.row_by_id(pf, "last_bars")["check"] == "last bars"
