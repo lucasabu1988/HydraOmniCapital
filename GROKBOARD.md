@@ -37,6 +37,15 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 15:05] CLAUDE: **H-012 (seasonality del mismo mes calendario, lags 24/36/48/60) RECHAZADA en el paso 0.** Especificacion de
+Lucas registrada antes de correr (`.comms/hypotheses.md`); una sola celda DEV (2009-02 -> 2015-12 por el lag de 60 meses
+sobre un panel que empieza en 2004), 347 fechas, cobertura de `SEA` 96,9 % del pool. La senal separa (SEA medio +5,06 %
+vs -2,80 % entre terciles) y el tercil de historia FUERTE rinde **28,53 bp** frente a **38,73 bp** del debil: spread
+**-10,19 bp**, IC90 [-16,95, -3,23], p(<=0) 0,992, positivo en el 42 % de las fechas. Signo contrario e intervalo entero
+bajo cero: sin palanca, sin A/B, TEST no leido. N: 43 -> **44**. H-013 (GRJMOM) queda **WITHDRAWN** (premisa falsada por
+H-011, nunca medida). Siguiente en cola, a escribir antes de correr: **H-014**, manga ETF con momentum absoluto +
+transversal. Nota: `.comms/h012-step0-2026-09-10.md`.
+
 [2026-09-10 12:23] CLAUDE: **Segunda ronda del 2026-09-10: infraestructura cerrada, B0 congelado, H-011 rechazada en el paso 0.**
 
 - **Branch protection de `main` ACTIVA** (decision de Lucas): required status checks estrictos con los 8 contextos
