@@ -37,6 +37,51 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 10:53] CLAUDE: **Consolidacion 2026-09-10: hardening + ASTRA-03 trasplantados sobre `main`, bateria de cierre en verde.**
+
+Rama `consolidation/hardening-2026-09-10` (42 commits sobre `main` `9e18d08`). Orden ejecutado hoy: #42 -> #43 ->
+ASTRA-05 (#53) -> ASTRA-06 (#54, conflicto con ASTRA-05 en `redesign_lab.py` resuelto: `eligible_at` delega en
+`eligibility_mask`) -> ASTRA-07 (#55) -> ASTRA-11 (#56), suite + ruff tras cada uno. Los CI-only #48/#50/#51/#52 cerrados.
+
+**Hardening**: merge de `structural-hardening-2026-09` (`eba52eb`) con 4 conflictos textuales (test.yml union de gates,
+pyproject hacia la pila estructural R-1001 con la descripcion v9 de #43, `pit.py` docstring, board) y **dos duplicados
+sin conflicto textual** (`PitMissing`, `require_sectors_at` en `pit.py`) deduplicados; identidad = union de
+`snapshot_identity` + `sectors_identity`. Encima, los 4 commits de hooks de `chore/task-391-local-gates`.
+
+**ASTRA-03** rebasada encima (4 commits + 1 de integracion): `save_state()` pre-transaccion NO se reinstala (la escribe
+`RunTransaction`, R-301); `units=0` = "el broker no hizo nada" se atiende ANTES de `validate_event` (que sigue
+rechazando units <= 0 en un fill real); las dos fuentes de procedencia (`last_observed` del report y `attrs["observed"]`)
+se capturan antes del ffill; `_dividend_table(..., report=)` lleva el report del proveedor a `apply_dividends`.
+4 tests de reloj de `test_execution_prices` dependian de la fecha real (escritos el 09-04): fijados a la fixture.
+
+**Bug NaN truthy**: `test_plan_mark_price_validity.py` — nan / inf / -inf / 0 / negativo + control; falla en `main`
+(6 de 7), pasa aqui.
+
+**Hallazgo del runner** (`run_all_tests.py`, tambien en `main` y por tanto en CI): `"__main__" in src` mandaba 9
+modulos pytest cuya DOCSTRING menciona `__main__` (settle_driver, macro_valuation, fill_cost_report, metrics,
+path_momentum, reset_ab, sector_exposure_post_carry, whole_share_sizing, build_russell_pit) + console_encoding por el
+camino de script: **sus tests no corrian y salian [PASS]**. Arreglado con el `MAIN_GUARD_RE` de ASTRA-04. Cobertura
+medida 79.84% -> 81.90% sin anadir tests. El unico test nuevo que fallo (TASK-380) tenia razon: 3 entry points sin
+`reconfigure` (arreglados).
+
+**Comparacion pre/post del motor de referencia (OOS PIT, `engine_backtest.py --oos`)**: `main` 7.08 / 0.74 / -17.7 /
+sharpe_x 0.57; consolidado **7.03 / 0.74 / -17.7 / 0.56**. Series anuales del motor **identicas 2005-2018**; divergen
+desde 2019 por la politica de nombres sin print (semantica del hardening, decidida por Lucas): hold_no_price 5 -> 7
+(ESRX, SCG), write-offs 2 -> 3 (+SCG 2019-03-08, 4.2 bp del libro), transfers 2150 -> 2160, interes 0.2338 -> 0.2315.
+Con ASTRA-03 encima el motor no cambia (7.03 / 0.74 / -17.7). **Replay TASK-369 (`--check`)**: 2168 comprobaciones,
+0 warnings, 0 replay ERROR. Golden TASK-373 verde.
+
+**Bateria de cierre (arbol final, Python 3.13 local)**: runner 80 archivos / 0 skips; cobertura 81.90% (piso 80);
+check_skips ok; ruff (lista CI + tests + arbol entero) limpio; mypy 16 archivos limpio; secret sweep ok; wheel smoke ok
+(10 scripts); render_evidence --check ok; job de reproducibilidad 194 passed. Local: `test_review_341` /
+`test_portfolio_engine` parity fallan SOLO con la cache de laboratorio presente (dtype de indice StringDtype vs object,
+pandas local) — identico en `main`, no es de esta rama, skip en CI.
+
+**Fuera de esta ronda, para Lucas**: `fix/astra-06-followup` (H-007, `core/regime.py` + SPEC, regla 6),
+`fix/astra-04-skip-gate` (contabilidad por caso), `post-freeze-wiring` + `fix/astra-02`, `n-sleeve-engine`, `a12r`,
+`docs/astra-prereg-01-08-10`, `docs/task-389`, `audit/subtract-parked-clis-v2` (#44). PR #41 y `feat/astra-12` a cerrar.
+Pendiente: TASK-415, H-005(b), sincronizar el estado vivo (sigue 2026-09-05 en este arbol), branch protection al final.
+
 [2026-09-10 09:26] CLAUDE: **"first settle verified" — freeze del camino vivo LEVANTADO por decision de Lucas (2026-09-10).**
 
 Lucas confirma que el settle posterior al cierre del 2026-09-08 fue verificado fuera de este repo. Lo que consta
