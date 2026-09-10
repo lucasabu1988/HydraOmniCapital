@@ -1,4 +1,15 @@
-"""Point-in-time universe and sector snapshots (TASK-362). No network."""
+"""Point-in-time universe and sector snapshots (TASK-362). No network.
+
+Two levels of strictness (audit ASTRA-05):
+
+* `sectors_at()` / `membership()` return empty when there is no snapshot on or before the
+  requested date. The live path has a documented fallback, so a missing snapshot is not fatal
+  there.
+* `require_sectors_at()` raises `PitMissing` instead. Anything that CLAIMS to be point-in-time
+  (an audit, a backtest, the redesign lab's strict mode) must use the `require_*` form: a
+  request for date t either resolves the classification effective at t or fails. A sector map
+  is never fabricated for a date before the first snapshot, and never read from the live cache.
+"""
 from __future__ import annotations
 
 import json
@@ -174,6 +185,35 @@ def write_sectors_snapshot(
     return path
 
 
+class PitMissing(RuntimeError):
+    """A point-in-time snapshot that the caller declared it requires does not exist."""
+
+
+def first_sector_date(pit_dir=None) -> str | None:
+    """Earliest sectors snapshot on disk (YYYYMMDD), or None. Nothing before it is knowable."""
+    dates = list_sector_dates(pit_dir)
+    return dates[0] if dates else None
+
+
+def sectors_identity(date, *, pit_dir=None) -> dict:
+    """Identity of the sectors snapshot stored at `date`: what a run JSON records so a reader
+    can tell which file on disk produced the numbers (pointer target included)."""
+    d = _date_str(date)
+    path = _pit(pit_dir) / f"sectors_{d}.json"
+    raw = _read(path) if path.exists() else {}
+    data = _resolve_sectors(d, pit_dir) or {}
+    sec = dict(data.get("sectors") or {})
+    return {
+        "kind": "sectors",
+        "date": d,
+        "present": path.exists(),
+        "same_as": raw.get("same_as") if isinstance(raw, dict) else None,
+        "count": int(data.get("count") or len(sec)),
+        "fetched_at": data.get("fetched_at"),
+        "path": str(path),
+    }
+
+
 def sectors_at(date=None, *, pit_dir=None) -> tuple[dict, str | None]:
     """(ticker -> sector, snapshot date) from the latest sectors snapshot on or before `date`
     (the latest one when `date` is None); pointers resolved. ({}, None) when there is none (TASK-387)."""
@@ -187,6 +227,25 @@ def sectors_at(date=None, *, pit_dir=None) -> tuple[dict, str | None]:
     if not data:
         return {}, None
     return dict(data.get("sectors") or {}), pick
+
+
+def require_sectors_at(date=None, *, pit_dir=None) -> tuple[dict, str, dict]:
+    """Like `sectors_at`, but raises `PitMissing` instead of returning empty (audit ASTRA-05).
+
+    Returns (ticker -> sector, snapshot date, snapshot identity). This is the form every
+    point-in-time claim must use: with only a 2026 snapshot on disk, a request for 2005 fails
+    here instead of silently handing back the 2026 classification or the live sector cache.
+    """
+    sec, pick = sectors_at(date, pit_dir=pit_dir)
+    if not sec or pick is None:
+        asked = _date_str(date) if date is not None else "today"
+        first = first_sector_date(pit_dir)
+        raise PitMissing(
+            f"no PIT sector snapshot on or before {asked} in {_pit(pit_dir)} "
+            f"(earliest snapshot on disk: {first or 'none'}); refusing to fabricate a sector map "
+            f"for {asked}. Seed one with snapshot_universe.py, or ask for a fixed-map scenario "
+            f"explicitly - a fixed map is not point-in-time")
+    return sec, pick, sectors_identity(pick, pit_dir=pit_dir)
 
 
 def membership(name: str, date, *, pit_dir=None) -> set:

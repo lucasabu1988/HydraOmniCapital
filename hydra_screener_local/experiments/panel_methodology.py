@@ -3,6 +3,12 @@
 Executable `run_any(P, cfg)` for PROD and T20 on the OOS panel. No new configs, no
 tuning. Does not edit redesign_lab.py.
 
+The `panel` block of the JSON records WHAT the numbers are point-in-time about (audit ASTRA-05):
+membership always is; sectors only when `sector_pit_valid` is true, otherwise one fixed map served
+every date (a fixed-map scenario, not PIT evidence on sectors); and `eligibility_currency` says
+whether the absolute price / dollar-volume floors saw as-printed closes or adjusted ones, which
+make historical eligibility depend on future dividends.
+
 Usage:
     python experiments/panel_methodology.py
 """
@@ -252,6 +258,17 @@ def main():
             bars=int(len(P.close)),
             tickers=int(P.close.shape[1]),
             auto_adjust=True,
+            # audit ASTRA-05: what the numbers below are point-in-time ABOUT. Membership is PIT
+            # (pit_payload). Sectors are only PIT when sector_pit_valid is true; otherwise one
+            # fixed map served every date - reproducible, but it does not say what sector a name
+            # had in 2005, so these rows are a fixed-map scenario, not PIT evidence on sectors.
+            sector_mode=(getattr(P, "SECTOR_SOURCE", None) or {}).get("mode"),
+            sector_pit_valid=(getattr(P, "SECTOR_SOURCE", None) or {}).get("pit_valid"),
+            sector_snapshot=getattr(P, "SECTOR_SOURCE", None),
+            pit_payload=getattr(P, "PIT_META", None),
+            # adjusted closes are the right input for ratios and the wrong one for an absolute
+            # currency threshold: with 'adjusted' here, eligibility depends on future dividends.
+            eligibility_currency=getattr(P, "ELIG_CURRENCY", None),
         ),
         coverage_spots=coverage_spots,
         coverage_years=coverage_years,
