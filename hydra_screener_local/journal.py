@@ -11,7 +11,6 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import argparse
 import json
-import os
 import re
 import shutil
 from datetime import date, datetime, timezone
@@ -115,8 +114,15 @@ def merge_observations(existing: dict | None, incoming: dict, note: str | None) 
     return notes
 
 
+def _default_dir_for(book: str | None) -> Path:
+    """`DEFAULT_DIR` for the live book, `<DEFAULT_DIR>_<book>` beside it for a paper book, so a
+    redirected DEFAULT_DIR (tests, a moved machine) carries both."""
+    d = Path(DEFAULT_DIR)
+    return d if not book else d.with_name(f"{d.name}_{book}")
+
+
 def save_record(record: dict, journal_dir: Path, note: str | None = None,
-                backup_date: str | None = None, *, status: str = STATUS_OK,
+                backup_date: str | None = None, *, book: str | None = None, status: str = STATUS_OK,
                 run_id: str | None = None, error=None,
                 inputs: dict | None = None, outputs: dict | None = None) -> Path:
     """Append a revision for this date and update the pointer. Never overwrites.
@@ -194,9 +200,9 @@ def save_record(record: dict, journal_dir: Path, note: str | None = None,
 
     md = journal_dir / "JOURNAL.md"
     md.write_text(render_markdown(load_records(journal_dir)), encoding="utf-8")
-    dest_root = os.environ.get("HYDRA_BACKUP_DIR")
-    if dest_root:
-        dest = Path(dest_root) / "state_v9" / (backup_date or date_s).replace("-", "")
+    from core.books import off_disk_dest
+    dest = off_disk_dest(backup_date or date_s, book)
+    if dest is not None:
         dest.mkdir(parents=True, exist_ok=True)
         shutil.copy2(pointer, dest / pointer.name)
         shutil.copy2(rev_path, dest / rev_path.name)
@@ -211,7 +217,10 @@ def append_from_v9(out: dict, journal_dir: Path | None = None, note: str | None 
     """Build + persist a record from portfolio_v9.run()'s return dict."""
     from core.journal import build_record
 
-    journal_dir = Path(journal_dir or DEFAULT_DIR)
+    from core.books import book_of
+    # the book is read off the state the run wrote, so a paper run journals to journal_<book>/
+    book = book_of(Path(out["state_path"]).parent) if out.get("state_path") else None
+    journal_dir = Path(journal_dir or _default_dir_for(book))
     today = out.get("today") or str(date.today())
     oos = oos_step_returns if oos_step_returns is not None else load_oos_step_returns()
     recs = successful_records(journal_dir)
@@ -252,20 +261,22 @@ def append_from_v9(out: dict, journal_dir: Path | None = None, note: str | None 
         "n_orders": len(out.get("orders") or []),
         "n_fills": len(out.get("fills") or []),
     }
-    return save_record(record, journal_dir, note=note, backup_date=today,
+    return save_record(record, journal_dir, note=note, book=book, backup_date=today,
                        status=status, run_id=out.get("run_id"),
                        error=list(errors or []) or None,
                        inputs=inputs, outputs=outputs)
 
 
 def append_error(message: str, journal_dir: Path | None = None, note: str | None = None,
-                 today: str | None = None, run_id: str | None = None) -> Path:
+                 today: str | None = None, run_id: str | None = None, state_dir=None) -> Path:
     """Record a failed run as its own revision. Never touches a successful record."""
     from core.journal import build_record
-    journal_dir = Path(journal_dir or DEFAULT_DIR)
+    from core.books import book_of
+    book = book_of(Path(state_dir)) if state_dir is not None else None
+    journal_dir = Path(journal_dir or _default_dir_for(book))
     today = today or str(date.today())
     record = build_record(date=today, state={}, errors=[message])
-    return save_record(record, journal_dir, note=note, backup_date=today,
+    return save_record(record, journal_dir, note=note, backup_date=today, book=book,
                        status=STATUS_FAILED, error=[str(message)], run_id=run_id)
 
 

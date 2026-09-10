@@ -98,16 +98,17 @@ def load_state(path: Path) -> dict | None:
         return json.load(f)
 
 
-def copy_state_off_disk(today: str, files: list[Path], silent: bool = False) -> Path | None:
-    """Copy state + instruction files to HYDRA_BACKUP_DIR/state_v9/<date>/ when the env is set."""
+def copy_state_off_disk(today: str, files: list[Path], silent: bool = False, *, book: str | None = None) -> Path | None:
+    """Copy state + instruction files to HYDRA_BACKUP_DIR/<state_v9 or state_v9_<book>>/<date>/ when
+    the env is set. `book` is None for the live book; a paper book never shares the live folder."""
     global _OFFDISK_WARNED
-    dest_root = os.environ.get("HYDRA_BACKUP_DIR")
-    if not dest_root:
+    from core.books import off_disk_dest
+    dest = off_disk_dest(today, book)
+    if dest is None:
         if not _OFFDISK_WARNED and not silent:
             print("[v9] AVISO: HYDRA_BACKUP_DIR no esta definido; el backup de state/ queda en el mismo disco")
             _OFFDISK_WARNED = True
         return None
-    dest = Path(dest_root) / "state_v9" / today.replace("-", "")
     dest.mkdir(parents=True, exist_ok=True)
     for p in files:
         p = Path(p)
@@ -831,7 +832,8 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         raise
     backup = (record.get("backups") or [None])[0]
 
-    copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent)
+    from core.books import book_of
+    copy_state_off_disk(today, [state_path, md_path, json_path], silent=silent, book=book_of(state_dir))
     if not silent:
         if backup:
             print(f"[v9] backed up previous state -> {backup}")

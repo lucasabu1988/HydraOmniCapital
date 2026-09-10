@@ -47,6 +47,32 @@ and dividends accrue on non-renewal days too.
 close, then `daily.py` settles. Do **not** run `daily.py --v9` again before executing:
 a same-day rerun is idempotent (no new orders) but a later rerun before settle raises.
 
+## Paper trading (a second book, same engine)
+
+A paper book is a second state directory next to the live one. Same engine, same ritual, same
+preflight, same journal format; the one difference is that nobody confirms fills, so the presumed
+fills the engine books at the execution close ARE the paper fills. Nothing about it touches `state/`.
+
+```
+python portfolio_v9.py --state-dir state_paper --capital 100000     # first run, after the close: creates the book and plans
+python portfolio_v9.py --state-dir state_paper                      # every renewal bar after the close: settles the presumed fills, marks, plans
+python daily.py --v9 --state-dir state_paper                        # the same, with the screener step in front
+python dashboard_v9.py --state-dir state_paper                      # the sheet and the equity curve of the paper book
+python verify_state.py --state state_paper/portfolio_v9.json        # the ledger replay, same gate as the live book
+```
+
+What is kept apart, by construction (`core/books.py`, tested in `test_paper_book.py`):
+
+- off-disk copies go to `HYDRA_BACKUP_DIR/state_v9_paper/<date>/`, never to `state_v9/` (a paper run on the
+  same date used to overwrite the live book's backup);
+- the journal lives in `journal_paper/`, its revisions back up beside it;
+- `state/` and `journal/` are not read or written by a paper run.
+
+What is NOT different: the universe, the T-bill, costs (10 bp / 5 bp per side), the calendar, the
+50/50 reset. A paper book that beats the live book is telling you about fills and slippage, not about
+the algorithm. Do not run `confirm_fills.py` or `settle.py` against the paper book: they exist to
+reconcile a broker, and the paper book has none.
+
 ## Failure modes
 
 | Symptom | What to do |

@@ -138,6 +138,13 @@ def main(argv=None):
         help="Pass through to portfolio_v9.py: plan even if preflight hard-fails.",
     )
     parser.add_argument(
+        "--state-dir",
+        type=str,
+        default=None,
+        help="Book to run: default state/ (live). state_paper for the paper book: same engine, same "
+        "ritual, presumed fills at the close are the paper fills, backups and journal namespaced.",
+    )
+    parser.add_argument(
         "--note",
         type=str,
         default=None,
@@ -167,7 +174,11 @@ def main(argv=None):
         try:
             from portfolio_v9 import run as run_v9
 
-            v9_out = run_v9(capital=args.v9_capital, force=args.force)
+            v9_kwargs = {"capital": args.v9_capital, "force": args.force}
+            if args.state_dir:
+                from pathlib import Path as _Path
+                v9_kwargs["state_dir"] = _Path(args.state_dir) if _Path(args.state_dir).is_absolute() else ROOT / args.state_dir
+            v9_out = run_v9(**v9_kwargs)
         except SystemExit as e:
             print(f"[v9] {e}")
             if exit_code == 0:
@@ -175,7 +186,7 @@ def main(argv=None):
             try:
                 from journal import append_error
 
-                append_error(str(e), note=args.note)
+                append_error(str(e), note=args.note, state_dir=args.state_dir)
             except Exception as je:
                 print(f"[journal] skip: {je}")
         except Exception as e:
@@ -185,7 +196,7 @@ def main(argv=None):
             try:
                 from journal import append_error
 
-                append_error(str(e), note=args.note)
+                append_error(str(e), note=args.note, state_dir=args.state_dir)
             except Exception as je:
                 print(f"[journal] skip: {je}")
         if v9_out is not None and v9_out.get("state") is not None:
