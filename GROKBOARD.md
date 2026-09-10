@@ -46,6 +46,20 @@ este universo y horizonte, reversion a corto y no perdida de tendencia. Apagar C
 palanca, sin A/B, TEST no leido, **senal NO invertida** (lo prohibe el pre-registro; "comprar la correccion" seria otra
 hipotesis). N: 45 -> **46**. Nota: `.comms/h015-step0-2026-09-10.md`. Seis hipotesis muertas en el paso 0 sin leer TEST.
 
+[2026-09-10 16:09] CLAUDE: **Russell 3000 PIT desde el registro publico (hallazgo de Lucas): la membresia si, los precios no.**
+`experiments/russell_free_membership.py` + tests; nota `.comms/russell-pit-free-record-2026-09-10.md`. Verificado y construido:
+13 listas de junio 2010-2023 (sin 2013) del repositorio de constituent reports, altas/bajas oficiales FTSE Russell 2023-2026
+(+278/-169, +211/-143, +228/-152, +219/-116), 33 altas de IPO del 3T, IWV/IWB a 2026-09-09. Tabla datada de 17 fechas y
+6.578 tickers. Tres medidas: (1) el roll-forward oficial reproduce la lista de junio 2023 con **7 nombres de diferencia
+sobre 3.124**; (2) las listas **no quitan a los que salen intra-anio**: la lista de 2026 crece a 3.384 vs 2.998 del indice, 619
+nombres no imprimen desde junio y 582 de ellos ya venian en el archivo "2023" (lista proyectada); (3) **los precios de los
+que salieron no estan en Yahoo**: de 3.983 ex-miembros, dos muestras de 150 dan 17-27 % con algun cierre, 14-21 % cubriendo
+su epoca, y TODOS los que tienen precio siguen cotizando hoy (salieron del indice, no del mercado, o ticker reutilizado):
+deslistados de verdad ~0 %. Conclusion: TASK-403 sigue bloqueada por Norgate para los PRECIOS; la membresia gratuita queda
+como conjunto de validacion de esa compra, no como sustituto. Colateral: el universo `all` de produccion es un proxy por
+capitalizacion de NASDAQ, coincide con IWV en 2.150 nombres (72 % de produccion, 84 % de IWV); cambiarlo es regla 6.
+Yahoo throttlea en la segunda corrida de la hora: la herramienta ahora usa tickers de control y no publica una sonda no fiable.
+
 [2026-09-10 15:37] CLAUDE: **H-014 (momentum transversal entre los ETFs activos por TSMOM-12m) RECHAZADA en el paso 0.** Especificacion de
 Lucas registrada antes de correr. Puerta de cobertura superada: universo completo desde 2007-02-07 y el 90,0 % de las fechas
 DEV posteriores con >= 4 ETFs activos (media 6,9). 504 fechas comparables en DEV. La senal separa (CS medio +26,3 % vs
@@ -963,7 +977,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   Aceptacion: las dos con test, la (1) con un fill confirmado que cambia de precio y conserva el
   presumido, y la (2) con la corrida pareada del mismo motor. `Files:` `core/fills.py`,
   `test_confirm_fills.py`; `core/portfolio_engine.py`, `experiments/reset_ab.py`, sus tests.
-- [!] `TASK-403` **TASK-324, panel PIT de Russell.** Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
+- [!] `TASK-403` **TASK-324, panel PIT de Russell.** *(2026-09-10: membresia gratuita 2010-2026 construida y medida en `experiments/russell_free_membership.py`; el bloqueo real siguen siendo los precios de deslistados, ~0 % en Yahoo -> Norgate. Nota `.comms/russell-pit-free-record-2026-09-10.md`.)* Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
 
   **BLOQUEADA POR EL DATO, no por el codigo — la mitad que no necesita suscripcion, hecha
   (Claude, 2026-09-08).** `experiments/build_russell_pit.py` + 13 tests que ejercitan el camino
