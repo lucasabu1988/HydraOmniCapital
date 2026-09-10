@@ -71,6 +71,15 @@ def discover_tests() -> list[str]:
 TEST_BACKUP_MARKER = "hydra-test-backup"
 _TEST_BACKUP_DIR = None
 
+#: A REAL main guard, not the string "__main__" anywhere in the file. The substring test
+#: sent every pytest module whose docstring merely mentions __main__ (nine of them on the
+#: 2026-09-10 consolidation tree: settle_driver, macro_valuation, fill_cost_report, metrics,
+#: path_momentum, reset_ab, sector_exposure_post_carry, whole_share_sizing, build_russell_pit)
+#: down the script path, where their test_ functions never ran and the file was reported
+#: [PASS]; they were also missing from the coverage invocation. Same regex as ASTRA-04.
+MAIN_GUARD_RE = re.compile(r"^\s*if\s+__name__\s*==\s*[\"']__main__[\"']", re.MULTILINE)
+
+
 def _invocation(test_file: str) -> tuple[list[str], str]:
     """How to run this file, and why.
 
@@ -84,7 +93,7 @@ def _invocation(test_file: str) -> tuple[list[str], str]:
         src = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return [sys.executable, str(path)], "script"
-    has_main = "__main__" in src
+    has_main = MAIN_GUARD_RE.search(src) is not None
     has_tests = re.search(r"^def test_", src, re.MULTILINE) is not None
     if has_tests and not has_main:
         return [sys.executable, "-m", "pytest", str(path), "-q"], "pytest"
