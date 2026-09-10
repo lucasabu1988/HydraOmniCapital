@@ -68,6 +68,20 @@ What is kept apart, by construction (`core/books.py`, tested in `test_paper_book
 - the journal lives in `journal_paper/`, its revisions back up beside it;
 - `state/` and `journal/` are not read or written by a paper run.
 
+What the paper book is FOR, from day one (Lucas, 2026-09-10): a forward audit of the engine as it
+is, never a dataset to recalibrate on. Five things it measures, run after run: orders asked vs
+presumed fills; the sizing loss of whole shares; undeployed cash; turnover and modelled costs; the
+portfolio the backtest expects vs the one 100 000 USD can actually form. The sizing loss is one
+number per run on the sheet ("Sizing loss ... USD of ... asked") and in the journal record
+(`did.sizing`: target dollars, achievable whole-share dollars, loss, share, names that round to zero).
+Capital stays at 100 000 and whole shares stay as they are: an order that rounds to zero shares is
+information about implementability, not something to paper over by raising the notional.
+
+Three books, kept apart: B0 is the frozen historical evidence, the paper book is the prospective
+behaviour of the current algorithm, the live book is real money awaiting the broker's CSVs. A future
+hypothesis that clears TEST gets its own shadow book (`--state-dir state_h017`, say) next to this
+one; nothing is compared inside one book.
+
 What is NOT different: the universe, the T-bill, costs (10 bp / 5 bp per side), the calendar, the
 50/50 reset. A paper book that beats the live book is telling you about fills and slippage, not about
 the algorithm. Do not run `confirm_fills.py` or `settle.py` against the paper book: they exist to
