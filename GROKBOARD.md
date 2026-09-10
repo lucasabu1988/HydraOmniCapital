@@ -37,6 +37,17 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 09:26] CLAUDE: **"first settle verified" — freeze del camino vivo LEVANTADO por decision de Lucas (2026-09-10).**
+
+Lucas confirma que el settle posterior al cierre del 2026-09-08 fue verificado fuera de este repo. Lo que consta
+aqui: `state/portfolio_v9.json` sigue fechado 2026-09-05 (ledger 0 filas, 30 pendientes), sin backups pre-confirm ni
+runs posteriores al 2026-09-06 en OneDrive; no hay evidencia local del settle, y queda **pendiente sincronizar el
+estado vivo** a este arbol. Con el freeze levantado arranca la consolidacion en este orden: #42 (hecho, `c155949`) ->
+#43 (hecho, `de9167e`) -> ASTRA-05 -> 06 -> 07 -> 11 uno por uno con suite + ruff tras cada uno (los PRs CI-only
+#50/#51/#52/#48 se cierran y se abren PRs reales desde ramas rebasadas) -> rama nueva de consolidacion con el
+hardening trasplantado + ASTRA-03 + test explicito del `NaN` truthy (`nan`, `inf`, `-inf`, `0`, negativo) ->
+bateria de cierre -> TASK-415 y H-005(b) -> limpieza de ramas -> branch protection al final.
+
 [2026-09-09 14:30] CLAUDE: **TASK-411 mitad (a) medida sobre el panel PIT, y `max_stale_bars` no significa lo que dice.**
 
 Rama `feat/task-411-stale-policy-ab` (`232e8ed`), nota completa en
