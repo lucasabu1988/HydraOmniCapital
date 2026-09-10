@@ -5,6 +5,8 @@ A bump is Claude's call. Do not import the engine.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
+
 
 class SchemaError(Exception):
     """Unknown or unreadable schema_version."""
@@ -28,7 +30,7 @@ def _fill_missing_v1(state: dict) -> dict:
     return state
 
 
-MIGRATIONS: dict[int, callable] = {
+MIGRATIONS: dict[int, Callable[[dict], dict]] = {
     1: _fill_missing_v1,
 }
 

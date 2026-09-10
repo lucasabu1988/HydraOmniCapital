@@ -78,10 +78,14 @@ def test_dividends_absent_are_zero():
     assert "pay-date" in expl["note"]
 
 
-def test_cli_exit_0_on_missing_state(tmp_path):
+def test_cli_exits_non_zero_on_missing_state(tmp_path, capsys):
+    """Audit phase 5.7. This used to assert exit 0 (repro R-507): a reconciliation
+    that could not be performed reported success, so an unattended run treated a
+    missing state or a broken CSV as clean."""
     csv = _csv(tmp_path, [("AAA", 1)])
     rc = R.main([str(csv), "--cash-total", "1", "--state", str(tmp_path / "nope.json")])
-    assert rc == 0
+    assert rc != 0
+    assert "state not found" in capsys.readouterr().out
 
 
 def test_cli_prints_and_writes_nothing(tmp_path, capsys):

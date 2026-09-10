@@ -1,4 +1,6 @@
 # TASK-368 — dev-only. Production install remains requirements.txt.
+# Kept in step with pyproject.toml [project.optional-dependencies].dev by
+# test_packaging.py.
 pytest>=8.0
 pytest-timeout>=2.3
 pytest-cov>=5.0

@@ -919,7 +919,7 @@ def get_dow30_tickers(use_cache: bool = True) -> list[str]:
 # ============================================================
 
 def _fetch_russell1000_from_slickcharts(timeout: int = 25) -> list[str] | None:
-    """Slickcharts Russell 1000 if available: https://slickcharts.com/russell1000"""
+    """Slickcharts Russell 1000 if available (a real membership source, unlike the cap ranking)."""
     url = "https://slickcharts.com/russell1000"
     try:
         resp = requests.get(url, headers=_get_headers(), timeout=timeout)
@@ -966,8 +966,11 @@ def _fetch_russell1000_from_barchart(timeout: int = 25) -> list[str] | None:
 
 # ============================================================
 # NASDAQ screener API - universo US completo rankeado por market cap
-# (proxy metodológico de los Russell: R1000 = top 1000 por cap,
-#  R2000 = puestos 1001-3000, igual que la metodología FTSE Russell)
+# Cap-ranking PROXY for the Russell indices: R1000 = top 1000 by market cap,
+# R2000 = ranks 1001-3000. This is *not* the FTSE Russell methodology: the real
+# indices are float-adjusted, screened for eligibility, reconstituted annually and
+# banded. Naming a result from this list a "Russell" result overstates the data
+# (audit phase 7.1). See data/universe_registry.py.
 # ============================================================
 
 _NASDAQ_RANKED_CACHE: list[str] | None = None  # cache en memoria por proceso
@@ -1033,7 +1036,7 @@ def _fetch_us_stocks_ranked_by_marketcap(timeout: int = 60) -> list[str] | None:
 
 
 def _fetch_russell1000_from_nasdaq(timeout: int = 60) -> list[str] | None:
-    """Proxy Russell 1000: top 1000 acciones US por market cap."""
+    """PROXY Russell 1000: top 1000 US names by market cap. Not FTSE Russell membership."""
     ranked = _fetch_us_stocks_ranked_by_marketcap(timeout=timeout)
     if ranked and len(ranked) >= 3000:
         return ranked[:1000]
@@ -1041,7 +1044,7 @@ def _fetch_russell1000_from_nasdaq(timeout: int = 60) -> list[str] | None:
 
 
 def _fetch_russell2000_from_nasdaq(timeout: int = 60) -> list[str] | None:
-    """Proxy Russell 2000: puestos 1001-3000 por market cap (small caps)."""
+    """PROXY Russell 2000: cap ranks 1001-3000. Not FTSE Russell membership."""
     ranked = _fetch_us_stocks_ranked_by_marketcap(timeout=timeout)
     if ranked and len(ranked) >= 3000:
         return ranked[1000:3000]
@@ -1049,7 +1052,11 @@ def _fetch_russell2000_from_nasdaq(timeout: int = 60) -> list[str] | None:
 
 
 def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
-    """Devuelve tickers del Russell 1000 (large + mid cap ~1000 US stocks)."""
+    """PROXY for the Russell 1000: the top ~1000 US names by market cap.
+
+    NOT FTSE Russell membership — no float adjustment, no eligibility screens, no
+    annual reconstitution. See data/universe_registry.py (audit phase 7.1/7.3).
+    """
     cache_path = _get_cache_path("russell1000")
     if use_cache and os.path.exists(cache_path):
         mod_time = datetime.fromtimestamp(os.path.getmtime(cache_path))
@@ -1057,7 +1064,7 @@ def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
             df = pd.read_csv(cache_path)
             return sorted(df["ticker"].dropna().astype(str).str.strip().unique().tolist())
 
-    print("Descargando lista actualizada del Russell 1000 (más acciones mid/large)...", end=" ", flush=True)
+    print("Descargando PROXY Russell 1000 (top 1000 US por market cap; NO es membresia FTSE Russell)...", end=" ", flush=True)
     tickers = None
     source = None
 
@@ -1106,7 +1113,7 @@ def get_russell1000_tickers(use_cache: bool = True) -> list[str]:
             logger.warning("Failed to load universe cache: %s", e)
 
     # Fallback: use a broad list based on sp500 fallback + common mids (expandable)
-    print("Usando lista de respaldo amplia para Russell 1000 (combinando SP500 + mids comunes).")
+    print("FALLBACK: lista de respaldo amplia en lugar del proxy Russell 1000 (SP500 + mids comunes).")
     sp_fallback = get_fallback_sp500_tickers()
     # Add common mid-cap names not always in SP500 (approximate, for robustness)
     extra_mids = [
@@ -1238,7 +1245,12 @@ def _fetch_russell2000_from_barchart(timeout: int = 25) -> list[str] | None:
 
 
 def get_russell2000_tickers(use_cache: bool = True) -> list[str]:
-    """Devuelve tickers del Russell 2000 (small caps ~2000 stocks)."""
+    """PROXY for the Russell 2000: US market-cap ranks 1001-3000.
+
+    NOT FTSE Russell membership. The real index is float-adjusted and reconstituted
+    annually, so the small-cap edge of this list differs materially.
+    See data/universe_registry.py (audit phase 7.1/7.3).
+    """
     cache_path = _get_cache_path("russell2000")
     if use_cache and os.path.exists(cache_path):
         mod_time = datetime.fromtimestamp(os.path.getmtime(cache_path))
@@ -1246,7 +1258,7 @@ def get_russell2000_tickers(use_cache: bool = True) -> list[str]:
             df = pd.read_csv(cache_path)
             return sorted(df["ticker"].dropna().astype(str).str.strip().unique().tolist())
 
-    print("Descargando lista actualizada del Russell 2000 (small caps para más acciones)...", end=" ", flush=True)
+    print("Descargando PROXY Russell 2000 (ranks 1001-3000 por market cap; NO es membresia FTSE Russell)...", end=" ", flush=True)
     tickers = None
     source = None
 
@@ -1295,7 +1307,7 @@ def get_russell2000_tickers(use_cache: bool = True) -> list[str]:
             logger.warning("Failed to load universe cache: %s", e)
 
     # Fallback: broad small/mid cap names (expanded to make 'all' wider even on fallback; real fetches preferred)
-    print("Usando lista de respaldo AMPLIA para Russell 2000 (small/mid caps + SP500 para universo mas amplio).")
+    print("FALLBACK: lista de respaldo AMPLIA en lugar del proxy Russell 2000 (small/mid caps + SP500).")
     sp_fb = get_fallback_sp500_tickers()
     r2k_fallback = sp_fb + [
         "AA", "AAL", "AAPL", "ABBV", "ABNB", "ABT", "ACN", "ADBE", "ADI", "ADM", "ADP", "ADSK", "AEE", "AEP", "AES",
@@ -1354,9 +1366,9 @@ def get_universe(full_sp500: bool = False, universe: str = None) -> list[str]:
       - universe="sp500" (o full_sp500=True legacy)
       - universe="nasdaq100"
       - universe="dow30"
-      - universe="russell1000" → ~1000 large+mid cap US
-      - universe="russell2000" → ~2000 small caps (más acciones)
-      - universe="russell3000" → R1000 + R2000 (~3000 total)
+      - universe="russell1000" → PROXY: top ~1000 US by market cap (not FTSE Russell)
+      - universe="russell2000" → PROXY: US cap ranks 1001-3000 (not FTSE Russell)
+      - universe="russell3000" → PROXY: the two above combined
       - universe="all"       → combina SP500 + Nasdaq100 + Dow30 + R1000 + R2000 (máxima amplitud ~2500+ tickers únicos)
       - universe="custom" o full_sp500=False → INITIAL_UNIVERSE
     """
@@ -1375,7 +1387,7 @@ def get_universe(full_sp500: bool = False, universe: str = None) -> list[str]:
     if u == "all":
         # Busca en todos los índices a la vez y elige de entre todos (sin separar por índice)
         # Ahora incluye Russell 1000 + Russell 2000 para integrar MUCHAS MÁS acciones (large + mid + small caps)
-        print("Obteniendo universo COMBINADO AMPLIADO (SP500 + Nasdaq100 + Dow30 + Russell1000 + Russell2000)...")
+        print("Obteniendo universo COMBINADO (SP500 + Nasdaq100 + Dow30 + proxies cap-rank R1000/R2000)...")
         sp = get_sp500_tickers()
         nd = get_nasdaq100_tickers()
         dj = get_dow30_tickers()

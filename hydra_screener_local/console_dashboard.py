@@ -19,6 +19,12 @@ After `pip install -e .` (or from the package):
     hydra-console
 """
 
+# The rich imports below are optional (RICH_AVAILABLE); the annotations that name
+# Panel/Table/Layout are evaluated lazily so this module still imports without rich.
+# Without this, `import console_dashboard` raised NameError on a machine (or a wheel
+# install) that had no rich — the fallback the module advertises never worked.
+from __future__ import annotations
+
 import argparse
 import json
 import sys
