@@ -15,7 +15,9 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 
 | H-010 | 2026-09-08 | Claude (propone) / Lucas (elige) | **Residual momentum** (Blitz-Huij-Martens 2011): rank the momentum of the part of the return the market does not explain, not the raw return. Same 12-7 window, same everything downstream | DEV tercile-spread of the residual ranking **against** the conventional one, paired; only then the portfolio A/B | **REJECTED at step 0, same day.** Primary `sum(e)/sd(e)`: paired **-1.08 bp** [-6.65, +5.31]; secondary `sum(e)/vol63`: **-3.07 bp** [-8.51, +3.31]. Both standardisations wrong-signed, Spearman 0.85 so there WAS room. TEST not read. |
 | H-011 | 2026-09-10 | Claude (propone) / Lucas (elige) | Drop the `/vol63` penalty from the stock score: `mom12_7` instead of `mom12_7 / vol63`, nothing else changes (lab lever `risk_adjust`) | Δ CAGR net vs B0: sleeve > +1.00 pp = valid; 50/50 engine > +1.00 pp = production | **REJECTED at step 0** (2026-09-10) |
-| H-012 | 2026-09-10 | Lucas (propone) / Claude (registro) | Seasonality as a candidate-pool signal: step 0 first (does calendar seasonality separate forward returns inside the pool?), portfolio A/B only if it does | step 0: paired spread with block-bootstrap interval; step 1: Δ CAGR net vs B0 | PROPOSED |
+| H-012 | 2026-09-10 | Lucas (especifica) / Claude (registro) | **Same-calendar-month seasonality** (Heston-Sadka): `SEA` = mean of the same calendar month's total return at lags 24/36/48/60 months; step 0 tercile spread in the pool, then secondary selection inside the top 1.5n | step 0: high-minus-low SEA tercile fwd 5-bar spread, DEV, block bootstrap; step 1: Δ CAGR net engine > +1.00 pp vs B0 | **REJECTED at step 0** (2026-09-10, wrong sign, interval clear of zero) |
+| H-013 | 2026-09-10 | Claude (idea) / Lucas (retira) | GRJMOM-style partial vol scaling (`mom / vol^a`, a in (0,1)) | — | **WITHDRAWN** - premise falsified by H-011, never measured |
+| H-014 | 2026-09-10 | Lucas (siguiente en cola) | ETF sleeve with absolute + cross-sectional momentum | Δ CAGR net engine > +1.00 pp vs B0 | PROPOSED (to be written before any run) |
 
 ## Template
 
@@ -348,16 +350,71 @@ the reason written here.
 - **What is kept:** the `risk_adjust` lever (default reproduces production bit for bit, `T20_raw`
   config) and the harness with 4 tests; the next "change one term of the score" idea costs an hour.
 
-### H-012 — seasonality inside the candidate pool (pre-registered 2026-09-10, step 0 first)
+### H-012 — same-calendar-month seasonality inside the candidate pool (pre-registered 2026-09-10, before any run)
 
-- **Date / proposer:** 2026-09-10. Lucas proposed running it after H-011 whatever H-011 returns;
-  Claude registers the protocol. **Not yet specified** beyond the protocol: which calendar effect
-  (month-of-year, turn-of-month, day-of-week, pre-holiday) and how it would enter the sleeve (a
-  tilt of the candidate pool, never a market-timing switch on the 50/50). To be written here BEFORE
-  any run, with the single pre-declared expectation and its falsifier.
-- **Step 0 (DEV only):** does the chosen calendar variable separate forward 5-bar returns INSIDE the
-  veto-filtered pool `rank_day` produces (same harness shape as H-009/H-010/H-011: paired,
-  block-bootstrap interval)? **No separation = dies at step 0, no portfolio A/B.**
-- **Step 1:** only if step 0 passes: portfolio A/B with executable accounting against B0, same
-  deciding metric as H-011 (Δ CAGR net > +1.00 pp; sleeve vs production criteria kept apart).
-- **Rule 6 / budget:** production untouched; step 0 = 1 DEV trial.
+- **Date / proposer:** 2026-09-10. Lucas specified the effect and the protocol; Claude registers and measures.
+- **Statement (Heston & Sadka 2008; Keloharju, Linnainmaa & Nyberg 2016):** stocks that were relatively
+  strong in a given calendar month tend to be relatively strong in that same month again, at ANNUAL
+  lags. Not "September is a good month": a cross-sectional persistence. For stock i and decision date
+  t in calendar month M of year Y:
+
+      SEA_{i,t} = ( R_{i,(Y-2,M)} + R_{i,(Y-3,M)} + R_{i,(Y-4,M)} + R_{i,(Y-5,M)} ) / 4
+
+  with each R the TOTAL return of that whole calendar month (dividend-adjusted closes, month-end to
+  month-end). Lags 24/36/48/60 months = the "years 2-5" specification; **the month one year back is
+  deliberately excluded** so the signal cannot overlap conceptually with `mom12_7`. A name without
+  all four months has `SEA` = not available; it is never expelled for lacking history.
+- **Step 0 (DEV only, < 2016-01-01, `experiments/h012_seasonality.py`):** same dates, same
+  `rank_day`, same filters, same veto, same universe, same forward return (t+1 close -> t+6 close)
+  as H-009/H-010/H-011. Inside the veto-filtered pool, names with a valid `SEA` are split into
+  terciles; **deciding number = mean forward 5-bar return of the high-SEA tercile minus the low-SEA
+  tercile**, with the moving-block bootstrap already in use (13-step blocks, 5000 draws, one index
+  matrix). Pre-declared: **direction positive**. **Negative point estimate -> REJECTED at once. 90 %
+  interval crossing zero -> INDISTINGUISHABLE, treated as REJECTED. TEST is not read.** One DEV cell,
+  one trial, no second subsample. Because the panel starts in 2004 and lag 60 needs five prior
+  years, the DEV cell with a valid `SEA` runs from January 2009 to December 2015; this is written
+  down here, before the run, as a property of the panel and not a choice.
+- **Step 1 (only if step 0 survives), the mechanism inherited from H-009 with no new degree of
+  freedom:** production ranking by `mom12_7 / vol63`; take the top `1.5 x n`; inside that pool
+  prioritise the highest `SEA`; veto, sector cap, buffer, dynamic count, tranches, vol targeting,
+  costs and execution unchanged. `1.5` is inherited, not optimised; no 1.2 / 1.7 / 2.3. Names with
+  `SEA` not available are neither favoured nor expelled: the slots that cannot be filled with a
+  valid signal are filled following the original production ranking.
+- **Deciding metric at step 1:** Δ CAGR net of the 50/50 ENGINE vs B0's engine row (7.03):
+  **APPROVED iff engine CAGR > 8.03 %**, unrounded (8.0301 passes, 8.0299 does not). T20, Sharpe
+  excess, maxDD, turnover, number of substitutions and concentration are reported alongside and
+  decide nothing.
+- **Rule 6:** production untouched throughout; `fix/astra-06-followup` stays out of this cycle so B0
+  is not contaminated.
+- **Testing budget:** step 0 = 1 DEV trial. If it dies, N goes 43 -> 44 and that is the end of it.
+- **Result (2026-09-10, `experiments/h012_seasonality.py`, DEV < 2016-01-01, OOS PIT panel, sectors fixed,
+  pool from `T20`; valid `SEA` from 2009-02-03 (lag 60 needs 2004), 347 rebalance dates, mean pool 284
+  names of which 276 (96.9 %) had all four months):**
+
+  | | high-SEA tercile | low-SEA tercile | spread (high - low) | 90 % interval | p(spread<=0) | steps positive |
+  |---|---|---|---|---|---|---|
+  | mean `SEA` (same-month total return, lags 2-5y) | +5.06 % | -2.80 % | the sort works | | | |
+  | mean forward 5-bar return | **28.53 bp** | **38.73 bp** | **-10.19 bp** | [-16.95, -3.23] | 0.992 | 42.1 % |
+
+  The signal separates the pool as intended (a 7.9-point gap in same-month history between the
+  terciles), and the names with the STRONG same-month history earned ten basis points LESS over the
+  next five days, with the whole 90 % interval below zero. Inside a pool that has already been
+  selected on 12-7 momentum, the calendar-month persistence of Heston-Sadka does not show; what
+  shows has the opposite sign, which is not a licence to trade it (a wrong sign is a rejection, not an
+  inverted rule - the same discipline as H-009/H-010/H-011).
+- **Decision: REJECTED at step 0, by the rule written above before the run.** No secondary-selection
+  lever, no portfolio A/B, **TEST was not read**. The paper's effect may well be real in its own sample
+  (US, monthly, all stocks, no costs); it is not present in the pool HYDRA actually chooses from, on
+  the five-day horizon it trades.
+- **Testing budget:** 1 DEV trial spent. N: 43 -> **44**.
+- **What is kept:** `month_returns()` / `sea_at()` and the harness with 4 tests (exact lags, the
+  year-ago month excluded, missing history -> no signal, the decision rule). Next in the queue per
+  Lucas: H-014, the ETF sleeve with absolute + cross-sectional momentum, to be written before any run.
+
+### H-013 — GRJMOM-style partial volatility scaling (WITHDRAWN 2026-09-10, never measured)
+
+Only made sense if H-011 showed the `/vol63` penalty was suppressing an edge. H-011 showed the
+opposite (raw momentum: -4.50 bp per step, 46 % of dates, ~30 % more volatile picks). Trying
+`mom / vol^0.7`, `mom / vol^0.5`, ... now would turn a negative result into a parameter search.
+**WITHDRAWN - premise falsified by H-011**, not REJECTED: GRJMOM itself was never measured, so it
+carries no result and spends no trial.
