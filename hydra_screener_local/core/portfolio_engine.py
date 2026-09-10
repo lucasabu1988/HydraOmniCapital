@@ -416,7 +416,8 @@ def accrue_interest(state: dict, index: pd.DatetimeIndex, today: str, tbill_rate
     `last_run_date` up to and including `today`, at the ^IRX print of that bar (`tbill_rate` as an
     annualised decimal Series; a scalar is a flat rate). Nothing accrues on the first run. The cash
     spent at t+1 settles earned one bar less than the book assumes (< 0.01 bp; accepted). Records
-    one entry per sleeve in `state["interest"]`; returns the total dollars accrued."""
+    one entry per sleeve in `state["interest"]`, with the per-tranche breakdown in `by_tranche`
+    (TASK-415); returns the total dollars accrued."""
     last = state.get("last_run_date")
     if not last:
         return 0.0
@@ -435,13 +436,23 @@ def accrue_interest(state: dict, index: pd.DatetimeIndex, today: str, tbill_rate
     state.setdefault("interest", [])
     for sleeve in sleeve_names(state):
         earned = 0.0
-        for tr in state["sleeves"][sleeve]["tranches"]:
+        by_tranche: dict[str, float] = {}
+        for k, tr in enumerate(state["sleeves"][sleeve]["tranches"]):
             cash = float(tr["cash"])
             if cash > 0:                                       # a (transient) negative balance is not charged
                 tr["cash"] = cash * factor
-                earned += cash * (factor - 1.0)
+                credited = cash * (factor - 1.0)
+                earned += credited
+                by_tranche[str(k)] = credited
+        # TASK-415: the record still carries the sleeve total (every consumer sums `dollars`), and
+        # ADDITIONALLY the exact dollars each tranche was credited, so state_check.replay can put
+        # the interest back where it went instead of re-splitting the sleeve total by the cash
+        # weights of the moment - which differ once confirm_fills has moved cash between tranches
+        # (measured 2026-09-08: identical sleeve totals, up to 0.2293 USD per tranche, 8 ERROR
+        # replay_cash). Records written before this carry no `by_tranche` and replay as before.
         state["interest"].append(dict(date=today, since=last, sleeve=sleeve, bars=int(len(bars)),
-                                      rate=float(daily.mean() * 252.0), dollars=earned))
+                                      rate=float(daily.mean() * 252.0), dollars=earned,
+                                      by_tranche=by_tranche))
         total += earned
     return total
 

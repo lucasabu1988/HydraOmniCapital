@@ -140,9 +140,25 @@ def _apply_fill(books: dict, f: dict) -> None:
 
 
 def _apply_interest(books: dict, rec: dict) -> None:
+    """Credit an interest record to the tranches it was earned on.
+
+    TASK-415: a record that carries `by_tranche` (written by accrue_interest since the 2026-09-10
+    consolidation) is applied exactly, tranche by tranche. A record without it (historical states)
+    is split by the tranches' cash weights at replay time - the approximation that made stored and
+    replayed cash disagree per tranche once confirm_fills had moved cash.
+    """
     sleeve = str(rec.get("sleeve") or "")
     dollars = _f(rec.get("dollars"))
     trans = (books.get(sleeve) or {}).get("tranches") or []
+    by_tranche = rec.get("by_tranche")
+    if isinstance(by_tranche, dict) and by_tranche:
+        for k, amount in by_tranche.items():
+            try:
+                tr = trans[int(k)]
+            except (TypeError, ValueError, IndexError):
+                continue
+            tr["cash"] += _f(amount)
+        return
     weights = [max(_f(t.get("cash")), 0.0) for t in trans]
     total = sum(weights)
     if total <= 0 or abs(dollars) < 1e-15:
