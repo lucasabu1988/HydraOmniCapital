@@ -14,6 +14,8 @@ Status: PROPOSED -> TESTED (numbers) -> ACCEPTED (version) | REJECTED | WITHDRAW
 | H-009 | 2026-09-08 | Lucas (elige) / Claude (propone) | The PATH of the momentum, not its size: information discreteness (Da-Gurun-Warachka 2014) as a **tie-break** inside the candidate pool - a gradual riser continues better than a jumpy one with the same 12-7 return | DEV forward-return spread by ID tercile first; only then paired DEV `sharpe_excess` with a block-bootstrap interval | **REJECTED at step 0, same day.** Full pool **-0.42 bp** [-5.29, +5.29], wrong sign; winners-only (the pre-declared subsample) **+2.20 bp** [-4.45, +8.23], right sign but indistinguishable from zero. No portfolio lever built, TEST not read. |
 
 | H-010 | 2026-09-08 | Claude (propone) / Lucas (elige) | **Residual momentum** (Blitz-Huij-Martens 2011): rank the momentum of the part of the return the market does not explain, not the raw return. Same 12-7 window, same everything downstream | DEV tercile-spread of the residual ranking **against** the conventional one, paired; only then the portfolio A/B | **REJECTED at step 0, same day.** Primary `sum(e)/sd(e)`: paired **-1.08 bp** [-6.65, +5.31]; secondary `sum(e)/vol63`: **-3.07 bp** [-8.51, +3.31]. Both standardisations wrong-signed, Spearman 0.85 so there WAS room. TEST not read. |
+| H-011 | 2026-09-10 | Claude (propone) / Lucas (elige) | Drop the `/vol63` penalty from the stock score: `mom12_7` instead of `mom12_7 / vol63`, nothing else changes (lab lever `risk_adjust`) | Δ CAGR net vs B0: sleeve > +1.00 pp = valid; 50/50 engine > +1.00 pp = production | **REJECTED at step 0** (2026-09-10) |
+| H-012 | 2026-09-10 | Lucas (propone) / Claude (registro) | Seasonality as a candidate-pool signal: step 0 first (does calendar seasonality separate forward returns inside the pool?), portfolio A/B only if it does | step 0: paired spread with block-bootstrap interval; step 1: Δ CAGR net vs B0 | PROPOSED |
 
 ## Template
 
@@ -258,3 +260,104 @@ identically there is no room for a difference regardless of the spread.
 - MR (Rattlesnake) sleeve killed at pre-registration (DEV Sharpe 0.21) — 2026-09-06.
 - Redesign target >= 10% net: not reached by any robust variant; production moved to the 50/50
   portfolio for return per unit of risk — 2026-09-06/07.
+
+### B0 — the frozen baseline (2026-09-10, run once, `experiments/baseline_b0.py`)
+
+ASTRA-06 showed the lab's breadth carried look-ahead; correcting it moved T20 (~7.55 -> ~7.28 in the
+audit's own words). So the published 7.10 / 7.08 of older trees are NOT the comparison point for new
+hypotheses. B0 is: commit **`e29599e`** (main after the consolidation: hardening, ASTRA-03/05/06/07/11,
+corrected runner), today's caches, OOS S&P 500 PIT panel with delistings (TASK-350), sectors `fixed`,
+same dates, executable accounting (`run_exec` / engine, costs included). Deciding metric everywhere:
+**`ann_net`, a geometric annualised net return (CAGR), in percentage points**.
+
+| B0 row | cycles | ann_net (CAGR) | net/vol | sharpe_excess | maxDD | turnover | how |
+|---|---|---|---|---|---|---|---|
+| engine 50/50 (production) | 1083 | **7.03** | 0.74 | 0.56 | -17.7 | 13.4 | `engine_backtest.py --oos` at e29599e, 2026-09-10 |
+| T20 sleeve (cash at 0) | 1084 | **7.50** | 0.59 | 0.47 | -31.0 | 11.4 | `run_exec(CONFIGS["T20"])`, `metrics.stats` step 5 with the ^IRX leg |
+| T20 sleeve, cash earns T-bill (`T20_cy`) | 1084 | **7.68** | 0.60 | 0.48 | -30.4 | 11.4 | same, `cash_yield=True` (the sleeve as the engine actually runs it) |
+| PROD (legacy single portfolio) | 1084 | 4.91 | 0.38 | 0.27 | -41.2 | 39.4 | `run_exec(CONFIGS["PROD"])` |
+
+Panel: 1209 names, 2004-01-02 -> 2026-09-04, 1084 five-bar marks 2005-02-11 -> 2026-08-24, eligibility on the
+contemporaneous raw close where the cache has one (ASTRA-05), breadth on the PIT eligible set (ASTRA-06). All four rows
+share the convention of the published engine row (`metrics.stats` on per-step NET returns, step 5, T-bill leg from the
+same ^IRX); the lab's own `stats(df, hold)` annualises a 4-tranche book wrongly and is NOT used here. Frozen in
+`experiments/_lab_scratch/b0.json` (`experiments/baseline_b0.py`, refuses to overwrite without `--force`).
+
+Rules set by Lucas (2026-09-10): **Δ CAGR net > +1.00 pp** (percentage points, not relative) over the
+matching B0 row = APPROVED; two criteria are kept apart - a sleeve improvement (`T20` vs B0 T20) is a
+valid finding, a production change needs the **50/50 engine** to clear +1.00 pp over B0's engine row.
+Sharpe, maxDD and turnover are reported alongside; CAGR decides. B0 is frozen: it is not re-run when
+a hypothesis is tested, and a new B0 is minted only when `main` changes the lab or the engine, with
+the reason written here.
+
+### H-011 — drop the `/vol63` penalty from the stock score (pre-registered 2026-09-10, before any run)
+
+- **Date / proposer:** 2026-09-10. Claude proposed, Lucas picked it as candidate #1 after the
+  consolidation.
+- **Statement:** control `score = mom12_7 / vol63` (production, `rank_day`'s `comp`, boosts and veto
+  gate included); candidate `score = mom12_7`. **Nothing else changes**: same eligible pool, same
+  filters, same sector cap, same buffer, same veto, same hold, same tranches, same exposure rule. Lab
+  lever `risk_adjust` in `redesign_lab.BASE` (default `True` reproduces production bit for bit; the
+  config `T20_raw` is `T20` with `risk_adjust=False`, nothing else).
+- **Motivation:** dividing by realised vol tilts the sleeve toward low-vol names, which lowers gross
+  return and may or may not pay for itself in drawdown; ASTRA-06 removed a source of false alpha in
+  the lab, so the question is now askable on clean numbers.
+- **Step 0 (DEV only, < 2016-01-01, `experiments/h011_vol_penalty.py`):** at each rebalance date, the
+  same veto-filtered pool scored both ways; deciding number = the paired difference of the mean
+  forward 5-bar return of the **top-14 names each score picks** (the selection the sleeve trades),
+  with a moving-block bootstrap interval (13-step blocks, one index matrix for both legs); the
+  top-minus-bottom tercile spread of each score is reported for context, and the top-14 overlap and
+  mean vol63 of each pick set, so a difference can be read as "different names" or "riskier names".
+  Pre-declared expectation: raw momentum picks earn MORE over the next five days (the penalty costs
+  return). **Wrong sign = rejection at step 0, no portfolio A/B, TEST not read.** Predicted sign with
+  an interval straddling zero = weak; the portfolio A/B may still be run because the deciding metric
+  is CAGR on B0, but the expectation is written down as small.
+- **Step 1 (portfolio A/B, executable accounting):** `run_exec(T20_raw)` vs B0's `T20` on the OOS
+  panel; then the 50/50 engine with the lever (`engine_backtest.py --oos` with `T20_raw` as the
+  ranking config) vs B0's engine row. Report ann_net, sharpe, maxDD, turnover, distinct names.
+- **Deciding metric:** Δ CAGR net. Sleeve: `T20_raw.ann_net - B0.T20.ann_net > +1.00 pp` = valid
+  sleeve improvement. Production: `engine(T20_raw).ann_net - B0.engine.ann_net > +1.00 pp` = APPROVED.
+- **Falsifier:** step 0 wrong sign; or step 1 Δ CAGR <= +1.00 pp on the engine (then it is at most a
+  sleeve finding, kept for combination with an independent ETF-side improvement, never approved alone).
+- **TEST discipline:** DEV (< 2016) first at step 0; the portfolio A/B is run on the full OOS panel
+  because B0 is defined on the full panel, and its DEV/TEST split is reported alongside so a
+  post-2016-only gain is visible as such.
+- **Rule 6:** production untouched; `config.py`, `core/signals.py`, `core/meta_layer.py` not edited.
+- **Testing budget:** step 0 spends 1 DEV trial; step 1 spends 1 more. The deflated-Sharpe haircut's
+  N, 42 after H-010, should be read as 44 after H-011.
+- **Result (2026-09-10, `experiments/h011_vol_penalty.py`, DEV < 2016-01-01, OOS PIT panel, sectors fixed,
+  pool from `T20`, 546 rebalance dates, mean pool 259 names, Spearman between the two scores 0.941,
+  top-14 overlap 0.595):**
+
+  | leg | control `mom12_7/vol63` | raw `mom12_7` | paired diff | 90 % interval | p(diff<=0) | steps raw better |
+  |---|---|---|---|---|---|---|
+  | mean fwd 5-bar return of the top-14 picks (deciding) | **23.41 bp** | **18.91 bp** | **-4.50 bp** | [-12.47, +3.44] | 0.822 | 46.2 % |
+  | top-minus-bottom tercile spread (context) | 4.94 bp | 3.16 bp | -1.77 bp | [-8.10, +3.60] | 0.663 | 51.6 % |
+  | mean vol63 of the picks | 0.272 | 0.354 | +30 % riskier | | | |
+
+  The two scores pick different names four times out of ten, and the names raw momentum adds are
+  30 % more volatile and earn LESS over the next five days: the penalty is not a drag on return on
+  this pool, it is doing the selecting. The interval straddles zero, so this is not proof that the
+  penalty helps either - it is the absence of the predicted effect with the point estimate on the
+  wrong side.
+- **Decision: REJECTED at step 0, by the rule written above before the run.** No portfolio A/B, no
+  engine run, **TEST was not read**. Not rescued by "but CAGR decides": step 0 is the gate CAGR sits
+  behind, and a -4.5 bp per step selection effect compounds to roughly -2 pp a year before costs, the
+  opposite of the +1 pp the rule asks for.
+- **Testing budget:** 1 DEV trial spent. N: 42 -> **43**.
+- **What is kept:** the `risk_adjust` lever (default reproduces production bit for bit, `T20_raw`
+  config) and the harness with 4 tests; the next "change one term of the score" idea costs an hour.
+
+### H-012 — seasonality inside the candidate pool (pre-registered 2026-09-10, step 0 first)
+
+- **Date / proposer:** 2026-09-10. Lucas proposed running it after H-011 whatever H-011 returns;
+  Claude registers the protocol. **Not yet specified** beyond the protocol: which calendar effect
+  (month-of-year, turn-of-month, day-of-week, pre-holiday) and how it would enter the sleeve (a
+  tilt of the candidate pool, never a market-timing switch on the 50/50). To be written here BEFORE
+  any run, with the single pre-declared expectation and its falsifier.
+- **Step 0 (DEV only):** does the chosen calendar variable separate forward 5-bar returns INSIDE the
+  veto-filtered pool `rank_day` produces (same harness shape as H-009/H-010/H-011: paired,
+  block-bootstrap interval)? **No separation = dies at step 0, no portfolio A/B.**
+- **Step 1:** only if step 0 passes: portfolio A/B with executable accounting against B0, same
+  deciding metric as H-011 (Δ CAGR net > +1.00 pp; sleeve vs production criteria kept apart).
+- **Rule 6 / budget:** production untouched; step 0 = 1 DEV trial.
