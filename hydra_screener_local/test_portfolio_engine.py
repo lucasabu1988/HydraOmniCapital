@@ -244,7 +244,7 @@ def test_parity_stock_targets_with_redesign_lab():
         out = L.rank_day(P, t, c)
         if out is None:
             continue
-        m = P.meta_for(t, True)
+        m = P.meta_for(t, c)
         n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers["COMPASS"])), 28))
         sel = L.select(out, n, held, c["buffer"])
         basket = P.rets.iloc[t - 62:t + 1][sel.index].mean(axis=1)
