@@ -167,13 +167,21 @@ def build_prices(client: NorgateClient, symbols) -> dict:
     return frames
 
 
-def coverage(membership: pd.DataFrame, close: pd.DataFrame) -> dict:
-    """How much of the panel is real. Member-cells with a price / member-cells."""
+def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None) -> dict:
+    """How much of the panel is real. Member-cells with a price / member-cells.
+
+    `is_delisted` decides which names are dead. It defaults to Norgate's `-YYYYMM` suffix; a
+    client whose provider carries identity elsewhere passes its own (TASK-403: EODHD has no
+    suffix, so `EodhdClient.is_delisted` reads the delisted symbol list instead). Without this
+    the delisted guards would pass vacuously on an EODHD panel - `delisted_names 0` reads as
+    "a current-list screen", which is the failure they exist to catch.
+    """
+    is_delisted = is_delisted or is_delisted_symbol
     m = membership.reindex(index=close.index, columns=close.columns).fillna(False)
     member_cells = int(m.to_numpy().sum())
     priced = int((m.to_numpy() & close.notna().to_numpy()).sum())
     names = list(close.columns)
-    delisted = [s for s in names if is_delisted_symbol(s)]
+    delisted = [s for s in names if is_delisted(s)]
     with_history = [s for s in delisted if close[s].notna().any()]
     return dict(
         member_cells=member_cells,
@@ -228,14 +236,24 @@ def write_cache(frames: dict, membership: pd.DataFrame, cov: dict, out_dir=RUSSE
     return out_dir
 
 
-def build(client: NorgateClient, *, strict=True, dry_run=False, out_dir=RUSSELL_CACHE,
+def build(client, *, strict=True, dry_run=False, out_dir=RUSSELL_CACHE,
           symbols=None) -> dict:
+    """Any client three functions wide: `NorgateClient`, or `EodhdClient` (TASK-403).
+
+    Two hooks are optional, and a client that lacks them behaves exactly as before:
+    `is_delisted(symbol)` replaces the suffix rule, and `identity_problems(close)` adds
+    provider-specific reasons a panel must not be written (EODHD: a reused ticker is two
+    companies in one column).
+    """
     syms = list(symbols) if symbols is not None else client.symbols()
     assert_no_suffix_collision(syms)
     membership = build_membership(client, syms)
     frames = build_prices(client, syms)
-    cov = coverage(membership, frames["close"])
+    cov = coverage(membership, frames["close"], getattr(client, "is_delisted", None))
     problems = validate(cov)
+    identity = getattr(client, "identity_problems", None)
+    if identity is not None:
+        problems = problems + list(identity(frames["close"]))
     out = dict(coverage=cov, problems=problems, written=None, symbols=len(syms))
     if problems and strict:
         return out
@@ -245,19 +263,44 @@ def build(client: NorgateClient, *, strict=True, dry_run=False, out_dir=RUSSELL_
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="TASK-403: build the Russell PIT panel from Norgate")
+    ap = argparse.ArgumentParser(description="TASK-403: build the Russell PIT panel")
     ap.add_argument("--dry-run", action="store_true", help="validate and print, write nothing")
     ap.add_argument("--no-strict", action="store_true",
                     help="write even if a guard fails (say why in the board entry)")
     ap.add_argument("--out", default=RUSSELL_CACHE)
+    ap.add_argument("--source", choices=("norgate", "eodhd"), default="eodhd",
+                    help="eodhd: membership from the free record, prices from EODHD All World "
+                         "(bought 2026-09-11). norgate: needs the 630 USD/yr subscription.")
+    ap.add_argument("--membership", default=None,
+                    help="eodhd: the dated record CSV (default: the one russell_free_membership.py writes)")
+    ap.add_argument("--start", default=None, help="eodhd: first bar to request (default 2005-01-01)")
+    ap.add_argument("--end", default=None, help="eodhd: last bar to request (default: today)")
+    ap.add_argument("--limit", type=int, default=None,
+                    help="build over the first N member names only - a bounded probe, not a panel")
     args = ap.parse_args(argv)
 
-    try:
-        client = NorgateClient()
-    except RuntimeError as e:
-        print("SKIP:", e)
-        return 0
-    out = build(client, strict=not args.no_strict, dry_run=args.dry_run, out_dir=args.out)
+    symbols = None
+    if args.source == "eodhd":
+        from data.providers.eodhd_provider import EODHDProvider
+        from eodhd_pit_client import PANEL_START, EodhdClient
+        try:
+            client = EodhdClient(EODHDProvider(), args.membership,
+                                 start=args.start or PANEL_START, end=args.end)
+        except (FileNotFoundError, RuntimeError) as e:
+            print("SKIP:", e)
+            return 0
+    else:
+        try:
+            client = NorgateClient()
+        except RuntimeError as e:
+            print("SKIP:", e)
+            return 0
+    if args.limit:
+        symbols = client.symbols()[:int(args.limit)]
+        print(f"BOUNDED PROBE: {len(symbols)} of {len(client.symbols())} names — the guards below "
+              f"judge this subset, not the panel", flush=True)
+    out = build(client, strict=not args.no_strict, dry_run=args.dry_run, out_dir=args.out,
+                symbols=symbols)
     print(json.dumps(out["coverage"], indent=2), flush=True)
     if out["problems"]:
         print("", flush=True)

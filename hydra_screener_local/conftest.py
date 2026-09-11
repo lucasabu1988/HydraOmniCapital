@@ -15,10 +15,30 @@ resolving the environment deep inside the write path and to hand the backup an e
 
 Two layers are needed, and this is only one of them: `run_all_tests.py` also runs some files as
 scripts, and a script never loads a conftest — the runner sets the same redirect for its subprocesses.
+
+The same policy, second destination (TASK-422): the real `runs/` directory. `portfolio_v9.run`
+calls `data.fetch.load_last_ok_print_quality()` with no `runs_dir`, so it resolves
+`utils.runlog.DEFAULT_RUNS_DIR` = `hydra_screener_local/runs/` — gitignored live state. Every test
+that drives the CLI therefore READS the operator's last real run, and which branch of the loader
+executes depends on what happens to be on this disk. Measured on this tree: dropping a
+`runs/last_ok_print_quality.json` in place flips **35 statements** of `data/fetch.py`
+(238-250, 259, 268-303, 319-328) between covered and uncovered over the same two test files, which
+is what made two coverage runs of one commit disagree (82.33 vs 82.35, TASK-419). Redirecting the
+default at session import time makes the measurement a property of the code again. The branches it
+stops covering by accident are covered on purpose instead, with an explicit `runs_dir`
+(`test_provider_refresh.py`).
+
+Same gap as the layer above, said out loud: a file `run_all_tests.py` runs as a *script* loads no
+conftest, and this redirect is a module attribute rather than an environment variable, so the runner
+cannot pass it down. Coverage is measured over the pytest files only, so the measurement is fenced;
+a script-mode test that drove the CLI would still read the operator's `runs/`. The real fix is to
+hand the reader its destination instead of resolving it deep in the read path (ASTRA-12's shape).
 """
 import atexit
 import os
+import pathlib
 import shutil
+import sys
 import tempfile
 
 #: Any path carrying this marker is a throwaway test destination, never a real backup root.
@@ -37,3 +57,31 @@ def _redirect_backup_dir() -> str:
 
 
 BACKUP_DIR = _redirect_backup_dir()
+
+
+#: Same idea for the run log: a throwaway runs/ root, never the operator's.
+TEST_RUNS_MARKER = "hydra-test-runs"
+
+
+def _redirect_runs_dir() -> str:
+    """Point `utils.runlog.DEFAULT_RUNS_DIR` at a private temp directory.
+
+    Not an environment variable — this one is a module constant, so the redirect is an
+    attribute assignment done before any test module is imported. `data/fetch.py` reads it
+    inside the function (`from utils.runlog import DEFAULT_RUNS_DIR` at call time), so the
+    new value is the one the live code path sees under test.
+    """
+    here = str(pathlib.Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    from utils import runlog
+
+    if TEST_RUNS_MARKER in str(runlog.DEFAULT_RUNS_DIR):
+        return str(runlog.DEFAULT_RUNS_DIR)
+    path = tempfile.mkdtemp(prefix=f"{TEST_RUNS_MARKER}-")
+    runlog.DEFAULT_RUNS_DIR = pathlib.Path(path)
+    atexit.register(shutil.rmtree, path, True)
+    return path
+
+
+RUNS_DIR = _redirect_runs_dir()
