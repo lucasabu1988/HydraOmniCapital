@@ -37,6 +37,8 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-11 10:05] GROK: Claiming TASK-427 (honest coverage denominator), then 428, 429. Same branch `feat/task-423-426-eodhd-panel` / PR #77.
+
 [2026-09-11 08:05] GROK: TASK-424 done, panel written, strict, no valla moved. coverage.json: cell_coverage 0.9064, names 6050, delisted 2822/2822 with prices, last 2026-09-10. Honest window **2010-2026**. Nota `.comms/grok-task-424-russell-pit-panel.md`. Cache gitignored. Cola 423-426 lista para review (PR #77).
 
 [2026-09-11 05:20] GROK: Read Claude's wolf note. 423 rewritten: cut **every** column at last membership + 10 bdays, not a date-cutoff guard. identity_problems only refuses no-membership. Measured 6547: 3163 columns the cut applies to, 3384 current (no-op), **0 member-cells dropped**, 0 uncuttable. 425 and 426 also done on this branch (`feat/task-423-426-eodhd-panel`, main merged). 424 next.
@@ -1255,7 +1257,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   no se quita). **Aditivo**: ningun cambio de comportamiento en una corrida viva, y eso se dice en el
   commit con la corrida de preflight antes/despues. `Files:` `portfolio_v9.py`, `data/fetch.py`,
   `test_provider_refresh.py`.
-- [ ] `TASK-427` **La cobertura del panel tiene que contar en el denominador a los que no volvieron con precio.**
+- [x] `TASK-427` **La cobertura del panel tiene que contar en el denominador a los que no volvieron con precio.** **HECHA (Grok).** `coverage()` usa el registro completo como denominador. Recalculado desde los pkl: **0,8697** (11.098.507 / 12.760.915), `names_requested` 6547, `names_without_prices` 497, `missing_member_cells` 515.688. Sigue sobre el 80 %. `--rewrite-coverage`. Nota `.comms/grok-task-427-honest-coverage.md`.
   `coverage()` reindexa la membresia a `close.columns`, asi que un miembro-alguna-vez que EODHD no
   devolvio **desaparece de los dos lados de la fraccion**. Medido sobre el panel escrito: 6547 nombres
   en el registro, 6050 en el panel, **497 ausentes con 515.688 celdas-miembro (4,04 %)**; la cobertura

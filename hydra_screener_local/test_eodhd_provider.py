@@ -240,6 +240,7 @@ def test_the_builder_uses_the_clients_identity_and_writes_when_every_name_has_me
     out = B.build(c, strict=True, dry_run=False, out_dir=str(tmp_path))
     assert out["problems"] == [], out["problems"]
     assert out["coverage"]["delisted_names"] == 1, "identity came from the list, not the suffix"
+    assert out["coverage"]["names_requested"] >= out["coverage"]["names"]
     assert out["written"] == str(tmp_path)
     assert os.path.exists(os.path.join(str(tmp_path), "coverage.json"))
 

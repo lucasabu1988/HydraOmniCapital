@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(ROOT, "experiments"))
 
 from build_russell_pit import (  # noqa: E402
     MIN_CELL_COVERAGE, NorgateClient, assert_no_suffix_collision, build, build_membership,
-    build_prices, coverage, is_delisted_symbol, validate,
+    build_prices, coverage, is_delisted_symbol, rewrite_coverage, validate,
 )
 
 DATES = pd.bdate_range("2005-01-03", periods=60)
@@ -117,7 +117,28 @@ def test_coverage_counts_only_member_cells():
     assert cov["cell_coverage"] == 1.0
     assert cov["names"] == 12 and cov["delisted_names"] == 4
     assert cov["delisted_with_prices"] == 4
+    assert cov["names_requested"] == 12
+    assert cov["names_without_prices"] == 0 and cov["missing_member_cells"] == 0
     assert validate(cov) == []
+
+
+def test_coverage_keeps_members_without_prices_in_the_denominator():
+    """TASK-427: a requested name that never arrived must not vanish from both sides."""
+    dates = pd.bdate_range("2022-06-24", periods=6)
+    membership = pd.DataFrame(
+        {"LIVE": [True] * 6, "GONE": [True] * 6},
+        index=dates,
+    )
+    close = pd.DataFrame({"LIVE": [10.0] * 6}, index=dates)
+    cov = coverage(membership, close, is_delisted=lambda s: False)
+    assert cov["names"] == 1
+    assert cov["names_requested"] == 2
+    assert cov["names_without_prices"] == 1
+    assert cov["missing_member_cells"] == 6
+    assert cov["member_cells"] == 12
+    assert cov["priced_member_cells"] == 6
+    assert cov["cell_coverage"] == 0.5
+    assert validate(cov, min_coverage=0.80, min_delisted=0.0)  # thin, and no delisted names
 
 
 def test_a_panel_with_no_delisted_names_is_rejected_as_a_current_list_screen():
@@ -176,6 +197,24 @@ def test_a_clean_panel_is_written_with_its_coverage_next_to_it(tmp_path):
     close = pd.read_pickle(tmp_path / "close.pkl")
     membership = pd.read_pickle(tmp_path / "membership.pkl")
     assert close.shape[1] == 12 and membership.shape[1] == 12
+
+
+def test_rewrite_coverage_recomputes_from_the_pkl_files(tmp_path):
+    """TASK-427: the already-built panel is remeasured from disk, no provider."""
+    dates = pd.bdate_range("2022-06-24", periods=4)
+    membership = pd.DataFrame({"LIVE": True, "GONE": True}, index=dates)
+    close = pd.DataFrame({"LIVE": [10.0] * 4}, index=dates)
+    close.to_pickle(tmp_path / "close.pkl")
+    membership.to_pickle(tmp_path / "membership.pkl")
+    (tmp_path / "coverage.json").write_text("{}", encoding="utf-8")
+    cov = rewrite_coverage(str(tmp_path), is_delisted=lambda s: False)
+    assert cov["names_requested"] == 2
+    assert cov["names_without_prices"] == 1
+    assert cov["missing_member_cells"] == 4
+    assert cov["cell_coverage"] == 0.5
+    import json
+    on_disk = json.loads((tmp_path / "coverage.json").read_text(encoding="utf-8"))
+    assert on_disk["cell_coverage"] == 0.5
 
 
 def test_dry_run_validates_without_writing(tmp_path):
