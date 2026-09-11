@@ -2,13 +2,16 @@
 Data fetching ligero para el screener local.
 Maneja bien universos grandes (S&P 500) usando descargas por lotes.
 """
-import yfinance as yf
-import pandas as pd
+import json
 import warnings
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
-from config import DELISTED_OR_BAD_TICKERS
+import pandas as pd
+import yfinance as yf
+
+from config import DELISTED_OR_BAD_TICKERS, PROVIDER_REFRESH_DEGRADE_SHARE
 
 warnings.filterwarnings("ignore")
 
@@ -119,6 +122,7 @@ def fetch_prices_and_volume(tickers: list[str], period: str = "1y", batch_size: 
     # This path never forward-fills, so notna() IS the print mask; attach it anyway so the
     # execution accessor sees the same provenance contract on stocks and on ETFs (ASTRA-03).
     attach_observed(prices, prices.notna())
+    attach_print_quality(prices, "stocks")
     return prices, volumes
 
 
@@ -164,6 +168,8 @@ FFILL_LIMIT_BARS = 3
 # `frame.attrs[OBSERVED_ATTR]`; the execution-price accessor (portfolio_v9._row) reads it and
 # books "no price on execution day" instead of a fill at a stale close.
 OBSERVED_ATTR = "observed"
+PRINT_QUALITY_ATTR = "print_quality"
+LAST_OK_PRINT_QUALITY = "last_ok_print_quality.json"
 
 
 def attach_observed(frame: pd.DataFrame, mask) -> pd.DataFrame:
@@ -176,6 +182,152 @@ def attach_observed(frame: pd.DataFrame, mask) -> pd.DataFrame:
     except Exception:                                    # attrs are best-effort provenance
         frame.attrs.pop(OBSERVED_ATTR, None)
     return frame
+
+
+def frame_print_quality(frame) -> dict:
+    """Print share and last bar of one group. Uses the observed mask when present so a
+    3-bar forward fill does not count as a print (the 2026-09-10 degradation)."""
+    empty = {"print_share": 0.0, "last_bar": None, "n": 0, "n_printed": 0}
+    if frame is None or getattr(frame, "empty", True) or len(frame) == 0:
+        return empty
+    try:
+        last_bar = str(pd.Timestamp(frame.index[-1]).date())
+    except Exception:
+        last_bar = str(frame.index[-1])
+    last = frame.iloc[-1]
+    mask = observed_mask(frame)
+    if isinstance(frame, pd.Series):
+        n = 1
+        if mask is not None and len(mask):
+            printed = int(bool(mask.iloc[-1].any() if hasattr(mask.iloc[-1], "any") else mask.iloc[-1]))
+        else:
+            printed = int(pd.notna(last))
+    else:
+        n = int(frame.shape[1])
+        if mask is not None and len(mask):
+            row = mask.iloc[-1]
+            printed = int(pd.Series(row).fillna(False).astype(bool).sum())
+        else:
+            printed = int(pd.to_numeric(last, errors="coerce").notna().sum())
+    share = (printed / n) if n else 0.0
+    return {"print_share": round(float(share), 4), "last_bar": last_bar, "n": n, "n_printed": printed}
+
+
+def attach_print_quality(frame, group: str):
+    """Stash print quality on `frame.attrs`. Returns the record (empty frame -> empty record)."""
+    rec = dict(frame_print_quality(frame), group=str(group))
+    if frame is None or getattr(frame, "empty", True):
+        return rec
+    try:
+        frame.attrs[PRINT_QUALITY_ATTR] = rec
+    except Exception:
+        pass
+    return rec
+
+
+def groups_print_quality(prices=None, etf=None, irx=None) -> dict:
+    return {
+        "stocks": attach_print_quality(prices, "stocks") if prices is not None else frame_print_quality(None),
+        "etf": attach_print_quality(etf, "etf") if etf is not None else frame_print_quality(None),
+        "^IRX": attach_print_quality(irx, "^IRX") if irx is not None else frame_print_quality(None),
+    }
+
+
+def degraded_groups(current: dict, previous: dict | None, threshold: float | None = None) -> list[dict]:
+    """Groups whose print share fell by more than `threshold` vs the last successful run."""
+    if not previous:
+        return []
+    drop = PROVIDER_REFRESH_DEGRADE_SHARE if threshold is None else float(threshold)
+    prev_groups = previous.get("groups") or previous
+    out = []
+    for name, now in (current or {}).items():
+        was = prev_groups.get(name) or {}
+        prev_share = was.get("print_share")
+        now_share = (now or {}).get("print_share")
+        if prev_share is None or now_share is None:
+            continue
+        if float(prev_share) - float(now_share) > drop:
+            out.append({
+                "group": name,
+                "print_share": float(now_share),
+                "last_bar": (now or {}).get("last_bar"),
+                "prev_print_share": float(prev_share),
+                "prev_last_bar": was.get("last_bar"),
+                "prev_at": previous.get("at"),
+                "drop": round(float(prev_share) - float(now_share), 4),
+            })
+    return out
+
+
+def format_provider_degraded(hits: list[dict]) -> str | None:
+    if not hits:
+        return None
+    bits = []
+    for h in hits:
+        prev_at = f" at {h['prev_at']}" if h.get("prev_at") else ""
+        bits.append(
+            f"{h['group']} print_share {h['print_share']:.0%} (last_bar {h['last_bar']}) "
+            f"vs last ok {h['prev_print_share']:.0%} (last_bar {h['prev_last_bar']}{prev_at})"
+        )
+    return "provider refresh degraded: " + "; ".join(bits) + " — retry later; this is not 'the session has no data'"
+
+
+def last_ok_print_quality_path(runs_dir=None):
+    from utils.runlog import DEFAULT_RUNS_DIR
+    return Path(runs_dir or DEFAULT_RUNS_DIR) / LAST_OK_PRINT_QUALITY
+
+
+def load_last_ok_print_quality(runs_dir=None, universe=None) -> dict | None:
+    """Last successful run's print quality on the same universe.
+
+    Prefers the sidecar written after a non-HARD preflight; falls back to TASK-359
+    manifests with exit_status 0.
+    """
+    path = last_ok_print_quality_path(runs_dir)
+    if path.exists():
+        try:
+            rec = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            rec = None
+        if rec and (universe is None or rec.get("universe") in (None, universe)):
+            return rec
+    from utils.runlog import DEFAULT_RUNS_DIR, load_manifest
+    runs = Path(runs_dir or DEFAULT_RUNS_DIR)
+    if not runs.exists():
+        return None
+    dirs = sorted((p for p in runs.iterdir() if p.is_dir() and (p / "manifest.json").exists()),
+                  key=lambda p: p.name, reverse=True)
+    for d in dirs:
+        try:
+            man = load_manifest(d)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if man.get("exit_status") != 0:
+            continue
+        pq = (man.get("inputs") or {}).get("print_quality") or man.get("print_quality")
+        if not pq:
+            continue
+        uni = (pq.get("universe") if isinstance(pq, dict) else None) or (man.get("inputs") or {}).get("universe")
+        if universe is not None and uni not in (None, universe, {"n": None}):
+            if isinstance(uni, dict) or uni != universe:
+                continue
+        if isinstance(pq, dict) and "groups" in pq:
+            return pq
+    return None
+
+
+def save_last_ok_print_quality(groups: dict, *, universe=None, runs_dir=None, at=None) -> Path:
+    rec = {
+        "universe": universe,
+        "at": at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "groups": groups,
+    }
+    path = last_ok_print_quality_path(runs_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(rec, indent=2, default=str), encoding="utf-8")
+    tmp.replace(path)
+    return path
 
 
 def observed_mask(frame) -> pd.DataFrame | None:
@@ -335,6 +487,7 @@ def _fetch_closes(tickers: list[str], period: str, *, auto_adjust: bool, report:
     observed = prices.notna()
     prices = prices.ffill(limit=FFILL_LIMIT_BARS)
     attach_observed(prices, observed)
+    attach_print_quality(prices, label)
     report["last_observed"] = observed_dates
     report["ffill_limit_bars"] = int(FFILL_LIMIT_BARS)
     report["source"] = "yfinance"
@@ -364,7 +517,9 @@ def fetch_etf_closes(symbols: list[str] | None = None, period: str = V9_PRICE_PE
     if prices.empty:
         return prices
     ordered = [s for s in symbols if s in prices.columns]
-    return prices[ordered]
+    out = prices[ordered]
+    attach_print_quality(out, "etf")
+    return out
 
 
 def fetch_tbill(period: str = V9_PRICE_PERIOD, report: dict | None = None) -> pd.Series:
@@ -386,6 +541,11 @@ def fetch_tbill(period: str = V9_PRICE_PERIOD, report: dict | None = None) -> pd
     else:
         s = px[TBILL_SYMBOL]
     s = s.rename(TBILL_SYMBOL)
+    try:
+        s.attrs.update(getattr(px, "attrs", {}) or {})
+    except Exception:
+        pass
+    attach_print_quality(s, "^IRX")
     return s
 
 

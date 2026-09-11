@@ -43,12 +43,13 @@ jobs:
       - name: Screener test suite + coverage
         run: python run_all_tests.py --cov --strict-console
 
-      # Phase 10.4: a gradual floor. Ratcheted to 80.0 once CI measured the real
-      # number on Linux (81.22% on 2026-09-06, TASK-390); ~1pp of headroom for the
-      # platform difference. It ratchets up; it never silently drops.
+      # Phase 10.4 / TASK-419: ratcheted 80.0 -> 81.0. Two Windows runs of this
+      # commit measured 82.33% and 82.35% (one statement of jitter in data/fetch.py).
+      # Margin 1.33 pp under the lower figure, for Linux (historically ~1 pp below
+      # Windows) plus that hundredth. It ratchets up; it never silently drops.
       - name: Coverage floor
         if: matrix.python-version == '3.12'
-        run: python tools/check_coverage.py --min 80.0
+        run: python tools/check_coverage.py --min 81.0
 
       # Phase 10.5: a skip is not a pass. This fails when a *new* file starts
       # skipping, and names the ones that are expected and why.

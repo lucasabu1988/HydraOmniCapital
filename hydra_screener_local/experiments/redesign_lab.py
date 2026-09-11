@@ -234,6 +234,37 @@ def eligibility_mask(P, t, c):
 
 
 # ----------------------------------------------------------------------------- panels
+def _plain_index(idx):
+    """TASK-418: a pickle may restore ticker (or date-as-string) axes as StringDtype.
+
+    The engine builds object indexes from Python str. `assert_series_equal` then fails
+    locally whenever the lab cache is present, and CI stays green only because it has
+    no cache. DatetimeIndex is left alone — it is not the defect.
+    """
+    if isinstance(idx, pd.DatetimeIndex):
+        return idx
+    dtype = getattr(idx, "dtype", None)
+    if isinstance(dtype, pd.StringDtype) or str(dtype).startswith("string"):
+        return pd.Index(list(map(str, idx)), dtype=object, name=getattr(idx, "name", None))
+    return idx
+
+
+def _normalize_panel_axes(P):
+    """Rewrite StringDtype axes on every frame Panels already built. One site, called
+    from load_panel before prepare_panel derives the rest from P.close."""
+    for attr in ("close", "volume", "rets", "VOL63", "MOM", "MOM_SKIP5", "RET10",
+                 "DIST20", "DIST252", "VOL20M", "VRATIO", "VRATIO_NO", "FLAT5"):
+        obj = getattr(P, attr, None)
+        if isinstance(obj, pd.DataFrame):
+            obj.index = _plain_index(obj.index)
+            obj.columns = _plain_index(obj.columns)
+        elif isinstance(obj, pd.Series):
+            obj.index = _plain_index(obj.index)
+    spy = getattr(P, "spy", None)
+    if isinstance(spy, pd.Series):
+        spy.index = _plain_index(spy.index)
+
+
 def load_panel(oos=True, sectors="fixed", sectors_date=None, *, pit_dir=None,
                require_contemporaneous=False, cache_dir=None, payload=None):
     """Feature panels for the lab.
@@ -262,6 +293,7 @@ def load_panel(oos=True, sectors="fixed", sectors_date=None, *, pit_dir=None,
         P = bvs.Panels(cache_dir=cache_dir) if cache_dir else bvs.Panels()
         P.CACHE_DIR = cache_dir or bvs.CACHE
         P.PIT_META = None
+    _normalize_panel_axes(P)
     return prepare_panel(P, sectors=sectors, sectors_date=sectors_date, pit_dir=pit_dir,
                          require_contemporaneous=require_contemporaneous)
 

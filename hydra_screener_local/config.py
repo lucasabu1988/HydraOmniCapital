@@ -98,6 +98,10 @@ VOL_NAN_WARN_THRESHOLD = 0.20      # max acceptable share of tickers with NaN vo
 # list is worse than a late one, but a silent one is worst.
 FETCH_MISSING_WARN_SHARE = 0.05         # warn when >5% of requested tickers came back without prices
 STALE_DATA_WARN_BUSINESS_DAYS = 1       # warn when the last bar is older than the previous session
+# TASK-416: a refresh whose print share falls more than this vs the last successful
+# run on the same universe is named "provider refresh degraded". Observability only —
+# the HARD gate is unchanged and is never auto-forced.
+PROVIDER_REFRESH_DEGRADE_SHARE = 0.20
 
 # TASK-361: local SQLite bar store. Production keeps the direct yfinance download until
 # Claude flips this after comparing a cached run against a direct run on the same day.

@@ -3,19 +3,22 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-06 18:40
-**Working on:** nothing open. Structural audit phases 1-10 closed on `structural-hardening-2026-09`
-(12 commits, 61 reproductions, pushed); phase 10 finished today in `51be4cb` (the wheel shipped no entry
-points at all — R-1001). Final report: `hydra_screener_local/docs/AUDIT_REPORT_2026-09.md`.
-Live path still FROZEN on main until the first settle after the 2026-09-08 close is verified; merge order
-then: `post-freeze-wiring` -> `structural-hardening-2026-09` -> `n-sleeve-engine`.
-Queue for Grok: TASK-388 (CI's first real run, draft PR), 389 (BRK-B/BRK.B measurement), 390 (typed tier 2
-+ coverage ratchet), 391 (pre-commit). Waiting on Lucas: the branch-protection ruleset (needs admin).
-**Files I'm touching:** none.
-**Blockers:** none.
+**Updated:** 2026-09-10 20:20
+**Working on:** nada abierto en codigo. Esta tarde: ensayo de la puesta al dia del libro vivo sobre una
+COPIA en el scratchpad (`state/` intacto, `HYDRA_BACKUP_DIR` desviado) y dos reproducciones mas de la
+degradacion del proveedor. Resultado en `.comms/provider-evening-window-2026-09-10.md`: la degradacion es
+la HORA (ventana de recarga EOD de Yahoo), no el tamano del lote — la barra "del 09-10" de los ETFs es un
+relleno identico al 09-09; y la puesta al dia ficha 30/30 al 2026-09-08 por 14.439,09 USD sin un solo hueco.
+**Proximo paso (viernes 2026-09-11, tras el cierre, dentro de las ~2 h): correr el libro vivo** — ese run
+ficha esos 30 fills y renueva la semana 1. El libro de papel renueva el mismo dia por su propio ancla.
+Revisadas y aceptadas TASK-416/417/418 (suite 93 PASS, ruff limpio); arreglo mio encima en `681e9bd`
+(el diagnostico de 416 no puede abortar una corrida). Cola de Grok: 419 (en curso), **420**, **421**.
+**Files I'm touching:** ninguno del arbol de codigo (solo `.comms/` y `GROKBOARD.md`).
+**Blockers:** ninguno. Pendiente de Lucas: sincronizar el estado vivo con los fills reales del 09-08
+(si difieren de los presuntos, via `confirm_fills.py`), y branch protection.
 
 ## Grok
-**Updated:** 2026-09-06 03:05
-**Working on:** TASK-380 done, ready for review. Next 383 -> 382 -> 377.
+**Updated:** 2026-09-10 23:10
+**Working on:** TASK-416..419 done, ready for review. Queue empty.
 **Files I'm touching:** none
 **Blockers:** none.

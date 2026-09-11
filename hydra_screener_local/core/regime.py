@@ -32,7 +32,7 @@ class RegimeScores:
 
 def compute_rich_regime_scores(
     spy: pd.Series,
-    prices: pd.DataFrame = None,   # precios de todo el universo (para breadth)
+    prices: pd.DataFrame | None = None,   # precios de todo el universo (para breadth)
     lookback: int = 200
 ) -> RegimeScores:
     """
@@ -47,7 +47,7 @@ def compute_rich_regime_scores(
     # 1. Trend (30% weight)
     sma200 = float(spy.rolling(lookback).mean().iloc[-1])
     trend_strength = 1.0 if current > sma200 else 0.0
-    
+
     # Pendiente de 20 días normalizada
     ret_20 = (current / float(spy.iloc[-20]) - 1) if len(spy) >= 20 else 0
     trend_strength = (trend_strength * 0.6) + (np.clip(ret_20 + 0.04, -0.1, 0.15) / 0.15 * 0.4)

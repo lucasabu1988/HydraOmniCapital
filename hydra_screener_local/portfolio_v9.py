@@ -50,7 +50,17 @@ from core.filters import (  # noqa: E402
 )
 from core.signals import generate_daily_candidates  # noqa: E402
 from core.sizing import sizing_summary  # noqa: E402
-from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
+from data.fetch import (  # noqa: E402
+    fetch_etf_closes,
+    fetch_prices_and_volume,
+    fetch_spy,
+    fetch_tbill,
+    groups_print_quality,
+    load_last_ok_print_quality,
+    save_last_ok_print_quality,
+    degraded_groups,
+    format_provider_degraded,
+)
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
 from core.dividends import (  # noqa: E402
     apply_dividends,
@@ -228,6 +238,41 @@ def next_session_date(index, today: str) -> str:
     if len(later):
         return str(pd.Timestamp(later[0]).date())
     return next_nyse_session(today)
+
+
+def _print_quality_diagnostic(prices, etf, irx, universe, *, silent: bool = False):
+    """(groups, message) for the TASK-416 diagnostic — and never an exception.
+
+    This runs between the preflight table and `raise_if_hard`, i.e. on the live path of a run
+    that the gate is about to let through. It is observability: a corrupt sidecar, a missing
+    runs/ directory or a frame shaped unexpectedly must cost the *diagnostic*, not the settle
+    (Claude's review of TASK-416). The gate itself is untouched either way.
+    """
+    try:
+        groups = groups_print_quality(prices, etf, irx)
+        prev = load_last_ok_print_quality(universe=universe)
+        return groups, format_provider_degraded(degraded_groups(groups, prev))
+    except Exception as exc:                                # noqa: BLE001 — diagnostic only
+        if not silent:
+            print(f"[v9] AVISO: no se pudo medir la calidad del refresco ({exc!r})")
+        return None, None
+
+
+def _save_print_quality(groups, universe, *, silent: bool = False) -> bool:
+    """Record this run as the last successful refresh. False when it could not be written.
+
+    Same rule as the read side: this write sits between a passed preflight and the settle, so a
+    read-only or full disk must not cost the book its fills.
+    """
+    if not groups:
+        return False
+    try:
+        save_last_ok_print_quality(groups, universe=universe)
+        return True
+    except OSError as exc:
+        if not silent:
+            print(f"[v9] AVISO: no se pudo guardar last_ok_print_quality ({exc!r})")
+        return False
 
 
 def _dividend_table(state, extra=None, *, dividend_fn=None, fetch_fn=None,
@@ -673,9 +718,17 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         clock=None if fetch_fn is not None else pd.Timestamp.now(),
         allow_intraday=allow_intraday,
     )
+    # TASK-416: name a degraded Yahoo refresh before the HARD abort, so 20:00 is
+    # "retry later" not "this session has no data". Never auto-force; never
+    # downgrade HARD to WARN.
+    groups, degraded_msg = _print_quality_diagnostic(prices, etf, irx, universe_effective, silent=silent)
     if not silent:
         print(PF.format_table(pf))
+        if degraded_msg:
+            print(f"[v9] {degraded_msg}")
     PF.raise_if_hard(pf, force=force)
+    if fetch_fn is None and not pf.get("hard"):
+        _save_print_quality(groups, universe_effective, silent=silent)
 
     # One dividend table per run, needed BEFORE settle: an ex-date between the execution bar and
     # today is already inside the total-return closes and would move the fill price (ASTRA-03).
