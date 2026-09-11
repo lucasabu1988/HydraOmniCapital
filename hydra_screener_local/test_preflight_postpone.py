@@ -71,3 +71,65 @@ def test_hard_with_pending_postpones_and_writes_nothing(tmp_path, capsys):
     assert state_path.read_text(encoding="utf-8") == before
     assert {p.name: p.read_bytes() for p in tmp_path.glob("instructions_*")} == sheets
     assert eng.settles == 0
+
+
+def _hard_market_today_is_plan_day(_universe=None):
+    """Same ETF HARD, but the price calendar stops on the plan date itself."""
+    idx = pd.DatetimeIndex(["2026-09-03", "2026-09-04"])
+    prices = pd.DataFrame({"AAA": [10.0, 10.5]}, index=idx)
+    etf = pd.DataFrame({t: [100.0, 100.0] for t in ETF}, index=idx)
+    obs = pd.DataFrame(True, index=idx, columns=etf.columns)
+    obs.iloc[-1] = False
+    attach_observed(etf, obs)
+    return dict(
+        prices=prices, volumes=prices * 1000,
+        spy=pd.Series([400.0, 401.0], index=idx, name="SPY"),
+        etf=etf, irx=pd.Series([5.25, 5.20], index=idx),
+        stock_report={"source": "yfinance", "fetched_at": "2026-09-04T19:36:00Z"},
+        etf_report={"source": "yfinance", "fetched_at": "2026-09-04T19:36:00Z",
+                    "last_observed": {t: "2026-09-03" for t in ETF}},
+        irx_report={"source": "yfinance", "fetched_at": "2026-09-04T19:36:00Z"},
+    )
+
+
+def test_before_t_plus_1_the_hard_does_not_claim_a_postpone(tmp_path, capsys):
+    """A HARD on the plan day postpones nothing: the settle block is guarded by today > planned.
+
+    Claiming POSTPONING here would blame the gate for a wait the engine imposes anyway.
+    """
+    eng = FakeEngine()
+    V.run(tmp_path, capital=100000.0, fetch_fn=_market, rank_fn=_rank, engine=eng, silent=True)
+    state = json.loads((tmp_path / "portfolio_v9.json").read_text(encoding="utf-8"))
+    assert state["pending"] and state["pending"][0]["planned"] == "2026-09-04"
+
+    with pytest.raises(SystemExit) as ei:
+        V.run(tmp_path, capital=100000.0, fetch_fn=_hard_market_today_is_plan_day,
+              rank_fn=_rank, engine=eng, silent=False)
+    msg = str(ei.value) + capsys.readouterr().out
+    assert "POSTPONING" not in msg
+    assert "still waiting for t+1" in msg
+    assert eng.settles == 0
+
+
+def test_describing_the_postpone_can_go_quiet_but_never_aborts(tmp_path, capsys, monkeypatch):
+    """The description is observability: it may go quiet, it may not replace the gate.
+
+    A malformed `planned` cannot reach here (preflight.evaluate parses it first and would
+    raise at line ~349), so the guard is exercised the only honest way: make the describer
+    itself fail and assert the run still dies of the gate, with a named AVISO.
+    """
+    eng = FakeEngine()
+    V.run(tmp_path, capital=100000.0, fetch_fn=_market, rank_fn=_rank, engine=eng, silent=True)
+    before = (tmp_path / "portfolio_v9.json").read_text(encoding="utf-8")
+
+    def boom(*_a, **_k):
+        raise RuntimeError("describer broke")
+    monkeypatch.setattr(V, "pending_postpone_message", boom)
+
+    with pytest.raises(SystemExit, match="preflight hard fail") as ei:
+        V.run(tmp_path, capital=100000.0, fetch_fn=_hard_market, rank_fn=_rank,
+              engine=eng, silent=False)
+    assert "POSTPONING" not in str(ei.value)
+    assert "no se pudo describir el aplazamiento" in capsys.readouterr().out
+    assert eng.settles == 0
+    assert (tmp_path / "portfolio_v9.json").read_text(encoding="utf-8") == before

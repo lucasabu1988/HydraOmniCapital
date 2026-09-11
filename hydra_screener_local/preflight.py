@@ -12,6 +12,7 @@ import pandas as pd
 from config import (
     MAX_BAR_AGE_SESSIONS,
     MAX_PRICE_AGE_SESSIONS,
+    PRINT_SHARE_WARN,
     SECTOR_UNKNOWN_MAX_SHARE,
     V9,
 )
@@ -29,7 +30,6 @@ from utils.trading_calendar import (
 )
 
 KNOWN_SCHEMA_VERSIONS = {STATE_SCHEMA}
-PRINT_SHARE_WARN = 0.90
 ETF_UNIVERSE = list(V9["etf_universe"])
 
 

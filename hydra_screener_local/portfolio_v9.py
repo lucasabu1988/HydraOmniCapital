@@ -232,16 +232,26 @@ def pending_postpone_message(state, prices, today) -> str | None:
 
     The gate stays fail-closed. This only names the postpone so a Yahoo EOD window
     is not read as "those pending orders were rejected".
+
+    Before t+1 the settle block below does not run either (it is guarded by
+    `today > planned`), so the orders wait whatever the gate says: calling that a
+    postponement would blame this HARD for a wait the engine imposes anyway.
     """
     pending = list((state or {}).get("pending") or [])
     if not pending:
         return None
     planned = pending[0].get("planned")
+    if not planned or today is None or pd.Timestamp(today) <= pd.Timestamp(planned):
+        return (
+            f"{len(pending)} pending order(s) planned {planned} are still waiting for t+1 "
+            f"(today={today}): this HARD does not postpone them; nothing written"
+        )
     exec_date = None
     in_frame = False
-    if planned and prices is not None and len(prices):
+    if prices is not None and len(prices):
         exec_date = next_session_date(prices.index, planned)
-        if today is not None and pd.Timestamp(exec_date) > pd.Timestamp(today):
+        # Same clamp as the settle block: the engine never books at a bar it cannot see.
+        if pd.Timestamp(exec_date) > pd.Timestamp(today):
             exec_date = today
         idx = pd.DatetimeIndex(prices.index).normalize()
         in_frame = bool((idx == pd.Timestamp(exec_date).normalize()).any())
@@ -756,7 +766,16 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         print(PF.format_table(pf))
         if degraded_msg:
             print(f"[v9] {degraded_msg}")
-    postpone = pending_postpone_message(state, prices, today) if (pf.get("hard") and not force) else None
+    postpone = None
+    if pf.get("hard") and not force:
+        # Describing the postpone must never be what aborts the run: this sits between the
+        # table and the gate, and a message is not worth a traceback (same rule as the 416
+        # diagnostic, review of ac419d9).
+        try:
+            postpone = pending_postpone_message(state, prices, today)
+        except Exception as exc:                            # noqa: BLE001 — message only
+            if not silent:
+                print(f"[v9] AVISO: no se pudo describir el aplazamiento ({exc!r})")
     if postpone and not silent:
         print(f"[v9] {postpone}")
     try:

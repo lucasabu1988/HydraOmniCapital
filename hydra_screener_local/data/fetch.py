@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
-from config import DELISTED_OR_BAD_TICKERS, PROVIDER_REFRESH_DEGRADE_SHARE
+from config import DELISTED_OR_BAD_TICKERS, PRINT_SHARE_WARN, PROVIDER_REFRESH_DEGRADE_SHARE
 
 warnings.filterwarnings("ignore")
 
@@ -259,14 +259,13 @@ def degraded_groups(current: dict, previous: dict | None, threshold: float | Non
     return out
 
 
-#: Same number as preflight.PRINT_SHARE_WARN. TASK-421 uses it as an absolute floor
-#: when there is no last-ok run to compare against.
-FIRST_RUN_PRINT_SHARE_MIN = 0.90
-
-
 def first_run_low_share(current: dict, threshold: float | None = None) -> list[dict]:
-    """Groups whose print share is below the preflight threshold, with no prior run."""
-    floor = FIRST_RUN_PRINT_SHARE_MIN if threshold is None else float(threshold)
+    """Groups whose print share is below the preflight threshold, with no prior run.
+
+    The floor is the preflight's own `PRINT_SHARE_WARN` (config), not a copy of its
+    value: a diagnostic that disagreed with the gate it explains would be worse than none.
+    """
+    floor = PRINT_SHARE_WARN if threshold is None else float(threshold)
     out = []
     for name, now in (current or {}).items():
         share = (now or {}).get("print_share")
