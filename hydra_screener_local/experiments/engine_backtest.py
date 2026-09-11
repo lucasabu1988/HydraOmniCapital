@@ -7,6 +7,7 @@ variant (TEST-read-once).
 
     python experiments/engine_backtest.py          # in-sample _sweep_cache/ 2020-26
     python experiments/engine_backtest.py --oos    # PIT _sweep_cache_oos/ 2004-26
+    python experiments/engine_backtest.py --cache DIR   # TASK-431: any panel cache
 """
 from __future__ import annotations
 
@@ -323,10 +324,23 @@ def _load_lab_mix(P, oos: bool) -> tuple[pd.Series, dict]:
     return mixed["net"], _stats_from_net(mixed["net"], "lab mix T20+ETF equal")
 
 
+def resolve_cache_dir(cache=None, oos=False) -> str:
+    """TASK-431: the only cache-path change. A directory, or a close.pkl inside one."""
+    if cache:
+        path = os.path.abspath(cache)
+        if os.path.isfile(path) and os.path.basename(path) == "close.pkl":
+            return os.path.dirname(path)
+        return path
+    return os.path.join(HERE, "_sweep_cache_oos" if oos else "_sweep_cache")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Production engine end-to-end vs lab 50/50 mix")
     ap.add_argument("--oos", action="store_true",
                     help="PIT panel _sweep_cache_oos/ 2004-2026 (TASK-350). Default: in-sample 2020-26.")
+    ap.add_argument("--cache", default=None,
+                    help="TASK-431: panel cache directory (default: _sweep_cache, or "
+                         "_sweep_cache_oos with --oos). A path to close.pkl is also accepted.")
     ap.add_argument("--check", action="store_true",
                     help="TASK-369: JSON-roundtrip + state_check.check after every settle and plan.")
     ap.add_argument("--sectors", choices=L.SECTOR_MODES, default="fixed",
@@ -337,13 +351,15 @@ def main(argv=None):
                     help="YYYYMMDD: pin the fixed map to the snapshot on/before this date (--sectors fixed only).")
     args = ap.parse_args(argv)
 
-    cache = os.path.join(HERE, "_sweep_cache_oos" if args.oos else "_sweep_cache", "close.pkl")
+    cache_dir = resolve_cache_dir(args.cache, oos=args.oos)
+    cache = os.path.join(cache_dir, "close.pkl")
     if not os.path.exists(cache):
         print("SKIP:", cache, "missing")
         return 0
-    label = "OOS PIT" if args.oos else "in-sample"
+    label = "OOS PIT" if args.oos else ("cache " + cache_dir if args.cache else "in-sample")
     print(f"loading {label} panel...", flush=True)
-    P = L.load_panel(oos=args.oos, sectors=args.sectors, sectors_date=args.sectors_date)
+    P = L.load_panel(oos=args.oos, sectors=args.sectors, sectors_date=args.sectors_date,
+                     cache_dir=cache_dir)
     P.ETF = S.load_etfs(P.close.index)
     print("  close", P.close.shape, "ETF", P.ETF.shape,
           str(P.close.index[0].date()), "->", str(P.close.index[-1].date()), flush=True)
