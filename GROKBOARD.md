@@ -37,6 +37,21 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 19:45] CLAUDE: **Libro de papel ARRANCADO con el cierre del 2026-09-10 (decision de Lucas, revierte el reinicio del viernes), y un hallazgo del proveedor.**
+`state_paper/` restaurado desde el ensayo (mismo cierre, mismo capital 100.000, ancla jueves -> primera ejecucion al cierre del
+viernes 2026-09-11; el libro vivo sigue anclado a viernes, asi que las fechas de renovacion de los dos libros NO coinciden:
+comparar por periodo, nunca por fecha). `verify_state.py --state state_paper/portfolio_v9.json` = clean, 0 findings; respaldo
+`state_v9_paper/20260910` intacto; 26 ordenes (18 acciones, 8 ETFs, tramo 0) a ejecutar como fills presuntos en la proxima corrida.
+**Sizing loss del dia uno** (calculado a mano con `core.sizing.sizing_summary` sobre la hoja, porque el libro se creo a las 16:55,
+ANTES de que #71 mergeara): 26 compras, **13.378,59 USD pedidos / 11.100,77 colocables = 2.277,82 USD de perdida, 17,03 %**, dos
+nombres a cero acciones (LITE 935,70 y SNDK 1.692,59 por accion). El 17 % no es rounding menor: con 100k, 4 tramos y ~18 nombres,
+la orden de ~328 USD no alcanza para un solo titulo caro. Es exactamente lo que el libro de papel existe para medir.
+**Hallazgo (nuevo TASK-416):** al rehacer la corrida a las 19:36 sobre el MISMO arbol y el MISMO cierre, el proveedor devolvio datos
+degradados — los 10 ETFs con ultima barra 2026-09-09 y `universe print share` al **7 %** (a las 16:55 la corrida paso con 13 filas OK
+salvo el WARN de procedencia). El preflight HARD de ASTRA-03 **refuso planificar**, que es lo correcto: forzar habria fichado fills a
+precios de ayer. No se uso `--force`. Lo que falta es que la salida distinga "el proveedor se degrado, reintenta" de "la sesion no
+tiene datos". Cola nueva para Grok: **TASK-416..419**.
+
 [2026-09-10 17:25] CLAUDE: **Paper trading, decisiones de Lucas y la metrica de sizing.** (1) La corrida del 2026-09-10 queda como ENSAYO:
 `state_paper/` se movio a `state_paper_rehearsal_20260910/` (ignorado por git, respaldo en `state_v9_paper/20260910` intacto) y el
 libro de papel se inicializa de nuevo **el viernes 2026-09-11 tras el cierre** con `portfolio_v9.py --state-dir state_paper
@@ -947,6 +962,50 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   `metrics`, con un test que afirma la identidad para que las dos definiciones no puedan divergir.
   Cinco pruebas nuevas, incluida la de auto-comparacion sobre el camino de exceso (intervalo
   exactamente cero). Suite de la rama: **53 passed, 0 skipped, EXIT=0 medido**, ruff limpio.
+- [ ] `TASK-416` **Un refresco degradado del proveedor tiene que decir su nombre.** El 2026-09-10, mismo
+  arbol y mismo cierre, dos corridas separadas dos horas dieron frames distintos: a las 16:55 el preflight
+  paso con 13 filas (solo el WARN de procedencia); a las 19:36 los 10 ETFs venian con ultima barra
+  2026-09-09 y `universe print share` al **7 %** (umbral 90), y la fila `ETF prices observed` saco **HARD**.
+  El mercado no cambio: Yahoo degrado la respuesta (el mismo throttle que ya documento
+  `.comms/russell-pit-free-record-2026-09-10.md`). **La puerta funciono** — refuso planificar, y forzar
+  habria fichado fills a precios de ayer. Lo que falta es el diagnostico: nada en la salida separa "el
+  proveedor se degrado, reintenta en un rato" de "esta sesion de verdad no tiene datos", y quien opere el
+  libro a las 20:00 leera un HARD sin saber cual de las dos es. Aceptacion: el frame lleva, por grupo
+  (acciones / ETFs / ^IRX), share de prints y ultima barra; la corrida los compara con la ultima corrida
+  EXITOSA sobre el mismo universo (el manifiesto de TASK-359 ya guarda las corridas) y, cuando el share cae
+  mas de un umbral declarado en `config.py`, imprime un diagnostico con nombre — `provider refresh degraded`
+  — con las dos cifras y la hora, en vez de solo el HARD. Test con el frame mockeado en los dos casos.
+  **Nunca auto-forzar y nunca degradar el HARD a WARN**: esto es observabilidad sobre la puerta, no la puerta.
+  `Files:` `data/fetch.py`, las filas de preflight en `portfolio_v9.py`, `config.py` (constante nueva), + test.
+- [ ] `TASK-417` **El dia uno del libro de papel no puede ser un hueco en la serie.** `state_paper/` se creo
+  el 2026-09-10 a las 16:55, ANTES de que #71 mergeara, asi que ni la hoja ni el registro del journal llevan
+  `did.sizing` — y es justo el numero que el libro existe para acumular. Calculado a mano ahora con
+  `core.sizing.sizing_summary` sobre `state_paper/instructions_20260910.json`: 26 compras, target
+  **13.378,59**, colocable **11.100,77**, perdida **2.277,82 USD (17,03 %)**, cero acciones en **LITE** y
+  **SNDK**. Aceptacion: una herramienta pequena que recalcula `sizing_summary` desde un
+  `instructions_<fecha>.json` existente y escribe (o repara) el registro del journal de esa fecha, con esos
+  numeros exactos para el 2026-09-10; **idempotente** (correrla dos veces deja el mismo registro, test);
+  **no toca `portfolio_v9.json` ni `state/`**, solo `journal_paper/`; y un test con una hoja de fixture.
+  `Files:` nuevo `tools/backfill_sizing.py`, `core/journal.py` (solo si hace falta un punto de entrada), + test.
+- [ ] `TASK-418` **La puerta de paridad esta apagada para quien tenga cache de laboratorio.** `test_review_341`
+  y la paridad de `test_portfolio_engine` fallan en local **solo cuando la cache del lab existe** (dtype del
+  indice `StringDtype` vs `object` con el pandas local); sin cache pasan, y CI no tiene cache, asi que CI
+  esta verde por la razon equivocada. Identico en `main`: no es de ninguna rama. Aceptacion: normalizar el
+  dtype del indice en UN solo sitio al cargar el panel (`experiments/redesign_lab.load_panel`), los dos tests
+  pasan **con y sin cache sobre el mismo arbol**, y un test que construye un panel con indice `StringDtype` y
+  afirma que el loader lo normaliza. **Ningun numero se mueve**: verificar con la fila de referencia del motor
+  (`engine_backtest.py --oos` = 7,03 / 0,74 / -17,7) antes y despues, y decirlo en el commit.
+  `Files:` `experiments/redesign_lab.py`, `test_review_341.py`, `test_portfolio_engine.py`, + test nuevo.
+- [ ] `TASK-419` **Cerrar lo que TASK-390 dejo abierto: cobertura estable, tramo 3, y una anotacion que miente.**
+  Vive en `fix/task-390-tier3-and-stable-coverage`. La cobertura **no se puede subir con un numero** mientras
+  el fixture mienta: cuatro corridas de CI sobre arboles identicos midieron 81,25 / 80,97 / 81,25 / 81,14 %, y
+  la causa es `core/meta_layer.py` con fixtures `np.random` **sin semilla** en `test_volume_watchdog.py` — un
+  piso de 81 habria reventado la corrida del 80,97. Orden obligatorio: (1) sembrar el fixture; (2) re-medir
+  **dos veces sobre el mismo commit** y pegar las dos cifras en el commit; (3) solo entonces mover el piso, a
+  la cifra medida menos un margen declarado. Ademas: el tramo 3 de tipado (9 modulos, 15 errores ya medidos)
+  y la anotacion `settle() -> dict` que en realidad devuelve una lista. Aceptacion: las dos medidas coinciden
+  al centesimo, `mypy.ini` limpio sobre los 25 modulos, y el piso nuevo justificado con las dos corridas.
+  `Files:` `test_volume_watchdog.py`, `mypy.ini`, los 9 modulos del tramo 3, `settle.py`, `.github/workflows/test.yml`.
 - [ ] `TASK-414` **Cablear la lectura macro en el registro de la corrida, DESPUES del settle verificado.**
   La fase 1 de H-008 ya esta hecha y es **inerte**: `data/macro.py`, `core/valuation.py` y
   `snapshot_macro.py` existen y **nadie los importa**. Lo que falta es la mitad que toca camino vivo:
