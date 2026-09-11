@@ -14,9 +14,11 @@ The third row is the one that needs care. Norgate names a dead entity `AABA-2019
 in the symbol and `is_delisted_symbol()` can read it. EODHD has no suffix: a code is either in the
 delisted list or not, and **a code can be in that list and still print today** because the ticker
 was reused - measured 2026-09-11, BBBY and SBNY both print to 2026-09-01 while the list calls them
-delisted. Gluing those two companies into one column is exactly the defect TASK-325 paid for, so
-this client reports them as identity problems and the builder (strict by default) refuses to write
-a panel that contains one.
+delisted. Detecting reuse by "still printing after a date" cries wolf (ASGN/ASRT/ATLN/AVB are recent
+deaths; SBNY is not even on the delisted list). TASK-423 therefore cuts **every** column at
+last membership + `MEMBERSHIP_TAIL_BARS` (default 10): the glued half becomes unreadable
+instead of undetectable, and no member-cell is lost. A code with no membership date is not
+cut; the fence does not degrade and strict still refuses.
 
 Membership is a Russell 3000 record, not per-index: `membership(sym, index_name)` returns the same
 series for "Russell 1000" and "Russell 2000", and the builder's union over the two indexes is then
@@ -39,8 +41,13 @@ for _p in (HERE, ROOT):
 MEMBERSHIP_CSV = os.path.join(HERE, "_lab_scratch", "russell_free",
                               "russell3000_membership_free.csv")
 PANEL_START = "2005-01-01"
-#: A code the delisted list calls dead but that still prints after this date is a reused ticker.
+#: Informational only. A date cutoff cannot tell reuse from a recent death
+#: (`.comms/claude-task-423-the-guard-cries-wolf-2026-09-11.md`).
 REUSE_CUTOFF = "2026-06-01"
+#: TASK-423: bars after last membership + this many business days are another window
+#: (or another company). A June deletion is sold at the next rebalance, days later.
+MEMBERSHIP_TAIL_BARS = 10
+CUT_AT_MEMBERSHIP_TAIL = True
 
 
 def load_membership_record(path: str = MEMBERSHIP_CSV) -> pd.DataFrame:
@@ -84,7 +91,9 @@ class EodhdClient:
 
     def __init__(self, provider, membership=None, *, delisted=None,
                  start: str = PANEL_START, end=None, reuse_cutoff: str = REUSE_CUTOFF,
-                 symbols=None, hold_between_reconstitutions: bool = True):
+                 symbols=None, hold_between_reconstitutions: bool = True,
+                 cut_at_membership_tail: bool = CUT_AT_MEMBERSHIP_TAIL,
+                 membership_tail_bars: int = MEMBERSHIP_TAIL_BARS):
         self.provider = provider
         self.record = load_membership_record(
             membership if membership is not None else MEMBERSHIP_CSV)
@@ -95,6 +104,8 @@ class EodhdClient:
         self._delisted = dict(delisted) if delisted is not None else None
         self._last_bar: dict[str, pd.Timestamp] = {}
         self.hold_between_reconstitutions = bool(hold_between_reconstitutions)
+        self.cut_at_membership_tail = bool(cut_at_membership_tail)
+        self.membership_tail_bars = int(membership_tail_bars)
         self._daily_index = None
 
     def _hold_index(self) -> pd.DatetimeIndex:
@@ -157,8 +168,68 @@ class EodhdClient:
             "Volume": pd.to_numeric(long["volume"], errors="coerce").to_numpy(),
         }, index=idx).sort_index()
         out["Open"] = out["Close"]        # EODHD returns open; the panel does not use it yet
+        if self.cut_at_membership_tail:
+            out = self._cut_to_membership_tail(symbol, out)
         self._last_bar[symbol] = out.index[-1] if len(out.index) else None
         return out
+
+    def last_membership_date(self, symbol: str):
+        """Last date the held record calls this name a member, or None if it never was.
+
+        A code with no membership date cannot be cut (TASK-423 fence): strict still refuses.
+        """
+        s = self.membership(symbol)
+        if s is None or not len(s) or not bool(s.any()):
+            return None
+        return pd.Timestamp(s[s].index.max())
+
+    def membership_cut_date(self, symbol: str):
+        """Last membership date plus the declared tail, or None if the name was never a member."""
+        cut = self.last_membership_date(symbol)
+        if cut is None:
+            return None
+        return cut + pd.offsets.BDay(self.membership_tail_bars)
+
+    def _cut_to_membership_tail(self, symbol: str, out: pd.DataFrame) -> pd.DataFrame:
+        """Drop bars after last membership + tail. A name not in the record is left alone."""
+        if out is None or not len(out):
+            return out
+        limit = self.membership_cut_date(symbol)
+        if limit is None:
+            return out
+        return out.loc[out.index <= limit]
+
+    def membership_cut_stats(self, close: pd.DataFrame) -> dict:
+        """TASK-423's two figures on an *uncut* close: columns cut, member-cells dropped.
+
+        Member-cells are membership-True AND priced. The cut is last membership + tail, so
+        membership is already False on the dropped bars; the count is measured, not assumed.
+        """
+        cut_cols, uncuttable, intact = [], [], []
+        dropped = 0
+        for sym in close.columns:
+            limit = self.membership_cut_date(str(sym))
+            if limit is None:
+                uncuttable.append(str(sym))
+                continue
+            series = close[sym]
+            n_after = int((series.notna() & (close.index > limit)).sum())
+            if n_after:
+                cut_cols.append(str(sym))
+            else:
+                intact.append(str(sym))
+            held = self.membership(str(sym))
+            if held is not None and len(held):
+                member = held.reindex(close.index).astype("float64").fillna(0.0) > 0
+                dropped += int((member & series.notna() & (close.index > limit)).sum())
+        return {
+            "columns_cut": len(cut_cols),
+            "codes": cut_cols,
+            "member_cells_dropped": int(dropped),
+            "uncuttable": uncuttable,
+            "intact": intact,
+            "membership_tail_bars": self.membership_tail_bars,
+        }
 
     # --- identity (optional hooks the builder uses when the client has them) ---------
     def delisted_codes(self) -> dict:
@@ -189,13 +260,17 @@ class EodhdClient:
         return sorted(out)
 
     def identity_problems(self, close: pd.DataFrame) -> list[str]:
-        """The builder appends these to its own guard failures."""
-        reused = self.reused_tickers(close)
-        if not reused:
+        """The builder appends these to its own guard failures.
+
+        A date cutoff is not reuse (TASK-423 wolf note): recent deaths trip it, real reuse
+        (SBNY) does not. After the membership-tail cut, the glued half is unreadable, so
+        this only refuses names that have **no membership date at all**.
+        """
+        missing = [str(s) for s in close.columns if self.last_membership_date(str(s)) is None]
+        if not missing:
             return []
-        shown = ", ".join(reused[:10]) + ("..." if len(reused) > 10 else "")
+        shown = ", ".join(missing[:10]) + ("..." if len(missing) > 10 else "")
         return [
-            f"{len(reused)} delisted code(s) still printing after {self.reuse_cutoff}: {shown}. "
-            "EODHD has no entity suffix, so each of these columns is two companies (TASK-325). "
-            "Split them by the delisting date or drop them; do not merge."
+            f"{len(missing)} code(s) in the panel have no membership date: {shown}. "
+            "The fence does not degrade: strict still refuses (TASK-423)."
         ]
