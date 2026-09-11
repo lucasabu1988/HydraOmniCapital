@@ -70,9 +70,20 @@ MIN_PRINT_SHARE = 0.05
 # Published S&P 500 PIT engine row (TASK-350 --oos). Universe comparison, not a re-run.
 SP_OOS_PUBLISHED = dict(ann_net=7.03, ratio_net_vol=0.74, maxdd_net=-17.7, sharpe_excess=0.56)
 
+#: The prereg table (2026-09-08) was computed on a Windows working copy, i.e. over CRLF bytes.
+#: CI checks out LF, so the same content hashes differently there and the freeze test failed on
+#: Linux only (PR #79, 2026-09-11). The canonical values below are LF-normalised (the git blob);
+#: `FROZEN_FILE_HASHES_CRLF_AS_WRITTEN` keeps the prereg's own digits, and a test proves the two
+#: tables describe the same bytes by re-expanding LF -> CRLF. Same content, one representation.
 FROZEN_FILE_HASHES = {
+    "core/signals.py": "843c81adf569",
+    # Amendment: 656ff8135814 -> 0f475602519b (CRLF) is typing/whitespace (5e4b4f6); body unchanged.
+    "core/regime.py": "7c83dfdf5437",
+    "core/filters.py": "156aa553255d",
+    "core/meta_layer.py": "965122dd59a2",
+}
+FROZEN_FILE_HASHES_CRLF_AS_WRITTEN = {
     "core/signals.py": "f9806b77bd61",
-    # Amendment: 656ff8135814 -> 0f475602519b is typing/whitespace (5e4b4f6); body unchanged.
     "core/regime.py": "0f475602519b",
     "core/filters.py": "95c78d2591c6",
     "core/meta_layer.py": "5e81ff429455",
@@ -120,7 +131,15 @@ def sha256_file(path: str, *, lf: bool = False) -> str:
 
 
 def sha256_12(path: str) -> str:
-    return sha256_file(path)[:12]
+    """LF-normalised, so Windows and Linux checkouts of one blob agree (see FROZEN_FILE_HASHES)."""
+    return sha256_file(path, lf=True)[:12]
+
+
+def sha256_12_as_crlf(path: str) -> str:
+    """The prereg table's representation: every line ending expanded to CRLF before hashing."""
+    with open(path, "rb") as fh:
+        data = fh.read().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    return hashlib.sha256(data).hexdigest()[:12]
 
 
 def verify_freeze() -> dict:

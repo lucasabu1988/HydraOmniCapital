@@ -192,3 +192,13 @@ def test_memmel_se_uses_rho_squared_in_the_cross_term():
     wrong = np.sqrt((1.0 / n) * (2 - 2 * rho + 0.5 * (s1 ** 2 + s2 ** 2) - rho * s1 * s2) * py)
     assert abs(out["se"] - expected) < 1e-3
     assert abs(out["se"] - wrong) > 1e-3, "the two formulas must be distinguishable at this Sharpe"
+
+
+def test_frozen_hashes_are_platform_independent_and_match_the_prereg_digits():
+    """CI (LF) and Windows (CRLF) must see one frozen surface. The prereg table was written over
+    CRLF bytes; re-expanding the LF blob to CRLF must reproduce those digits exactly, and the
+    canonical LF digits must be what verify_freeze checks."""
+    for rel, lf_expect in R.FROZEN_FILE_HASHES.items():
+        path = os.path.join(R.ROOT, rel)
+        assert R.sha256_12(path) == lf_expect, rel
+        assert R.sha256_12_as_crlf(path) == R.FROZEN_FILE_HASHES_CRLF_AS_WRITTEN[rel], rel
