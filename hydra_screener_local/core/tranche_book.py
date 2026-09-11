@@ -105,7 +105,8 @@ class TrancheBook:
         if v <= 0:
             return 0.0
         target_w = target_w[target_w > 0] if len(target_w) else pd.Series(dtype=float)
-        tradeable = [tk for tk in target_w.index if np.isfinite(px.get(tk, np.nan)) and px.get(tk) > 0]
+        tradeable = [tk for tk in target_w.index
+                     if np.isfinite(px.get(tk, np.nan)) and px.get(tk, np.nan) > 0]
         target_w = target_w[tradeable]
         if target_w.sum() > 1.0 + 1e-12:
             target_w = target_w / target_w.sum()
@@ -189,7 +190,7 @@ def run_book(idx_len: int, k: int, step: int, start: int, lag: int, cost_bp: flo
         before = len(book.trades)
         traded = book.rebalance(kk, w if w is not None else pd.Series(dtype=float), px_e)
         cost_paid = sum(tr.cost for tr in book.trades[before:])
-        traded_by_name = {}
+        traded_by_name: dict[str, float] = {}
         for tr in book.trades[before:]:
             traded_by_name[tr.ticker] = traded_by_name.get(tr.ticker, 0.0) + abs(tr.dollars) / v_pre
         if rate_at is not None:

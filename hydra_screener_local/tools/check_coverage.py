@@ -1,12 +1,19 @@
 """Fail when line coverage drops below a floor (audit phase 10.4).
 
-    python tools/check_coverage.py --min 80.0
+    python tools/check_coverage.py --min 81.0
 
 A gradual floor, anchored on a measured number rather than an aspiration: 77.9% when
-phase 10 wrote this, ratcheted to 80.0 once CI measured 81.22% on Linux (81.96% on
-Windows — the platform difference is real, hence the headroom). Raise it when coverage
+phase 10 wrote this, ratcheted to 80.0 once CI measured 81.22% on Linux (TASK-390), then
+to 81.0 (TASK-419) after the volume-watchdog fixture was seeded. Raise it when coverage
 rises; it must never be lowered to make a red build green — that is what the floor is
 for.
+
+TASK-419 measured this commit twice on Windows / Python 3.14: **82.33%** then **82.35%**
+(6572 statements, 1161 vs 1160 missed; the one-statement jitter is data/fetch.py).
+Margin 1.33 pp under the lower figure covers the historical Linux-vs-Windows gap
+(~1 pp) plus that hundredth. The unseeded 80.97% CI run that used to make 81.0
+unsafe is no longer the measurement: the fixture is seeded and
+test_task_390_gates.py keeps it that way.
 
 Reads `coverage.xml`, which `run_all_tests.py --cov` writes.
 """
@@ -22,8 +29,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_XML = ROOT / "coverage.xml"
-#: measured on 2026-09-06 over core/ data/ utils/ sleeves/ (Linux CI: 81.22)
-BASELINE_PCT = 81.22
+#: TASK-419: lower of two Windows runs of this commit (82.33 / 82.35)
+BASELINE_PCT = 82.33
 
 
 def read_line_rate(path: Path) -> float:

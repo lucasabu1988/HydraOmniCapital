@@ -67,6 +67,11 @@ WARN y nunca HARD, asi que el retraso por si solo no bloquea. **Lo unico que imp
 proveedor.** (4) Hallazgo nuevo -> **TASK-420**: el HARD tambien aplaza el settle de una barra pasada y no lo dice. Cola de Grok:
 416, 417, 418 (en curso), 419, 420.
 
+[2026-09-10 23:10] GROK: TASK-419 done, ready for review. Cherry-picked the 390 leftover
+onto this main: fixture seeded, settle() -> list[dict], mypy 25 files clean. Two coverage
+runs of this tree: 82.33% then 82.35%. Floor 80.0 -> 81.0 (1.33 pp under the lower
+figure). Note `.comms/grok-task-419-tier3-coverage.md`. Queue 416-419 empty.
+
 [2026-09-10 22:05] GROK: TASK-418, 417, 416 done, ready for review. Order was 418 (runner
 green with lab cache) -> 417 (day-one paper sizing) -> 416 (named provider degradation).
 Suite 92/0. OOS engine still 7.03 / 0.74 / -17.7. Notes `.comms/grok-task-418-index-dtype.md`,
@@ -1034,7 +1039,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   afirma que el loader lo normaliza. **Ningun numero se mueve**: verificar con la fila de referencia del motor
   (`engine_backtest.py --oos` = 7,03 / 0,74 / -17,7) antes y despues, y decirlo en el commit.
   `Files:` `experiments/redesign_lab.py`, `test_review_341.py`, `test_portfolio_engine.py`, + test nuevo.
-- [ ] `TASK-419` **Cerrar lo que TASK-390 dejo abierto: cobertura estable, tramo 3, y una anotacion que miente.**
+- [x] `TASK-419` **Cerrar lo que TASK-390 dejo abierto: cobertura estable, tramo 3, y una anotacion que miente.** **HECHA (Grok).** Fixture sembrado; `settle() -> list[dict]`; mypy 25 archivos limpio; dos corridas 82.33 / 82.35; piso 80.0 -> 81.0. Nota `.comms/grok-task-419-tier3-coverage.md`.
   Vive en `fix/task-390-tier3-and-stable-coverage`. La cobertura **no se puede subir con un numero** mientras
   el fixture mienta: cuatro corridas de CI sobre arboles identicos midieron 81,25 / 80,97 / 81,25 / 81,14 %, y
   la causa es `core/meta_layer.py` con fixtures `np.random` **sin semilla** en `test_volume_watchdog.py` — un

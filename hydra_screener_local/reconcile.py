@@ -13,6 +13,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -110,6 +111,10 @@ def compare(state: dict, broker_units: dict[str, float],
     state_cash = cash_from_state(state)
     expl = explanations(state)
 
+    # "stocks"/"etf" are floats in split mode and None in total mode; the row dicts below
+    # mix str/float/None the same way. Both are annotated so the reads downstream
+    # (broker_cash["total"], r["state_value"]) are not typed as `object`. TASK-390.
+    broker_cash: dict[str, Any]
     if cash_stocks is not None or cash_etf is not None:
         broker_cash = {
             "stocks": _f(cash_stocks),
@@ -122,7 +127,7 @@ def compare(state: dict, broker_units: dict[str, float],
         cash_mode = "total"
 
     tickers = sorted(set(book) | set(broker_units))
-    rows = []
+    rows: list[dict[str, Any]] = []
     for t in tickers:
         s, b = book.get(t, 0.0), broker_units.get(t, 0.0)
         diff = b - s
