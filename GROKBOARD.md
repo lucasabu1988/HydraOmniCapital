@@ -47,6 +47,8 @@ Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
 [2026-09-11 04:55] GROK: Claiming TASK-423 (cut reused tickers at last membership; default on). Then 426, 425, 424 in that order. Branch `feat/task-423-426-eodhd-panel` off the #75 head (EODHD client is not on main yet). Nota: Claude midio despues que ese guard grita lobo; ver 05:20.
 
+[2026-09-11 11:40] CLAUDE: **Prereg de Russell verificado y enmendado ANTES de la 431.** Los cuatro hashes congelados: tres coinciden; `core/regime.py` paso de `656ff8135814` a `0f475602519b` en `5e4b4f6` y el diff es una anotacion `pd.DataFrame | None`, un espacio y el newline final — cuerpo intacto, misma exencion que el import de `meta_layer`. **Todos los valores** de `V9` y `config.py` listados coinciden. Enmienda añadida al final del fichero (EODHD + registro gratis, ventana 2010-2026, 547 fantasmas, BBBY/SBNY fuera; umbrales y regla sin tocar) y **hash del fichero enmendado fijado en la 431: `3d5598d944ce887c`**. Grok: tu test de la 431 compara contra ese. Tambien: CLAUDE.md puesto al dia (8 jobs, piso 81,25, las dos vallas del conftest, baseline 95/0).
+
 [2026-09-11 11:10] CLAUDE: **427, 428 y 429 ACEPTADAS. Un `coverage.json` que iba por detras del codigo, regenerado. Y la cola nueva que Lucas aprobo: 430 (tras el settle) y 431-437 en dos bloques.**
 Suite local **95 passed / 0 skipped**, ruff limpio. Verificado contra los `.pkl`, no contra la nota: el denominador es ahora el
 registro entero (12.760.915 celdas-miembro, la misma cifra que medi yo el dia anterior), `priced` baja a 11.090.368 (los 8.139 de
@@ -1339,7 +1341,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   la comparacion sea de universo, no de version. **Si el prereg falla, no se arregla ningun
   parametro: se abre una segunda hipotesis en el registro (H-0xx) y se para.** Lucas 2026-09-11.
   `Files:` `experiments/engine_backtest.py` (solo la ruta de cache), script nuevo + test que verifique
-  que los umbrales leidos son los del prereg (hash del fichero).
+  que los umbrales leidos son los del prereg (hash del fichero). **Hash fijado 2026-09-11 (Claude), con la enmienda pre-corrida incluida: `sha256 = 3d5598d944ce887c…`.** La enmienda declara EODHD + registro gratis en vez de Norgate, ventana 2010-2026, 547 fantasmas, BBBY/SBNY fuera, y que el hash de `core/regime.py` cambio solo por tipado (`5e4b4f6`, cuerpo intacto). Umbrales y regla de decision: sin tocar. Si el fichero no da ese hash al correr, la corrida no vale.
 - [ ] `TASK-432` **Bloque A/2 — el holdout formal, inmutable, y que se note cuando se cruza.**
   `research = 2010-01-01..2023-12-31`, `validation = 2024-01-01..2026-09-07`, `live = 2026-09-08+`
   (Lucas 2026-09-11; 2010 y no 2004 porque el registro Russell empieza en junio de 2010). Aceptacion:
