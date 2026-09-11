@@ -71,6 +71,9 @@ core/tracking.py      — forward returns of recommended names, win-rate report 
 
 data/fetch.py         — batched yfinance download (prices + volume); period defaults to "1y",
                         v9 callers pass V9_PRICE_PERIOD="2y" (12-7 momentum needs 252+126+vol63)
+data/providers/       — bar providers (TASK-361): yfinance (live path) and EODHD All World
+                        (TASK-403, bought 2026-09-11: delisted prices Yahoo does not have;
+                        token in the gitignored .env as EODHD_API_TOKEN)
 data/universe.py      — index constituents from several sources with JSON caches
 data/sectors.py       — GICS sector cache; resolved once upstream in screener.py, never in core/
 
