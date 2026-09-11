@@ -145,29 +145,27 @@ python -m pytest test_volume_watchdog.py -q             # any single pytest-styl
 - `test_hybrid_integration.py` no longer skips: TASK-374 committed `test_fixtures/history_min`, so it
   falls back live `history/` -> `HYDRA_HISTORY_DIR` -> fixture. The one artefact-dependent skip left is
   `validate_pine_contract.py` (needs `pine/hydra_last_summary.json`; a fresh clone has none).
-- CI (`.github/workflows/test.yml`) on `main` runs TWO jobs: `screener`
-  (`hydra_screener_local/run_all_tests.py --cov --strict-console` on the Python 3.12 **and** 3.13
-  matrix, `pytest-timeout` 30 s per test, 15-minute job timeout) and `lint` (ruff over an explicit
-  module list plus `test_*.py`). The legacy `test` job went away with the root `tests/` archive on
-  2026-09-05; if the docs and the workflow disagree, the workflow wins. `structural-hardening-2026-09`
-  takes this to **seven** jobs (screener, lint, build-install-smoke, typecheck, secret-scan,
-  dependency-audit, reproducibility) — the coverage floor (`tools/check_coverage.py --min 80.0`)
-  and the skip gate (`tools/check_skips.py`) are **steps inside `screener`**, not jobs. Measured
-  2026-09-08 with `git show origin/structural-hardening-2026-09:.github/workflows/test.yml`; it
-  merges after the 2026-09-08 settle.
-- Baseline measured on `main` 2026-09-08 (`--strict-console`): **61 files pass, 0 skip, 128 s**, ruff
-  clean. That is the **tracked** count: at the 2026-09-06 tip (`f017966`) the discovery globs matched
-  47 + `validate_pine_contract.py` = 48, at this commit 60 + 1 = 61, so **thirteen** discovered test files
-  were added — six from TASK-404..409 (`git log --diff-filter=A`), plus `test_backup_isolation.py`
-  from the fence commit `34b0143`, `test_build_russell_pit.py` from TASK-403,
-  `test_build_adv_panel.py` from TASK-406, `test_macro_valuation.py` from H-008 phase 1 and
-  `test_path_momentum.py` / `test_residual_momentum.py` from H-009 and H-010, and
-  `test_settle_driver.py` from the settle driver. `run_all_tests.py --list` also picks up any **untracked**
-  `test_*.py` sitting in the directory, so a working tree mid-task legitimately reports more.
-  Measured on
-  this machine, where `history/` and the Pine artefact exist — a fresh clone or CI can still report
-  the `validate_pine_contract.py` skip. A skip is not a pass; CI green proves code regression
-  coverage, not financial validity or a track record.
+- CI (`.github/workflows/test.yml`) on `main` runs **eight** jobs since `structural-hardening-2026-09`
+  merged: `screener` (`hydra_screener_local/run_all_tests.py --cov --strict-console` on the Python 3.12
+  **and** 3.13 matrix, `pytest-timeout` 30 s per test), `lint` (ruff), `build-install-smoke`,
+  `typecheck` (mypy, 25 modules clean since TASK-419), `secret-scan`, `dependency-audit`,
+  `reproducibility`. The coverage floor (`tools/check_coverage.py --min 81.25`) and the skip gate
+  (`tools/check_skips.py`) are **steps inside `screener`**, not jobs. `main` is protected: all eight
+  are required and there is no auto-merge, so every change — even a board note — is branch + PR. If
+  the docs and the workflow disagree, the workflow wins.
+- Coverage is measured on Linux by CI and Linux runs ~0.4 pp under Windows (82.25 vs 82.65 on the same
+  tree, 2026-09-11). The floor is set from the Linux figure minus a declared 1 pp margin, **after** two
+  runs of one tree agree to the hundredth — never before. Two things make the number a property of the
+  code rather than of the machine, both in `conftest.py`: `HYDRA_BACKUP_DIR` is redirected to a temp
+  root (a suite run must never touch the real backups, 2026-09-06) and `utils.runlog.DEFAULT_RUNS_DIR`
+  is redirected too (TASK-422: tests that drive the CLI used to read the operator's gitignored `runs/`,
+  and 35 statements of `data/fetch.py` flipped with what was on disk). Both are containment; the real
+  fix is handing the reader its destination (TASK-426 did it for the print-quality sidecar).
+- Baseline measured on `main` 2026-09-11 (`64dd41a`): **95 files pass, 0 skip, ~280 s**, ruff clean.
+  `run_all_tests.py --list` also picks up any **untracked** `test_*.py` in the directory, so a working
+  tree mid-task legitimately reports more. Measured on this machine, where `history/` and the Pine
+  artefact exist — a fresh clone or CI can still report the `validate_pine_contract.py` skip. A skip is
+  not a pass; CI green proves code regression coverage, not financial validity or a track record.
 
 ## Claude ↔ Grok protocol
 

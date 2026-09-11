@@ -76,3 +76,24 @@ El valor de este experimento está entero en que la decisión se tomó antes de 
 
 **Norgate Data US Stocks Platinum, 630 USD/año** (aprobado por Lucas 2026-09-06, sin comprar). Silver
 y Gold no traen delistados ni constituyentes históricos: esa es la trampa (TASK-334).
+
+## Enmienda 2026-09-11, ANTES de la corrida (Claude)
+
+El dato llegó por otro camino y hay que decirlo antes de mirar, no después:
+
+1. **Los precios son EODHD All World, no Norgate** (Lucas la compró el 2026-09-11; TASK-403/424).
+   La membresía es el **registro público gratis** (`russell_free_membership.py`), no constituyentes
+   nativos. Consecuencias declaradas: no hay sufijo `-YYYYMM` (la identidad de deslistado sale de la
+   lista de EODHD), la **ventana honesta es 2010-2026** (el registro empieza en junio de 2010), y el
+   registro **no da de baja a quien muere entre reconstituciones**: 547 nombres siguen "miembros" más
+   de un año después de su última impresión (196.856 celdas-miembro sin precio tras ese año). Dos
+   columnas empalmadas (BBBY, SBNY) están **fuera** del panel por lista explícita revisada. Cobertura
+   honesta de celdas: **86,91 %** (`coverage.json`, denominador = registro entero). Estas cuatro cifras
+   se imprimen junto a cada número de la corrida, como ya exigía el punto 3.
+2. **Hash de `core/regime.py`**: `656ff8135814` → `0f475602519b` (`5e4b4f6`, mypy tier 3). El diff es
+   una anotación `pd.DataFrame | None`, un espacio final y el newline de fin de fichero; el cuerpo de
+   la decisión no cambió. Misma categoría que el import de `meta_layer` que la tabla ya exime. Los otros
+   tres hashes coinciden y **todos los valores** de `V9` y de `config.py` listados arriba coinciden
+   (verificado 2026-09-11).
+3. **Nada más cambia.** Umbrales de decisión, regla de supervivencia y lista de lo que no se hace, tal
+   cual. La corrida es TASK-431 y debe citar el sha256 de este fichero **con esta enmienda incluida**.
