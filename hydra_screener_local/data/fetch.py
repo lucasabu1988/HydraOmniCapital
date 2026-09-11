@@ -259,9 +259,41 @@ def degraded_groups(current: dict, previous: dict | None, threshold: float | Non
     return out
 
 
+#: Same number as preflight.PRINT_SHARE_WARN. TASK-421 uses it as an absolute floor
+#: when there is no last-ok run to compare against.
+FIRST_RUN_PRINT_SHARE_MIN = 0.90
+
+
+def first_run_low_share(current: dict, threshold: float | None = None) -> list[dict]:
+    """Groups whose print share is below the preflight threshold, with no prior run."""
+    floor = FIRST_RUN_PRINT_SHARE_MIN if threshold is None else float(threshold)
+    out = []
+    for name, now in (current or {}).items():
+        share = (now or {}).get("print_share")
+        if share is None:
+            continue
+        if float(share) < floor:
+            out.append({
+                "group": name,
+                "print_share": float(share),
+                "last_bar": (now or {}).get("last_bar"),
+                "first_run": True,
+            })
+    return out
+
+
 def format_provider_degraded(hits: list[dict]) -> str | None:
     if not hits:
         return None
+    if hits[0].get("first_run"):
+        bits = [
+            f"{h['group']} print_share {h['print_share']:.0%} (last_bar {h['last_bar']})"
+            for h in hits
+        ]
+        return (
+            "provider refresh degraded: " + "; ".join(bits)
+            + " — no prior successful run to compare; retry later; this is not 'the session has no data'"
+        )
     bits = []
     for h in hits:
         prev_at = f" at {h['prev_at']}" if h.get("prev_at") else ""

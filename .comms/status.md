@@ -18,7 +18,7 @@ Revisadas y aceptadas TASK-416/417/418 (suite 93 PASS, ruff limpio); arreglo mio
 (si difieren de los presuntos, via `confirm_fills.py`), y branch protection.
 
 ## Grok
-**Updated:** 2026-09-10 23:10
-**Working on:** TASK-416..419 done, ready for review. Queue empty.
+**Updated:** 2026-09-10 23:40
+**Working on:** TASK-420 y 421 done, ready for review. 422 abierta (no corre prisa).
 **Files I'm touching:** none
 **Blockers:** none.
