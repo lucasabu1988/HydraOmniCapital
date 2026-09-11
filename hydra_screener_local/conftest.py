@@ -27,6 +27,12 @@ is what made two coverage runs of one commit disagree (82.33 vs 82.35, TASK-419)
 default at session import time makes the measurement a property of the code again. The branches it
 stops covering by accident are covered on purpose instead, with an explicit `runs_dir`
 (`test_provider_refresh.py`).
+
+Same gap as the layer above, said out loud: a file `run_all_tests.py` runs as a *script* loads no
+conftest, and this redirect is a module attribute rather than an environment variable, so the runner
+cannot pass it down. Coverage is measured over the pytest files only, so the measurement is fenced;
+a script-mode test that drove the CLI would still read the operator's `runs/`. The real fix is to
+hand the reader its destination instead of resolving it deep in the read path (ASTRA-12's shape).
 """
 import atexit
 import os
