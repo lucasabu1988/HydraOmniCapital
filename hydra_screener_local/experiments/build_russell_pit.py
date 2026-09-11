@@ -49,6 +49,12 @@ INDEXES = ("Russell 1000", "Russell 2000")
 WATCHLIST = "Russell 3000 Current & Past"
 MIN_CELL_COVERAGE = 0.80          # priced member-cells / member-cells
 MIN_DELISTED_SHARE = 0.20         # delisted names / all names; a Russell panel 2005-2026 has many
+#: TASK-427, fence moved after seeing the data (Claude 2026-09-11). The old
+#: `delisted_with_prices < delisted_names` binary was written for Norgate Silver/Gold
+#: (omits the dead as a class, ~0% priced). On EODHD 70 of 2892 requested delisted
+#: names have no bar (97.6% priced). Those 70 are already in the honest cell
+#: coverage. Failing the whole panel for them charges the same defect twice.
+MIN_DELISTED_PRICED_SHARE = 0.90
 PURCHASE_NOTE = (
     "norgatedata is not installed. TASK-403 needs Norgate Data US Stocks Platinum "
     "(630 USD/year, approved by Lucas 2026-09-06, not yet bought): it is the only listed-price "
@@ -216,8 +222,10 @@ def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None, *,
     missing = [c for c in m_full.columns if c not in close.columns]
     missing_member_cells = int(m_full.loc[:, missing].to_numpy().sum()) if missing else 0
     names = list(close.columns)
-    delisted = [s for s in names if is_delisted(s)]
-    with_history = [s for s in delisted if close[s].notna().any()]
+    requested = [str(c) for c in m_full.columns]
+    delisted = [s for s in requested if is_delisted(s)]
+    with_history = [s for s in delisted if s in close.columns and close[s].notna().any()]
+    without_prices = [s for s in delisted if s not in with_history]
     ghost_names, ghost_cells = _ghost_stats(membership, close)
     try:
         from russell_spliced_tickers import DROP, KEEP
@@ -234,8 +242,10 @@ def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None, *,
         names_without_prices=len(missing),
         missing_member_cells=int(missing_member_cells),
         delisted_names=len(delisted),
-        delisted_share=round(len(delisted) / len(names), 4) if names else 0.0,
+        delisted_share=round(len(delisted) / len(requested), 4) if requested else 0.0,
         delisted_with_prices=len(with_history),
+        delisted_without_prices=len(without_prices),
+        delisted_priced_share=round(len(with_history) / len(delisted), 4) if delisted else 0.0,
         first=str(close.index[0].date()) if len(close.index) else None,
         last=str(close.index[-1].date()) if len(close.index) else None,
         members_first_day=int(m_full.iloc[0].sum()) if len(m_full.index) else 0,
@@ -271,10 +281,15 @@ def validate(cov: dict, *, min_coverage=MIN_CELL_COVERAGE,
             f"delisted share {cov['delisted_share']:.1%} < {min_delisted:.0%}: a Russell panel "
             f"spanning two decades cannot have this few dead names"
         )
-    if cov["delisted_names"] and cov["delisted_with_prices"] < cov["delisted_names"]:
+    priced_share = cov.get("delisted_priced_share")
+    if priced_share is None and cov["delisted_names"]:
+        priced_share = cov["delisted_with_prices"] / cov["delisted_names"]
+    if cov["delisted_names"] and (priced_share or 0) < MIN_DELISTED_PRICED_SHARE:
         problems.append(
-            f"{cov['delisted_names'] - cov['delisted_with_prices']} delisted symbol(s) have no "
-            f"price history: survivorship would come back through the eligibility mask"
+            f"delisted priced share {priced_share:.1%} < {MIN_DELISTED_PRICED_SHARE:.0%}: "
+            f"{cov.get('delisted_without_prices', cov['delisted_names'] - cov['delisted_with_prices'])} "
+            f"delisted symbol(s) have no price history (fence moved TASK-427, after seeing "
+            f"EODHD 97.6%; the binary Norgate-Silver form would reject a 97.6% panel)"
         )
     return problems
 
