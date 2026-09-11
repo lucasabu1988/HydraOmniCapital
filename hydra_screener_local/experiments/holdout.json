@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "declared_on": "2026-09-11",
+  "declared_by": "Lucas (TASK-432)",
+  "partitions": {
+    "research":   {"start": "2010-01-01", "end": "2023-12-31"},
+    "validation": {"start": "2024-01-01", "end": "2026-09-07"},
+    "live":       {"start": "2026-09-08", "end": null}
+  },
+  "rules": [
+    "research is the only partition where anything may be tuned",
+    "validation is read rarely and only by pre-registered experiments; every read is stamped",
+    "live is the v9 book from its first execution; live weeks never enter any tuning",
+    "an experiment that evaluates outside its declared partition carries HOLDOUT BREACH in its output and its JSON, not a warning",
+    "2010 not 2004: the free Russell membership record starts 2010-06-28, so nothing before it is point-in-time on the traded universe"
+  ]
+}
