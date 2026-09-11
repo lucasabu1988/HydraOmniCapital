@@ -11,9 +11,9 @@ What this builds (Lucas's finding, 2026-09-10):
 
 What this is NOT: a point-in-time PRICE panel. TASK-326 / TASK-334 already established that the
 gap is delisted prices, and this tool measures that gap instead of hiding it: a random sample of the
-names that left the index is priced at Yahoo and the hit rate is printed. A member without a close
-cannot be selected, so a panel built from these lists plus Yahoo would be a survivorship screen on
-exactly the names small-cap momentum lives on. Nothing here writes `_sweep_cache_russell/`; the
+names that left the index is priced at EODHD (TASK-425; Yahoo mixed "no price" with rate-limits).
+"sin precio" and "el proveedor fallo" are counted separately; their sum is never called a hit rate.
+A member without a close cannot be selected. Nothing here writes `_sweep_cache_russell/`; the
 output goes to `_lab_scratch/russell_free/` (gitignored) as a dated table:
 
     date        ticker  member  source
@@ -25,7 +25,7 @@ Limits, written down: no CUSIP / entity id in any source, so the same ticker can
 across years (TASK-326: AMR, AGL, ADPT, ...); intra-year deletions (M&A, bankruptcies) between
 June reconstitutions are not in the record; the IPO additions cover the current quarter only.
 
-    python experiments/russell_free_membership.py --fetch          # download everything, build, probe Yahoo
+    python experiments/russell_free_membership.py --fetch          # download everything, build, probe EODHD
     python experiments/russell_free_membership.py                  # rebuild from the files already on disk
 """
 from __future__ import annotations
@@ -46,6 +46,9 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # TASK-380: cp1252 consoles
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 OUT = os.path.join(HERE, "_lab_scratch", "russell_free")
 
 KACT_RAW = "https://raw.githubusercontent.com/kact998/Russell3000Components/main/{stamp}.csv"
@@ -202,28 +205,42 @@ def churn(table: pd.DataFrame) -> pd.DataFrame:
 
 
 # ----------------------------------------------------------------------------- the price gap, measured
-def yahoo_price_probe(gone: list[str], membership_years: dict[str, list[int]], *, n: int = 150, seed: int = 403) -> dict:
-    """Random sample of names that left the index: how many does Yahoo still price during the years
-    they were members? Names that also print TODAY are live tickers - a company that left the index
-    but not the market, or a ticker reused by another company - so they are shown separately. The
-    result carries `reliable`; when False the numbers are throttling, not evidence."""
+def yahoo_price_probe(gone: list[str], membership_years: dict[str, list[int]], *, n: int = 150, seed: int = 403,
+                     provider=None) -> dict:
+    """Random sample of names that left the index: how many does EODHD still price.
+
+    `no_price` and `provider_failed` are separate (TASK-425). Their sum is not a hit rate.
+    `reliable` is False when a control ticker has no price — then the numbers are not evidence.
+    """
     rng = random.Random(seed)
     sample = rng.sample(sorted(gone), min(n, len(gone)))
-    close, reliable = yahoo_closes(sample, since="2009-01-01", until="2026-09-01")
-    if close.empty:
-        return {"sampled": len(sample), "reliable": False}
+    close, report = eodhd_closes(sample, since="2009-01-01", until="2026-09-01", provider=provider)
+    out = {
+        "sampled": len(sample),
+        "reliable": report["reliable"],
+        "priced": report["priced"],
+        "no_price": len(report["no_price"]),
+        "provider_failed": len(report["provider_failed"]),
+        "control_hits": report["control_hits"],
+    }
+    if close.empty or not report["reliable"]:
+        return out
     any_px = close.notna().any()
-    live = close.loc["2026-01-01":].notna().any()
+    live = close.loc["2026-01-01":].notna().any() if len(close.index) else any_px * False
     in_era = 0
     for t in sample:
         ys = membership_years.get(t) or []
-        if not ys:
+        if not ys or t not in close.columns:
             continue
         seg = close[t].loc[f"{min(ys)}-06-01":f"{max(ys)}-12-31"]
         in_era += int(len(seg) and seg.notna().mean() > 0.5)
-    return {"sampled": len(sample), "reliable": reliable, "any_close": int(any_px.sum()), "covers_membership_era": in_era,
-            "of_which_still_print_2026": int((any_px & live).sum()),
-            "share_priced_in_era": round(in_era / len(sample), 3)}
+    out.update({
+        "any_close": int(any_px.sum()),
+        "covers_membership_era": in_era,
+        "of_which_still_print_2026": int((any_px & live).sum()),
+        "share_priced_in_era": round(in_era / len(sample), 3),
+    })
+    return out
 
 
 # ----------------------------------------------------------------------------- the current list, pruned
@@ -239,44 +256,73 @@ def prune_dead(latest: set, printing: set) -> tuple[set, set]:
     return latest & printing, latest - printing
 
 
-CONTROLS = ("SPY", "AAPL", "MSFT")        # always listed: if THEY come back empty, Yahoo is throttling, not the names
+CONTROLS = ("SPY", "AAPL", "MSFT")        # always listed: if THEY come back empty, the probe is not a fact about the names
 
 
 def probe_reliable(control_hits: int, n_controls: int = len(CONTROLS)) -> bool:
-    """A Yahoo batch is trusted only if every control ticker returned data. Measured 2026-09-10: a
-    second run in the same hour returned 979 'alive' of 3417 and 3 of 150 in the price probe - an
-    artefact of throttling, not a fact about the names. Without this check that run would have been
-    published."""
+    """A batch is trusted only if every control ticker returned data. Measured 2026-09-10: a
+    Yahoo second run in the same hour returned 979 'alive' of 3417 and 3 of 150 in the price
+    probe - throttling, not a fact about the names. TASK-425 keeps this valla on EODHD.
+    """
     return control_hits == n_controls
 
 
-def yahoo_closes(tickers: list, *, since: str, until: str, chunk: int = 150, pause: float = 1.0) -> tuple[pd.DataFrame, bool]:
-    """Closes for `tickers` in [since, until], downloaded in chunks with the control tickers in every
-    chunk; returns (closes, reliable). `reliable` is False if any chunk lost a control."""
-    import time
-    import yfinance as yf
-    tickers = sorted(set(tickers))
-    frames, reliable = [], True
-    for i in range(0, len(tickers), chunk):
-        batch = tickers[i:i + chunk] + list(CONTROLS)
-        df = yf.download(batch, start=since, end=until, progress=False, auto_adjust=True, threads=True, group_by="column")
-        close = df["Close"] if "Close" in df else df
-        close = close.reindex(columns=batch)
-        hits = int(close[list(CONTROLS)].notna().any().sum())
-        reliable = reliable and probe_reliable(hits)
-        frames.append(close.drop(columns=list(CONTROLS), errors="ignore"))
-        time.sleep(pause)
-    out = pd.concat(frames, axis=1) if frames else pd.DataFrame()
-    return out.reindex(columns=tickers), reliable
+def _classify_eodhd_error(msg: str) -> str:
+    """404 / no rows = the code has no price. Timeouts, 5xx, non-JSON = the provider failed."""
+    m = str(msg).lower()
+    if "http 404" in m or m.strip() in {"no rows", ""}:
+        return "no_price"
+    return "provider_failed"
 
 
-def printing_recently(tickers: list, *, since: str, until: str) -> tuple[set, bool]:
-    """Tickers with at least one Yahoo close in [since, until] (network), and whether the answer is
-    trustworthy (controls present in every chunk)."""
-    close, reliable = yahoo_closes(tickers, since=since, until=until)
-    if close.empty:
+def _has_price(long: pd.DataFrame, ticker: str) -> bool:
+    if long is None or not len(long) or "ticker" not in long.columns:
+        return False
+    return bool(long.loc[long["ticker"] == ticker, "close_adj"].notna().any())
+
+
+def eodhd_closes(tickers: list, *, since: str, until: str, provider=None) -> tuple[pd.DataFrame, dict]:
+    """Closes from EODHD. `no_price` and `provider_failed` are separate lists; never a summed hit rate.
+
+    `reliable` is probe_reliable() on the control tickers (TASK-425: reuse, do not reinvent).
+    """
+    from data.providers.eodhd_provider import EODHDProvider
+    tickers = list(dict.fromkeys(tickers))
+    prov = provider if provider is not None else EODHDProvider()
+    asked = list(tickers) + [c for c in CONTROLS if c not in tickers]
+    long = prov.fetch(asked, since, until)
+    errors = dict(getattr(prov, "last_errors", {}) or {})
+    if long is None or not len(long):
+        close = pd.DataFrame(columns=tickers)
+    else:
+        wide = long.pivot_table(index="date", columns="ticker", values="close_adj", aggfunc="last")
+        close = wide.reindex(columns=tickers)
+    no_price, failed = [], []
+    for t in tickers:
+        if _has_price(long, t):
+            continue
+        kind = _classify_eodhd_error(errors.get(t, "no rows"))
+        (no_price if kind == "no_price" else failed).append(t)
+    control_hits = int(sum(1 for c in CONTROLS if _has_price(long, c)))
+    report = {
+        "no_price": no_price,
+        "provider_failed": failed,
+        "control_hits": control_hits,
+        "reliable": probe_reliable(control_hits),
+        "priced": int(sum(1 for t in tickers if _has_price(long, t))),
+    }
+    return close, report
+
+
+def printing_recently(tickers: list, *, since: str, until: str, provider=None) -> tuple[set, bool]:
+    """Tickers with at least one EODHD close in [since, until], and whether the answer is
+    trustworthy (every control printed)."""
+    close, report = eodhd_closes(tickers, since=since, until=until, provider=provider)
+    if not report["reliable"]:
         return set(), False
-    return set(close.columns[close.notna().any().to_numpy()]), reliable
+    if close.empty:
+        return set(), True
+    return set(close.columns[close.notna().any().to_numpy()]), True
 
 
 # ----------------------------------------------------------------------------- main
@@ -340,16 +386,20 @@ def main(argv=None) -> int:
             pd.DataFrame({"ticker": sorted(alive)}).to_csv(os.path.join(args.out, "russell3000_current_alive.csv"), index=False)
             pd.DataFrame({"ticker": sorted(dead)}).to_csv(os.path.join(args.out, "russell3000_current_dead.csv"), index=False)
         else:
-            print("\nYAHOO THROTTLED (a control ticker came back empty): the alive/dead split below is NOT trustworthy and "
+            print("\nPROBE NOT RELIABLE (a control ticker came back empty): the alive/dead split below is NOT trustworthy and "
                   "was not written. Wait and rerun without --fetch.", flush=True)
-        print(f"\ncurrent list {latest_date}: {len(latest)} rolled forward, {len(alive)} print at Yahoo since June, "
+        print(f"\ncurrent list {latest_date}: {len(latest)} rolled forward, {len(alive)} print at EODHD since June, "
               f"{len(dead)} do not ({len(dead & k23)} of them already in the 2023 file) -> russell3000_current_alive.csv", flush=True)
         by_ticker = table.groupby("ticker")["date"].apply(lambda s: sorted({int(d[:4]) for d in s})).to_dict()
         latest = set(table[table["date"] == table["date"].max()]["ticker"])
         gone = sorted(set(table["ticker"]) - latest)
-        print(f"\nprice gap probe: {len(gone)} ever-members are not in the latest list; sampling 150 at Yahoo...", flush=True)
+        print(f"\nprice gap probe: {len(gone)} ever-members are not in the latest list; sampling 150 at EODHD...", flush=True)
         probe = yahoo_price_probe(gone, by_ticker)
         result["price_probe"] = probe
+        print("  priced={priced}  no_price={no_price}  provider_failed={provider_failed}  "
+              "reliable={reliable}".format(**{k: probe.get(k) for k in
+                                             ("priced", "no_price", "provider_failed", "reliable")}),
+              flush=True)
         print("  ", probe, flush=True)
     with open(os.path.join(args.out, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, default=str)
