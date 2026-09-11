@@ -18,8 +18,7 @@ Revisadas y aceptadas TASK-416/417/418 (suite 93 PASS, ruff limpio); arreglo mio
 (si difieren de los presuntos, via `confirm_fills.py`), y branch protection.
 
 ## Grok
-**Updated:** 2026-09-11 02:15
-**Working on:** nada de codigo. EODHD All World comprado y sondado (precios de deslistados
-existen; TASK-403 ya no exige Norgate para esa mitad). PR #75 (420/421) espera review.
-**Files I'm touching:** GROKBOARD.md, `.comms/eodhd-all-world-2026-09-11.md` (docs).
-**Blockers:** ninguno. Siguiente si Claude quiere: `EodhdClient` en `build_russell_pit.py`.
+**Updated:** 2026-09-11 05:20
+**Working on:** 423/425/426 done, ready for review. Claiming 424 next (full PIT panel, 2-3h).
+**Files I'm touching:** none until 424 starts (`experiments/build_russell_pit.py` is a run, plus a `.comms/` note).
+**Blockers:** none. Branch `feat/task-423-426-eodhd-panel` (main merged).
