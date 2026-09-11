@@ -51,9 +51,15 @@ PINNED_PREREG_SHA256 = "3d5598d944ce887caf1abb6121daff3c46b3fdee1c7513027b99d627
 
 RUSSELL_CACHE = os.path.join(HERE, "_sweep_cache_russell")
 OOS_CACHE = os.path.join(HERE, "_sweep_cache_oos")
+TRADING_CACHE = os.path.join(HERE, "_lab_scratch", "russell_prereg_cache")
 SP_BOOK = os.path.join(HERE, "_lab_scratch", "engine_book_oos.pkl")
 SCRATCH = os.path.join(HERE, "_lab_scratch", "task431.json")
 STEP = 5
+# EODHD keeps US holidays as rows where 1–7 of 6048 names print. Yahoo's OOS panel
+# drops those days. A holiday NaN poisons rolling(20) volume for 20 bars and
+# rolling(63) vol for 63 bars, so rank_day returns None on almost every step.
+# Dropping them is calendar hygiene, not a threshold move.
+MIN_PRINT_SHARE = 0.05
 
 # Published S&P 500 PIT engine row (TASK-350 --oos). Universe comparison, not a re-run.
 SP_OOS_PUBLISHED = dict(ann_net=7.03, ratio_net_vol=0.74, maxdd_net=-17.7, sharpe_excess=0.56)
@@ -95,6 +101,7 @@ FROZEN_CONFIG = {
 SURVIVE_D = -0.10
 FAIL_D = -0.25
 MAXDD_WORSE_PP = 5.0
+MIN_CYCLES = 200  # ~4y of 5-bar steps; fewer means the calendar is still poisoned
 
 
 def sha256_file(path: str, *, lf: bool = False) -> str:
@@ -178,7 +185,45 @@ def caveat_table(cov: dict) -> pd.DataFrame:
              note="free record starts June 2010"),
         dict(item="names", value=cov.get("names"),
              note=f"requested {cov.get('names_requested')}"),
+        dict(item="holiday_rows_dropped", value=cov.get("holiday_rows_dropped"),
+             note=f"EODHD US-holiday rows, print share < {MIN_PRINT_SHARE:.0%}"),
     ])
+
+
+def trading_day_mask(close: pd.DataFrame, min_print_share: float = MIN_PRINT_SHARE) -> pd.Series:
+    """True on dates where enough names printed. Holidays are ~1/6048."""
+    share = close.notna().mean(axis=1)
+    return share >= float(min_print_share)
+
+
+def materialize_trading_cache(src: str, dest: str, oos_cache: str) -> dict:
+    """Copy the Russell panel with holiday rows removed so rolling windows match Yahoo."""
+    close = pd.read_pickle(os.path.join(src, "close.pkl"))
+    keep = trading_day_mask(close)
+    dropped = int((~keep).sum())
+    dates = [str(pd.Timestamp(d).date()) for d in close.index[~keep]]
+    os.makedirs(dest, exist_ok=True)
+    for name in ("close", "close_raw", "volume", "open"):
+        path = os.path.join(src, f"{name}.pkl")
+        if not os.path.exists(path):
+            continue
+        pd.read_pickle(path).loc[keep].to_pickle(os.path.join(dest, f"{name}.pkl"))
+    mem_path = os.path.join(src, "membership.pkl")
+    if os.path.exists(mem_path):
+        mem = pd.read_pickle(mem_path)
+        mem.reindex(index=close.index[keep]).to_pickle(os.path.join(dest, "membership.pkl"))
+    ensure_spy(src, oos_cache)
+    spy = pd.read_pickle(os.path.join(src, "spy.pkl"))
+    spy.reindex(close.index[keep]).to_pickle(os.path.join(dest, "spy.pkl"))
+    cov_src = os.path.join(src, "coverage.json")
+    cov = json.load(open(cov_src, encoding="utf-8")) if os.path.exists(cov_src) else {}
+    cov["holiday_rows_dropped"] = dropped
+    cov["holiday_dates"] = dates
+    with open(os.path.join(dest, "coverage.json"), "w", encoding="utf-8") as fh:
+        json.dump(cov, fh, indent=2)
+    print(f"dropped {dropped} EODHD holiday rows (print share < {MIN_PRINT_SHARE:.0%}); "
+          f"trading cache {close.loc[keep].shape}", flush=True)
+    return cov
 
 
 def ensure_spy(russell_cache: str, oos_cache: str) -> str:
@@ -325,14 +370,13 @@ def run(cache_dir: str) -> dict:
     for rel, h in freeze["file_hashes"].items():
         print(f"  {rel} {h}", flush=True)
 
-    cov = load_coverage(cache_dir)
+    cov = materialize_trading_cache(cache_dir, TRADING_CACHE, OOS_CACHE)
     print("\n--- panel caveats (table, not a footnote) ---", flush=True)
     print(caveat_table(cov).to_string(index=False), flush=True)
 
-    ensure_spy(cache_dir, OOS_CACHE)
     print("\nloading Russell panel (FLAT5 over ~6000 names; this can take a while)...", flush=True)
-    P = L.load_panel(oos=False, cache_dir=cache_dir)
-    restore_mem = attach_russell_membership(P, os.path.join(cache_dir, "membership.pkl"))
+    P = L.load_panel(oos=False, cache_dir=TRADING_CACHE)
+    restore_mem = attach_russell_membership(P, os.path.join(TRADING_CACHE, "membership.pkl"))
     P.ETF = S.load_etfs(P.close.index)
     start = start_bar(P)
     print(f"  close {P.close.shape} {P.close.index[0].date()} -> {P.close.index[-1].date()}", flush=True)
@@ -401,8 +445,11 @@ def run(cache_dir: str) -> dict:
         dd_worse_pp=dd_worse if np.isfinite(dd_worse) else MAXDD_WORSE_PP + 1,
         cost_frac=cost_frac,
     )
-    if not np.isfinite(d_sharpe):
+    n_cycles = int(rus.get("cycles") or 0)
+    if n_cycles < MIN_CYCLES or not np.isfinite(d_sharpe):
         decision = "INCONCLUSIVE"
+        print(f"NOTE: engine cycles {n_cycles} < {MIN_CYCLES} or pair missing: "
+              "not a prereg verdict (calendar still poisoned or overlay bug).", flush=True)
 
     rows = [sp_pub, rus]
     if sp_overlap is not None:

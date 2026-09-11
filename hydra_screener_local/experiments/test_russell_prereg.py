@@ -121,7 +121,7 @@ def test_caveat_table_is_its_own_rows_not_a_footnote():
     t = R.caveat_table(cov)
     assert list(t["item"]) == [
         "cell_coverage", "ghost_names", "ghost_member_cells",
-        "spliced_dropped", "honest_window", "names",
+        "spliced_dropped", "honest_window", "names", "holiday_rows_dropped",
     ]
     assert float(t.loc[t["item"] == "cell_coverage", "value"].iloc[0]) == 0.8691
     assert t.loc[t["item"] == "spliced_dropped", "value"].iloc[0] == "BBBY,SBNY"
@@ -132,6 +132,23 @@ def test_align_book_ffills_sp_marks_onto_a_shifted_calendar():
     marks = pd.to_datetime(["2020-01-08", "2020-01-15", "2020-01-22"])
     got = R.align_book_to_marks(sp, pd.DatetimeIndex(marks))
     assert list(got.values) == [1.0, 1.1, 1.2]
+
+
+def test_holiday_rows_are_dropped_so_rolling_windows_are_not_poisoned():
+    idx = pd.bdate_range("2020-01-02", periods=30)
+    names = [f"N{i:02d}" for i in range(20)]
+    close = pd.DataFrame(10.0, index=idx, columns=names)
+    holiday = idx[10]
+    close.loc[holiday, names[1:]] = np.nan   # 1 of 20 names prints, like an EODHD holiday
+    keep = R.trading_day_mask(close, min_print_share=0.10)
+    assert int(keep.sum()) == 29
+    assert not bool(keep.loc[holiday])
+    vol = pd.DataFrame(1_000_000.0, index=idx, columns=names)
+    vol.loc[holiday, names[1:]] = np.nan
+    poisoned = vol.rolling(20).mean().iloc[-1]
+    assert int(poisoned.notna().sum()) == 1   # only the name that printed on the holiday
+    clean = vol.loc[keep].rolling(20).mean().iloc[-1]
+    assert int(clean.notna().sum()) == 20
 
 
 def test_memmel_se_is_zero_on_identical_legs():
