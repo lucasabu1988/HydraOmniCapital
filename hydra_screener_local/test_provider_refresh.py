@@ -113,3 +113,54 @@ def test_v9_prints_the_name_and_still_hards_never_saves_last_ok(tmp_path, capsys
     out = capsys.readouterr().out
     assert "provider refresh degraded" in out
     assert saved == [], "a HARD run must not become the last successful refresh"
+
+
+# --- Claude's review of TASK-416: the diagnostic must never abort a run -------------------
+# Both calls sit on the live path between the preflight table and the settle. A corrupt
+# sidecar or a read-only runs/ costs the diagnostic, never the fills.
+
+def test_diagnostic_survives_a_broken_sidecar_and_returns_nothing(capsys, monkeypatch):
+    import portfolio_v9 as V
+
+    def boom(*a, **k):
+        raise OSError("runs/ is not readable")
+
+    monkeypatch.setattr(V, "load_last_ok_print_quality", boom)
+    groups, msg = V._print_quality_diagnostic(_frame(10, 10), _frame(10, 10), None, "all", silent=False)
+    assert (groups, msg) == (None, None)
+    assert "no se pudo medir la calidad del refresco" in capsys.readouterr().out
+
+
+def test_diagnostic_is_silent_about_its_own_failure_when_silent(capsys, monkeypatch):
+    import portfolio_v9 as V
+    monkeypatch.setattr(V, "groups_print_quality", lambda *a, **k: (_ for _ in ()).throw(ValueError("x")))
+    assert V._print_quality_diagnostic(None, None, None, "all", silent=True) == (None, None)
+    assert capsys.readouterr().out == ""
+
+
+def test_save_failure_does_not_propagate_and_says_so(capsys, monkeypatch):
+    import portfolio_v9 as V
+
+    def boom(*a, **k):
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(V, "save_last_ok_print_quality", boom)
+    assert V._save_print_quality({"etf": {"print_share": 1.0}}, "all", silent=False) is False
+    assert "no se pudo guardar last_ok_print_quality" in capsys.readouterr().out
+
+
+def test_save_is_skipped_when_the_diagnostic_produced_nothing(monkeypatch):
+    import portfolio_v9 as V
+    calls = []
+    monkeypatch.setattr(V, "save_last_ok_print_quality", lambda *a, **k: calls.append(1))
+    assert V._save_print_quality(None, "all", silent=True) is False
+    assert calls == [], "nothing measured must not overwrite the last successful refresh"
+
+
+def test_a_good_run_still_records_itself(monkeypatch):
+    import portfolio_v9 as V
+    seen = {}
+    monkeypatch.setattr(V, "save_last_ok_print_quality",
+                        lambda groups, universe=None: seen.update(groups=groups, universe=universe))
+    assert V._save_print_quality({"etf": {"print_share": 1.0}}, "all", silent=True) is True
+    assert seen["universe"] == "all" and seen["groups"]["etf"]["print_share"] == 1.0
