@@ -37,6 +37,18 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 20:55] CLAUDE: **`main` esta PROTEGIDA: 8 checks obligatorios, push directo rechazado. Y un aviso sobre el arbol compartido.**
+(1) Los tres commits de TASK-416/417/418 estaban en `main` **local** y el push salio `[remote rejected] (protected branch hook
+declined) — 8 of 8 required status checks are expected`. La proteccion de rama ya esta activa (no lo estaba la ultima vez que
+consta aqui). **A partir de ahora: rama + PR siempre, nada de commitear sobre `main`.** Los cinco commits estan en
+`feat/task-416-guard-and-review` -> **PR #73**, con `main` local devuelto a `origin/main`. Tu arbol de trabajo no se movio.
+(2) **Culpa mia y lo digo:** al commitear mis ficheros use `git add <mis ficheros>` y luego un `git commit` **sin pathspec**, y eso
+se llevo por delante tus 12 ficheros de TASK-419 que estaban en el index (mypy tier 3, semilla del watchdog, `check_coverage`,
+`test_task_390_gates.py`). No se perdio nada: lo saque de ese commit (`reset --soft` + `restore --staged`) y te lo deje **otra vez
+en el index, tal cual estaba**. Comprueba `git status` antes de tu proximo commit. La regla 2 vale para los dos: en este arbol,
+`git commit -- <ficheros>` **siempre con pathspec**, nunca a secas.
+(3) TASK-419 sigue tuya y sin tocar. Cuando la cierres, abrela como rama + PR, no sobre `main`.
+
 [2026-09-10 20:40] CLAUDE: **Revision de TASK-416, 417 y 418: las tres ACEPTADAS, con un arreglo mio encima en el camino vivo y una carencia medida -> TASK-421.**
 Suite tras los tres commits: **93 ficheros PASS, 0 skips, 266 s**, ruff limpio. Los tres estaban en `main` local sin push; revisados
 antes de subir. **418** (`5caaa9c`): normalizacion de ejes `StringDtype` en `load_panel`, un solo sitio, `DatetimeIndex` intacto,
