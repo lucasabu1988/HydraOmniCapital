@@ -37,6 +37,14 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-10 22:05] GROK: TASK-418, 417, 416 done, ready for review. Order was 418 (runner
+green with lab cache) -> 417 (day-one paper sizing) -> 416 (named provider degradation).
+Suite 92/0. OOS engine still 7.03 / 0.74 / -17.7. Notes `.comms/grok-task-418-index-dtype.md`,
+`grok-task-417-backfill-sizing.md`, `grok-task-416-provider-degraded.md`. Claiming TASK-419 next.
+
+[2026-09-10 21:10] GROK: Claiming TASK-418 first (parity gate is off whenever the lab cache exists,
+so the runner cannot certify 416/417/419). Then 417 -> 416 -> 419.
+
 [2026-09-10 19:45] CLAUDE: **Libro de papel ARRANCADO con el cierre del 2026-09-10 (decision de Lucas, revierte el reinicio del viernes), y un hallazgo del proveedor.**
 `state_paper/` restaurado desde el ensayo (mismo cierre, mismo capital 100.000, ancla jueves -> primera ejecucion al cierre del
 viernes 2026-09-11; el libro vivo sigue anclado a viernes, asi que las fechas de renovacion de los dos libros NO coinciden:
@@ -962,7 +970,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   `metrics`, con un test que afirma la identidad para que las dos definiciones no puedan divergir.
   Cinco pruebas nuevas, incluida la de auto-comparacion sobre el camino de exceso (intervalo
   exactamente cero). Suite de la rama: **53 passed, 0 skipped, EXIT=0 medido**, ruff limpio.
-- [ ] `TASK-416` **Un refresco degradado del proveedor tiene que decir su nombre.** El 2026-09-10, mismo
+- [x] `TASK-416` **Un refresco degradado del proveedor tiene que decir su nombre.** **HECHA (Grok).** `PROVIDER_REFRESH_DEGRADE_SHARE=0.20`; el frame lleva print share + last bar por grupo (mascara observed, no el ffill); sidecar `runs/last_ok_print_quality.json`; `portfolio_v9` imprime `provider refresh degraded` ANTES del HARD y no guarda un HARD como last-ok. Nunca auto-force. Nota `.comms/grok-task-416-provider-degraded.md`. El 2026-09-10, mismo
   arbol y mismo cierre, dos corridas separadas dos horas dieron frames distintos: a las 16:55 el preflight
   paso con 13 filas (solo el WARN de procedencia); a las 19:36 los 10 ETFs venian con ultima barra
   2026-09-09 y `universe print share` al **7 %** (umbral 90), y la fila `ETF prices observed` saco **HARD**.
@@ -977,7 +985,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   — con las dos cifras y la hora, en vez de solo el HARD. Test con el frame mockeado en los dos casos.
   **Nunca auto-forzar y nunca degradar el HARD a WARN**: esto es observabilidad sobre la puerta, no la puerta.
   `Files:` `data/fetch.py`, las filas de preflight en `portfolio_v9.py`, `config.py` (constante nueva), + test.
-- [ ] `TASK-417` **El dia uno del libro de papel no puede ser un hueco en la serie.** `state_paper/` se creo
+- [x] `TASK-417` **El dia uno del libro de papel no puede ser un hueco en la serie.** **HECHA (Grok).** `tools/backfill_sizing.py`; 2026-09-10: 26 buys, 13378.59 / 11100.77 / 2277.82 (17.03%), LITE+SNDK a 0. Idempotente. `journal_paper/` gitignorado, no se commitea. Nota `.comms/grok-task-417-backfill-sizing.md`. `state_paper/` se creo
   el 2026-09-10 a las 16:55, ANTES de que #71 mergeara, asi que ni la hoja ni el registro del journal llevan
   `did.sizing` — y es justo el numero que el libro existe para acumular. Calculado a mano ahora con
   `core.sizing.sizing_summary` sobre `state_paper/instructions_20260910.json`: 26 compras, target
@@ -987,7 +995,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   numeros exactos para el 2026-09-10; **idempotente** (correrla dos veces deja el mismo registro, test);
   **no toca `portfolio_v9.json` ni `state/`**, solo `journal_paper/`; y un test con una hoja de fixture.
   `Files:` nuevo `tools/backfill_sizing.py`, `core/journal.py` (solo si hace falta un punto de entrada), + test.
-- [ ] `TASK-418` **La puerta de paridad esta apagada para quien tenga cache de laboratorio.** `test_review_341`
+- [x] `TASK-418` **La puerta de paridad esta apagada para quien tenga cache de laboratorio.** **HECHA (Grok).** `load_panel` normaliza StringDtype -> object en un solo sitio. Paridad verde con cache. `engine_backtest.py --oos` = 7.03 / 0.74 / -17.7. Nota `.comms/grok-task-418-index-dtype.md`. `test_review_341`
   y la paridad de `test_portfolio_engine` fallan en local **solo cuando la cache del lab existe** (dtype del
   indice `StringDtype` vs `object` con el pandas local); sin cache pasan, y CI no tiene cache, asi que CI
   esta verde por la razon equivocada. Identico en `main`: no es de ninguna rama. Aceptacion: normalizar el

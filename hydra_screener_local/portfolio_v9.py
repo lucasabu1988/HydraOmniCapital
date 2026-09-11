@@ -50,7 +50,17 @@ from core.filters import (  # noqa: E402
 )
 from core.signals import generate_daily_candidates  # noqa: E402
 from core.sizing import sizing_summary  # noqa: E402
-from data.fetch import fetch_etf_closes, fetch_prices_and_volume, fetch_spy, fetch_tbill  # noqa: E402
+from data.fetch import (  # noqa: E402
+    fetch_etf_closes,
+    fetch_prices_and_volume,
+    fetch_spy,
+    fetch_tbill,
+    groups_print_quality,
+    load_last_ok_print_quality,
+    save_last_ok_print_quality,
+    degraded_groups,
+    format_provider_degraded,
+)
 from data.sectors import resolve_sectors, sector_degraded_message  # noqa: E402
 from core.dividends import (  # noqa: E402
     apply_dividends,
@@ -673,9 +683,19 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         clock=None if fetch_fn is not None else pd.Timestamp.now(),
         allow_intraday=allow_intraday,
     )
+    # TASK-416: name a degraded Yahoo refresh before the HARD abort, so 20:00 is
+    # "retry later" not "this session has no data". Never auto-force; never
+    # downgrade HARD to WARN.
+    groups = groups_print_quality(prices, etf, irx)
+    prev = load_last_ok_print_quality(universe=universe_effective)
+    degraded_msg = format_provider_degraded(degraded_groups(groups, prev))
     if not silent:
         print(PF.format_table(pf))
+        if degraded_msg:
+            print(f"[v9] {degraded_msg}")
     PF.raise_if_hard(pf, force=force)
+    if fetch_fn is None and not pf.get("hard"):
+        save_last_ok_print_quality(groups, universe=universe_effective)
 
     # One dividend table per run, needed BEFORE settle: an ex-date between the execution bar and
     # today is already inside the total-return closes and would move the fill price (ASTRA-03).

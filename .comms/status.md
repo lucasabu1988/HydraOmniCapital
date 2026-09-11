@@ -15,7 +15,7 @@ Queue for Grok: TASK-388 (CI's first real run, draft PR), 389 (BRK-B/BRK.B measu
 **Blockers:** none.
 
 ## Grok
-**Updated:** 2026-09-06 03:05
-**Working on:** TASK-380 done, ready for review. Next 383 -> 382 -> 377.
-**Files I'm touching:** none
+**Updated:** 2026-09-10 22:05
+**Working on:** TASK-418, 417, 416 done, ready for review. Claiming TASK-419.
+**Files I'm touching:** none yet (419 next: test_volume_watchdog.py, mypy.ini, settle.py, coverage floor)
 **Blockers:** none.
