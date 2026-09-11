@@ -89,3 +89,16 @@ atributo de módulo (no una variable de entorno), así que el runner no puede pa
 subprocesos como hace con `HYDRA_BACKUP_DIR`. La medición sí queda vallada, porque la cobertura se
 mide sólo sobre los ficheros pytest; pero un test en modo script que arrancara el CLI seguiría
 leyendo el `runs/` del operador.
+
+## Un residuo que queda dicho, medido en CI
+
+En Windows el par es idéntico al centésimo (82,65 % las dos, cero líneas). En **Linux** no del todo:
+la misma rama midió **82,25 %** en la corrida de `b1c136a` y **82,23 %** en la de `4aff3c8`, dos
+árboles que sólo se diferencian en el `--min` del workflow y en un literal de `BASELINE_PCT` — o sea,
+**~1 sentencia sigue moviéndose en Linux**. La valla de `runs/` no puede ser la causa allí (CI no
+tiene `runs/` en absoluto), así que es otra cosa del entorno, y no está localizada.
+
+No bloquea: el piso de 81,25 se fijó sobre 82,25 con 1 pp de margen declarado, y 82,23 lo pasa con
+0,98 pp. Pero el que vuelva a tocar el piso tiene que saber que el número de Linux todavía no es
+reproducible al centésimo, y que localizarlo pide el mismo método de esta nota **corriendo en CI**
+(dos `coverage.xml` del mismo commit, artefactos subidos, diff por línea), no en Windows.
