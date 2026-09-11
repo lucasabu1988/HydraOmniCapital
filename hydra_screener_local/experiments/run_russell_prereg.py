@@ -54,6 +54,12 @@ OOS_CACHE = os.path.join(HERE, "_sweep_cache_oos")
 TRADING_CACHE = os.path.join(HERE, "_lab_scratch", "russell_prereg_cache")
 SP_BOOK = os.path.join(HERE, "_lab_scratch", "engine_book_oos.pkl")
 SCRATCH = os.path.join(HERE, "_lab_scratch", "task431.json")
+#: Review of run 1 (Claude, 2026-09-11): the S&P book above sits on the Yahoo 5-bar grid anchored
+#: 2005-02-11 and the Russell marks on a grid anchored 2010-06-28. The two calendars are identical
+#: from 2010-06-28 on (4073 days, zero differences), so the 0-common-dates pairing was pure phase.
+#: The prereg says "mismas fechas": drive S&P from the SAME start date on its own panel and pair
+#: mark-for-mark. This is where that book lives.
+SP_BOOK_SAME_GRID = os.path.join(HERE, "_lab_scratch", "engine_book_sp_samegrid.pkl")
 STEP = 5
 # EODHD keeps US holidays as rows where 1–7 of 6048 names print. Yahoo's OOS panel
 # drops those days. A holiday NaN poisons rolling(20) volume for 20 bars and
@@ -299,7 +305,9 @@ def memmel_se(e1: pd.Series, e2: pd.Series) -> dict:
     s1 = float(a.mean() / a.std(ddof=1)) if a.std(ddof=1) else 0.0
     s2 = float(b.mean() / b.std(ddof=1)) if b.std(ddof=1) else 0.0
     rho = float(a.corr(b)) if a.std(ddof=1) and b.std(ddof=1) else 0.0
-    var = (1.0 / n) * (2.0 - 2.0 * rho + 0.5 * (s1 ** 2 + s2 ** 2) - rho * s1 * s2)
+    # Memmel (2003), eq. 2: Var = (1/T)[2 - 2rho + 1/2(SR1^2 + SR2^2 - 2 rho^2 SR1 SR2)]. Run 1
+    # had rho instead of rho^2 in the last term (third-order at per-step Sharpes ~0.1; fixed anyway).
+    var = (1.0 / n) * (2.0 - 2.0 * rho + 0.5 * (s1 ** 2 + s2 ** 2) - (rho ** 2) * s1 * s2)
     se_step = float(np.sqrt(max(var, 0.0)))
     return dict(
         n=n,
@@ -327,6 +335,46 @@ def cost_from_ledger(counts: dict, cost_dollars: float, book: pd.Series) -> dict
         blended_bp=blended_bp,
         turnover_pct_per_step=turnover,
     )
+
+
+def exact_pair_marks(russell: pd.Series, sp: pd.Series) -> pd.DatetimeIndex:
+    """Mark dates present in BOTH books. The prereg says "mismas fechas": every Russell mark must
+    have an S&P mark on the very same date, or the pair is not a pair (run 1 had 0 of 814)."""
+    r = pd.DatetimeIndex(russell.index)
+    common = r.intersection(pd.DatetimeIndex(sp.index))
+    missing = len(r) - len(common)
+    if missing:
+        raise ValueError(
+            f"{missing} of {len(r)} Russell marks have no S&P mark on the same date: the two books "
+            "are not on the same grid. Drive S&P from the same start date on the same calendar.")
+    return common
+
+
+def drive_sp_same_grid(start_date: str, *, oos_cache: str = OOS_CACHE,
+                       progress_every: int = 50) -> pd.Series:
+    """Frozen v9 on the S&P 500 PIT panel, marks anchored at `start_date` (the Russell start).
+
+    Same engine, same V9, same STEP; PIT membership from the on-disk Wikipedia payload
+    (`data_cache/sp500_pit.json`, offline). The only thing that differs from the published `--oos`
+    row is the anchor - which is exactly what makes the marks land on the Russell dates.
+    """
+    P = L.load_panel(oos=True, cache_dir=oos_cache)
+    P.ETF = S.load_etfs(P.close.index)
+    idx = pd.DatetimeIndex(P.close.index)
+    where = idx.get_indexer([pd.Timestamp(start_date)])
+    if where[0] < 0:
+        raise SystemExit(f"S&P panel has no bar on {start_date}; calendars diverge, refuse to pair")
+    start = int(where[0])
+    old_start = EB.START
+    try:
+        EB.START = max(int(old_start), start) if start < int(old_start) else start
+        if EB.START != start:
+            raise SystemExit(f"S&P start {start} is inside the warmup ({old_start}); cannot anchor there")
+        print(f"engine S&P same grid: START {start} {idx[start].date()} (frozen V9)...", flush=True)
+        book, _counts = EB.drive_engine(P, progress_every=progress_every)
+    finally:
+        EB.START = old_start
+    return book
 
 
 def verdict(*, d_sharpe: float, dd_worse_pp: float, cost_frac: float | None) -> str:
@@ -364,7 +412,7 @@ def _stats_row(book: pd.Series, irx: pd.Series, label: str) -> dict:
     return M.stats(book.pct_change().dropna(), label, STEP, rf=rf)
 
 
-def run(cache_dir: str) -> dict:
+def run(cache_dir: str, *, paired_sp: bool = True, redrive_sp: bool = False) -> dict:
     freeze = verify_freeze()
     print("freeze OK  prereg", freeze["prereg_sha256"], flush=True)
     for rel, h in freeze["file_hashes"].items():
@@ -412,7 +460,47 @@ def run(cache_dir: str) -> dict:
     sp_overlap = None
     d_sharpe = float("nan")
     dd_worse = float("nan")
+    pair_ffill_run1 = None
+    sp_same = None
+    if paired_sp and len(eng):
+        start_date = str(P.close.index[start].date())
+        if os.path.exists(SP_BOOK_SAME_GRID) and not redrive_sp:
+            sp_same = pd.read_pickle(SP_BOOK_SAME_GRID)
+            print(f"S&P same-grid book loaded from {SP_BOOK_SAME_GRID} ({len(sp_same)} marks)", flush=True)
+        else:
+            sp_same = drive_sp_same_grid(start_date)
+            pd.to_pickle(sp_same, SP_BOOK_SAME_GRID)
+        common = exact_pair_marks(eng, sp_same)      # raises if the grids differ
+        rus_c = eng.loc[common]
+        sp_c = sp_same.loc[common]
+        rus_on = _stats_row(rus_c, P.IRX, "Russell on overlap")
+        sp_overlap = _stats_row(sp_c, P.IRX, "S&P 500 same grid (same start, exact dates)")
+        rf = M.step_risk_free(P.IRX, rus_c.index)
+        r_net = rus_c.pct_change().dropna().reindex(rf.index).dropna()
+        s_net = sp_c.pct_change().dropna().reindex(rf.index).dropna()
+        both = r_net.index.intersection(s_net.index)
+        pair = memmel_se(r_net.loc[both] - rf.loc[both], s_net.loc[both] - rf.loc[both])
+        d_sharpe = float(pair["d_sharpe"])
+        dd_r = float(rus_on.get("maxdd_net") or 0.0)
+        dd_s = float(sp_overlap.get("maxdd_net") or 0.0)
+        dd_worse = dd_s - dd_r
+        pair.update(dd_russell=dd_r, dd_sp=dd_s, dd_worse_pp=round(dd_worse, 2),
+                    n_marks=int(len(common)), first=str(pd.Timestamp(common[0]).date()),
+                    last=str(pd.Timestamp(common[-1]).date()),
+                    method="same calendar, same start date, exact mark dates")
     if os.path.exists(SP_BOOK) and len(eng):
+        # Run-1 pairing (S&P wealth ffilled onto Russell marks) kept as history, never as the verdict.
+        sp_book = pd.read_pickle(SP_BOOK)
+        sp_aligned = align_book_to_marks(sp_book, pd.DatetimeIndex(eng.index))
+        common1 = eng.index.intersection(sp_aligned.index)
+        if len(common1) >= 20:
+            rf1 = M.step_risk_free(P.IRX, eng.loc[common1].index)
+            r1 = eng.loc[common1].pct_change().dropna().reindex(rf1.index).dropna()
+            s1_ = sp_aligned.loc[common1].pct_change().dropna().reindex(rf1.index).dropna()
+            b1 = r1.index.intersection(s1_.index)
+            pair_ffill_run1 = memmel_se(r1.loc[b1] - rf1.loc[b1], s1_.loc[b1] - rf1.loc[b1])
+            pair_ffill_run1["method"] = "run 1: S&P wealth ffilled onto Russell marks (0 exact dates)"
+    if False and os.path.exists(SP_BOOK) and len(eng):
         sp_book = pd.read_pickle(SP_BOOK)
         sp_aligned = align_book_to_marks(sp_book, pd.DatetimeIndex(eng.index))
         common = eng.index.intersection(sp_aligned.index)
@@ -457,8 +545,12 @@ def run(cache_dir: str) -> dict:
 
     print("\n--- universe comparison ---", flush=True)
     print(pd.DataFrame(rows).to_string(index=False), flush=True)
+    if pair_ffill_run1:
+        print("\n--- run-1 pairing, history only (S&P wealth ffilled onto Russell marks, 0 exact dates) ---",
+              flush=True)
+        print(pd.DataFrame([pair_ffill_run1]).to_string(index=False), flush=True)
     if pair:
-        print("\n--- paired delta (Russell − S&P, same dates, S&P wealth ffilled onto Russell marks) ---",
+        print("\n--- paired delta (Russell − S&P, same calendar, same start, exact mark dates) ---",
               flush=True)
         print(pd.DataFrame([pair]).to_string(index=False), flush=True)
         print(f"  d_sharpe {pair['d_sharpe']}  SE {pair['se']}  "
@@ -491,6 +583,7 @@ def run(cache_dir: str) -> dict:
         caveats=caveat_table(cov).to_dict(orient="records"),
         rows=rows,
         pair=pair,
+        pair_ffill_run1=pair_ffill_run1,
         cost=cost,
         cost_frac_of_ann_net=cost_frac,
         verdict=decision,
@@ -516,6 +609,10 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", default=RUSSELL_CACHE, help="Russell panel cache directory")
     ap.add_argument("--dry-run", action="store_true",
                     help="verify the freeze and print the caveat table; do not drive the engine")
+    ap.add_argument("--no-paired-sp", action="store_true",
+                    help="skip the S&P same-grid comparator (then there is no prereg verdict)")
+    ap.add_argument("--redrive-sp", action="store_true",
+                    help="ignore the cached S&P same-grid book and drive it again")
     args = ap.parse_args(argv)
 
     freeze = verify_freeze()
@@ -535,7 +632,7 @@ def main(argv=None) -> int:
     if not os.path.exists(os.path.join(args.cache, "membership.pkl")):
         print("SKIP: membership.pkl missing", flush=True)
         return 0
-    run(args.cache)
+    run(args.cache, paired_sp=not args.no_paired_sp, redrive_sp=args.redrive_sp)
     return 0
 
 

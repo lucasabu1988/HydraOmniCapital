@@ -7,6 +7,7 @@ import types
 
 import numpy as np
 import pandas as pd
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -159,3 +160,35 @@ def test_memmel_se_is_zero_on_identical_legs():
     assert d["d_sharpe"] == 0.0
     assert d["se"] == 0.0
     assert d["rho"] == 1.0
+
+
+def test_exact_pair_marks_refuses_a_phase_shifted_grid_and_accepts_the_same_one():
+    """Review of run 1: 0 of 814 Russell marks had an S&P mark on the same date. A pair that is
+    not on the same dates is not a pair, so the helper raises instead of ffilling."""
+    days = pd.bdate_range("2010-06-28", periods=60)
+    russell = pd.Series(np.linspace(1.0, 1.2, 12), index=days[::5])
+    shifted = pd.Series(np.linspace(1.0, 1.1, 12), index=days[2::5])   # same step, other phase
+    with pytest.raises(ValueError, match="not on the same grid"):
+        R.exact_pair_marks(russell, shifted)
+    same = pd.Series(np.linspace(1.0, 1.1, 12), index=days[::5])
+    common = R.exact_pair_marks(russell, same)
+    assert len(common) == len(russell) == 12
+
+
+def test_memmel_se_uses_rho_squared_in_the_cross_term():
+    """Memmel (2003): Var = (1/T)[2 - 2rho + 1/2(SR1^2 + SR2^2 - 2 rho^2 SR1 SR2)].
+    Two legs with per-step Sharpe 1.0 and correlation 0.5 make the rho vs rho^2 choice visible."""
+    n = 400
+    rng = np.random.default_rng(431)
+    z = rng.standard_normal(n)
+    e = rng.standard_normal(n)
+    a = 1.0 + z                                  # per-step SR exactly ~1 in expectation
+    b = 1.0 + 0.5 * z + np.sqrt(0.75) * e
+    idx = pd.bdate_range("2010-01-01", periods=n)
+    out = R.memmel_se(pd.Series(a, index=idx), pd.Series(b, index=idx))
+    s1 = a.mean() / a.std(ddof=1); s2 = b.mean() / b.std(ddof=1); rho = np.corrcoef(a, b)[0, 1]
+    py = R.M.periods_per_year(R.STEP)
+    expected = np.sqrt((1.0 / n) * (2 - 2 * rho + 0.5 * (s1 ** 2 + s2 ** 2) - rho ** 2 * s1 * s2) * py)
+    wrong = np.sqrt((1.0 / n) * (2 - 2 * rho + 0.5 * (s1 ** 2 + s2 ** 2) - rho * s1 * s2) * py)
+    assert abs(out["se"] - expected) < 1e-3
+    assert abs(out["se"] - wrong) > 1e-3, "the two formulas must be distinguishable at this Sharpe"
