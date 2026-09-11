@@ -154,7 +154,13 @@ class EodhdClient:
         `Close` is as printed and `Adjusted Close` carries splits and dividends - the
         `close_raw` / `close` pair the lab cache stores, and the reason the `close_raw` trap
         (83.6% cell coverage, TASK-403) is measurable on this panel at all.
+
+        TASK-428: a name on the committed spliced-drop list is omitted entirely (two
+        companies, no honest cut date). Kept recent deaths stay.
         """
+        from russell_spliced_tickers import is_dropped
+        if is_dropped(symbol):
+            return pd.DataFrame()
         long = self.provider.fetch([symbol], self.start, self.end)
         if long is None or not len(long):
             return pd.DataFrame()

@@ -250,6 +250,25 @@ def _bars(dates, start_px=10.0):
              "volume": 1e6} for i, d in enumerate(dates)]
 
 
+def test_spliced_reuse_columns_are_omitted_and_recent_deaths_stay():
+    """TASK-428: BBBY/SBNY out; AVB kept as a 2026 merger death."""
+    from russell_spliced_tickers import DROP, KEEP, is_dropped, REVIEWED
+    assert DROP == frozenset({"BBBY", "SBNY"})
+    assert KEEP >= frozenset({"AVB", "EQR", "WBS", "MDV", "ISSC"})
+    assert is_dropped("BBBY") and is_dropped("SBNY") and not is_dropped("AVB")
+    assert "reused" in REVIEWED["SBNY"]["why"].lower() or "PINK" in REVIEWED["SBNY"]["why"]
+    pages = {"BBBY.US": _bars(pd.bdate_range("2026-08-03", periods=6), 3.0),
+             "AVB.US": _bars(pd.bdate_range("2026-08-03", periods=6), 180.0)}
+    record = pd.DataFrame({
+        "date": ["2022-06-24", "2022-06-24", "2026-06-26", "2026-06-26"],
+        "ticker": ["BBBY", "AVB", "BBBY", "AVB"],
+        "member": [1, 1, 1, 1],
+    })
+    c = EodhdClient(_provider(pages), record)
+    assert c.prices("BBBY").empty
+    assert len(c.prices("AVB"))
+
+
 def test_membership_tail_cut_on_three_synthetic_names():
     """TASK-423: normal death intact, spliced code cut, current member (tail) intact."""
     member_days = pd.bdate_range("2022-06-24", "2023-06-22")
