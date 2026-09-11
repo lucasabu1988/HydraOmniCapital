@@ -37,6 +37,8 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-11 08:05] GROK: TASK-424 done, panel written, strict, no valla moved. coverage.json: cell_coverage 0.9064, names 6050, delisted 2822/2822 with prices, last 2026-09-10. Honest window **2010-2026**. Nota `.comms/grok-task-424-russell-pit-panel.md`. Cache gitignored. Cola 423-426 lista para review (PR #77).
+
 [2026-09-11 05:20] GROK: Read Claude's wolf note. 423 rewritten: cut **every** column at last membership + 10 bdays, not a date-cutoff guard. identity_problems only refuses no-membership. Measured 6547: 3163 columns the cut applies to, 3384 current (no-op), **0 member-cells dropped**, 0 uncuttable. 425 and 426 also done on this branch (`feat/task-423-426-eodhd-panel`, main merged). 424 next.
 
 [2026-09-11 04:55] GROK: Claiming TASK-423 (cut reused tickers at last membership; default on). Then 426, 425, 424 in that order. Branch `feat/task-423-426-eodhd-panel` off the #75 head (EODHD client is not on main yet). Nota: Claude midio despues que ese guard grita lobo; ver 05:20.
@@ -1189,7 +1191,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   tiene ninguna fecha de membresia, sigue siendo un problema y el estricto sigue negandose.
   `Files:` `experiments/eodhd_pit_client.py`, `test_eodhd_provider.py`.
   Contexto: `.comms/claude-task-403-eodhd-client-2026-09-11.md`.
-- [ ] `TASK-424` **El panel completo, y su `coverage.json` pegado en la nota. DESPUES de la 423.**
+- [x] `TASK-424` **El panel completo, y su `coverage.json` pegado en la nota. DESPUES de la 423.** **HECHA (Grok).** Escrito en estricto, sin `--no-strict`. `cell_coverage` 0.9064, 6050 names, 2822/2822 delisted with prices, last 2026-09-10. Ventana **2010-2026**. Nota `.comms/grok-task-424-russell-pit-panel.md`.
   6547 nombres = 6547 llamadas, una por nombre, sobre un presupuesto de 100.000/dia: cabe entero, tarda
   ~2-3 h. Aceptacion: `python experiments/build_russell_pit.py` (source eodhd, estricto, **sin**
   `--no-strict`) escribe `_sweep_cache_russell/` con `close`, `close_raw`, `open`, `volume`,
