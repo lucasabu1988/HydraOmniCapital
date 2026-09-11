@@ -49,7 +49,7 @@ jobs:
       # Windows) plus that hundredth. It ratchets up; it never silently drops.
       - name: Coverage floor
         if: matrix.python-version == '3.12'
-        run: python tools/check_coverage.py --min 81.0
+        run: python tools/check_coverage.py --min 81.25
 
       # Phase 10.5: a skip is not a pass. This fails when a *new* file starts
       # skipping, and names the ones that are expected and why.
