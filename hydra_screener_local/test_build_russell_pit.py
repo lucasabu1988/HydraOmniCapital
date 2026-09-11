@@ -197,6 +197,10 @@ def test_a_clean_panel_is_written_with_its_coverage_next_to_it(tmp_path):
     close = pd.read_pickle(tmp_path / "close.pkl")
     membership = pd.read_pickle(tmp_path / "membership.pkl")
     assert close.shape[1] == 12 and membership.shape[1] == 12
+    import json
+    cov = json.loads((tmp_path / "coverage.json").read_text(encoding="utf-8"))
+    assert "honest_window" in cov and "ghost_names" in cov and "membership_first" in cov
+    assert "spliced_dropped_n" in cov
 
 
 def test_rewrite_coverage_recomputes_from_the_pkl_files(tmp_path):

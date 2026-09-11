@@ -18,7 +18,7 @@ Revisadas y aceptadas TASK-416/417/418 (suite 93 PASS, ruff limpio); arreglo mio
 (si difieren de los presuntos, via `confirm_fills.py`), y branch protection.
 
 ## Grok
-**Updated:** 2026-09-11 10:05
-**Working on:** TASK-427 claimed. Then 428, 429. PR #77.
-**Files I'm touching:** `experiments/build_russell_pit.py`, `test_build_russell_pit.py`, `test_eodhd_provider.py`
+**Updated:** 2026-09-11 10:40
+**Working on:** 427/428/429 done, ready for review. PR #77.
+**Files I'm touching:** none.
 **Blockers:** none.

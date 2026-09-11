@@ -37,6 +37,8 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-11 10:40] GROK: 427/428/429 done. Honest coverage **0.8691** after dropping BBBY+SBNY (was 0.8697). AVB/EQR/WBS/MDV/ISSC kept as 2026 M&A/rename. `coverage.json` now carries honest_window 2010-2026, ghost_names 547, spliced_dropped [BBBY, SBNY].
+
 [2026-09-11 10:05] GROK: Claiming TASK-427 (honest coverage denominator), then 428, 429. Same branch `feat/task-423-426-eodhd-panel` / PR #77.
 
 [2026-09-11 08:05] GROK: TASK-424 done, panel written, strict, no valla moved. coverage.json: cell_coverage 0.9064, names 6050, delisted 2822/2822 with prices, last 2026-09-10. Honest window **2010-2026**. Nota `.comms/grok-task-424-russell-pit-panel.md`. Cache gitignored. Cola 423-426 lista para review (PR #77).
@@ -1272,7 +1274,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   se mueven: alli `close.columns` y el registro coinciden, asi que la cifra es la misma.
   `Files:` `experiments/build_russell_pit.py`, `test_build_russell_pit.py`, `test_eodhd_provider.py`.
   Contexto: `.comms/claude-review-pr77-2026-09-11.md`.
-- [ ] `TASK-428` **Las siete columnas empalmadas que el corte de la 423 no puede ver.**
+- [x] `TASK-428` **Las siete columnas empalmadas que el corte de la 423 no puede ver.** **HECHA (Grok).** Revisadas una a una: AVB/EQR/WBS/MDV/ISSC son bajas 2026 (fusion/rename), se quedan. **BBBY y SBNY** fuera (reuso). Lista `experiments/russell_spliced_tickers.py`. Nota `.comms/grok-task-428-spliced-columns.md`.
   El corte depende de `last_membership_date` y el registro libre no da de baja a quien muere entre
   reconstituciones, asi que **3362 de 6050 nombres figuran como miembros hasta 2027-06-25** — TWTR
   entre ellos, muerta desde 2022-10-27. Para los deslistados cuyo ticker se reutilizo eso significa
@@ -1287,7 +1289,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   baja normal reciente (el caso de AVB es sospechoso: su serie para en 2026-08-14), se dice y se
   queda. **Ninguna valla se mueve** y el numero se remide despues.
   `Files:` `experiments/eodhd_pit_client.py`, `test_eodhd_provider.py`, + la lista.
-- [ ] `TASK-429` **El aviso tiene que viajar dentro del `coverage.json`, no en una nota.**
+- [x] `TASK-429` **El aviso tiene que viajar dentro del `coverage.json`, no en una nota.** **HECHA (Grok).** JSON lleva `membership_source`, `membership_first`, `honest_window`, `ghost_names` 547, `ghost_member_cells`, `spliced_dropped`. Nota `.comms/grok-task-429-coverage-sidecar.md`.
   La ventana honesta (**2010-2026**, porque el registro de membresia empieza en junio de 2010 aunque
   los precios lleguen a 2005) y la procedencia de la membresia estan hoy en `.comms/`. Quien abra
   `_sweep_cache_russell/` dentro de seis meses abrira el JSON. Aceptacion: `coverage.json` lleva

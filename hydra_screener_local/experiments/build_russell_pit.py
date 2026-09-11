@@ -167,7 +167,29 @@ def build_prices(client: NorgateClient, symbols) -> dict:
     return frames
 
 
-def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None) -> dict:
+def _ghost_stats(membership: pd.DataFrame, close: pd.DataFrame, *, years: float = 1.0) -> tuple[int, int]:
+    """Names still members more than `years` after their last print, and those member-cells."""
+    if close is None or not len(close.columns) or membership is None or not len(membership.columns):
+        return 0, 0
+    lag = pd.Timedelta(days=int(365.25 * years))
+    m = membership.reindex(index=close.index).astype("float64").fillna(0.0) > 0
+    n_names, n_cells = 0, 0
+    for col in close.columns:
+        if col not in m.columns:
+            continue
+        printed = close[col].dropna()
+        if not len(printed):
+            continue
+        still = m[col].loc[m.index > printed.index.max() + lag]
+        cells = int(still.sum()) if len(still) else 0
+        if cells:
+            n_names += 1
+            n_cells += cells
+    return n_names, n_cells
+
+
+def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None, *,
+             membership_source=None, honest_window=None) -> dict:
     """How much of the panel is real. Priced member-cells / member-cells of the **record**.
 
     TASK-427: the denominator is every column of `membership`, not `close.columns`. A name
@@ -196,6 +218,13 @@ def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None) ->
     names = list(close.columns)
     delisted = [s for s in names if is_delisted(s)]
     with_history = [s for s in delisted if close[s].notna().any()]
+    ghost_names, ghost_cells = _ghost_stats(membership, close)
+    try:
+        from russell_spliced_tickers import DROP, KEEP
+        spliced_dropped = sorted(c for c in DROP if c in m_full.columns and c not in close.columns)
+        spliced_kept = sorted(c for c in KEEP if c in close.columns)
+    except ImportError:
+        spliced_dropped, spliced_kept = [], []
     return dict(
         member_cells=member_cells,
         priced_member_cells=priced,
@@ -211,6 +240,14 @@ def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None) ->
         last=str(close.index[-1].date()) if len(close.index) else None,
         members_first_day=int(m_full.iloc[0].sum()) if len(m_full.index) else 0,
         members_last_day=int(m_full.iloc[-1].sum()) if len(m_full.index) else 0,
+        membership_source=membership_source,
+        membership_first=str(pd.Timestamp(membership.index[0]).date()) if len(membership.index) else None,
+        honest_window=honest_window,
+        ghost_names=int(ghost_names),
+        ghost_member_cells=int(ghost_cells),
+        spliced_dropped=spliced_dropped,
+        spliced_dropped_n=len(spliced_dropped),
+        spliced_kept=spliced_kept,
     )
 
 
@@ -252,11 +289,11 @@ def write_cache(frames: dict, membership: pd.DataFrame, cov: dict, out_dir=RUSSE
     return out_dir
 
 
-def rewrite_coverage(out_dir=RUSSELL_CACHE, is_delisted=None) -> dict:
+def rewrite_coverage(out_dir=RUSSELL_CACHE, is_delisted=None, **cov_kw) -> dict:
     """Recompute coverage.json from the written pkl files. No network (TASK-427)."""
     close = pd.read_pickle(os.path.join(out_dir, "close.pkl"))
     membership = pd.read_pickle(os.path.join(out_dir, "membership.pkl"))
-    cov = coverage(membership, close, is_delisted)
+    cov = coverage(membership, close, is_delisted, **cov_kw)
     path = os.path.join(out_dir, "coverage.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(cov, f, indent=2)
@@ -276,7 +313,12 @@ def build(client, *, strict=True, dry_run=False, out_dir=RUSSELL_CACHE,
     assert_no_suffix_collision(syms)
     membership = build_membership(client, syms)
     frames = build_prices(client, syms)
-    cov = coverage(membership, frames["close"], getattr(client, "is_delisted", None))
+    cov_kw = {}
+    if type(client).__name__ == "EodhdClient":
+        cov_kw = dict(membership_source="russell_free_public_record",
+                      honest_window="2010-2026")
+    cov = coverage(membership, frames["close"], getattr(client, "is_delisted", None),
+                   **cov_kw)
     problems = validate(cov)
     identity = getattr(client, "identity_problems", None)
     if identity is not None:
@@ -317,7 +359,11 @@ def main(argv=None) -> int:
                 is_delisted = EodhdClient(EODHDProvider()).is_delisted
             except (FileNotFoundError, RuntimeError) as e:
                 print("SKIP is_delisted:", e, flush=True)
-        cov = rewrite_coverage(args.out, is_delisted)
+        cov_kw = {}
+        if args.source == "eodhd":
+            cov_kw = dict(membership_source="russell_free_public_record",
+                          honest_window="2010-2026")
+        cov = rewrite_coverage(args.out, is_delisted, **cov_kw)
         print(json.dumps(cov, indent=2), flush=True)
         print("rewrote", os.path.join(args.out, "coverage.json"), flush=True)
         problems = validate(cov)
