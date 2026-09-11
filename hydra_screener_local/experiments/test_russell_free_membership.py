@@ -91,3 +91,51 @@ def test_a_probe_is_trusted_only_when_every_control_ticker_returned_data():
     assert R.probe_reliable(len(R.CONTROLS) - 1) is False
     assert R.probe_reliable(0) is False
 
+
+class _FakeEodhd:
+    """BarProvider shape: fetch() returns a long frame; last_errors names the misses."""
+
+    def __init__(self, bars: dict, errors: dict | None = None):
+        self.bars = bars
+        self.last_errors = dict(errors or {})
+
+    def fetch(self, tickers, start, end):
+        import pandas as pd
+        rows = []
+        for t in tickers:
+            if t in self.last_errors:
+                continue
+            for date, px in self.bars.get(t, []):
+                rows.append({"ticker": t, "date": pd.Timestamp(date),
+                             "close_adj": px, "close_raw": px, "volume": 1})
+            if t not in self.bars and t not in self.last_errors:
+                self.last_errors[t] = "no rows"
+        return pd.DataFrame(rows)
+
+
+def test_eodhd_probe_separates_no_price_from_provider_failure():
+    """TASK-425: a 404 is 'no price'; a 500 is 'the provider failed'. Never a summed hit rate."""
+    bars = {c: [("2026-06-02", 100.0)] for c in R.CONTROLS}
+    bars["LIVE"] = [("2026-06-02", 10.0)]
+    fake = _FakeEodhd(bars, errors={"DEAD": "HTTP 404 on eod/DEAD.US: Ticker Not Found.",
+                                    "DOWN": "HTTP 500 on eod/DOWN.US: upstream"})
+    close, report = R.eodhd_closes(["LIVE", "DEAD", "DOWN"], since="2026-06-01", until="2026-09-10",
+                                   provider=fake)
+    assert report["priced"] == 1
+    assert report["no_price"] == ["DEAD"]
+    assert report["provider_failed"] == ["DOWN"]
+    assert report["reliable"] is True
+    assert "hit_rate" not in report
+    assert report["priced"] + len(report["no_price"]) + len(report["provider_failed"]) == 3
+
+
+def test_eodhd_probe_is_unreliable_when_a_control_has_no_price():
+    bars = {"AAPL": [("2026-06-02", 100.0)], "SPY": [("2026-06-02", 400.0)]}
+    fake = _FakeEodhd(bars, errors={"MSFT": "HTTP 404 on eod/MSFT.US: Ticker Not Found."})
+    close, report = R.eodhd_closes(["LIVE"], since="2026-06-01", until="2026-09-10", provider=fake)
+    assert report["control_hits"] == 2
+    assert report["reliable"] is False
+    assert R.probe_reliable(report["control_hits"]) is False
+    printing, ok = R.printing_recently(["LIVE"], since="2026-06-01", until="2026-09-10",
+                                       provider=fake)
+    assert printing == set() and ok is False

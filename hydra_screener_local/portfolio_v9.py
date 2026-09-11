@@ -276,17 +276,21 @@ def next_session_date(index, today: str) -> str:
     return next_nyse_session(today)
 
 
-def _print_quality_diagnostic(prices, etf, irx, universe, *, silent: bool = False):
+def _print_quality_diagnostic(prices, etf, irx, universe, *, silent: bool = False,
+                              runs_dir=None):
     """(groups, message) for the TASK-416 diagnostic — and never an exception.
 
     This runs between the preflight table and `raise_if_hard`, i.e. on the live path of a run
     that the gate is about to let through. It is observability: a corrupt sidecar, a missing
     runs/ directory or a frame shaped unexpectedly must cost the *diagnostic*, not the settle
     (Claude's review of TASK-416). The gate itself is untouched either way.
+
+    `runs_dir` is the destination `run()` already resolved (TASK-426). Default None keeps
+    production on `utils.runlog.DEFAULT_RUNS_DIR`.
     """
     try:
         groups = groups_print_quality(prices, etf, irx)
-        prev = load_last_ok_print_quality(universe=universe)
+        prev = load_last_ok_print_quality(runs_dir=runs_dir, universe=universe)
         if prev:
             hits = degraded_groups(groups, prev)
         else:
@@ -298,16 +302,17 @@ def _print_quality_diagnostic(prices, etf, irx, universe, *, silent: bool = Fals
         return None, None
 
 
-def _save_print_quality(groups, universe, *, silent: bool = False) -> bool:
+def _save_print_quality(groups, universe, *, silent: bool = False, runs_dir=None) -> bool:
     """Record this run as the last successful refresh. False when it could not be written.
 
     Same rule as the read side: this write sits between a passed preflight and the settle, so a
-    read-only or full disk must not cost the book its fills.
+    read-only or full disk must not cost the book its fills. `runs_dir` is the destination
+    `run()` already resolved (TASK-426); None is production.
     """
     if not groups:
         return False
     try:
-        save_last_ok_print_quality(groups, universe=universe)
+        save_last_ok_print_quality(groups, universe=universe, runs_dir=runs_dir)
         return True
     except OSError as exc:
         if not silent:
@@ -669,12 +674,17 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
         force: bool = False, dividend_fn=None, run_id: str | None = None,
-        allow_intraday: bool = False) -> dict:
+        allow_intraday: bool = False, runs_dir=None) -> dict:
     """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
 
     `allow_intraday` downgrades the one preflight check that refuses to settle at a bar for a
     session that has not closed yet (ASTRA-03); `--force` still bypasses every check.
+
+    `runs_dir` is resolved once here and handed to the print-quality load/save (TASK-426).
+    None keeps production on `utils.runlog.DEFAULT_RUNS_DIR`.
     """
+    from utils.runlog import DEFAULT_RUNS_DIR
+    runs_dir = Path(runs_dir) if runs_dir is not None else DEFAULT_RUNS_DIR
     state_dir = Path(state_dir)
     state_path = state_dir / STATE_NAME
 
@@ -761,7 +771,8 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     # TASK-416: name a degraded Yahoo refresh before the HARD abort, so 20:00 is
     # "retry later" not "this session has no data". Never auto-force; never
     # downgrade HARD to WARN.
-    groups, degraded_msg = _print_quality_diagnostic(prices, etf, irx, universe_effective, silent=silent)
+    groups, degraded_msg = _print_quality_diagnostic(
+        prices, etf, irx, universe_effective, silent=silent, runs_dir=runs_dir)
     if not silent:
         print(PF.format_table(pf))
         if degraded_msg:
@@ -785,7 +796,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
             raise SystemExit(f"{e}; {postpone}") from None
         raise
     if fetch_fn is None and not pf.get("hard"):
-        _save_print_quality(groups, universe_effective, silent=silent)
+        _save_print_quality(groups, universe_effective, silent=silent, runs_dir=runs_dir)
 
     # One dividend table per run, needed BEFORE settle: an ex-date between the execution bar and
     # today is already inside the total-return closes and would move the fill price (ASTRA-03).

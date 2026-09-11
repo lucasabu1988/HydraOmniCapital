@@ -313,6 +313,10 @@ def load_last_ok_print_quality(runs_dir=None, universe=None) -> dict | None:
 
     Prefers the sidecar written after a non-HARD preflight; falls back to TASK-359
     manifests with exit_status 0.
+
+    `runs_dir` is the destination the caller already resolved (TASK-426: `portfolio_v9.run`
+    does it once and hands it here). None falls back to `utils.runlog.DEFAULT_RUNS_DIR`,
+    which is the production path and, under pytest, the conftest fence.
     """
     path = last_ok_print_quality_path(runs_dir)
     if path.exists():

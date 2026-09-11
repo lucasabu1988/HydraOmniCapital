@@ -222,24 +222,12 @@ def test_identity_comes_from_the_delisted_list_not_from_the_symbol():
     assert not B.is_delisted_symbol("TWTR"), "the suffix rule cannot see this, which is the point"
 
 
-def test_a_reused_ticker_is_reported_as_two_companies_in_one_column():
-    """BBBY and SBNY are in the delisted list and still print: measured 2026-09-11."""
-    c = _client()
-    idx = pd.DatetimeIndex(["2026-08-31", "2026-09-01"])
-    close = pd.DataFrame({"BBBY": [3.7, 3.69], "TWTR": [float("nan")] * 2}, index=idx)
-    assert c.reused_tickers(close) == ["BBBY"]
-    problems = c.identity_problems(close)
-    assert len(problems) == 1
-    assert "BBBY" in problems[0] and "TASK-325" in problems[0]
-    # A dead name that stopped printing before the cutoff is not a reuse.
-    old = pd.DataFrame({"TWTR": [53.35, 53.7]},
-                       index=pd.DatetimeIndex(["2022-10-26", "2022-10-27"]))
-    assert c.reused_tickers(old) == []
-    assert c.identity_problems(old) == []
+def test_the_builder_uses_the_clients_identity_and_writes_when_every_name_has_membership(tmp_path):
+    """End to end through `build()`: identity comes from the list, not the suffix.
 
-
-def test_the_builder_uses_the_clients_identity_and_refuses_a_reused_ticker(tmp_path):
-    """End to end through `build()`: the guards judge an EODHD panel, not a vacuous one."""
+    A date cutoff is not a refusal (TASK-423 wolf note). Both names are in the record,
+    so strict writes.
+    """
     import build_russell_pit as B
 
     dates = pd.bdate_range("2022-06-24", periods=6)
@@ -247,16 +235,124 @@ def test_the_builder_uses_the_clients_identity_and_refuses_a_reused_ticker(tmp_p
     bars = {c: [{"date": str(d.date()), "close": 10.0 + i, "adjusted_close": 9.0 + i,
                  "volume": 1e6} for i, d in enumerate(dates)]
             for c in ("AAPL.US", "TWTR.US")}
-    c = EodhdClient(_provider(bars), record, reuse_cutoff="2022-06-01")
+    c = EodhdClient(_provider(bars), record)
 
     out = B.build(c, strict=True, dry_run=False, out_dir=str(tmp_path))
-    assert out["written"] is None, "strict mode must not write a panel with an identity problem"
+    assert out["problems"] == [], out["problems"]
     assert out["coverage"]["delisted_names"] == 1, "identity came from the list, not the suffix"
-    assert any("TASK-325" in p for p in out["problems"])
-
-    # Move the cutoff past the last bar and the same panel is clean and written.
-    c2 = EodhdClient(_provider(bars), record, reuse_cutoff="2030-01-01")
-    out2 = B.build(c2, strict=True, dry_run=False, out_dir=str(tmp_path))
-    assert out2["problems"] == [], out2["problems"]
-    assert out2["written"] == str(tmp_path)
+    assert out["coverage"]["names_requested"] >= out["coverage"]["names"]
+    assert out["written"] == str(tmp_path)
     assert os.path.exists(os.path.join(str(tmp_path), "coverage.json"))
+
+
+def _bars(dates, start_px=10.0):
+    return [{"date": str(d.date()), "close": start_px + i, "adjusted_close": start_px + i - 1,
+             "volume": 1e6} for i, d in enumerate(dates)]
+
+
+def test_spliced_reuse_columns_are_omitted_and_recent_deaths_stay():
+    """TASK-428: BBBY/SBNY out; AVB kept as a 2026 merger death."""
+    from russell_spliced_tickers import DROP, KEEP, is_dropped, REVIEWED
+    assert DROP == frozenset({"BBBY", "SBNY"})
+    assert KEEP >= frozenset({"AVB", "EQR", "WBS", "MDV", "ISSC"})
+    assert is_dropped("BBBY") and is_dropped("SBNY") and not is_dropped("AVB")
+    assert "reused" in REVIEWED["SBNY"]["why"].lower() or "PINK" in REVIEWED["SBNY"]["why"]
+    pages = {"BBBY.US": _bars(pd.bdate_range("2026-08-03", periods=6), 3.0),
+             "AVB.US": _bars(pd.bdate_range("2026-08-03", periods=6), 180.0)}
+    record = pd.DataFrame({
+        "date": ["2022-06-24", "2022-06-24", "2026-06-26", "2026-06-26"],
+        "ticker": ["BBBY", "AVB", "BBBY", "AVB"],
+        "member": [1, 1, 1, 1],
+    })
+    c = EodhdClient(_provider(pages), record)
+    assert c.prices("BBBY").empty
+    assert len(c.prices("AVB"))
+
+
+def test_membership_tail_cut_on_three_synthetic_names():
+    """TASK-423: normal death intact, spliced code cut, current member (tail) intact."""
+    member_days = pd.bdate_range("2022-06-24", "2023-06-22")
+    spliced_after = pd.bdate_range("2026-08-03", periods=4)
+    dead_days = pd.DatetimeIndex(["2022-10-26", "2022-10-27"])
+    live_days = pd.bdate_range("2022-06-24", "2026-09-10")
+    record = pd.DataFrame({
+        "date": (["2022-06-24"] * 3) + (["2023-06-23"] * 3) + (["2026-06-26"] * 3),
+        "ticker": ["DEAD", "SPLICE", "LIVE"] * 3,
+        "member": [1, 1, 1,  0, 0, 1,  0, 0, 1],
+    })
+    pages = {
+        "DEAD.US": _bars(dead_days, 53.0),
+        "SPLICE.US": _bars(member_days.append(spliced_after), 3.0),
+        "LIVE.US": _bars(live_days, 100.0),
+    }
+    c = EodhdClient(_provider(pages), record, membership_tail_bars=10)
+    assert c.cut_at_membership_tail is True
+    assert c.membership_tail_bars == 10
+
+    dead = c.prices("DEAD")
+    assert [str(d.date()) for d in dead.index] == ["2022-10-26", "2022-10-27"]
+
+    splice = c.prices("SPLICE")
+    limit = c.membership_cut_date("SPLICE")
+    assert limit is not None
+    assert splice.index.max() <= limit
+    assert splice.index.max() < pd.Timestamp("2026-08-03"), "the glued half is gone"
+
+    live = c.prices("LIVE")
+    assert live.index.max() == live_days[-1], "a current member is not trimmed"
+
+    close = pd.concat([dead["Close"].rename("DEAD"),
+                       splice["Close"].rename("SPLICE"),
+                       live["Close"].rename("LIVE")], axis=1)
+    assert c.identity_problems(close) == []
+
+
+def test_cut_at_membership_tail_defaults_on_and_can_be_turned_off():
+    """The flag is the declared default."""
+    assert EodhdClient(_provider(), RECORD).cut_at_membership_tail is True
+    c = EodhdClient(_provider(), RECORD, cut_at_membership_tail=False)
+    assert c.cut_at_membership_tail is False
+
+
+def test_a_code_with_no_membership_date_is_still_a_problem(tmp_path):
+    """Fence does not degrade: no membership date -> no cut, strict still refuses."""
+    import build_russell_pit as B
+
+    dates = pd.bdate_range("2026-08-03", periods=6)
+    record = pd.DataFrame({"date": ["2022-06-24"], "ticker": ["AAPL"], "member": [1]})
+    pages = {
+        "AAPL.US": _bars(pd.bdate_range("2022-06-24", periods=6), 140.0),
+        "GHOST.US": _bars(dates, 1.0),
+    }
+    c = EodhdClient(_provider(pages), record, delisted={"GHOST": {"Code": "GHOST"}})
+    assert c.last_membership_date("GHOST") is None
+    ghost = c.prices("GHOST")
+    assert ghost.index.max() == dates[-1], "uncuttable codes are not trimmed"
+
+    out = B.build(c, strict=True, dry_run=False, out_dir=str(tmp_path),
+                  symbols=["AAPL", "GHOST"])
+    assert out["written"] is None
+    assert any("GHOST" in p for p in out["problems"])
+    assert any("TASK-423" in p for p in out["problems"])
+
+
+def test_membership_cut_stats_are_two_figures_not_an_estimate():
+    """columns_cut and member_cells_dropped, measured on an uncut close."""
+    member_days = pd.bdate_range("2022-06-24", "2023-06-22")
+    after = pd.bdate_range("2026-08-03", periods=4)
+    record = pd.DataFrame({
+        "date": ["2022-06-24", "2023-06-23"],
+        "ticker": ["SPLICE", "SPLICE"],
+        "member": [1, 0],
+    })
+    pages = {"SPLICE.US": _bars(member_days.append(after), 3.0)}
+    c = EodhdClient(_provider(pages), record, cut_at_membership_tail=False)
+    raw = c.prices("SPLICE")
+    close = pd.DataFrame({"SPLICE": raw["Close"]})
+    stats = c.membership_cut_stats(close)
+    assert stats["columns_cut"] == 1
+    assert stats["codes"] == ["SPLICE"]
+    assert stats["uncuttable"] == []
+    assert stats["member_cells_dropped"] == 0, (
+        "the panel does not read prices after last membership, so no member-cell is lost"
+    )

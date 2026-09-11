@@ -49,6 +49,12 @@ INDEXES = ("Russell 1000", "Russell 2000")
 WATCHLIST = "Russell 3000 Current & Past"
 MIN_CELL_COVERAGE = 0.80          # priced member-cells / member-cells
 MIN_DELISTED_SHARE = 0.20         # delisted names / all names; a Russell panel 2005-2026 has many
+#: TASK-427, fence moved after seeing the data (Claude 2026-09-11). The old
+#: `delisted_with_prices < delisted_names` binary was written for Norgate Silver/Gold
+#: (omits the dead as a class, ~0% priced). On EODHD 70 of 2892 requested delisted
+#: names have no bar (97.6% priced). Those 70 are already in the honest cell
+#: coverage. Failing the whole panel for them charges the same defect twice.
+MIN_DELISTED_PRICED_SHARE = 0.90
 PURCHASE_NOTE = (
     "norgatedata is not installed. TASK-403 needs Norgate Data US Stocks Platinum "
     "(630 USD/year, approved by Lucas 2026-09-06, not yet bought): it is the only listed-price "
@@ -167,34 +173,91 @@ def build_prices(client: NorgateClient, symbols) -> dict:
     return frames
 
 
-def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None) -> dict:
-    """How much of the panel is real. Member-cells with a price / member-cells.
+def _ghost_stats(membership: pd.DataFrame, close: pd.DataFrame, *, years: float = 1.0) -> tuple[int, int]:
+    """Names still members more than `years` after their last print, and those member-cells."""
+    if close is None or not len(close.columns) or membership is None or not len(membership.columns):
+        return 0, 0
+    lag = pd.Timedelta(days=int(365.25 * years))
+    m = membership.reindex(index=close.index).astype("float64").fillna(0.0) > 0
+    n_names, n_cells = 0, 0
+    for col in close.columns:
+        if col not in m.columns:
+            continue
+        printed = close[col].dropna()
+        if not len(printed):
+            continue
+        still = m[col].loc[m.index > printed.index.max() + lag]
+        cells = int(still.sum()) if len(still) else 0
+        if cells:
+            n_names += 1
+            n_cells += cells
+    return n_names, n_cells
 
-    `is_delisted` decides which names are dead. It defaults to Norgate's `-YYYYMM` suffix; a
-    client whose provider carries identity elsewhere passes its own (TASK-403: EODHD has no
-    suffix, so `EodhdClient.is_delisted` reads the delisted symbol list instead). Without this
-    the delisted guards would pass vacuously on an EODHD panel - `delisted_names 0` reads as
-    "a current-list screen", which is the failure they exist to catch.
+
+def coverage(membership: pd.DataFrame, close: pd.DataFrame, is_delisted=None, *,
+             membership_source=None, honest_window=None) -> dict:
+    """How much of the panel is real. Priced member-cells / member-cells of the **record**.
+
+    TASK-427: the denominator is every column of `membership`, not `close.columns`. A name
+    the provider did not return used to vanish from both sides of the fraction (published
+    90.64% vs honest 86.97% on the 2026-09-11 EODHD panel). Norgate is unchanged: there
+    `close.columns` and the record coincide.
+
+    `is_delisted` decides which names *in the panel* are dead. It defaults to Norgate's
+    `-YYYYMM` suffix; EODHD passes `EodhdClient.is_delisted`. Delisted names that never
+    arrived are counted in `names_without_prices` / `missing_member_cells`, not as a
+    silent 100% `delisted_with_prices`.
     """
     is_delisted = is_delisted or is_delisted_symbol
-    m = membership.reindex(index=close.index, columns=close.columns).fillna(False)
-    member_cells = int(m.to_numpy().sum())
-    priced = int((m.to_numpy() & close.notna().to_numpy()).sum())
+    # float, not bool: reindex+fillna on bool is the pandas downcast warning.
+    m_full = membership.reindex(index=close.index).astype("float64").fillna(0.0) > 0
+    member_cells = int(m_full.to_numpy().sum())
+    common = [c for c in m_full.columns if c in close.columns]
+    if common:
+        m_common = m_full.loc[:, common]
+        c_common = close.reindex(index=m_full.index, columns=common)
+        priced = int((m_common.to_numpy() & c_common.notna().to_numpy()).sum())
+    else:
+        priced = 0
+    missing = [c for c in m_full.columns if c not in close.columns]
+    missing_member_cells = int(m_full.loc[:, missing].to_numpy().sum()) if missing else 0
     names = list(close.columns)
-    delisted = [s for s in names if is_delisted(s)]
-    with_history = [s for s in delisted if close[s].notna().any()]
+    requested = [str(c) for c in m_full.columns]
+    delisted = [s for s in requested if is_delisted(s)]
+    with_history = [s for s in delisted if s in close.columns and close[s].notna().any()]
+    without_prices = [s for s in delisted if s not in with_history]
+    ghost_names, ghost_cells = _ghost_stats(membership, close)
+    try:
+        from russell_spliced_tickers import DROP, KEEP
+        spliced_dropped = sorted(c for c in DROP if c in m_full.columns and c not in close.columns)
+        spliced_kept = sorted(c for c in KEEP if c in close.columns)
+    except ImportError:
+        spliced_dropped, spliced_kept = [], []
     return dict(
         member_cells=member_cells,
         priced_member_cells=priced,
         cell_coverage=round(priced / member_cells, 4) if member_cells else 0.0,
         names=len(names),
+        names_requested=int(m_full.shape[1]),
+        names_without_prices=len(missing),
+        missing_member_cells=int(missing_member_cells),
         delisted_names=len(delisted),
-        delisted_share=round(len(delisted) / len(names), 4) if names else 0.0,
+        delisted_share=round(len(delisted) / len(requested), 4) if requested else 0.0,
         delisted_with_prices=len(with_history),
+        delisted_without_prices=len(without_prices),
+        delisted_priced_share=round(len(with_history) / len(delisted), 4) if delisted else 0.0,
         first=str(close.index[0].date()) if len(close.index) else None,
         last=str(close.index[-1].date()) if len(close.index) else None,
-        members_first_day=int(m.iloc[0].sum()) if len(m.index) else 0,
-        members_last_day=int(m.iloc[-1].sum()) if len(m.index) else 0,
+        members_first_day=int(m_full.iloc[0].sum()) if len(m_full.index) else 0,
+        members_last_day=int(m_full.iloc[-1].sum()) if len(m_full.index) else 0,
+        membership_source=membership_source,
+        membership_first=str(pd.Timestamp(membership.index[0]).date()) if len(membership.index) else None,
+        honest_window=honest_window,
+        ghost_names=int(ghost_names),
+        ghost_member_cells=int(ghost_cells),
+        spliced_dropped=spliced_dropped,
+        spliced_dropped_n=len(spliced_dropped),
+        spliced_kept=spliced_kept,
     )
 
 
@@ -218,10 +281,15 @@ def validate(cov: dict, *, min_coverage=MIN_CELL_COVERAGE,
             f"delisted share {cov['delisted_share']:.1%} < {min_delisted:.0%}: a Russell panel "
             f"spanning two decades cannot have this few dead names"
         )
-    if cov["delisted_names"] and cov["delisted_with_prices"] < cov["delisted_names"]:
+    priced_share = cov.get("delisted_priced_share")
+    if priced_share is None and cov["delisted_names"]:
+        priced_share = cov["delisted_with_prices"] / cov["delisted_names"]
+    if cov["delisted_names"] and (priced_share or 0) < MIN_DELISTED_PRICED_SHARE:
         problems.append(
-            f"{cov['delisted_names'] - cov['delisted_with_prices']} delisted symbol(s) have no "
-            f"price history: survivorship would come back through the eligibility mask"
+            f"delisted priced share {priced_share:.1%} < {MIN_DELISTED_PRICED_SHARE:.0%}: "
+            f"{cov.get('delisted_without_prices', cov['delisted_names'] - cov['delisted_with_prices'])} "
+            f"delisted symbol(s) have no price history (fence moved TASK-427, after seeing "
+            f"EODHD 97.6%; the binary Norgate-Silver form would reject a 97.6% panel)"
         )
     return problems
 
@@ -234,6 +302,17 @@ def write_cache(frames: dict, membership: pd.DataFrame, cov: dict, out_dir=RUSSE
     with open(os.path.join(out_dir, "coverage.json"), "w", encoding="utf-8") as f:
         json.dump(cov, f, indent=2)
     return out_dir
+
+
+def rewrite_coverage(out_dir=RUSSELL_CACHE, is_delisted=None, **cov_kw) -> dict:
+    """Recompute coverage.json from the written pkl files. No network (TASK-427)."""
+    close = pd.read_pickle(os.path.join(out_dir, "close.pkl"))
+    membership = pd.read_pickle(os.path.join(out_dir, "membership.pkl"))
+    cov = coverage(membership, close, is_delisted, **cov_kw)
+    path = os.path.join(out_dir, "coverage.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(cov, f, indent=2)
+    return cov
 
 
 def build(client, *, strict=True, dry_run=False, out_dir=RUSSELL_CACHE,
@@ -249,7 +328,12 @@ def build(client, *, strict=True, dry_run=False, out_dir=RUSSELL_CACHE,
     assert_no_suffix_collision(syms)
     membership = build_membership(client, syms)
     frames = build_prices(client, syms)
-    cov = coverage(membership, frames["close"], getattr(client, "is_delisted", None))
+    cov_kw = {}
+    if type(client).__name__ == "EodhdClient":
+        cov_kw = dict(membership_source="russell_free_public_record",
+                      honest_window="2010-2026")
+    cov = coverage(membership, frames["close"], getattr(client, "is_delisted", None),
+                   **cov_kw)
     problems = validate(cov)
     identity = getattr(client, "identity_problems", None)
     if identity is not None:
@@ -277,7 +361,33 @@ def main(argv=None) -> int:
     ap.add_argument("--end", default=None, help="eodhd: last bar to request (default: today)")
     ap.add_argument("--limit", type=int, default=None,
                     help="build over the first N member names only - a bounded probe, not a panel")
+    ap.add_argument("--rewrite-coverage", action="store_true",
+                    help="TASK-427: recompute coverage.json from the pkl cache, no EODHD calls")
     args = ap.parse_args(argv)
+
+    if args.rewrite_coverage:
+        is_delisted = None
+        if args.source == "eodhd":
+            from data.providers.eodhd_provider import EODHDProvider
+            from eodhd_pit_client import EodhdClient
+            try:
+                is_delisted = EodhdClient(EODHDProvider()).is_delisted
+            except (FileNotFoundError, RuntimeError) as e:
+                print("SKIP is_delisted:", e, flush=True)
+        cov_kw = {}
+        if args.source == "eodhd":
+            cov_kw = dict(membership_source="russell_free_public_record",
+                          honest_window="2010-2026")
+        cov = rewrite_coverage(args.out, is_delisted, **cov_kw)
+        print(json.dumps(cov, indent=2), flush=True)
+        print("rewrote", os.path.join(args.out, "coverage.json"), flush=True)
+        problems = validate(cov)
+        if problems:
+            print("GUARDS FAILED:", flush=True)
+            for p in problems:
+                print("  -", p, flush=True)
+            return 1 if not args.no_strict else 0
+        return 0
 
     symbols = None
     if args.source == "eodhd":

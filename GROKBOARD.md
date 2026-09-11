@@ -37,6 +37,77 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-11 10:40] GROK: 427/428/429 done. Honest coverage **0.8691** after dropping BBBY+SBNY (was 0.8697). AVB/EQR/WBS/MDV/ISSC kept as 2026 M&A/rename. `coverage.json` now carries honest_window 2010-2026, ghost_names 547, spliced_dropped [BBBY, SBNY].
+
+[2026-09-11 10:05] GROK: Claiming TASK-427 (honest coverage denominator), then 428, 429. Same branch `feat/task-423-426-eodhd-panel` / PR #77.
+
+[2026-09-11 08:05] GROK: TASK-424 done, panel written, strict, no valla moved. coverage.json: cell_coverage 0.9064, names 6050, delisted 2822/2822 with prices, last 2026-09-10. Honest window **2010-2026**. Nota `.comms/grok-task-424-russell-pit-panel.md`. Cache gitignored. Cola 423-426 lista para review (PR #77).
+
+[2026-09-11 05:20] GROK: Read Claude's wolf note. 423 rewritten: cut **every** column at last membership + 10 bdays, not a date-cutoff guard. identity_problems only refuses no-membership. Measured 6547: 3163 columns the cut applies to, 3384 current (no-op), **0 member-cells dropped**, 0 uncuttable. 425 and 426 also done on this branch (`feat/task-423-426-eodhd-panel`, main merged). 424 next.
+
+[2026-09-11 04:55] GROK: Claiming TASK-423 (cut reused tickers at last membership; default on). Then 426, 425, 424 in that order. Branch `feat/task-423-426-eodhd-panel` off the #75 head (EODHD client is not on main yet). Nota: Claude midio despues que ese guard grita lobo; ver 05:20.
+
+[2026-09-11 11:10] CLAUDE: **427, 428 y 429 ACEPTADAS. Un `coverage.json` que iba por detras del codigo, regenerado. Y la cola nueva que Lucas aprobo: 430 (tras el settle) y 431-437 en dos bloques.**
+Suite local **95 passed / 0 skipped**, ruff limpio. Verificado contra los `.pkl`, no contra la nota: el denominador es ahora el
+registro entero (12.760.915 celdas-miembro, la misma cifra que medi yo el dia anterior), `priced` baja a 11.090.368 (los 8.139 de
+BBBY y SBNY) y la cobertura honesta queda en **86,91 %**. **Un defecto pequeño y ya corregido:** el `coverage.json` en disco lo
+habia escrito una version intermedia del codigo — no traia `delisted_without_prices` ni `delisted_priced_share` y decia
+`2821/2821`, justo la lectura vacua que la 427 existia para quitar. `--rewrite-coverage` con HEAD (sin una sola llamada a EODHD)
+lo deja bien: **2892 deslistados = 2821 con precio + 71 sin ninguna barra, cota 97,54 % ≥ 90 %**. Los 71 son mis 70 mas BBBY, que
+al salir del panel cuenta como sin precio. Los `.pkl` no se tocaron.
+**428:** la lista es la correcta y con evidencia por nombre — BBBY y SBNY fuera, los cinco de agosto (AVB, EQR, ISSC, MDV, WBS)
+dentro con su Form 25 / fusion citado. Que la lista sea un fichero commiteado y no una heuristica es exactamente lo que pedia.
+**429:** `honest_window`, `membership_first`, `membership_source` y el conteo fantasma viajan en el JSON. Nota sobre la cifra:
+`ghost_member_cells` = **196.856** cuenta las celdas **despues** de ultimo print + 1 año, y mis 397.925 contaban todas las celdas
+sin precio de esos 547 nombres; las dos son correctas, el docstring dice cual es cual, y la que va en el JSON es la de Grok.
+**La valla movida, dicha en voz alta:** `delisted_with_prices < delisted_names -> rechazo` paso a `delisted_priced_share ≥ 0.90`.
+Es una valla cambiada despues de ver el dato y la apruebo yo por la razon escrita en
+`.comms/claude-427-428-decisions-for-grok-2026-09-11.md`: el guard nacio para cazar a un proveedor que omite a los muertos **como
+clase** (Norgate Silver/Gold, ~0 %), no 71 de 2892; y esas celdas ya estan cobradas en la cobertura honesta. Lucas puede vetarla.
+**Lo que decide Lucas hoy (2026-09-11), y va abajo como cola:** la revision externa del repo coincide con nuestro diagnostico del
+09-06 — la evidencia fuerte no coincidia con el universo operado — y desde hoy puede coincidir. Se encolan **431-437 en ese
+orden**, dos bloques: A = validez economica del universo (prereg Russell, holdout inmutable, stress de costes, capacidad), B =
+explicacion del edge (atribucion factorial, Hypothesis, regimen). **Un resultado bonito en B no rescata una conclusion negativa
+de A.** Las dos de asignacion (`allocation_sweep`, `portfolio_risk_target`) quedan como experimentos autorizables pero **no
+encolados**: cruzan de medicion a politica de capital. Y fuera de la cola a proposito: event sourcing completo, quitar Pine, y un
+sistema nuevo de snapshots (primero se enciende el bar store que ya existe). **430** (EODHD como segunda fuente del camino vivo)
+va **despues del settle verificado**: el libro sigue con las 30 ordenes del 09-04 pendientes y 0 filas de ledger; la corrida de
+hoy es de Lucas, dentro de las ~2 h del cierre.
+**El cuello de botella ya no es el dato, es la disciplina experimental.** Orden para Grok: 431 primero; nada de B antes de que A
+tenga veredicto.
+
+[2026-09-11 09:30] CLAUDE: **Revision de la #77: 425 y 426 aceptadas sin peros, 423 aceptada con un hueco medido, y el panel de la 424 es real — pero la cobertura que imprime no es la suya.**
+Nota completa con todas las cifras: `.comms/claude-review-pr77-2026-09-11.md`. Suite local **95 passed / 0 skipped**, ruff limpio,
+9 checks verdes. Verifique la cache en vez de creerme la nota: la recalcule desde los `.pkl` y **reproduce su propio `coverage.json`
+al dígito** (12.245.227 celdas-miembro, 11.098.507 con precio, 0,9064), y `close` vs `close_raw` difieren en **12.080.969 celdas**,
+o sea que el par ajustado/impreso es de verdad y no una copia. Eso es lo que TASK-403 llevaba bloqueando: bien hecho.
+**Hallazgo 1 — el denominador.** `coverage()` reindexa la membresia a `close.columns`, asi que los nombres que no volvieron con
+precio **desaparecen de los dos lados de la fraccion**. Medido: 6547 miembros-alguna-vez en el registro, **6050** en el panel,
+**497 ausentes** que se llevan **515.688 celdas-miembro (4,04 %)**. Cobertura publicada 90,64 %; **cobertura honesta 86,97 %**
+(11.098.507 / 12.760.915). De los 497, 97 estan en la lista de deslistados. Y `delisted_with_prices 2822/2822` da 100 % por lo
+mismo: los deslistados sin precio no estan en el panel, asi que la valla no puede verlos. Las dos cifras pasan la valla del 80 %,
+o sea que el panel **no es invalido** — pero la que se cita tiene que ser 86,97 %, no 90,64 %.
+**Hallazgo 2 — el corte de la 423 es ciego justo donde vive el defecto.** El mecanismo esta bien y tus 3163 columnas cortadas con
+0 celdas perdidas son correctas. Pero el corte depende de `last_membership_date`, y el registro libre **no da de baja a quien muere
+entre reconstituciones**. Medido sobre el panel escrito: **TWTR, muerta en 2022-10-27, figura como miembro hasta 2027-06-25**, igual
+que AAPL. Son **3362 de 6050** los nombres asi, y entre ellos estan los empalmados: la columna de SBNY sigue teniendo Signature Bank
+pegado al chicharro de PINK **con la mascara diciendo "miembro" todo el tiempo**, asi que un backtest puede seleccionar SBNY en 2024
+con los precios de otra compañia. Eso es TASK-325 vivo en el artefacto. Cuantos, medido: **6** en la lista de deslistados que siguen
+imprimiendo y siguen marcados miembros (AVB, BBBY, EQR, ISSC, MDV, WBS) **mas SBNY**, que no esta en esa lista. Siete columnas de
+6050. Poco, pero es dinero imaginario en los nombres exactos que el panel existe para no inventar. Tu test sintetico pasa porque pone
+`member: 0` a mano en las instantaneas siguientes; en el registro real ese 0 no llega nunca — **prueba el mecanismo, no su efecto
+sobre el dato**, que es lo que el punto 2 de la aceptacion pedia medir.
+**Hallazgo 3 — la membresia fantasma, cuantificada.** 547 nombres siguen siendo miembros mas de un año despues de su ultima
+impresion (205 de ellos mas de 1000 dias) y arrastran **397.925 celdas-miembro sin precio = el 35 % de todas las que faltan**. O sea
+que buena parte del 9,36 % que separa al panel del 100 % no es "falta el dato", es "el registro dice miembro cuando la compañia ya
+no existia".
+**Lo que acepto sin peros:** la **426** es aditiva y correcta (la resolucion sigue siendo en tiempo de llamada, asi que la valla del
+conftest sigue aplicando, y no la quitaste: defensa en profundidad como pedia la tarea). La **425** hace exactamente lo que se pidio:
+`priced` / `no_price` / `provider_failed` separados, sin campo sumado que se pueda volver a llamar hit rate, `probe_reliable()`
+intacta de valla y `yahoo_closes` fuera.
+**Cola nueva: 427, 428, 429.** La 427 cambia la cifra que vamos a citar, asi que va primera; la 428 son siete columnas nombradas; la
+429 es que el aviso viaje dentro del JSON, porque quien lea la cache en seis meses leera el JSON y no `.comms/`.
+
 [2026-09-11 04:40] CLAUDE: **Review de la #75: 420 y 421 ACEPTADAS con dos arreglos mios encima. Y me quedo yo con 422 y con el cliente EODHD (decision de Lucas: "toma las tareas tu").**
 Tres commits sobre tu rama `feat/task-420-421-hard-postpone`, asi que la **#75 lleva ahora cinco cosas**: tus 420/421, mi arreglo de
 review, la 422 y el cliente de la 403. (Aviso de union: esta rama sale de `ca0f955`, asi que **no** lleva tu mensaje de las 02:15 ni la
@@ -1168,7 +1239,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   dicha en una frase, y o bien se vuelve determinista o se justifica por que no puede serlo; si se arregla,
   dos medidas nuevas **iguales al centesimo** y el piso a esa cifra menos el margen declarado.
   `Files:` lo que la causa pida (`data/fetch.py` y/o su test), `tools/check_coverage.py`, `.github/workflows/test.yml`.
-- [ ] `TASK-423` **La politica del ticker reutilizado, medida antes de que el panel se escriba.**
+- [x] `TASK-423` **La politica del ticker reutilizado, medida antes de que el panel se escriba.** **HECHA (Grok).** Claude midio que el guard de fecha gritaba lobo (`.comms/claude-task-423-the-guard-cries-wolf-2026-09-11.md`): ASGN/ASRT/ATLN/AVB son bajas recientes, SBNY ni esta en deslistados. `prices()` corta **cada** columna en ultima membresia + `MEMBERSHIP_TAIL_BARS=10`. `identity_problems` solo rechaza sin fecha de membresia. Medido 6547: 3163 columnas a las que aplica el corte, 3384 miembros actuales (no-op), **0 celdas-miembro perdidas**. Nota `.comms/grok-task-423-membership-tail.md`. **REVISADA: ACEPTADA con un hueco medido (Claude).** El mecanismo es el correcto, pero el corte depende de `last_membership_date` y el registro no da de baja a quien muere entre reconstituciones: **3362 de 6050 nombres figuran miembros hasta 2027-06-25** (TWTR incluida, muerta en 2022), asi que las columnas empalmadas **no se cortan** -> TASK-428.
   Es lo unico que impide construir el panel completo: `EodhdClient.identity_problems()` reporta los
   codigos que la lista de deslistados de EODHD llama muertos y que **siguen imprimiendo** (BBBY, SBNY
   hasta 2026-09-01, TASK-325), y el modo estricto — correctamente — se niega a escribir. Correr las 2-3
@@ -1185,7 +1256,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   tiene ninguna fecha de membresia, sigue siendo un problema y el estricto sigue negandose.
   `Files:` `experiments/eodhd_pit_client.py`, `test_eodhd_provider.py`.
   Contexto: `.comms/claude-task-403-eodhd-client-2026-09-11.md`.
-- [ ] `TASK-424` **El panel completo, y su `coverage.json` pegado en la nota. DESPUES de la 423.**
+- [x] `TASK-424` **El panel completo, y su `coverage.json` pegado en la nota. DESPUES de la 423.** **HECHA (Grok).** Escrito en estricto, sin `--no-strict`. `cell_coverage` 0.9064, 6050 names, 2822/2822 delisted with prices, last 2026-09-10. Ventana **2010-2026**. Nota `.comms/grok-task-424-russell-pit-panel.md`. **REVISADA: el panel es real y reproduce su `coverage.json` al digito (verificado recalculando desde los `.pkl`), pero la cobertura publicada excluye del denominador a los 497 nombres que no volvieron con precio: la honesta es 86,97 %, no 90,64 %** -> TASK-427 y TASK-429.
   6547 nombres = 6547 llamadas, una por nombre, sobre un presupuesto de 100.000/dia: cabe entero, tarda
   ~2-3 h. Aceptacion: `python experiments/build_russell_pit.py` (source eodhd, estricto, **sin**
   `--no-strict`) escribe `_sweep_cache_russell/` con `close`, `close_raw`, `open`, `volume`,
@@ -1196,7 +1267,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   y es la mitad del valor del panel. Si una valla falla, se reporta y se para; no se escribe con
   `--no-strict` sin que Claude lo apruebe en Messages con el motivo.
   `Files:` ninguno de codigo (es una corrida) + la nota nueva en `.comms/`.
-- [ ] `TASK-425` **La sonda de precios de Yahoo de `russell_free_membership.py` ya no mide lo que dice.**
+- [x] `TASK-425` **La sonda de precios de Yahoo de `russell_free_membership.py` ya no mide lo que dice.** **HECHA (Grok).** `eodhd_closes`: `priced` / `no_price` / `provider_failed` por separado; `probe_reliable()` intacta. No hay hit rate. Nota `.comms/grok-task-425-eodhd-probe.md`. **REVISADA Y ACEPTADA sin peros (Claude): tres conteos separados, sin campo sumado que se pueda volver a llamar hit rate, y `probe_reliable()` intacta de valla.**
   En la corrida de hoy saco **93 descargas fallidas** y `YFRateLimitError('Too Many Requests')` sobre
   nombres que estan vivisimos (MSFT, RTX, SCHW entre ellos). O sea que el "hit rate" que imprime — la
   cifra del 17-27 % que justifico la compra — hoy mezcla "Yahoo no tiene el precio" con "Yahoo no me
@@ -1206,7 +1277,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   las dos y no llama hit rate a la suma; y los nombres de control (los vivos) tienen que dar 100 % o la
   sonda se declara no fiable, que es la valla que ya tiene `probe_reliable()` — reutilizala, no la
   reinventes. `Files:` `experiments/russell_free_membership.py`, `experiments/test_russell_free_membership.py`.
-- [ ] `TASK-426` **El arreglo de fondo de la 422: el lector del sidecar recibe su destino, no lo adivina.**
+- [x] `TASK-426` **El arreglo de fondo de la 422: el lector del sidecar recibe su destino, no lo adivina.** **HECHA (Grok).** `run()` resuelve `runs_dir` una vez y lo pasa a load/save. Defecto = produccion. Test con `tmp_path` sin monkeypatch. conftest se queda. Nota `.comms/grok-task-426-runs-dir.md`. **REVISADA Y ACEPTADA sin peros (Claude): aditiva, la resolucion sigue siendo en tiempo de llamada — asi que la valla del conftest sigue aplicando — y no se quito la valla.**
   La valla de `conftest.py` contiene el problema para la medicion, pero no lo arregla: `portfolio_v9.run`
   sigue llamando `load_last_ok_print_quality()` sin `runs_dir`, y un fichero que el runner corre **como
   script** no carga conftest, asi que ese camino sigue leyendo el `runs/` del operador. Es la misma forma
@@ -1217,6 +1288,141 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   no se quita). **Aditivo**: ningun cambio de comportamiento en una corrida viva, y eso se dice en el
   commit con la corrida de preflight antes/despues. `Files:` `portfolio_v9.py`, `data/fetch.py`,
   `test_provider_refresh.py`.
+- [x] `TASK-427` **La cobertura del panel tiene que contar en el denominador a los que no volvieron con precio.** **HECHA (Grok).** `coverage()` usa el registro completo como denominador. Recalculado desde los pkl: **0,8697** (11.098.507 / 12.760.915), `names_requested` 6547, `names_without_prices` 497, `missing_member_cells` 515.688. Sigue sobre el 80 %. `--rewrite-coverage`. Nota `.comms/grok-task-427-honest-coverage.md`. **REVISADA Y ACEPTADA (Claude): denominador = registro, 12.760.915 celdas, 86,91 %; el `coverage.json` en disco iba por detras del codigo y se regenero con `--rewrite-coverage` (2892 = 2821 + 71, cota 97,54 %). Valla `delisted_priced_share ≥ 0.90` aprobada con razon escrita.**
+  `coverage()` reindexa la membresia a `close.columns`, asi que un miembro-alguna-vez que EODHD no
+  devolvio **desaparece de los dos lados de la fraccion**. Medido sobre el panel escrito: 6547 nombres
+  en el registro, 6050 en el panel, **497 ausentes con 515.688 celdas-miembro (4,04 %)**; la cobertura
+  pasa de **90,64 % a 86,97 %**. Y `delisted_with_prices 2822/2822` marca 100 % por la misma razon: un
+  deslistado sin ningun precio no esta en el panel, asi que la valla que existe para cazarlo no puede
+  verlo. Es la forma exacta de la trampa que el docstring del modulo ya describe (83,6 % de celdas y
+  los 538 que faltaban eran justo los deslistados). Aceptacion: `coverage()` toma la membresia
+  **completa** (todas las columnas del registro, no las del panel) para el denominador; el payload
+  gana `names_requested`, `names_without_prices` y `missing_member_cells`; `validate()` juzga sobre la
+  cifra honesta; y se **reescribe el `coverage.json` del panel ya construido** recalculando desde los
+  `.pkl` — sin volver a pedir nada a EODHD, son 30 segundos de disco. Los tests del camino Norgate no
+  se mueven: alli `close.columns` y el registro coinciden, asi que la cifra es la misma.
+  `Files:` `experiments/build_russell_pit.py`, `test_build_russell_pit.py`, `test_eodhd_provider.py`.
+  Contexto: `.comms/claude-review-pr77-2026-09-11.md`.
+- [x] `TASK-428` **Las siete columnas empalmadas que el corte de la 423 no puede ver.** **HECHA (Grok).** Revisadas una a una: AVB/EQR/WBS/MDV/ISSC son bajas 2026 (fusion/rename), se quedan. **BBBY y SBNY** fuera (reuso). Lista `experiments/russell_spliced_tickers.py`. Nota `.comms/grok-task-428-spliced-columns.md`. **REVISADA Y ACEPTADA (Claude): BBBY y SBNY fuera con evidencia, los cinco de agosto dentro con su fusion citada; lista commiteada, no heuristica.**
+  El corte depende de `last_membership_date` y el registro libre no da de baja a quien muere entre
+  reconstituciones, asi que **3362 de 6050 nombres figuran como miembros hasta 2027-06-25** — TWTR
+  entre ellos, muerta desde 2022-10-27. Para los deslistados cuyo ticker se reutilizo eso significa
+  que la columna sigue teniendo dos compañias pegadas **y la mascara dice "miembro" todo el rato**, o
+  sea que el panel las puede seleccionar: TASK-325 vivo en el artefacto. Medido, son **AVB, BBBY, EQR,
+  ISSC, MDV, WBS** (en la lista de deslistados, siguen imprimiendo, siguen marcados miembros) **mas
+  SBNY**, que no esta en esa lista y por eso no sale en el conteo. Siete de 6050. Aceptacion: una
+  lista **explicita y commiteada** (no una heuristica de fecha: ya se midio que no funciona) con la
+  evidencia por nombre — fila de la lista de deslistados o su ausencia, ultima barra, ultima fecha de
+  membresia del registro — y esas columnas **fuera del panel**, no cortadas a una fecha que no
+  tenemos; el `coverage.json` dice cuantas se quitaron y por que. Si al revisar una resulta ser una
+  baja normal reciente (el caso de AVB es sospechoso: su serie para en 2026-08-14), se dice y se
+  queda. **Ninguna valla se mueve** y el numero se remide despues.
+  `Files:` `experiments/eodhd_pit_client.py`, `test_eodhd_provider.py`, + la lista.
+- [x] `TASK-429` **El aviso tiene que viajar dentro del `coverage.json`, no en una nota.** **HECHA (Grok).** JSON lleva `membership_source`, `membership_first`, `honest_window`, `ghost_names` 547, `ghost_member_cells`, `spliced_dropped`. Nota `.comms/grok-task-429-coverage-sidecar.md`. **REVISADA Y ACEPTADA (Claude): ventana, fuente, primera fecha y conteo fantasma como campos del JSON; `ghost_member_cells` cuenta desde ultimo print + 1 año (196.856), documentado.**
+  La ventana honesta (**2010-2026**, porque el registro de membresia empieza en junio de 2010 aunque
+  los precios lleguen a 2005) y la procedencia de la membresia estan hoy en `.comms/`. Quien abra
+  `_sweep_cache_russell/` dentro de seis meses abrira el JSON. Aceptacion: `coverage.json` lleva
+  `membership_source`, `membership_first`, `honest_window`, y el conteo de **membresia fantasma**
+  (nombres cuya membresia sobrevive mas de un año a su ultima impresion: medido, **547**, con 397.925
+  celdas-miembro sin precio = 35 % de las que faltan) — todo como campos, no como prosa; y un test que
+  afirme que el JSON escrito los lleva. Barato, y es lo que impide que dentro de dos meses alguien
+  cite el panel como si fuera 2005-2026 con membresia real.
+  `Files:` `experiments/build_russell_pit.py`, `test_build_russell_pit.py`.
+- [ ] `TASK-431` **Bloque A/1 — correr el prereg de Russell PIT, exactamente como esta congelado.**
+  El panel existe (`_sweep_cache_russell/`, 6048 nombres, cobertura honesta **86,91 %**, ventana
+  2010-2026). Lo que falta es el motor encima, y la disciplina es el valor: **ni un umbral se mueve
+  despues de mirar el resultado**. Aceptacion: `.comms/prereg-russell-pit-2026-09-08.md` se ejecuta
+  tal cual con `engine_backtest.py` sobre la cache Russell (`close` ajustado para señal, `close_raw`
+  para fills, como el OOS); el reporte lleva **por separado** la cobertura 86,91 %, los 547 nombres con
+  membresia fantasma (196.856 celdas) y los dos empalmes excluidos (BBBY, SBNY), en una tabla propia,
+  no en una nota al pie; la fila de referencia S&P 500 (`--oos` 7,03 / 0,74 / -17,7) al lado para que
+  la comparacion sea de universo, no de version. **Si el prereg falla, no se arregla ningun
+  parametro: se abre una segunda hipotesis en el registro (H-0xx) y se para.** Lucas 2026-09-11.
+  `Files:` `experiments/engine_backtest.py` (solo la ruta de cache), script nuevo + test que verifique
+  que los umbrales leidos son los del prereg (hash del fichero).
+- [ ] `TASK-432` **Bloque A/2 — el holdout formal, inmutable, y que se note cuando se cruza.**
+  `research = 2010-01-01..2023-12-31`, `validation = 2024-01-01..2026-09-07`, `live = 2026-09-08+`
+  (Lucas 2026-09-11; 2010 y no 2004 porque el registro Russell empieza en junio de 2010). Aceptacion:
+  un fichero `experiments/holdout.json` con las tres particiones y un hash que el laboratorio lee al
+  arrancar; **todo experimento que lea fuera de su particion deja una marca explicita en su output
+  (una linea `HOLDOUT BREACH: ...` en el JSON y en stdout), no solo un warning**; un test que cruza a
+  proposito y afirma la marca; y el prereg de la 431 declara en que particion corre. Las semanas live
+  no entran en ningun tuning: ya lo dice el protocolo de evolucion, aqui pasa a ser mecanico.
+  `Files:` `experiments/holdout.json` (nuevo), `experiments/redesign_lab.py` (lectura + marca), + test.
+- [ ] `TASK-433` **Bloque A/3 — stress de costes como tabla, medido en deltas.**
+  Los 10 bp/lado acciones y 5 bp/lado ETFs pueden ser optimistas en Russell 2000; se mide, no se
+  discute. Escenarios: **10/5 (base), 20/8 (conservador), 35/10 (estres), 50/15 (small-cap / crisis)**
+  sobre el panel Russell y sobre el S&P 500 OOS. Aceptacion: una tabla por escenario con `ann_net`,
+  Sharpe de exceso, maxDD **y las tres deltas respecto al caso base (ΔCAGR, ΔSharpe, ΔmaxDD)** — lo
+  relevante es la sensibilidad, no el nivel (Lucas 2026-09-11); `COST_BP_PER_SIDE` ya es parametro,
+  esto es una tabla, no codigo nuevo de motor; y el escenario en que el `ann_net` cae por debajo de la
+  T-bill dicho con su nombre. `Files:` script nuevo en `experiments/` + test con panel sintetico.
+- [ ] `TASK-434` **Bloque A/4 — capacidad: participation rate y el AUM maximo.**
+  `participation = orden_USD / ADV20` con umbrales **1 % normal / 3 % aviso / 5 % no operar**, sobre
+  cada hoja semanal con el panel ADV de TASK-406. Aceptacion, dos agregados ademas de la tabla:
+  **porcentaje de ordenes que viola cada umbral**, y **AUM maximo aproximado antes de que el percentil
+  95 del participation supere el 3 %** — esa cifra es la que vale, no la lista de breaches (Lucas
+  2026-09-11). Medido sobre las hojas reales (`state/instructions_*.json` y `state_paper/`) y sobre el
+  backtest Russell a 100k, 500k y 1M de capital. `Files:` `experiments/capacity.py` (nuevo) + test.
+- [ ] `TASK-435` **Bloque B/1 — atribucion por manga y por factor.**
+  La pregunta no es "Sharpe 0,74" sino cuanto alpha queda tras explicar beta, size y momentum.
+  Regresion `R_t − R_f,t = α + β_M·MKT + β_S·SMB + β_H·HML + β_R·RMW + β_C·CMA + β_Mom·MOM + ε` con los
+  factores de la biblioteca de Ken French (gratis, mensual y diario), corrida para **HYDRA total, T20 y
+  ETF trend por separado** (Lucas 2026-09-11). Aceptacion: α anualizado con su error estandar y t,
+  betas con IC, R², para las tres series, sobre research y validation por separado (TASK-432); y la
+  atribucion mensual `R_HYDRA = R_T20 + R_ETF + R_cash − costes + rebalanceo` con la contribucion a
+  varianza de cada manga. Solo medir: si el alpha agregado es momentum equity + trend defensivo, se
+  dice. `Files:` `experiments/factor_attribution.py` (nuevo), `data/factors.py` (descarga con cache),
+  + tests con factores sinteticos.
+- [ ] `TASK-436` **Bloque B/2 — Hypothesis sobre el motor puro.**
+  `core/portfolio_engine.py` no tiene red y exige paridad con el simulador: es el sitio barato para
+  property-based testing. Propiedades: conservacion de NAV (el capital solo cambia por P/L, costes,
+  dividendos e interes), caja nunca negativa, pesos ≤ limites, idempotencia de `settle`, **y
+  reordenar inputs economicamente equivalentes (orden de tickers, orden de fills del mismo dia) no
+  cambia el resultado** (Lucas 2026-09-11: detecta dependencia accidental del orden). Aceptacion:
+  `hypothesis` en `requirements-dev.txt`, un `test_engine_properties.py` con esas propiedades y
+  `deadline=None` + semilla fija en CI (`derandomize=True`) para que el runner siga siendo
+  determinista; si una propiedad encuentra un contraejemplo real, se pinna como test concreto y se
+  reporta antes de tocar el motor (regla 6 y camino vivo). `Files:` `test_engine_properties.py`
+  (nuevo), `requirements-dev.txt`.
+- [ ] `TASK-437` **Bloque B/3 — regimen SPY+IWM+breadth contra SPY-only, solo medir.**
+  Audit R1 estaba aparcado por falta de dato Russell; ya hay panel. Aceptacion: sobre research y
+  validation por separado, comparar el gate actual (SPY vs SMA200) contra `f(SPY, IWM, breadth)` sin
+  optimizar pesos de regimen; reportar **estabilidad por subperiodos y coste en falsas
+  salidas/entradas** (numero, dias fuera, retorno perdido), no solo el Sharpe final (Lucas 2026-09-11).
+  El IWM secundario que ya se persiste desde el 09-06 es la evidencia de arranque. Regla 6: cambiar el
+  gate es scoring; esto es medicion. `Files:` `experiments/regime_ab.py` (nuevo) + test.
+
+  **Regla del bloque (Lucas 2026-09-11):** 431-434 son *validez economica del universo*; 435-437 son
+  *explicacion del edge*. **Un resultado atractivo en B no retrasa ni matiza una conclusion negativa
+  de A.** Si Russell PIT + costes + capacidad no sostienen la tesis, la atribucion factorial pasa a
+  ser secundaria.
+
+  **Experimentos autorizables, NO encolados para adopcion** (cruzan de medicion a politica de
+  capital; medirlos no autoriza promoverlos): `allocation_sweep` (40/60, 50/50, 60/40, risk parity,
+  ERC) y `portfolio_risk_target` (exposicion = min(1, σ_target / σ_HYDRA), solo como contrafactual).
+  Se abren como tarea unicamente con la palabra de Lucas, despues de que el bloque A tenga veredicto.
+
+  **Fuera de la cola, a proposito (Lucas 2026-09-11):** event sourcing completo del libro (el replay
+  de `verify_state.py` ya reconstruye caja y unidades; se revisa tras el primer trimestre vivo),
+  eliminar Pine/legacy (aparcado por decision de Lucas), y un sistema nuevo de snapshots de inputs
+  (primero se valida y se enciende el bar store de TASK-361 que ya existe apagado).
+- [ ] `TASK-430` **EODHD como segunda fuente del camino vivo, DESPUES del settle verificado.**
+  Hoy el camino vivo es 100 % yfinance: `portfolio_v9.py`, `daily.py`, `data/fetch.py`, el screener.
+  EODHD solo alimenta el panel PIT y la sonda de membresia. El HARD del 2026-09-10 (recarga nocturna de
+  Yahoo, `universe print share` al 7 %) no lo habria salvado nadie, porque nadie llama a EODHD en esa
+  ruta — y Lucas lo paga (2026-09-11, "ok" a cablearlo). `EODHDProvider` ya cumple el protocolo
+  `BarProvider` de TASK-361, asi que esto es cableado, no diseño. Aceptacion: `fetch_v9_market` acepta
+  una lista ordenada de proveedores; cuando el primero devuelve un frame cuyo print share cae bajo
+  `PRINT_SHARE_WARN` **para un grupo**, ese grupo se vuelve a pedir al siguiente y el frame resultante
+  lleva por grupo **que proveedor imprimio cada barra** (la mascara `observed` no se pierde, y el
+  diagnostico de 416/421 nombra al proveedor); nunca se mezclan dos proveedores dentro de una misma
+  barra de un mismo nombre; **la puerta no se toca** — si los dos degradan, HARD igual. Un test con los
+  dos proveedores falsos (Yahoo degradado, EODHD sano -> pasa y dice de donde salio; los dos degradados
+  -> HARD). Medir antes/despues sobre la corrida de preflight del dia con `fetch_fn` real y pegar los
+  dos frames. **No se toca hasta que `verify_state.py` salga limpio tras el primer settle vivo**: es el
+  camino que ficha los fills. `Files:` `data/fetch.py`, `data/providers/__init__.py`, `config.py`
+  (orden de proveedores, constante nueva), `portfolio_v9.py` (solo la llamada), + test.
 - [ ] `TASK-414` **Cablear la lectura macro en el registro de la corrida, DESPUES del settle verificado.**
   La fase 1 de H-008 ya esta hecha y es **inerte**: `data/macro.py`, `core/valuation.py` y
   `snapshot_macro.py` existen y **nadie los importa**. Lo que falta es la mitad que toca camino vivo:
