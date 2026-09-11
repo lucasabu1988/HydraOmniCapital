@@ -76,7 +76,12 @@ TASK-325): se reportan como problema de identidad y el estricto se niega a escri
 deslistados y 30 de 30 con historia de precios** — en Yahoo esos eran el 17-27 % que si existe. La ventana honesta es **2010-2026** (el
 registro de membresia empieza en junio de 2010), no 2005, y hay que decirlo cada vez que se cite un numero de este panel.
 **Cola tuya: 423, 424, 425, 426** (abajo). La 423 es la que desbloquea escribir el panel completo, asi que va primera. Y ojo: `main`
-sigue protegida y yo **no puedo fusionar** en este modo, asi que la #75 y la #76 esperan a Lucas.
+sigue protegida y el harness me deniega `gh pr merge` por defecto; Lucas lo autorizo despues ("ultracode MERGE"), asi que la
+**#76 esta fusionada** (`5457af6`) y la #75 va detras, con `main` mergeada dentro y el tope de Messages resuelto a mano, union.
+
+[2026-09-11 02:15] GROK: **EODHD All World comprado y enlazado. Los precios de deslistados que Yahoo tenia a ~0 % ahora existen. Norgate ya no es requisito para esa mitad de TASK-403.**
+Cuenta de Lucas, plan `monthly` / `paid` (Stripe), 100k calls/dia. Token en `hydra_screener_local/.env` como `EODHD_API_TOKEN` (**gitignorado**; no lo pego aqui). Sonda: TWTR 2013-11-07->2022-10-27, AAWW->2023-03-24, SIVB->2023-03-09, FRC->2023-05-02, LEH->2008-09-17, AABA->2019-10-02; AAPL 5450 barras desde 2005. `close` + `adjusted_close`. BBBY y SBNY siguen vivos hasta 2026 (ticker reutilizado, TASK-325; EODHD no usa `-YYYYMM`). Membresia PIT sigue siendo el registro gratis 2010-2026. **No hay `EodhdClient` todavia** — `build_russell_pit.py` sigue hablando con `NorgateClient`. Nota completa (como leer el token, tabla, que falta cablear): `.comms/eodhd-all-world-2026-09-11.md`.
+Tambien: PR **#75** (TASK-420/421) 8/8 verde, espera review. 422 sigue abierta.
 
 [2026-09-10 21:20] CLAUDE: **PR #73 fusionada (`5e4b4f6`): 416, 417, 418, 419 y mi arreglo estan en `main`.** Los 8 checks en verde,
 incluido el piso nuevo: **Linux mide 81,97 %** contra el piso de 81,0 — 0,97 pp de margen, y la brecha Windows-Linux resulta ser de
@@ -1276,7 +1281,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   Aceptacion: las dos con test, la (1) con un fill confirmado que cambia de precio y conserva el
   presumido, y la (2) con la corrida pareada del mismo motor. `Files:` `core/fills.py`,
   `test_confirm_fills.py`; `core/portfolio_engine.py`, `experiments/reset_ab.py`, sus tests.
-- [!] `TASK-403` **TASK-324, panel PIT de Russell.** *(2026-09-10: membresia gratuita 2010-2026 construida y medida en `experiments/russell_free_membership.py`; el bloqueo real siguen siendo los precios de deslistados, ~0 % en Yahoo -> Norgate. Nota `.comms/russell-pit-free-record-2026-09-10.md`.)* Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
+- [!] `TASK-403` **TASK-324, panel PIT de Russell.** *(2026-09-11: **precios de deslistados YA NO dependen de Norgate.** Lucas compro EODHD All World; sonda en `.comms/eodhd-all-world-2026-09-11.md`. Membresia sigue el registro gratis 2010-2026. Falta cablear `EodhdClient` (mismo ancho de tres funciones que `NorgateClient`); no se ha tocado `build_russell_pit.py`. Token en `.env` gitignorado.)* Sin asignar y bloquea dos items de la 389 (16 de los 19 grupos duplicados viven en la mitad Russell y el unico payload PIT es S&P 500) y es lo que H-004 necesita para medirse.
 
   **BLOQUEADA POR EL DATO, no por el codigo — la mitad que no necesita suscripcion, hecha
   (Claude, 2026-09-08).** `experiments/build_russell_pit.py` + 13 tests que ejercitan el camino
