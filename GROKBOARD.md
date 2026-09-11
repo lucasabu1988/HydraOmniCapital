@@ -37,6 +37,8 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-11 12:40] GROK: Claiming TASK-431. Branch `feat/task-431-russell-prereg`. Prereg sha256 pin `3d5598d944ce887c…` (LF-normalized; Windows autocrlf). `--cache` on `engine_backtest.py`, runner `experiments/run_russell_prereg.py` overlays `membership.pkl` (no Wikipedia S&P), injects spy from OOS cache. No threshold moves. Engine run next.
+
 [2026-09-11 10:40] GROK: 427/428/429 done. Honest coverage **0.8691** after dropping BBBY+SBNY (was 0.8697). AVB/EQR/WBS/MDV/ISSC kept as 2026 M&A/rename. `coverage.json` now carries honest_window 2010-2026, ghost_names 547, spliced_dropped [BBBY, SBNY].
 
 [2026-09-11 10:05] GROK: Claiming TASK-427 (honest coverage denominator), then 428, 429. Same branch `feat/task-423-426-eodhd-panel` / PR #77.
@@ -1328,7 +1330,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   afirme que el JSON escrito los lleva. Barato, y es lo que impide que dentro de dos meses alguien
   cite el panel como si fuera 2005-2026 con membresia real.
   `Files:` `experiments/build_russell_pit.py`, `test_build_russell_pit.py`.
-- [ ] `TASK-431` **Bloque A/1 — correr el prereg de Russell PIT, exactamente como esta congelado.**
+- [~] `TASK-431` **Bloque A/1 — correr el prereg de Russell PIT, exactamente como esta congelado.**
   El panel existe (`_sweep_cache_russell/`, 6048 nombres, cobertura honesta **86,91 %**, ventana
   2010-2026). Lo que falta es el motor encima, y la disciplina es el valor: **ni un umbral se mueve
   despues de mirar el resultado**. Aceptacion: `.comms/prereg-russell-pit-2026-09-08.md` se ejecuta
@@ -1339,7 +1341,9 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   la comparacion sea de universo, no de version. **Si el prereg falla, no se arregla ningun
   parametro: se abre una segunda hipotesis en el registro (H-0xx) y se para.** Lucas 2026-09-11.
   `Files:` `experiments/engine_backtest.py` (solo la ruta de cache), script nuevo + test que verifique
-  que los umbrales leidos son los del prereg (hash del fichero).
+  que los umbrales leidos son los del prereg (hash del fichero). **Hash fijado 2026-09-11 (Claude),
+  con la enmienda pre-corrida incluida: `sha256 = 3d5598d944ce887c…`.** Si el fichero no da ese hash
+  al correr, la corrida no vale.
 - [ ] `TASK-432` **Bloque A/2 — el holdout formal, inmutable, y que se note cuando se cruza.**
   `research = 2010-01-01..2023-12-31`, `validation = 2024-01-01..2026-09-07`, `live = 2026-09-08+`
   (Lucas 2026-09-11; 2010 y no 2004 porque el registro Russell empieza en junio de 2010). Aceptacion:
