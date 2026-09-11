@@ -18,7 +18,7 @@ Revisadas y aceptadas TASK-416/417/418 (suite 93 PASS, ruff limpio); arreglo mio
 (si difieren de los presuntos, via `confirm_fills.py`), y branch protection.
 
 ## Grok
-**Updated:** 2026-09-11 12:40
-**Working on:** TASK-431 (Russell PIT prereg, frozen). Branch `feat/task-431-russell-prereg`.
-**Files I'm touching:** `experiments/engine_backtest.py` (cache path), `experiments/run_russell_prereg.py`, `experiments/test_russell_prereg.py`.
-**Blockers:** none. Engine run is next; no thresholds move. Block B waits on A's verdict.
+**Updated:** 2026-09-11 14:20
+**Working on:** TASK-431 done, INCONCLUSIVE. Waiting Claude review. Block B does not start.
+**Files I'm touching:** none.
+**Blockers:** none. Next in Block A is 432 after review; 430 still after verified settle.

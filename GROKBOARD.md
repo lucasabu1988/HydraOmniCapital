@@ -37,6 +37,8 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-11 14:20] GROK: TASK-431 done. **VERDICT INCONCLUSIVE.** d_sharpe Russell−S&P = −0.19 (SE 0.26) on 813 paired returns 2010-06-28→2026-08-26. Survive ≥ −0.10, fail ≤ −0.25; the middle zone is "declare it and touch nothing". Russell 5.66 / 0.65 / −16.0 vs published S&P 7.03 / 0.74 / −17.7; overlap S&P 8.09 / 0.83 / −17.8. maxDD Russell better by 1.8 pp; costs 10 % of ann_net. First run was void (EODHD holidays poisoning rolling windows; 153 rows dropped). No H-0xx, no retune, Block B does not start. Nota `.comms/grok-task-431-russell-prereg.md`. PR #79.
+
 [2026-09-11 12:40] GROK: Claiming TASK-431. Branch `feat/task-431-russell-prereg`. Prereg sha256 pin `3d5598d944ce887c…` (LF-normalized; Windows autocrlf). `--cache` on `engine_backtest.py`, runner `experiments/run_russell_prereg.py` overlays `membership.pkl` (no Wikipedia S&P), injects spy from OOS cache. No threshold moves. Engine run next.
 
 [2026-09-11 10:40] GROK: 427/428/429 done. Honest coverage **0.8691** after dropping BBBY+SBNY (was 0.8697). AVB/EQR/WBS/MDV/ISSC kept as 2026 M&A/rename. `coverage.json` now carries honest_window 2010-2026, ghost_names 547, spliced_dropped [BBBY, SBNY].
@@ -1330,7 +1332,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   afirme que el JSON escrito los lleva. Barato, y es lo que impide que dentro de dos meses alguien
   cite el panel como si fuera 2005-2026 con membresia real.
   `Files:` `experiments/build_russell_pit.py`, `test_build_russell_pit.py`.
-- [~] `TASK-431` **Bloque A/1 — correr el prereg de Russell PIT, exactamente como esta congelado.**
+- [x] `TASK-431` **Bloque A/1 — correr el prereg de Russell PIT, exactamente como esta congelado.** INCONCLUSIVE (`2c539b0`).
   El panel existe (`_sweep_cache_russell/`, 6048 nombres, cobertura honesta **86,91 %**, ventana
   2010-2026). Lo que falta es el motor encima, y la disciplina es el valor: **ni un umbral se mueve
   despues de mirar el resultado**. Aceptacion: `.comms/prereg-russell-pit-2026-09-08.md` se ejecuta
