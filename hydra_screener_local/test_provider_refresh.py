@@ -4,8 +4,10 @@ The HARD gate is unchanged. These tests never hit the network.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -233,3 +235,62 @@ def test_a_good_run_still_records_itself(monkeypatch):
                         lambda groups, universe=None: seen.update(groups=groups, universe=universe))
     assert V._save_print_quality({"etf": {"print_share": 1.0}}, "all", silent=True) is True
     assert seen["universe"] == "all" and seen["groups"]["etf"]["print_share"] == 1.0
+
+
+def test_the_first_run_floor_is_the_preflight_threshold_not_a_copy():
+    """One definition. A diagnostic that disagreed with its own gate would mislead."""
+    import config
+    import preflight as PF
+    from data.fetch import first_run_low_share as f
+
+    assert PF.PRINT_SHARE_WARN is config.PRINT_SHARE_WARN
+    just_under = {"etf": {"print_share": config.PRINT_SHARE_WARN - 1e-9, "last_bar": "x"}}
+    just_over = {"etf": {"print_share": config.PRINT_SHARE_WARN, "last_bar": "x"}}
+    assert [h["group"] for h in f(just_under)] == ["etf"]
+    assert f(just_over) == []
+
+
+def _manifest(run_dir, *, exit_status=0, print_quality=None, universe="all"):
+    run_dir.mkdir(parents=True, exist_ok=True)
+    man = {"exit_status": exit_status,
+           "inputs": {"universe": universe, "print_quality": print_quality}}
+    (run_dir / "manifest.json").write_text(json.dumps(man), encoding="utf-8")
+    return run_dir
+
+
+def test_manifest_fallback_is_the_reference_when_there_is_no_sidecar(tmp_path):
+    """TASK-422: exercised with an explicit runs_dir, not with whatever this disk holds.
+
+    These branches used to be covered — or not — depending on the operator's gitignored
+    `runs/`, which is what made two coverage runs of the same commit disagree. The fence is
+    in `conftest.py`; this is the other half, covering them on purpose.
+    """
+    good = {"universe": "all",
+            "groups": {"etf": {"print_share": 1.0, "last_bar": "2026-09-08"}}}
+    _manifest(tmp_path / "20260907T210000Z", exit_status=1, print_quality=good)
+    _manifest(tmp_path / "20260908T210000Z", exit_status=0, print_quality=good)
+    assert not (tmp_path / "last_ok_print_quality.json").exists()
+
+    rec = load_last_ok_print_quality(runs_dir=tmp_path, universe="all")
+    assert rec == good, "the newest run with exit_status 0 is the reference"
+
+    # A failed run is not a reference, and neither is a manifest without print quality.
+    only_bad = tmp_path / "bad"
+    _manifest(only_bad / "20260908T210000Z", exit_status=2, print_quality=good)
+    _manifest(only_bad / "20260909T210000Z", exit_status=0, print_quality=None)
+    assert load_last_ok_print_quality(runs_dir=only_bad, universe="all") is None
+    # Another universe is not a reference for this one.
+    assert load_last_ok_print_quality(runs_dir=tmp_path, universe="sp500") is None
+    # No runs directory at all: no reference, no exception.
+    assert load_last_ok_print_quality(runs_dir=tmp_path / "nope", universe="all") is None
+
+
+def test_the_suite_never_reads_the_operators_runs_directory():
+    """The fence itself, pinned: without it, coverage is a property of this disk."""
+    import conftest
+    from utils import runlog
+
+    assert conftest.TEST_RUNS_MARKER in str(runlog.DEFAULT_RUNS_DIR), (
+        "conftest must redirect DEFAULT_RUNS_DIR before any test module is imported"
+    )
+    assert Path(runlog.DEFAULT_RUNS_DIR) != Path(__file__).resolve().parent / "runs"
