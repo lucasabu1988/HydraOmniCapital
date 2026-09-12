@@ -286,20 +286,36 @@ def _interest_by_year(interest: list, book: pd.Series) -> list:
 
 
 def _yearly(engine: pd.Series, lab_net: pd.Series | None) -> list:
+    """One row per calendar year, every number read on the year ALONE except where named.
+
+    `engine_net` and `engine_sharpe` describe the year standing by itself, so the drawdown
+    beside them is `metrics.annual_max_drawdown(..., peak="year")`: the high-water mark resets
+    on 1 Jan and is floored at the capital standing there, which is what makes a year that
+    OPENS with a loss report that loss instead of a zero. The old form here reset the peak but
+    took `cummax` of the post-first-return curve, so the first step of every year could never
+    be a drawdown -- the one case this table most needed to show.
+
+    `engine_dd_carry` is the other question, kept beside it because both are legitimate and
+    the pair is the only way to see which one a reader is looking at: the peak is carried in
+    from the whole history, so a year that never regains an older high stays under water. It
+    is deeper than `engine_dd` in most years and it is NOT comparable to `engine_net`.
+    """
     r = engine.pct_change().dropna()
     # Lab mix row dated t is the return of t+1..t+6; shift so calendar years match the engine mark.
     lab = lab_net.shift(1).dropna() if lab_net is not None else None
     rows = []
     years = sorted(set(r.index.year) | (set(lab.index.year) if lab is not None and len(lab) else set()))
     py = 252.0 / STEP
+    dd_year = M.annual_max_drawdown(r, peak="year")
+    dd_carry = M.annual_max_drawdown(r, peak="carry")
     for year in years:
         g = r[r.index.year == year]
         row = dict(year=int(year), n_engine=int(len(g)))
         if len(g):
-            eq = (1 + g).cumprod()
             row["engine_net"] = round(float((1 + g).prod() - 1) * 100, 1)
             row["engine_sharpe"] = round(float(g.mean() / g.std() * np.sqrt(py)), 2) if g.std() else 0.0
-            row["engine_dd"] = round(float((eq / eq.cummax() - 1).min()) * 100, 1)
+            row["engine_dd"] = round(dd_year[int(year)], 1)
+            row["engine_dd_carry"] = round(dd_carry[int(year)], 1)
         if lab is not None:
             lg = lab[lab.index.year == year]
             row["n_lab"] = int(len(lg))

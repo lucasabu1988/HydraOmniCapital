@@ -43,6 +43,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, ROOT)
 
 import engine_backtest as EB  # noqa: E402
+import metrics as M  # noqa: E402
 import redesign_lab as L  # noqa: E402
 from config import MAX_PER_SECTOR, V9  # noqa: E402
 from core.portfolio_engine import select_tranche_names  # noqa: E402
@@ -173,13 +174,31 @@ def _streaks(over) -> dict:
 
 
 def _drawdown_attribution(df: pd.DataFrame, sector_returns: list) -> dict:
-    """Sector contribution inside the sleeve's worst peak-to-trough window."""
+    """Sector contribution inside the sleeve's worst peak-to-trough window.
+
+    The under-water path comes from `metrics.drawdown_curve`, the one definition in the repo,
+    so the high-water mark is floored at the capital that went in. That floor is what lets the
+    window start BEFORE the first step: if the sleeve never traded above par, the peak is the
+    money put in rather than whatever was left after the first losing step, and the blame has
+    to cover that step too. `peak_is_initial_capital` says when that happened, because in that
+    case `peak_date` is the first mark of the sleeve and not a date the peak was struck on.
+    """
     r = pd.Series(df["step_return"].values, index=pd.DatetimeIndex(df["date"]))
+    if r.isna().any():
+        # `drawdown_curve` drops NaNs, and `sector_returns` is indexed by POSITION in `df`.
+        # A hole would silently shift the blame window onto the wrong steps, so refuse.
+        raise ValueError("step_return has NaNs: the drawdown window would not line up with "
+                         "the per-step sector contributions")
     eq = (1 + r).cumprod()
-    dd = eq / eq.cummax() - 1
+    dd = M.drawdown_curve(r)
     trough = int(np.argmin(dd.values))
-    peak = int(np.argmax(eq.values[: trough + 1])) if trough > 0 else 0
-    window = range(peak + 1, trough + 1)
+    from_capital = bool(float(eq.values[: trough + 1].max()) <= 1.0)
+    if from_capital:
+        peak = 0
+        window = range(0, trough + 1)
+    else:
+        peak = int(np.argmax(eq.values[: trough + 1])) if trough > 0 else 0
+        window = range(peak + 1, trough + 1)
     contrib = {}
     for i in window:
         for s, v in sector_returns[i].items():
@@ -188,6 +207,7 @@ def _drawdown_attribution(df: pd.DataFrame, sector_returns: list) -> dict:
     return dict(
         maxdd_pct=round(float(dd.min()) * 100, 2),
         peak_date=str(r.index[peak].date()), trough_date=str(r.index[trough].date()),
+        peak_is_initial_capital=from_capital,
         steps_in_window=len(window),
         worst_sectors=[dict(sector=s, sum_of_step_contributions_pct=round(v * 100, 2))
                        for s, v in ordered[:5]],
