@@ -147,7 +147,9 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
 
     duration = time.perf_counter() - start
     output = (result.stdout + result.stderr).strip()
-    if verbose:
+    # A failing file prints in full: the 6-line tail hides every failure but the last,
+    # so a red run named one test out of twelve. Passing files stay on the tail.
+    if verbose or result.returncode != 0:
         print(output)
     else:
         lines = output.splitlines()
