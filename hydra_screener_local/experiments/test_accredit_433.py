@@ -17,6 +17,20 @@ import cost_stress as CS  # noqa: E402
 import provenance as PV  # noqa: E402
 
 
+#: These read books that live only on the lab machine. `_lab_scratch/`, like `state*/` and
+#: `journal*/`, is gitignored, so on a clean checkout the file is absent and the test would
+#: fail on the missing input rather than on the invariant it is there to pin. It skips with
+#: the path named; it is not weakened, and it runs wherever the book exists.
+RUSSELL_COVERAGE = os.path.join(HERE, "_lab_scratch", "russell_prereg_cache", "coverage.json")
+needs_russell_inputs = pytest.mark.skipif(
+    not os.path.exists(RUSSELL_COVERAGE),
+    reason="_lab_scratch/russell_prereg_cache/coverage.json is gitignored: absent here",
+)
+needs_withdrawn_artifact = pytest.mark.skipif(
+    not os.path.exists(A.WITHDRAWN_JSON),
+    reason="_lab_scratch/task433_accredited.json is gitignored: absent here",
+)
+
 def _book(n=8, start="2010-06-28"):
     idx = pd.bdate_range(start, periods=n, freq="5B")
     return pd.Series([1.0 + 0.01 * i for i in range(n)], index=idx)
@@ -86,6 +100,48 @@ def test_russell_start_date_refuses_rather_than_guessing(monkeypatch, tmp_path):
         A.russell_start_date()
 
 
+@needs_russell_inputs
+def test_a_book_driven_on_another_panel_is_refused_by_name_of_the_input(monkeypatch, tmp_path):
+    """The comparison `provenance._check_data` does not make: stored block vs REQUESTED block."""
+    monkeypatch.setattr(A, "ACC_DIR", str(tmp_path))
+    book = _book()
+    path = A.acc_path("sp500", "base")
+    # a manifest whose data block is the RUSSELL panel's, beside a book in the sp500 slot
+    req = dict(data=PV.data_identity(CS.data_inputs("russell")))
+    PV.write_manifest(book, A.not_historical(path), req)
+
+    A.data_answers("russell", path)                       # the panel it was actually driven on
+    with pytest.raises(A.PanelMismatch) as exc:
+        A.data_answers("sp500", path)
+    msg = str(exc.value)
+    assert "PANEL MISMATCH [data:" in msg
+    assert "driven on a different panel" in msg
+    # the logical name is inside the tag, so the message is a diagnosis and not a bare 'data'
+    assert any(f"[data:{name}]" in msg for name in ("membership", "coverage", "price_close",
+                                                    "sp500_pit_payload"))
+
+
+@needs_russell_inputs
+def test_an_unaccreditable_file_in_the_accredited_slot_stops_the_run_and_is_left_alone(
+        monkeypatch, tmp_path):
+    """`produce` never overwrites: a file it cannot accredit is a refusal, not a re-drive."""
+    monkeypatch.setattr(A, "ACC_DIR", str(tmp_path))
+    path = A.not_historical(A.acc_path("russell", "stress"))
+    assert str(tmp_path) in path, "the fixture must never be written outside tmp_path"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    pd.to_pickle(_book(), path)                            # no manifest at all -> unaccredited
+    before = open(path, "rb").read()
+
+    def _must_not_drive(*a, **kw):
+        raise AssertionError("produce() drove the engine over an existing file")
+
+    monkeypatch.setattr(CS, "drive", _must_not_drive)
+    with pytest.raises(SystemExit, match="never overwrites a book"):
+        A.produce("russell", "stress")
+    assert open(path, "rb").read() == before
+    assert not os.path.exists(PV.manifest_path(path))
+
+
 def test_reconcile_reports_the_historical_books_without_touching_them(monkeypatch, tmp_path):
     """With no accredited book at all, the historical table is still produced and nothing moves."""
     monkeypatch.setattr(A, "ACC_DIR", str(tmp_path / "acc"))
@@ -129,3 +185,23 @@ def test_the_inference_rule_travels_with_the_measurement():
     assert "never independent evidence" in CS.INFERENCE_RULE
     for panel in ("russell", "sp500"):
         assert "back-solved" in A.INFERRED_TURNOVER_PCT[panel]["source"]
+
+
+@needs_withdrawn_artifact
+def test_the_withdrawn_result_cannot_be_read_as_current():
+    """A comment in the writer does not change what a reader loads.
+
+    The withdrawn artifact still sits at the path consumers knew, so the refusal has to be in
+    the accessor, and a new run must publish somewhere unambiguous rather than overwrite it.
+    """
+    import pytest
+    with pytest.raises(ValueError, match="WITHDRAWN on 2026-09-12"):
+        A.current_result(A.WITHDRAWN_JSON)
+    assert os.path.exists(A.WITHDRAWN_JSON), "the historical artifact must be preserved"
+    assert os.path.exists(A.WITHDRAWAL_NOTE), "the withdrawal record must sit beside it"
+    assert os.path.abspath(A.OUT_JSON) != os.path.abspath(A.WITHDRAWN_JSON), \
+        "a new run must not overwrite the preserved artifact"
+    # and with no replacement yet, asking for the current result is a refusal, not a fallback
+    if not os.path.exists(A.OUT_JSON):
+        with pytest.raises(FileNotFoundError, match="TASK-433 is OPEN"):
+            A.current_result()
