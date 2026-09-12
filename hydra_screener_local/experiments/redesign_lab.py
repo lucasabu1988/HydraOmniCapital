@@ -294,8 +294,21 @@ def load_panel(oos=True, sectors="fixed", sectors_date=None, *, pit_dir=None,
         P.CACHE_DIR = cache_dir or bvs.CACHE
         P.PIT_META = None
     _normalize_panel_axes(P)
-    return prepare_panel(P, sectors=sectors, sectors_date=sectors_date, pit_dir=pit_dir,
-                         require_contemporaneous=require_contemporaneous)
+    P = prepare_panel(P, sectors=sectors, sectors_date=sectors_date, pit_dir=pit_dir,
+                      require_contemporaneous=require_contemporaneous)
+    # TASK-432: say which holdout partitions this panel's dates reach. Informational here - the
+    # mark (`HOLDOUT BREACH`) is stamped by the experiment that declares what it is entitled to.
+    try:
+        import holdout as _HO
+        idx = P.close.index
+        spanned = _HO.partitions_spanned(idx[0], idx[-1])
+        P.HOLDOUT_SPANNED = spanned
+        print(f"[lab] holdout: panel {idx[0].date()}..{idx[-1].date()} spans "
+              f"{'+'.join(spanned) or 'none'} (declaration sha {_HO.PINNED_HOLDOUT_SHA256[:12]})", flush=True)
+    except Exception as exc:                                     # noqa: BLE001 — never block a load
+        P.HOLDOUT_SPANNED = None
+        print(f"[lab] holdout: not evaluated ({exc!r})", flush=True)
+    return P
 
 
 def prepare_panel(P, sectors="fixed", sectors_date=None, pit_dir=None, *, require_contemporaneous=False):

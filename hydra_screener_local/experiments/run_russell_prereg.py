@@ -32,6 +32,7 @@ sys.path.insert(0, ROOT)
 import engine_backtest as EB  # noqa: E402
 import metrics as M  # noqa: E402
 import redesign_lab as L  # noqa: E402
+import holdout as HO  # noqa: E402
 import sleeve_lab as S  # noqa: E402
 from config import (  # noqa: E402
     ALGO_VERSION,
@@ -615,6 +616,11 @@ def run(cache_dir: str, *, paired_sp: bool = True, redrive_sp: bool = False) -> 
         start_date=str(P.close.index[start].date()),
         note="frozen v9 on Russell PIT; no threshold moved",
     )
+    # TASK-432: this is a frozen, pre-registered run that spans research AND validation on purpose;
+    # it declares so, and the stamp records the read. Anything touching `live` would be marked.
+    payload = HO.stamp(payload, first=payload["engine_first"] or payload["start_date"],
+                       last=payload["engine_last"] or payload["start_date"],
+                       declared="research+validation")
     os.makedirs(os.path.dirname(SCRATCH), exist_ok=True)
     with open(SCRATCH, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2, default=str)
