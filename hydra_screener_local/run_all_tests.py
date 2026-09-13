@@ -47,9 +47,13 @@ ADDITIONAL_TESTS = [
 ]
 
 def discover_tests() -> list[str]:
-    """Auto-discover test_*.py in root and experiments/ (excluding __pycache__ etc)."""
+    """Auto-discover test_*.py in root, experiments/ and tools/ (excluding __pycache__ etc).
+
+    tools/ was missing from this list, so tools/test_write_isolation.py - the only coverage of
+    the write barrier - never ran in CI at all from the commit that added it.
+    """
     found = []
-    for pattern in ["test_*.py", "experiments/test_*.py"]:
+    for pattern in ["test_*.py", "experiments/test_*.py", "tools/test_*.py"]:
         for f in glob.glob(pattern):
             if f not in found and not f.startswith("__"):
                 found.append(f.replace("\\", "/"))
@@ -147,7 +151,9 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
 
     duration = time.perf_counter() - start
     output = (result.stdout + result.stderr).strip()
-    if verbose:
+    # A failing file prints in full: the 6-line tail hides every failure but the last,
+    # so a red run named one test out of twelve. Passing files stay on the tail.
+    if verbose or result.returncode != 0:
         print(output)
     else:
         lines = output.splitlines()
