@@ -41,7 +41,10 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Screener test suite + coverage
-        run: python run_all_tests.py --cov --strict-console
+        run: >
+          python run_all_tests.py --cov --strict-console
+          --report reports/run.json
+          --report-token ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.python-version }}
 
       # Phase 10.4 / TASK-419: ratcheted 80.0 -> 81.0. Two Windows runs of this
       # commit measured 82.33% and 82.35% (one statement of jitter in data/fetch.py).
@@ -51,11 +54,16 @@ jobs:
         if: matrix.python-version == '3.12'
         run: python tools/check_coverage.py --min 81.25
 
-      # Phase 10.5: a skip is not a pass. This fails when a *new* file starts
-      # skipping, and names the ones that are expected and why.
+      # Phase 10.5 / HYDRA-CI-02: a skip is not a pass, per CASE and not only per file.
+      # It reads the report the step above wrote, bound to THIS invocation by token, so
+      # a residual file from an earlier run cannot satisfy it - and it no longer re-runs
+      # the whole suite a second time to get its own copy of the results.
       - name: Skips are visible and explained
         if: matrix.python-version == '3.12'
-        run: python tools/check_skips.py
+        run: >
+          python tools/check_skips.py
+          --from-report reports/run.json
+          --expect-token ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.python-version }}
 
       - name: Upload coverage XML
         if: matrix.python-version == '3.12'
