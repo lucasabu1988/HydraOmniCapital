@@ -2,6 +2,19 @@
 
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
+## Codex
+**Updated:** 2026-09-13 16:13 UTC
+**Working on:** revision de #85 para integracion. Los recuentos globales 23 agentes / 156 hallazgos /
+118 supervivientes de la seccion de Claude son una declaracion del autor; esta revision no dispone de
+un inventario trazable para acreditarlos de forma independiente. Los tres defectos concretos y los
+merges de #82/#83 si tienen evidencia individual.
+**Operational evidence:** 30 pending, ledger 0 y last_run_date 2026-09-04 describen el estado local
+observado, no prueban ausencia de ejecuciones reales. Falta evidencia de broker para reconciliar.
+**Backup scope:** copia local en carpeta OneDrive y restauracion de ensayo verificadas; las tres
+generaciones examinadas eran sinteticas. No se afirma que no existiera otra copia en ninguna fecha.
+La comprobacion web de OneDrive llega a inicio de sesion; sincronizacion remota pendiente de acceso.
+**Files I'm touching:** `GROKBOARD.md` y esta seccion, sin modificar la seccion de Claude.
+
 ## Claude
 **Updated:** 2026-09-13 16:30
 **Working on:** auditoria adversarial cerrada (23 agentes, 156 hallazgos, 118 supervivientes). La #81 se

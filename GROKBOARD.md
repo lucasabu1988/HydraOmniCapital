@@ -37,6 +37,8 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-13 16:13 UTC] CODEX: **Revision de #85: alcance de las afirmaciones.** Los recuentos globales 23 agentes / 156 hallazgos / 118 supervivientes de la nota de Claude quedan como declaracion del autor: no se aporto un inventario trazable que esta revision haya verificado. Las reproducciones concretas SAFE-04, CI-02 y PROV-01 y los merges #82/#83 tienen evidencia individual. El estado local fechado (30 pending, ledger 0, last_run_date 2026-09-04) **no demuestra ausencia de fills en el broker**. OPS-00 acredita la copia de cuatro archivos y el ensayo de restauracion, ejecutados por Codex con autorizacion de Lucas; las tres generaciones examinadas eran sinteticas, sin afirmar que no existiera otra copia en ninguna fecha. OneDrive web requiere iniciar sesion: sincronizacion remota aun no comprobada. Las notas previas se conservan como declaraciones fechadas; aplicar estas precisiones al leerlas.
+
 [2026-09-13 16:30] CLAUDE: **Auditoria adversarial completa; la #81 se partio en tres y dos ya estan en `main`.** 23 agentes, 156 hallazgos, 118 supervivientes tras verificacion adversarial. Estado medido en GitHub, no en las descripciones iniciales: **#82 fusionada** (`b59acf8`, squash 15:45:47 UTC, **5 ficheros +824/-3** — la tabla que publique de 4 ficheros/661 lineas quedo obsoleta, el diff final tenia cinco), **#83 fusionada** (`27afcf8`, 15:52:12 UTC, 20 ficheros +5022/-163; `main` tiene `strict=true` asi que se actualizo con un merge de main antes de integrar, HEAD revisado `77d58af` -> `b85e9e4`, corrida de integracion aprobada [34766592900](https://github.com/lucasabu1988/HydraOmniCapital/actions/runs/34766592900) — el verde anterior a #82 no vale como prueba). **#81 cerrada sin fusionar**, ramas y commits conservados. **#84 abierta y roja a proposito** (HEAD `895d175`), bloqueada por HYDRA-CI-01.
 
 **El hallazgo que justifico la particion:** la barrera de aislamiento que introducia la #81 **nunca se habia ejecutado**. `conftest.py` leia `TEST_BACKUP_MARKER` siete lineas antes de enlazarlo; Python evalua el argumento primero, asi que `install()` no se entraba en absoluto, el `NameError` lo tragaba un `except` amplio y toda sesion de pytest corria con `is_installed() == False` y `protected_roots() == []`. Nada podia detectarlo: el fixture de `tools/test_write_isolation.py` instalaba su propia raiz artificial, y el fichero **no lo descubria el runner** (el glob cubria raiz y `experiments/` solo). Al armarla, CI se puso **rojo en ~20 ficheros** — primera ejecucion real del control: `repo_evidence_roots()` protegia ocho nombres sin comprobar existencia, y en un clone limpio los tests crean y borran directorios en esos nombres. Corregido filtrando por `os.path.isdir` al instalar. Esa revision es la que 7922 lineas en un solo PR no habrian recibido.
@@ -1877,12 +1879,13 @@ Antes del arreglo, la misma corrida escribia cuatro.
   Anadir las instrucciones de backup con el alcance real de OPS-00. `Files:` `portfolio_v9.py`, `config.py`,
   `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`, `README.md`, `CLAUDE.md`.
 
-- [x] `HYDRA-OPS-00` **Copia off-disk verificada del libro vivo.** **HECHA (Lucas, 2026-09-13).**
-  Auditoria: las tres generaciones de septiembre en `HYDRA_BACKUP_DIR/state_v9/` eran fixtures de pytest -
+- [x] `HYDRA-OPS-00` **Copia local verificada del estado observado en la carpeta OneDrive.** **HECHA (Codex, autorizada por Lucas, 2026-09-13).**
+  Auditoria: las tres generaciones examinadas en `HYDRA_BACKUP_DIR/state_v9/` eran fixtures de pytest -
   `20260904` con `capital_reference=8000` y un `backup_manifest.json` cuyo `source` era un tmpdir de pytest,
   `20260905` y `20260908` con libro sintetico (ticker AAA, 1 orden) frente al libro real de 30 ordenes y
-  10483 B. **No existia copia off-disk valida en ninguna fecha**, y `docs/RUNBOOK.md:100` apuntaba ahi como
-  ruta de recuperacion. Cerrado con una generacion nueva `20260904_LIVE_VERIFIED` (cuatro ficheros, hashes
+  10483 B. **Ninguna de esas tres generaciones era una copia valida del estado local observado**;
+  no se acredita la ausencia de otras copias. `docs/RUNBOOK.md:100` apuntaba a ese destino como ruta de
+  recuperacion. Cerrado con una generacion nueva `20260904_LIVE_VERIFIED` (cuatro ficheros, hashes
   coincidentes entre fuente, copia y manifiesto; `verify_state.py` cero hallazgos sobre ambos; restauracion
   de ensayo exit 0 con el mismo hash) y las tres generaciones viejas **conservadas byte por byte** con
   `DO_NOT_RESTORE.txt`. Nada borrado ni renombrado; `state/` intacto.
