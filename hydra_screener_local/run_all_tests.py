@@ -12,6 +12,7 @@ Exit code 0 if all pass, 1 if any fail.
 import argparse
 import datetime
 import glob
+import json
 import os
 import re
 import atexit
@@ -74,9 +75,103 @@ def discover_tests() -> list[str]:
     ordered.extend(sorted(found))
     return ordered
 
+# --------------------------------------------------------------------------------------------
+# SAFE-04: arm the barrier in the CHILDREN too.
+#
+# `write_isolation` patches one process. Nine files here run as SCRIPTS, and a script loads no
+# conftest, so those children had no barrier at all: measured on 27afcf8, the parent refused a
+# write to a decoy and its child performed the same write and exited 0.
+#
+# The roots are resolved HERE, at import time, for two reasons. `repo_evidence_roots()` reads
+# HYDRA_BACKUP_DIR from the environment, and `test_backup_dir()` below rebinds it to a
+# throwaway - resolving afterwards would hand the children the disposable directory and leave
+# the real one open. And `screener=ROOT` is passed explicitly so the answer does not depend on
+# the cwd the runner happened to be launched from.
+# --------------------------------------------------------------------------------------------
+BOOTSTRAP_DIR = str(ROOT / "tools" / "_bootstrap")
+EXIT_BOOTSTRAP_FAILED = 97
+
+
+def real_evidence_roots() -> list[str]:
+    """Evidence roots as they are BEFORE any test redirect, minus disposable destinations."""
+    try:
+        import write_isolation as _WI
+    except Exception as exc:                       # noqa: BLE001 - reported, then fatal below
+        print(f"[runner] cannot import write_isolation: {exc!r}", file=sys.stderr)
+        return None
+    roots = _WI.repo_evidence_roots(screener=str(ROOT))
+    return [r for r in roots if TEST_BACKUP_MARKER not in r.lower()]
+
+
+def build_child_env(base: dict) -> dict:
+    """Environment that arms tools/_bootstrap/sitecustomize.py in the child.
+
+    The child resolves the repo-local evidence directories ITSELF, at its own start: this
+    runner resolves its list once at import, and on a clean checkout `experiments/_lab_scratch/`
+    does not exist yet - an earlier test file creates it, and a later child would then run
+    beside a real evidence directory the frozen list never mentioned. Measured on a clean clone.
+
+    The backup root is the exception and the reason the parent is involved at all: by the time
+    a child starts, `test_backup_dir()` has rebound HYDRA_BACKUP_DIR to a throwaway, so the
+    real value has to be captured here, before that, and handed over.
+    """
+    env = dict(base)
+    env["HYDRA_WRITE_BARRIER"] = "1"
+    env["HYDRA_SCREENER_DIR"] = str(ROOT)
+    env["HYDRA_WRITE_BARRIER_BACKUP_ROOT"] = _REAL_BACKUP_ROOT or ""
+    env.pop("HYDRA_WRITE_BARRIER_ROOTS", None)   # the child resolves; tests override explicitly
+    prior = env.get("PYTHONPATH", "")
+    if BOOTSTRAP_DIR not in prior.split(os.pathsep):
+        env["PYTHONPATH"] = BOOTSTRAP_DIR + (os.pathsep + prior if prior else "")
+    return env
+
+
+def canary(env: dict) -> tuple[bool, str]:
+    """Prove the bootstrap is live in a child of THIS invocation, before trusting it.
+
+    A missing `sitecustomize` is silent: PYTHONPATH can be stripped, or the interpreter
+    started with -S or -E, and nothing would say so. So one child is asked to report what it
+    sees, and the suite does not start if the answer is wrong.
+    """
+    probe = (
+        "import json,sys,os;"
+        "sys.path.insert(0, os.environ['HYDRA_BARRIER_TOOLS']);"
+        "import write_isolation as W;"
+        "print(json.dumps({'installed': W.is_installed(), 'roots': W.protected_roots()}))"
+    )
+    env = dict(env, HYDRA_BARRIER_TOOLS=str(ROOT / "tools"))
+    r = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", env=env, cwd=str(ROOT), timeout=120)
+    if r.returncode != 0:
+        return False, f"canary exited {r.returncode}: {(r.stderr or '').strip()[:300]}"
+    try:
+        seen = json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception as exc:                       # noqa: BLE001
+        return False, f"canary output unreadable ({exc}): {r.stdout.strip()[:200]!r}"
+    if not seen.get("installed"):
+        return False, "the child reported the barrier NOT installed"
+    got = [r for r in seen.get("roots", [])]
+    for r in got:
+        if TEST_BACKUP_MARKER in r.lower():
+            return False, f"a child is protecting a throwaway backup dir as evidence: {r}"
+    if _REAL_BACKUP_ROOT and not any(
+            os.path.normcase(r) == os.path.normcase(_REAL_BACKUP_ROOT) for r in got):
+        return False, ("the child did not arm the real backup root "
+                       f"{_REAL_BACKUP_ROOT!r}; it would be writable")
+    return True, f"{len(got)} root(s) armed in children"
+
+
 #: Marks a throwaway backup destination; conftest.py uses the same marker.
 TEST_BACKUP_MARKER = "hydra-test-backup"
 _TEST_BACKUP_DIR = None
+
+#: Resolved once, at import, BEFORE test_backup_dir() rebinds HYDRA_BACKUP_DIR.
+#: None means write_isolation could not be imported at all - a hard stop, not a warning.
+_REAL_ROOTS = real_evidence_roots()
+
+#: The backup root as it is on this machine, captured before any redirect. The children
+#: cannot work this out for themselves once the variable has been rebound.
+_REAL_BACKUP_ROOT = (os.environ.get("HYDRA_BACKUP_DIR") or "")     if TEST_BACKUP_MARKER not in (os.environ.get("HYDRA_BACKUP_DIR") or "").lower() else ""
 
 #: A REAL main guard, not the string "__main__" anywhere in the file. The substring test
 #: sent every pytest module whose docstring merely mentions __main__ (nine of them on the
@@ -139,7 +234,7 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
     suffix = "" if how == "script" else f"  [via {how}]"
     print(f"\n=== {test_file} ==={suffix}")
     start = time.perf_counter()
-    env = os.environ.copy()
+    env = build_child_env(os.environ)
     env["HYDRA_BACKUP_DIR"] = test_backup_dir()
     if extra_env:
         env.update(extra_env)
@@ -189,6 +284,10 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
     if result.returncode == 0:
         print(f"[PASS] {test_file} ({duration:.2f}s)")
         return _record(test_file, how, "pass", duration, junit_path)
+    if result.returncode == EXIT_BOOTSTRAP_FAILED:
+        print(f"[FAIL] {test_file}: the write-isolation bootstrap refused to arm; the file\n               was NOT run. This is a broken barrier, not a failing test.")
+        return _record(test_file, how, "fail", duration, junit_path,
+                       note="write-isolation bootstrap failed; the file did not run")
     print(f"[FAIL] {test_file} (exit {result.returncode}, {duration:.2f}s)")
     return _record(test_file, how, "fail", duration, junit_path,
                    note=f"exit {result.returncode}")
@@ -251,6 +350,17 @@ def main():
     if args.strict_console:
         print("(strict-console: PYTHONIOENCODING=cp1252:strict)")
     print()
+
+    if _REAL_ROOTS is None:
+        print("[runner] write_isolation is not importable: refusing to run the suite "
+              "unprotected (SAFE-04).")
+        return EXIT_BOOTSTRAP_FAILED
+    ok, detail = canary(build_child_env(os.environ))
+    if not ok:
+        print(f"[runner] write-isolation bootstrap check FAILED: {detail}")
+        print("[runner] children would run unprotected; refusing to start (SAFE-04).")
+        return EXIT_BOOTSTRAP_FAILED
+    print(f"(write isolation: {detail})")
 
     passed = 0
     skipped = 0
