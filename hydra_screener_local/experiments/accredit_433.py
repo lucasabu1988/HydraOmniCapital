@@ -152,7 +152,15 @@ def engine_path(panel: str, label: str) -> str:
 def anchor_calendar() -> dict | None:
     """The requested calendar for every book after the first: the accredited Russell base's."""
     path = acc_path("russell", "base")
-    if not os.path.exists(path) or PV.classify(path) != PV.ACCREDITED:
+    # The anchor is the grid every other book is compared to, so a seal-only check here
+    # would let an unvalidated book define the calendar the rest are measured against.
+    # `russell/base` declares itself the anchor, so its own request carries calendar=None.
+    if not os.path.exists(path):
+        return None
+    try:
+        PV.accredit(path, CS.request("russell", "base", *scenario_bp("base"), calendar=None),
+                    echo=False)
+    except (PV.CacheRejected, PanelMismatch):
         return None
     return PV.calendar_block(pd.read_pickle(path))
 
@@ -164,9 +172,73 @@ def russell_start_date() -> str:
     return str(pd.Timestamp(pd.read_pickle(path).index[0]).date())
 
 
-def accredited_state(panel: str, label: str) -> str:
+#: An `uncompared` block is only acceptable when the reason is one the contract already
+#: names: a value derived from a field that IS compared, or the calendar of the anchor book
+#: itself, which defines the grid every other book is measured against. Anything else means a
+#: block went uncompared for a reason nobody wrote down, and that cannot add up to "fully
+#: accredited" (HYDRA-PROV-01).
+def _permitted_uncompared(field: str, why: str) -> bool:
+    if field in PV.DERIVED_BLOCKS:
+        return why == PV.DERIVED_BLOCKS[field]
+    return field == "calendar" and why.startswith("declared anchor")
+
+
+def effective_request(panel: str, label: str) -> dict:
+    """The request this scenario IS, built from the scenario, not from the file being judged.
+
+    Copying the stored manifest into the request would only compare the artifact with itself.
+    The cost pair comes from the scenario table and the calendar from the anchor book, exactly
+    as `produce()` builds it when it drives the scenario.
+    """
+    s_bp, e_bp = scenario_bp(label)
+    anchor = anchor_calendar() if (panel, label) != ("russell", "base") else None
+    return CS.request(panel, label, s_bp, e_bp, calendar=anchor)
+
+
+def accredit_answer(panel: str, label: str, *, echo: bool = False) -> dict:
+    """Does the book in the accredited slot ANSWER for this scenario? Ask `accredit`, not the seal.
+
+    HYDRA-PROV-01: this used to be `PV.classify(path)`, which checks only that a manifest is
+    present and that its own seal verifies. Measured on 27afcf8, with nothing but synthetic
+    data: eight books whose manifests held `{fixture_only: true, self_sha256: ...}` and nothing
+    else were all reported `accredited`, the aggregate said `fully_accredited: true`, and
+    `PV.accredit` was never called once. No identity block was ever compared.
+
+    So the consumer now builds the effective request and runs the real validator, and carries
+    what was compared - and what was not, and why - into every row that quotes the result.
+    """
     path = acc_path(panel, label)
-    return "absent" if not os.path.exists(path) else PV.classify(path)
+    if not os.path.exists(path):
+        return dict(state="absent", path=PV._rel(path), book=None,
+                    accreditation=None, rejected=None, seal_class="absent")
+    seal_class = PV.classify(path)
+    try:
+        book, man = PV.accredit(path, effective_request(panel, label), echo=echo)
+        data_answers(panel, path)       # the panel substitution `accredit` does not catch
+    except PV.CacheRejected as exc:
+        return dict(state="rejected", path=PV._rel(path), book=None, accreditation=None,
+                    seal_class=seal_class,
+                    rejected=dict(tag=exc.tag, field=exc.field, message=str(exc)))
+    except PanelMismatch as exc:
+        return dict(state="rejected", path=PV._rel(path), book=None, accreditation=None,
+                    seal_class=seal_class,
+                    rejected=dict(tag="PANEL MISMATCH", field="data", message=str(exc)))
+    acc = man["_accreditation"]
+    unexplained = [f for f in acc["uncompared"]
+                   if not _permitted_uncompared(f, acc["uncompared_why"].get(f, ""))]
+    if unexplained:
+        return dict(state="rejected", path=PV._rel(path), book=None,
+                    accreditation=acc, seal_class=seal_class,
+                    rejected=dict(tag="IDENTITY INCOMPLETE", field=",".join(unexplained),
+                                  message=("blocks left uncompared for a reason the contract "
+                                           f"does not name: {unexplained}")))
+    return dict(state=PV.ACCREDITED, path=PV._rel(path), book=book, accreditation=acc,
+                seal_class=seal_class, rejected=None)
+
+
+def accredited_state(panel: str, label: str) -> str:
+    """ACCREDITED only when the book answers the scenario's own request."""
+    return accredit_answer(panel, label)["state"]
 
 
 class PanelMismatch(Exception):
@@ -268,19 +340,26 @@ def reconcile(irx: pd.Series | None = None) -> dict:
     """
     irx = _irx() if irx is None else irx
     acc_books, hist_books, rows, hist_rows, recs = {}, {}, [], [], []
+    answers: dict[str, dict] = {}
     base_acc, base_hist = {}, {}
     for panel, label in ORDER:
         a_path = acc_path(panel, label)
         s_bp, e_bp = scenario_bp(label)
         h_path = CS.BASE_BOOKS[panel] if label == "base" else CS.book_path(panel, label)
-        a_cls = accredited_state(panel, label)
+        answer = accredit_answer(panel, label)
+        a_cls = answer["state"]
+        answers[f"{panel}/{label}"] = answer
         if a_cls == PV.ACCREDITED:
-            acc_books[f"{panel}/{label}"] = pd.read_pickle(a_path)
+            # The book `accredit` validated, not a second read of the same path.
+            acc_books[f"{panel}/{label}"] = answer["book"]
         if os.path.exists(h_path):
             hist_books[f"{panel}/{label}"] = pd.read_pickle(h_path)
 
         rec = dict(panel=panel, scenario=label, stock_bp=s_bp, etf_bp=e_bp,
                    accredited_class=a_cls,
+                   accreditation=answer["accreditation"],
+                   rejected=answer["rejected"],
+                   seal_class=answer["seal_class"],
                    historical_class=(PV.classify(h_path) if os.path.exists(h_path) else "absent"))
         a_book = acc_books.get(f"{panel}/{label}")
         h_book = hist_books.get(f"{panel}/{label}")
@@ -288,7 +367,13 @@ def reconcile(irx: pd.Series | None = None) -> dict:
         if a_book is not None:
             row = CS.stats_row(a_book, irx, f"{panel}/{label}")
             row.update(panel=panel, scenario=label, stock_bp=s_bp, etf_bp=e_bp,
-                       provenance=PV.ACCREDITED)
+                       provenance=PV.ACCREDITED,
+                       # The evidence travels WITH the number it justifies.
+                       compared=answer["accreditation"]["compared"],
+                       uncompared=answer["accreditation"]["uncompared"],
+                       uncompared_why=answer["accreditation"]["uncompared_why"],
+                       uncompared_keys=answer["accreditation"]["uncompared_keys"],
+                       degraded=answer["accreditation"]["degraded"])
             if label == "base":
                 base_acc[panel] = row
             row.update(CS.deltas(row, base_acc.get(panel, row)))
@@ -344,7 +429,9 @@ def reconcile(irx: pd.Series | None = None) -> dict:
             engine_counts=counts,
             inferred_back_solve=INFERRED_TURNOVER_PCT.get(panel) if label == "base" else None)
 
-    still = [f"{p}/{lab}" for p, lab in ORDER if accredited_state(p, lab) != PV.ACCREDITED]
+    still = [k for k in (f"{p}/{lab}" for p, lab in ORDER)
+             if answers.get(k, {}).get("state") != PV.ACCREDITED]
+    rejections = {k: a["rejected"] for k, a in answers.items() if a.get("rejected")}
     payload = dict(
         task="TASK-433",
         artifact_set="accredited",
@@ -360,19 +447,31 @@ def reconcile(irx: pd.Series | None = None) -> dict:
         turnover=turnover,
         inference_rule=CS.INFERENCE_RULE,
         known_validator_gap=(
-            "provenance._check_data compares the stored data block against the CURRENT BYTES ON "
-            "DISK and never against the REQUESTED one, so a panel swap is invisible to it: asked "
-            "the sp500 question, PV.accredit() hands back the russell book (measured 2026-09-12). "
-            "config.start_bar catches the swap in the other direction only. Every book in this "
-            "set was DRIVEN, not cache-hit, so none of them is affected; accredit_433.data_answers "
-            "is the additive guard, and provenance.py needs the stored-vs-requested comparison."),
+            "CLOSED 2026-09-12 in provenance.py: `_check_data` compares the stored data block "
+            "against the REQUESTED one, so the panel swap it used to miss is caught there now. "
+            "`accredit_433.data_answers` is kept as a second, independent check rather than as "
+            "the only one. What is NOT closed: `self_sha256` is an unkeyed digest produced by "
+            "the same public `seal()` a writer calls, so a deliberate re-seal passes it. "
+            "Integrity of the artifact, compatibility with a request, and statistical "
+            "independence are three different claims; this file can speak to the first two."),
         inferred_turnover_superseded=INFERRED_TURNOVER_PCT,
         published_431=PUBLISHED_431,
         provenance=dict(
-            accredited=[f"{p}/{lab}" for p, lab in ORDER
-                        if accredited_state(p, lab) == PV.ACCREDITED],
+            accredited=[k for k, a in answers.items() if a["state"] == PV.ACCREDITED],
             still_historical_only=still,
-            fully_accredited=not still),
+            rejected=rejections,
+            # Every block each accredited row actually compared, and every one it did not.
+            compared_by_book={k: a["accreditation"]["compared"]
+                              for k, a in answers.items() if a["accreditation"]},
+            uncompared_by_book={k: a["accreditation"]["uncompared_why"]
+                                for k, a in answers.items() if a["accreditation"]},
+            uncompared_keys_by_book={k: a["accreditation"]["uncompared_keys"]
+                                     for k, a in answers.items() if a["accreditation"]},
+            # `not still` alone was the defect: it only ever asked whether a manifest was
+            # present and self-sealed. It now means every expected book ANSWERED its own
+            # effective request, with no identity block left uncompared for an unnamed reason.
+            fully_accredited=(not still) and len(answers) == len(ORDER),
+            validated_by="provenance.accredit against the scenario's effective request"),
     )
     if acc_books:
         first = min(str(pd.Timestamp(b.index[0]).date()) for b in acc_books.values())
