@@ -406,6 +406,14 @@ def repo_evidence_roots(screener=None):
                 "[write-isolation] Install the barrier BEFORE conftest._redirect_backup_dir().\n"
                 % backup)
         roots.append(backup)
+    # Only directories that EXIST hold evidence. A name that is not on disk has nothing to
+    # destroy, and protecting it turns an honest throwaway into a refusal: on a clean CI
+    # checkout `journal/`, `state/` and `state_paper/` are absent, tests legitimately create
+    # and remove directories at those names, and `os.rmdir('journal')` was refused in
+    # test_backup_isolation, test_bar_store, test_dashboard_v9 and ~20 more (run 34765483260).
+    # On a machine that HAS a live book the semantics are unchanged - those directories exist,
+    # so they stay protected. Existence is resolved once, at install time.
+    roots = [r for r in roots if os.path.isdir(r)]
     out, seen = [], set()
     for r in roots:
         try:

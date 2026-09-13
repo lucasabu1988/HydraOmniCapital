@@ -35,8 +35,10 @@ def guarded(tmp_path):
     # dead, because the fixture simply installed its own. The session state is a precondition
     # here, not something to paper over - test_write_barrier_armed.py owns the session claim.
     assert WI.is_installed(), "conftest did not install the barrier; see test_write_barrier_armed.py"
+    # An EMPTY list is legitimate on a bare checkout: roots are filtered to directories that
+    # exist, and a clean clone has no state/, journal/ or _lab_scratch/. Restoring [] restores
+    # the truth. What must not happen is this fixture standing in for an absent barrier.
     real_roots = WI.protected_roots()
-    assert real_roots, "conftest installed the barrier over an empty root list"
     WI.uninstall()
     WI.install(protected=[str(protected)], index_identities=False)
     try:
@@ -104,13 +106,35 @@ def test_the_refusal_cannot_be_swallowed_by_a_bare_except_exception(guarded):
     assert not swallowed, "the refusal was caught by `except Exception`"
 
 
-def test_the_real_roots_are_resolved_and_include_more_than_the_backup_dir():
-    """HYDRA_BACKUP_DIR only ever covered backups that honour it; books and manifests are separate."""
-    roots = [r.lower() for r in WI.repo_evidence_roots()]
+def test_the_real_roots_are_resolved_and_include_more_than_the_backup_dir(tmp_path):
+    """HYDRA_BACKUP_DIR only ever covered backups that honour it; books and manifests are separate.
+
+    Driven against a SYNTHETIC screener dir, not this checkout: roots are filtered to
+    directories that exist, so asserting against the live tree would test which machine ran
+    the suite (all eight present on Lucas's, none on a clean CI clone) instead of the rule.
+    """
+    for rel in ("experiments/_lab_scratch", "state", "state_paper", "journal",
+                "journal_paper", "runs", "history", "backups"):
+        (tmp_path / rel).mkdir(parents=True)
+    roots = [r.lower() for r in WI.repo_evidence_roots(screener=str(tmp_path))]
     assert any("_lab_scratch" in r for r in roots), "the books' own directory must be protected"
     assert any(r.endswith("state") for r in roots)
     assert any("journal" in r for r in roots)
     assert len(roots) >= 5
+
+
+def test_a_root_that_does_not_exist_is_not_protected(tmp_path):
+    """Existence is the test for evidence: an absent directory has nothing to destroy.
+
+    Protecting absent names refused honest throwaways on a clean checkout - `os.rmdir('journal')`
+    at teardown blew up ~20 files on CI run 34765483260 while every one of them passed on a
+    machine where journal/ really existed.
+    """
+    (tmp_path / "state").mkdir()
+    roots = [r.lower() for r in WI.repo_evidence_roots(screener=str(tmp_path))]
+    assert any(r.endswith("state") for r in roots), "an existing evidence dir must be protected"
+    assert not any(r.endswith("journal") for r in roots), \
+        "an absent evidence dir must NOT be protected"
 
 
 def test_the_uncovered_paths_are_written_down_not_implied():
