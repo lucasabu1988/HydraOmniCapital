@@ -217,7 +217,8 @@ def test_junit_parsing_round_trips_a_real_pytest_run(tmp_path):
     xml = tmp_path / "out.xml"
     subprocess.run([sys.executable, "-m", "pytest", str(t), "-q",
                     "--junitxml", str(xml), "-p", "no:cacheprovider"],
-                   capture_output=True, text=True, cwd=str(tmp_path), timeout=180)
+                   capture_output=True, text=True, encoding="utf-8",
+                   errors="replace", cwd=str(tmp_path), timeout=180)
     cases = RR.parse_junit(xml, "test_probe.py")
     by = {c["nodeid"]: c for c in cases}
     assert by["test_probe.py::test_ok"]["outcome"] == RR.PASSED
@@ -250,11 +251,16 @@ def test_the_runner_writes_a_bound_report_with_the_real_exit_code(tmp_path):
     """End to end through run_all_tests.py itself, on a throwaway backup root."""
     env = dict(os.environ)
     env["HYDRA_BACKUP_DIR"] = str(tmp_path / "hydra-test-backup-probe")
+    # Pin the child's console encoding. Under `--strict-console` the runner hands its own
+    # children PYTHONIOENCODING=cp1252:strict, and this test would then be decoding cp1252
+    # bytes as utf-8 - which is how it failed on CI while passing locally.
+    env["PYTHONIOENCODING"] = "utf-8"
     report = tmp_path / "run.json"
     r = subprocess.run(
         [sys.executable, str(ROOT / "run_all_tests.py"), "--fast",
          "--report", str(report), "--report-token", "probe-token"],
-        capture_output=True, text=True, cwd=str(ROOT), env=env, timeout=900)
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=str(ROOT), env=env, timeout=900)
     assert report.exists(), f"the runner wrote no report (exit {r.returncode})"
     rep = RR.read(report, expect_token="probe-token")
     assert rep["exit_code"] == r.returncode, "the report carries the real exit code"
