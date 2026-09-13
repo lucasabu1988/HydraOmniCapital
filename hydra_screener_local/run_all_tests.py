@@ -10,6 +10,7 @@ Exit code 0 if all pass, 1 if any fail.
 """
 
 import argparse
+import datetime
 import glob
 import os
 import re
@@ -22,6 +23,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+sys.path.insert(0, str(ROOT / "tools"))
+import results_report as RR  # noqa: E402
 
 # Captured test output is UTF-8, but this runner's own console may be cp1252
 # (default Windows console). Printing a char like the check mark then raises
@@ -119,8 +122,20 @@ def test_backup_dir() -> str:
     return _TEST_BACKUP_DIR
 
 
-def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = None) -> tuple[str, float]:
+def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = None,
+             junit_dir: str | None = None) -> dict:
+    """Run one file and return its record (see tools/results_report.py).
+
+    A pytest-routed file also writes a JUnit XML so the per-CASE outcomes survive: the
+    stdout tail cannot carry them, and a skipped case inside a passing file is exactly
+    what the old file-level report lost.
+    """
     cmd, how = _invocation(test_file)
+    junit_path = None
+    if junit_dir and how == "pytest":
+        slug = test_file.replace("/", "__").replace("\\", "__")
+        junit_path = os.path.join(junit_dir, slug + ".xml")
+        cmd = cmd + ["--junitxml", junit_path]
     suffix = "" if how == "script" else f"  [via {how}]"
     print(f"\n=== {test_file} ==={suffix}")
     start = time.perf_counter()
@@ -143,11 +158,13 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
     except subprocess.TimeoutExpired:
         duration = time.perf_counter() - start
         print(f"[TIMEOUT] {test_file} after {duration:.1f}s")
-        return "fail", duration
+        return _record(test_file, how, "fail", duration, None,
+                       note=f"timed out after {duration:.1f}s; no report was produced")
     except OSError as e:
         duration = time.perf_counter() - start
         print(f"[ERROR] running {test_file}: {e} ({duration:.2f}s)")
-        return "fail", duration
+        return _record(test_file, how, "fail", duration, None,
+                       note=f"could not be launched: {e}")
 
     duration = time.perf_counter() - start
     output = (result.stdout + result.stderr).strip()
@@ -168,12 +185,37 @@ def run_test(test_file: str, verbose: bool = False, extra_env: dict | None = Non
     )
     if skipped:
         print(f"[SKIP] {test_file} ({duration:.2f}s)")
-        return "skip", duration
+        return _record(test_file, how, "skip", duration, junit_path)
     if result.returncode == 0:
         print(f"[PASS] {test_file} ({duration:.2f}s)")
-        return "pass", duration
+        return _record(test_file, how, "pass", duration, junit_path)
     print(f"[FAIL] {test_file} (exit {result.returncode}, {duration:.2f}s)")
-    return "fail", duration
+    return _record(test_file, how, "fail", duration, junit_path,
+                   note=f"exit {result.returncode}")
+
+
+def _utc_now() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+def _record(test_file: str, how: str, status: str, duration: float,
+            junit_path: str | None, note: str | None = None) -> dict:
+    """Turn one run into a record, reading the JUnit XML when pytest produced one.
+
+    A pytest file whose XML is missing or unparseable gets `cases=None` and says so. That
+    is deliberately NOT silent: check_skips treats a pytest file with no case detail as a
+    broken report, because "no cases found" and "no cases skipped" must never look alike.
+    """
+    cases = None
+    if junit_path and how == "pytest":
+        try:
+            cases = RR.parse_junit(junit_path, test_file)
+        except Exception as exc:                      # noqa: BLE001 - recorded, not raised
+            note = (note + "; " if note else "") + f"junit xml unreadable: {exc}"
+    if how == "script":
+        note = (note + "; " if note else "") + 'script mode: the file asserts inside a __main__ block and reports one exit code, so no per-case outcomes exist for it'
+    return RR.file_record(test_file, how, status, duration, cases, note)
+
 
 def main():
     parser = argparse.ArgumentParser(description="HYDRA Screener - All Tests Runner")
@@ -184,6 +226,11 @@ def main():
                         help="report-only coverage over core, data, utils, sleeves (no floor)")
     parser.add_argument("--strict-console", action="store_true",
                         help="run children with PYTHONIOENCODING=cp1252:strict (Windows console)")
+    parser.add_argument("--report", type=str, default=None,
+                        help="write per-CASE results as JSON here (tools/check_skips.py reads it)")
+    parser.add_argument("--report-token", type=str, default=None,
+                        help="stamp the report with this token so a consumer can bind it "
+                             "to THIS invocation and reject a residual file")
     args = parser.parse_args()
 
     test_files = discover_tests()
@@ -209,10 +256,17 @@ def main():
     skipped = 0
     failed = []
     total_time = 0.0
+    records: list[dict] = []
+    started_utc = _utc_now()
+    junit_dir = tempfile.mkdtemp(prefix="hydra-junit-") if args.report else None
+    if junit_dir:
+        atexit.register(shutil.rmtree, junit_dir, True)
     start_all = time.perf_counter()
 
     for t in test_files:
-        status, dur = run_test(t, verbose=args.verbose, extra_env=extra_env)
+        rec = run_test(t, verbose=args.verbose, extra_env=extra_env, junit_dir=junit_dir)
+        records.append(rec)
+        status, dur = rec["status"], rec["duration"]
         total_time += dur
         if status == "pass":
             passed += 1
@@ -223,13 +277,36 @@ def main():
 
     elapsed = time.perf_counter() - start_all
     print("\n" + "=" * 50)
+    tally = RR._tally(records)
     print(f"RESULTS: {passed} passed, {skipped} skipped in {elapsed:.2f}s "
           f"(tests time: {total_time:.2f}s)")
+    # Files are not cases. The old headline counted files only, so four skipped cases
+    # inside passing files were reported as "0 skipped".
+    print(f"CASES:   {tally['cases_passed']} passed, {tally['cases_skipped']} skipped, "
+          f"{tally['cases_failed']} failed, {tally['cases_error']} error "
+          f"({tally['files_without_case_detail']} file(s) report no case detail)")
+    for _f in records:
+        for _c in (_f["cases"] or []):
+            if _c["outcome"] == RR.SKIPPED:
+                print(f"  [SKIPPED CASE] {_c['nodeid']} :: {_c['reason'] or 'no reason given'}")
+    def _finish(code: int) -> int:
+        """Write the report before returning, whatever the outcome.
+
+        A red run needs its report MORE than a green one: the gate has to be able to
+        see a failure or a collection error rather than find no file and guess.
+        """
+        if args.report:
+            rep = RR.build(records, exit_code=code, token=args.report_token,
+                           argv=sys.argv, started_utc=started_utc,
+                           finished_utc=_utc_now())
+            print(f"report: {RR.write(rep, args.report)}")
+        return code
+
     if failed:
         print("Failed tests:")
         for f in failed:
             print(f"  - {f}")
-        return 1
+        return _finish(1)
     if skipped:
         print("No failures (skips are not passes).")
     else:
@@ -240,8 +317,8 @@ def main():
     if args.cov:
         cov_rc = _run_coverage()
         if cov_rc != 0 and not failed:
-            return cov_rc
-    return 0
+            return _finish(cov_rc)
+    return _finish(0)
 
 
 def _print_ruff_summary() -> None:

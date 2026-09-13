@@ -117,3 +117,6 @@ hydra_screener_local/*.egg-info/
 # Root-level legacy COMPASS state directory: nothing lives here today, but SECURITY.md
 # rule 1 promises it is ignored, so make the promise true (live state = hydra_screener_local/state/)
 /state/
+
+# HYDRA-CI-02: the per-case results report is an artefact of one run, never source.
+hydra_screener_local/reports/
