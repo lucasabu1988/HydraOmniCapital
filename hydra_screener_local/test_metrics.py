@@ -14,7 +14,8 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
 
 from metrics import (  # noqa: E402
-    annualised_return, max_drawdown, net_vol_ratio, sharpe_excess, stats, step_risk_free,
+    annual_max_drawdown, annualised_return, drawdown_curve, max_drawdown, net_vol_ratio,
+    sharpe_excess, stats, step_risk_free,
 )
 
 STEP = 5
@@ -95,6 +96,17 @@ def test_max_drawdown_and_annualised_return_by_hand():
     assert annualised_return(r, STEP) == pytest.approx((total ** (py / 3) - 1) * 100)
 
 
+def test_max_drawdown_counts_the_capital_that_went_in():
+    """A loss on the first step is measured from the money that went in, not from what is left.
+
+    The curve used to start at 1+r[0], so the pre-first-step peak of 1.0 never existed: a book
+    that fell 20% and climbed straight back to par reported a drawdown of zero.
+    """
+    assert max_drawdown(pd.Series([-0.20, 0.25])) == pytest.approx(-20.0)   # 1.00 -> 0.80 -> 1.00
+    assert max_drawdown(pd.Series([-0.10, -0.10])) == pytest.approx(-19.0)
+    assert max_drawdown(pd.Series([0.05, 0.05])) == pytest.approx(0.0)      # a book that only rises
+
+
 def test_stats_says_none_instead_of_pretending_when_there_is_no_rate():
     s = stats(_net(), "no rate", STEP, rf=None)
     assert s["sharpe_excess"] is None and s["rf_ann_pct"] is None
@@ -109,3 +121,64 @@ def test_stats_reports_the_rate_it_subtracted():
     assert s["rf_ann_pct"] == pytest.approx(5.0, abs=0.15)
     assert s["ratio_minus_sharpe"] == pytest.approx(s["ratio_net_vol"] - s["sharpe_excess"],
                                                     abs=0.011)
+
+
+# --------------------------------------------------------------- the canonical drawdown
+def _two_years():
+    """Dec of one year, then a year that OPENS WITH A LOSS and ends up.
+
+    2020 closes at 1.0192; 2021's first step is -8%, then +5% and +6% take the year back above
+    where it opened. The old per-year form took `cummax` of the curve AFTER the first return,
+    so the peak on the first step was the post-loss equity and the year reported no drawdown
+    at all. That is the case this fixture exists to catch.
+    """
+    idx = pd.to_datetime(["2020-12-18", "2020-12-25", "2021-01-08", "2021-01-15", "2021-01-22"])
+    return pd.Series([0.04, -0.02, -0.08, 0.05, 0.06], index=idx)
+
+
+def test_drawdown_curve_is_the_path_max_drawdown_minimises():
+    r = pd.Series([0.10, -0.20, 0.05])
+    dd = drawdown_curve(r)
+    assert list(dd.round(10)) == [0.0, pytest.approx(-0.2), pytest.approx(-0.16)]
+    assert max_drawdown(r) == pytest.approx(float(dd.min()) * 100)
+    assert drawdown_curve(pd.Series(dtype=float)).empty
+
+
+def test_drawdown_curve_floors_the_peak_at_the_capital_that_went_in():
+    dd = drawdown_curve(pd.Series([-0.20, 0.25]))
+    assert dd.iloc[0] == pytest.approx(-0.20), "the first step must be measured from 1.0"
+    assert dd.iloc[1] == pytest.approx(0.0)
+
+
+def test_annual_drawdown_makes_the_caller_name_the_peak():
+    r = _two_years()
+    with pytest.raises(TypeError):
+        annual_max_drawdown(r, "year")               # keyword-only: no silent positional
+    with pytest.raises(ValueError, match="peak must be"):
+        annual_max_drawdown(r, peak="whatever")
+    assert annual_max_drawdown(pd.Series(dtype=float), peak="year") == {}
+
+
+def test_annual_drawdown_year_reset_sees_a_year_that_opens_with_a_loss():
+    """The point of the canonicalisation: the FIRST period of the year is inside the measure."""
+    out = annual_max_drawdown(_two_years(), peak="year")
+    assert set(out) == {2020, 2021}
+    assert out[2021] == pytest.approx(-8.0), "a year that opens -8% is 8% under water"
+    assert out[2021] != 0.0
+    # and the year still ends up: the drawdown is not a restatement of the return
+    assert (1 + _two_years()["2021"]).prod() > 1.0
+    # the old, unfloored per-year form is what this replaces
+    g = _two_years()["2021"]
+    eq = (1 + g).cumprod()
+    assert float((eq / eq.cummax() - 1).min()) * 100 == pytest.approx(0.0)
+
+
+def test_annual_drawdown_carry_keeps_the_high_struck_in_an_earlier_year():
+    """2020 ends below its own high; carrying that peak makes 2021 deeper than the year read."""
+    r = _two_years()
+    reset = annual_max_drawdown(r, peak="year")
+    carry = annual_max_drawdown(r, peak="carry")
+    # 2020 peak 1.04, 2021 trough 1.04 * 0.98 * 0.92 = 0.937664 -> -9.84% from 1.04
+    assert carry[2021] == pytest.approx(-9.84, abs=0.01)
+    assert carry[2021] < reset[2021], "the carried peak can only be deeper, never shallower"
+    assert carry[2020] == pytest.approx(reset[2020]), "the first year has nothing to carry in"

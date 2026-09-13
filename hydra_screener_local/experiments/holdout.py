@@ -72,10 +72,30 @@ def partition_of(date, h: dict | None = None) -> str | None:
     return None
 
 
+def _window(first, last) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """The closed window [first, last], normalised. An inverted pair is refused, not repaired.
+
+    `first > last` is a caller bug, and a silent one: every overlap test below is written for
+    `first <= last`, so an inverted pair touches no partition and the run comes back with an
+    empty span and no breach - the one stamp a human reads as clean. Swapping the dates would
+    be worse than raising, because the inversion usually means the wrong window was measured
+    and nobody can say which dates the numbers came from. This module fails closed everywhere
+    else (`load_holdout` on a moved declaration, `_declared_set` on an unknown name); it fails
+    closed here too.
+    """
+    a, b = pd.Timestamp(first).normalize(), pd.Timestamp(last).normalize()
+    if a > b:
+        raise ValueError(
+            f"inverted window: first {a.date()} is after last {b.date()}. Which dates were "
+            "evaluated is unknown, so no honest holdout mark can be written - pass them in order."
+        )
+    return a, b
+
+
 def partitions_spanned(first, last, h: dict | None = None) -> list[str]:
     """Partitions touched by the closed window [first, last], in order."""
     h = h or load_holdout()
-    a, b = pd.Timestamp(first).normalize(), pd.Timestamp(last).normalize()
+    a, b = _window(first, last)
     out = []
     for name in ORDER:
         start, end = _bounds(h, name)
@@ -101,17 +121,18 @@ def breaches(first, last, declared: str, h: dict | None = None) -> list[str]:
     because the traded-universe record does not exist before 2010-06-28.
     """
     h = h or load_holdout()
+    a, b = _window(first, last)
     want = _declared_set(declared)
     lines = []
-    for name in partitions_spanned(first, last, h):
+    for name in partitions_spanned(a, b, h):
         if name not in want:
             start, end = _bounds(h, name)
-            lines.append(f"{BREACH}: window {pd.Timestamp(first).date()}..{pd.Timestamp(last).date()} "
+            lines.append(f"{BREACH}: window {a.date()}..{b.date()} "
                          f"reads '{name}' ({start.date()}..{end.date() if end is not None else 'open'}) "
                          f"but declared '{declared}'")
     r_start, _ = _bounds(h, "research")
-    if pd.Timestamp(first) < r_start:
-        lines.append(f"{BREACH}: window starts {pd.Timestamp(first).date()}, before research "
+    if a < r_start:
+        lines.append(f"{BREACH}: window starts {a.date()}, before research "
                      f"{r_start.date()} - not point-in-time on the traded universe (no Russell record)")
     return lines
 
@@ -125,11 +146,12 @@ def stamp(payload: dict, *, first, last, declared: str, h: dict | None = None,
     them where the numbers are, not in a log nobody opens.
     """
     h = h or load_holdout()
-    lines = breaches(first, last, declared, h)
+    a, b = _window(first, last)
+    lines = breaches(a, b, declared, h)
     block = dict(
         declared=declared,
-        spanned=partitions_spanned(first, last, h),
-        window=dict(first=str(pd.Timestamp(first).date()), last=str(pd.Timestamp(last).date())),
+        spanned=partitions_spanned(a, b, h),
+        window=dict(first=str(a.date()), last=str(b.date())),
         holdout_sha256=h["sha256"],
         holdout_declared_on=h.get("declared_on"),
         breaches=lines,

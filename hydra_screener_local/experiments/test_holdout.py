@@ -80,3 +80,31 @@ def test_before_2010_is_named_because_there_is_no_traded_universe_record():
 def test_unknown_partition_names_are_refused():
     with pytest.raises(ValueError, match="unknown partition"):
         H.breaches("2015-01-01", "2016-01-01", "test")
+
+
+def test_an_inverted_window_is_refused_instead_of_being_stamped_clean(capsys):
+    """The window that reads research, validation AND live and used to come back with a clean stamp.
+
+    `first > last` made every overlap test false, so `partitions_spanned` returned [], `breaches`
+    had nothing to iterate and `stamp` emitted breached=False - fail open, at the one moment the
+    mark matters. It is a caller bug, so it raises.
+    """
+    with pytest.raises(ValueError, match="inverted window"):
+        H.partitions_spanned("2026-08-26", "2010-06-28")
+    with pytest.raises(ValueError, match="inverted window"):
+        H.breaches("2026-09-30", "2004-01-02", "research")
+    with pytest.raises(ValueError, match="inverted window"):
+        H.stamp({"task": "x"}, first="2026-09-30", last="2004-01-02", declared="research")
+    assert H.BREACH not in capsys.readouterr().out       # nothing was stamped at all
+
+
+def test_a_clean_stamp_can_never_report_an_empty_span():
+    """The signature of the old failure: spanned=[] with breached=False is unreachable.
+
+    A well-formed window that touches no partition lies entirely before research, and that fires
+    the pre-2010 line, so the block is marked. Only an inversion could reach the other state.
+    """
+    out = H.stamp({}, first="2004-01-02", last="2009-12-31", declared="research", echo=False)
+    assert out["holdout"]["spanned"] == []
+    assert out["holdout"]["breached"] is True
+    assert any("before research" in ln for ln in out["holdout"]["breaches"])

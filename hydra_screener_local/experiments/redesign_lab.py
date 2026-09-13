@@ -49,6 +49,9 @@ warnings.filterwarnings('ignore')
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
+sys.path.insert(0, HERE)
+
+import metrics as M  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location('bvs', os.path.join(HERE, 'backtest_variant_sweep.py'))
 bvs = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(bvs)
@@ -766,7 +769,10 @@ def step_of(cfg):
 def stats(df, hold, label=''):
     py = CYCLES_PER_YEAR / hold
     def ann(r): return ((1 + r).prod() ** (py / len(r)) - 1) * 100
-    def dd(r): eq = (1 + r).cumprod(); return float((eq / eq.cummax() - 1).min()) * 100
+    # Drawdown has ONE definition in this repo (metrics.max_drawdown): the running peak is
+    # floored at the capital that went in, so the first cycle counts. The local copy this
+    # replaced did not floor it and could not see a loss on cycle one.
+    dd = M.max_drawdown
     g, nt = df['gross'], df['net']
     return dict(config=label, cycles=len(df), hold=hold,
                 ann_gross=round(ann(g), 2), ann_net=round(ann(nt), 2),
