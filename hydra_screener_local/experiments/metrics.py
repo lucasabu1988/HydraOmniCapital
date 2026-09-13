@@ -44,13 +44,71 @@ def net_vol_ratio(r, step: int) -> float:
     return float(x.mean() / sd * np.sqrt(periods_per_year(step))) if sd else 0.0
 
 
-def max_drawdown(r) -> float:
-    """Worst peak-to-trough of the compounded step returns, in percent (negative)."""
+def drawdown_curve(r) -> pd.Series:
+    """The whole under-water path `max_drawdown` takes its minimum of, as a decimal (<= 0).
+
+    This is the single definition of a HYDRA drawdown; every caller that needs the path (the
+    trough, the peak that preceded it, a per-year slice) must take it from here rather than
+    re-spelling `(1 + r).cumprod()`, because the spelling is exactly where the bug lived.
+
+    The compounded curve starts at 1.0 *before* the first step, so the running peak is floored
+    at the capital that went in. Without that floor a loss on the FIRST step is measured from
+    what is left after it -- the running peak at step one is the post-loss equity -- and a book
+    that falls 20% and climbs back to par reports a drawdown of zero. The floor is what makes
+    the first period count.
+
+    The returned series is indexed like `r` (NaNs dropped), one value per step.
+    """
     x = pd.Series(r).dropna().astype(float)
     if x.empty:
-        return float("nan")
+        return x
     eq = (1 + x).cumprod()
-    return float((eq / eq.cummax() - 1).min()) * 100
+    return eq / eq.cummax().clip(lower=1.0) - 1
+
+
+def max_drawdown(r) -> float:
+    """Worst peak-to-trough of the compounded step returns, in percent (negative)."""
+    dd = drawdown_curve(r)
+    if dd.empty:
+        return float("nan")
+    return float(dd.min()) * 100
+
+
+def annual_max_drawdown(r, *, peak: str) -> dict:
+    """Worst drawdown of each calendar year, in percent (negative), keyed by the year.
+
+    `peak` is required and has no default on purpose. "The 2016 drawdown" is two different
+    numbers depending on where the high-water mark comes from, the gap between them runs to
+    ten percentage points on the real books, and a silent default would let a caller publish
+    one while meaning the other:
+
+      peak="year"   the running peak RESETS on 1 Jan, floored at the capital standing at the
+                    start of the year. This reads the year on its own -- "a book opened on
+                    1 Jan, how far under water did it get?" -- and it is the honest partner of
+                    a year-standalone return, which is what an annual table usually reports.
+                    The year's FIRST return is inside the measure: a January loss shows as a
+                    drawdown instead of being swallowed by a peak set after it.
+
+      peak="carry"  the running peak is carried in from the whole history, so a year that
+                    merely fails to regain a high struck in an earlier year still reports a
+                    deep drawdown. This is the statement read: how far the book is below its
+                    all-time high. On the cached books it is the deeper number in most years
+                    and it is NOT comparable to a year-standalone return.
+
+    Neither reading is more correct; they answer different questions. What is wrong is the old
+    form, which reset the peak each year but then dropped the year's first return out of the
+    peak -- reporting a quiet zero for a year whose only move was a loss.
+    """
+    x = pd.Series(r).dropna().astype(float)
+    if x.empty:
+        return {}
+    idx = pd.DatetimeIndex(x.index)
+    if peak == "year":
+        return {int(y): max_drawdown(g) for y, g in x.groupby(idx.year)}
+    if peak == "carry":
+        dd = drawdown_curve(x)
+        return {int(y): float(g.min()) * 100 for y, g in dd.groupby(idx.year)}
+    raise ValueError("peak must be 'year' or 'carry', not %r" % (peak,))
 
 
 def step_risk_free(irx: pd.Series, dates, forward: bool = False, step: int = 5) -> pd.Series:

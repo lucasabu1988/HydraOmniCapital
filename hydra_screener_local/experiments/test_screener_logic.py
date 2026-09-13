@@ -15,12 +15,37 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# Patch config for test
 import config
-config.USE_FULL_SP500 = False
-config.UNIVERSE = "custom"
-config.FILTERS = {"min_avg_volume": 0, "min_price": 0, "max_price": None, "exclude_sectors": []}
-config.TOP_CANDIDATES = 10
+
+#: Controlled values for the manual run below. This module defines NO test functions - pytest
+#: collects nothing from it - yet assigning these at import time still ran during COLLECTION and
+#: REBOUND `config.FILTERS` / `config.UNIVERSE` for the whole session. Rebinding, not mutating:
+#: modules that had already done `from config import FILTERS` kept the pristine object, so the
+#: session carried several different FILTERS dicts and two unrelated tests failed depending only
+#: on collection order. Applied and restored inside `main_test()`, importing this file is now
+#: side-effect free.
+_CONTROLLED = dict(
+    USE_FULL_SP500=False,
+    UNIVERSE="custom",
+    FILTERS={"min_avg_volume": 0, "min_price": 0, "max_price": None, "exclude_sectors": []},
+    TOP_CANDIDATES=10,
+)
+
+
+def _apply_controlled_config():
+    """Set the controlled values; return a callable that puts `config` back exactly as it was."""
+    previous = {k: getattr(config, k, None) for k in _CONTROLLED}
+    had = {k: hasattr(config, k) for k in _CONTROLLED}
+    for k, v in _CONTROLLED.items():
+        setattr(config, k, v)
+
+    def restore():
+        for k in _CONTROLLED:
+            if had[k]:
+                setattr(config, k, previous[k])
+            else:
+                delattr(config, k)
+    return restore
 
 from core.signals import generate_daily_candidates
 from core.filters import apply_practical_filters, get_filter_summary
@@ -49,90 +74,94 @@ def make_synthetic_spy(n_days=300, seed=123):
     return pd.Series(prices, index=dates, name="SPY")
 
 def main_test():
-    print("=== HYDRA Screener Logic Smoke Test (synthetic data) ===\n")
-
-    prices = make_synthetic_prices()
-    spy = make_synthetic_spy()
-
-    print(f"Synthetic universe: {len(prices.columns)} tickers, {len(prices)} days\n")
-
-    # Filters (disabled)
-    original = len(prices.columns)
-    prices_f, _ = apply_practical_filters(prices, min_avg_volume=0, min_price=0, max_price=None)
-    fs = get_filter_summary(original, prices_f)
-    print(f"Filters (noop): {fs['remaining']} remaining\n")
-
-    # Core: generate candidates (this was crashing before fixes)
-    candidates = generate_daily_candidates(prices_f, spy)
-
-    print(f"Generated {len(candidates)} candidates.")
-    print("Columns in output:", list(candidates.columns))
-    print()
-
-    # Verify critical columns exist and have values
-    required = ['rank', 'ticker', 'momentum', 'meta_score', 'regime_type', 'special_modes',
-                'aggression', 'compass_mult', 'recommended', 'reason', 'recommended_count', 'pillar_multipliers', 'recovery_boost']
-    missing = [c for c in required if c not in candidates.columns]
-    if missing:
-        print(f"[FAIL] MISSING COLUMNS: {missing}")
-        return False
-    print("[OK] All required columns present")
-
-    # Check first row has good data
-    row0 = candidates.iloc[0]
-    print(f"Top ticker: {row0['ticker']}")
-    print(f"  meta_score: {row0['meta_score']}")
-    print(f"  regime_type: {row0['regime_type']}")
-    print(f"  special_modes: '{row0['special_modes']}'")
-    print(f"  aggression: {row0['aggression']}")
-    print(f"  recovery_boost (via get): {row0.get('recovery_boost', 'MISSING')}")
-    print(f"  recommended_count: {row0['recommended_count']}")
-    print(f"  pillar_multipliers sample: {row0['pillar_multipliers'][:80]}...")
-
-    # Check dynamic count in reasonable range
-    rc = int(row0['recommended_count'])
-    if not (6 <= rc <= 28):
-        print(f"[FAIL] recommended_count out of expected range: {rc}")
-        return False
-    print(f"[OK] Dynamic recommended_count in range: {rc}")
-
-    # Check some recommended True
-    n_rec = candidates['recommended'].sum()
-    print(f"[OK] Recommended today: {n_rec} (expected ~{rc})")
-
-    # Test the exact extraction logic from screener.py main() (no rich to avoid host console encoding limits)
-    print("\n--- Verifying screener.py extraction logic (no rich) ---")
+    _restore = _apply_controlled_config()
     try:
-        meta_info = {
-            'aggression': row0.get('aggression', 1.0),
-            'recovery_boost': row0.get('recovery_boost', 1.0),
-            'regime_type': row0.get('regime_type', '')
-        }
-        import ast
-        pillar_mults = ast.literal_eval(row0.get('pillar_multipliers', '{}'))
-        regime_score = float(candidates.iloc[0].get('regime', 0.5))
-        rec_count = int(candidates.iloc[0].get('recommended_count', 10))
+        print("=== HYDRA Screener Logic Smoke Test (synthetic data) ===\n")
 
-        sm_raw = row0.get('special_modes', '')
-        if isinstance(sm_raw, str) and sm_raw:
-            special_modes_list = [m.strip() for m in sm_raw.split(',') if m.strip()]
-        else:
-            special_modes_list = []
+        prices = make_synthetic_prices()
+        spy = make_synthetic_spy()
 
-        print(f"[OK] meta_info: {meta_info}")
-        print(f"[OK] pillar_mults: {pillar_mults}")
-        print(f"[OK] special_modes_list for history: {special_modes_list}")
-        print(f"[OK] regime_score: {regime_score} rec_count: {rec_count}")
+        print(f"Synthetic universe: {len(prices.columns)} tickers, {len(prices)} days\n")
 
-        # Would call save_daily_run with special_modes_list here (tested indirectly)
-    except Exception as e:
-        print(f"[FAIL] Extraction logic error: {e}")
-        import traceback; traceback.print_exc()
-        return False
+        # Filters (disabled)
+        original = len(prices.columns)
+        prices_f, _ = apply_practical_filters(prices, min_avg_volume=0, min_price=0, max_price=None)
+        fs = get_filter_summary(original, prices_f)
+        print(f"Filters (noop): {fs['remaining']} remaining\n")
 
-    print("\n=== ALL CHECKS PASSED (core logic + extraction) ===")
-    print("Note: Full rich tables work in modern terminals (Windows Terminal, VSCode, etc).")
-    return True
+        # Core: generate candidates (this was crashing before fixes)
+        candidates = generate_daily_candidates(prices_f, spy)
+
+        print(f"Generated {len(candidates)} candidates.")
+        print("Columns in output:", list(candidates.columns))
+        print()
+
+        # Verify critical columns exist and have values
+        required = ['rank', 'ticker', 'momentum', 'meta_score', 'regime_type', 'special_modes',
+                    'aggression', 'compass_mult', 'recommended', 'reason', 'recommended_count', 'pillar_multipliers', 'recovery_boost']
+        missing = [c for c in required if c not in candidates.columns]
+        if missing:
+            print(f"[FAIL] MISSING COLUMNS: {missing}")
+            return False
+        print("[OK] All required columns present")
+
+        # Check first row has good data
+        row0 = candidates.iloc[0]
+        print(f"Top ticker: {row0['ticker']}")
+        print(f"  meta_score: {row0['meta_score']}")
+        print(f"  regime_type: {row0['regime_type']}")
+        print(f"  special_modes: '{row0['special_modes']}'")
+        print(f"  aggression: {row0['aggression']}")
+        print(f"  recovery_boost (via get): {row0.get('recovery_boost', 'MISSING')}")
+        print(f"  recommended_count: {row0['recommended_count']}")
+        print(f"  pillar_multipliers sample: {row0['pillar_multipliers'][:80]}...")
+
+        # Check dynamic count in reasonable range
+        rc = int(row0['recommended_count'])
+        if not (6 <= rc <= 28):
+            print(f"[FAIL] recommended_count out of expected range: {rc}")
+            return False
+        print(f"[OK] Dynamic recommended_count in range: {rc}")
+
+        # Check some recommended True
+        n_rec = candidates['recommended'].sum()
+        print(f"[OK] Recommended today: {n_rec} (expected ~{rc})")
+
+        # Test the exact extraction logic from screener.py main() (no rich to avoid host console encoding limits)
+        print("\n--- Verifying screener.py extraction logic (no rich) ---")
+        try:
+            meta_info = {
+                'aggression': row0.get('aggression', 1.0),
+                'recovery_boost': row0.get('recovery_boost', 1.0),
+                'regime_type': row0.get('regime_type', '')
+            }
+            import ast
+            pillar_mults = ast.literal_eval(row0.get('pillar_multipliers', '{}'))
+            regime_score = float(candidates.iloc[0].get('regime', 0.5))
+            rec_count = int(candidates.iloc[0].get('recommended_count', 10))
+
+            sm_raw = row0.get('special_modes', '')
+            if isinstance(sm_raw, str) and sm_raw:
+                special_modes_list = [m.strip() for m in sm_raw.split(',') if m.strip()]
+            else:
+                special_modes_list = []
+
+            print(f"[OK] meta_info: {meta_info}")
+            print(f"[OK] pillar_mults: {pillar_mults}")
+            print(f"[OK] special_modes_list for history: {special_modes_list}")
+            print(f"[OK] regime_score: {regime_score} rec_count: {rec_count}")
+
+            # Would call save_daily_run with special_modes_list here (tested indirectly)
+        except Exception as e:
+            print(f"[FAIL] Extraction logic error: {e}")
+            import traceback; traceback.print_exc()
+            return False
+
+        print("\n=== ALL CHECKS PASSED (core logic + extraction) ===")
+        print("Note: Full rich tables work in modern terminals (Windows Terminal, VSCode, etc).")
+        return True
+    finally:
+        _restore()
 
 if __name__ == "__main__":
     success = main_test()

@@ -26,23 +26,54 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-# Patch config para tests controlados (evitar efectos laterales)
+import pytest
+
 import config
-config.UNIVERSE = "custom"
-config.USE_FULL_SP500 = False
-config.FILTERS = {"min_avg_volume": 0, "min_price": 0, "max_price": None, "exclude_sectors": []}
-config.TOP_CANDIDATES = 10
-config.MOMENTUM_LOOKBACK = 90
-config.SHORT_TERM_LOOKBACK = 10
-config.PROXIMITY_HIGH_DAYS = 20
-config.MAX_DIST_TO_HIGH_PCT = 3.0
-config.SHORT_TERM_BOOST = 0.35
-config.VOL_SURGE_THRESHOLD = 1.50
-config.GEO_VOL_THRESHOLD_ADJUST = 0.6
-config.MIN_VOL_THRESHOLD = 1.0
-config.REGIME_SMA = 200
-config.MIN_REGIME_SCORE = 0.35
-config.MAX_PER_SECTOR = 5
+
+#: Controlled values for these tests. They used to be ASSIGNED AT IMPORT TIME, which ran during
+#: pytest collection and never came back: `config.FILTERS` and `config.UNIVERSE` are REBOUND, not
+#: mutated, so every module that had already done `from config import FILTERS` kept the pristine
+#: object while `config` itself held the relaxed one. The session then carried several different
+#: FILTERS dicts, and utils/runlog.py:17 (bound before any test, via conftest) stamped a manifest
+#: sha that no longer matched what test_runlog.py:14 had captured. Two unrelated tests failed
+#: depending only on collection order. Scoped to the tests and restored below, that cannot recur.
+_CONTROLLED = dict(
+    UNIVERSE="custom",
+    USE_FULL_SP500=False,
+    FILTERS={"min_avg_volume": 0, "min_price": 0, "max_price": None, "exclude_sectors": []},
+    TOP_CANDIDATES=10,
+    MOMENTUM_LOOKBACK=90,
+    SHORT_TERM_LOOKBACK=10,
+    PROXIMITY_HIGH_DAYS=20,
+    MAX_DIST_TO_HIGH_PCT=3.0,
+    SHORT_TERM_BOOST=0.35,
+    VOL_SURGE_THRESHOLD=1.50,
+    GEO_VOL_THRESHOLD_ADJUST=0.6,
+    MIN_VOL_THRESHOLD=1.0,
+    REGIME_SMA=200,
+    MIN_REGIME_SCORE=0.35,
+    MAX_PER_SECTOR=5,
+)
+
+
+@pytest.fixture(autouse=True)
+def _controlled_config(monkeypatch):
+    """Apply the controlled values for the duration of ONE test, then put the module back.
+
+    Also patched: any module that captured these names by value with `from config import ...`
+    before this fixture runs. Patching `config` alone would leave those holding the old object -
+    the exact divergence that produced the order-dependent failures.
+    """
+    for name, value in _CONTROLLED.items():
+        monkeypatch.setattr(config, name, value, raising=False)
+    for mod_name in ("screener", "utils.runlog", "portfolio_v9", "core.filters"):
+        mod = sys.modules.get(mod_name)
+        if mod is None:
+            continue
+        for name, value in _CONTROLLED.items():
+            if hasattr(mod, name):
+                monkeypatch.setattr(mod, name, value, raising=False)
+    yield
 
 from core.signals import (
     compute_momentum_score,
@@ -89,7 +120,7 @@ def test_4_1_momentum_score():
     print("\n=== SPEC 4.1 Momentum Score ===")
     prices = make_synthetic_prices(n_tickers=5, n_days=300)
     scores = compute_momentum_score(prices)
-    
+
     assert len(scores) == 5
     assert scores.notna().all()
     # Debe ser retorno_90 / vol_63_annualized
@@ -106,24 +137,24 @@ def test_4_2_short_term_and_strict():
     print("\n=== SPEC 4.2 Short-Term + Strict Filter ===")
     prices = make_synthetic_prices(n_tickers=3, n_days=50)
     volumes = make_synthetic_volumes(prices)
-    
+
     feats = compute_short_term_features(prices, volumes=volumes)
     assert not feats.empty
     assert 'ret_short' in feats.columns
     assert 'dist_to_high' in feats.columns
     assert 'vol_ratio' in feats.columns
-    
+
     # Forzar fuertemente un caso que pase strict (valores extremos)
     prices2 = prices.copy()
     prices2.iloc[-1, 0] = prices2.iloc[-11, 0] * 1.30   # ret_short ~30% >15
     max20 = prices2.iloc[-20:, 0].max()
     prices2.iloc[-1, 0] = max20 * 0.99   # dist_to_high ~ -1% >= -2
-    
+
     # Vol surge muy alto
     volumes2 = volumes.copy()
     avg20 = volumes2.iloc[-20:, 0].mean()
     volumes2.iloc[-5:, 0] = avg20 * 3.0
-    
+
     feats2 = compute_short_term_features(prices2, volumes=volumes2)
     ret = feats2.iloc[0]['ret_short']
     dist = feats2.iloc[0]['dist_to_high']
@@ -131,18 +162,18 @@ def test_4_2_short_term_and_strict():
     dyn_th = 1.50 + (0.0 * 0.6)
     dyn_th = max(1.0, dyn_th)
     passes = (ret > 15) and (dist >= -2) and (vr > dyn_th)
-    
+
     print(f"  ret_short={ret:.2f}, dist={dist:.2f}, vol_ratio={vr:.2f}, dyn_th={dyn_th:.2f}, passes_strict={passes}")
     assert passes, "Debería pasar strict con los datos fuertemente forzados"
     print("[OK] Strict filter logic matches SPEC 4.2 (ret>15, dist>=-2, vol>th)")
-    
+
     # Bonus del 18% se aplica en generate_daily_candidates
     candidates = generate_daily_candidates(prices2, make_synthetic_spy(50), volumes=volumes2)
-    
+
     if len(candidates) == 0:
         print("[WARN] 0 candidates generados con datos sintéticos forzados (posible interacción de filtros). Saltando checks de fila.")
         return True
-    
+
     top = candidates.iloc[0]
     assert top['passes_strict'] == True
     # El composite debe reflejar el bonus (ver SPEC 4.5)
@@ -154,9 +185,9 @@ def test_4_3_rich_regime():
     print("\n=== SPEC 4.3 Rich Regime ===")
     spy = make_synthetic_spy(300)
     prices = make_synthetic_prices(n_tickers=30, n_days=300)  # para breadth
-    
+
     reg = compute_rich_regime_scores(spy, prices)
-    
+
     assert isinstance(reg, RegimeScores)
     assert 0.0 <= reg.overall <= 1.0
     assert 0.0 <= reg.trend <= 1.0
@@ -164,7 +195,7 @@ def test_4_3_rich_regime():
     assert 0.0 <= reg.momentum <= 1.0
     assert 0.0 <= reg.drawdown_velocity <= 1.0
     assert 0.0 <= reg.breadth_proxy <= 1.0
-    
+
     # Verificar que overall es weighted sum (pesos del SPEC)
     expected_overall = (
         reg.trend * 0.30 +
@@ -182,7 +213,7 @@ def test_4_4_meta_layer_and_pillars():
     """SPEC 4.4: Meta-Layer base biases (tabla), Special Modes triggers, Pillar Multipliers + clamp"""
     print("\n=== SPEC 4.4 Meta-Layer + Pillars ===")
     meta = LightweightMetaLayer()
-    
+
     # Test base biases por regime (deben coincidir con tabla del SPEC 4.4.1)
     # STRONG
     adj = meta.compute_adjustment(regime_score=0.70)
@@ -190,28 +221,28 @@ def test_4_4_meta_layer_and_pillars():
     # Allow small tolerance; in practice may have floating adjustments
     assert adj.pillar_multipliers["COMPASS"] >= 1.14, f"COMPASS for STRONG was {adj.pillar_multipliers['COMPASS']}"
     assert adj.pillar_multipliers["Rattlesnake"] <= 0.86
-    
+
     # WEAK
     adj = meta.compute_adjustment(regime_score=0.20)
     assert adj.regime_type == "WEAK"
     assert adj.pillar_multipliers["COMPASS"] <= 0.76
     assert adj.pillar_multipliers["Rattlesnake"] >= 1.17
-    
+
     print("[OK] Base pillar multipliers por regime_type coinciden con tabla SPEC 4.4.1 (approx tolerance for floating)")
-    
+
     # Special modes triggers (SPEC 4.4.2)
     # CRISIS_ACUTE
     adj = meta.compute_adjustment(regime_score=0.70, recent_drawdown=0.15)
     assert "CRISIS_ACUTE" in adj.special_modes
     assert adj.pillar_multipliers["COMPASS"] < 1.0   # debe bajar
-    
+
     # STRONG_BROAD_MOMENTUM
     adj = meta.compute_adjustment(regime_score=0.75, volatility_level=0.4, recent_drawdown=0.01)
     assert "STRONG_BROAD_MOMENTUM" in adj.special_modes
     assert adj.pillar_multipliers["COMPASS"] > 1.15  # boost
-    
+
     print("[OK] Special Modes triggers y efectos coinciden con SPEC 4.4.2")
-    
+
     # Clamp final (SPEC 4.4.3)
     adj = meta.compute_adjustment(regime_score=0.90, recent_drawdown=0.01)
     for v in adj.pillar_multipliers.values():
@@ -225,21 +256,21 @@ def test_4_5_composite_and_strict_bonus():
     prices = make_synthetic_prices(n_tickers=5, n_days=100)
     spy = make_synthetic_spy(100)
     volumes = make_synthetic_volumes(prices)
-    
+
     # Forzar fuertemente
     prices.iloc[-1, 0] = prices.iloc[-11, 0] * 1.30
     max20 = prices.iloc[-20:, 0].max()
     prices.iloc[-1, 0] = max20 * 0.99
     volumes.iloc[-5:, 0] = volumes.iloc[-20:, 0].mean() * 3.0
-    
+
     cands = generate_daily_candidates(prices, spy, volumes=volumes)
-    
+
     if len(cands) == 0:
         print("[WARN] 0 candidates en test 4.5. Saltando asserts de fila.")
         return True
-    
+
     top = cands.iloc[0]
-    
+
     if top['passes_strict'] != True:
         print("[WARN] passes_strict no activado con sintéticos (puede variar). Continuando.")
     else:
@@ -282,12 +313,12 @@ def test_4_7_dynamic_recommended():
     print("\n=== SPEC 4.7 Dynamic Recommended ===")
     prices = make_synthetic_prices(n_tickers=30, n_days=200)
     spy = make_synthetic_spy(200)
-    
+
     cands = generate_daily_candidates(prices, spy)
-    
+
     rc = int(cands.iloc[0]['recommended_count'])
     assert 6 <= rc <= 28, f"Dynamic count fuera de rango SPEC: {rc}"
-    
+
     n_rec = cands['recommended'].sum()
     assert n_rec <= rc
     print("[OK] Dynamic count en [6,28] y recommended <= count (SPEC 4.7)")
@@ -421,9 +452,9 @@ def test_output_contract():
     print("\n=== SPEC Section 7 Output Column Contract ===")
     prices = make_synthetic_prices(n_tickers=8, n_days=120)
     spy = make_synthetic_spy(120)
-    
+
     cands = generate_daily_candidates(prices, spy)
-    
+
     required = [
         'rank', 'ticker', 'momentum', 'meta_score', 'composite_score',
         'ret_5d_10d', 'dist_20d_high', 'short_boost',
@@ -432,19 +463,19 @@ def test_output_contract():
         'regime', 'regime_type', 'special_modes', 'aggression', 'recovery_boost',
         'compass_mult', 'pillar_multipliers', 'recommended', 'reason', 'recommended_count'
     ]
-    
+
     missing = [c for c in required if c not in cands.columns]
     if missing:
         print(f"[FAIL] Faltan columnas del contract: {missing}")
         return False
-    
+
     print("[OK] Todas las columnas del Output Contract del SPEC 7 están presentes")
     return True
 
 def main():
     print("=== HYDRA Python vs SPEC.md v1.2 Compliance Tests ===\n")
     print("Validando que la implementación coincide con las fórmulas y comportamientos del SPEC.\n")
-    
+
     tests = [
         test_config_matches_spec_section_6,
         test_4_1_momentum_score,
@@ -457,7 +488,7 @@ def main():
         test_4_7_downtrend_gate,
         test_output_contract,
     ]
-    
+
     all_passed = True
     for test in tests:
         try:
@@ -469,7 +500,7 @@ def main():
             import traceback
             traceback.print_exc()
             all_passed = False
-    
+
     if all_passed:
         print("\n=== ✅ ALL SPEC COMPLIANCE TESTS PASSED ===")
         print("La implementación en core/ es fiel al HYDRA_ALGORITHM_SPEC.md v1.2")

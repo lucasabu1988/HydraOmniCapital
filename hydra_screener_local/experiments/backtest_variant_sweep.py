@@ -34,8 +34,12 @@ import numpy as np
 import pandas as pd
 
 warnings.filterwarnings('ignore')
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
+sys.path.insert(0, HERE)
+
+import metrics as M  # noqa: E402
 
 from config import (MOMENTUM_LOOKBACK, SHORT_TERM_LOOKBACK, PROXIMITY_HIGH_DAYS,
                     MAX_DIST_TO_HIGH_PCT, SHORT_TERM_BOOST, VOL_SURGE_THRESHOLD,
@@ -286,16 +290,14 @@ def stats(df, label='', cost_bp=None):
         cost_bp = COST_BP_PER_SIDE
     r = df['ret']
     net = _net_returns(df, cost_bp)
-    eq = (1 + r).cumprod()
-    eq_net = (1 + net).cumprod()
     return dict(variant=label, cycles=len(r), avg_n=round(df['n'].mean(), 1),
                 mean_bp=round(r.mean() * 10000, 1),
                 net_bp=round(net.mean() * 10000, 1),
                 ann_pct=round(((1 + r).prod() ** (CYCLES_PER_YEAR / len(r)) - 1) * 100, 2),
                 ann_net_pct=round(((1 + net).prod() ** (CYCLES_PER_YEAR / len(r)) - 1) * 100, 2),
                 sharpe=round(r.mean() / r.std() * np.sqrt(CYCLES_PER_YEAR), 2),
-                maxdd_pct=round(float((eq / eq.cummax() - 1).min()) * 100, 1),
-                maxdd_net_pct=round(float((eq_net / eq_net.cummax() - 1).min()) * 100, 1),
+                maxdd_pct=round(M.max_drawdown(r), 1),
+                maxdd_net_pct=round(M.max_drawdown(net), 1),
                 turnover_pct=round(df['turnover'].mean() * 100, 1),
                 cost_bp_side=cost_bp)
 
