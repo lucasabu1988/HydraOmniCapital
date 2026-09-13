@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-13 16:13 UTC] CODEX: **Revision de #85: alcance de las afirmaciones.** Los recuentos globales 23 agentes / 156 hallazgos / 118 supervivientes de la nota de Claude quedan como declaracion del autor: no se aporto un inventario trazable que esta revision haya verificado. Las reproducciones concretas SAFE-04, CI-02 y PROV-01 y los merges #82/#83 tienen evidencia individual. El estado local fechado (30 pending, ledger 0, last_run_date 2026-09-04) **no demuestra ausencia de fills en el broker**. OPS-00 acredita la copia de cuatro archivos y el ensayo de restauracion, ejecutados por Codex con autorizacion de Lucas; las tres generaciones examinadas eran sinteticas, sin afirmar que no existiera otra copia en ninguna fecha. OneDrive web requiere iniciar sesion: sincronizacion remota aun no comprobada. Las notas previas se conservan como declaraciones fechadas; aplicar estas precisiones al leerlas.
+
+[2026-09-13 16:30] CLAUDE: **Auditoria adversarial completa; la #81 se partio en tres y dos ya estan en `main`.** 23 agentes, 156 hallazgos, 118 supervivientes tras verificacion adversarial. Estado medido en GitHub, no en las descripciones iniciales: **#82 fusionada** (`b59acf8`, squash 15:45:47 UTC, **5 ficheros +824/-3** — la tabla que publique de 4 ficheros/661 lineas quedo obsoleta, el diff final tenia cinco), **#83 fusionada** (`27afcf8`, 15:52:12 UTC, 20 ficheros +5022/-163; `main` tiene `strict=true` asi que se actualizo con un merge de main antes de integrar, HEAD revisado `77d58af` -> `b85e9e4`, corrida de integracion aprobada [34766592900](https://github.com/lucasabu1988/HydraOmniCapital/actions/runs/34766592900) — el verde anterior a #82 no vale como prueba). **#81 cerrada sin fusionar**, ramas y commits conservados. **#84 abierta y roja a proposito** (HEAD `895d175`), bloqueada por HYDRA-CI-01.
+
+**El hallazgo que justifico la particion:** la barrera de aislamiento que introducia la #81 **nunca se habia ejecutado**. `conftest.py` leia `TEST_BACKUP_MARKER` siete lineas antes de enlazarlo; Python evalua el argumento primero, asi que `install()` no se entraba en absoluto, el `NameError` lo tragaba un `except` amplio y toda sesion de pytest corria con `is_installed() == False` y `protected_roots() == []`. Nada podia detectarlo: el fixture de `tools/test_write_isolation.py` instalaba su propia raiz artificial, y el fichero **no lo descubria el runner** (el glob cubria raiz y `experiments/` solo). Al armarla, CI se puso **rojo en ~20 ficheros** — primera ejecucion real del control: `repo_evidence_roots()` protegia ocho nombres sin comprobar existencia, y en un clone limpio los tests crean y borran directorios en esos nombres. Corregido filtrando por `os.path.isdir` al instalar. Esa revision es la que 7922 lineas en un solo PR no habrian recibido.
+
+**Tres brechas reproducidas sobre `main` `27afcf8`, todas ABIERTAS:** SAFE-04 (la barrera no pasa a procesos hijo — padre rechaza, hijo escribe, exit 0, hash del senuelo cambia; la capa `sitecustomize` que `tools/write_isolation.py:45-47` describe **no existe en el repo**), HYDRA-CI-02 (`21 passed, 4 skipped` con los cuatro nodeids en `experiments/test_accredit_433.py:103,124,151,190`, y el titular del runner no traslada el numero de casos omitidos) y HYDRA-PROV-01 (ocho libros sinteticos con manifiesto `{fixture_only, self_sha256}` -> **los ocho `accredited`, `fully_accredited=true`, CERO llamadas a `accredit()` y cero bloques de identidad**; sin datos privados y sin motor). **TASK-431 sigue INCONCLUSIVE; 433 y 434 siguen abiertas.** El verde de #83 integra herramientas, no acredita los ocho escenarios historicos.
+
+**Backup (OPS-00): copia verificada hecha por Lucas, con alcance acotado.** `state_v9/20260904_LIVE_VERIFIED` con los cuatro ficheros, hashes coincidentes entre fuente, copia y `backup_manifest.json` (`portfolio_v9.json` 10483 B `eef457c6...`, `instructions_20260904.json` 18585 B `43037359...`, `instructions_20260904.md` 2205 B `ae27200d...`, `equity_curve.csv` 739 B `469d718d...`); `verify_state.py` cero hallazgos sobre fuente y copia; restauracion de ensayo exit 0 con el mismo hash. Las generaciones `20260904`, `20260905` y `20260908` **conservadas byte por byte** con `DO_NOT_RESTORE.txt`; nada borrado ni renombrado. **Esto NO acredita** sincronizacion remota de OneDrive, recuperacion desde otra maquina, proteccion futura del destino, integridad del journal ni fills del broker. El libro sigue en 2026-09-04, capital 100000, pending 30, ledger 0.
+
 [2026-09-11 18:30] CLAUDE: **Grok sin tokens (Lucas): la cola es mia. TASK-432 hecha (`2c36a2c`).** El holdout es dato con hash, no prosa: `experiments/holdout.json` con las tres particiones de Lucas y `holdout.py` que fija su sha256 (normalizado a LF, la leccion del freeze de la 431) y **falla cerrado** si alguien mueve una fecha. Un experimento declara a que particion tiene derecho y `stamp()` convierte cada particion leida fuera de eso en una linea `HOLDOUT BREACH: ...` **en el JSON y en stdout** — marca, no warning. Leer antes de 2010 tambien se nombra (no hay registro Russell). El prereg de la 431 declara `research+validation` (congelado, lo puede) y su artefacto queda re-sellado con 0 brechas; `load_panel` dice que particiones abarca cada panel cargado. 22 tests con los del runner, ruff limpio, suite completa corriendo antes de fusionar. **Siguiente: 433 (stress de costes en deltas), luego 434.** Bloque B sigue parado hasta el veredicto de A.
 
 [2026-09-11 17:40] CLAUDE: **TASK-431 revisada y re-corrida: el par del run 1 no era un par; con el par correcto sigue INCONCLUSA, y ahora la lectura es otra.** Verificado desde los libros: las 814 marcas Russell y las 1084 del S&P publicado tenian **0 fechas en comun** — rejilla Yahoo anclada 2005-02-11 contra rejilla EODHD anclada 2010-06-28; los calendarios son identicos desde 2010-06-28 (4073 dias, 0 diferencias), asi que era fase pura y el ffill comparaba retornos desfasados 1-4 sesiones (rho 0,48, SE 0,26: sin potencia por construccion). Arreglo en `0784bb7`, sin tocar umbrales ni superficie: S&P con el **mismo motor, mismo calendario y mismo anclaje**, emparejamiento exacto afirmado por un helper que rechaza rejillas desfasadas, Memmel con ρ², el par del run 1 en el payload como historia. **Run 2: 814/814 marcas, rho 0,84, SE 0,143, d_sharpe −0,236** → INCONCLUSO por la regla escrita antes (−0,25 < d < −0,10); maxDD Russell −16,0 vs S&P −19,7 (3,7 pp mejor); costes 10 % del ann_net. Russell **5,66 %** vs S&P **7,96 %** en las mismas fechas, patrimonio 2,43x vs 3,44x. La lectura honesta: el universo operado rinde ~2,3 pp/año menos que la evidencia S&P con el mismo motor, con un IC que roza cero por arriba y la valla de fallo por abajo. Asimetria medida del cap sectorial: mapa `fixed` deja 66 % de Russell y 45 % del S&P OOS en `Other`. **Nada se toca. Bloque B parado. 432, 433 y 434 se corren igual: el veredicto de A se toma con las cuatro.** Freeze, higiene de festivos, write-offs al ultimo precio y la disciplina del inconcluso de Grok: aceptados. Grok: siguiente es **432** desde `main` cuando la #79 este dentro.
@@ -1786,6 +1796,104 @@ el runner da un destino desechable por corrida (cubre los ficheros que corren **
 `test_backup_isolation.py` fija 6 regresiones incluida la forma exacta del incidente. Verificado de punta a punta: suite
 completa con `HYDRA_BACKUP_DIR` a un señuelo -> **49 passed, 0 skipped, exit 0, 0 ficheros escritos en el señuelo**.
 Antes del arreglo, la misma corrida escribia cuatro.
+
+- [ ] `SAFE-04` **La barrera de escritura no alcanza a los procesos hijo.**
+  `tools/write_isolation.py:45-47` describe una capa `sitecustomize` (PYTHONPATH + `HYDRA_WRITE_BARRIER=1`)
+  que **no existe en el repositorio**, y `run_all_tests.py` lanza buena parte de la suite como scripts
+  (`[sys.executable, path]`). Reproducido sobre `main` `27afcf8` con un senuelo en carpeta protegida: el
+  padre rechaza con `WriteIsolationError`, el hijo escribe y **termina con codigo 0**, el hash del senuelo
+  cambia. #82 arreglo la instalacion en pytest (SAFE-02); esta ruta sigue abierta - **no describir la suite
+  completa como protegida**. Aceptacion: arranque controlado que instale la proteccion en cada hijo Python
+  **antes** de importar el modulo bajo prueba, resolviendo las raices reales antes de redirigir backups;
+  script lanzado por el runner **y** corrida pytest rechazan la escritura al senuelo; el scratch sigue
+  escribible; una instalacion fallida **impide** ejecutar el test (no lo degrada a aviso). Verificar codigo
+  de salida y que el senuelo conserva su hash. Sin depender de `cwd` ni de que una variable de entorno por
+  si sola haga algo. Mantener documentados los limites de descriptores, extensiones C y programas externos.
+  `Files:` `tools/write_isolation.py`, `run_all_tests.py`, arranque nuevo + test.
+
+- [ ] `HYDRA-CI-02` **Los skips por caso son invisibles para el resumen y para el gate.**
+  Medido en copia limpia de `27afcf8`: `python -m pytest test_write_barrier_armed.py
+  tools/test_write_isolation.py experiments/test_accredit_433.py -q -rs` -> **21 passed, 4 skipped**
+  (`experiments/test_accredit_433.py:103`, `:124`, `:151`, `:190`). `run_all_tests.py:162-171` solo
+  distingue el skip de **fichero completo** y `tools/check_skips.py:62-84` interpreta esa salida, asi que
+  un fichero con tests pasados y omitidos cuenta como PASS y el titular no traslada el numero real de casos
+  omitidos. **No confundir numero de ficheros con numero de tests**; `0 skipped` no es una afirmacion
+  universal. Aceptacion: resultados estructurados **por caso** (JUnit XML o reporte pytest equivalente)
+  ademas de los de fichero; el gate identifica el **nodeid** omitido, su motivo y la politica explicita que
+  lo permite; test del caso "un fichero con un test pasado y otro omitido". No bajar el umbral de cobertura
+  ni convertir fallos en skips genericos. Va **antes** de CI-01, para que el esquema de integracion externa
+  no vuelva a ocultarlos. `Files:` `run_all_tests.py`, `tools/check_skips.py`, `.github/workflows/test.yml`, + test.
+
+- [ ] `HYDRA-CI-01` **Tres capas de test, y la auditoria de libros reales deja de ser un rojo mudo.**
+  Parte del alcance de #84. Separar: (1) unitarias sinteticas, deterministas y requeridas; (2) integracion
+  portable con fixtures versionados y manifiesto de procedencia; (3) auditoria externa de libros reales,
+  solo donde el artefacto exista. Las nueve pruebas dependientes de artefactos **conservan su capacidad de
+  detectar errores**; las invariantes matematicas se cubren con fixtures portables. La ausencia de un libro
+  debe **informar su ruta y estado**, no producir un `KeyError: n_ledger` opaco ni leerse como ledger vacio
+  (`experiments/capacity_434.py:1088-1100`). La auditoria externa emite un resultado explicito
+  ejecutada/no-ejecutada **con razones**. Aceptacion: clone limpio, 3.12 y 3.13, `run_all_tests.py --cov
+  --strict-console`, cero fallos y cero skips no declarados. **Un verde de las pruebas portables no acredita
+  los libros reales.** No subir `bars.sqlite` ni `state/`/`journal/` a git. Actualizar #84 y volver a medir;
+  su condicion sigue siendo **no fusionar**. `Files:` `experiments/test_capacity_434.py`,
+  `experiments/capacity_434.py`, `.github/workflows/test.yml`. **Bloqueada por HYDRA-CI-02.**
+
+- [ ] `HYDRA-PROV-01` **La ruta final confunde clasificacion con acreditacion.**
+  `experiments/provenance.py:1008-1013` (`classify` mira solo presencia del manifiesto y su propio sello),
+  `experiments/accredit_433.py:167-169` (`accredited_state` delega en `classify`), `:276-291` (`reconcile`
+  lee el libro y etiqueta sus metricas `provenance=ACCREDITED`), `:347-375` (`fully_accredited = not still`,
+  y `still` sale de esas clasificaciones). Reproducido **solo con datos sinteticos** sobre `27afcf8`: ocho
+  libros de ocho marcas con manifiestos que contenian **unicamente** `fixture_only=true` + `self_sha256` ->
+  ocho filas `accredited`, `fully_accredited=true`, **cero llamadas a `accredit()`** y cero bloques de
+  identidad comparados. Sin datos privados y sin ejecutar el motor. Esto es **distinto** del limite
+  criptografico del hash sin clave: aqui la ruta final **omite la validacion funcional que ya existe**;
+  conectarla va primero, antes de pensar en firmas. Aceptacion: `reconcile` y **todos** los consumidores
+  construyen la solicitud efectiva y llaman a `accredit`; cada fila y el agregado preservan bloques
+  comparados, no comparados, `uncompared_keys`, degradaciones y razones de rechazo; el senuelo de arriba
+  deja de producir `fully_accredited=true`; se rechazan costes, panel, calendario, unidades o resultados
+  incompatibles **y contratos de identidad vacios**. Un sello integro con identidad incompleta no basta.
+  **No re-sellar libros historicos** para convertirlos en evidencia acreditada: conservar los retirados y
+  generar artefactos nuevos identificados por ejecucion. Actualizar tambien el texto `known_validator_gap`
+  de `accredit_433.py`, que todavia describe `_check_data` como si no comparara la solicitud.
+  `Files:` `experiments/provenance.py`, `experiments/accredit_433.py`, + tests.
+
+- [ ] `HYDRA-OPS4-01` **`--force`: razon obligatoria y trazabilidad. Solo eso.**
+  Aprobado por Lucas 2026-09-13. Hoy `portfolio_v9.py:780-797` deja que un solo booleano salte **todos** los
+  HARD (13 sitios de emision, 10 checks distintos), `daily.py:136-139` lo expone en el punto de entrada
+  operativo, y una corrida forzada **no deja traza de haberlo sido** en journal, hoja, estado ni manifiesto.
+  Alcance: registrar razon, usuario/contexto disponible, fecha, checks HARD afectados, libro y ejecucion en
+  el rastro correspondiente. **No ampliar que controles puede saltar, no activar force por defecto, no usarlo
+  para resolver datos stale.** Preservar las tres guardas que hoy **no** salta (recuperacion de corrida a
+  medias, invariantes del ledger, settle fuera de cierre). Probar: razon ausente, razon vacia, registro
+  completo, y preservacion de invariantes. `Files:` `portfolio_v9.py`, `daily.py`, + test.
+
+- [ ] `HYDRA-DOC-01` **Deriva v8.4/v9, invocacion real de `daily.py`, e instrucciones de backup.**
+  `portfolio_v9.py:1-10` todavia afirma que `ALGO_VERSION` sigue en v8.4 y que la CLI es opt-in; ambas
+  mitades son falsas (`config.py:65` declara v9). `config.py:62` arrastra el mismo comentario. La capa `.md`
+  esta del lado correcto - **no hacer un barrido masivo de "v8.4"**, falsificaria registros fechados: son
+  tres sitios. `docs/ARCHITECTURE.md:57-64` documenta `daily.py --v9` como la invocacion (el flag es
+  redundante) y presenta el screener como paso 1 de una tuberia, implicando una dependencia que no existe:
+  medido, v9 **no consume ningun artefacto del screener** (`portfolio_v9.py:173-186`, `:710`), se re-obtiene
+  y re-rankea solo. Especificar la operacion real y **probar o documentar** la decision sobre continuar v9
+  tras un fallo del screener (`daily.py:159-216`) - no tratar esa condicion como fallo confirmado sin
+  revisar el contrato; TASK-364 esta marcada `[x]` pero **ninguno de sus artefactos existe** en ningun arbol.
+  Anadir las instrucciones de backup con el alcance real de OPS-00. `Files:` `portfolio_v9.py`, `config.py`,
+  `docs/ARCHITECTURE.md`, `docs/RUNBOOK.md`, `README.md`, `CLAUDE.md`.
+
+- [x] `HYDRA-OPS-00` **Copia local verificada del estado observado en la carpeta OneDrive.** **HECHA (Codex, autorizada por Lucas, 2026-09-13).**
+  Auditoria: las tres generaciones examinadas en `HYDRA_BACKUP_DIR/state_v9/` eran fixtures de pytest -
+  `20260904` con `capital_reference=8000` y un `backup_manifest.json` cuyo `source` era un tmpdir de pytest,
+  `20260905` y `20260908` con libro sintetico (ticker AAA, 1 orden) frente al libro real de 30 ordenes y
+  10483 B. **Ninguna de esas tres generaciones era una copia valida del estado local observado**;
+  no se acredita la ausencia de otras copias. `docs/RUNBOOK.md:100` apuntaba a ese destino como ruta de
+  recuperacion. Cerrado con una generacion nueva `20260904_LIVE_VERIFIED` (cuatro ficheros, hashes
+  coincidentes entre fuente, copia y manifiesto; `verify_state.py` cero hallazgos sobre ambos; restauracion
+  de ensayo exit 0 con el mismo hash) y las tres generaciones viejas **conservadas byte por byte** con
+  `DO_NOT_RESTORE.txt`. Nada borrado ni renombrado; `state/` intacto.
+  **Alcance, dicho explicitamente:** `LIVE_VERIFIED` significa integridad de la copia del estado local
+  observado, y **nada mas**. NO acredita sincronizacion remota de OneDrive, recuperacion desde otra maquina,
+  proteccion futura del destino, integridad de todo el journal ni fills del broker. Pendiente aparte, no
+  cubierto por este cierre: (a) verificar que OneDrive sincronizo la generacion nueva; (b) una proteccion
+  recurrente del destino para que un test no pueda volver a plantar un fixture ahi.
 
 ## Cola A12-R (rediseño; ninguna se cierra sin las regresiones de la 397)
 
