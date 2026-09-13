@@ -41,8 +41,65 @@ import shutil
 import sys
 import tempfile
 
+# --------------------------------------------------------------------------------------------
+# WRITE ISOLATION - installed FIRST, and the order is the whole point.
+#
+# `_redirect_backup_dir()` below rebinds HYDRA_BACKUP_DIR to a throwaway. The barrier reads the
+# INHERITED value to learn which real root to protect, so installing after the redirect would
+# guard the throwaway and leave the only off-disk copy of the live book unguarded. Textual
+# position is not the guarantee, though - `tools/test_write_isolation.py` demonstrates the
+# refusal against an ARTIFICIAL protected root, and `test_write_barrier_armed.py` asserts the
+# SESSION state this block produces rather than assuming it.
+#
+# HYDRA_BACKUP_DIR only ever protected backups that honour that variable. Books, manifests,
+# journals and runs/ are separate destinations and are enumerated by `repo_evidence_roots()`.
+# What is NOT covered is written down in tools/write_isolation.py: non-Python subprocesses,
+# handles opened before install, raw file descriptors and C-level path openers.
+#
+# TEST_BACKUP_MARKER is bound HERE, above the block that reads it. It used to be defined below,
+# and `_real_evidence_roots` closed over a name that did not exist yet: Python evaluates the
+# argument before calling, so `install()` was never entered, the NameError was swallowed by the
+# `except` and every session ran unprotected with only a line on stderr. Keep this above.
+# --------------------------------------------------------------------------------------------
+
 #: Any path carrying this marker is a throwaway test destination, never a real backup root.
 TEST_BACKUP_MARKER = "hydra-test-backup"
+
+_TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools")
+if _TOOLS not in sys.path:
+    sys.path.insert(0, _TOOLS)
+try:
+    import write_isolation as _WI
+
+    def _real_evidence_roots():
+        """Resolve which roots are REAL before anything redirects a destination.
+
+        `repo_evidence_roots()` includes whatever HYDRA_BACKUP_DIR points at. When the runner
+        has already pointed it at a throwaway (run_all_tests.py:124 does exactly that), that
+        directory is disposable BY DESIGN and protecting it refuses the writes the tests are
+        supposed to make - measured: 5 files, 12 tests, all writing into their own temp backup.
+        Identity, not position, decides: a path carrying TEST_BACKUP_MARKER is never evidence.
+        """
+        roots = _WI.repo_evidence_roots()
+        keep = [r for r in roots if TEST_BACKUP_MARKER not in r.lower()]
+        dropped = [r for r in roots if TEST_BACKUP_MARKER in r.lower()]
+        for d in dropped:
+            print(f"[conftest] not protecting disposable backup root: {d}", file=sys.stderr)
+        return keep
+
+    WRITE_BARRIER_ROOTS = _WI.install(protected=_real_evidence_roots())
+except Exception as _exc:                      # noqa: BLE001 - re-raised, never swallowed
+    # FAIL CLOSED. This used to set WRITE_BARRIER_ROOTS = [] and print to stderr, and the suite
+    # carried on unprotected; pytest captures stderr by default, so the warning reached nobody
+    # and the barrier was dead from the commit that introduced it until the 2026-09-13 audit.
+    # A barrier that cannot be installed stops collection - it does not downgrade to a notice.
+    WRITE_BARRIER_ROOTS = []
+    print(f"[conftest] WRITE ISOLATION NOT INSTALLED: {_exc}", file=sys.stderr)
+    raise RuntimeError(
+        f"write isolation could not be installed ({type(_exc).__name__}: {_exc}). "
+        "Refusing to run the suite unprotected: tests write to state/, journal*/ and the "
+        "evidence books. Fix the barrier, do not bypass this."
+    ) from _exc
 
 
 def _redirect_backup_dir() -> str:
