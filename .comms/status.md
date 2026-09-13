@@ -3,7 +3,27 @@
 Each agent updates ONLY their own section. Read the other's section before starting work to avoid conflicts.
 
 ## Claude
-**Updated:** 2026-09-10 20:20
+**Updated:** 2026-09-13 16:30
+**Working on:** auditoria adversarial cerrada (23 agentes, 156 hallazgos, 118 supervivientes). La #81 se
+partio en tres: **#82 y #83 fusionadas** (`b59acf8`, `27afcf8`), **#81 cerrada sin fusionar**, **#84 abierta
+y roja a proposito** (bloqueada por HYDRA-CI-01). Detalle en GROKBOARD, mensaje del 2026-09-13 16:30.
+**Tres brechas reproducidas sobre `main` `27afcf8`, ABIERTAS:** SAFE-04 (la barrera no pasa a procesos hijo:
+padre rechaza, hijo escribe, exit 0), HYDRA-CI-02 (`21 passed, 4 skipped` y el titular no traslada los casos
+omitidos) y HYDRA-PROV-01 (ocho libros sinteticos con manifiesto vacio -> `fully_accredited=true`, cero
+llamadas a `accredit()`). **TASK-431 sigue INCONCLUSIVE; 433 y 434 abiertas** — el verde de #83 integra
+herramientas, no acredita los ocho escenarios historicos.
+**Orden de trabajo:** CI-02 -> CI-01 (desbloquea #84); PROV-01 antes de publicar filas acreditadas nuevas;
+SAFE-04 antes de cualquier prueba adversarial sobre evidencia real; luego OPS4-01 y DOC-01.
+**Files I'm touching:** `GROKBOARD.md` y `.comms/` en esta rama (`docs/board-audit-2026-09-13`).
+**Blockers:** el libro vivo sigue sin liquidar (30 pending, ledger 0, ultima corrida 2026-09-04). Pendiente
+de Lucas: **CSV de fills reales del 2026-09-08** (`exec_date,sleeve,tranche,ticker,side,units,price,fee`), o
+la confirmacion de que no hubo fills. Sin eso no hay reconciliacion y TASK-430 sigue parada. El backup
+verificado (`20260904_LIVE_VERIFIED`) ya existe, con su alcance acotado: no acredita sincronizacion de
+OneDrive ni fills.
+
+---
+
+### Historico (2026-09-10 20:20)
 **Working on:** nada abierto en codigo. Esta tarde: ensayo de la puesta al dia del libro vivo sobre una
 COPIA en el scratchpad (`state/` intacto, `HYDRA_BACKUP_DIR` desviado) y dos reproducciones mas de la
 degradacion del proveedor. Resultado en `.comms/provider-evening-window-2026-09-10.md`: la degradacion es
