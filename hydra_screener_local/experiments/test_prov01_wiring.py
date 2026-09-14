@@ -83,6 +83,20 @@ def _absent_historicals():
             for p in {pan for pan, _ in A.ORDER}}
 
 
+def _no_historicals(monkeypatch, tmp_path):
+    """Neither the base books NOR the per-scenario ones.
+
+    `BASE_BOOKS` covers only `label == "base"`; every other scenario resolves through
+    `cost_stress.book_path`, which on the lab machine finds the REAL 813-mark books. Patching
+    one and not the other made this file pass on a clean clone and fail here - the exact
+    machine-dependence these tickets exist to remove.
+    """
+    monkeypatch.setattr(CS, "BASE_BOOKS", _absent_historicals())
+    monkeypatch.setattr(CS, "book_path",
+                        lambda panel, label: str(tmp_path / "nonexistent"
+                                                 / f"{panel}_{label}.pkl"))
+
+
 def _plant_minimal_manifest(panel, label, extra=None):
     """The decoy: a book, and a manifest that carries only a valid seal over nothing."""
     path = A.acc_path(panel, label)
@@ -122,10 +136,10 @@ def test_a_minimal_manifest_is_rejected_by_NAME_of_what_is_missing(slot):
     assert answer["seal_class"] == PV.ACCREDITED
 
 
-def test_the_aggregate_cannot_say_fully_accredited_over_rejected_books(slot, monkeypatch):
+def test_the_aggregate_cannot_say_fully_accredited_over_rejected_books(slot, monkeypatch, tmp_path):
     for panel, label in A.ORDER:
         _plant_minimal_manifest(panel, label)
-    monkeypatch.setattr(CS, "BASE_BOOKS", _absent_historicals())
+    _no_historicals(monkeypatch, tmp_path)
     payload = A.reconcile(irx=_irx_series())
     prov = payload["provenance"]
     assert prov["fully_accredited"] is False
@@ -135,11 +149,11 @@ def test_the_aggregate_cannot_say_fully_accredited_over_rejected_books(slot, mon
     assert payload["rows_accredited"] == [], "no row may be published as accredited"
 
 
-def test_no_row_is_stamped_accredited_without_a_validation(slot, monkeypatch):
+def test_no_row_is_stamped_accredited_without_a_validation(slot, monkeypatch, tmp_path):
     """A metrics row may only claim provenance it can show."""
     for panel, label in A.ORDER:
         _plant_minimal_manifest(panel, label)
-    monkeypatch.setattr(CS, "BASE_BOOKS", _absent_historicals())
+    _no_historicals(monkeypatch, tmp_path)
     payload = A.reconcile(irx=_irx_series())
     for row in payload["rows_accredited"]:
         assert row.get("compared"), f"row claims accreditation with nothing compared: {row}"
@@ -269,10 +283,10 @@ def test_the_anchor_calendar_refuses_an_unvalidated_book(slot):
         "a seal-only check let an unvalidated book define the mark grid")
 
 
-def test_the_stale_validator_note_no_longer_claims_an_open_gap(slot, monkeypatch):
+def test_the_stale_validator_note_no_longer_claims_an_open_gap(slot, monkeypatch, tmp_path):
     for panel, label in A.ORDER:
         _plant_minimal_manifest(panel, label)
-    monkeypatch.setattr(CS, "BASE_BOOKS", _absent_historicals())
+    _no_historicals(monkeypatch, tmp_path)
     note = A.reconcile(irx=_irx_series())["known_validator_gap"]
     assert "CLOSED" in note, "the note still describes _check_data as if it did not compare"
     assert "self_sha256" in note, "the limit that IS open must stay named"
@@ -285,6 +299,7 @@ def test_historical_artifacts_are_not_re_sealed_to_look_current(slot, monkeypatc
     hist = os.path.join(str(slot), "historical_book.pkl")
     pd.to_pickle(_book(), hist)
     before = os.path.getmtime(hist)
+    _no_historicals(monkeypatch, slot)
     books = _absent_historicals(); books["russell"] = hist
     monkeypatch.setattr(CS, "BASE_BOOKS", books)
     for panel, label in A.ORDER:

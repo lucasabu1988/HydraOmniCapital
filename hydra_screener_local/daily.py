@@ -132,11 +132,11 @@ def main(argv=None):
         default=None,
         help="USD capital for the first v9 run (passed to portfolio_v9.py --capital).",
     )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Pass through to portfolio_v9.py: plan even if preflight hard-fails.",
-    )
+    # OPS4-01: `--force` is deliberately NOT exposed here. This is the one command in the
+    # runbook, and adding six characters to it skipped every HARD preflight row - including
+    # the ones reserved for a state, cash, positions or ledger that cannot be trusted, with
+    # no trace afterwards that an override had happened. Forcing now means invoking
+    # portfolio_v9.py directly, with --force-reason, which is a deliberate act and is recorded.
     parser.add_argument(
         "--state-dir",
         type=str,
@@ -174,7 +174,7 @@ def main(argv=None):
         try:
             from portfolio_v9 import run as run_v9
 
-            v9_kwargs = {"capital": args.v9_capital, "force": args.force}
+            v9_kwargs = {"capital": args.v9_capital}
             if args.state_dir:
                 from pathlib import Path as _Path
                 v9_kwargs["state_dir"] = _Path(args.state_dir) if _Path(args.state_dir).is_absolute() else ROOT / args.state_dir

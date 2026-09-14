@@ -240,6 +240,7 @@ def test_run_force_continues_on_hard_fail(tmp_path, monkeypatch):
         return m
 
     out = V.run(tmp_path, capital=100000.0, fetch_fn=bad, rank_fn=_rank,
-                engine=FakeEngine(), silent=True, force=True)
+                engine=FakeEngine(), silent=True, force=True,
+                force_reason="test fixture: preflight is hard by construction")
     assert Path(out["state_path"]).exists()
     assert out["orders"]

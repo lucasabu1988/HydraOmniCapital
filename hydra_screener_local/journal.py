@@ -254,6 +254,8 @@ def append_from_v9(out: dict, journal_dir: Path | None = None, note: str | None 
         "dividend_coverage": (out.get("dividend_report") or {}).get("coverage_through"),
     }
     outputs = {
+        # OPS4-01: a forced run says so in the journal, with its reason and what it skipped.
+        "force": out.get("force"),
         "run_id": out.get("run_id"),
         "run_status": out.get("run_status"),
         "state_path": out.get("state_path"),
