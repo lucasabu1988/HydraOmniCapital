@@ -18,6 +18,7 @@ regardless.
 import json
 import os
 import shutil
+import subprocess
 import sys
 
 import pandas as pd
@@ -278,30 +279,54 @@ def test_the_code_fingerprint_still_matches_after_the_last_book():
     """CLOSES THE WINDOW `check_code_unchanged` leaves open during the FINAL book.
 
     The guard runs before each drive, so nothing verifies the code between the start of book
-    eight and its seal. This recomputes every recorded module digest FROM DISK, in this fresh
-    process, and requires it to equal what all eight books recorded.
+    eight and its seal. This recomputes every recorded module digest in this fresh process - from
+    the blob at the pinned commit when the runner names one (`HYDRA_433_CODE_REF`), from disk
+    otherwise - and requires it to equal what all eight books recorded. See `_module_digest`.
 
     Reading the files rather than `code_identity()` is the point: `swept` depends on what a
     process happens to have imported, so comparing two processes' sweeps compares their import
     graphs. `sha256_lf(path)` is a property of the bytes, so it answers the question actually
     being asked - did the code move while the evidence was being produced.
     """
+    ref = os.environ.get("HYDRA_433_CODE_REF")
+    if ref:
+        ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", ref, "HEAD"], cwd=ROOT,
+                                  capture_output=True)
+        assert ancestor.returncode == 0, (
+            f"{ref} is not an ancestor of HEAD: the code the books recorded is not in this history")
     mans = _manifests()
     problems = []
     for (panel, label), man in mans.items():
         code = man.get("code") or {}
         for block in ("modules", "swept"):
             for rel, stored in (code.get(block) or {}).items():
-                path = os.path.join(ROOT, rel)
-                if not os.path.exists(path):
-                    problems.append(f"{panel}/{label}: {block}:{rel} recorded but now absent")
-                    continue
-                now = PV.sha256_lf(path)
-                if now != stored:
+                now, where = _module_digest(rel, ref)
+                if now is None:
+                    problems.append(f"{panel}/{label}: {block}:{rel} recorded but absent {where}")
+                elif now != stored:
                     problems.append(
-                        f"{panel}/{label}: {block}:{rel} stored {stored[:12]} but the file on "
-                        f"disk is {now[:12]} - the code moved")
+                        f"{panel}/{label}: {block}:{rel} stored {stored[:12]} but {where} it is "
+                        f"{now[:12]} - the code moved")
     assert not problems, "\n".join(problems)
+
+
+def _module_digest(rel: str, ref):
+    """(sha256_lf of `rel`, where it was read): the blob at `ref` when one is pinned, else disk.
+
+    Two questions, one function. While a run is OPEN the question is "did the code move while
+    the evidence was being produced", and the working tree is the witness. Once the run is
+    CLOSED and its code is in history, the working tree is allowed to move on - the very next
+    commit after #95 edited `provenance.py` and `cost_stress.py`, both recorded by the books -
+    and the question becomes "is the code the books recorded the code at the pinned commit".
+    The runner pins that commit (`external_audit.TASK_433_CODE_REF`, the merge of #95) and
+    hands it over as `HYDRA_433_CODE_REF`; content hashes still decide, not the commit id.
+    """
+    if not ref:
+        path = os.path.join(ROOT, rel)
+        if not os.path.exists(path):
+            return None, "on disk"
+        return PV.sha256_lf(path), "on disk"
+    return PV.sha256_lf_at(ref, rel), f"at {ref[:12]}"
 
 
 def test_every_book_recorded_the_same_code():

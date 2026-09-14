@@ -23,6 +23,7 @@ carry full-precision statistics and `table` rounds only for the console.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import sys
@@ -515,13 +516,29 @@ DEGRADED = "accredited_with_limitations"
 
 
 
+#: panel -> grid, computed once per process. Loading the Russell panel costs ~70 s and the S&P
+#: panel ~15 s (measured 2026-09-14), and the audits of one run ask for the same grid dozens of
+#: times. Deferred until TASK-433 closed: this module is inside the code identity the accredited
+#: books recorded, so editing it earlier would have moved the fingerprint the audit recomputes.
+_GRID_MEMO: dict = {}
+
+
 def derived_grid(panel: str) -> dict:
     """The expected mark grid for `panel`, from the identified inputs and the engine's rules.
 
     Takes no book. `calendar_spec.expected_grid` refuses an empty or too-short calendar and a
     membership record that is not on that calendar, so a grid that comes back here is one the
     rules actually produce rather than one shaped by whatever was cached.
+
+    Memoised per process and returned as a deep copy, so a caller that edits its grid cannot
+    hand the edit to the next caller.
     """
+    if panel not in _GRID_MEMO:
+        _GRID_MEMO[panel] = _derive_grid(panel)
+    return copy.deepcopy(_GRID_MEMO[panel])
+
+
+def _derive_grid(panel: str) -> dict:
     if panel == "russell":
         P = L.load_panel(oos=False, cache_dir=R.TRADING_CACHE)
         restore = R.attach_russell_membership(P, os.path.join(R.TRADING_CACHE, "membership.pkl"))

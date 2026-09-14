@@ -553,3 +553,31 @@ def test_the_two_input_defects_are_refused_through_the_integrated_path(tmp_path,
                 calendar_source="stub", rules={}, basis="stub", calendar_identity="stub")
     r = CS.CSPEC.validate_marks(pd.DatetimeIndex([]), spec)
     assert r["ok"] is False and "empty book is not a match" in r["problems"][0]
+
+
+def test_derived_grid_loads_each_panel_once_and_hands_out_copies(monkeypatch):
+    """~70 s per Russell load, dozens of asks per audit run: one derivation per panel per process.
+    The memo hands out deep copies, so a caller that edits its grid cannot poison the next."""
+    loads = []
+
+    class _P:
+        close = pd.DataFrame(index=pd.bdate_range("2020-01-01", periods=30))
+
+    def fake_load_panel(**kw):
+        loads.append(kw)
+        return _P()
+
+    def fake_expected_grid(index, *a, **kw):
+        return {"marks": [str(d.date()) for d in index[::5]], "rules": {"source": kw.get("calendar_source")}}
+
+    monkeypatch.setattr(CS, "_GRID_MEMO", {})
+    monkeypatch.setattr(CS.L, "load_panel", fake_load_panel)
+    monkeypatch.setattr(CS.CSPEC, "expected_grid", fake_expected_grid)
+
+    first = CS.derived_grid("sp500")
+    second = CS.derived_grid("sp500")
+    assert loads == [{"oos": True}], "the panel must be loaded exactly once for the same panel"
+    assert first == second and first is not second and first["marks"] is not second["marks"]
+    first["marks"].append("poison")
+    assert "poison" not in CS.derived_grid("sp500")["marks"], "a caller's edit leaked into the memo"
+    assert CS._GRID_MEMO["sp500"]["rules"]["source"] == "OOS panel close index"

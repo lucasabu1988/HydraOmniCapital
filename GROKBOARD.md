@@ -1472,6 +1472,36 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   auditaba "la mas nueva"); la auditoria heredada `withdrawn.no-replacement-yet` pasa a
   `withdrawn.legacy-slot-not-reused` (`task433_accredited_v2.json` nunca se escribio, el replacement
   vive bajo su run id, el par retirado sigue preservado); y esta entrada. Merge = paso de Lucas.
+  **[2026-09-14 CLAUDE] POST-MERGE (#95 = `260a418`): los dos arreglos diferidos, y lo que obligan.**
+  `provenance._git(strip=False)` para el porcelain: la primera ruta sucia ya no pierde su primer
+  caracter (test con el porcelain real de la corrida). `cost_stress.derived_grid` memoizado por
+  proceso con copia profunda (test: una carga por panel, la edicion de un caller no envenena al
+  siguiente). Consecuencia inevitable: ambos modulos estan en `code.modules` de los libros de
+  `cae2c54599aa`, asi que la auditoria de huella "bytes en disco = digests registrados" se pone roja
+  para siempre en cuanto se editan — comprobado: desde disco falla nombrando exactamente esos dos y
+  ningun otro. La respuesta no es apagarla: para una corrida CERRADA la pregunta cambia de "se movio
+  el codigo mientras se producia la evidencia" a "el codigo que registraron los libros esta en la
+  historia". `external_audit` pina `TASK_433_CODE_REF = 260a418` (verificado: los 28 digests
+  registrados igualan el sha256_lf de `git show 260a418:<path>`), lo pasa por env junto al run id, y
+  la auditoria compara contra esos blobs y exige que el commit sea ancestro de HEAD; sin el env
+  sigue comparando contra disco (corrida abierta). Deciden los hashes de contenido, no el id.
+  La cadena externa destapo la segunda mitad: con la huella pinada en verde, las DOS auditorias
+  que llaman a `PV.accredit()` sobre los libros reales se pusieron rojas — `CACHE REJECTED [code]`,
+  porque `provenance.request` rellena `code` con `code_identity()` del proceso que audita, y ese
+  proceso ya no es la corrida. Correcto e inutil a la vez. `provenance.code_identity_at(ref)`
+  construye el bloque `code` desde los blobs de git con la misma receta (`modules_combined` identico
+  al registrado, `swept` vacio a proposito: una barrida mide un proceso), y
+  `accredit_433.request_code()` lo pone en la peticion solo cuando el runner nombra el commit; sin
+  env, la corrida esta abierta y el proceso en ejecucion ES el codigo bajo juicio. Tests: identidad
+  en HEAD igual a disco para los modulos no editados; en el commit raiz todo `missing`; CRLF plegado
+  igual que `sha256_lf`; la peticion cambia de bloque con y sin env.
+  Revision de #96 (Lucas): un test no portable a shallow clones (`rev-list --max-parents=0` en un
+  checkout `fetch-depth: 1` devuelve el limite shallow, que contiene todo) — corregido el test, no CI:
+  mismo contrato con un path ausente en HEAD. Deuda explicita, no arreglada: `code_identity_at` usa el
+  `ENUMERATED_MODULES` de HOY; si esa lista cambia sobre un archivo que ya existia en el commit pinado,
+  una corrida cerrada se pone roja con los blobs intactos. Arreglo cuando cambie la lista: leer las
+  claves de `code.modules` del manifest.
+
   **Siguiente: TASK-434 de inmediato.** El Bloque B no rescata nada de esto.
 
 - [ ] `TASK-434` **Bloque A/4 — capacidad: participation rate y el AUM maximo.**

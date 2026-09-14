@@ -342,4 +342,6 @@ def test_the_runner_tells_the_subprocess_which_run_it_pinned(monkeypatch, tmp_pa
     EA._run(["audits/x.py::test_y"], str(tmp_path / "j.xml"))
     assert seen["env"] is not None, "_run launched pytest with an inherited, unpinned environment"
     assert seen["env"]["HYDRA_433_RUN_ID"] == EA.TASK_433_RUN_ID
+    assert seen["env"]["HYDRA_433_CODE_REF"] == EA.TASK_433_CODE_REF
+    assert len(EA.TASK_433_CODE_REF) == 40, "the pinned commit is a full sha, not something git has to guess"
     assert seen["env"].get("PATH") == os.environ.get("PATH"), "the rest of the environment is inherited"

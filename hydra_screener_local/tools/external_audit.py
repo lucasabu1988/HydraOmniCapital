@@ -99,6 +99,12 @@ OOS_CACHES = {
 #:
 #: `20260914-cae2c54599aa` is the run this audit is about: eight books, one frozen code identity.
 TASK_433_RUN_ID = "20260914-cae2c54599aa"
+#: The commit whose blobs ARE the code the eight books recorded: the merge of #95. Verified
+#: 2026-09-14 - all 28 recorded digests (`code.modules` + `code.swept`) equal the sha256_lf of
+#: `git show 260a418:<path>`. The fingerprint audit compares against these blobs, so the working
+#: tree may move on (the commit right after #95 edits provenance.py and cost_stress.py, both
+#: recorded) while the claim "the code that ran is in history at this commit" stays checkable.
+TASK_433_CODE_REF = "260a418195cbba6311eb5a7d7c7a863eb6e6791e"
 _T433 = _p("experiments", "_lab_scratch", "accredited", "runs", TASK_433_RUN_ID)
 TASK_433_RUN = {
     **{f"{panel}_{label}.pkl": os.path.join(_T433, f"{panel}_{label}.pkl")
@@ -261,7 +267,7 @@ REGISTRY: tuple = (
         id="task433.code-fingerprint-still-matches-after-the-last-",
         nodeid="audits/audit_task433_run.py::test_the_code_fingerprint_still_matches_after_the_last_book",
         requires=TASK_433_RUN,
-        claims="every module digest the eight books recorded still matches the bytes on disk, recomputed in a fresh process AFTER the last book - this closes the window check_code_unchanged leaves open during the final drive",
+        claims="every module digest the eight books recorded equals the blob at TASK_433_CODE_REF (the merge of #95, an ancestor of HEAD), recomputed in a fresh process AFTER the last book - the code that ran is in history, whatever the working tree does next",
         why_external="reads the eight accredited books of one real run, which live in the "
                      "gitignored _lab_scratch/ and are never committed",
     ),
@@ -347,6 +353,7 @@ def _env() -> dict:
     """
     env = dict(os.environ)
     env["HYDRA_433_RUN_ID"] = TASK_433_RUN_ID
+    env["HYDRA_433_CODE_REF"] = TASK_433_CODE_REF
     return env
 
 
