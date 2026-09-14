@@ -394,12 +394,32 @@ def derived_anchor_calendar(panel: str = "russell") -> dict | None:
     return block
 
 
+def pinned_code_ref():
+    """The commit a CLOSED run's books answer to, when the runner names one; None while OPEN."""
+    return os.environ.get("HYDRA_433_CODE_REF") or None
+
+
+def request_code():
+    """The `code` block the effective request carries, or None to let `provenance.request`
+    fall back to `code_identity()`.
+
+    While the run is OPEN the running process IS the code under judgment, so the request says
+    nothing and the fallback applies. Once it is CLOSED the runner pins the commit whose blobs
+    are the recorded code (`external_audit.TASK_433_CODE_REF`) and the request carries that
+    identity: a book is then accredited against the code in history, and the working tree may
+    move on without turning every accreditation red. Content hashes decide either way.
+    """
+    ref = pinned_code_ref()
+    return PV.code_identity_at(ref) if ref else None
+
+
 def effective_request(panel: str, label: str) -> dict:
     """The request this scenario IS, built from the scenario, not from the file being judged.
 
     Copying the stored manifest into the request would only compare the artifact with itself.
     The cost pair comes from the scenario table and the calendar from the anchor book, exactly
-    as `produce()` builds it when it drives the scenario.
+    as `produce()` builds it when it drives the scenario. The code block is the running
+    process's while the run is open and the pinned commit's once it is closed (`request_code`).
     """
     s_bp, e_bp = scenario_bp(label)
     if (panel, label) == ("russell", "base"):
@@ -407,7 +427,11 @@ def effective_request(panel: str, label: str) -> dict:
         anchor = derived_anchor_calendar(panel)
     else:
         anchor = anchor_calendar()
-    return CS.request(panel, label, s_bp, e_bp, calendar=anchor)
+    req = CS.request(panel, label, s_bp, e_bp, calendar=anchor)
+    code = request_code()
+    if code is not None:
+        req["code"] = code
+    return req
 
 
 def accredit_answer(panel: str, label: str, *, echo: bool = False) -> dict:

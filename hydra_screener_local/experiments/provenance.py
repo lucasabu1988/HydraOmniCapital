@@ -230,12 +230,18 @@ def _rel(path: str) -> str:
 
 # --------------------------------------------------------------------------- code identity
 
-def _git(args: list[str]) -> str:
+def _git(args: list[str], strip: bool = True) -> str:
+    """`strip=False` for output whose leading whitespace is data: `status --porcelain` writes
+    ` M path` for an unstaged edit, and stripping the whole output eats the first line's space.
+    Measured on the TASK-433 manifests: the alphabetically-first dirty path was recorded as
+    `ydra_screener_local/audits/audit_task433_run.py`, the `h` lost to `ln[3:]` after a strip.
+    Those manifests keep the misspelling; this stops the next one."""
     try:
-        return subprocess.check_output(["git", *args], cwd=ROOT, text=True,
-                                       stderr=subprocess.DEVNULL).strip()
+        out = subprocess.check_output(["git", *args], cwd=ROOT, text=True,
+                                      stderr=subprocess.DEVNULL)
     except (OSError, subprocess.CalledProcessError):
         return ""
+    return out.strip() if strip else out.rstrip("\r\n")
 
 
 def git_state() -> dict:
@@ -246,7 +252,7 @@ def git_state() -> dict:
     PR that published them merged at 10:49, so a commit id alone would have named a tree that did
     not exist when the engine ran.
     """
-    porcelain = _git(["status", "--porcelain"]).splitlines()
+    porcelain = _git(["status", "--porcelain"], strip=False).splitlines()
     return dict(
         commit=_git(["rev-parse", "HEAD"]) or None,
         dirty=bool(porcelain),
@@ -314,6 +320,48 @@ def code_identity(enumerated=ENUMERATED_MODULES) -> dict:
         missing=sorted(m for m in enumerated if not os.path.exists(os.path.join(ROOT, m))),
         entry=_rel(sys.argv[0]) if sys.argv and sys.argv[0] else None,
         git=git_state(),
+        deps=_dep_versions(),
+    )
+
+
+def sha256_lf_at(ref: str, rel: str):
+    """`sha256_lf` of `rel` as it is at git `ref`, or None when no such blob exists there.
+
+    `./` makes the path relative to `ROOT` (the cwd git is given), so `rel` is the same
+    repo-relative spelling `code.modules` records."""
+    proc = subprocess.run(["git", "show", f"{ref}:./{rel}"], cwd=ROOT, capture_output=True)
+    if proc.returncode != 0:
+        return None
+    return hashlib.sha256(proc.stdout.replace(b"\r\n", b"\n")).hexdigest()
+
+
+def code_identity_at(ref: str, enumerated=ENUMERATED_MODULES) -> dict:
+    """The `code` block a run at commit `ref` answers to, built from git blobs, not from disk.
+
+    For a CLOSED run. `code_identity()` describes the process that is running; once a run's
+    code is in history and the working tree has moved on (the commit after #95 edited
+    `provenance.py` and `cost_stress.py`, both recorded by the TASK-433 books), a request that
+    carries the running identity refuses every book on `[code]` - correctly, and uselessly. The
+    question a closed run must still answer is "does the book carry the code at the pinned
+    commit", so the request carries that commit's digests. `modules_combined` uses the same
+    recipe as `code_identity`, so a matching commit reproduces the stored digest exactly.
+
+    `swept` is empty on purpose: a sweep measures one process's import graph, and
+    `_check_code` compares sweeps only on the names both sides carry, so an empty request
+    sweep compares nothing. The cross-run audit checks the recorded sweep against the same
+    commit's blobs. `deps` are the running ones - that comparison is about major versions.
+    """
+    digests = {rel: sha256_lf_at(ref, rel) for rel in enumerated}
+    modules = {rel: d for rel, d in sorted(digests.items()) if d is not None}
+    return dict(
+        modules=modules,
+        modules_combined=sha256_json(modules),
+        swept={},
+        unenumerated=[],
+        missing=sorted(rel for rel, d in digests.items() if d is None),
+        entry=None,
+        git=dict(commit=_git(["rev-parse", ref]) or ref, pinned_ref=ref, dirty=False,
+                 dirty_paths=[], untracked=[]),
         deps=_dep_versions(),
     )
 

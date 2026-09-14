@@ -573,3 +573,18 @@ def test_the_driver_list_is_what_a_finished_run_actually_sweeps():
     assert "sleeves/etf_trend.py" in A.RUN_ID_DRIVERS
     for rel in A.RUN_ID_DRIVERS:
         assert os.path.exists(os.path.join(A.ROOT, rel)), f"{rel} is in the list but not on disk"
+
+
+def test_the_request_carries_the_pinned_commits_code_once_the_run_is_closed(monkeypatch):
+    """OPEN run: no env, `request_code()` is None and `provenance.request` falls back to the
+    running identity. CLOSED run: the runner names the commit and the request carries THAT
+    identity, so a book produced by code that has since moved on disk still accredits against
+    the code in history. Without this, the first commit after #95 turned two audits red."""
+    monkeypatch.delenv("HYDRA_433_CODE_REF", raising=False)
+    assert A.pinned_code_ref() is None and A.request_code() is None
+
+    monkeypatch.setenv("HYDRA_433_CODE_REF", "HEAD")
+    code = A.request_code()
+    assert code["git"]["pinned_ref"] == "HEAD" and code["swept"] == {}
+    assert code["modules_combined"] == A.PV.code_identity_at("HEAD")["modules_combined"]
+    assert set(code["modules"]) == set(A.PV.code_identity()["modules"])

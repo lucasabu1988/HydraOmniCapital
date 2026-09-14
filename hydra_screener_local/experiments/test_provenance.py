@@ -835,3 +835,79 @@ def test_a_manifest_with_no_result_digest_is_refused_not_treated_as_agreement(tm
         assert out, f"a manifest whose result block is {empty!r} must be refused"
         tag, field, body = out[0]
         assert field == "result" and "no result sha256" in body
+
+
+def test_git_state_keeps_the_first_dirty_path_whole(monkeypatch):
+    """The TASK-433 manifests record `ydra_screener_local/audits/audit_task433_run.py`: `_git`
+    stripped the whole porcelain output, the first line lost its leading space, and `ln[3:]` ate
+    the path's first character. The first line is the one that sorts first, so it was always a
+    real path that got mangled, never a blank."""
+    porcelain = (" M hydra_screener_local/audits/audit_task433_run.py\n"
+                 " M hydra_screener_local/experiments/accredit_433.py\n"
+                 "?? hydra_screener_local/tools/expire_pending.py\n")
+
+    def fake_git(args, strip=True):
+        if args[:2] == ["status", "--porcelain"]:
+            return porcelain.strip() if strip else porcelain.rstrip("\r\n")
+        return "0a3202a870c0401f18d33931605850d02e2bace2"
+
+    monkeypatch.setattr(PV, "_git", fake_git)
+    st = PV.git_state()
+    assert st["dirty"] is True
+    assert st["dirty_paths"] == ["hydra_screener_local/audits/audit_task433_run.py",
+                                 "hydra_screener_local/experiments/accredit_433.py"]
+    assert st["untracked"] == ["hydra_screener_local/tools/expire_pending.py"]
+
+
+def test_git_strip_false_only_removes_the_trailing_newline(monkeypatch):
+    calls = {}
+
+    def fake_check_output(cmd, **kw):
+        calls["cmd"] = cmd
+        return " M a/b.py\n?? c.py\n"
+
+    monkeypatch.setattr(PV.subprocess, "check_output", fake_check_output)
+    assert PV._git(["status", "--porcelain"], strip=False) == " M a/b.py\n?? c.py"
+    assert PV._git(["status", "--porcelain"]) == "M a/b.py\n?? c.py"
+    assert calls["cmd"][:1] == ["git"]
+
+
+def test_code_identity_at_head_matches_disk_for_an_unedited_module():
+    """Same recipe as `code_identity()`: a module identical on disk and at HEAD digests the same
+    both ways, and `modules_combined` is `sha256_json` over exactly the enumerated modules."""
+    at = PV.code_identity_at("HEAD")
+    live = PV.code_identity()
+    assert set(at["modules"]) == set(live["modules"]), "the enumerated list is the same both ways"
+    assert at["modules_combined"] == PV.sha256_json(at["modules"])
+    same = [rel for rel in at["modules"] if at["modules"][rel] == live["modules"][rel]]
+    assert same, "at least one enumerated module is unedited relative to HEAD"
+    for rel in same:
+        assert at["modules"][rel] == PV.sha256_lf(os.path.join(PV.ROOT, rel))
+    assert at["swept"] == {} and at["git"]["pinned_ref"] == "HEAD" and len(at["git"]["commit"]) == 40
+
+
+def test_code_identity_at_a_commit_without_the_module_records_it_missing():
+    """The first commit of this repo had none of the lab: every module is `missing`, none is
+    silently digested from disk instead."""
+    root_commit = PV._git(["rev-list", "--max-parents=0", "HEAD"]).splitlines()[0]
+    at = PV.code_identity_at(root_commit)
+    assert at["modules"] == {} and set(at["missing"]) == set(PV.ENUMERATED_MODULES)
+    assert PV.sha256_lf_at(root_commit, "experiments/provenance.py") is None
+
+
+def test_sha256_lf_at_folds_crlf_like_sha256_lf(tmp_path, monkeypatch):
+    seen = {}
+
+    class _P:
+        returncode = 0
+        stdout = b"a\r\nb\r\n"
+
+    def fake_run(cmd, **kw):
+        seen["cmd"] = cmd
+        return _P()
+
+    monkeypatch.setattr(PV.subprocess, "run", fake_run)
+    p = tmp_path / "x.py"
+    p.write_bytes(b"a\nb\n")
+    assert PV.sha256_lf_at("deadbeef", "experiments/x.py") == PV.sha256_lf(str(p))
+    assert seen["cmd"] == ["git", "show", "deadbeef:./experiments/x.py"]
