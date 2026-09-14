@@ -54,10 +54,22 @@ flowchart TD
     State --> CF[confirm_fills.py]
 ```
 
-A production day (`daily.py --v9`):
+A production day (`python daily.py`):
+
+`--v9` is **redundant**: `config.ALGO_VERSION` is `"v9"`, and `daily.py` runs `portfolio_v9`
+because of that, not because of a flag.
+
+Steps 1 and 2-4 are **independent**, and that is deliberate. `portfolio_v9` consumes no
+screener artefact — it fetches and re-ranks on its own — so a screener failure does **not**
+stop the plan, and cannot feed it a stale ranking. The screener's output is the parked Pine
+artefact. `daily.py` returns the first failure's code and now names which stage produced it.
 
 1. Screener: universe → fetch prices/volume → sectors → `generate_daily_candidates`.
-2. `preflight.evaluate` over the fetched frames. HARD fail stops the plan unless `--force`.
+   Its failure does not gate what follows; it is reported as the screener's.
+2. `preflight.evaluate` over the fetched frames. HARD fail stops the plan unless `--force`,
+   which since OPS4-01 requires `--force-reason` and is recorded on the sheet and in the
+   journal. `daily.py` does not expose `--force` at all: forcing means calling
+   `portfolio_v9.py` directly.
 3. `portfolio_v9.run`: load state → settle pending (if any) → credit dividends → accrue
    interest (inside `plan`) → `plan` → write state + instruction sheet → journal.
 4. Lucas executes the sheet at the **next NYSE session** close. The following `daily.py`

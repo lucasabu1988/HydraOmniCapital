@@ -157,10 +157,14 @@ def main(argv=None):
     print("=======================\n")
 
     exit_code = 0
+    failed_stage = None
     if not args.skip_screener:
         exit_code = run_screener(args.universe)
+        if exit_code != 0:
+            failed_stage = "The screener"
         if exit_code == 0:
             backup_history_after_run()
+    screener_exit = exit_code
 
     if args.tv_instructions and not args.no_instructions:
         print_tv_instructions()
@@ -168,6 +172,13 @@ def main(argv=None):
 
     from config import ALGO_VERSION
 
+    # DOC-01, the contract, reviewed rather than assumed: v9 runs even when the screener
+    # failed, and that is INTENTIONAL. v9 consumes no screener artefact - it calls
+    # get_universe/fetch_prices_and_volume/fetch_spy/fetch_etf_closes/fetch_tbill itself and
+    # re-ranks (portfolio_v9.fetch_v9_market, build_ranking), so a failed screener cannot feed
+    # it a stale or partial ranking. The screener's own output is the parked Pine artefact.
+    # What was wrong was the REPORTING, not the order: a v9 abort was announced as a screener
+    # failure. `--v9` is redundant here; ALGO_VERSION already selects this path.
     if args.v9 or ALGO_VERSION == "v9":
         print("\n>>> HYDRA v9 instruction CLI...")
         v9_out = None
@@ -183,6 +194,7 @@ def main(argv=None):
             print(f"[v9] {e}")
             if exit_code == 0:
                 exit_code = 1
+                failed_stage = "v9"
             try:
                 from journal import append_error
 
@@ -193,6 +205,7 @@ def main(argv=None):
             print(f"[v9] failed: {e}")
             if exit_code == 0:
                 exit_code = 1
+                failed_stage = "v9"
             try:
                 from journal import append_error
 
@@ -209,7 +222,14 @@ def main(argv=None):
                 print(f"[journal] skip: {je}")
 
     if exit_code != 0:
-        print(f"\n[Note] Screener exited with code {exit_code}. Check output above.")
+        # DOC-01: say WHICH stage failed. `exit_code` is the FIRST failure's code - the
+        # screener's if it failed, otherwise v9's - and the old line attributed every one of
+        # them to "Screener", so a v9 abort was reported under the wrong name. The stages are
+        # independent by design (see the note above the v9 block); the reporting has to say so.
+        stage = failed_stage or "a stage"
+        print(f"\n[Note] {stage} exited with code {exit_code}. Check output above.")
+        if failed_stage == "v9" and screener_exit == 0:
+            print("[Note] The screener itself completed; the book was NOT advanced.")
         return exit_code
 
     print("Daily ritual complete. Check state/instructions_*.md (and dashboard_v9 if needed).")
