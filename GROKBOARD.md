@@ -1838,7 +1838,7 @@ Antes del arreglo, la misma corrida escribia cuatro.
   ni convertir fallos en skips genericos. Va **antes** de CI-01, para que el esquema de integracion externa
   no vuelva a ocultarlos. `Files:` `run_all_tests.py`, `tools/check_skips.py`, `.github/workflows/test.yml`, + test.
 
-- [ ] `HYDRA-CI-01` **Tres capas de test, y la auditoria de libros reales deja de ser un rojo mudo.**
+- [x] `HYDRA-CI-01` **Tres capas de test, y la auditoria de libros reales deja de ser un rojo mudo.** **HECHA 2026-09-14 (PR pendiente de fusion, rama `fix/ci-01-portable-vs-external`).** Ver la nota de cierre al final de esta entrada.
   Parte del alcance de #84. Separar: (1) unitarias sinteticas, deterministas y requeridas; (2) integracion
   portable con fixtures versionados y manifiesto de procedencia; (3) auditoria externa de libros reales,
   solo donde el artefacto exista. Las nueve pruebas dependientes de artefactos **conservan su capacidad de
@@ -1870,6 +1870,116 @@ Antes del arreglo, la misma corrida escribia cuatro.
   pasa a exigirse tambien en 3.13) y `tools/write_isolation.py` + `conftest.py` +
   `tools/_bootstrap/sitecustomize.py` (la anomalia del aviso, ver la entrada de abajo).
   **El coverage floor 81.25 no se toca en esta PR.**
+
+  **[2026-09-14 CLAUDE] NOTA DE CIERRE DE CI-01. Commits `98099ba` (alcance) y `9129db9` (trabajo),
+  rama `fix/ci-01-portable-vs-external`, base `5ed57f8`.**
+
+  **Clasificacion de los once, uno a uno, leyendo cada `skipif` y el artefacto que exige: SIETE
+  PORTABLES y SEIS AUDITORIAS EXTERNAS** (dos casos se parten en las dos mitades, asi que once
+  casos dan trece piezas).
+
+  | # | caso | veredicto | donde vive ahora |
+  |---|---|---|---|
+  | 1 | `test_accredit_433::...refused_by_name_of_the_input` | PORTABLE | inputs sinteticos |
+  | 2 | `test_accredit_433::...unaccreditable_file...` | PORTABLE | inputs sinteticos |
+  | 3 | `test_accredit_433::...reconcile_reports_the_historical_books...` | PORTABLE + EXTERNA | libros sinteticos plantados / `books.reconcile-does-not-touch` |
+  | 4 | `test_accredit_433::...withdrawn_result_cannot_be_read_as_current` | PORTABLE + EXTERNA | contrato del accesor / `withdrawn.preserved` |
+  | 5 | `test_portfolio_engine::...parity_stock_targets_with_redesign_lab` | PORTABLE | `test_parity_portable.py` |
+  | 6 | `test_portfolio_engine::...parity_etf_targets_with_sleeve_lab` | PORTABLE | `test_parity_portable.py` |
+  | 7 | `test_review_341::test_parity_stock_targets_reproduced` | PORTABLE | `test_parity_portable.py` |
+  | 8 | `test_render_evidence::...what_reference_rows_py_measures` | EXTERNA | `reference-rows.remeasure` |
+  | 9 | `test_backfill_sizing::test_real_20260910_sheet...` | EXTERNA | `paper.20260910-sheet` |
+  | 10 | `test_fill_cost_report::...live_state_is_readable...` | EXTERNA | `live.state-readable` |
+  | 11 | `test_reset_ab::...published_mix_already_had_cash_at_the_t_bill` | EXTERNA | `lab.published-mix-had-tbill` |
+
+  **El artefacto suministraba la ENTRADA, nunca la propiedad.** `cost_stress.data_inputs` ya estaba
+  documentado como inyectable «so a test never hashes the 264 MB caches», y `redesign_lab.select` /
+  `.vetoed` importan sin cache alguna (medido). Cero bytes de fixture commiteados: generadores con
+  semilla, no ficheros.
+
+  **EVIDENCIA MEDIDA, no afirmada.**
+
+  * **Clone limpio** (`git worktree` de `9129db9`, solo ficheros trackeados: sin `_lab_scratch/`, sin
+    los tres sweep caches, sin `state*/`), **dos interpretes, el mismo arbol**:
+
+    | interprete | ficheros | casos | suite | skip gate |
+    |---|---|---|---|---|
+    | Python **3.14.3** (el de esta maquina) | 114 PASS, 0 skip, 0 fail | **1346 passed, 0 skipped, 0 failed, 0 error** | exit **0** (398,6 s) | `check_skips ok`, exit **0** |
+    | Python **3.13.15** (entrada de la matriz de CI) | 114 PASS, 0 skip, 0 fail | **1346 passed, 0 skipped, 0 failed, 0 error** | exit **0** (324,2 s) | `check_skips ok`, exit **0** |
+
+    Los dos reportes llevan su propio token (`cleanclone-9129db9`, `cleanclone-313-9129db9`), asi que
+    ninguno puede satisfacer el gate del otro. **3.12 no esta instalado en esta maquina**; lo cubre
+    CI, y por eso el gate deja de estar condicionado a 3.12.
+    `check_coverage.py --min 81.25` -> **82,33 %**, exit 0 (margen 1,08 pp). **El floor NO se toca.**
+    `ruff check . --config ruff.toml` -> All checks passed. `mypy` -> 26 ficheros, sin problemas.
+  * **Auditorias externas, clone limpio:** `tools/external_audit.py` -> **0 RAN - PASS, 0 RAN - FAIL,
+    11 DID NOT RUN**, cada una nombrando la RUTA EXACTA que falta, exit **0**. Con `--require-all`,
+    exit **1**: «no fallo nada» y «esta maquina no pudo contestar» son dos preguntas distintas.
+  * **Auditorias externas, maquina lab (con los artefactos):** **11 RAN - PASS, 0 FAIL, 0 DID NOT
+    RUN**, exit 0. Incluye un `reconcile()` REAL sobre los ocho libros publicados: siguen
+    byte-identicos (sha256 + mtime), sin manifiesto, y `fully_accredited` sigue False.
+  * **Suite completa en la maquina lab:** 114 ficheros PASS, 0 skip; 1346 casos, 0 skipped. (El
+    runner descubre ademas `tools/test_expire_pending.py`, **sin trackear y ajeno**, que sale exit 2
+    y por eso la corrida local acaba en 1; no esta en ningun commit mio y CI no lo ve.)
+  * **`audits/` NO se descubre:** `run_all_tests.py --list` -> 0 entradas bajo `audits/`;
+    `pytest --collect-only audits` -> «no tests collected». Ambas cosas ademas como tests requeridos.
+
+  **VERIFICACION ADVERSARIAL POR MUTACION, contra el codigo ya commiteado — 13 mutaciones, 13 rojos.**
+  Paridad (5/5): cap sectorial a 99, `keep_zone` vaciado, filtro de veto quitado, `expo = 1.0`,
+  pesos ETF renormalizados. Acreditacion (8/8): comparacion de panel anulada, guarda de
+  never-overwrite quitada, refusal de retirada quitada, resultado ausente devolviendo `{}`,
+  `fully_accredited=True` forzado, un sello propio contando como respuesta, manifiesto escrito
+  junto a un libro historico, `data_identity` dejando de registrar entradas ausentes.
+  Mas 3 reversiones del arreglo de write-isolation, las 3 en rojo.
+
+  **HALLAZGO DE LA MUTACION, y es el importante.** En la primera pasada **sobrevivio una**: vaciar
+  `compared`/`uncompared` en una respuesta ya `ACCREDITED` dejaba las 18 pruebas en verde, porque
+  **ninguna prueba portable llegaba jamas a un libro que SI acredita** — todas observaban rechazos.
+  Una suite que solo puede ver «no» no distingue una acreditacion que funciona de una que nunca dice
+  «si»: es el fallo de PROV-01 con el signo cambiado. Anadido el camino positivo (libro sobre la
+  rejilla derivada -> `ACCREDITED` con los NUEVE bloques de identidad comparados) y su control (una
+  etiqueta de escenario movida -> rechazo con razon). Mutacion capturada.
+
+  **EL GENERADOR NO PUEDE DEGENERAR EN TAUTOLOGIA.** `test_the_fixture_reaches_the_branches_the_
+  parity_depends_on` exige que el panel sintetico toque cada rama que las dos implementaciones
+  podrian discutir: cap sectorial vinculante, veto excluyendo, buffer conservando un nombre held, y
+  exposicion recortada **y** sin recortar. Se puso rojo a la primera: nombres independientes
+  diversifican la vol de la cesta por debajo del objetivo y `min(1, target/rv)` nunca se ejercitaba.
+  Corregido con un factor de mercado cuya sigma va de 4 % a 35 %.
+
+  **GATE DE PYTHON 3.13.** El skip gate llevaba `if: matrix.python-version == '3.12'`, heredado del
+  paso de coverage. Que el coverage se mida en una sola plataforma canonica es una decision real —
+  el floor es un numero unico y dos plataformas dan dos numeros. La verdad POR CASO no es esa clase
+  de cantidad: **un skip no pone roja la suite**, asi que un caso omitido solo en 3.13 era invisible
+  para el gate — el agujero exacto que CI-02 existe para cerrar. No se encontro razon documentada
+  para la restriccion; retirada. Cada entrada de la matriz escribe su propio reporte ligado por
+  token. **Coverage floor: sigue en 81.25 y sigue midiendose solo en 3.12.**
+
+  **ANOMALIA DE WRITE ISOLATION (punto 6 del encargo): REPRODUCIDA ANTES DE TOCAR NADA, y es el caso
+  A con un MENSAJE FALSO — no una barrera tardia.** Medido en las dos formas: (a) en la maquina lab,
+  el hijo imprimia «The real backup root was NOT captured and is NOT protected» mientras ESE MISMO
+  hijo tenia armado `c:\users\caslu\onedrive\hydrabackups`; (b) en la forma CI (`HYDRA_BACKUP_DIR`
+  inexistente) imprimia la misma linea sin que existiera raiz real alguna. Causa:
+  `repo_evidence_roots` lee el redirect y no puede saber que `sitecustomize` recibe la raiz real en
+  `HYDRA_WRITE_BARRIER_BACKUP_ROOT` y la anade DESPUES. Ahora se le pasa (`backup_root=`) y el aviso
+  solo sale cuando el entorno es un redirect **y** nadie entrego la raiz real — el unico caso
+  genuinamente desprotegido. **Prueba de que no se perdio proteccion:** conjunto de raices armadas
+  en un hijo, `5ed57f8` vs `9129db9` -> `identical set: True, lost: none, gained: none`.
+
+  **LO QUE ESTO NO ACREDITA.** Un verde de la suite requerida NO acredita los libros reales: en un
+  clone limpio las once auditorias dicen DID NOT RUN, y eso es la respuesta honesta, no un aprobado.
+  **TASK-431 sigue INCONCLUSIVE** (nada se ha retuneado). **TASK-433 y TASK-434 siguen abiertas.**
+  **Bloque B sigue parado.** El libro vivo sigue sin reconciliar — 30 pending, ledger 0, ultima
+  corrida 2026-09-04 — y ninguna auditoria de esta PR infiere ejecucion del ledger local: hace falta
+  el CSV de fills reales del broker. El `KeyError: n_ledger` de `ledger_evidence()` NO esta aqui:
+  `experiments/capacity_434.py` no existe en `main`, va en PR 3.
+
+  **Nota de arbol compartido:** el hook de pre-commit corre `ruff check .` sobre TODO el arbol, asi
+  que los dos ficheros ajenos sin trackear (`tools/expire_pending.py`, `tools/test_expire_pending.py`,
+  el segundo con un B905) bloqueaban cualquier commit. No se editaron ni se borraron: se apartaron
+  con `git stash push -u` acotado por rutas y se repusieron. El `pop` los devolvio con CRLF (308
+  finales de linea), asi que se restauraron desde copia byte a byte; **ambos verificados con sha256
+  identicos al original**.
 
 - [~] `HYDRA-PROV-01` **La ruta final confunde clasificacion con acreditacion.** **IMPLEMENTADA (#88, pendiente de fusion).** `effective_request` + `accredit_answer`; evidencia (`compared`/`uncompared`/`uncompared_why`/`uncompared_keys`/`degraded`) viaja con cada fila y el agregado lleva `rejected`. 14 tests sinteticos, portables. **Destapa PROV-08 y no lo cierra.**
   `experiments/provenance.py:1008-1013` (`classify` mira solo presencia del manifiesto y su propio sello),
