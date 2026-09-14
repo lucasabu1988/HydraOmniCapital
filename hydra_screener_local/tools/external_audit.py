@@ -107,10 +107,13 @@ TASK_433_RUN_ID = "20260914-cae2c54599aa"
 TASK_433_CODE_REF = "260a418195cbba6311eb5a7d7c7a863eb6e6791e"
 
 #: TASK-434's capacity run: ONE sidecar drive per panel that must reproduce the accredited base
-#: books (F1). Pinned like 433's. `TASK_434_CODE_REF` is None while the run is OPEN (the audit then
-#: compares the recorded code against the working tree) and becomes the merge commit when it closes.
+#: books (F1). Pinned like 433's. `TASK_434_CODE_REF` was None while the run was OPEN (the audit
+#: then compared the recorded code against the working tree); CLOSED 2026-09-14 at the merge of
+#: #98 - NOT #97's `3429eb5`, which merged one review round early and lacks the final code.
+#: Verified before pinning: all 62 digests the v3 books recorded (`code.modules` + `code.swept`,
+#: both panels) equal the sha256_lf of `git show aab3f62:<path>`.
 TASK_434_RUN_ID = "20260914-cc34d9465892"
-TASK_434_CODE_REF: str | None = None
+TASK_434_CODE_REF: str | None = "aab3f62c9f44b60dcc4db3b0e096ea3d9a2c6406"
 _T434 = _p("experiments", "_lab_scratch", "capacity", "runs", TASK_434_RUN_ID)
 TASK_434_RUN = {
     **{f"{panel}_base.{ext}": os.path.join(_T434, f"{panel}_base.{ext}")
