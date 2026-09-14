@@ -1974,6 +1974,33 @@ Antes del arreglo, la misma corrida escribia cuatro.
   el CSV de fills reales del broker. El `KeyError: n_ledger` de `ledger_evidence()` NO esta aqui:
   `experiments/capacity_434.py` no existe en `main`, va en PR 3.
 
+  **[2026-09-14] CI REAL SOBRE `e781b68`, corrida
+  [34844129933](https://github.com/lucasabu1988/HydraOmniCapital/actions/runs/34844129933) — los 8
+  checks en verde, PR [#94](https://github.com/lucasabu1988/HydraOmniCapital/pull/94).** No se cita
+  «CI green»: esto es lo que cada job IMPRIMIO.
+
+  ```
+  screener (3.12)  RESULTS: 114 passed, 0 skipped in 88.31s
+                   CASES:   1347 passed, 0 skipped, 0 failed, 0 error
+                   coverage: 82.39% line (floor 81.25%, baseline 82.65%)  -> coverage floor ok
+                   files : 114 pass, 0 skip, 0 fail
+                   cases : 1347 passed, 0 skipped, 0 failed, 0 error      -> check_skips ok
+                   0 RAN - PASS, 0 RAN - FAIL, 11 DID NOT RUN, 11 registered
+  screener (3.13)  RESULTS: 114 passed, 0 skipped in 116.73s
+                   CASES:   1347 passed, 0 skipped, 0 failed, 0 error
+                   files : 114 pass, 0 skip, 0 fail
+                   cases : 1347 passed, 0 skipped, 0 failed, 0 error      -> check_skips ok
+  ```
+
+  **El paso `Skips are visible and explained` aparece en el log de 3.13**, que es exactamente lo que
+  antes no ocurria: el gate estaba condicionado a 3.12 y un caso omitido solo en 3.13 no habria
+  hecho fallar nada. Cada job usa su propio token (`34844129933-1-3.12` y `34844129933-1-3.13`), asi
+  que ninguno puede satisfacer el gate del otro ni reutilizar un reporte residual.
+  **Las once auditorias externas dicen DID NOT RUN en CI, y la corrida sale verde igual**: la
+  ausencia de los artefactos privados queda REPORTADA, no convertida en aprobado — que es el
+  criterio de salida de CI-01. La lista con la ruta exacta de cada una queda como artefacto
+  (`external-audit-json`). 1347 casos y no 1346 por el test anadido en `e781b68`.
+
   **Nota de arbol compartido:** el hook de pre-commit corre `ruff check .` sobre TODO el arbol, asi
   que los dos ficheros ajenos sin trackear (`tools/expire_pending.py`, `tools/test_expire_pending.py`,
   el segundo con un B905) bloqueaban cualquier commit. No se editaron ni se borraron: se apartaron
