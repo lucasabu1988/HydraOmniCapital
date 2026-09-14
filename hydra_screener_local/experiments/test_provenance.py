@@ -886,13 +886,28 @@ def test_code_identity_at_head_matches_disk_for_an_unedited_module():
     assert at["swept"] == {} and at["git"]["pinned_ref"] == "HEAD" and len(at["git"]["commit"]) == 40
 
 
-def test_code_identity_at_a_commit_without_the_module_records_it_missing():
-    """The first commit of this repo had none of the lab: every module is `missing`, none is
-    silently digested from disk instead."""
-    root_commit = PV._git(["rev-list", "--max-parents=0", "HEAD"]).splitlines()[0]
-    at = PV.code_identity_at(root_commit)
-    assert at["modules"] == {} and set(at["missing"]) == set(PV.ENUMERATED_MODULES)
-    assert PV.sha256_lf_at(root_commit, "experiments/provenance.py") is None
+def test_code_identity_at_records_an_absent_blob_as_missing_never_from_disk(tmp_path):
+    """Blob absent at the ref => `missing`, and nothing is digested from disk in its place.
+
+    Synthetic on purpose. The first version asked `git rev-list --max-parents=0 HEAD` for the
+    repo's root commit and expected it to hold none of the lab; on the CI runner's shallow clone
+    (`fetch-depth: 1`) the shallow boundary IS the root and holds every module, so the test
+    failed on the checkout, not on the contract. A path that exists on disk but not at HEAD
+    proves the same thing on any depth of history."""
+    rel = "experiments/_never_committed_probe.py"
+    probe = os.path.join(PV.ROOT, rel)
+    assert not os.path.exists(probe)
+    with open(probe, "w", encoding="utf-8") as fh:
+        fh.write("x = 1" + chr(10))
+    try:
+        assert PV.sha256_lf_at("HEAD", rel) is None
+        at = PV.code_identity_at("HEAD", enumerated=(rel,))
+        assert at["modules"] == {} and at["missing"] == [rel]
+        assert at["modules_combined"] == PV.sha256_json({})
+        # the same file IS on disk, so the live identity would have digested it - the point.
+        assert PV.code_identity(enumerated=(rel,))["modules"] == {rel: PV.sha256_lf(probe)}
+    finally:
+        os.remove(probe)
 
 
 def test_sha256_lf_at_folds_crlf_like_sha256_lf(tmp_path, monkeypatch):

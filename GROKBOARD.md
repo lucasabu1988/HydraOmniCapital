@@ -1495,6 +1495,12 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   env, la corrida esta abierta y el proceso en ejecucion ES el codigo bajo juicio. Tests: identidad
   en HEAD igual a disco para los modulos no editados; en el commit raiz todo `missing`; CRLF plegado
   igual que `sha256_lf`; la peticion cambia de bloque con y sin env.
+  Revision de #96 (Lucas): un test no portable a shallow clones (`rev-list --max-parents=0` en un
+  checkout `fetch-depth: 1` devuelve el limite shallow, que contiene todo) — corregido el test, no CI:
+  mismo contrato con un path ausente en HEAD. Deuda explicita, no arreglada: `code_identity_at` usa el
+  `ENUMERATED_MODULES` de HOY; si esa lista cambia sobre un archivo que ya existia en el commit pinado,
+  una corrida cerrada se pone roja con los blobs intactos. Arreglo cuando cambie la lista: leer las
+  claves de `code.modules` del manifest.
 
   **Siguiente: TASK-434 de inmediato.** El Bloque B no rescata nada de esto.
 

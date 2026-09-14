@@ -346,6 +346,11 @@ def code_identity_at(ref: str, enumerated=ENUMERATED_MODULES) -> dict:
     commit", so the request carries that commit's digests. `modules_combined` uses the same
     recipe as `code_identity`, so a matching commit reproduces the stored digest exactly.
 
+    KNOWN DEBT (not fixed, 2026-09-14): `enumerated` defaults to TODAY's `ENUMERATED_MODULES`,
+    not the list the run had. Add or remove a file that already existed at `ref` and a closed
+    run's `modules_combined` moves although every blob is intact. The fix, when the list next
+    changes, is to read the recorded `code.modules` keys from the manifest and pass them here.
+
     `swept` is empty on purpose: a sweep measures one process's import graph, and
     `_check_code` compares sweeps only on the names both sides carry, so an empty request
     sweep compares nothing. The cross-run audit checks the recorded sweep against the same
