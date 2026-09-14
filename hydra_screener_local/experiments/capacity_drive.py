@@ -42,12 +42,17 @@ import capacity as C  # noqa: E402
 import cost_stress as CS  # noqa: E402
 import provenance as PV  # noqa: E402
 import run_russell_prereg as R  # noqa: E402
+import sleeve_lab as S  # noqa: E402
 
 ACCREDITED_433 = "20260914-cae2c54599aa"
 CAP_ROOT = os.path.join(HERE, "_lab_scratch", "capacity", "runs")
 BASE_BP = (10.0, 5.0)                     # the base scenario; the sidecar drive IS russell/base
 LIVE_SHEET = os.path.join(ROOT, "state", "instructions_20260904.json")
-PANEL_CACHE = {"russell": R.TRADING_CACHE, "sp500": R.OOS_CACHE}
+PANEL_CACHE = {"russell": R.TRADING_CACHE, "sp500": R.OOS_CACHE, "etf": S.ETF_CACHE}
+#: The ETF sleeve's ADV is evidence like the stock panels': built once, written into the run dir
+#: with its sha256 and its inputs' sha256 (review of #97: the report used to rebuild it from the
+#: mutable cache files at read time, and the audit re-read the same mutable files).
+ADV_PANELS = ("russell", "sp500", "etf")
 
 
 def sha256_file(path: str) -> str:
@@ -183,14 +188,17 @@ def main(argv=None) -> int:
         summary = dict(task="TASK-434", run_id=run_id, run_dir=PV._rel(out_dir), label=C.LABEL,
                        prereg=".comms/prereg-task-434-2026-09-14.md",
                        accredited_reference=ACCREDITED_433, code=PV.code_identity(), adv={}, drives={})
+    for adv_panel in ADV_PANELS:
+        if adv_panel in summary["adv"] and os.path.exists(os.path.join(out_dir, f"adv_usd_{adv_panel}.pkl")):
+            continue
+        summary["adv"][adv_panel] = build_adv(adv_panel, out_dir)
+        rec = summary["adv"][adv_panel]
+        print(f"[{adv_panel}] adv_usd sha {rec['sha256'][:12]} shape {rec['shape']} nonnull {rec['nonnull_share']:.1%}; "
+              f"live sheet covered {rec['live_sheet_covered']}/{rec['live_sheet_tickers']}", flush=True)
     for panel in panels:
         if panel in summary["drives"] and os.path.exists(os.path.join(out_dir, f"{panel}_base.F1.json")):
             print(f"[{panel}] already driven in this run (F1 record present) - left alone", flush=True)
             continue
-        summary["adv"][panel] = build_adv(panel, out_dir)
-        print(f"[{panel}] adv_usd sha {summary['adv'][panel]['sha256'][:12]} shape {summary['adv'][panel]['shape']} "
-              f"nonnull {summary['adv'][panel]['nonnull_share']:.1%}; live sheet covered "
-              f"{summary['adv'][panel]['live_sheet_covered']}/{summary['adv'][panel]['live_sheet_tickers']}", flush=True)
     for panel in panels:
         if panel in summary["drives"] and os.path.exists(os.path.join(out_dir, f"{panel}_base.F1.json")):
             continue

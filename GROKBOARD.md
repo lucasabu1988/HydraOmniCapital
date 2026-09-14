@@ -1564,7 +1564,27 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   **Lo que NO dice**: no es capacidad (impacto sin medir: prereg propia, escrita antes de ver la distribucion);
   no es PIT (`fixed_map`); no es "Russell es 6x menos liquido" (la cifra S&P es cota inferior). Conclusion del
   Bloque A para Russell: "edge moderado, sensibilidad material a costes" **con techo por participacion ~20 M USD
-  bajo la regla preregistrada, sin certificacion de liquidez**. PR abierta desde `feat/task-434-participation-ceiling`. Merge = paso de Lucas.
+  bajo la regla preregistrada, sin certificacion de liquidez**. PR abierta desde `feat/task-434-participation-ceiling`.
+  **[2026-09-14 CLAUDE] REVISION ADVERSARIAL DE #97 (Lucas) — seis puntos, todos aceptados; ambos paneles
+  re-conducidos.** (1) `aum_grid` añadia el primer punto geometrico >= 100 M (117.5 M) y el titular S&P salia
+  fuera del rango preregistrado: ahora la rejilla termina EXACTAMENTE en 100 M y **S&P pasa a ">= 100 M"**
+  (P95 cons 1.96 % en el tope; Russell 12.41 % en el tope, techo 19.72 M sin cambio). (2) El ADV de ETFs no
+  estaba sellado (el informe lo reconstruia de los caches mutables y la auditoria releia los mismos archivos):
+  ahora `adv_usd_etf.pkl` se construye una vez en el run dir, sha `92523f7af2f9`, inputs close `f866814457`
+  y volume `5de6f8d0ac4f`; el informe rechaza un panel cuyos bytes no sean los registrados y la auditoria lee
+  el sellado. (3) F1 de S&P sin referencia independiente: `ACCREDITED_433_BASE_SHA` lleva ambos paneles
+  (`de56c7fbd622...`) y se cruza con el manifest de 433. (4) **Desviacion de protocolo, no economica, registrada**:
+  la prereg §2 decia que `engine_backtest.py` ganaria un sink opcional; la implementacion NO toca
+  `engine_backtest.py` — `FillTap` envuelve la costura `settle` desde fuera, como `_LedgerTap`; menos invasivo,
+  F1 prueba trayectoria identica y `test_the_sidecar_does_not_change_the_path` es el sink-on vs sink-off que
+  la prereg pedia. La prereg no se reescribe. (5) La hoja real recibia un P95 que la prereg prohibe: eliminado;
+  quedan maximo, footprints, cobertura y brechas. (6) Faltaba `state_paper/`: ahora toda `state*/instructions_*.json`
+  pasa por la misma ruta, `none` impreso si no hay — paper 2026-09-10 (26 ordenes, 100 k): maximo 0.0012 %,
+  14/26 cubiertas (34.4 % notional), exec_date desconocido por horizonte del cache. Los puntos 1-2 tocan
+  `capacity.py`/`capacity_drive.py`, que los libros del run registran: en vez de dejar un run abierto cuya huella
+  discrepa del arbol (o pinar un commit de rama que un squash huerfana), **ambos paneles re-conducidos con el
+  codigo final** — deterministas: v1, v2 y v3 dan sidecars byte-identicos (`3ec811915fcb`, `f916ea307e7b`); la v2
+  queda en `superseded_v2/` con `WHY.json`. Cadena externa y suite sobre el HEAD nuevo: **33 RAN-PASS / 0 FAIL / 0 DID NOT RUN** / **120 passed / 0 skipped**, 419 s. Merge = paso de Lucas.
 - [ ] `TASK-435` **Bloque B/1 — atribucion por manga y por factor.**
   La pregunta no es "Sharpe 0,74" sino cuanto alpha queda tras explicar beta, size y momentum.
   Regresion `R_t − R_f,t = α + β_M·MKT + β_S·SMB + β_H·HML + β_R·RMW + β_C·CMA + β_Mom·MOM + ε` con los
