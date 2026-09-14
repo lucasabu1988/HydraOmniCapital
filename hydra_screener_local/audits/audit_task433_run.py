@@ -21,6 +21,15 @@ import shutil
 import sys
 
 import pandas as pd
+import pytest
+
+#: `pytest.ini` sets `--timeout=30`, which is right for the portable suite and wrong here: these
+#: audits re-derive the mark grid from the raw panel caches (~70 s for Russell, ~15 s for the S&P
+#: panel, per call, uncached ON PURPOSE - `cost_stress.py` is inside the code identity the books
+#: recorded, so it may not be edited while this run's evidence is being judged). Before this
+#: marker every case here died on the 30 s timeout, which killed the whole pytest session and
+#: took the 11 unrelated audits down with it - reported as RAN - FAIL, never as a pass.
+pytestmark = pytest.mark.timeout(1800)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
