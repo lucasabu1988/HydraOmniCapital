@@ -69,6 +69,17 @@ WITHDRAWAL_NOTE = os.path.join(HERE, "_lab_scratch", "task433_accredited_WITHDRA
 OUT_JSON = os.path.join(HERE, "_lab_scratch", "task433_accredited_v2.json")
 
 
+#: Every repo module a completed drive loads that `ENUMERATED_MODULES` does not name. MEASURED,
+#: not guessed: read off `code.swept` in the manifests of a finished run (2026-09-14). The run id
+#: is minted over these files' contents, and `audits/audit_task433_run.py` asserts that a finished
+#: run swept nothing outside this list, so it cannot drift without something going red.
+RUN_ID_DRIVERS = (
+    "core/__init__.py", "core/ledger.py", "core/numbers.py", "core/state_check.py",
+    "core/state_migrations.py", "data/__init__.py", "experiments/accredit_433.py",
+    "experiments/calendar_spec.py", "sleeves/__init__.py", "sleeves/etf_trend.py",
+)
+
+
 def mint_run_id(now=None) -> str:
     """A new run's identifier: the date plus the digest of the code that will produce it.
 
@@ -80,8 +91,82 @@ def mint_run_id(now=None) -> str:
     from datetime import datetime, timezone
     now = now or datetime.now(timezone.utc)
     code = PV.code_identity()
-    digest = (code.get("modules_combined") or PV.sha256_json(code))[:12]
+    # Over modules_combined AND the DRIVER list below - not over `swept`, and not over
+    # modules_combined alone. Both alternatives were tried on 2026-09-14 and both are wrong:
+    #
+    #   modules_combined alone is blind to `experiments/accredit_433.py`, which is loaded but not
+    #   enumerated. Editing it voided run 20260914-99967d14f3ad on `[code.swept]` while the id for
+    #   the replacement came out IDENTICAL. An id that does not move when the code moves is a
+    #   label, not an identifier.
+    #
+    #   `swept` is process-dependent: it is measured from `sys.modules`, so the preflight and the
+    #   driver mint different ids for one tree, and the id stops being reproducible.
+    #
+    # `RUN_ID_DRIVERS` is read from disk instead, so the id is a property of the repo. The audit
+    # asserts a finished run swept nothing outside it, so the list cannot silently go stale.
+    drivers = {rel: PV.sha256_lf(os.path.join(ROOT, rel))
+               for rel in RUN_ID_DRIVERS if os.path.exists(os.path.join(ROOT, rel))}
+    digest = PV.sha256_json({"modules_combined": code.get("modules_combined"),
+                             "drivers": drivers})[:12]
     return f"{now:%Y%m%d}-{digest}"
+
+
+#: The code identity a run froze at its start. `None` outside a run.
+_RUN_CODE: dict | None = None
+
+
+class CodeMovedDuringRun(SystemExit):
+    """A module the run depends on changed between two books. The run is void, not repairable."""
+
+
+def freeze_code() -> dict:
+    """Record the code identity this run will be judged by, before the first book is driven."""
+    global _RUN_CODE
+    _RUN_CODE = PV.code_identity()
+    return _RUN_CODE
+
+
+def check_code_unchanged(where: str = "") -> None:
+    """Refuse to keep driving if the code moved. Measured on 2026-09-14, run 20260914-99967d14f3ad.
+
+    Eight books were driven and every one of them was then refused. Root cause: `accredit_433.py`
+    itself was EDITED WHILE THE RUN WAS PRODUCING EVIDENCE - it sits in the `swept` set (loaded but
+    not enumerated), so `accredit()` compared `stored 10c0aa1a7580` against `running 17ce43653475`
+    and said, correctly, that the code which produced the books is not the code asking the
+    question. The four later books then failed on `calendar` as a CONSEQUENCE: the anchor could no
+    longer accredit, `anchor_calendar()` returned None, and they were requested without a grid.
+
+    The refusal was right and the run was worthless, which is the expensive way to learn that a
+    run must pin its own code. It is cheaper to stop at book two than to discover it at book eight,
+    so this is checked before every drive. It is a HARD stop: a run whose code moved cannot be
+    repaired by re-sealing - that would be manufacturing the agreement the check exists to find.
+    """
+    if _RUN_CODE is None:
+        return
+    now = PV.code_identity()
+    # INTERSECTION ONLY, exactly as `provenance._check_code` does it. `swept` is a measurement of
+    # what `sys.modules` holds, and it GROWS during a run as modules are imported lazily: at
+    # freeze time `sleeves/etf_trend.py` is not loaded, after the first drive it is. Comparing the
+    # dicts for equality read that arrival as a change and aborted a healthy run at book two
+    # (measured 2026-09-14). A module appearing for the first time is not a module that moved;
+    # only a module BOTH snapshots loaded, with a different digest, is.
+    moved = []
+    for key in ("modules", "swept", "deps"):
+        was, iss = (_RUN_CODE.get(key) or {}), (now.get(key) or {})
+        if isinstance(was, dict) and isinstance(iss, dict):
+            moved += [f"{k}: {str(was.get(k))[:12]} -> {str(iss.get(k))[:12]}"
+                      for k in sorted(set(was) & set(iss)) if was.get(k) != iss.get(k)]
+    if now.get("modules_combined") != _RUN_CODE.get("modules_combined"):
+        moved.append(f"modules_combined: {str(_RUN_CODE.get('modules_combined'))[:12]} -> "
+                     f"{str(now.get('modules_combined'))[:12]}")
+    if not moved:
+        return
+    raise CodeMovedDuringRun(
+        f"CODE MOVED DURING THE RUN{(' at ' + where) if where else ''}. Books already written were "
+        f"sealed under a different code identity and cannot answer the same request as the ones "
+        f"still to come. Changed: {moved or 'modules_combined/swept differ'}. "
+        f"Nothing is deleted and nothing is re-sealed. Start a NEW run id with the code held "
+        f"still; `mint_run_id()` already returns a different id because the digest moved.")
 
 
 def use_run(run_id: str) -> dict:
@@ -405,6 +490,7 @@ def data_answers(panel: str, book_path: str) -> dict:
 
 def produce(panel: str, label: str, *, progress_every: int = 100, drive_fn=None) -> dict:
     """Drive one scenario and put the book AND its sealed manifest on disk before returning."""
+    check_code_unchanged(f"{panel}/{label}")   # a run that edits itself produces nothing usable
     os.makedirs(ACC_DIR, exist_ok=True)
     path = not_historical(acc_path(panel, label))     # before anything can touch the disk
     s_bp, e_bp = scenario_bp(label)
@@ -688,6 +774,9 @@ def main(argv=None) -> int:
         produce(panel, label, progress_every=args.progress_every)
         return 0
     if args.all:
+        frozen = freeze_code()
+        print(f"[run] code frozen at {str(frozen.get('modules_combined'))[:12]}; the run aborts "
+              f"if any module it depends on changes before the last book", flush=True)
         for panel, label in ORDER:
             produce(panel, label, progress_every=args.progress_every)
     if args.reconcile or args.all:

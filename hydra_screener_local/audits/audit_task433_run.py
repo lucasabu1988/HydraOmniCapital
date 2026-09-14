@@ -247,3 +247,153 @@ def test_the_unmutated_copy_still_accredits(tmp_path):
     path = _copy_run(tmp_path, "russell", "base")
     assert _refused(path, "russell", "base") is None, (
         "an unmutated copy of the real accredited book was refused")
+
+
+# ============================================================ the two closing checks
+# Both were asked for after the void run, and both are verifications rather than production
+# code: nothing here changes what a drive does, and this file is NOT in the drive's swept set
+# (measured: 10 modules, listed under `code.swept` in any manifest).
+
+def _manifests():
+    run_id = resolve_run()
+    A.use_run(run_id)
+    out = {}
+    for panel, label in A.ORDER:
+        man = PV.read_manifest(A.acc_path(panel, label))
+        assert man, f"{panel}/{label} has no manifest"
+        out[(panel, label)] = man
+    return out
+
+
+def test_the_code_fingerprint_still_matches_after_the_last_book():
+    """CLOSES THE WINDOW `check_code_unchanged` leaves open during the FINAL book.
+
+    The guard runs before each drive, so nothing verifies the code between the start of book
+    eight and its seal. This recomputes every recorded module digest FROM DISK, in this fresh
+    process, and requires it to equal what all eight books recorded.
+
+    Reading the files rather than `code_identity()` is the point: `swept` depends on what a
+    process happens to have imported, so comparing two processes' sweeps compares their import
+    graphs. `sha256_lf(path)` is a property of the bytes, so it answers the question actually
+    being asked - did the code move while the evidence was being produced.
+    """
+    mans = _manifests()
+    problems = []
+    for (panel, label), man in mans.items():
+        code = man.get("code") or {}
+        for block in ("modules", "swept"):
+            for rel, stored in (code.get(block) or {}).items():
+                path = os.path.join(ROOT, rel)
+                if not os.path.exists(path):
+                    problems.append(f"{panel}/{label}: {block}:{rel} recorded but now absent")
+                    continue
+                now = PV.sha256_lf(path)
+                if now != stored:
+                    problems.append(
+                        f"{panel}/{label}: {block}:{rel} stored {stored[:12]} but the file on "
+                        f"disk is {now[:12]} - the code moved")
+    assert not problems, "\n".join(problems)
+
+
+def test_every_book_recorded_the_same_code():
+    """Eight books, one code identity. A run split across two versions is not one experiment."""
+    mans = _manifests()
+    combined = {f"{p}/{lab}": (m.get("code") or {}).get("modules_combined")
+                for (p, lab), m in mans.items()}
+    assert len(set(combined.values())) == 1, combined
+
+    swept = {}
+    for (panel, label), man in mans.items():
+        for rel, digest in ((man.get("code") or {}).get("swept") or {}).items():
+            swept.setdefault(rel, {})[f"{panel}/{label}"] = digest
+    disagree = {rel: by for rel, by in swept.items() if len(set(by.values())) > 1}
+    assert not disagree, (
+        f"a swept module has different digests across the eight books: {disagree}. That is the "
+        "shape of the void run 20260914-99967d14f3ad, where accredit_433.py was edited mid-run.")
+
+
+def _config_without_costs(cfg: dict) -> dict:
+    """`config` with only the parts that MUST be constant across scenarios."""
+    out = {k: v for k, v in (cfg or {}).items()
+           if k not in ("v9_effective", "v9_effective_sha256")}
+    v9 = dict((cfg or {}).get("v9_effective") or {})
+    v9.pop("stock_cost_bp", None)
+    v9.pop("etf_cost_bp", None)
+    out["v9_effective_minus_costs"] = v9
+    return out
+
+
+def test_within_each_panel_only_the_costs_differ():
+    """THE SUBTRACTION HAS TO MEAN SOMETHING.
+
+    TASK-433 reports `result(costs B) - result(costs A)`. For that difference to be attributable
+    to the costs, everything else must be identical: the same inputs, the same calendar, the same
+    configuration apart from the two cost fields, the same holdout declaration and the same
+    protocol. Russell and S&P legitimately read different files; WITHIN a panel they must not.
+
+    If `membership.pkl`, `close.pkl`, `irx.pkl` or any other input moved between base and stress,
+    the deltas would stop being cost deltas and nothing in the table would say so.
+    """
+    mans = _manifests()
+    problems = []
+    for panel in ("russell", "sp500"):
+        ref_label = "base"
+        ref = mans[(panel, ref_label)]
+        for label in ("conservative", "stress", "smallcap_crisis"):
+            man = mans[(panel, label)]
+            for block in ("data", "calendar", "period", "protocol", "units", "sectors",
+                          "universe"):
+                if (ref.get(block) or {}) != (man.get(block) or {}):
+                    a, b = ref.get(block) or {}, man.get(block) or {}
+                    keys = sorted(set(a) | set(b))
+                    diff = {k: (str(a.get(k))[:40], str(b.get(k))[:40])
+                            for k in keys if a.get(k) != b.get(k)}
+                    problems.append(
+                        f"{panel}: {block!r} differs between {ref_label} and {label}: {diff}")
+            if _config_without_costs(ref.get("config")) != _config_without_costs(
+                    man.get("config")):
+                problems.append(
+                    f"{panel}: config differs between {ref_label} and {label} beyond the cost "
+                    "fields")
+    assert not problems, "\n".join(problems)
+
+
+def test_the_cost_blocks_differ_exactly_as_the_frozen_table_says():
+    """The other half: the costs must actually have moved, and to the declared pairs."""
+    frozen = {"base": (10.0, 5.0), "conservative": (20.0, 8.0),
+              "stress": (35.0, 10.0), "smallcap_crisis": (50.0, 15.0)}
+    mans = _manifests()
+    for (panel, label), man in mans.items():
+        costs = man.get("costs") or {}
+        want = frozen[label]
+        got = (float(costs.get("stock_bp_per_side")), float(costs.get("etf_bp_per_side")))
+        assert got == want, f"{panel}/{label}: costs {got} but the frozen scenario is {want}"
+        v9 = (man.get("config") or {}).get("v9_effective") or {}
+        assert (float(v9.get("stock_cost_bp")), float(v9.get("etf_cost_bp"))) == want, (
+            f"{panel}/{label}: the cost pair did not reach config.v9_effective; 20/8 and 15/13 "
+            "would be indistinguishable")
+
+
+def test_the_shared_inputs_are_shared_across_panels_too():
+    """`etf_close` and `irx` are the SAME files for both panels, so they must hash the same.
+
+    If they did not, a Russell-vs-S&P comparison would carry an input difference nobody declared.
+    """
+    mans = _manifests()
+    for name in ("etf_close", "irx"):
+        digests = {f"{p}/{lab}": ((m.get("data") or {}).get(name) or {}).get("sha256")
+                   for (p, lab), m in mans.items()}
+        assert len(set(digests.values())) == 1, f"{name} differs across the eight books: {digests}"
+
+
+def test_ann_net_degrades_essentially_monotonically_as_costs_rise():
+    """The economic coherence check. Not strict monotonicity of Sharpe or maxDD - a cost change
+    moves the NAV and therefore the later trajectory - but a MATERIAL improvement in annualised
+    return when execution gets more expensive needs a mechanical explanation before publication."""
+    import report_433 as RPT  # noqa: PLC0415
+
+    payload = _payload(resolve_run())
+    anomalies = RPT.degradation_anomalies(payload)
+    assert not anomalies, (
+        "raising costs improved ann_net materially; find the mechanism before accepting the "
+        f"table: {[a['detail'] for a in anomalies]}")

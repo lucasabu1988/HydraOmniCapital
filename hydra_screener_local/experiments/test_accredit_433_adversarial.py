@@ -501,3 +501,75 @@ def test_12c_eight_good_books_do_reach_fully_accredited(panels, grid, slot, tmp_
     assert payload["provenance"]["fully_accredited"] is True
     assert len(payload["provenance"]["accredited"]) == 8
     assert payload["provenance"]["still_historical_only"] == []
+
+
+# ------------------------------------------------ the run-level code freeze (TASK-433)
+def test_the_freeze_guard_tolerates_a_module_loaded_for_the_first_time(monkeypatch):
+    """`swept` GROWS during a run. A module ARRIVING is not a module that MOVED.
+
+    Measured 2026-09-14: comparing the two snapshots by dict equality read the first import of
+    `sleeves/etf_trend.py` as a change and aborted a healthy run at book two. The guard now
+    compares the intersection, exactly as `provenance._check_code` does.
+    """
+    frozen = dict(modules_combined="abc", swept={"a.py": "1"}, modules={}, deps={})
+    monkeypatch.setattr(A, "_RUN_CODE", frozen)
+    grew = dict(modules_combined="abc", swept={"a.py": "1", "new.py": "2"}, modules={}, deps={})
+    monkeypatch.setattr(PV, "code_identity", lambda: grew)
+    A.check_code_unchanged("book2")          # must not raise
+
+
+def test_the_freeze_guard_stops_a_module_that_actually_changed(monkeypatch):
+    frozen = dict(modules_combined="abc", swept={"a.py": "1"}, modules={}, deps={})
+    monkeypatch.setattr(A, "_RUN_CODE", frozen)
+    moved = dict(modules_combined="abc", swept={"a.py": "CHANGED"}, modules={}, deps={})
+    monkeypatch.setattr(PV, "code_identity", lambda: moved)
+    with pytest.raises(A.CodeMovedDuringRun, match="CODE MOVED DURING THE RUN"):
+        A.check_code_unchanged("book2")
+
+
+def test_the_freeze_guard_stops_an_enumerated_module_that_changed(monkeypatch):
+    frozen = dict(modules_combined="abc", swept={}, modules={}, deps={})
+    monkeypatch.setattr(A, "_RUN_CODE", frozen)
+    moved = dict(modules_combined="DIFFERENT", swept={}, modules={}, deps={})
+    monkeypatch.setattr(PV, "code_identity", lambda: moved)
+    with pytest.raises(A.CodeMovedDuringRun, match="modules_combined"):
+        A.check_code_unchanged()
+
+
+def test_the_guard_is_inert_outside_a_run(monkeypatch):
+    monkeypatch.setattr(A, "_RUN_CODE", None)
+    A.check_code_unchanged("anywhere")       # nothing frozen, nothing to compare
+
+
+def test_the_run_id_is_a_property_of_the_repo_not_of_one_process(monkeypatch):
+    """It is minted from files read off disk, so the preflight and the driver agree.
+
+    Minting over `swept` made the id depend on what a process happened to have imported, which is
+    how the preflight and the driver came to disagree about the id for one tree.
+    """
+    first = A.mint_run_id()
+    monkeypatch.setitem(sys.modules, "_a_module_that_was_not_loaded_before", pytest)
+    assert A.mint_run_id() == first
+
+
+def test_the_run_id_moves_when_a_driver_module_moves(monkeypatch, tmp_path):
+    before = A.mint_run_id()
+    real = PV.sha256_lf
+
+    def shifted(path):
+        if path.endswith("accredit_433.py"):
+            return "0" * 64
+        return real(path)
+
+    monkeypatch.setattr(PV, "sha256_lf", shifted)
+    assert A.mint_run_id() != before, (
+        "editing accredit_433.py must move the run id; it is in the swept set and voided run "
+        "20260914-99967d14f3ad")
+
+
+def test_the_driver_list_is_what_a_finished_run_actually_sweeps():
+    """The list the id is minted over must not go stale against the modules a drive loads."""
+    assert "experiments/accredit_433.py" in A.RUN_ID_DRIVERS
+    assert "sleeves/etf_trend.py" in A.RUN_ID_DRIVERS
+    for rel in A.RUN_ID_DRIVERS:
+        assert os.path.exists(os.path.join(A.ROOT, rel)), f"{rel} is in the list but not on disk"
