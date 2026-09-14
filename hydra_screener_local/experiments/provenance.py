@@ -357,12 +357,22 @@ def result_block(book: pd.Series) -> dict:
                 wealth=round(float(b.iloc[-1] / b.iloc[0]), 6) if len(b) > 1 else None)
 
 
-def calendar_block(book: pd.Series) -> dict:
-    idx = pd.DatetimeIndex(pd.Series(book).index)
+def calendar_block_from_marks(marks) -> dict:
+    """The calendar identity of a mark grid, whatever produced it.
+
+    Split out of `calendar_block` for PROV-08: the anchor book's requested calendar is derived
+    from the RULES (`calendar_spec.expected_grid`) rather than read off a book, and a grid is
+    an index, not a Series. Same bytes, same sha, either way in.
+    """
+    idx = pd.DatetimeIndex(marks)
     return dict(n_marks=int(len(idx)),
                 first=str(idx[0].date()) if len(idx) else None,
                 last=str(idx[-1].date()) if len(idx) else None,
                 sha256=calendar_sha256(idx))
+
+
+def calendar_block(book: pd.Series) -> dict:
+    return calendar_block_from_marks(pd.Series(book).index)
 
 
 def seal(manifest: dict) -> dict:

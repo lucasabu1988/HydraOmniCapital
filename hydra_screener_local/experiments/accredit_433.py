@@ -183,6 +183,46 @@ def _permitted_uncompared(field: str, why: str) -> bool:
     return field == "calendar" and why.startswith("declared anchor")
 
 
+#: The derived grid is a function of the rules and the identified inputs, so it is constant
+#: within a process - and deriving it loads the panel. `reconcile` asks eight times.
+_ANCHOR_CAL_CACHE: dict = {}
+
+
+def derived_anchor_calendar(panel: str = "russell") -> dict | None:
+    """The anchor's calendar from the RULES, never from another book.
+
+    PROV-08. `cost_stress.request(calendar=None)` stopped declaring `calendar_anchor` on
+    purpose: the grid is derivable without any book, so "there is no earlier book" was never a
+    reason to skip the window check. The consequence was that the anchor could not be
+    accredited from cache at all, so `fully_accredited` could never be true - a correct
+    refusal standing in for the missing half of the fix.
+
+    `cost_stress.derived_grid` is that missing half, and it already existed:
+    `calendar_spec.expected_grid` rebuilds the grid from the identified inputs and the
+    engine's rules, takes no book and no book index, and refuses an empty or too-short
+    calendar. So the anchor is now asked to match a grid nothing about the anchor produced.
+
+    None when the inputs are not on this machine - a clean clone cannot derive it, and the
+    refusal that follows says so rather than pretending the window was checked.
+    """
+    if panel in _ANCHOR_CAL_CACHE:
+        return _ANCHOR_CAL_CACHE[panel]
+    try:
+        grid = CS.derived_grid(panel)
+    except Exception as exc:                     # noqa: BLE001 - reported, never silent
+        print(f"[accredit] cannot derive the anchor grid for {panel}: {exc!r}", flush=True)
+        _ANCHOR_CAL_CACHE[panel] = None
+        return None
+    if not grid or grid.get("unavailable") or grid.get("n_marks", 0) <= 0:
+        print(f"[accredit] no derivable anchor grid for {panel}: "
+              f"{(grid or {}).get('unavailable')}", flush=True)
+        _ANCHOR_CAL_CACHE[panel] = None
+        return None
+    block = PV.calendar_block_from_marks(grid["marks"])
+    _ANCHOR_CAL_CACHE[panel] = block
+    return block
+
+
 def effective_request(panel: str, label: str) -> dict:
     """The request this scenario IS, built from the scenario, not from the file being judged.
 
@@ -191,7 +231,11 @@ def effective_request(panel: str, label: str) -> dict:
     as `produce()` builds it when it drives the scenario.
     """
     s_bp, e_bp = scenario_bp(label)
-    anchor = anchor_calendar() if (panel, label) != ("russell", "base") else None
+    if (panel, label) == ("russell", "base"):
+        # The anchor answers to the derived grid, not to another book (PROV-08).
+        anchor = derived_anchor_calendar(panel)
+    else:
+        anchor = anchor_calendar()
     return CS.request(panel, label, s_bp, e_bp, calendar=anchor)
 
 
