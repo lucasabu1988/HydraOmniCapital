@@ -223,65 +223,11 @@ def test_costs_and_unfilled_orders_are_recorded():
 
 
 # ----------------------------------------------------------------------------- parity with the lab
-LAB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "experiments")
-
-
-def _lab():
-    if not os.path.exists(os.path.join(LAB, "_sweep_cache", "close.pkl")):
-        pytest.skip("lab cache experiments/_sweep_cache/ not present")
-    sys.path.insert(0, LAB)
-    import redesign_lab as L
-    return L
-
-
-def test_parity_stock_targets_with_redesign_lab():
-    L = _lab()
-    P = L.load_panel(oos=False)
-    cfg = L.CONFIGS["T20"]; c = dict(L.BASE); c.update(cfg)
-    checked = 0
-    held = set()
-    for t in range(1300, len(P.close.index) - 6, 5):
-        out = L.rank_day(P, t, c)
-        if out is None:
-            continue
-        m = P.meta_for(t, c)
-        n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers["COMPASS"])), 28))
-        sel = L.select(out, n, held, c["buffer"])
-        basket = P.rets.iloc[t - 62:t + 1][sel.index].mean(axis=1)
-        rv = float(basket.std(ddof=1)) * np.sqrt(252)
-        expo = min(1.0, c["target_vol"] / rv) if rv > 0 else 1.0
-        lab_w = pd.Series(expo / len(sel), index=sel.index) if len(sel) else pd.Series(dtype=float)
-        # production-shaped ranking from the same frame: rank order, sector, veto as a "Vetado" reason
-        rk = pd.DataFrame({"ticker": out.index, "rank": range(1, len(out) + 1), "sector": out["sector"].values,
-                           "reason": np.where(L.vetoed(out).values, "Vetado: gate", ""), "recommended_count": n})
-        eng_w = E.stock_targets(rk, held, P.close.iloc[:t + 1], dict(V9, stock_buffer=c["buffer"], stock_target_vol=c["target_vol"]))
-        pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(), check_names=False, rtol=0, atol=1e-9)
-        held = set(sel.index)
-        checked += 1
-        if checked >= 25:
-            break
-    assert checked >= 20
-
-
-def test_parity_etf_targets_with_sleeve_lab():
-    L = _lab()
-    import sleeve_lab as S
-    from sleeves.etf_trend import target_weights
-    P = L.load_panel(oos=False)
-    P.ETF = S.load_etfs(P.close.index)
-    tb_daily = P.IRX / 252.0
-    px = P.ETF; rets = px.pct_change(fill_method=None); vol63 = rets.rolling(63).std() * np.sqrt(252)
-    tb12 = tb_daily.rolling(252).sum(); mom12 = px / px.shift(252) - 1
-    checked = 0
-    for t in range(1300, len(px.index) - 6, 5):
-        names = px.columns[(px.iloc[t].notna() & px.iloc[t - 252].notna()).values]
-        on = mom12.iloc[t][names] - tb12.iloc[t] > 0
-        iv = (1.0 / vol63.iloc[t][names]).replace([np.inf, -np.inf], np.nan).fillna(0.0)
-        base = iv / iv.sum()
-        lab_w = (base * on.astype(float)); lab_w = lab_w[lab_w > 0]
-        eng_w = target_weights(px.iloc[:t + 1], tb_daily.iloc[:t + 1])
-        pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(), check_names=False, rtol=0, atol=1e-9)
-        checked += 1
-        if checked >= 25:
-            break
-    assert checked >= 20
+# HYDRA-CI-01 (2026-09-14). `test_parity_stock_targets_with_redesign_lab` and
+# `test_parity_etf_targets_with_sleeve_lab` lived here and skipped on every machine without the
+# gitignored `experiments/_sweep_cache*` - which is every CI run since they were written. The cache
+# supplied their INPUT, never their property: `redesign_lab.select`/`.vetoed` import with no cache
+# at all, and the ETF rule is arithmetic on a price frame. Both comparisons now run on a seeded
+# synthetic panel in `test_parity_portable.py`, against the same two implementations, and are
+# mutation-verified there (five engine mutations, five reds). Nothing was weakened and nothing was
+# committed to make them pass: there is no fixture file, only a generator.

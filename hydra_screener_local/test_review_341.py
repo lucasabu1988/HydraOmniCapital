@@ -130,42 +130,9 @@ def test_park_and_hold_no_price_survive_settle_into_the_ledger():
     )
 
 
-def test_parity_stock_targets_reproduced():
-    lab = os.path.join(os.path.dirname(os.path.abspath(__file__)), "experiments")
-    if not os.path.exists(os.path.join(lab, "_sweep_cache", "close.pkl")):
-        pytest.skip("lab cache experiments/_sweep_cache/ not present")
-    sys.path.insert(0, lab)
-    import redesign_lab as L
-    P = L.load_panel(oos=False)
-    cfg = L.CONFIGS["T20"]
-    c = dict(L.BASE)
-    c.update(cfg)
-    checked, held = 0, set()
-    for t in range(1300, len(P.close.index) - 6, 5):
-        out = L.rank_day(P, t, c)
-        if out is None:
-            continue
-        m = P.meta_for(t, c)
-        n = max(6, min(int(round(14 * m.overall_aggression * m.pillar_multipliers["COMPASS"])), 28))
-        sel = L.select(out, n, held, c["buffer"])
-        basket = P.rets.iloc[t - 62:t + 1][sel.index].mean(axis=1)
-        rv = float(basket.std(ddof=1)) * np.sqrt(252)
-        expo = min(1.0, c["target_vol"] / rv) if rv > 0 else 1.0
-        lab_w = pd.Series(expo / len(sel), index=sel.index) if len(sel) else pd.Series(dtype=float)
-        rk = pd.DataFrame({
-            "ticker": out.index, "rank": range(1, len(out) + 1),
-            "sector": out["sector"].values,
-            "reason": np.where(L.vetoed(out).values, "Vetado: gate", ""),
-            "recommended_count": n,
-        })
-        eng_w = E.stock_targets(
-            rk, held, P.close.iloc[: t + 1],
-            dict(V9, stock_buffer=c["buffer"], stock_target_vol=c["target_vol"]),
-        )
-        pd.testing.assert_series_equal(eng_w.sort_index(), lab_w.sort_index(),
-                                       check_names=False, rtol=0, atol=1e-9)
-        held = set(sel.index)
-        checked += 1
-        if checked >= 20:
-            break
-    assert checked >= 20
+# HYDRA-CI-01 (2026-09-14). `test_parity_stock_targets_reproduced` stood here and skipped without
+# `experiments/_sweep_cache/`. It is the TASK-341 reproduction of the stock-target parity, and it
+# now runs on a seeded synthetic panel in `test_parity_portable.py`
+# (`test_parity_stock_targets_engine_matches_the_lab_selection_and_scaling`), against the same lab
+# and engine functions, plus the two boundaries the cache never reached (every name vetoed, and a
+# dynamic count of zero). The review's counterexamples above are unchanged.

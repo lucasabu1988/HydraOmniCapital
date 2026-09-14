@@ -105,21 +105,10 @@ def test_only_common_dates_are_compared():
     assert d["first"] == str(b.index[0].date())
 
 
-def test_the_published_mix_already_had_cash_at_the_t_bill():
-    """The finding TASK-409 produced: SPEC 9.5 blamed a confound that was not there.
-
-    `P_5050` in the audit pickle is `mix(T20_cy + ETF)` to machine precision, so the lab's stock
-    sleeve DID earn the T-bill. Skips on a machine without the lab cache; on this one it is the
-    guard that keeps the corrected spec sentence honest.
-    """
-    import sleeve_lab as S
-    from reset_ab import AUDIT_STEPS, load_lab
-
-    if not os.path.exists(AUDIT_STEPS):
-        pytest.skip("no audit_steps.pkl on this machine")
-    lab = load_lab()
-    p5050 = lab["P_5050"]["net"]
-    with_tbill = S.mix([lab["T20_cy"], lab["ETF"]], "equal")["net"]
-    without = S.mix([lab["T20"], lab["ETF"]], "equal")["net"]
-    assert float((with_tbill - p5050).abs().max()) == 0.0
-    assert float((without - p5050).abs().max()) > 1e-6
+# HYDRA-CI-01 (2026-09-14). `test_the_published_mix_already_had_cash_at_the_t_bill` moved to `audits/audit_lab_artifacts.py` and is run by
+# `tools/external_audit.py`, which reports RAN - PASS / RAN - FAIL / DID NOT RUN with the
+# exact missing path. It read the gitignored `_sweep_cache_etf/audit_steps.pkl`,
+# which no clean clone has and which must never be committed, so as a `skipif` in the
+# required suite it was an assertion that never ran and reported [PASS].
+# Everything above IS a property of the code - the paired bootstrap actually pairing, the
+# verdict rule, the block sampler, the risk-free leg - and needs no cache, so it stays.

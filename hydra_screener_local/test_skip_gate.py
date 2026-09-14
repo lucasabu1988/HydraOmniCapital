@@ -66,31 +66,71 @@ def test_a_file_with_one_passed_and_one_skipped_case_keeps_both(tmp_path, capsys
     assert "artefact absent here" in out, "and the reason it reported"
 
 
-def test_an_undeclared_case_skip_fails_and_a_declared_one_passes(tmp_path, capsys):
-    declared = next(iter(CS.EXPECTED_CASE_SKIPS))
-    reason = CS.EXPECTED_CASE_SKIPS[declared]["reason_contains"]
-    files = [RR.file_record("experiments/test_accredit_433.py", "pytest", RR.F_PASS, 1.0,
-                            [_case(declared, RR.SKIPPED, f"...{reason}: absent here")])]
+# HYDRA-CI-01 (2026-09-14): the three cases below used to read
+# `next(iter(CS.EXPECTED_CASE_SKIPS))`, so the allowlist machinery was only covered while the
+# allowlist happened to be NON-EMPTY - and emptying it (the whole point of CI-01) turned that
+# coverage into a StopIteration. The policy is injected synthetically now, which is what the
+# tests were always about: the machinery must work, and must keep working once no real case
+# uses it. The real allowlist gets its own assertion instead.
+
+DECLARED = "experiments/test_synthetic.py::test_needs_an_artifact"
+POLICY = {DECLARED: dict(reason_contains="the synthetic artefact",
+                         policy="SYNTHETIC (test only): a declared, reason-matched exemption")}
+
+
+def test_an_undeclared_case_skip_fails_and_a_declared_one_passes(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(CS, "EXPECTED_CASE_SKIPS", POLICY)
+    files = [RR.file_record("experiments/test_synthetic.py", "pytest", RR.F_PASS, 1.0,
+                            [_case(DECLARED, RR.SKIPPED, "the synthetic artefact: absent here")])]
     assert _gate(_write(tmp_path, _report(files))) == 0
     assert "check_skips ok" in capsys.readouterr().out
 
+    other = [RR.file_record("experiments/test_synthetic.py", "pytest", RR.F_PASS, 1.0,
+                            [_case("experiments/test_synthetic.py::test_other", RR.SKIPPED,
+                                   "the synthetic artefact: absent here")])]
+    assert _gate(_write(tmp_path, _report(other), name="other.json")) == 1, (
+        "a different nodeid must not inherit another case's exemption")
 
-def test_a_declared_case_that_skips_for_a_DIFFERENT_reason_is_not_covered(tmp_path, capsys):
+
+def test_a_declared_case_that_skips_for_a_DIFFERENT_reason_is_not_covered(tmp_path, capsys,
+                                                                         monkeypatch):
     """The allowlist is nodeid + reason, so it cannot decay into a name-only exemption."""
-    declared = next(iter(CS.EXPECTED_CASE_SKIPS))
-    files = [RR.file_record("experiments/test_accredit_433.py", "pytest", RR.F_PASS, 1.0,
-                            [_case(declared, RR.SKIPPED, "skipped because it was flaky")])]
+    monkeypatch.setattr(CS, "EXPECTED_CASE_SKIPS", POLICY)
+    files = [RR.file_record("experiments/test_synthetic.py", "pytest", RR.F_PASS, 1.0,
+                            [_case(DECLARED, RR.SKIPPED, "skipped because it was flaky")])]
     assert _gate(_write(tmp_path, _report(files))) == 1
     assert "the policy does not cover" in capsys.readouterr().out
 
 
 def test_every_declared_policy_names_an_exact_nodeid_and_a_reason():
-    """No directory or prefix wildcards: an exemption with no edge is not a policy."""
+    """No directory or prefix wildcards: an exemption with no edge is not a policy.
+
+    Vacuous while the allowlist is empty, which is why the test below states the emptiness
+    itself rather than leaving it to be inferred from this one passing.
+    """
     for nodeid, pol in CS.EXPECTED_CASE_SKIPS.items():
         assert "::" in nodeid, f"{nodeid} is not a nodeid"
         assert "*" not in nodeid, f"{nodeid} is a wildcard, not an exact case"
         assert pol.get("reason_contains"), f"{nodeid} has no reason to match"
         assert pol.get("policy"), f"{nodeid} has no policy text"
+
+
+def test_no_temporary_ci01_exemption_survives():
+    """HYDRA-CI-01's acceptance criterion, as an assertion rather than as a claim in a commit.
+
+    The eleven entries this dict held were one TEMPORARY policy: an invariant that only ran where
+    a gitignored private artefact happened to exist. Seven became portable tests and six became
+    external audits. If an entry reappears under that policy, CI-01 has reopened and this says so.
+    """
+    temporary = {k: v for k, v in CS.EXPECTED_CASE_SKIPS.items()
+                 if "TEMPORARY" in v.get("policy", "") or "CI-01" in v.get("policy", "")}
+    assert not temporary, (
+        "HYDRA-CI-01 exemptions are back in EXPECTED_CASE_SKIPS. An invariant that cannot run on "
+        f"a clean clone belongs in audits/ behind tools/external_audit.py: {sorted(temporary)}")
+    assert CS.EXPECTED_CASE_SKIPS == {}, (
+        "the per-case allowlist is no longer empty. That is allowed, but it is a governance act: "
+        "it needs a board entry saying why the invariant cannot be expressed portably and which "
+        f"audit covers it instead. Present entries: {sorted(CS.EXPECTED_CASE_SKIPS)}")
 
 
 def test_all_cases_skipped_in_a_file_still_fails_when_undeclared(tmp_path):

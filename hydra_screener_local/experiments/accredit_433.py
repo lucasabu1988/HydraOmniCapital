@@ -209,7 +209,13 @@ def derived_anchor_calendar(panel: str = "russell") -> dict | None:
         return _ANCHOR_CAL_CACHE[panel]
     try:
         grid = CS.derived_grid(panel)
-    except Exception as exc:                     # noqa: BLE001 - reported, never silent
+    # SystemExit is caught ON PURPOSE and is not redundant with Exception. `derived_grid` loads a
+    # panel, and `backtest_variant_sweep.Panels.__init__` answers a missing cache with
+    # `sys.exit('No cached data. Run with --download first.')` - a BaseException, which
+    # `except Exception` does not see. So on a machine without the inputs this function did not
+    # return None with a reason, it TORE DOWN the interpreter mid-reconcile (HYDRA-CI-01,
+    # measured 2026-09-14). KeyboardInterrupt is deliberately NOT in this tuple.
+    except (Exception, SystemExit) as exc:       # noqa: BLE001 - reported, never silent
         print(f"[accredit] cannot derive the anchor grid for {panel}: {exc!r}", flush=True)
         _ANCHOR_CAL_CACHE[panel] = None
         return None

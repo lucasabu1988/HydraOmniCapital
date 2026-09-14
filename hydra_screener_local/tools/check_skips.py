@@ -52,67 +52,32 @@ EXPECTED_SKIPS: dict[str, str] = {
 #: reported, so a test that starts skipping for a DIFFERENT reason is not covered by an
 #: entry written for the old one - the allowlist cannot drift into a name-only pass.
 #:
-#: All eleven entries below are the SAME policy - HYDRA-CI-01, an invariant that is only
-#: exercised where a gitignored private artefact happens to exist - and every one of them is
-#: TEMPORARY. CI-01 has to re-express each portable invariant as a fixture-backed test and
-#: move the genuinely external audit into a job that reports ran / did-not-run with reasons.
-#: Until then they are declared here, in the open, with the exact reason each one reports.
+#: HISTORY, kept because the measurement is the reason this dict exists at all. On 2026-09-13
+#: (base 910bd00) a full clean-clone run reported 1199 passed and ELEVEN skipped cases, all
+#: declared here under one TEMPORARY policy, HYDRA-CI-01. The board had named four; that figure
+#: came from a focused three-file invocation, not the suite. The other seven had been skipping in
+#: every CI run since they were written, with nothing reporting it.
 #:
-#: Scope, measured rather than assumed: a full clean-clone run on 2026-09-13 (base 910bd00)
-#: reported 1199 passed and ELEVEN skipped cases. The earlier note in the board named four;
-#: that came from a focused three-file invocation, not the suite. The other seven had been
-#: skipping in every CI run since they were written, with nothing reporting it.
-_CI01 = "HYDRA-CI-01 (TEMPORARY): "
-EXPECTED_CASE_SKIPS: dict[str, dict[str, str]] = {
-    nodeid: dict(reason_contains=reason, policy=_CI01 + policy)
-    for nodeid, reason, policy in (
-        # --- the accreditation invariants, TASK-433 artefacts ---
-        ("experiments/test_accredit_433.py::"
-         "test_a_book_driven_on_another_panel_is_refused_by_name_of_the_input",
-         "russell_prereg_cache/coverage.json",
-         "needs the Russell coverage artefact, gitignored. The panel-swap refusal it pins "
-         "is expressible on a synthetic panel and must become one."),
-        ("experiments/test_accredit_433.py::"
-         "test_an_unaccreditable_file_in_the_accredited_slot_stops_the_run_and_is_left_alone",
-         "russell_prereg_cache/coverage.json",
-         "same artefact. The never-overwrite invariant needs no real book."),
-        ("experiments/test_accredit_433.py::"
-         "test_reconcile_reports_the_historical_books_without_touching_them",
-         "no historical books on this machine",
-         "needs the historical books, which live only on the lab machine. Genuinely "
-         "external: belongs in the real-book audit job, not in the required suite."),
-        ("experiments/test_accredit_433.py::"
-         "test_the_withdrawn_result_cannot_be_read_as_current",
-         "task433_accredited.json",
-         "needs the withdrawn artefact. The withdrawal contract is synthesisable."),
-        # --- the lab-cache parity checks ---
-        ("test_portfolio_engine.py::test_parity_stock_targets_with_redesign_lab",
-         "experiments/_sweep_cache/",
-         "engine-vs-lab parity needs the gitignored sweep cache. A small committed fixture "
-         "would make the parity portable."),
-        ("test_portfolio_engine.py::test_parity_etf_targets_with_sleeve_lab",
-         "experiments/_sweep_cache/",
-         "same cache, ETF side."),
-        ("test_review_341.py::test_parity_stock_targets_reproduced",
-         "experiments/_sweep_cache/",
-         "same cache, TASK-341 reproduction."),
-        ("test_render_evidence.py::"
-         "test_the_reference_rows_are_what_reference_rows_py_measures",
-         "sweep caches are gitignored",
-         "the published reference rows cannot be re-measured on a fresh clone."),
-        # --- checks that read the live or paper book ---
-        ("test_backfill_sizing.py::test_real_20260910_sheet_matches_the_hand_figure",
-         "paper book not on this disk",
-         "reads state_paper/. Real-book audit, never a required check."),
-        ("test_fill_cost_report.py::"
-         "test_the_live_state_is_readable_and_still_has_nothing_to_measure",
-         "no live state on this machine",
-         "reads state/. Real-book audit, never a required check."),
-        ("test_reset_ab.py::test_the_published_mix_already_had_cash_at_the_t_bill",
-         "audit_steps.pkl",
-         "needs a gitignored lab artefact from the A/B reset."),
-    )
-}
+#: HYDRA-CI-01 CLOSED, 2026-09-14. The eleven entries are GONE and this dict is EMPTY. That is
+#: the task's acceptance criterion, not a convenience:
+#:
+#:   seven were portable invariants wearing an artefact's clothes. The artefact supplied the
+#:   INPUT, never the property. They run everywhere now - the engine/lab parity on a seeded
+#:   synthetic panel (`test_parity_portable.py`, five engine mutations, five reds), and the four
+#:   accreditation invariants on synthetic panel inputs, which `cost_stress.data_inputs` was
+#:   already built to allow (`experiments/test_accredit_433.py`, eight mutations, eight reds).
+#:
+#:   six were genuine claims about ONE machine's disk - the eight published TASK-433 books, the
+#:   withdrawn result, the live and paper books, the OOS sweep caches. Those left the required
+#:   suite for `audits/`, run by `tools/external_audit.py`, which reports RAN - PASS,
+#:   RAN - FAIL, or DID NOT RUN naming the exact missing path. A skipped case inside an audit is
+#:   reported as a FAILURE there: the artefact gate belongs to the runner, never to a `skipif`.
+#:
+#: Adding an entry back is allowed, but it is a governance act, not a workaround: it needs an
+#: exact nodeid, the reason the run actually reports, a named policy, and a board entry saying
+#: why the invariant cannot be expressed portably and which audit covers it instead. "CI is
+#: green" is not one of those reasons.
+EXPECTED_CASE_SKIPS: dict[str, dict[str, str]] = {}
 
 
 def run_suite(report_path: str, token: str) -> int:
