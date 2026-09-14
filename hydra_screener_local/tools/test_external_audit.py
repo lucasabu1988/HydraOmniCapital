@@ -260,6 +260,16 @@ def test_a_failure_exits_one_even_without_require_all(tmp_path, monkeypatch):
     assert EA.main([]) == 1
 
 
+def test_the_report_is_written_even_when_its_directory_does_not_exist_yet(tmp_path, monkeypatch):
+    """The runner must not depend on a previous CI step having made `reports/` for it."""
+    case = _synthetic(tmp_path, "passes", {"the book": str(tmp_path / "nope.pkl")})
+    monkeypatch.setattr(EA, "REGISTRY", (case,))
+    out = tmp_path / "made" / "up" / "audit.json"
+    assert not out.parent.exists()
+    assert EA.main(["--report", str(out)]) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["totals"]["did_not_run"] == 1
+
+
 def test_the_report_file_is_written_and_reloadable(tmp_path, monkeypatch):
     case = _synthetic(tmp_path, "passes", {"the book": str(tmp_path / "nope.pkl")})
     monkeypatch.setattr(EA, "REGISTRY", (case,))

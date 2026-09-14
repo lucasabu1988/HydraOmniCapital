@@ -307,6 +307,11 @@ def main(argv=None) -> int:
     report = evaluate(only=args.only)
     render(report)
     if args.report:
+        # Create the directory. In the workflow the suite step has already made `reports/` (its
+        # own writer does `mkdir(parents=True)`), so this never fires there - which is exactly
+        # why it is here: a latent dependency on step ORDER is not something to leave in a tool
+        # whose whole job is to report honestly when something is absent.
+        Path(args.report).parent.mkdir(parents=True, exist_ok=True)
         with open(args.report, "w", encoding="utf-8") as fh:
             json.dump(report, fh, indent=2, default=str)
         print(f"report: {args.report}")
