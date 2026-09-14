@@ -71,6 +71,10 @@ def slot(monkeypatch, tmp_path):
         return out
 
     monkeypatch.setattr(CS, "data_inputs", fake_inputs)
+    # PROV-08 made the anchor's request derive its calendar from the rules, which loads the
+    # real panel. Keep this file synthetic and fast: inject the grid and clear the memo.
+    A._ANCHOR_CAL_CACHE.clear()
+    monkeypatch.setattr(CS, "derived_grid", lambda panel: None)
     # reconcile() writes its payload; send it to tmp_path, never to _lab_scratch.
     monkeypatch.setattr(A, "OUT_JSON", str(tmp_path / "task433_accredited_v2.json"))
     monkeypatch.setattr(A, "WITHDRAWN_JSON", str(tmp_path / "withdrawn.json"))
