@@ -105,6 +105,20 @@ TASK_433_RUN_ID = "20260914-cae2c54599aa"
 #: tree may move on (the commit right after #95 edits provenance.py and cost_stress.py, both
 #: recorded) while the claim "the code that ran is in history at this commit" stays checkable.
 TASK_433_CODE_REF = "260a418195cbba6311eb5a7d7c7a863eb6e6791e"
+
+#: TASK-434's capacity run: ONE sidecar drive per panel that must reproduce the accredited base
+#: books (F1). Pinned like 433's. `TASK_434_CODE_REF` is None while the run is OPEN (the audit then
+#: compares the recorded code against the working tree) and becomes the merge commit when it closes.
+TASK_434_RUN_ID = "20260914-cc34d9465892"
+TASK_434_CODE_REF: str | None = None
+_T434 = _p("experiments", "_lab_scratch", "capacity", "runs", TASK_434_RUN_ID)
+TASK_434_RUN = {
+    **{f"{panel}_base.{ext}": os.path.join(_T434, f"{panel}_base.{ext}")
+       for panel in ("russell", "sp500") for ext in ("pkl", "fills.pkl", "F1.json", "engine.json")},
+    "capacity_drive.json": os.path.join(_T434, "capacity_drive.json"),
+}
+TASK_434_REPORT = {**TASK_434_RUN,
+                   "capacity report": _p("experiments", "_lab_scratch", f"task434_capacity_{TASK_434_RUN_ID}.json")}
 _T433 = _p("experiments", "_lab_scratch", "accredited", "runs", TASK_433_RUN_ID)
 TASK_433_RUN = {
     **{f"{panel}_{label}.pkl": os.path.join(_T433, f"{panel}_{label}.pkl")
@@ -312,6 +326,48 @@ REGISTRY: tuple = (
                      "gitignored _lab_scratch/ and are never committed",
     ),
     dict(
+        id="task434.f1-passed-and-the-book-is-the-accredited-book",
+        nodeid="audits/audit_task434_run.py::test_f1_passed_and_the_book_is_the_accredited_book",
+        requires=TASK_434_RUN,
+        claims="F1: the sidecar drive reproduced the TASK-433 accredited base book (book_sha256 12e478f9..., 814 marks), and the sealed 434 book carries that seal",
+        why_external="reads the capacity run's F1 records and books in the gitignored _lab_scratch/",
+    ),
+    dict(
+        id="task434.sidecar-is-the-ledger-disaggregated",
+        nodeid="audits/audit_task434_run.py::test_the_sidecar_is_the_ledger_disaggregated_and_its_digest_is_the_recorded_one",
+        requires=TASK_434_RUN,
+        claims="per-settle, per-sleeve sums of the fill sidecar equal the drive's own ledger.by_step, and the sidecar's bytes are the ones capacity_drive.json recorded",
+        why_external="reads the real sidecars and engine records",
+    ),
+    dict(
+        id="task434.adv-panels-are-the-recorded-ones",
+        nodeid="audits/audit_task434_run.py::test_the_adv_panels_are_the_recorded_ones_built_from_the_recorded_inputs",
+        requires=TASK_434_RUN,
+        claims="the ADV panels on disk digest to what capacity_drive.json recorded, and so do the close/volume inputs they were built from",
+        why_external="reads the 264 MB ADV panels and the lab caches",
+    ),
+    dict(
+        id="task434.report-is-what-the-rules-produce",
+        nodeid="audits/audit_task434_run.py::test_the_report_is_what_the_rules_produce",
+        requires=TASK_434_REPORT,
+        claims="recomputing the ceiling and coverage from the sidecar and the ADV panels reproduces the published task434_capacity_<run>.json",
+        why_external="reads the published report and recomputes it from the real artefacts",
+    ),
+    dict(
+        id="task434.p95-monotone-and-label-everywhere",
+        nodeid="audits/audit_task434_run.py::test_the_p95_curve_is_monotone_and_the_label_is_everywhere",
+        requires=TASK_434_REPORT,
+        claims="the conservative P95 curve is non-decreasing in capital over the 10k..100M grid, and CAPACITY_NOT_CERTIFIED is on the payload, the ceiling and every table row",
+        why_external="reads the published report",
+    ),
+    dict(
+        id="task434.code-fingerprint",
+        nodeid="audits/audit_task434_run.py::test_the_code_the_books_recorded_still_matches",
+        requires=TASK_434_RUN,
+        claims="every module digest the two 434 books recorded matches the pinned commit's blobs (TASK_434_CODE_REF) once closed, or the working tree while open",
+        why_external="reads the real manifests",
+    ),
+    dict(
         id="paper.20260910-sheet",
         nodeid="audits/audit_live_books.py::test_real_20260910_paper_sheet_matches_the_hand_figure",
         requires={"state_paper/instructions_20260910.json":
@@ -354,6 +410,11 @@ def _env() -> dict:
     env = dict(os.environ)
     env["HYDRA_433_RUN_ID"] = TASK_433_RUN_ID
     env["HYDRA_433_CODE_REF"] = TASK_433_CODE_REF
+    env["HYDRA_434_RUN_ID"] = TASK_434_RUN_ID
+    if TASK_434_CODE_REF:
+        env["HYDRA_434_CODE_REF"] = TASK_434_CODE_REF
+    else:
+        env.pop("HYDRA_434_CODE_REF", None)
     return env
 
 
