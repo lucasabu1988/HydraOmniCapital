@@ -1511,6 +1511,26 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   95 del participation supere el 3 %** — esa cifra es la que vale, no la lista de breaches (Lucas
   2026-09-11). Medido sobre las hojas reales (`state/instructions_*.json` y `state_paper/`) y sobre el
   backtest Russell a 100k, 500k y 1M de capital. `Files:` `experiments/capacity.py` (nuevo) + test.
+  **[2026-09-14 CLAUDE] PREREG DE TASK-434 CONGELADA ANTES DE PRODUCIR UN SOLO NUMERO.**
+  `.comms/prereg-task-434-2026-09-14.md`, **sha256 `04e113751a594ea7c5207275a3e067de1cfb28574d257daa5ed37787b7f90349`**, en la rama
+  `feat/task-434-participation-ceiling` cortada de `main = 87e58c9` (#95 + #96 dentro). Tres rondas de
+  revision (Lucas) antes de congelar; lo que fija: (1) la unidad es la **huella ejecutable**
+  `(settle, sleeve, ticker)` con neteo con signo entre tranches, bruto solo como sensibilidad;
+  (2) **ADV20 ex-ante** = la serie canonica del lab `(close*volume).rolling(20).mean()` leida en la
+  barra de mercado inmediatamente anterior, ventana completa o **desconocido**, nunca acortada ni
+  rellenada; (3) **P95 = estadistico de orden explicito** en el rango `ceil(0.95 N)`, sin interpolacion,
+  la misma funcion en todas partes; (4) **cobertura fail-closed para el techo**: P95 descriptivo
+  (cubiertas) y P95 conservador (ADV desconocido = +inf), el techo usa el conservador, con
+  cobertura impresa por ordenes Y por notional; (5) **homogeneidad de escala como propiedad
+  ejecutable** (capital 1 y K sobre panel sintetico) antes de licenciar "una conduccion -> 100k/500k/1M";
+  (6) **F1**: la conduccion con sidecar de fills debe reproducir el `russell/base` acreditado por
+  `book_sha256` (`12e478f9...`) y `calendar_sha256` (`63fda57f...`, 814 marcas) mas totales de ledger
+  — el sidecar es observador, nunca participante; si F1 falla, la tarea se detiene; (7) todo lo que
+  publique lleva **`CAPACITY_NOT_CERTIFIED`**: techo por participacion, no capacidad real; el modelo de
+  impacto tendra su propia prereg, escrita antes de ver la distribucion. Declaracion economica escrita
+  ahora para que no se suavice: **techo por participacion Russell < ~1M USD => "edge moderado, no
+  escalable en Russell bajo la regla preregistrada"**. Orden: sink de fills apagado por defecto -> F5 ->
+  `capacity.py` + tests con mutaciones -> `adv_usd.pkl` (sha) -> UNA conduccion, F1 completo -> numeros.
 - [ ] `TASK-435` **Bloque B/1 — atribucion por manga y por factor.**
   La pregunta no es "Sharpe 0,74" sino cuanto alpha queda tras explicar beta, size y momentum.
   Regresion `R_t − R_f,t = α + β_M·MKT + β_S·SMB + β_H·HML + β_R·RMW + β_C·CMA + β_Mom·MOM + ε` con los
