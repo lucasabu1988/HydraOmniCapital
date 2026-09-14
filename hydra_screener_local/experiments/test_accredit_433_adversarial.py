@@ -196,6 +196,94 @@ def test_the_anchor_grid_reaches_the_other_scenarios(panels, grid, slot):
     assert A.accredit_answer("russell", "stress")["state"] == PV.ACCREDITED
 
 
+def test_the_pre_prov08_anchor_calendar_makes_fully_accredited_impossible(
+        panels, grid, slot, tmp_path, monkeypatch):
+    """The DEFECT, reproduced end to end, not just the fix asserted.
+
+    This is the chain preflight_433.py found on 2026-09-14, before any book was driven:
+
+        anchor_calendar() builds its own request with calendar=None
+          -> provenance refuses a request that declares neither a grid nor 'calendar_anchor'
+          -> anchor_calendar() returns None
+          -> the seven non-anchor scenarios are requested WITHOUT a calendar
+          -> the seven are rejected on [calendar]
+          -> fully_accredited can never be true, however good the books are
+
+    The eight books published here are the SAME eight in both halves of the test. Only
+    `anchor_calendar` changes, so the difference in the verdict is attributable to it and to
+    nothing else. That is the point: a regression that only asserted "the fixed version works"
+    would pass against a version that happened to work for another reason.
+    """
+    out_dir = str(tmp_path / "hist")
+    os.makedirs(os.path.join(out_dir, "cost_stress"), exist_ok=True)
+    monkeypatch.setattr(CS, "OUT_DIR", os.path.join(out_dir, "cost_stress"))
+    monkeypatch.setattr(CS, "BASE_BOOKS",
+                        {p: os.path.join(out_dir, f"engine_book_{p}.pkl") for p in CS.PANELS})
+    monkeypatch.setattr(A, "OUT_JSON", str(tmp_path / "out.json"))
+    for panel, label in A.ORDER:
+        _publish(panel, label)
+    irx = pd.Series(0.015, index=pd.bdate_range("2010-01-04", periods=4000))
+
+    # --- half 1: the pre-PROV-08 implementation, restored verbatim
+    def pre_prov08_anchor_calendar():
+        path = A.acc_path("russell", "base")
+        if not os.path.exists(path):
+            return None
+        try:
+            PV.accredit(path, CS.request("russell", "base", *A.scenario_bp("base"),
+                                         calendar=None), echo=False)
+        except (PV.CacheRejected, A.PanelMismatch):
+            return None
+        return PV.calendar_block(pd.read_pickle(path))
+
+    real_anchor_calendar = A.anchor_calendar
+    monkeypatch.setattr(A, "anchor_calendar", pre_prov08_anchor_calendar)
+    A._ANCHOR_CAL_CACHE.clear()
+    assert pre_prov08_anchor_calendar() is None, (
+        "the old implementation must fail to validate the anchor - that IS the defect")
+    broken = A.reconcile(irx=irx)
+    assert broken["provenance"]["fully_accredited"] is False
+    assert len(broken["provenance"]["accredited"]) == 1, (
+        "only the anchor should survive: the other seven lose their calendar")
+    for rec in broken["reconciliation"]:
+        if (rec["panel"], rec["scenario"]) == ("russell", "base"):
+            continue
+        assert rec["accredited_class"] != PV.ACCREDITED
+        assert "calendar" in json.dumps(rec["rejected"]), rec["rejected"]
+
+    # --- half 2: the same eight books, the fixed implementation.
+    # Restore ONLY `anchor_calendar`. `monkeypatch.undo()` would also unwind the `panels` and
+    # `grid` fixtures, putting the real 271 MB panel back in the path - measured: the test hit
+    # the 30 s timeout inside `Panels.__init__` rather than failing on anything meaningful.
+    monkeypatch.setattr(A, "anchor_calendar", real_anchor_calendar)
+    monkeypatch.setattr(A, "OUT_JSON", str(tmp_path / "out2.json"))
+    A._ANCHOR_CAL_CACHE.clear()
+    fixed = A.reconcile(irx=irx)
+    assert fixed["provenance"]["fully_accredited"] is True, fixed["provenance"]["rejected"]
+    assert len(fixed["provenance"]["accredited"]) == 8
+
+
+def test_the_anchor_is_validated_with_the_same_request_it_is_judged_by():
+    """Two requests for one book is how the two halves of PROV-08 drifted apart. One request.
+
+    Read from the AST, not from the text: the docstring of `anchor_calendar` quotes the old
+    `calendar=None` request on purpose, to record what the defect was, and a substring search
+    over the source cannot tell that apart from the defect itself.
+    """
+    import ast  # noqa: PLC0415
+
+    src = open(os.path.join(HERE, "accredit_433.py"), encoding="utf-8").read()
+    fn = next(n for n in ast.parse(src).body
+              if isinstance(n, ast.FunctionDef) and n.name == "anchor_calendar")
+    body = fn.body[1:] if ast.get_docstring(fn) else fn.body      # drop the docstring node
+    code = chr(10).join(ast.unparse(n) for n in body)
+    assert "effective_request('russell', 'base')" in code.replace('"', "'"), (
+        "anchor_calendar must validate the anchor with effective_request, not with a request it "
+        "builds itself - a second hand-built request is exactly what went stale. Got: " + code)
+    assert "calendar=None" not in code, (
+        "the pre-PROV-08 request is back in anchor_calendar's BODY: " + code)
+
+
 # ------------------------------------------------------------------------ 1: scenario label
 def test_1_a_book_sealed_for_another_scenario_label_is_refused(panels, grid, slot):
     path, _b, _m = _publish("russell", "stress",

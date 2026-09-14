@@ -120,6 +120,29 @@ def current_result(path: str = None):
     with open(target, encoding="utf-8") as fh:
         return _json.load(fh)
 
+#: THE TWO GRIDS, NAMED APART. This distinction cost a preflight iteration on 2026-09-14 and it
+#: is too easy to repeat, so it is written down where both are used rather than left implicit:
+#:
+#:   NATIVE grid of a panel   `cost_stress.derived_grid(panel)`. For `sp500` that is 1084 marks,
+#:                            2005-02-11..2026-08-24. It is what the S&P panel's own calendar and
+#:                            the engine's rules produce, and TASK-433 DOES NOT USE IT.
+#:   COMPARISON grid          the anchor's: `derived_grid("russell")`, 814 marks,
+#:                            2010-06-28..2026-08-26. Every one of the eight books lands here,
+#:                            because the S&P scenarios are driven by `drive_sp_same_grid` with
+#:                            `start_date=russell_start_date()` - "the same grid and start", as
+#:                            `cost_stress` puts it. Every delta in the table is a subtraction
+#:                            between two books, so two grids would not be a delta at all.
+#:
+#: A decoy built on the NATIVE S&P grid is refused with `stored n=1084 ... requested n=814`. That
+#: is the contract working; the mistake was the assumption, not the check. `report_433.py` refuses
+#: to render a table whose eight books do not share one calendar digest, and
+#: `audits/audit_task433_run.py` asserts it against the real books.
+COMPARISON_GRID_NOTE = (
+    "every TASK-433 book lands on the ANCHOR's grid (derived_grid('russell')); the S&P panel's "
+    "NATIVE grid (derived_grid('sp500')) is a different, longer calendar and is never the "
+    "comparison grid"
+)
+
 #: (a)..(h) exactly as the task ordered them: the anchor first, then the grid partner, then the
 #: Russell scenarios, then the S&P scenarios.
 ORDER = (
@@ -488,6 +511,10 @@ def reconcile(irx: pd.Series | None = None) -> dict:
             rows.append(row)
             rec["accredited"] = {k: row[k] for k in keys}
             rec["accredited_sha256"] = PV.book_sha256(a_book)
+            # The COMPARISON grid, recorded per book so a consumer can verify for itself that
+            # every delta is a subtraction between two books on one calendar, instead of
+            # trusting the aggregate boolean below. See COMPARISON_GRID_NOTE.
+            rec["accredited_calendar"] = PV.calendar_block(a_book)
         if h_book is not None:
             hrow = CS.stats_row(h_book, irx, f"{panel}/{label}")
             hrow.update(panel=panel, scenario=label, stock_bp=s_bp, etf_bp=e_bp,

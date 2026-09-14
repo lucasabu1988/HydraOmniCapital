@@ -80,6 +80,19 @@ OOS_CACHES = {
     "oos irx.pkl": _p("experiments", "_sweep_cache_oos", "irx.pkl"),
 }
 
+#: TASK-433's regeneration. PINNED to the run it audits, on purpose: "the newest directory under
+#: runs/" would silently re-point this audit at whatever was produced last, and an audit that
+#: follows the evidence around is not an audit. A new run is a new entry, added deliberately.
+TASK_433_RUN_ID = "20260914-99967d14f3ad"
+_T433 = _p("experiments", "_lab_scratch", "accredited", "runs", TASK_433_RUN_ID)
+TASK_433_RUN = {
+    **{f"{panel}_{label}.pkl": os.path.join(_T433, f"{panel}_{label}.pkl")
+       for panel in ("russell", "sp500")
+       for label in ("base", "conservative", "stress", "smallcap_crisis")},
+    "reconciliation report": _p("experiments", "_lab_scratch",
+                                f"task433_accredited_{TASK_433_RUN_ID}.json"),
+}
+
 #: (id, nodeid, {label: required path}, what it claims, why it cannot be portable).
 #: Exact nodeids, no wildcards: "everything under audits/" is not a registry, it is an exemption.
 REGISTRY: tuple = (
@@ -146,6 +159,86 @@ REGISTRY: tuple = (
         requires={"audit_steps.pkl": OOS_CACHES["audit_steps.pkl"]},
         claims="TASK-409's finding: P_5050 in the audit pickle already carried the T-bill leg",
         why_external="a statement about specific recorded bytes",
+    ),
+    dict(
+        id="task433.run-published-eight-books-and-a-report",
+        nodeid="audits/audit_task433_run.py::test_the_run_published_eight_books_and_a_report",
+        requires=TASK_433_RUN,
+        claims="the pinned run published all eight books and its reconciliation report",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.every-one-of-the-eight-accredits-with-every-",
+        nodeid="audits/audit_task433_run.py::test_every_one_of_the_eight_accredits_with_every_mandatory_block_compared",
+        requires=TASK_433_RUN,
+        claims="each of the eight answers its own effective request with every mandatory identity block compared - not merely a valid seal",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.aggregate-says-fully-accredited-and-means-it",
+        nodeid="audits/audit_task433_run.py::test_the_aggregate_says_fully_accredited_and_means_it",
+        requires=TASK_433_RUN,
+        claims="fully_accredited=true, and each book counted as accredited really compared every mandatory block",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.all-eight-books-are-on-one-grid",
+        nodeid="audits/audit_task433_run.py::test_all_eight_books_are_on_one_grid",
+        requires=TASK_433_RUN,
+        claims="the eight books share one mark grid, so every delta in the table is a real subtraction",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.scenarios-are-the-frozen-ones",
+        nodeid="audits/audit_task433_run.py::test_the_scenarios_are_the_frozen_ones",
+        requires=TASK_433_RUN,
+        claims="the cost pairs are the frozen 10/5, 20/8, 35/10, 50/15 and were not moved after the fact",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.books-span-research-and-validation-and-never",
+        nodeid="audits/audit_task433_run.py::test_the_books_span_research_and_validation_and_never_live",
+        requires=TASK_433_RUN,
+        claims="no book reaches the live partition: no HOLDOUT BREACH",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.withdrawn-run-is-untouched-and-still-refused",
+        nodeid="audits/audit_task433_run.py::test_the_withdrawn_run_is_untouched_and_still_refused",
+        requires=TASK_433_RUN,
+        claims="the withdrawn 2026-09-12 run is still eight books, none re-sealed under the running code",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.eight-historical-pre-manifest-books-are-stil",
+        nodeid="audits/audit_task433_run.py::test_the_eight_historical_pre_manifest_books_are_still_unmanifested",
+        requires=TASK_433_RUN,
+        claims="the pre-manifest TASK-431/433 books are still there and still carry no manifest",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.twelve-mutations-are-all-refused-on-the-real",
+        nodeid="audits/audit_task433_run.py::test_the_twelve_mutations_are_all_refused_on_the_real_books",
+        requires=TASK_433_RUN,
+        claims="the twelve TASK-433 falsifications are each refused on copies of the REAL books",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.unmutated-copy-still-accredits",
+        nodeid="audits/audit_task433_run.py::test_the_unmutated_copy_still_accredits",
+        requires=TASK_433_RUN,
+        claims="the control: an unmutated copy of a real book still accredits, so the twelve rejections are about the mutations and not about the copying",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
     ),
     dict(
         id="paper.20260910-sheet",
