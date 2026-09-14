@@ -146,10 +146,12 @@ REGISTRY: tuple = (
                      "and is pinned in experiments/test_accredit_433.py",
     ),
     dict(
-        id="withdrawn.no-replacement-yet",
-        nodeid="audits/audit_evidence_books.py::test_no_replacement_result_has_been_published_yet",
+        id="withdrawn.legacy-slot-not-reused",
+        nodeid="audits/audit_evidence_books.py::test_the_legacy_result_slot_was_not_reused",
         requires=WITHDRAWN,
-        claims="no task433_accredited_v2.json exists, i.e. TASK-433 is still open on this disk",
+        claims="task433_accredited_v2.json was never written: the accredited replacement lives under "
+               "its own run id (task433_accredited_<run>.json), and the withdrawn 2026-09-12 pair is "
+               "still preserved beside it",
         why_external="reads the real result path",
     ),
     dict(
@@ -335,11 +337,24 @@ def missing(case: dict) -> dict:
     return {label: path for label, path in case["requires"].items() if not os.path.exists(path)}
 
 
+def _env() -> dict:
+    """The subprocess environment: the pinned run id travels WITH the audit.
+
+    Found in review of #95: this runner checked that the artefacts of `TASK_433_RUN_ID` exist,
+    then launched pytest without saying which run it meant, and `audit_task433_run.resolve_run`
+    fell back to the newest directory under `runs/`. The two agreed by coincidence. One later
+    run and the runner would have verified the presence of one set of books and audited another.
+    """
+    env = dict(os.environ)
+    env["HYDRA_433_RUN_ID"] = TASK_433_RUN_ID
+    return env
+
+
 def _run(nodeids: list, junit: str) -> subprocess.CompletedProcess:
     cmd = [sys.executable, "-m", "pytest", "-q", "--no-header", "-p", "no:cacheprovider",
            "--junitxml", junit, *nodeids]
     return subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True,
-                          encoding="utf-8", errors="replace", timeout=3600)
+                          encoding="utf-8", errors="replace", timeout=3600, env=_env())
 
 
 def _outcomes(junit: str) -> dict:

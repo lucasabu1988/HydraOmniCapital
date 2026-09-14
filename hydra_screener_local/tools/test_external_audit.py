@@ -325,3 +325,21 @@ def test_each_real_registry_entry_is_routed_without_being_executed(case, monkeyp
             EA.evaluate()
         assert launched == [[case["nodeid"]]], (
             "a case whose artefacts are all present must be handed to pytest by its exact nodeid")
+
+
+def test_the_runner_tells_the_subprocess_which_run_it_pinned(monkeypatch, tmp_path):
+    """`_run` must carry `HYDRA_433_RUN_ID=TASK_433_RUN_ID` into pytest's environment. Without it
+    the runner verifies the presence of the pinned run's books and the audit resolves "the newest
+    directory" - two different runs the moment a later one exists (found in review of #95)."""
+    seen = {}
+
+    def _fake_run(cmd, **kw):
+        seen["cmd"], seen["env"] = cmd, kw.get("env")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(EA.subprocess, "run", _fake_run)
+    monkeypatch.setenv("HYDRA_433_RUN_ID", "something-stale-from-the-shell")
+    EA._run(["audits/x.py::test_y"], str(tmp_path / "j.xml"))
+    assert seen["env"] is not None, "_run launched pytest with an inherited, unpinned environment"
+    assert seen["env"]["HYDRA_433_RUN_ID"] == EA.TASK_433_RUN_ID
+    assert seen["env"].get("PATH") == os.environ.get("PATH"), "the rest of the environment is inherited"

@@ -49,7 +49,7 @@ Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
 **HYDRA-PROV-01 — implementada (#88, pendiente de fusion).** Los consumidores preguntan al validador en vez de leer el sello. `classify()` responde «hay manifiesto y su sello verifica» — una pregunta sobre el FICHERO; `accredit()` responde «este libro contesta la peticion que se hace» — una pregunta sobre el ESCENARIO. `accredited_state`, `anchor_calendar` y `reconcile` preguntaban lo primero y publicaban lo segundo. Ahora cada fila acreditada lleva `compared`, `uncompared`, `uncompared_why`, `uncompared_keys` y `degraded` **al lado del numero que justifican**, y el agregado lleva ademas `rejected` con la razon de cada rechazo. Un bloque sin comparar solo se admite cuando el contrato ya nombra el motivo; cualquier otro es `IDENTITY INCOMPLETE`. **Lo que destapa y NO cierra: PROV-08.** `cost_stress.request(calendar=None)` ya no declara `calendar_anchor` a proposito (la rejilla es derivable de reglas via `calendar_spec`), asi que **`russell/base` no puede acreditarse desde cache** hasta que su peticion lleve un calendario derivado — y por tanto `fully_accredited` se queda en False para el conjunto. Antes ese mismo libro se reportaba acreditado con cero comparaciones, asi que rechazarlo es el fallo correcto. Ticket aparte.
 
-**Nada de esto acredita los ocho escenarios historicos.** TASK-431 sigue **INCONCLUSIVE** bajo su regla original; **TASK-433 y TASK-434 siguen abiertas**; el Bloque B sigue parado. La regeneracion de evidencia espera a CI-01 ademas de estas tres. El libro vivo sigue sin liquidar: 30 pending, ledger 0, ultima corrida 2026-09-04, y **sin CSV de fills reales del 2026-09-08 no hay reconciliacion** — no se infiere del ledger local.
+**Nada de esto acredita los ocho escenarios historicos.** TASK-431 sigue **INCONCLUSIVE** bajo su regla original; **TASK-433 cerrada en evidencia (PR #95, veredicto: PASS en robustez de costes, sin soporte para 10 % neto); TASK-434 sigue abierta**; el Bloque B sigue parado. La regeneracion de evidencia espera a CI-01 ademas de estas tres. El libro vivo sigue sin liquidar: 30 pending, ledger 0, ultima corrida 2026-09-04, y **sin CSV de fills reales del 2026-09-08 no hay reconciliacion** — no se infiere del ledger local.
 
 [2026-09-13 16:13 UTC] CODEX: **Revision de #85: alcance de las afirmaciones.** Los recuentos globales 23 agentes / 156 hallazgos / 118 supervivientes de la nota de Claude quedan como declaracion del autor: no se aporto un inventario trazable que esta revision haya verificado. Las reproducciones concretas SAFE-04, CI-02 y PROV-01 y los merges #82/#83 tienen evidencia individual. El estado local fechado (30 pending, ledger 0, last_run_date 2026-09-04) **no demuestra ausencia de fills en el broker**. OPS-00 acredita la copia de cuatro archivos y el ensayo de restauracion, ejecutados por Codex con autorizacion de Lucas; las tres generaciones examinadas eran sinteticas, sin afirmar que no existiera otra copia en ninguna fecha. OneDrive web requiere iniciar sesion: sincronizacion remota aun no comprobada. Las notas previas se conservan como declaraciones fechadas; aplicar estas precisiones al leerlas.
 
@@ -1383,7 +1383,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   proposito y afirma la marca; y el prereg de la 431 declara en que particion corre. Las semanas live
   no entran en ningun tuning: ya lo dice el protocolo de evolucion, aqui pasa a ser mecanico.
   `Files:` `experiments/holdout.json` (nuevo), `experiments/redesign_lab.py` (lectura + marca), + test.
-- [ ] `TASK-433` **Bloque A/3 — stress de costes como tabla, medido en deltas.**
+- [x] `TASK-433` **Bloque A/3 — stress de costes como tabla, medido en deltas.**
   Los 10 bp/lado acciones y 5 bp/lado ETFs pueden ser optimistas en Russell 2000; se mide, no se
   discute. Escenarios: **10/5 (base), 20/8 (conservador), 35/10 (estres), 50/15 (small-cap / crisis)**
   sobre el panel Russell y sobre el S&P 500 OOS. Aceptacion: una tabla por escenario con `ann_net`,
@@ -1426,6 +1426,53 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   igual y el titular no es comparable con otras corridas. Los libros historicos de TASK-431 se
   condujeron del mismo modo, asi que **las DELTAS** —que es lo que TASK-433 mide— son comparables;
   los NIVELES absolutos arrastran ese caveat y no se citan sin el.
+
+  **[2026-09-14 CLAUDE] CIERRE DE TASK-433 — corrida acreditada `20260914-cae2c54599aa`, PR #95.**
+  Ocho libros, una identidad de codigo congelada, `fully_accredited: true`, cero rechazos, cero
+  `degraded`, una sola rejilla de 814 marcas (2010-06-28 -> 2026-08-26) identica en los ocho.
+  Cadena de evidencia ejecutada DESPUES del ultimo libro: suite portable adversarial 36 passed
+  (23.6 s al timeout por defecto); `tools/test_external_audit.py` 49 passed; `python
+  tools/external_audit.py` **27 RAN-PASS / 0 FAIL / 0 DID NOT RUN**, las 16 de TASK-433 incluidas
+  (huella de codigo recomputada desde disco en proceso nuevo, una identidad en los ocho, dentro de
+  cada panel solo difieren los bloques de coste, `etf_close`/`irx` identicos entre paneles, las doce
+  falsificaciones rechazadas sobre copias de los libros REALES y el control sin mutar acredita).
+  Dos corridas del mismo dia quedan **VOID** en disco, intactas, con `VOID_RUN.json`:
+  `99967d14f3ad` (movimiento real de codigo: `accredit_433.py` editado mientras producia evidencia)
+  y `1e7cf4b7d428` (falso positivo del guard: `swept` crece durante la corrida). Nada se re-sella.
+
+  **Resultado (deltas 10/5 -> 50/15 bp):** Russell `ann_net` 5.664 -> 3.311 % (-2.353 pp, -41.5 %),
+  Sharpe 0.488 -> 0.239, maxDD -16.01 -> -22.36; S&P 7.959 -> 5.426 % (-2.533 pp, -31.8 %), Sharpe
+  0.724 -> 0.462, maxDD -19.67 -> -20.00. Monotonia estricta en las tres metricas. **Ningun escenario
+  cae bajo la T-bill (1.509 %)** dentro de la rejilla; el peor, Russell 50/15, conserva +1.80 pp.
+  Turnover invariante al coste (Russell stocks 10.776 -> 10.774 % por settle), asi que la resta
+  entre escenarios es atribuible al tratamiento. Falsacion aritmetica: 814 settles / 16.16 anos;
+  turnover x delta-coste predice 2.266 pp (Russell) y 2.378 pp (S&P) frente a 2.353 / 2.533
+  observados — residuo positivo del tamano de la composicion, mayor en el panel con mas wealth.
+
+  **Veredicto (Lucas 2026-09-14): PASS en robustez de costes, edge moderado, sensibilidad material.**
+  Sin cruce bajo T-bill en 10/5-50/15. **Sin soporte para un objetivo de 10 % neto**: la mejor celda
+  es 7.959 % y es el supuesto mas benevolo del panel mas facil. **Russell muestra fragilidad de
+  drawdown mucho mayor** (+6.4 pp de maxDD por costes; S&P +0.3). Esta rejilla aplica los MISMOS bp a
+  ambos paneles: mide exposicion al coste via turnover, **no identifica liquidez** — Russell rota
+  menos (12.67 vs 13.26 %) y absorbe menos dano absoluto. Costes endogenos por universo
+  (ADV/spread/impacto) son de TASK-434. La paridad con T-bill hacia ~81 bp (Russell) / ~112 bp (S&P)
+  es extrapolacion lineal fuera de la rejilla: interpretacion, nunca resultado acreditado. Niveles
+  absolutos condicionados por `fixed_map / pit_valid=False` en ambos paneles.
+
+  **Trazabilidad:** la corrida salio de un working tree (`code.git`: commit `0a3202a`, `dirty: true`,
+  cuatro rutas editadas y dos untracked); los commits de #95 son esas ediciones hechas historia
+  despues. La equivalencia la demuestran los hashes de contenido (`test_the_code_fingerprint_still_
+  matches_after_the_last_book`, RAN-PASS tras cada edicion), no el relato. Defecto registrado y NO
+  reparado a proposito: `provenance._git()` hace strip de la salida del porcelain y la primera ruta
+  sucia pierde su primer caracter (`ydra_screener_local/...`); `provenance.py` esta dentro de la
+  identidad registrada, se arregla despues del merge. `cost_stress.derived_grid` tampoco se memoiza
+  por la misma razon: la auditoria se queda lenta (69 s Russell / 15 s S&P por llamada).
+  **Revision adversarial de #95 (Lucas):** tres blockers de semantica de auditoria, corregidos —
+  `_run()` ahora pasa `HYDRA_433_RUN_ID` al pytest (antes verificaba la presencia de una corrida y
+  auditaba "la mas nueva"); la auditoria heredada `withdrawn.no-replacement-yet` pasa a
+  `withdrawn.legacy-slot-not-reused` (`task433_accredited_v2.json` nunca se escribio, el replacement
+  vive bajo su run id, el par retirado sigue preservado); y esta entrada. Merge = paso de Lucas.
+  **Siguiente: TASK-434 de inmediato.** El Bloque B no rescata nada de esto.
 
 - [ ] `TASK-434` **Bloque A/4 — capacidad: participation rate y el AUM maximo.**
   `participation = orden_USD / ADV20` con umbrales **1 % normal / 3 % aviso / 5 % no operar**, sobre

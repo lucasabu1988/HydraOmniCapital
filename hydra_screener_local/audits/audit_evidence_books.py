@@ -92,12 +92,19 @@ def test_the_withdrawn_artifact_and_its_note_are_both_still_preserved():
     assert os.path.abspath(A.OUT_JSON) != os.path.abspath(A.WITHDRAWN_JSON)
 
 
-def test_no_replacement_result_has_been_published_yet():
-    """TASK-433 is OPEN on the board. If this fails, the board is behind the disk - which is a
-    finding either way, and must be read rather than papered over."""
+def test_the_legacy_result_slot_was_not_reused():
+    """The accredited replacement for the withdrawn 2026-09-12 result is `20260914-cae2c54599aa`,
+    published as `task433_accredited_<run_id>.json` next to its `accredited/runs/<run_id>/` books.
+    `task433_accredited_v2.json` - the slot the first attempt would have written - must therefore
+    stay EMPTY: a file there would be a result with no run id and no manifest directory to answer
+    for it, exactly the shape that got withdrawn. Until #95 this test claimed "TASK-433 is still
+    open", which stopped being true the moment that run accredited; the claim now is about the
+    slot, which is what the disk can actually witness."""
     assert not os.path.exists(A.OUT_JSON), (
-        f"{A.OUT_JSON} exists. TASK-433 is marked open; either a run published and the board was "
-        "not updated, or something wrote to the result path. Do not delete it - read it.")
+        f"{A.OUT_JSON} exists. The accredited result is published under its run id; a file in the "
+        "legacy slot carries neither. Do not delete it - read it and find out what wrote it.")
+    assert os.path.exists(A.WITHDRAWN_JSON) and os.path.exists(A.WITHDRAWAL_NOTE), (
+        "the withdrawn pair must stay preserved beside the replacement")
 
 
 def test_the_real_books_marks_are_what_the_task_431_row_was_measured_on():
