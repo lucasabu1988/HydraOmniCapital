@@ -1504,13 +1504,67 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
 
   **Siguiente: TASK-434 de inmediato.** El Bloque B no rescata nada de esto.
 
-- [ ] `TASK-434` **Bloque A/4 — capacidad: participation rate y el AUM maximo.**
+- [x] `TASK-434` **Bloque A/4 — capacidad: participation rate y el AUM maximo.**
   `participation = orden_USD / ADV20` con umbrales **1 % normal / 3 % aviso / 5 % no operar**, sobre
   cada hoja semanal con el panel ADV de TASK-406. Aceptacion, dos agregados ademas de la tabla:
   **porcentaje de ordenes que viola cada umbral**, y **AUM maximo aproximado antes de que el percentil
   95 del participation supere el 3 %** — esa cifra es la que vale, no la lista de breaches (Lucas
   2026-09-11). Medido sobre las hojas reales (`state/instructions_*.json` y `state_paper/`) y sobre el
   backtest Russell a 100k, 500k y 1M de capital. `Files:` `experiments/capacity.py` (nuevo) + test.
+  **[2026-09-14 CLAUDE] PREREG DE TASK-434 CONGELADA ANTES DE PRODUCIR UN SOLO NUMERO.**
+  `.comms/prereg-task-434-2026-09-14.md`, **sha256 `04e113751a594ea7c5207275a3e067de1cfb28574d257daa5ed37787b7f90349`**, en la rama
+  `feat/task-434-participation-ceiling` cortada de `main = 87e58c9` (#95 + #96 dentro). Tres rondas de
+  revision (Lucas) antes de congelar; lo que fija: (1) la unidad es la **huella ejecutable**
+  `(settle, sleeve, ticker)` con neteo con signo entre tranches, bruto solo como sensibilidad;
+  (2) **ADV20 ex-ante** = la serie canonica del lab `(close*volume).rolling(20).mean()` leida en la
+  barra de mercado inmediatamente anterior, ventana completa o **desconocido**, nunca acortada ni
+  rellenada; (3) **P95 = estadistico de orden explicito** en el rango `ceil(0.95 N)`, sin interpolacion,
+  la misma funcion en todas partes; (4) **cobertura fail-closed para el techo**: P95 descriptivo
+  (cubiertas) y P95 conservador (ADV desconocido = +inf), el techo usa el conservador, con
+  cobertura impresa por ordenes Y por notional; (5) **homogeneidad de escala como propiedad
+  ejecutable** (capital 1 y K sobre panel sintetico) antes de licenciar "una conduccion -> 100k/500k/1M";
+  (6) **F1**: la conduccion con sidecar de fills debe reproducir el `russell/base` acreditado por
+  `book_sha256` (`12e478f9...`) y `calendar_sha256` (`63fda57f...`, 814 marcas) mas totales de ledger
+  — el sidecar es observador, nunca participante; si F1 falla, la tarea se detiene; (7) todo lo que
+  publique lleva **`CAPACITY_NOT_CERTIFIED`**: techo por participacion, no capacidad real; el modelo de
+  impacto tendra su propia prereg, escrita antes de ver la distribucion. Declaracion economica escrita
+  ahora para que no se suavice: **techo por participacion Russell < ~1M USD => "edge moderado, no
+  escalable en Russell bajo la regla preregistrada"**. Orden: sink de fills apagado por defecto -> F5 ->
+  `capacity.py` + tests con mutaciones -> `adv_usd.pkl` (sha) -> UNA conduccion, F1 completo -> numeros.
+  **[2026-09-14 CLAUDE] ENMIENDA DE INPUTS A LA PREREG DE 434, ANTES DE LEER NINGUN NUMERO.** Al construir
+  los paneles ADV salio que `_sweep_cache_etf/` tiene `close.pkl` pero NO `volume.pkl`: sin volumen de ETFs
+  toda la sleeve ETF seria "desconocida" y el techo TOTAL saldria NOT MEASURABLE por un hueco de datos, no
+  por la estrategia. Se añade el input **`experiments/_sweep_cache_etf/volume.pkl`** (yfinance, 10 ETFs,
+  5962 x 10, 2003-01-02..2026-09-14, 97.0 % no nulo, **sha256 `5de6f8d0ac4f70a080cf5858cc56c35893af0b8f
+  3bc3694429480b3e3a6f78af`**, las 5957 barras del close cubiertas). Cada footprint consulta el ADV de SU
+  sleeve (acciones -> panel propio; ETFs -> cache ETF) con la misma regla `adv_prev_bar`; la regla no se
+  duplica, solo el enrutado. Cobertura medida de la hoja viva sobre el ADV de acciones: **12/30 Russell,
+  6/30 S&P** (TASK-406 midio 6/30); los 7 ETFs de la hoja pasan a cubrirse con este input. Lo demas de la
+  prereg no cambia; los `adv_usd_<panel>.pkl` llevan sha en `capacity_drive.json`.
+  **[2026-09-14 CLAUDE] RESULTADO DE TASK-434 — run `20260914-cc34d9465892`, `CAPACITY_NOT_CERTIFIED`.**
+  Bajo la regla preregistrada (P95 conservador de `|footprint neto| / ADV20(t-1)` <= 3 %): **techo por
+  participacion Russell ~19.7 M USD** (bracket 19.72 M pasa / 24.65 M falla), **S&P >= 117.5 M USD** — el tope
+  de la rejilla 10k..100M pasa, asi que es COTA INFERIOR (`grid_exhausted`), no techo medido. La clausula
+  predeclarada "Russell < ~1 M => no escalable" **NO se dispara**. P95 a 1 M: Russell 0.124 %, S&P 0.020 %;
+  cero brechas de 1/3/5 % a 100k/500k/1M en ambos paneles y sleeves. Curva P95 (cons, %): Russell 1.25 @ 10 M,
+  2.45 @ 19.7 M, 5.97 @ 48 M, 14.6 @ 117 M; S&P 0.20 @ 10 M, 0.94 @ 48 M, 2.30 @ 117 M — monotona (auditada).
+  Cobertura de lo REALMENTE operado: 99.8 % Russell (48 de 27 373 footprints sin ADV), 100 % S&P (4 de 26 807),
+  por conteo y por notional — la estrategia opera donde hay volumen aunque el panel tenga 52.8 % / 51.0 %.
+  Bruto = neto (una tranche renueva por settle). Hoja viva 2026-09-04 a 100 k: participacion maxima **0.003 %**;
+  20/30 cubiertas en `planned` (los 10 desconocidos — AG, GOLD, ZIM, SII, SNDK... — no estan en el panel Russell
+  PIT: ADRs y listados recientes, no iliquidez); en `exec_date` los ETFs quedan desconocidos porque el cache ETF
+  termina el 09-04 (horizonte de datos, no se imputa).
+  **F1 en ambos paneles**: la conduccion con sidecar reproduce los libros acreditados de 433 — Russell
+  `book 12e478f9752e`, S&P `de56c7fbd622`, `calendar 63fda57fbb1f`, 814 marcas, diff de ledger 0.0; 27 373 y
+  26 807 fills. **F5** demostrada (homogeneidad de grado 1 en capital, K = 7.3 / 1e3 / 1e6, rtol 1e-9;
+  `whole_shares` la rompe). Un tropiezo, registrado: el primer Russell se condujo con `capacity_drive.py` anterior a
+  dos arreglos de orquestacion, el run llevaba dos digests para un driver y `audit_task434_run::code-fingerprint`
+  lo rechazo — bien; Russell re-conducido con el script final (determinista, mismo libro y sidecar), la v1 queda
+  en `superseded_russell_v1/` con `WHY.json`. Cadena externa: **33 RAN-PASS / 0 FAIL / 0 DID NOT RUN** (las 6 de 434 incluidas). Suite: **120 passed / 0 skipped**, 411 s.
+  **Lo que NO dice**: no es capacidad (impacto sin medir: prereg propia, escrita antes de ver la distribucion);
+  no es PIT (`fixed_map`); no es "Russell es 6x menos liquido" (la cifra S&P es cota inferior). Conclusion del
+  Bloque A para Russell: "edge moderado, sensibilidad material a costes" **con techo por participacion ~20 M USD
+  bajo la regla preregistrada, sin certificacion de liquidez**. PR abierta desde `feat/task-434-participation-ceiling`. Merge = paso de Lucas.
 - [ ] `TASK-435` **Bloque B/1 — atribucion por manga y por factor.**
   La pregunta no es "Sharpe 0,74" sino cuanto alpha queda tras explicar beta, size y momentum.
   Regresion `R_t − R_f,t = α + β_M·MKT + β_S·SMB + β_H·HML + β_R·RMW + β_C·CMA + β_Mom·MOM + ε` con los
