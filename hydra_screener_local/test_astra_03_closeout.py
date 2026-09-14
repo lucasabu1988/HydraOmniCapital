@@ -217,7 +217,8 @@ def test_the_obligation_is_not_re_issued(tmp_path, monkeypatch):
                               side="buy", dollars=1000.0, reason="no price on execution day")]
     (tmp_path / V.STATE_NAME).write_text(json.dumps(state), encoding="utf-8")
     out = V.run(tmp_path, fetch_fn=_market, rank_fn=_rank, silent=True,
-                dividend_fn=lambda _t: [], force=True)
+                dividend_fn=lambda _t: [], force=True,
+                force_reason="test fixture: preflight is hard by construction")
     assert not any(o.get("ticker") == "AAA" and o.get("side") == "buy"
                    for o in (out["orders"] or []) if o.get("reissued"))
     after = json.loads(Path(out["state_path"]).read_text(encoding="utf-8"))
@@ -246,7 +247,8 @@ def test_the_sheet_names_the_bar_it_valued_and_the_names_it_carried(tmp_path, mo
     (tmp_path / V.STATE_NAME).write_text(json.dumps(state), encoding="utf-8")
 
     out = V.run(tmp_path, fetch_fn=held_but_dark, rank_fn=_rank, silent=True,
-                dividend_fn=lambda _t: [], force=True)
+                dividend_fn=lambda _t: [], force=True,
+                force_reason="test fixture: preflight is hard by construction")
     # TASK-402 changed the answer here, deliberately and for the better. AAA has no print on the
     # LAST bar but it printed on 09-14, so it is now priced at that real print and reported as
     # `carried_forward` — not as `carried_stale`, which is reserved for a name with no print

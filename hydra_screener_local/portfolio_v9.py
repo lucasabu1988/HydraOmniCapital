@@ -523,7 +523,8 @@ def whole_share_display(order: dict) -> dict | None:
 
 
 def render_instructions(date: str, orders: list, fills: list, summary: dict,
-                        state: dict, exec_date: str, sector_warning: str | None = None) -> dict:
+                        state: dict, exec_date: str, sector_warning: str | None = None,
+                        force_record: dict | None = None) -> dict:
     """Build the instruction sheet in memory. Pure: writes nothing.
 
     Split out of `write_instructions` so the daily run can stage and validate the
@@ -548,6 +549,7 @@ def render_instructions(date: str, orders: list, fills: list, summary: dict,
         "dividends": _json_ready(summarize_dividends(state)),
         "whole_shares": "display-only; orders and presumed fills stay in dollars/fractional",
         "sizing": _json_ready(sizing_summary(orders)),
+        "force": force_record,
     }
     md_name = f"instructions_{date.replace('-', '')}.md"
     json_name = f"instructions_{date.replace('-', '')}.json"
@@ -555,6 +557,16 @@ def render_instructions(date: str, orders: list, fills: list, summary: dict,
         f"# HYDRA v9 instructions — {date}",
         "",
     ]
+    if force_record:
+        lines += [
+            "> **FORCED RUN.** "
+            f"{force_record['n_overridden']} HARD preflight check(s) were overridden: "
+            f"{', '.join(str(c) for c in force_record['overridden_hard_checks']) or 'none'}.",
+            f"> Reason given: _{force_record['reason']}_",
+            f"> By {force_record['by'].get('user')}@{force_record['by'].get('host')} "
+            f"at {force_record['at_utc']}.",
+            "",
+        ]
     if sector_warning:
         lines += [f"**DEGRADED** {sector_warning}", ""]
     lines += [
@@ -670,10 +682,60 @@ def write_instructions(state_dir: Path, date: str, orders: list, fills: list, su
     return md_path, json_path
 
 
+class ForceWithoutReason(SystemExit):
+    """`--force` was used with no reason. The override is refused, not the run's data."""
+
+
+def build_force_record(pf: dict, reason: str, *, today: str, book: str | None,
+                       run_id: str | None) -> dict:
+    """What was overridden, why, by whom and when - so a forced run can be recognised later.
+
+    OPS4-01. `--force` skipped every HARD row and left NO trace of having been used: not in
+    the journal, not on the sheet, not in the state, not in a manifest. After the fact nobody
+    could tell a clean run from an overridden one except by inferring it from a SUCCESSFUL
+    record whose `preflight.hard` was true.
+
+    This records; it does NOT widen what `--force` may skip. The three guards outside its
+    reach - staged-run recovery, the ledger invariants, and the settle refusal for a session
+    that has not closed - stay outside it.
+    """
+    rows = [r for r in (pf.get("rows") or []) if str(r.get("status")).upper() == "HARD"]
+    return dict(
+        forced=True,
+        reason=reason.strip(),
+        overridden_hard_checks=[r.get("check") or r.get("name") for r in rows],
+        n_overridden=len(rows),
+        preflight_was_hard=bool(pf.get("hard")),
+        book=book or "live",
+        date=today,
+        run_id=run_id,
+        at_utc=_utc_now_iso(),
+        by=_who(),
+        algo_version=ALGO_VERSION,
+    )
+
+
+def _utc_now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _who() -> dict:
+    """Whatever identity this machine can actually offer. Never invented."""
+    import getpass
+    import platform
+    try:
+        user = getpass.getuser()
+    except Exception:                                   # noqa: BLE001 - recorded as unknown
+        user = None
+    return dict(user=user, host=platform.node() or None)
+
+
 def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         anchor: str | None = None, universe: str | None = None, *,
         fetch_fn=None, rank_fn=None, engine=E, silent: bool = False,
-        force: bool = False, dividend_fn=None, run_id: str | None = None,
+        force: bool = False, force_reason: str | None = None,
+        dividend_fn=None, run_id: str | None = None,
         allow_intraday: bool = False, runs_dir=None) -> dict:
     """One daily step. fetch_fn / rank_fn are injectable so tests never hit the network.
 
@@ -683,6 +745,16 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     `runs_dir` is resolved once here and handed to the print-quality load/save (TASK-426).
     None keeps production on `utils.runlog.DEFAULT_RUNS_DIR`.
     """
+    # OPS4-01: an override with no stated reason is refused HERE, before the universe is
+    # resolved and before a single bar is fetched. The run's own data is untouched by the
+    # refusal, and `--force` cannot be a reflex.
+    if force and not (force_reason or "").strip():
+        raise ForceWithoutReason(
+            "--force requires --force-reason: say what is being overridden and why. "
+            "It skips every HARD preflight row, including the ones reserved for a state, "
+            "cash, positions or ledger that cannot be trusted."
+        )
+
     from utils.runlog import DEFAULT_RUNS_DIR
     runs_dir = Path(runs_dir) if runs_dir is not None else DEFAULT_RUNS_DIR
     state_dir = Path(state_dir)
@@ -777,6 +849,18 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         print(PF.format_table(pf))
         if degraded_msg:
             print(f"[v9] {degraded_msg}")
+    from core.books import book_of                     # noqa: PLC0415
+    force_record = None
+    if force:
+        force_record = build_force_record(pf, force_reason or "", today=today,
+                                          book=book_of(state_dir), run_id=run_id)
+        if not silent:
+            print(f"[v9] FORCED RUN: {force_record['n_overridden']} HARD check(s) overridden "
+                  f"-> {', '.join(str(c) for c in force_record['overridden_hard_checks']) or 'none'}")
+            print(f"[v9] FORCED RUN reason: {force_record['reason']}")
+            print(f"[v9] FORCED RUN by {force_record['by'].get('user')}@"
+                  f"{force_record['by'].get('host')} at {force_record['at_utc']}")
+
     postpone = None
     if pf.get("hard") and not force:
         # Describing the postpone must never be what aborts the run: this sits between the
@@ -932,7 +1016,8 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
     # validated and read back. Before this the state was saved first, so a failure
     # writing the sheet left the book advanced with no instructions (repro R-301).
     sheet = render_instructions(today, sheet_orders, fills, summary, state, exec_date,
-                                sector_warning=sector_warning)
+                                sector_warning=sector_warning,
+                                force_record=force_record)
     tx = RunTransaction(state_dir, kind="v9-daily", date=today, run_id=run_id)
     md_path = state_dir / sheet["md_name"]
     json_path = state_dir / sheet["json_name"]
@@ -977,6 +1062,7 @@ def run(state_dir: Path = DEFAULT_STATE_DIR, capital: float | None = None,
         dividend_coverage_complete=coverage_is_complete(state, today),
         # pieces for the journal builder (TASK-355); no journal logic here
         state=state, ranking=ranking, summary=summary, preflight=pf,
+        force=force_record,
         settle_refused=settle_refused,
         sheet_orders=sheet_orders, sector_warning=sector_warning,
         last_bars={"stocks": today, "etf": _last_date(etf), "^IRX": _last_date(irx) if irx is not None and len(irx) else None},
@@ -991,6 +1077,9 @@ def main(argv=None) -> int:
     p.add_argument("--anchor", type=str, default=None, help="YYYY-MM-DD; default = last close")
     p.add_argument("--state-dir", type=str, default=str(DEFAULT_STATE_DIR))
     p.add_argument("--universe", type=str, default=None)
+    p.add_argument("--force-reason", type=str, default=None,
+                   help="REQUIRED with --force: what is being overridden and why. Recorded on "
+                        "the sheet, in the run journal and in the run result.")
     p.add_argument("--force", action="store_true",
                    help="Plan even if preflight hard-fails (stale bars, missing ETFs, unknown schema).")
     p.add_argument("--allow-intraday", action="store_true",
@@ -999,7 +1088,8 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     try:
         run(Path(args.state_dir), capital=args.capital, anchor=args.anchor, universe=args.universe,
-            force=args.force, allow_intraday=args.allow_intraday)
+            force=args.force, force_reason=args.force_reason,
+            allow_intraday=args.allow_intraday)
     except SystemExit as e:
         print(f"[v9] {e}")
         return 1

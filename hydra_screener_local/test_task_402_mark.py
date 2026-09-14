@@ -119,7 +119,8 @@ def test_the_book_is_valued_at_the_last_real_print_not_at_the_entry_price(tmp_pa
     monkeypatch.setenv("HYDRA_BACKUP_DIR", str(tmp_path / "off"))
     _held(tmp_path, entry_price=60.0)
     out = V.run(tmp_path, fetch_fn=_market, rank_fn=_rank, silent=True,
-                dividend_fn=lambda _t: [], force=True)
+                dividend_fn=lambda _t: [], force=True,
+                force_reason="test fixture: preflight is hard by construction")
     stocks = out["summary"]["sleeves"]["stocks"]
     assert stocks["value"] == pytest.approx(1000.0 + 3000.0, abs=1.0), (
         "10 units at the last real print of 100, plus the 3000 the other three tranches hold")
@@ -132,7 +133,8 @@ def test_the_sheet_says_the_price_is_older_than_the_bar(tmp_path, monkeypatch):
     monkeypatch.setenv("HYDRA_BACKUP_DIR", str(tmp_path / "off"))
     _held(tmp_path, entry_price=60.0)
     out = V.run(tmp_path, fetch_fn=_market, rank_fn=_rank, silent=True,
-                dividend_fn=lambda _t: [], force=True)
+                dividend_fn=lambda _t: [], force=True,
+                force_reason="test fixture: preflight is hard by construction")
     sheet = Path(out["instructions_md"]).read_text(encoding="utf-8")
     assert "## Valuation (each name at its last real print, bar 2026-09-10)" in sheet
     assert "Priced at an earlier print than 2026-09-10: **AAA (2026-09-09)**" in sheet
@@ -152,7 +154,8 @@ def test_a_name_with_no_print_at_all_is_still_carried_at_the_entry_and_labelled(
 
     _held(tmp_path, entry_price=60.0)
     out = V.run(tmp_path, fetch_fn=dark, rank_fn=_rank, silent=True,
-                dividend_fn=lambda _t: [], force=True)
+                dividend_fn=lambda _t: [], force=True,
+                force_reason="test fixture: preflight is hard by construction")
     assert out["summary"]["carried_stale"] == ["AAA"]
     assert "AAA" not in out["summary"]["priced_asof"]
     sheet = Path(out["instructions_md"]).read_text(encoding="utf-8")
@@ -181,7 +184,8 @@ def test_the_state_absorbs_a_filled_price_and_resets_the_write_off_clock(tmp_pat
     monkeypatch.setenv("HYDRA_BACKUP_DIR", str(tmp_path / "off"))
     _held(tmp_path, entry_price=60.0)
     out = V.run(tmp_path, fetch_fn=_market, rank_fn=_rank, silent=True,
-                dividend_fn=lambda _t: [], force=True)
+                dividend_fn=lambda _t: [], force=True,
+                force_reason="test fixture: preflight is hard by construction")
     state = json.loads(Path(out["state_path"]).read_text(encoding="utf-8"))
     tr = state["sleeves"]["stocks"]["tranches"][0]
     assert tr["last_px"]["AAA"] == pytest.approx(100.0), (
