@@ -1851,6 +1851,26 @@ Antes del arreglo, la misma corrida escribia cuatro.
   su condicion sigue siendo **no fusionar**. `Files:` `experiments/test_capacity_434.py`,
   `experiments/capacity_434.py`, `.github/workflows/test.yml`. **Bloqueada por HYDRA-CI-02.**
 
+  **[2026-09-14 CLAUDE] Ampliacion de `Files:` registrada ANTES de implementar (regla de AGENTS.md).**
+  El `Files:` de arriba se escribio cuando CI-01 era un sub-alcance de #84. Los dos ficheros que nombra,
+  `experiments/capacity_434.py` y `experiments/test_capacity_434.py`, **no existen en `main`**: viven solo
+  en la rama de #84 (`feat/task-434-capacity`, HEAD `895d175`). Verificado: `git ls-tree origin/main` no
+  los lista. Por tanto el `KeyError: n_ledger` / `ledger_evidence()` **no se puede arreglar desde `main`**
+  y se traslada explicitamente a **PR 3 (TASK-434)**, donde esos ficheros llegan con el port de #84.
+  Lo que CI-01 si cierra desde `main` son los **once skips por caso** que CI-02 destapo. Clasificados uno
+  a uno (medido leyendo cada `skipif` y cada artefacto que exige): **siete PORTABLES** y **seis AUDITORIAS
+  EXTERNAS** (dos casos se parten en las dos mitades). Ficheros que toca esta PR, y por que:
+  `audits/audit_evidence_books.py`, `audits/audit_reference_rows.py`, `audits/audit_live_books.py`,
+  `audits/audit_lab_artifacts.py` (destino de las seis auditorias externas, FUERA de la suite requerida),
+  `tools/external_audit.py` (el runner con estados RAN--PASS / RAN--FAIL / DID NOT RUN--<ruta exacta>),
+  `tools/test_external_audit.py` (tests REQUERIDOS del runner: el registro no puede desincronizarse de los
+  ficheros, y un skip dentro de una auditoria cuenta como FAIL), `test_parity_portable.py` (la paridad
+  motor/lab sobre panel sintetico), los siete ficheros de test de los que salen los once casos,
+  `tools/check_skips.py` (EXPECTED_CASE_SKIPS queda VACIO), `.github/workflows/test.yml` (el skip gate
+  pasa a exigirse tambien en 3.13) y `tools/write_isolation.py` + `conftest.py` +
+  `tools/_bootstrap/sitecustomize.py` (la anomalia del aviso, ver la entrada de abajo).
+  **El coverage floor 81.25 no se toca en esta PR.**
+
 - [~] `HYDRA-PROV-01` **La ruta final confunde clasificacion con acreditacion.** **IMPLEMENTADA (#88, pendiente de fusion).** `effective_request` + `accredit_answer`; evidencia (`compared`/`uncompared`/`uncompared_why`/`uncompared_keys`/`degraded`) viaja con cada fila y el agregado lleva `rejected`. 14 tests sinteticos, portables. **Destapa PROV-08 y no lo cierra.**
   `experiments/provenance.py:1008-1013` (`classify` mira solo presencia del manifiesto y su propio sello),
   `experiments/accredit_433.py:167-169` (`accredited_state` delega en `classify`), `:276-291` (`reconcile`
