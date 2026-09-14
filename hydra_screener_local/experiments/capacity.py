@@ -64,12 +64,17 @@ SIDE_SIGN = {"buy": 1.0, "sell": -1.0}
 
 
 def aum_grid(lo: float = 10_000.0, hi: float = 100_000_000.0, ratio: float = 1.25) -> list:
-    """Geometric capital grid, 10 k .. 100 M by x1.25, inclusive of the first point >= hi."""
+    """Geometric capital grid, 10 k .. 100 M by x1.25, ending at EXACTLY `hi`.
+
+    Review of #97: the first version appended the first geometric point >= hi (117.5 M) and the
+    S&P headline read ">= 117.5 M" - outside the pre-registered 10 k .. 100 M range. The last
+    step is therefore shorter than x1.25; every other step is exact.
+    """
     out, c = [], float(lo)
     while c < hi * (1 - 1e-12):
         out.append(c)
         c *= ratio
-    out.append(c)
+    out.append(float(hi))
     return out
 
 
