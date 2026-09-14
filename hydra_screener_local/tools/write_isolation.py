@@ -68,6 +68,11 @@ import shutil
 import stat as _stat_mod
 import sys
 
+#: Any path carrying this marker is a throwaway test destination, never a real backup root.
+#: conftest.py, run_all_tests.py and tools/_bootstrap/sitecustomize.py all spell it too; it is
+#: defined here so "is this the test redirect" is decided in one place.
+TEST_BACKUP_MARKER = "hydra-test-backup"
+
 __all__ = [
     "WriteIsolationError", "install", "uninstall", "is_installed",
     "write_barrier", "protected_roots", "exempt_roots", "refresh_identity_index",
@@ -368,7 +373,7 @@ def _install_patches(import_optional=True):
 
 # --------------------------------------------------------------------------- roots
 
-def repo_evidence_roots(screener=None):
+def repo_evidence_roots(screener=None, backup_root=None, warn=True):
     r"""Every directory in this repo a test could reach that holds evidence or live state.
 
     Enumerated from the code, not guessed:
@@ -385,6 +390,23 @@ def repo_evidence_roots(screener=None):
                                  C:\Users\caslu\OneDrive\HydraBackups, the only off-disk copy of
                                  the live book. conftest.py redirects the variable; that redirect
                                  is containment, this is the wall behind it.
+
+    `backup_root` is how a caller that ALREADY KNOWS the real root supplies it. It exists because
+    this function cannot work that out once the variable has been rebound, and the warning it
+    used to print in that case was FALSE (HYDRA-CI-01, reproduced 2026-09-14):
+
+        [write-isolation] The real backup root was NOT captured and is NOT protected.
+
+    That line was printed by every child `run_all_tests.py` starts - while the same child armed
+    `C:\\Users\\caslu\\OneDrive\\HydraBackups`, because `tools/_bootstrap/sitecustomize.py` gets the
+    real value in `HYDRA_WRITE_BARRIER_BACKUP_ROOT` and appended it AFTER calling this. The
+    barrier was never late; the message asserted the opposite of what had happened - the "a
+    protection is declared that did not run" pattern with the sign flipped. Measured again in the
+    CI shape (HYDRA_BACKUP_DIR unset): the same false line, with no real root in existence at all.
+
+    It is now emitted only when the environment holds a redirect AND no caller supplied the real
+    root - the one case where the real root genuinely is neither known here nor protected.
+    `warn=False` silences it for a caller that is only enumerating and installing nothing.
     """
     if screener is None:
         screener = os.environ.get("HYDRA_SCREENER_DIR") or os.getcwd()
@@ -393,19 +415,27 @@ def repo_evidence_roots(screener=None):
         os.path.join("experiments", "_lab_scratch"),
         "state", "state_paper", "journal", "journal_paper", "runs", "history", "backups",
     )]
-    backup = os.environ.get("HYDRA_BACKUP_DIR")
-    if backup:
-        # INSTALL ORDER IS LOAD-BEARING. The repo's conftest.py rebinds HYDRA_BACKUP_DIR to a
-        # throwaway temp dir at import. If the barrier is installed AFTER that line it protects
-        # the throwaway and leaves the operator's real backup root wide open -- which is the
-        # exact class of mistake this module exists to prevent, so it is said out loud.
-        if "hydra-test-backup" in backup:
+    env_backup = os.environ.get("HYDRA_BACKUP_DIR")
+    redirected = bool(env_backup) and TEST_BACKUP_MARKER in env_backup.lower()
+    if backup_root:
+        # The caller captured the real root before the redirect and is handing it over.
+        roots.append(backup_root)
+    elif env_backup and not redirected:
+        roots.append(env_backup)
+    elif redirected:
+        # INSTALL ORDER IS LOAD-BEARING, and this is the only branch where it has actually gone
+        # wrong: the variable holds a throwaway and nobody handed over the real value, so a real
+        # root - IF this machine has one - is neither known here nor protected. A clean CI
+        # checkout reaches this branch with nothing to protect, which is why the wording no
+        # longer asserts that a real root exists.
+        if warn:
             sys.stderr.write(
-                "[write-isolation] WARNING: HYDRA_BACKUP_DIR is already the test redirect (%s).\n"
-                "[write-isolation] The real backup root was NOT captured and is NOT protected.\n"
-                "[write-isolation] Install the barrier BEFORE conftest._redirect_backup_dir().\n"
-                % backup)
-        roots.append(backup)
+                "[write-isolation] NOTE: HYDRA_BACKUP_DIR is the test redirect (%s) and no "
+                "backup_root was supplied.\n"
+                "[write-isolation] If this machine has a real backup root it is NOT protected by "
+                "this install; on a clean checkout there is none to protect.\n"
+                "[write-isolation] A caller that captured the real value before the redirect must "
+                "pass it as backup_root (run_all_tests.py and the bootstrap do).\n" % env_backup)
     # Only directories that EXIST hold evidence. A name that is not on disk has nothing to
     # destroy, and protecting it turns an honest throwaway into a refusal: on a clean CI
     # checkout `journal/`, `state/` and `state_paper/` are absent, tests legitimately create

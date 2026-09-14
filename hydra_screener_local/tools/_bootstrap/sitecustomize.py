@@ -84,11 +84,16 @@ def _roots(write_isolation):
         return roots
     screener = os.environ.get(SCREENER) or os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    roots = [r for r in write_isolation.repo_evidence_roots(screener=screener)
-             if TEST_BACKUP_MARKER not in r.lower()]
     real_backup = os.environ.get(REAL_BACKUP, "")
-    if real_backup and os.path.isdir(real_backup):
-        roots.append(real_backup)
+    if real_backup and not os.path.isdir(real_backup):
+        real_backup = ""
+    # Hand the captured root over rather than appending it afterwards. Appending was correct in
+    # effect and wrong in what it printed: `repo_evidence_roots` saw only the redirect and warned
+    # that the real root "was NOT captured and is NOT protected" while this very child went on to
+    # arm it (HYDRA-CI-01, measured 2026-09-14).
+    roots = [r for r in write_isolation.repo_evidence_roots(screener=screener,
+                                                            backup_root=real_backup or None)
+             if TEST_BACKUP_MARKER not in r.lower()]
     return roots
 
 

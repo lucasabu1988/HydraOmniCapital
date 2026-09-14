@@ -9,8 +9,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "tools"))
@@ -76,16 +74,8 @@ def test_backfill_repairs_an_existing_record_without_dropping_fields(tmp_path):
     assert rec["did"]["sizing"]["n_zero_share"] == 2
 
 
-REAL_SHEET = HERE / "state_paper" / "instructions_20260910.json"
-
-
-@pytest.mark.skipif(not REAL_SHEET.exists(), reason="paper book not on this disk")
-def test_real_20260910_sheet_matches_the_hand_figure():
-    orders = json.loads(REAL_SHEET.read_text(encoding="utf-8"))["orders"]
-    s = sizing_summary(orders)
-    assert s["n_buys"] == 26
-    assert s["target_dollars"] == 13378.59
-    assert s["achievable_dollars"] == 11100.77
-    assert s["loss_dollars"] == 2277.82
-    assert s["loss_share"] == 0.1703
-    assert s["zero_share_names"] == ["LITE", "SNDK"]
+# HYDRA-CI-01 (2026-09-14). `test_real_20260910_sheet_matches_the_hand_figure` moved to `audits/audit_live_books.py` and is run by
+# `tools/external_audit.py`, which reports RAN - PASS / RAN - FAIL / DID NOT RUN with the
+# exact missing path. It read the real `state_paper/instructions_20260910.json`,
+# which no clean clone has and which must never be committed, so as a `skipif` in the
+# required suite it was an assertion that never ran and reported [PASS].

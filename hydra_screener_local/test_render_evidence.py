@@ -153,27 +153,13 @@ def test_the_published_reference_rows_carry_a_sharpe_and_a_risk_free_level():
         assert f"{R._row(data, key)['sharpe_excess']:.2f}" in readme
 
 
-@pytest.mark.skipif(not all(os.path.exists(p) for p in CACHES),
-                    reason="the sweep caches are gitignored; a fresh clone cannot re-measure")
-def test_the_reference_rows_are_what_reference_rows_py_measures():
-    """The one test a hand-typed baseline cannot survive: re-measure and compare.
-
-    Type 0.60 for SPY's Sharpe, or restore the audit's -54.7 maxDD, and this fails - the numbers
-    in evidence_canonical.json have to be the ones the script produces on the marks of the
-    engine's own grid. Skips only where the (gitignored) OOS caches are absent.
-    """
-    sys.path.insert(0, os.path.join(ROOT, "experiments"))
-    import reference_rows  # noqa: PLC0415
-
-    measured = {row["config"]: row for row in reference_rows.measure()["rows"]}
-    published = {"screener_v84": "screener v8.4 alone (T5, no ETF sleeve)",
-                 "spy_buy_hold": "SPY buy-and-hold"}
-    data = R.load()
-    for key, config in published.items():
-        row, got = R._row(data, key), measured[config]
-        for field in ("cycles", "ann_net", "ratio_net_vol", "sharpe_excess", "maxdd_net",
-                      "rf_ann_pct", "ratio_minus_sharpe"):
-            assert row[field] == got[field], f"{key}.{field}: published {row[field]}, measured {got[field]}"
+# HYDRA-CI-01 (2026-09-14). `test_the_reference_rows_are_what_reference_rows_py_measures` moved to `audits/audit_reference_rows.py` and is run by
+# `tools/external_audit.py`, which reports RAN - PASS / RAN - FAIL / DID NOT RUN with the
+# exact missing path. It read the gitignored `_sweep_cache_oos/` and `_sweep_cache_etf/` marks,
+# which no clean clone has and which must never be committed, so as a `skipif` in the
+# required suite it was an assertion that never ran and reported [PASS].
+# What stays required is the check below, which needs no data at all: it is weaker, and
+# saying so is the point - it is not a substitute, it is what survives portably.
 
 
 def test_the_committed_documents_match_the_committed_canonical_file():

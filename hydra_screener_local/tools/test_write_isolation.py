@@ -142,3 +142,68 @@ def test_the_uncovered_paths_are_written_down_not_implied():
     src = open(os.path.join(TOOLS, "write_isolation.py"), encoding="utf-8").read().lower()
     for expected in ("subprocess", "descriptor"):
         assert expected in src, f"the module must name the {expected} gap in writing"
+
+
+# ------------------------------------------------------------------ HYDRA-CI-01: the backup root
+# The anomaly: every CI run printed "The real backup root was NOT captured and is NOT protected."
+# Reproduced 2026-09-14 in both shapes and found FALSE in both. In a child of `run_all_tests.py`
+# on the lab machine the same child had `C:\Users\caslu\OneDrive\HydraBackups` armed; in the CI
+# shape no real root existed at all. The barrier was never installed late - the message asserted
+# the opposite of what had happened. `repo_evidence_roots` cannot know what its caller captured,
+# so it is now told, and the notice is emitted only in the case that is genuinely unprotected.
+
+def _redirect(tmp_path):
+    d = tmp_path / f"{WI.TEST_BACKUP_MARKER}-throwaway"
+    d.mkdir()
+    return str(d)
+
+
+def test_an_explicit_backup_root_is_protected_and_says_nothing(tmp_path, monkeypatch, capsys):
+    real = tmp_path / "RealBackups"
+    real.mkdir()
+    (tmp_path / "state").mkdir()
+    monkeypatch.setenv("HYDRA_BACKUP_DIR", _redirect(tmp_path))
+    roots = [r.lower() for r in WI.repo_evidence_roots(screener=str(tmp_path),
+                                                       backup_root=str(real))]
+    assert any("realbackups" in r for r in roots), "the supplied real root must be protected"
+    assert not any(WI.TEST_BACKUP_MARKER in r for r in roots), "the throwaway must not be"
+    assert "NOT protected" not in capsys.readouterr().err, (
+        "the notice fired while the root it names was armed in the same call")
+
+
+def test_the_notice_fires_only_when_nobody_supplied_the_real_root(tmp_path, monkeypatch, capsys):
+    (tmp_path / "state").mkdir()
+    monkeypatch.setenv("HYDRA_BACKUP_DIR", _redirect(tmp_path))
+    WI.repo_evidence_roots(screener=str(tmp_path))
+    err = capsys.readouterr().err
+    assert "test redirect" in err and "backup_root" in err
+    # and it must not claim a real root exists: on a clean checkout there is none
+    assert "was NOT captured" not in err
+
+
+def test_an_unredirected_backup_dir_is_protected_without_a_notice(tmp_path, monkeypatch, capsys):
+    real = tmp_path / "RealBackups"
+    real.mkdir()
+    (tmp_path / "state").mkdir()
+    monkeypatch.setenv("HYDRA_BACKUP_DIR", str(real))
+    roots = [r.lower() for r in WI.repo_evidence_roots(screener=str(tmp_path))]
+    assert any("realbackups" in r for r in roots)
+    assert capsys.readouterr().err.strip() == ""
+
+
+def test_no_backup_variable_at_all_is_silent_and_protects_nothing_extra(tmp_path, monkeypatch,
+                                                                       capsys):
+    """The CI shape. Nothing to protect is not the same claim as something left unprotected."""
+    (tmp_path / "state").mkdir()
+    monkeypatch.delenv("HYDRA_BACKUP_DIR", raising=False)
+    roots = WI.repo_evidence_roots(screener=str(tmp_path))
+    assert len(roots) == 1 and roots[0].lower().endswith("state")
+    assert capsys.readouterr().err.strip() == ""
+
+
+def test_the_bootstrap_hands_the_captured_root_over_rather_than_appending_it():
+    """The fix has to be in the caller too, or the notice comes back on every child."""
+    src = open(os.path.join(TOOLS, "_bootstrap", "sitecustomize.py"), encoding="utf-8").read()
+    assert "backup_root=real_backup" in src, (
+        "sitecustomize must pass the captured root INTO repo_evidence_roots; appending it "
+        "afterwards is what made the notice fire on every child of run_all_tests.py")

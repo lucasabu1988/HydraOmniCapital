@@ -145,12 +145,25 @@ python -m pytest test_volume_watchdog.py -q             # any single pytest-styl
 - `test_hybrid_integration.py` no longer skips: TASK-374 committed `test_fixtures/history_min`, so it
   falls back live `history/` -> `HYDRA_HISTORY_DIR` -> fixture. The one artefact-dependent skip left is
   `validate_pine_contract.py` (needs `pine/hydra_last_summary.json`; a fresh clone has none).
+- **Portable invariant or external audit — there is no third option** (HYDRA-CI-01, 2026-09-14). A
+  check whose property can be shown on a small deterministic fixture belongs in the required suite
+  and must run on a clean clone. A check whose *meaning* depends on this machine's private artefacts
+  (`_lab_scratch/`, the sweep caches, `state/`, `state_paper/`) belongs in `audits/`, is not
+  discovered by `run_all_tests.py`, and is run by `python tools/external_audit.py`, which answers
+  `RAN - PASS`, `RAN - FAIL` or `DID NOT RUN - <exact missing path>`. A `skipif` in the required
+  suite is neither: it reports `[PASS]` for an assertion that never ran. `EXPECTED_CASE_SKIPS` in
+  `tools/check_skips.py` is **empty**; putting an entry back needs a board entry, not a green build.
+  Audits may not skip — `tools/external_audit.py` reports a skipped audit case as a FAILURE.
 - CI (`.github/workflows/test.yml`) on `main` runs **eight** jobs since `structural-hardening-2026-09`
   merged: `screener` (`hydra_screener_local/run_all_tests.py --cov --strict-console` on the Python 3.12
   **and** 3.13 matrix, `pytest-timeout` 30 s per test), `lint` (ruff), `build-install-smoke`,
-  `typecheck` (mypy, 25 modules clean since TASK-419), `secret-scan`, `dependency-audit`,
-  `reproducibility`. The coverage floor (`tools/check_coverage.py --min 81.25`) and the skip gate
-  (`tools/check_skips.py`) are **steps inside `screener`**, not jobs. `main` is protected: all eight
+  `typecheck` (mypy, 26 modules clean since HYDRA-CI-01 added `tools/external_audit.py`),
+  `secret-scan`, `dependency-audit`, `reproducibility`. The coverage floor
+  (`tools/check_coverage.py --min 81.25`), the skip gate (`tools/check_skips.py`) and the external
+  evidence audits (`tools/external_audit.py`) are **steps inside `screener`**, not jobs. Since
+  2026-09-14 the coverage floor stays on 3.12 — one canonical platform, because the floor is a
+  single number — while the **skip gate runs on 3.12 and 3.13 both**: a skipped case does not fail
+  the suite, so a gate on one matrix entry left the other free to hide one. `main` is protected: all eight
   are required and there is no auto-merge, so every change — even a board note — is branch + PR. If
   the docs and the workflow disagree, the workflow wins.
 - Coverage is measured on Linux by CI and Linux runs ~0.4 pp under Windows (82.25 vs 82.65 on the same

@@ -58,12 +58,39 @@ jobs:
       # It reads the report the step above wrote, bound to THIS invocation by token, so
       # a residual file from an earlier run cannot satisfy it - and it no longer re-runs
       # the whole suite a second time to get its own copy of the results.
+      #
+      # HYDRA-CI-01 (2026-09-14): this step used to carry `if: matrix.python-version == '3.12'`,
+      # inherited from the coverage step above it. Coverage being measured on one canonical
+      # platform is a deliberate choice - the floor is a single number and two platforms give two
+      # numbers. Per-case TRUTH is not that kind of quantity. With the gate on 3.12 only, a case
+      # that skipped or failed on 3.13 alone was invisible to it: the suite step would go red on a
+      # failure, but a SKIP does not fail the suite, which is the entire hole CI-02 was written to
+      # close. Each job writes its own report with its own token, so the gate binds to the matrix
+      # entry it runs in. No documented reason was found for the restriction; it is removed.
       - name: Skips are visible and explained
-        if: matrix.python-version == '3.12'
         run: >
           python tools/check_skips.py
           --from-report reports/run.json
           --expect-token ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.python-version }}
+
+      # HYDRA-CI-01: the other half. The checks that genuinely need the lab machine's private
+      # artefacts are no longer `skipif`s inside the required suite; they live in `audits/` and
+      # are reported here as RAN - PASS, RAN - FAIL or DID NOT RUN with the exact missing path.
+      # On a CI clone every one of them reports DID NOT RUN, and that is the honest answer, so
+      # the step exits 0 while printing it. It exits non-zero only on a real failure. It is NOT
+      # `--require-all`: absence of the artefacts is expected here, and treating it as a failure
+      # would push someone to commit a live book to make CI green.
+      - name: External evidence audits (reports DID NOT RUN on a clone; never a pass)
+        if: matrix.python-version == '3.12'
+        run: python tools/external_audit.py --report reports/external_audit.json
+
+      - name: Upload the external audit report
+        if: always() && matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: external-audit-json
+          path: hydra_screener_local/reports/external_audit.json
+          if-no-files-found: warn
 
       - name: Upload coverage XML
         if: matrix.python-version == '3.12'

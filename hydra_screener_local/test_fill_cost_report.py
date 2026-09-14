@@ -125,13 +125,10 @@ def test_an_empty_ledger_is_a_clean_zero_not_a_crash(tmp_path):
                      references={}, statuses={})
 
 
-def test_the_live_state_is_readable_and_still_has_nothing_to_measure():
-    """As of 2026-09-08 the book has 30 pending orders and an empty ledger. When Wednesday's
-    settle lands this test keeps passing; it only asserts the report can read the real file."""
-    live = os.path.join(ROOT, "state", "portfolio_v9.json")
-    if not os.path.exists(live):
-        pytest.skip("no live state on this machine")
-    df = build_frame(load_ledger(live))
-    s = summarise(df)
-    assert s["fills"] >= 0
-    assert isinstance(header(s), list) and header(s)
+# HYDRA-CI-01 (2026-09-14). `test_the_live_state_is_readable_and_still_has_nothing_to_measure` moved to `audits/audit_live_books.py` and is run by
+# `tools/external_audit.py`, which reports RAN - PASS / RAN - FAIL / DID NOT RUN with the
+# exact missing path. It read the real `state/portfolio_v9.json`,
+# which no clean clone has and which must never be committed, so as a `skipif` in the
+# required suite it was an assertion that never ran and reported [PASS].
+# It asserted readability, never execution: 30 pending orders and an empty ledger describe
+# the LOCAL state observed and prove nothing about what the broker did.

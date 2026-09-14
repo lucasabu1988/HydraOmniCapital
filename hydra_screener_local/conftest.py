@@ -80,7 +80,15 @@ try:
         supposed to make - measured: 5 files, 12 tests, all writing into their own temp backup.
         Identity, not position, decides: a path carrying TEST_BACKUP_MARKER is never evidence.
         """
-        roots = _WI.repo_evidence_roots()
+        # Under `run_all_tests.py` the variable is already rebound by the time this child
+        # starts, and the parent passes the captured value in HYDRA_WRITE_BARRIER_BACKUP_ROOT.
+        # Handing it over keeps this path honest too: the bootstrap has normally armed the
+        # barrier already, so `install()` below is a no-op, but a bare `python -m pytest` in a
+        # shell that inherited a redirect would otherwise resolve its roots with the real one
+        # silently missing - and, before HYDRA-CI-01, would say so in a message that was wrong
+        # in every other case.
+        real_backup = os.environ.get("HYDRA_WRITE_BARRIER_BACKUP_ROOT") or None
+        roots = _WI.repo_evidence_roots(backup_root=real_backup)
         keep = [r for r in roots if TEST_BACKUP_MARKER not in r.lower()]
         dropped = [r for r in roots if TEST_BACKUP_MARKER in r.lower()]
         for d in dropped:
