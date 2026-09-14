@@ -41,7 +41,18 @@ import provenance as PV  # noqa: E402
 import run_russell_prereg as R  # noqa: E402
 
 #: New location. The historical books are NEVER written to; see the module docstring.
-ACC_DIR = os.path.join(HERE, "_lab_scratch", "accredited")
+#:
+#: TASK-433 regeneration, 2026-09-14. `ACC_DIR` itself still points where the 2026-09-12 run
+#: published, and that directory is LEFT EXACTLY AS IT IS: eight books whose seals verify but
+#: which `accredit()` refuses on `[code]` - config.py, cost_stress.py and provenance.py have all
+#: moved since, so they were produced by different code and cannot answer today's request. That
+#: refusal is correct and it is the reason a regeneration exists at all. `produce()` never
+#: overwrites, so a new run does not go there: it goes to `accredited/runs/<run_id>/`, which
+#: gives every new book a new identity and leaves the old evidence untouched and readable.
+ACC_ROOT = os.path.join(HERE, "_lab_scratch", "accredited")
+ACC_DIR = ACC_ROOT
+#: Set by `use_run()`. None means "the legacy location", which is the withdrawn run's.
+RUN_ID: str | None = None
 #: The 2026-09-12 artifact at this path was WITHDRAWN as a current result: it recorded
 #: `fully_accredited = true` under an accreditation contract that no longer holds (the anchor's
 #: calendar was compared against nothing, and no positive evidence was recorded per mandatory
@@ -56,6 +67,34 @@ ACC_DIR = os.path.join(HERE, "_lab_scratch", "accredited")
 WITHDRAWN_JSON = os.path.join(HERE, "_lab_scratch", "task433_accredited.json")
 WITHDRAWAL_NOTE = os.path.join(HERE, "_lab_scratch", "task433_accredited_WITHDRAWN.json")
 OUT_JSON = os.path.join(HERE, "_lab_scratch", "task433_accredited_v2.json")
+
+
+def mint_run_id(now=None) -> str:
+    """A new run's identifier: the date plus the digest of the code that will produce it.
+
+    Two runs of the same code on the same day collide ON PURPOSE - the identifier is meant to
+    say WHICH code produced the books, not to be unique for its own sake. If the code moves, the
+    id moves, and the books land somewhere else rather than beside evidence they cannot answer
+    for. `produce()` still refuses to overwrite whatever is already at the path.
+    """
+    from datetime import datetime, timezone
+    now = now or datetime.now(timezone.utc)
+    code = PV.code_identity()
+    digest = (code.get("modules_combined") or PV.sha256_json(code))[:12]
+    return f"{now:%Y%m%d}-{digest}"
+
+
+def use_run(run_id: str) -> dict:
+    """Point this module's OUTPUTS at a run of its own. Inputs and the historical set are untouched.
+
+    Returns the paths it bound, so a caller records them rather than reconstructing them.
+    """
+    global ACC_DIR, OUT_JSON, RUN_ID
+    RUN_ID = run_id
+    ACC_DIR = os.path.join(ACC_ROOT, "runs", run_id)
+    OUT_JSON = os.path.join(HERE, "_lab_scratch", f"task433_accredited_{run_id}.json")
+    _ANCHOR_CAL_CACHE.clear()
+    return dict(run_id=run_id, acc_dir=ACC_DIR, out_json=OUT_JSON)
 
 
 def current_result(path: str = None):
@@ -150,16 +189,34 @@ def engine_path(panel: str, label: str) -> str:
 
 
 def anchor_calendar() -> dict | None:
-    """The requested calendar for every book after the first: the accredited Russell base's."""
+    """The requested calendar for every book after the first: the accredited Russell base's.
+
+    PROV-08, SECOND HALF. Found by `preflight_433.py` on 2026-09-14, before any book was driven.
+    PROV-08 changed `effective_request` so the ANCHOR answers to a grid derived from the rules,
+    and it did fix the anchor's own accreditation. It did not touch this function, which kept
+    building the pre-PROV-08 request by hand with `calendar=None` - and `provenance` now refuses
+    a request that declares neither a mark grid nor `calendar_anchor`. So the validation here
+    could never pass again:
+
+        anchor_calendar() -> CACHE REJECTED [calendar] -> returns None
+                          -> every non-anchor scenario is requested with calendar=None
+                          -> all seven are rejected on [calendar]
+                          -> fully_accredited can never be true for the set
+
+    which is the exact condition PROV-08 was written to remove, moved one function along. The
+    anchor must be validated with the SAME effective request everything else judges it by; a
+    second, hand-built request here is how the two halves drifted apart in the first place.
+
+    The stale comment this replaces said "russell/base declares itself the anchor, so its own
+    request carries calendar=None". That stopped being true when PROV-08 landed.
+    """
     path = acc_path("russell", "base")
     # The anchor is the grid every other book is compared to, so a seal-only check here
     # would let an unvalidated book define the calendar the rest are measured against.
-    # `russell/base` declares itself the anchor, so its own request carries calendar=None.
     if not os.path.exists(path):
         return None
     try:
-        PV.accredit(path, CS.request("russell", "base", *scenario_bp("base"), calendar=None),
-                    echo=False)
+        PV.accredit(path, effective_request("russell", "base"), echo=False)
     except (PV.CacheRejected, PanelMismatch):
         return None
     return PV.calendar_block(pd.read_pickle(path))
@@ -489,6 +546,7 @@ def reconcile(irx: pd.Series | None = None) -> dict:
               "PRESERVED at their own paths, still classified historical_incomplete, and are "
               "recomputed here only for comparison."),
         order=[f"{p}/{lab}" for p, lab in ORDER],
+        run_id=RUN_ID,
         accredited_dir=PV._rel(ACC_DIR),
         reconciliation=recs,
         rows_accredited=rows,
@@ -566,7 +624,18 @@ def main(argv=None) -> int:
     ap.add_argument("--verify-panels", action="store_true",
                     help="every accredited book's manifest data block vs its own panel's inputs")
     ap.add_argument("--progress-every", type=int, default=100)
+    ap.add_argument("--run-id", help="publish into accredited/runs/<id>/ instead of the legacy "
+                                     "directory, which holds the WITHDRAWN 2026-09-12 run")
+    ap.add_argument("--new-run", action="store_true",
+                    help="mint a run id from today's date and the code digest, and use it")
     args = ap.parse_args(argv)
+
+    if args.new_run and args.run_id:
+        ap.error("choose --run-id or --new-run, not both")
+    if args.new_run or args.run_id:
+        bound = use_run(args.run_id or mint_run_id())
+        print(f"[run] id={bound['run_id']}\n[run] books -> {PV._rel(bound['acc_dir'])}"
+              f"\n[run] report -> {PV._rel(bound['out_json'])}", flush=True)
 
     if args.status:
         for panel, label in ORDER:

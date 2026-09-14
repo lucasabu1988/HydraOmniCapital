@@ -1391,6 +1391,42 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   relevante es la sensibilidad, no el nivel (Lucas 2026-09-11); `COST_BP_PER_SIDE` ya es parametro,
   esto es una tabla, no codigo nuevo de motor; y el escenario en que el `ann_net` cae por debajo de la
   T-bill dicho con su nombre. `Files:` script nuevo en `experiments/` + test con panel sintetico.
+  **[2026-09-14 CLAUDE] PREFLIGHT DE TASK-433, ESCRITO ANTES DE PRODUCIR UN SOLO NUMERO.**
+  `experiments/preflight_433.py` (nuevo) pregunta si la corrida PUEDE acreditarse antes de conducirla,
+  porque el artefacto del 2026-09-12 se retiro justamente por lo contrario: una vez existen ocho libros
+  la presion es explicarlos, no descartarlos. Primera pasada: **13 PASS, 1 FAIL, 7 BLOCKER**. Lo que
+  destapo, en orden de importancia:
+
+  1. **PROV-08 estaba arreglado a medias, y esto bloqueaba TASK-433 por completo.** PROV-08 hizo que el
+     ANCLA conteste a una rejilla derivada de las reglas, y eso funciona. Pero `anchor_calendar()` —
+     la funcion de la que dependen los otros SIETE escenarios — seguia construyendo a mano la peticion
+     pre-PROV-08 con `calendar=None`, que `provenance` ahora rechaza. Cadena medida:
+     `anchor_calendar()` -> `CACHE REJECTED [calendar]` -> devuelve None -> los siete se piden sin
+     calendario -> los siete rechazados -> **`fully_accredited` no podia ser cierto NUNCA**. Es la
+     condicion exacta que PROV-08 existia para eliminar, desplazada una funcion mas alla. Arreglado:
+     el ancla se valida con la MISMA solicitud efectiva con la que se la juzga en todas partes.
+     Regresion portable en `experiments/test_accredit_433_adversarial.py`.
+  2. **Los ocho libros del slot `accredited/` son de la corrida RETIRADA del 2026-09-12.** Su sello
+     verifica (`seal_class: accredited`) pero `accredit()` los rechaza por **`[code]`**: digest
+     almacenado `ceecf151d9dc` contra `99967d14f3ad` en marcha; difieren `config.py`,
+     `experiments/cost_stress.py` y `experiments/provenance.py`. **Ese rechazo es correcto** y es la
+     razon de que exista una regeneracion. **No se editan, no se renombran, no se resellan**: la
+     corrida nueva publica en `accredited/runs/<run_id>/`, con identificador propio.
+  3. **La rejilla del S&P NO es la que usan sus libros.** `derived_grid("sp500")` son 1084 marcas
+     2005-02-11..2026-08-24, pero los libros del S&P se conducen sobre la rejilla del ANCLA
+     (`drive_sp_same_grid` + `russell_start_date`), 814 marcas 2010-06-28..2026-08-26. Mi propio
+     senuelo uso la equivocada y fue rechazado con `stored n=1084 ... requested n=814` — el contrato
+     funcionando y mi supuesto siendo falso. Queda escrito para que nadie compare contra la rejilla
+     informativa.
+
+  Tras los dos arreglos: **24 PASS, 0 FAIL, 0 BLOCKER -> GO**. Holdout verificado: la rejilla derivada
+  abarca `research+validation` y **no toca `live`**; declaracion `fc38929b64e8`, la fijada.
+  **Caveat que viaja con los numeros:** el panel carga con `sectors mode=fixed_map
+  mapped=2048 fallback=4000 pit_valid=False` y el propio lab avisa de que el cap sectorial no vincula
+  igual y el titular no es comparable con otras corridas. Los libros historicos de TASK-431 se
+  condujeron del mismo modo, asi que **las DELTAS** —que es lo que TASK-433 mide— son comparables;
+  los NIVELES absolutos arrastran ese caveat y no se citan sin el.
+
 - [ ] `TASK-434` **Bloque A/4 — capacidad: participation rate y el AUM maximo.**
   `participation = orden_USD / ADV20` con umbrales **1 % normal / 3 % aviso / 5 % no operar**, sobre
   cada hoja semanal con el panel ADV de TASK-406. Aceptacion, dos agregados ademas de la tabla:
