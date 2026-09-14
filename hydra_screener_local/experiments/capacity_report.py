@@ -13,6 +13,8 @@ the payload. `CAPACITY_NOT_CERTIFIED` is on the payload, on the ceiling and on e
 from __future__ import annotations
 
 import argparse
+import glob
+import hashlib
 import json
 import os
 import sys
@@ -31,7 +33,9 @@ for _p in (ROOT, HERE):
 import capacity as C  # noqa: E402
 
 CAP_ROOT = os.path.join(HERE, "_lab_scratch", "capacity", "runs")
-LIVE_SHEET = os.path.join(ROOT, "state", "instructions_20260904.json")
+#: Every weekly sheet on this disk - the live one(s) and the paper one(s). Each is ONE point.
+SHEET_GLOBS = (os.path.join(ROOT, "state", "instructions_*.json"),
+               os.path.join(ROOT, "state_paper", "instructions_*.json"))
 PANELS = ("russell", "sp500")
 
 
@@ -93,26 +97,40 @@ def panel_payload(run_dir: str, panel: str, adv_etf: pd.DataFrame | None) -> dic
     return out
 
 
+def sheets_on_disk() -> list:
+    return sorted(p for g in SHEET_GLOBS for p in glob.glob(g))
+
+
 def sheet_payload(adv_panels: dict, adv_etf: pd.DataFrame | None) -> dict:
-    """The one real sheet, one point: participation per footprint at `planned - 1` and `exec - 1`."""
-    if not os.path.exists(LIVE_SHEET):
-        return dict(present=False)
-    out = dict(present=True, path=_rel(LIVE_SHEET), label=C.LABEL, by_when={})
-    for when in ("planned", "exec_date"):
-        fp = C.sheet_footprints(LIVE_SHEET, when=when)
-        rows = []
-        for name, adv in adv_panels.items():
-            fa = attach_adv_by_sleeve(fp, {"stocks": adv, "etf": adv_etf})
-            part = C.participation_pct(fa, 1.0)           # already USD
-            fa = fa.assign(participation_pct=part)
-            rows.append(dict(adv_panel=name, coverage=C.coverage(fa), breaches=C.breaches(part),
-                             p95=C.two_p95(part),
-                             footprints=[dict(ticker=t, sleeve=s, usd=float(abs(d)),
-                                              adv_usd=(None if pd.isna(a) else float(a)),
-                                              participation_pct=(None if pd.isna(p) else float(p)))
-                                         for t, s, d, a, p in zip(fa["ticker"], fa["sleeve"], fa["net_dollars"],
-                                                                  fa["adv_usd"], fa["participation_pct"])]))
-        out["by_when"][when] = rows
+    """Every weekly sheet on this disk (live and paper), each ONE point: footprints, coverage,
+    breaches and the MAXIMUM participation at `planned - 1` and `exec - 1`.
+
+    No percentile. The pre-registration says a sheet "does not get a percentile of its own", and
+    the first version of this function computed one anyway (review of #97). `none` is printed
+    when a location has no sheet - printed, never skipped.
+    """
+    paths = sheets_on_disk()
+    out = dict(label=C.LABEL, n_sheets=len(paths), sheets=[], none=(not paths))
+    for path in paths:
+        rec = dict(path=_rel(path), source=("paper" if "state_paper" in path else "live"),
+                   sha256=hashlib.sha256(open(path, "rb").read()).hexdigest(), by_when={})
+        for when in ("planned", "exec_date"):
+            fp = C.sheet_footprints(path, when=when)
+            rows = []
+            for name, adv in adv_panels.items():
+                fa = attach_adv_by_sleeve(fp, {"stocks": adv, "etf": adv_etf})
+                part = C.participation_pct(fa, 1.0)           # already USD
+                fa = fa.assign(participation_pct=part)
+                known = part.dropna()
+                rows.append(dict(adv_panel=name, coverage=C.coverage(fa), breaches=C.breaches(part),
+                                 max_participation_pct=(float(known.max()) if len(known) else None),
+                                 footprints=[dict(ticker=t, sleeve=s, usd=float(abs(d)),
+                                                  adv_usd=(None if pd.isna(a) else float(a)),
+                                                  participation_pct=(None if pd.isna(p) else float(p)))
+                                             for t, s, d, a, p in zip(fa["ticker"], fa["sleeve"], fa["net_dollars"],
+                                                                      fa["adv_usd"], fa["participation_pct"])]))
+            rec["by_when"][when] = rows
+        out["sheets"].append(rec)
     return out
 
 
@@ -135,31 +153,48 @@ def print_table(payload: dict) -> None:
                   f"{r['p95_descriptive']:>9.3f} {r['p95_conservative']:>9.3f} {r['n_known']:>6d} {r['n_unknown']:>5d}")
         g = p["gross_sensitivity"]
         print(f"   gross sensitivity: ceiling {g['status']} {g['ceiling'] if g['ceiling'] is None else format(g['ceiling'], ',.0f')}")
+    sh = payload.get("sheets") or {}
+    if sh.get("none"):
+        print("\n== sheets: none")
+    for rec in sh.get("sheets") or []:
+        print(f"\n== sheet {rec['source']} {rec['path']}  {C.LABEL}  (one point, no percentile)")
+        for when, rows in rec["by_when"].items():
+            for r in rows:
+                cov = r["coverage"]
+                mx = r["max_participation_pct"]
+                print(f"   {when:9s} adv={r['adv_panel']:8s} known {cov['footprints_known']}/{cov['footprints_total']} "
+                      f"notional {cov['notional_covered_share']:.1%}  max {('%.4f %%' % mx) if mx is not None else 'n/a'}  "
+                      f">1% {r['breaches']['gt_1pct'] if r['breaches']['n_known'] else 'n/a'}")
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--run-id", required=True)
-    ap.add_argument("--etf-volume", default=None,
-                    help="ETF volume pickle (default: experiments/_sweep_cache_etf/volume.pkl if present)")
     a = ap.parse_args(argv)
     run_dir = os.path.join(CAP_ROOT, a.run_id)
     if not os.path.isdir(run_dir):
         raise SystemExit(f"no run dir {_rel(run_dir)}")
-    etf_cache = os.path.join(HERE, "_sweep_cache_etf")
-    vol_p = a.etf_volume or os.path.join(etf_cache, "volume.pkl")
+    with open(os.path.join(run_dir, "capacity_drive.json"), encoding="utf-8") as fh:
+        summary = json.load(fh)
+    etf_rec = summary.get("adv", {}).get("etf")
     adv_etf = None
-    if os.path.exists(vol_p) and os.path.exists(os.path.join(etf_cache, "close.pkl")):
-        adv_etf = C.adv_panel(pd.read_pickle(os.path.join(etf_cache, "close.pkl")), pd.read_pickle(vol_p))
+    if etf_rec:
+        etf_path = os.path.join(ROOT, etf_rec["path"])
+        got = hashlib.sha256(open(etf_path, "rb").read()).hexdigest()
+        if got != etf_rec["sha256"]:
+            raise SystemExit(f"adv_usd_etf.pkl on disk ({got[:12]}) is not the recorded one ({etf_rec['sha256'][:12]})")
+        adv_etf = pd.read_pickle(etf_path)
     payload = dict(task="TASK-434", run_id=a.run_id, label=C.LABEL, prereg=".comms/prereg-task-434-2026-09-14.md",
-                   etf_adv=dict(available=adv_etf is not None, volume_path=_rel(vol_p) if adv_etf is not None else None),
-                   panels={}, live_sheet=None)
+                   etf_adv=dict(available=adv_etf is not None,
+                                **({k: etf_rec[k] for k in ("path", "sha256", "inputs", "shape", "first", "last")}
+                                   if etf_rec else {})),
+                   panels={}, sheets=None)
     adv_panels = {}
     for panel in PANELS:
         if os.path.exists(os.path.join(run_dir, f"{panel}_base.F1.json")):
             payload["panels"][panel] = panel_payload(run_dir, panel, adv_etf)
             adv_panels[panel] = pd.read_pickle(os.path.join(run_dir, f"adv_usd_{panel}.pkl"))
-    payload["live_sheet"] = sheet_payload(adv_panels, adv_etf)
+    payload["sheets"] = sheet_payload(adv_panels, adv_etf)
     out = os.path.join(HERE, "_lab_scratch", f"task434_capacity_{a.run_id}.json")
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2, default=str)

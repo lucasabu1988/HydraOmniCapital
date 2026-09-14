@@ -251,11 +251,13 @@ def test_payload_has_the_label_at_the_top_and_on_the_ceiling():
     assert "NOT market impact" in p["note"]
 
 
-def test_aum_grid_is_geometric_and_spans_the_declared_range():
+def test_aum_grid_is_geometric_and_ends_exactly_at_the_pre_registered_top():
     g = C.aum_grid()
-    assert g[0] == 10_000.0 and g[-1] >= 100_000_000.0
-    ratios = np.array(g[1:]) / np.array(g[:-1])
-    assert np.allclose(ratios, 1.25)
+    assert g[0] == 10_000.0 and g[-1] == 100_000_000.0, "10 k .. 100 M, not a point beyond it"
+    assert max(g) == 100_000_000.0
+    ratios = np.array(g[1:-1]) / np.array(g[:-2])
+    assert np.allclose(ratios, 1.25), "every step but the last is x1.25"
+    assert 1.0 < g[-1] / g[-2] <= 1.25, "the last step only closes the gap to 100 M"
 
 
 # ---------------------------------------------------------------- F1 (the drive is the accredited drive)

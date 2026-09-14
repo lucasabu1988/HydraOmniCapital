@@ -55,3 +55,24 @@ def test_a_failed_or_missing_f1_record_refuses_every_number(tmp_path):
         CR.load_f1(str(tmp_path), "russell")
     (tmp_path / "russell_base.F1.json").write_text(json.dumps(dict(passed=True, book_sha256="x", n_marks=1)), encoding="utf-8")
     assert CR.load_f1(str(tmp_path), "russell")["passed"] is True
+
+
+def test_sheets_are_single_points_with_no_percentile(tmp_path, monkeypatch):
+    """Prereg: a sheet "does not get a percentile of its own". Max, coverage, breaches - yes."""
+    live = tmp_path / "state"; paper = tmp_path / "state_paper"
+    live.mkdir(); paper.mkdir()
+    sheet = dict(date="2024-01-15", exec_date="2024-01-16",
+                 orders=[dict(sleeve="stocks", tranche=0, ticker="AAA", side="buy", dollars=100.0, planned="2024-01-15")])
+    (live / "instructions_20240115.json").write_text(json.dumps(sheet), encoding="utf-8")
+    (paper / "instructions_20240115.json").write_text(json.dumps(sheet), encoding="utf-8")
+    monkeypatch.setattr(CR, "SHEET_GLOBS", (str(live / "instructions_*.json"), str(paper / "instructions_*.json")))
+    adv = pd.DataFrame({"AAA": 1_000_000.0}, index=IDX)
+    out = CR.sheet_payload({"russell": adv}, None)
+    assert out["n_sheets"] == 2 and not out["none"]
+    assert {r["source"] for r in out["sheets"]} == {"live", "paper"}
+    row = out["sheets"][0]["by_when"]["planned"][0]
+    assert "p95" not in row and "p95_descriptive" not in json.dumps(row)
+    assert row["max_participation_pct"] == pytest.approx(100.0 / 1_000_000.0 * 100.0)
+    monkeypatch.setattr(CR, "SHEET_GLOBS", (str(tmp_path / "nowhere" / "*.json"),))
+    empty = CR.sheet_payload({"russell": adv}, None)
+    assert empty["none"] is True and empty["n_sheets"] == 0, "none is printed, never skipped"

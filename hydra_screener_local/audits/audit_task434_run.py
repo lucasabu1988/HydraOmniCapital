@@ -40,8 +40,13 @@ import provenance as PV  # noqa: E402
 
 pytestmark = pytest.mark.timeout(1800)      # the ADV panels are 264 MB; not a 30 s job
 
+#: The TASK-433 accredited base books, BOTH panels - the independent reference F1 answers to.
+#: Review of #97: the first version listed Russell only, so the S&P F1 was checked against
+#: 434's own record and nothing else. Cross-checked below against the 433 manifests themselves.
+ACCREDITED_433_RUN = "20260914-cae2c54599aa"
 ACCREDITED_433_BASE_SHA = {
     "russell": "12e478f9752e51902ec268fd499cefc28dd7bb62c50ef37d6c77afb273fe83da",
+    "sp500": "de56c7fbd62276b764811e384c693902d7f0339e0f5d9dc2fabd1430f3bcc9a5",
 }
 PANELS = ("russell", "sp500")
 
@@ -86,8 +91,12 @@ def test_f1_passed_and_the_book_is_the_accredited_book():
         f1 = _load(f"{panel}_base.F1.json")
         assert f1["passed"] is True and f1["problems"] == [], f"{panel}: F1 {f1['problems']}"
         assert f1["n_marks"] == 814
-        if panel in ACCREDITED_433_BASE_SHA:
-            assert f1["book_sha256"] == ACCREDITED_433_BASE_SHA[panel], f"{panel}: not the accredited book"
+        assert panel in ACCREDITED_433_BASE_SHA, f"{panel}: no accredited reference declared"
+        assert f1["book_sha256"] == ACCREDITED_433_BASE_SHA[panel], f"{panel}: not the accredited book"
+        acc = os.path.join(ROOT, "experiments", "_lab_scratch", "accredited", "runs", ACCREDITED_433_RUN, f"{panel}_base.pkl")
+        acc_man = PV.read_manifest(acc)
+        assert acc_man and acc_man["result"]["sha256"] == ACCREDITED_433_BASE_SHA[panel], (
+            f"{panel}: the declared reference is not what the 433 manifest says")
         book_path = os.path.join(_dir(), f"{panel}_base.pkl")
         man = PV.read_manifest(book_path)
         assert man and man["result"]["sha256"] == f1["book_sha256"], f"{panel}: the sealed book is not the F1 book"
@@ -112,7 +121,8 @@ def test_the_sidecar_is_the_ledger_disaggregated_and_its_digest_is_the_recorded_
 
 def test_the_adv_panels_are_the_recorded_ones_built_from_the_recorded_inputs():
     summary = _load("capacity_drive.json")
-    for panel in _panels_present():
+    assert "etf" in summary["adv"], "the ETF sleeve's ADV must be sealed in the run like the stock panels'"
+    for panel in list(_panels_present()) + ["etf"]:
         rec = summary["adv"][panel]
         path = os.path.join(ROOT, rec["path"])
         assert _sha(path) == rec["sha256"], f"{panel}: adv panel bytes moved"
@@ -125,9 +135,11 @@ def test_the_report_is_what_the_rules_produce():
     rep = _report()
     etf_adv = None
     if rep["etf_adv"]["available"]:
-        etf_cache = os.path.join(ROOT, "experiments", "_sweep_cache_etf")
-        etf_adv = C.adv_panel(pd.read_pickle(os.path.join(etf_cache, "close.pkl")),
-                              pd.read_pickle(os.path.join(ROOT, rep["etf_adv"]["volume_path"])))
+        # the SEALED panel in the run dir, checked against the sha the report says it used -
+        # never the mutable cache files (review of #97)
+        etf_path = os.path.join(ROOT, rep["etf_adv"]["path"])
+        assert _sha(etf_path) == rep["etf_adv"]["sha256"], "adv_usd_etf.pkl is not the one the report used"
+        etf_adv = pd.read_pickle(etf_path)
     for panel in _panels_present():
         pub = rep["panels"][panel]
         fills = pd.read_pickle(os.path.join(_dir(), f"{panel}_base.fills.pkl"))
@@ -150,7 +162,11 @@ def test_the_p95_curve_is_monotone_and_the_label_is_everywhere():
         curve = [r["p95_conservative"] for r in pub["ceiling"]["curve"]]
         assert curve == sorted(curve), f"{panel}: P95 not monotone in capital"
         caps = [r["capital"] for r in pub["ceiling"]["curve"]]
-        assert caps == sorted(caps) and caps[0] == 10_000.0 and caps[-1] >= 100_000_000.0
+        assert caps == sorted(caps) and caps[0] == 10_000.0 and caps[-1] == 100_000_000.0, (
+            "the scan is the pre-registered 10 k .. 100 M grid, ending exactly at 100 M")
+    sheets = rep.get("sheets") or {}
+    for rec in sheets.get("sheets") or []:
+        assert "p95" not in json.dumps(rec), "a sheet is one point and gets no percentile"
 
 
 def test_the_code_the_books_recorded_still_matches():

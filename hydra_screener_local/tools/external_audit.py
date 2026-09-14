@@ -116,6 +116,7 @@ TASK_434_RUN = {
     **{f"{panel}_base.{ext}": os.path.join(_T434, f"{panel}_base.{ext}")
        for panel in ("russell", "sp500") for ext in ("pkl", "fills.pkl", "F1.json", "engine.json")},
     "capacity_drive.json": os.path.join(_T434, "capacity_drive.json"),
+    **{f"adv_usd_{p}.pkl": os.path.join(_T434, f"adv_usd_{p}.pkl") for p in ("russell", "sp500", "etf")},
 }
 TASK_434_REPORT = {**TASK_434_RUN,
                    "capacity report": _p("experiments", "_lab_scratch", f"task434_capacity_{TASK_434_RUN_ID}.json")}
