@@ -129,14 +129,33 @@ def copy_state_off_disk(today: str, files: list[Path], silent: bool = False, *, 
             print("[v9] AVISO: HYDRA_BACKUP_DIR no esta definido; el backup de state/ queda en el mismo disco")
             _OFFDISK_WARNED = True
         return None
-    dest.mkdir(parents=True, exist_ok=True)
-    for p in files:
-        p = Path(p)
-        if p.exists():
-            shutil.copy2(p, dest / p.name)
-    if not silent:
-        print(f"[v9] off-disk backup -> {dest}")
-    return dest
+
+    # HYDRA-BACKUP-02. This used to be `dest.mkdir(exist_ok=True)` followed by `copy2` each
+    # file IF IT EXISTED: a second write for the same date overwrote the first, a missing
+    # source was skipped in silence, and nothing recorded where the bytes came from. That is
+    # how three September generations came to be pytest fixtures while the runbook pointed at
+    # them as the recovery path. `core.backup` refuses instead of half-writing, never reuses a
+    # generation, and writes the manifest only after reading the copies back.
+    from core.backup import BackupRefused, write_generation
+    roles = {}
+    for f in files:
+        f = Path(f)
+        if f.name.endswith(".json") and f.name.startswith("instructions_"):
+            roles["sheet_json"] = f
+        elif f.name.endswith(".md") and f.name.startswith("instructions_"):
+            roles["sheet_md"] = f
+        elif f.name == STATE_NAME:
+            roles["state"] = f
+        else:
+            roles[f"extra:{f.name}"] = f
+    try:
+        return write_generation(dest.parent, today, roles, book=book, silent=silent)
+    except BackupRefused as exc:
+        # A refused backup must not take the run down - the book is already committed by the
+        # time this is called - but it must be impossible to miss.
+        if not silent:
+            print(f"[v9] OFF-DISK BACKUP REFUSED: {exc}")
+        return None
 
 
 def save_state(path: Path, state: dict) -> Path | None:

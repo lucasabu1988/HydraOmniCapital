@@ -213,6 +213,14 @@ def test_backup_dir() -> str:
     global _TEST_BACKUP_DIR
     if _TEST_BACKUP_DIR is None:
         _TEST_BACKUP_DIR = tempfile.mkdtemp(prefix=f"{TEST_BACKUP_MARKER}-")
+        # HYDRA-BACKUP-02: mark it by IDENTITY, not by the shape of its name. A directory can
+        # be renamed; this marker travels with it, and every manifest written here records it.
+        try:
+            sys.path.insert(0, str(ROOT))
+            from core.backup import mark_test_destination
+            mark_test_destination(_TEST_BACKUP_DIR)
+        except Exception as _exc:                # noqa: BLE001 - the redirect still stands
+            print(f"[runner] could not mark the test backup root: {_exc}", file=sys.stderr)
         atexit.register(shutil.rmtree, _TEST_BACKUP_DIR, True)
     return _TEST_BACKUP_DIR
 
