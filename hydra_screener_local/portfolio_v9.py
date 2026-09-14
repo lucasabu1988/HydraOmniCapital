@@ -1,12 +1,20 @@
 """HYDRA v9 daily CLI: state, engine, instruction sheet.
 
 Manual operation. No broker. After the close of bar t this writes orders to execute
-MOC at t+1. Fills are presumed on the next run. ALGO_VERSION stays v8.4; this CLI is
-opt-in (`python portfolio_v9.py` or `daily.py --v9`).
+MOC at t+1. Fills are presumed on the next run.
+
+THIS IS PRODUCTION. `config.ALGO_VERSION` is "v9" (Lucas, 2026-09-07), and `daily.py` runs
+this module automatically because of that - `--v9` is redundant, not an opt-in. Two sentences
+used to stand here claiming the opposite on both counts: that the version had not flipped and
+that this CLI had to be asked for. Both were false from the day it flipped, in the docstring
+of the entry point that moves the live book. CLAUDE.md's rule is that the code wins when the
+two disagree; this file is now on the same side as the code. (The claims are not repeated
+verbatim anywhere, so `test_daily_exit_contract` can grep for them and stay strict.)
 
 Usage:
     python portfolio_v9.py --capital 100000          # first run
     python portfolio_v9.py                           # subsequent runs
+    python portfolio_v9.py --force --force-reason "..."   # override HARD, recorded (OPS4-01)
 """
 from __future__ import annotations
 

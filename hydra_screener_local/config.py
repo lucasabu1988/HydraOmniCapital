@@ -59,7 +59,8 @@ REGIME_SMA = 200
 
 # ============================================
 # HYDRA v9 — 50/50 T20 + ETF portfolio (authorised by Lucas 2026-09-06; design in
-# .comms/claude-v9-production-design-2026-09-06.md). Production runs v8.4 until ALGO_VERSION flips.
+# .comms/claude-v9-production-design-2026-09-06.md). ALGO_VERSION flipped to v9 on 2026-09-07:
+# production IS v9, and `daily.py` runs portfolio_v9 because of the line below, not because of a flag.
 # Values are the lab's pre-specified ones (verdict + sleeves design); they are not re-optimised here.
 # ============================================
 ALGO_VERSION = "v9"              # "v8.4" | "v9" — v9 activated by Lucas on 2026-09-07 (50/50 T20 + ETF portfolio)
