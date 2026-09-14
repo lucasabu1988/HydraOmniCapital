@@ -288,15 +288,58 @@ def test_the_three_statuses_are_distinct_strings():
 
 
 @pytest.mark.parametrize("case", EA.REGISTRY, ids=[c["id"] for c in EA.REGISTRY])
-def test_each_real_registry_entry_reports_one_of_the_three_statuses(case, monkeypatch):
-    """Runs on any machine: with the artefacts it runs the audit, without them it says so.
+def test_each_real_registry_entry_is_routed_without_being_executed(case, monkeypatch):
+    """Runs on any machine: absent artefacts are NAMED, present ones are HANDED to pytest.
 
-    This is the one place the real registry is exercised end to end, and it asserts only what is
-    true everywhere - that the runner reaches a decision and never invents a fourth answer.
+    What this asserts is the runner's routing, not the audits' outcomes. It deliberately does not
+    execute the real audit, and the defect that taught us why is worth writing down: while the
+    TASK-433 evidence was missing this test was cheap, because sixteen of the twenty-seven cases
+    classified as DID NOT RUN and never launched anything. The moment the evidence existed on disk
+    the SAME required suite grew twenty-seven pytest launches, sixteen of them re-deriving the mark
+    grid from the raw caches - about 70 s per call. A required suite whose runtime and coverage
+    depend on whether gitignored artefacts happen to exist is the CI-01 hole wearing a new hat.
+
+    Executing the real audits is `python tools/external_audit.py`, which is the entry point built
+    for it and reports RAN - PASS / RAN - FAIL / DID NOT RUN for all twenty-seven.
     """
+    gone = EA.missing(case)
+    assert set(gone) <= set(case["requires"]), "missing() invented an artefact the case never asked for"
     monkeypatch.setattr(EA, "REGISTRY", (case,))
-    report = EA.evaluate()
-    status = report["results"][0]["status"]
-    assert status in (EA.RAN_PASS, EA.RAN_FAIL, EA.DID_NOT_RUN)
-    if status == EA.DID_NOT_RUN:
+
+    launched: list = []
+
+    def _never_runs(nodeids, junit):
+        launched.append(list(nodeids))
+        raise AssertionError("a case with every artefact present must reach _run, and this test "
+                             "stops it there rather than paying for the real audit")
+
+    monkeypatch.setattr(EA, "_run", _never_runs)
+
+    if gone:
+        report = EA.evaluate()
+        assert report["results"][0]["status"] == EA.DID_NOT_RUN
         assert report["results"][0]["missing"], "DID NOT RUN with nothing named as missing"
+        assert launched == [], "a case with a missing artefact must never launch pytest"
+    else:
+        with pytest.raises(AssertionError):
+            EA.evaluate()
+        assert launched == [[case["nodeid"]]], (
+            "a case whose artefacts are all present must be handed to pytest by its exact nodeid")
+
+
+def test_the_runner_tells_the_subprocess_which_run_it_pinned(monkeypatch, tmp_path):
+    """`_run` must carry `HYDRA_433_RUN_ID=TASK_433_RUN_ID` into pytest's environment. Without it
+    the runner verifies the presence of the pinned run's books and the audit resolves "the newest
+    directory" - two different runs the moment a later one exists (found in review of #95)."""
+    seen = {}
+
+    def _fake_run(cmd, **kw):
+        seen["cmd"], seen["env"] = cmd, kw.get("env")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(EA.subprocess, "run", _fake_run)
+    monkeypatch.setenv("HYDRA_433_RUN_ID", "something-stale-from-the-shell")
+    EA._run(["audits/x.py::test_y"], str(tmp_path / "j.xml"))
+    assert seen["env"] is not None, "_run launched pytest with an inherited, unpinned environment"
+    assert seen["env"]["HYDRA_433_RUN_ID"] == EA.TASK_433_RUN_ID
+    assert seen["env"].get("PATH") == os.environ.get("PATH"), "the rest of the environment is inherited"

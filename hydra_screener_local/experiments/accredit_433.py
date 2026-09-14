@@ -41,7 +41,18 @@ import provenance as PV  # noqa: E402
 import run_russell_prereg as R  # noqa: E402
 
 #: New location. The historical books are NEVER written to; see the module docstring.
-ACC_DIR = os.path.join(HERE, "_lab_scratch", "accredited")
+#:
+#: TASK-433 regeneration, 2026-09-14. `ACC_DIR` itself still points where the 2026-09-12 run
+#: published, and that directory is LEFT EXACTLY AS IT IS: eight books whose seals verify but
+#: which `accredit()` refuses on `[code]` - config.py, cost_stress.py and provenance.py have all
+#: moved since, so they were produced by different code and cannot answer today's request. That
+#: refusal is correct and it is the reason a regeneration exists at all. `produce()` never
+#: overwrites, so a new run does not go there: it goes to `accredited/runs/<run_id>/`, which
+#: gives every new book a new identity and leaves the old evidence untouched and readable.
+ACC_ROOT = os.path.join(HERE, "_lab_scratch", "accredited")
+ACC_DIR = ACC_ROOT
+#: Set by `use_run()`. None means "the legacy location", which is the withdrawn run's.
+RUN_ID: str | None = None
 #: The 2026-09-12 artifact at this path was WITHDRAWN as a current result: it recorded
 #: `fully_accredited = true` under an accreditation contract that no longer holds (the anchor's
 #: calendar was compared against nothing, and no positive evidence was recorded per mandatory
@@ -56,6 +67,119 @@ ACC_DIR = os.path.join(HERE, "_lab_scratch", "accredited")
 WITHDRAWN_JSON = os.path.join(HERE, "_lab_scratch", "task433_accredited.json")
 WITHDRAWAL_NOTE = os.path.join(HERE, "_lab_scratch", "task433_accredited_WITHDRAWN.json")
 OUT_JSON = os.path.join(HERE, "_lab_scratch", "task433_accredited_v2.json")
+
+
+#: Every repo module a completed drive loads that `ENUMERATED_MODULES` does not name. MEASURED,
+#: not guessed: read off `code.swept` in the manifests of a finished run (2026-09-14). The run id
+#: is minted over these files' contents, and `audits/audit_task433_run.py` asserts that a finished
+#: run swept nothing outside this list, so it cannot drift without something going red.
+RUN_ID_DRIVERS = (
+    "core/__init__.py", "core/ledger.py", "core/numbers.py", "core/state_check.py",
+    "core/state_migrations.py", "data/__init__.py", "experiments/accredit_433.py",
+    "experiments/calendar_spec.py", "sleeves/__init__.py", "sleeves/etf_trend.py",
+)
+
+
+def mint_run_id(now=None) -> str:
+    """A new run's identifier: the date plus the digest of the code that will produce it.
+
+    Two runs of the same code on the same day collide ON PURPOSE - the identifier is meant to
+    say WHICH code produced the books, not to be unique for its own sake. If the code moves, the
+    id moves, and the books land somewhere else rather than beside evidence they cannot answer
+    for. `produce()` still refuses to overwrite whatever is already at the path.
+    """
+    from datetime import datetime, timezone
+    now = now or datetime.now(timezone.utc)
+    code = PV.code_identity()
+    # Over modules_combined AND the DRIVER list below - not over `swept`, and not over
+    # modules_combined alone. Both alternatives were tried on 2026-09-14 and both are wrong:
+    #
+    #   modules_combined alone is blind to `experiments/accredit_433.py`, which is loaded but not
+    #   enumerated. Editing it voided run 20260914-99967d14f3ad on `[code.swept]` while the id for
+    #   the replacement came out IDENTICAL. An id that does not move when the code moves is a
+    #   label, not an identifier.
+    #
+    #   `swept` is process-dependent: it is measured from `sys.modules`, so the preflight and the
+    #   driver mint different ids for one tree, and the id stops being reproducible.
+    #
+    # `RUN_ID_DRIVERS` is read from disk instead, so the id is a property of the repo. The audit
+    # asserts a finished run swept nothing outside it, so the list cannot silently go stale.
+    drivers = {rel: PV.sha256_lf(os.path.join(ROOT, rel))
+               for rel in RUN_ID_DRIVERS if os.path.exists(os.path.join(ROOT, rel))}
+    digest = PV.sha256_json({"modules_combined": code.get("modules_combined"),
+                             "drivers": drivers})[:12]
+    return f"{now:%Y%m%d}-{digest}"
+
+
+#: The code identity a run froze at its start. `None` outside a run.
+_RUN_CODE: dict | None = None
+
+
+class CodeMovedDuringRun(SystemExit):
+    """A module the run depends on changed between two books. The run is void, not repairable."""
+
+
+def freeze_code() -> dict:
+    """Record the code identity this run will be judged by, before the first book is driven."""
+    global _RUN_CODE
+    _RUN_CODE = PV.code_identity()
+    return _RUN_CODE
+
+
+def check_code_unchanged(where: str = "") -> None:
+    """Refuse to keep driving if the code moved. Measured on 2026-09-14, run 20260914-99967d14f3ad.
+
+    Eight books were driven and every one of them was then refused. Root cause: `accredit_433.py`
+    itself was EDITED WHILE THE RUN WAS PRODUCING EVIDENCE - it sits in the `swept` set (loaded but
+    not enumerated), so `accredit()` compared `stored 10c0aa1a7580` against `running 17ce43653475`
+    and said, correctly, that the code which produced the books is not the code asking the
+    question. The four later books then failed on `calendar` as a CONSEQUENCE: the anchor could no
+    longer accredit, `anchor_calendar()` returned None, and they were requested without a grid.
+
+    The refusal was right and the run was worthless, which is the expensive way to learn that a
+    run must pin its own code. It is cheaper to stop at book two than to discover it at book eight,
+    so this is checked before every drive. It is a HARD stop: a run whose code moved cannot be
+    repaired by re-sealing - that would be manufacturing the agreement the check exists to find.
+    """
+    if _RUN_CODE is None:
+        return
+    now = PV.code_identity()
+    # INTERSECTION ONLY, exactly as `provenance._check_code` does it. `swept` is a measurement of
+    # what `sys.modules` holds, and it GROWS during a run as modules are imported lazily: at
+    # freeze time `sleeves/etf_trend.py` is not loaded, after the first drive it is. Comparing the
+    # dicts for equality read that arrival as a change and aborted a healthy run at book two
+    # (measured 2026-09-14). A module appearing for the first time is not a module that moved;
+    # only a module BOTH snapshots loaded, with a different digest, is.
+    moved = []
+    for key in ("modules", "swept", "deps"):
+        was, iss = (_RUN_CODE.get(key) or {}), (now.get(key) or {})
+        if isinstance(was, dict) and isinstance(iss, dict):
+            moved += [f"{k}: {str(was.get(k))[:12]} -> {str(iss.get(k))[:12]}"
+                      for k in sorted(set(was) & set(iss)) if was.get(k) != iss.get(k)]
+    if now.get("modules_combined") != _RUN_CODE.get("modules_combined"):
+        moved.append(f"modules_combined: {str(_RUN_CODE.get('modules_combined'))[:12]} -> "
+                     f"{str(now.get('modules_combined'))[:12]}")
+    if not moved:
+        return
+    raise CodeMovedDuringRun(
+        f"CODE MOVED DURING THE RUN{(' at ' + where) if where else ''}. Books already written were "
+        f"sealed under a different code identity and cannot answer the same request as the ones "
+        f"still to come. Changed: {moved or 'modules_combined/swept differ'}. "
+        f"Nothing is deleted and nothing is re-sealed. Start a NEW run id with the code held "
+        f"still; `mint_run_id()` already returns a different id because the digest moved.")
+
+
+def use_run(run_id: str) -> dict:
+    """Point this module's OUTPUTS at a run of its own. Inputs and the historical set are untouched.
+
+    Returns the paths it bound, so a caller records them rather than reconstructing them.
+    """
+    global ACC_DIR, OUT_JSON, RUN_ID
+    RUN_ID = run_id
+    ACC_DIR = os.path.join(ACC_ROOT, "runs", run_id)
+    OUT_JSON = os.path.join(HERE, "_lab_scratch", f"task433_accredited_{run_id}.json")
+    _ANCHOR_CAL_CACHE.clear()
+    return dict(run_id=run_id, acc_dir=ACC_DIR, out_json=OUT_JSON)
 
 
 def current_result(path: str = None):
@@ -80,6 +204,29 @@ def current_result(path: str = None):
             "was not replaced, and an absent result is not a passing one.")
     with open(target, encoding="utf-8") as fh:
         return _json.load(fh)
+
+#: THE TWO GRIDS, NAMED APART. This distinction cost a preflight iteration on 2026-09-14 and it
+#: is too easy to repeat, so it is written down where both are used rather than left implicit:
+#:
+#:   NATIVE grid of a panel   `cost_stress.derived_grid(panel)`. For `sp500` that is 1084 marks,
+#:                            2005-02-11..2026-08-24. It is what the S&P panel's own calendar and
+#:                            the engine's rules produce, and TASK-433 DOES NOT USE IT.
+#:   COMPARISON grid          the anchor's: `derived_grid("russell")`, 814 marks,
+#:                            2010-06-28..2026-08-26. Every one of the eight books lands here,
+#:                            because the S&P scenarios are driven by `drive_sp_same_grid` with
+#:                            `start_date=russell_start_date()` - "the same grid and start", as
+#:                            `cost_stress` puts it. Every delta in the table is a subtraction
+#:                            between two books, so two grids would not be a delta at all.
+#:
+#: A decoy built on the NATIVE S&P grid is refused with `stored n=1084 ... requested n=814`. That
+#: is the contract working; the mistake was the assumption, not the check. `report_433.py` refuses
+#: to render a table whose eight books do not share one calendar digest, and
+#: `audits/audit_task433_run.py` asserts it against the real books.
+COMPARISON_GRID_NOTE = (
+    "every TASK-433 book lands on the ANCHOR's grid (derived_grid('russell')); the S&P panel's "
+    "NATIVE grid (derived_grid('sp500')) is a different, longer calendar and is never the "
+    "comparison grid"
+)
 
 #: (a)..(h) exactly as the task ordered them: the anchor first, then the grid partner, then the
 #: Russell scenarios, then the S&P scenarios.
@@ -150,16 +297,34 @@ def engine_path(panel: str, label: str) -> str:
 
 
 def anchor_calendar() -> dict | None:
-    """The requested calendar for every book after the first: the accredited Russell base's."""
+    """The requested calendar for every book after the first: the accredited Russell base's.
+
+    PROV-08, SECOND HALF. Found by `preflight_433.py` on 2026-09-14, before any book was driven.
+    PROV-08 changed `effective_request` so the ANCHOR answers to a grid derived from the rules,
+    and it did fix the anchor's own accreditation. It did not touch this function, which kept
+    building the pre-PROV-08 request by hand with `calendar=None` - and `provenance` now refuses
+    a request that declares neither a mark grid nor `calendar_anchor`. So the validation here
+    could never pass again:
+
+        anchor_calendar() -> CACHE REJECTED [calendar] -> returns None
+                          -> every non-anchor scenario is requested with calendar=None
+                          -> all seven are rejected on [calendar]
+                          -> fully_accredited can never be true for the set
+
+    which is the exact condition PROV-08 was written to remove, moved one function along. The
+    anchor must be validated with the SAME effective request everything else judges it by; a
+    second, hand-built request here is how the two halves drifted apart in the first place.
+
+    The stale comment this replaces said "russell/base declares itself the anchor, so its own
+    request carries calendar=None". That stopped being true when PROV-08 landed.
+    """
     path = acc_path("russell", "base")
     # The anchor is the grid every other book is compared to, so a seal-only check here
     # would let an unvalidated book define the calendar the rest are measured against.
-    # `russell/base` declares itself the anchor, so its own request carries calendar=None.
     if not os.path.exists(path):
         return None
     try:
-        PV.accredit(path, CS.request("russell", "base", *scenario_bp("base"), calendar=None),
-                    echo=False)
+        PV.accredit(path, effective_request("russell", "base"), echo=False)
     except (PV.CacheRejected, PanelMismatch):
         return None
     return PV.calendar_block(pd.read_pickle(path))
@@ -325,6 +490,7 @@ def data_answers(panel: str, book_path: str) -> dict:
 
 def produce(panel: str, label: str, *, progress_every: int = 100, drive_fn=None) -> dict:
     """Drive one scenario and put the book AND its sealed manifest on disk before returning."""
+    check_code_unchanged(f"{panel}/{label}")   # a run that edits itself produces nothing usable
     os.makedirs(ACC_DIR, exist_ok=True)
     path = not_historical(acc_path(panel, label))     # before anything can touch the disk
     s_bp, e_bp = scenario_bp(label)
@@ -431,6 +597,10 @@ def reconcile(irx: pd.Series | None = None) -> dict:
             rows.append(row)
             rec["accredited"] = {k: row[k] for k in keys}
             rec["accredited_sha256"] = PV.book_sha256(a_book)
+            # The COMPARISON grid, recorded per book so a consumer can verify for itself that
+            # every delta is a subtraction between two books on one calendar, instead of
+            # trusting the aggregate boolean below. See COMPARISON_GRID_NOTE.
+            rec["accredited_calendar"] = PV.calendar_block(a_book)
         if h_book is not None:
             hrow = CS.stats_row(h_book, irx, f"{panel}/{label}")
             hrow.update(panel=panel, scenario=label, stock_bp=s_bp, etf_bp=e_bp,
@@ -489,6 +659,7 @@ def reconcile(irx: pd.Series | None = None) -> dict:
               "PRESERVED at their own paths, still classified historical_incomplete, and are "
               "recomputed here only for comparison."),
         order=[f"{p}/{lab}" for p, lab in ORDER],
+        run_id=RUN_ID,
         accredited_dir=PV._rel(ACC_DIR),
         reconciliation=recs,
         rows_accredited=rows,
@@ -566,7 +737,18 @@ def main(argv=None) -> int:
     ap.add_argument("--verify-panels", action="store_true",
                     help="every accredited book's manifest data block vs its own panel's inputs")
     ap.add_argument("--progress-every", type=int, default=100)
+    ap.add_argument("--run-id", help="publish into accredited/runs/<id>/ instead of the legacy "
+                                     "directory, which holds the WITHDRAWN 2026-09-12 run")
+    ap.add_argument("--new-run", action="store_true",
+                    help="mint a run id from today's date and the code digest, and use it")
     args = ap.parse_args(argv)
+
+    if args.new_run and args.run_id:
+        ap.error("choose --run-id or --new-run, not both")
+    if args.new_run or args.run_id:
+        bound = use_run(args.run_id or mint_run_id())
+        print(f"[run] id={bound['run_id']}\n[run] books -> {PV._rel(bound['acc_dir'])}"
+              f"\n[run] report -> {PV._rel(bound['out_json'])}", flush=True)
 
     if args.status:
         for panel, label in ORDER:
@@ -592,6 +774,9 @@ def main(argv=None) -> int:
         produce(panel, label, progress_every=args.progress_every)
         return 0
     if args.all:
+        frozen = freeze_code()
+        print(f"[run] code frozen at {str(frozen.get('modules_combined'))[:12]}; the run aborts "
+              f"if any module it depends on changes before the last book", flush=True)
         for panel, label in ORDER:
             produce(panel, label, progress_every=args.progress_every)
     if args.reconcile or args.all:

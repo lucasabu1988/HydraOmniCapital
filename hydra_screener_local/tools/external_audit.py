@@ -80,6 +80,34 @@ OOS_CACHES = {
     "oos irx.pkl": _p("experiments", "_sweep_cache_oos", "irx.pkl"),
 }
 
+#: TASK-433's regeneration. PINNED to the run it audits, on purpose: "the newest directory under
+#: runs/" would silently re-point this audit at whatever was produced last, and an audit that
+#: follows the evidence around is not an audit. A new run is a new entry, added deliberately.
+#:
+#: TWO runs on 2026-09-14 are VOID and are NOT this run. Both stay on disk with a `VOID_RUN.json`
+#: beside them; nothing there was deleted, renamed or re-sealed, because re-sealing would
+#: manufacture the agreement the checks exist to find.
+#:
+#:   `20260914-99967d14f3ad` - a REAL code move: `experiments/accredit_433.py` was edited WHILE the
+#:   run was producing evidence. It sits in the drive's `swept` set (measured: 10 modules, listed
+#:   in any manifest under `code.swept`), and `accredit()` refused all eight books on `[code.swept]`.
+#:
+#:   `20260914-1e7cf4b7d428` - a FALSE POSITIVE of the guard that replaced it, aborted before book
+#:   two: `swept` GROWS during a run (the first drive imports `sleeves/etf_trend.py`), and a
+#:   dict-equality comparison read that arrival as a change. `check_code_unchanged` now compares
+#:   the INTERSECTION, exactly as `provenance._check_code` does. One book was written and kept.
+#:
+#: `20260914-cae2c54599aa` is the run this audit is about: eight books, one frozen code identity.
+TASK_433_RUN_ID = "20260914-cae2c54599aa"
+_T433 = _p("experiments", "_lab_scratch", "accredited", "runs", TASK_433_RUN_ID)
+TASK_433_RUN = {
+    **{f"{panel}_{label}.pkl": os.path.join(_T433, f"{panel}_{label}.pkl")
+       for panel in ("russell", "sp500")
+       for label in ("base", "conservative", "stress", "smallcap_crisis")},
+    "reconciliation report": _p("experiments", "_lab_scratch",
+                                f"task433_accredited_{TASK_433_RUN_ID}.json"),
+}
+
 #: (id, nodeid, {label: required path}, what it claims, why it cannot be portable).
 #: Exact nodeids, no wildcards: "everything under audits/" is not a registry, it is an exemption.
 REGISTRY: tuple = (
@@ -118,10 +146,12 @@ REGISTRY: tuple = (
                      "and is pinned in experiments/test_accredit_433.py",
     ),
     dict(
-        id="withdrawn.no-replacement-yet",
-        nodeid="audits/audit_evidence_books.py::test_no_replacement_result_has_been_published_yet",
+        id="withdrawn.legacy-slot-not-reused",
+        nodeid="audits/audit_evidence_books.py::test_the_legacy_result_slot_was_not_reused",
         requires=WITHDRAWN,
-        claims="no task433_accredited_v2.json exists, i.e. TASK-433 is still open on this disk",
+        claims="task433_accredited_v2.json was never written: the accredited replacement lives under "
+               "its own run id (task433_accredited_<run>.json), and the withdrawn 2026-09-12 pair is "
+               "still preserved beside it",
         why_external="reads the real result path",
     ),
     dict(
@@ -146,6 +176,134 @@ REGISTRY: tuple = (
         requires={"audit_steps.pkl": OOS_CACHES["audit_steps.pkl"]},
         claims="TASK-409's finding: P_5050 in the audit pickle already carried the T-bill leg",
         why_external="a statement about specific recorded bytes",
+    ),
+    dict(
+        id="task433.run-published-eight-books-and-a-report",
+        nodeid="audits/audit_task433_run.py::test_the_run_published_eight_books_and_a_report",
+        requires=TASK_433_RUN,
+        claims="the pinned run published all eight books and its reconciliation report",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.every-one-of-the-eight-accredits-with-every-",
+        nodeid="audits/audit_task433_run.py::test_every_one_of_the_eight_accredits_with_every_mandatory_block_compared",
+        requires=TASK_433_RUN,
+        claims="each of the eight answers its own effective request with every mandatory identity block compared - not merely a valid seal",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.aggregate-says-fully-accredited-and-means-it",
+        nodeid="audits/audit_task433_run.py::test_the_aggregate_says_fully_accredited_and_means_it",
+        requires=TASK_433_RUN,
+        claims="fully_accredited=true, and each book counted as accredited really compared every mandatory block",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.all-eight-books-are-on-one-grid",
+        nodeid="audits/audit_task433_run.py::test_all_eight_books_are_on_one_grid",
+        requires=TASK_433_RUN,
+        claims="the eight books share one mark grid, so every delta in the table is a real subtraction",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.scenarios-are-the-frozen-ones",
+        nodeid="audits/audit_task433_run.py::test_the_scenarios_are_the_frozen_ones",
+        requires=TASK_433_RUN,
+        claims="the cost pairs are the frozen 10/5, 20/8, 35/10, 50/15 and were not moved after the fact",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.books-span-research-and-validation-and-never",
+        nodeid="audits/audit_task433_run.py::test_the_books_span_research_and_validation_and_never_live",
+        requires=TASK_433_RUN,
+        claims="no book reaches the live partition: no HOLDOUT BREACH",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.withdrawn-run-is-untouched-and-still-refused",
+        nodeid="audits/audit_task433_run.py::test_the_withdrawn_run_is_untouched_and_still_refused",
+        requires=TASK_433_RUN,
+        claims="the withdrawn 2026-09-12 run is still eight books, none re-sealed under the running code",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.eight-historical-pre-manifest-books-are-stil",
+        nodeid="audits/audit_task433_run.py::test_the_eight_historical_pre_manifest_books_are_still_unmanifested",
+        requires=TASK_433_RUN,
+        claims="the pre-manifest TASK-431/433 books are still there and still carry no manifest",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.twelve-mutations-are-all-refused-on-the-real",
+        nodeid="audits/audit_task433_run.py::test_the_twelve_mutations_are_all_refused_on_the_real_books",
+        requires=TASK_433_RUN,
+        claims="the twelve TASK-433 falsifications are each refused on copies of the REAL books",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.unmutated-copy-still-accredits",
+        nodeid="audits/audit_task433_run.py::test_the_unmutated_copy_still_accredits",
+        requires=TASK_433_RUN,
+        claims="the control: an unmutated copy of a real book still accredits, so the twelve rejections are about the mutations and not about the copying",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.code-fingerprint-still-matches-after-the-last-",
+        nodeid="audits/audit_task433_run.py::test_the_code_fingerprint_still_matches_after_the_last_book",
+        requires=TASK_433_RUN,
+        claims="every module digest the eight books recorded still matches the bytes on disk, recomputed in a fresh process AFTER the last book - this closes the window check_code_unchanged leaves open during the final drive",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.every-book-recorded-the-same-code",
+        nodeid="audits/audit_task433_run.py::test_every_book_recorded_the_same_code",
+        requires=TASK_433_RUN,
+        claims="the eight books record one code identity; a run split across two versions is not one experiment",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.within-each-panel-only-the-costs-differ",
+        nodeid="audits/audit_task433_run.py::test_within_each_panel_only_the_costs_differ",
+        requires=TASK_433_RUN,
+        claims="within a panel the four scenarios share identical data, calendar, period, protocol, units, sectors, universe and config-minus-costs, so result(costs B) - result(costs A) is attributable to the costs",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.cost-blocks-differ-exactly-as-the-frozen-table",
+        nodeid="audits/audit_task433_run.py::test_the_cost_blocks_differ_exactly_as_the_frozen_table_says",
+        requires=TASK_433_RUN,
+        claims="the costs did move, and to the frozen 10/5, 20/8, 35/10, 50/15 - reaching config.v9_effective",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.shared-inputs-are-shared-across-panels-too",
+        nodeid="audits/audit_task433_run.py::test_the_shared_inputs_are_shared_across_panels_too",
+        requires=TASK_433_RUN,
+        claims="etf_close and irx hash the same in all eight books, so a Russell-vs-S&P comparison carries no undeclared input difference",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
+    ),
+    dict(
+        id="task433.ann-net-degrades-essentially-monotonically-as-",
+        nodeid="audits/audit_task433_run.py::test_ann_net_degrades_essentially_monotonically_as_costs_rise",
+        requires=TASK_433_RUN,
+        claims="raising costs does not materially improve annualised return; strict monotonicity of Sharpe or maxDD is NOT required, because a cost change moves the NAV and the later trajectory",
+        why_external="reads the eight accredited books of one real run, which live in the "
+                     "gitignored _lab_scratch/ and are never committed",
     ),
     dict(
         id="paper.20260910-sheet",
@@ -179,11 +337,24 @@ def missing(case: dict) -> dict:
     return {label: path for label, path in case["requires"].items() if not os.path.exists(path)}
 
 
+def _env() -> dict:
+    """The subprocess environment: the pinned run id travels WITH the audit.
+
+    Found in review of #95: this runner checked that the artefacts of `TASK_433_RUN_ID` exist,
+    then launched pytest without saying which run it meant, and `audit_task433_run.resolve_run`
+    fell back to the newest directory under `runs/`. The two agreed by coincidence. One later
+    run and the runner would have verified the presence of one set of books and audited another.
+    """
+    env = dict(os.environ)
+    env["HYDRA_433_RUN_ID"] = TASK_433_RUN_ID
+    return env
+
+
 def _run(nodeids: list, junit: str) -> subprocess.CompletedProcess:
     cmd = [sys.executable, "-m", "pytest", "-q", "--no-header", "-p", "no:cacheprovider",
            "--junitxml", junit, *nodeids]
     return subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True,
-                          encoding="utf-8", errors="replace", timeout=3600)
+                          encoding="utf-8", errors="replace", timeout=3600, env=_env())
 
 
 def _outcomes(junit: str) -> dict:
