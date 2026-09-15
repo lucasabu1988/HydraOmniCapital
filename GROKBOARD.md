@@ -1591,6 +1591,21 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   (verificado: 62/62 digests registrados por los libros v3 = blobs de ese commit); `3429eb5` NO sirve de pin
   porque no lleva el codigo final. Leccion registrada: tras una ronda de revision, la PR no se fusiona hasta
   que el commit de arreglo esta en la rama y CI corrio sobre el. Merge = paso de Lucas.
+- [ ] `TASK-438` **Bloque A/5 — overlay de impacto de mercado: la segunda mitad de `CAPACITY_NOT_CERTIFIED`.**
+  Aprobada por Lucas 2026-09-14. Pregunta: a capital C, cuantos bp efectivos por lado añade el impacto, y a que
+  C cruza cada peldaño de 433 (20/8, 35/10, 50/15). Entregable: curva bp-efectivos-vs-capital por universo,
+  leida contra la rejilla de 433; etiqueta **`IMPACT_MODELLED_NOT_MEASURED`** (ningun fill propio medido contra
+  el tape). Overlay sobre los sidecars F1-probados de 434 (`3ec811915fcb` / `f916ea307e7b`), sin re-conducir ni
+  tocar el motor, amparado en la medicion de 433 de que el turnover no reacciona al coste. Modelo declarado
+  antes de ver nada: raiz cuadrada `k * sigma_daily(t-1) * sqrt(participacion) * 1e4`, sigma close-to-close 63
+  barras en `t-1` (completa o desconocido), participacion la de 434, **k = 1.0** titular con banda {0.5, 1.5}
+  impresa; agregacion ponderada por dolares -> bp por lado; fail-closed 5 % notional. Sin spread ni high/low
+  (no hay datos): no se inventan. Expectativas predeclaradas: < 1 bp a 100k-1M; Russell alcanza +10 bp entre
+  5 M y 20 M con k = 1 — si es **< 5 M**, el techo de 19.7 M de 434 no era el numero operable y se dice.
+  **Prereg congelada ANTES de producir un solo numero: `.comms/prereg-task-438-impact-2026-09-14.md`, sha256
+  `fd27df4d38545efb83454bbcdc1f109a8f4a3465cf02c394b48e6060eb279863`**, rama `feat/task-438-impact-overlay` desde `main = acddc37`.
+  `Files:` `experiments/impact.py` + `test_impact.py` + `impact_report.py`, `audits/audit_task438_run.py`.
+
 - [ ] `TASK-435` **Bloque B/1 — atribucion por manga y por factor.**
   La pregunta no es "Sharpe 0,74" sino cuanto alpha queda tras explicar beta, size y momentum.
   Regresion `R_t − R_f,t = α + β_M·MKT + β_S·SMB + β_H·HML + β_R·RMW + β_C·CMA + β_Mom·MOM + ε` con los
