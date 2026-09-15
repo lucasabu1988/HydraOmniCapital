@@ -1584,7 +1584,13 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   `capacity.py`/`capacity_drive.py`, que los libros del run registran: en vez de dejar un run abierto cuya huella
   discrepa del arbol (o pinar un commit de rama que un squash huerfana), **ambos paneles re-conducidos con el
   codigo final** — deterministas: v1, v2 y v3 dan sidecars byte-identicos (`3ec811915fcb`, `f916ea307e7b`); la v2
-  queda en `superseded_v2/` con `WHY.json`. Cadena externa y suite sobre el HEAD nuevo: **33 RAN-PASS / 0 FAIL / 0 DID NOT RUN** / **120 passed / 0 skipped**, 419 s. Merge = paso de Lucas.
+  queda en `superseded_v2/` con `WHY.json`. Cadena externa y suite sobre el HEAD nuevo: **33 RAN-PASS / 0 FAIL / 0 DID NOT RUN** / **120 passed / 0 skipped**, 419 s.
+  **[2026-09-14 CLAUDE] CERRADA EN MAIN.** #97 se fusiono en `ae48c10` (main `3429eb5`) una ronda ANTES de
+  que el commit de revision `c336ba7` estuviera en la rama; los seis fixes entraron por **#98** (`ab5d2c6`,
+  cherry-pick con arbol identico) -> merge **`aab3f62`**. `TASK_434_CODE_REF = aab3f62` en `external_audit`
+  (verificado: 62/62 digests registrados por los libros v3 = blobs de ese commit); `3429eb5` NO sirve de pin
+  porque no lleva el codigo final. Leccion registrada: tras una ronda de revision, la PR no se fusiona hasta
+  que el commit de arreglo esta en la rama y CI corrio sobre el. Merge = paso de Lucas.
 - [ ] `TASK-435` **Bloque B/1 — atribucion por manga y por factor.**
   La pregunta no es "Sharpe 0,74" sino cuanto alpha queda tras explicar beta, size y momentum.
   Regresion `R_t − R_f,t = α + β_M·MKT + β_S·SMB + β_H·HML + β_R·RMW + β_C·CMA + β_Mom·MOM + ε` con los
