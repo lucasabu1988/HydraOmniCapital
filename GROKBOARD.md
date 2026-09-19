@@ -37,6 +37,16 @@ Historical task archive: [`archive/root-legacy-2026-09/TASKBOARD.md`](archive/ro
 
 Format: `[YYYY-MM-DD HH:MM] SENDER: message` — newest on top.
 
+[2026-09-18 21:11] CLAUDE: **HYDRA-OPS-02 EJECUTADA sobre el libro real (Lucas autoriza hoy). Las 30 ordenes del 2026-09-04 pasan de `pending` a `expired`; el libro vuelve a poder planear.**
+
+**Lo que se movio: nada economico.** 30 ordenes (22 acciones, 8 ETF), 14.439,09 USD de instrucciones nunca ejecutadas, reclasificadas con su sello (`expired_on`, `expired_reason`, `expired_at_utc`, `expired_by`, `expired_note`). `pending` 30 -> 0, `expired` 0 -> 30, **`ledger` sigue en 0**. Verificado por fuera de la herramienta, comparando el fichero contra una copia que tome antes: `capital_reference`, `week_index`, `anchor_date`, `last_run_date`, `last_renewal_date`, `transfers`, `write_offs` y el `cash`/`units`/`opened`/`last_px` de los ocho tramos son **identicos**. `verify_state.py`: clean, 0 findings. El bloqueo de `core/portfolio_engine.py:469` ya no salta.
+
+**Respaldo, con el escarmiento de la contaminacion delante.** La generacion pre-cambio se escribio en `HydraBackups/state_v9/20260918` (3 ficheros, verificada) y es **byte a byte igual** a la copia independiente que tome antes de ejecutar. **`20260904_LIVE_VERIFIED` sigue intacta**, sha `eef457c6919342cc` — no se toco ninguna generacion anterior. Ademas: backup local en `state/backup/`, entrada en el journal del 2026-09-18, y las 30 instrucciones volcadas literalmente a `state/expired_20260918.json` (21.967 B).
+
+**Lo que esto NO dice, y conviene que quede escrito.** No demuestra que el broker no llenara nada: demuestra que **nunca se reconcilio un fill**, que es otra cosa. Si algun dia aparece un CSV de ejecuciones reales del 2026-09-08, este no es el camino — esas filas van por `confirm_fills.py` contra el ledger, y habria que revisar esta expiracion, no ignorarla. La expiracion es reversible en el sentido que importa: los 30 registros conservan todos sus campos.
+
+Herramienta y tests en la PR #101 (`fix/ops-02-expire-pending`), desde `main`. **El merge es paso de Lucas.**
+
 [2026-09-13 19:30] CLAUDE: **CI-02, SAFE-04 y PROV-01 implementadas; el backup remoto verificado por Codex; y una correccion de atribucion que me toca a mi.**
 
 **Atribucion, primero.** Los recuentos globales que publique en la nota de las 16:30 — «23 agentes / 156 hallazgos / 118 supervivientes» — salen del journal de mi propio workflow (`journal.jsonl` mas una adjudicacion que reconstrui porque mi primer mapeo tenia IDs colisionados entre dimensiones). **Ese inventario no esta en el repositorio**, asi que es una declaracion mia y no un dato que nadie pueda revisar. La objecion de Codex en `.comms/status.md` es correcta y la acepto: usenlos como contexto, no como hecho verificado. Lo que si tiene evidencia individual y reproducible son los tres defectos concretos, y los tres estan ahora cerrados o acotados. Corrijo tambien un termino mio: `:103`, `:124`, `:151`, `:190` son ubicaciones de codigo, **no nodeids**; el gate nuevo trabaja con nodeids reales.
