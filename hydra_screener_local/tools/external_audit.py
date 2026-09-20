@@ -123,6 +123,14 @@ TASK_434_RUN = {
 }
 TASK_434_REPORT = {**TASK_434_RUN,
                    "capacity report": _p("experiments", "_lab_scratch", f"task434_capacity_{TASK_434_RUN_ID}.json")}
+#: TASK-438 drives nothing: its report is an overlay keyed by the 434 run it sits on, plus the 433
+#: accredited close panels it reads by sha. Same env (HYDRA_434_RUN_ID), same pin.
+TASK_438_REPORT = {**TASK_434_RUN,
+                   "impact report": _p("experiments", "_lab_scratch", f"task438_impact_{TASK_434_RUN_ID}.json"),
+                   "433 russell manifest": _p("experiments", "_lab_scratch", "accredited", "runs",
+                                              "20260914-cae2c54599aa", "russell_base.pkl.manifest.json"),
+                   "433 sp500 manifest": _p("experiments", "_lab_scratch", "accredited", "runs",
+                                            "20260914-cae2c54599aa", "sp500_base.pkl.manifest.json")}
 _T433 = _p("experiments", "_lab_scratch", "accredited", "runs", TASK_433_RUN_ID)
 TASK_433_RUN = {
     **{f"{panel}_{label}.pkl": os.path.join(_T433, f"{panel}_{label}.pkl")
@@ -370,6 +378,41 @@ REGISTRY: tuple = (
         requires=TASK_434_RUN,
         claims="every module digest the two 434 books recorded matches the pinned commit's blobs (TASK_434_CODE_REF) once closed, or the working tree while open",
         why_external="reads the real manifests",
+    ),
+    dict(
+        id="task438.g1-overlay-on-the-f1-proved-sidecars",
+        nodeid="audits/audit_task438_run.py::test_g1_the_overlay_sits_on_the_f1_proved_sidecars",
+        requires=TASK_438_REPORT,
+        claims="the impact overlay was computed on the 434 sidecars whose shas capacity_drive.json recorded, whose bytes are on disk, and whose F1 passed",
+        why_external="reads the impact report and the 434 run artefacts in the gitignored _lab_scratch/",
+    ),
+    dict(
+        id="task438.close-panels-are-the-433-data-blocks",
+        nodeid="audits/audit_task438_run.py::test_the_close_panels_are_the_433_recorded_data_blocks",
+        requires=TASK_438_REPORT,
+        claims="the close panels sigma was built from digest to the price_close blocks the 433 accredited manifests recorded",
+        why_external="reads the lab caches and the 433 manifests",
+    ),
+    dict(
+        id="task438.report-is-what-the-rules-produce",
+        nodeid="audits/audit_task438_run.py::test_the_impact_report_is_what_the_rules_produce",
+        requires=TASK_438_REPORT,
+        claims="recomputing one panel end to end from the sealed sidecar, ADV and close panels reproduces the published fixed rows and k=1 crossings",
+        why_external="recomputes from the real artefacts",
+    ),
+    dict(
+        id="task438.eff-bp-monotone-grid-ends-at-100M",
+        nodeid="audits/audit_task438_run.py::test_eff_bp_is_monotone_in_capital_on_every_curve_and_the_grid_ends_at_100M",
+        requires=TASK_438_REPORT,
+        claims="every published curve is non-decreasing in capital and runs on the pre-registered 10k..100M grid",
+        why_external="reads the published report",
+    ),
+    dict(
+        id="task438.label-band-window-pre-registered",
+        nodeid="audits/audit_task438_run.py::test_the_label_the_band_and_the_window_are_the_pre_registered_ones",
+        requires=TASK_438_REPORT,
+        claims="IMPACT_MODELLED_NOT_MEASURED on the payload and every crossing; k band {0.5, 1.0, 1.5}, sigma window 63 (21 sensitivity), 433's rungs as the yardstick",
+        why_external="reads the published report",
     ),
     dict(
         id="paper.20260910-sheet",

@@ -1601,7 +1601,7 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   (verificado: 62/62 digests registrados por los libros v3 = blobs de ese commit); `3429eb5` NO sirve de pin
   porque no lleva el codigo final. Leccion registrada: tras una ronda de revision, la PR no se fusiona hasta
   que el commit de arreglo esta en la rama y CI corrio sobre el. Merge = paso de Lucas.
-- [ ] `TASK-438` **Bloque A/5 — overlay de impacto de mercado: la segunda mitad de `CAPACITY_NOT_CERTIFIED`.**
+- [x] `TASK-438` **Bloque A/5 — overlay de impacto de mercado: la segunda mitad de `CAPACITY_NOT_CERTIFIED`.**
   Aprobada por Lucas 2026-09-14. Pregunta: a capital C, cuantos bp efectivos por lado añade el impacto, y a que
   C cruza cada peldaño de 433 (20/8, 35/10, 50/15). Entregable: curva bp-efectivos-vs-capital por universo,
   leida contra la rejilla de 433; etiqueta **`IMPACT_MODELLED_NOT_MEASURED`** (ningun fill propio medido contra
@@ -1615,6 +1615,35 @@ Y el vehiculo de la pila estructural es `chore/task-391-local-gates`, no `struct
   **Prereg congelada ANTES de producir un solo numero: `.comms/prereg-task-438-impact-2026-09-14.md`, sha256
   `fd27df4d38545efb83454bbcdc1f109a8f4a3465cf02c394b48e6060eb279863`**, rama `feat/task-438-impact-overlay` desde `main = acddc37`.
   `Files:` `experiments/impact.py` + `test_impact.py` + `impact_report.py`, `audits/audit_task438_run.py`.
+  **[2026-09-14 CLAUDE] RESULTADO DE TASK-438 — `IMPACT_MODELLED_NOT_MEASURED`, overlay sobre el run 434
+  `cc34d9465892` (sidecars F1-probados, `TASK_434_CODE_REF = aab3f62`), nada conducido.** Con k = 1: impacto por
+  lado en acciones **Russell 1.32 bp @ 100 k, 2.95 @ 500 k, 4.18 @ 1 M, 18.55 @ 19.7 M**; S&P 0.41 / 0.91 / 1.29
+  / 5.71. Cruces contra los peldaños de 433 (impacto sobre la base 10 bp): **Russell alcanza `conservative` (+10)
+  en ~6.46 M**, `stress` (+25) en ~38.5 M, `smallcap_crisis` (+40) en ~94 M; S&P `conservative` en ~75 M, el resto
+  >= 100 M (tope de rejilla). Banda k {0.5, 1.5}: Russell conservative 24.7 M / 2.65 M — x9 en capital (1/k^2),
+  esa es la anchura honesta del modelo. Sigma 21 barras mueve los totales -1..-3 %. Cobertura: Russell 27 325 /
+  27 373 fills (0.21 % notional desconocido), S&P 26 803 / 26 807 (0.02 %). Los `close.pkl` usados para sigma
+  son los bloques `data:price_close` que registraron los libros de 433 (sha igual, ambos paneles). Cruce
+  aritmetico vs 433 (acciones, k = 1): +10 bp -> 0.54 pp/an vs 0.601 medido; +25 -> 1.36 vs 1.471; +40 -> 2.17 vs
+  2.352 (Russell) — mismas unidades, mismo residuo de composicion; lo medido manda.
+  **Expectativas predeclaradas: una FALLIDA, dos cumplidas.** Fallida: "< 1 bp a 100k-1M en ambos universos" —
+  Russell da 1.3-4.2 bp; la base 10 bp de 433 no sobreestima el impacto a 1 M por un orden de magnitud, lo cubre
+  con ~2.4x. Cumplida: "Russell alcanza +10 bp entre 5 M y 20 M" -> **6.46 M, banda 2.65 M (k = 1.5) .. 24.7 M
+  (k = 0.5)**; por encima de 5 M, asi que el techo de 19.7 M de 434 sigue siendo citable — pero la lectura conjunta
+  cambia el titular: **en Russell la participacion NO es el primer cuello de botella; el impacto modelado lo es**.
+  6.46 M NO es capacidad: es el **AUM de cruce conservative bajo el modelo de impacto, k = 1**; a ~20 M la
+  estrategia no es inejecutable por participacion, es que el coste endogeno esperado ya la ha desplazado dentro
+  del regimen adverso de 433. El tamaño operable bajo ambas reglas es el menor, condicionado al modelo y siempre
+  con la banda de k al lado. Cumplida: 1/k^2. Lo que NO dice: coste medido (ningun fill propio contra el tape),
+  spread, intradia; ni que la estrategia operaria igual a 20 M que a 1 — eso pide un motor consciente del impacto,
+  cambio adyacente al scoring, fuera de alcance y con regla 6. Cadena externa: **38 RAN-PASS / 0 FAIL / 0 DID NOT
+  RUN** (5 de 438). Suite: **121 passed / 0 skipped**, 406 s. PR desde `feat/task-438-impact-overlay`.
+  **Conclusion del Bloque A (Lucas 2026-09-14):** HYDRA conserva un edge moderado y robusto a los costes ensayados,
+  pero su escalabilidad en Russell esta limitada antes por impacto modelado que por participacion. Bajo k = 1, el
+  presupuesto de costes conservative de 433 se alcanza en ~6.5 M de AUM (banda 2.65-24.7 M), frente a un techo de
+  participacion cercano a 20 M. Cifra dependiente del modelo, con su banda de k; no es capacidad certificada. La
+  union 433+438 es lo que da peso al resultado: el coste implicito de impacto reproduce los delta-ann_net medidos
+  de 433 con residuo de composicion del mismo orden y signo — 433 mide la sensibilidad, 438 aporta el mecanismo.
 
 - [ ] `TASK-435` **Bloque B/1 — atribucion por manga y por factor.**
   La pregunta no es "Sharpe 0,74" sino cuanto alpha queda tras explicar beta, size y momentum.
